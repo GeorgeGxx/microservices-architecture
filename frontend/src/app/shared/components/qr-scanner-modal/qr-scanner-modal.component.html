@@ -1,0 +1,133 @@
+<div class="scanner-backdrop" *ngIf="isOpen()" (click)="closeModal()">
+  <div class="scanner-modal" (click)="$event.stopPropagation()">
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="header-info">
+        <h3>{{ 'SCANNER.TITLE' | translate }}</h3>
+        <p class="subtitle">{{ 'SCANNER.SUBTITLE' | translate }}</p>
+      </div>
+      <button class="close-btn" (click)="closeModal()" aria-label="Close">✕</button>
+    </div>
+
+    <!-- Mode Tabs -->
+    <div class="modal-tabs">
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'CAMERA'" 
+        (click)="setTab('CAMERA')">
+        📷 {{ 'SCANNER.TAB_CAMERA' | translate }}
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'FILE'" 
+        (click)="setTab('FILE')">
+        📁 {{ 'SCANNER.TAB_FILE' | translate }}
+      </button>
+      <button 
+        class="tab-btn" 
+        [class.active]="activeTab() === 'HARDWARE'" 
+        (click)="setTab('HARDWARE')">
+        🔌 {{ 'SCANNER.TAB_HARDWARE' | translate }}
+      </button>
+    </div>
+
+    <!-- Tab 1: Live Camera Viewfinder -->
+    <div class="tab-content camera-tab" *ngIf="activeTab() === 'CAMERA'">
+      <div class="viewfinder-container">
+        <video #videoPreview playsinline muted class="camera-video"></video>
+        
+        <!-- Animated Laser Scan Target -->
+        <div class="scan-overlay">
+          <div class="scan-frame">
+            <div class="laser-line"></div>
+          </div>
+        </div>
+
+        <!-- Camera Controls -->
+        <div class="camera-controls">
+          <button class="control-btn" (click)="toggleCameraLens()" [title]="'SCANNER.SWITCH_CAM' | translate">
+            🔄 {{ 'SCANNER.SWITCH_CAM' | translate }}
+          </button>
+          <button 
+            class="control-btn" 
+            *ngIf="scannerService.hasTorch()" 
+            (click)="toggleFlash()" 
+            [class.active]="scannerService.torchOn()">
+            🔦 {{ (scannerService.torchOn() ? 'SCANNER.TORCH_OFF' : 'SCANNER.TORCH_ON') | translate }}
+          </button>
+        </div>
+      </div>
+      <p class="hint-text">{{ 'SCANNER.CAMERA_HINT' | translate }}</p>
+    </div>
+
+    <!-- Tab 2: File Upload Dropzone -->
+    <div class="tab-content file-tab" *ngIf="activeTab() === 'FILE'">
+      <label class="dropzone">
+        <input type="file" accept="image/*" (change)="onFileSelected($event)" class="file-input" />
+        <div class="dropzone-content">
+          <span class="upload-icon">📤</span>
+          <p class="upload-text">{{ 'SCANNER.FILE_DROPZONE' | translate }}</p>
+          <span class="upload-sub">PNG, JPG, JPEG, WebP</span>
+        </div>
+      </label>
+    </div>
+
+    <!-- Tab 3: Hardware USB / Bluetooth HID -->
+    <div class="tab-content hardware-tab" *ngIf="activeTab() === 'HARDWARE'">
+      <div class="hardware-card">
+        <div class="pulse-indicator">
+          <span class="pulse-dot"></span>
+          <span class="pulse-ring"></span>
+        </div>
+        <h4>{{ 'SCANNER.HARDWARE_READY' | translate }}</h4>
+        <p>{{ 'SCANNER.HARDWARE_DESC' | translate }}</p>
+        <div class="supported-badges">
+          <span class="badge">🔌 USB HID Laser</span>
+          <span class="badge">📶 Bluetooth Ring Scanner</span>
+          <span class="badge">📱 Mobile 5G POS Wedge</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Manual Fallback Input -->
+    <div class="manual-input-bar">
+      <input 
+        type="text" 
+        [placeholder]="'SCANNER.MANUAL_PLACEHOLDER' | translate" 
+        [ngModel]="manualInput()" 
+        (ngModelChange)="manualInput.set($event)"
+        (keyup.enter)="onManualSubmit()" />
+      <button class="submit-code-btn" (click)="onManualSubmit()">↵</button>
+    </div>
+
+    <!-- Scanned Result Card -->
+    <div class="scanned-result-card" *ngIf="lastScan()">
+      <div class="result-header">
+        <span class="result-badge">
+          {{ lastScan()?.source === 'HARDWARE_USB_BT' ? '🔌 Laser HID' : (lastScan()?.source === 'CAMERA' ? '📷 Camera' : '📁 File') }}
+        </span>
+        <span class="result-code">{{ lastScan()?.code }}</span>
+      </div>
+
+      <!-- If Product Match -->
+      <div class="product-match" *ngIf="matchedProduct() as p">
+        <div class="match-info">
+          <h4>{{ p.name }}</h4>
+          <span class="match-price">${{ p.price | number:'1.2-2' }} USD</span>
+          <span class="match-sku">SKU: {{ p.sku }}</span>
+        </div>
+        <button class="add-cart-btn" (click)="addScannedProductToCart()">
+          🛒 {{ 'PRODUCTS.ADD_TO_CART' | translate }}
+        </button>
+      </div>
+
+      <!-- If Order Code Match -->
+      <div class="order-match" *ngIf="isOrderCode()">
+        <p>🧾 {{ 'RECEIPT.TITLE' | translate }}: <strong>{{ lastScan()?.code }}</strong></p>
+        <button class="view-orders-btn" (click)="goToOrders()">
+          📋 {{ 'NAV.ORDERS' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

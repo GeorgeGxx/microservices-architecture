@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+
+:root,
+[data-theme="dark"] {
+  --primary-color: #6366f1;
+  --primary-hover: #4f46e5;
+  --primary-glow: rgba(99, 102, 241, 0.25);
+  --accent-color: #8b5cf6;
+  --success-color: #10b981;
+  --warning-color: #f59e0b;
+  --danger-color: #ef4444;
+  --bg-color: #0b0f19;
+  --bg-secondary: #0f172a;
+  --surface-color: #1e293b;
+  --surface-card: rgba(30, 41, 59, 0.7);
+  --surface-card-hover: rgba(51, 65, 85, 0.85);
+  --surface-glass: rgba(15, 23, 42, 0.75);
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(99, 102, 241, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.2);
+  --navbar-bg: rgba(11, 15, 25, 0.85);
+}
+
+[data-theme="light"] {
+  --primary-color: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-glow: rgba(79, 70, 229, 0.2);
+  --accent-color: #7c3aed;
+  --success-color: #059669;
+  --warning-color: #d97706;
+  --danger-color: #dc2626;
+  --bg-color: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --surface-color: #ffffff;
+  --surface-card: rgba(255, 255, 255, 0.9);
+  --surface-card-hover: #ffffff;
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --border-color: rgba(15, 23, 42, 0.08);
+  --border-hover: rgba(79, 70, 229, 0.35);
+  --shadow-sm: 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 10px 25px rgba(15, 23, 42, 0.08);
+  --shadow-glow: 0 0 20px rgba(79, 70, 229, 0.15);
+  --navbar-bg: rgba(248, 250, 252, 0.9);
+}
+
+[data-theme="cyberpunk"] {
+  --primary-color: #06b6d4;
+  --primary-hover: #0891b2;
+  --primary-glow: rgba(6, 182, 212, 0.4);
+  --accent-color: #f43f5e;
+  --success-color: #10e396;
+  --warning-color: #fbbf24;
+  --danger-color: #ff0055;
+  --bg-color: #030712;
+  --bg-secondary: #080e1e;
+  --surface-color: #0f172a;
+  --surface-card: rgba(15, 23, 42, 0.8);
+  --surface-card-hover: rgba(20, 30, 55, 0.95);
+  --surface-glass: rgba(3, 7, 18, 0.85);
+  --text-primary: #f0fdfa;
+  --text-secondary: #99f6e4;
+  --text-muted: #5eead4;
+  --border-color: rgba(6, 182, 212, 0.2);
+  --border-hover: rgba(6, 182, 212, 0.7);
+  --shadow-sm: 0 2px 10px rgba(6, 182, 212, 0.15);
+  --shadow-md: 0 8px 30px rgba(6, 182, 212, 0.25);
+  --shadow-glow: 0 0 35px rgba(6, 182, 212, 0.35), 0 0 10px rgba(244, 63, 94, 0.3);
+  --navbar-bg: rgba(3, 7, 18, 0.9);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+code, pre, .mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-color);
+  border-radius: 4px;
+  border: 2px solid var(--bg-color);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-color);
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Angular View Transitions */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.2s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Keyframes for animations */
+@keyframes flyToCartAnim {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translate(var(--dx, 200px), calc(var(--dy, -200px) - 60px)) scale(1.1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(var(--dx, 200px), var(--dy, -200px)) scale(0.2);
+    opacity: 0;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 25px var(--primary-glow), 0 0 35px var(--primary-color);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, var(--surface-color) 25%, var(--border-hover) 50%, var(--surface-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}

@@ -1,0 +1,57 @@
+global:
+  environment: dev
+  cloudProvider: gcp
+  storageClass: gke-pd-balanced
+
+# GCP Artifact Registry Placeholders (Replace <REGION>-docker.pkg.dev/<PROJECT_ID>/<REPO>)
+api-gateway:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/api-gateway"
+    tag: "1.0.0"
+  replicaCount: 1
+
+inventory-service:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/inventory-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+notification-service:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/notification-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+orders-service:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/orders-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+products-service:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/products-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+frontend:
+  image:
+    repository: "us-central1-docker.pkg.dev/<PROJECT_ID>/microservices/frontend"
+    tag: "1.0.0"
+  replicaCount: 1
+
+# GKE Ingress Configuration
+ingress:
+  enabled: true
+  className: "gce"
+  hosts:
+    - host: "api.gcp-sandbox.local"
+      paths:
+        - path: /api/*
+          pathType: ImplementationSpecific
+          service: api-gateway
+          port: 8080
+        - path: /*
+          pathType: ImplementationSpecific
+          service: frontend
+          port: 80

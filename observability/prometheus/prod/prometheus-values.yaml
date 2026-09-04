@@ -1,0 +1,33 @@
+# Same chart as dev, sized up and pointed at durable storage + remote write.
+prometheus:
+  prometheusSpec:
+    retention: 30d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 500m, memory: 1Gi }
+      limits: { cpu: "1", memory: 2Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    # Ship long-term metrics to a managed backend instead of relying solely
+    # on in-cluster retention:
+    # remoteWrite:
+    #   - url: "https://aps-workspaces.us-east-1.amazonaws.com/workspaces/<id>/api/v1/remote_write"   # AWS Managed Prometheus
+    #   - url: "https://<azure-monitor-workspace>.monitor.azure.com/api/v1/write"                       # Azure Monitor managed Prometheus
+
+grafana:
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests: { cpu: 200m, memory: 512Mi }
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }

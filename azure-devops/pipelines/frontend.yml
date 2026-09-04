@@ -1,0 +1,37 @@
+name: MSA-Frontend-SPA-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - frontend/**
+      - helm/**
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - frontend/**
+
+variables:
+  - name: AZURE_SERVICE_CONNECTION
+    value: 'azure-service-connection'
+  - name: AZURE_RG
+    value: 'msa-azure-prod-rg'
+  - name: AKS_CLUSTER_NAME
+    value: 'msa-azure-prod-aks'
+  - name: ACR_NAME
+    value: 'msaazureprodacr'
+
+stages:
+  - template: ../templates/ci-cd-master-template.yml
+    parameters:
+      serviceName: 'frontend'
+      serviceDir: 'frontend'
+      serviceType: 'angular'
+      servicePort: 80

@@ -1,0 +1,27 @@
+name: API Gateway CI/CD
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    paths:
+      - 'api-gateway/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'api-gateway/**'
+      - 'pom.xml'
+  workflow_dispatch:
+
+concurrency:
+  group: api-gateway-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: api-gateway
+      service-type: spring-boot
+      service-dir: api-gateway
+    secrets: inherit

@@ -1,0 +1,66 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/prometheus-rules.yml
+
+scrape_configs:
+  # Scrape Spring Boot microservices automatically via Kubernetes Pod annotations (No Eureka required)
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      # Scrape only pods that have prometheus.io/scrape = true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      # Extract metrics path from pod annotation prometheus.io/path
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      # Replace address port with pod annotation prometheus.io/port
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      # Map pod app label to service label (for Grafana dashboards and alert rules)
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: replace
+        target_label: service
+      # Map pod name to pod label
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: pod
+      # Map namespace
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: namespace
+      # Set job label to spring-services
+      - target_label: job
+        replacement: spring-services
+
+  - job_name: 'redis'
+    metrics_path: /metrics
+    static_configs:
+      - targets: [redis-exporter:9121]
+    relabel_configs:
+      - target_label: service
+        replacement: redis-exporter
+
+  - job_name: 'vault'
+    metrics_path: /v1/sys/metrics
+    params:
+      format: ['prometheus']
+    bearer_token: 'root'
+    static_configs:
+      - targets: ['vault.vault.svc.cluster.local:8200']
+    relabel_configs:
+      - target_label: service
+        replacement: vault
+      - target_label: job
+        replacement: vault
+      - target_label: app
+        replacement: vault

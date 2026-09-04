@@ -1,0 +1,212 @@
+<div class="orders-header">
+  <div>
+    <h1 class="page-title">{{ 'ORDERS.TITLE' | translate }}</h1>
+    <p class="page-subtitle">{{ 'ORDERS.SUBTITLE' | translate }}</p>
+  </div>
+  <div class="live-sync-indicator" title="Real-time automatic synchronization active">
+    <span class="pulse-dot"></span>
+    <span class="live-text">{{ 'PRODUCTS.LIVE_SYNC' | translate }}</span>
+  </div>
+</div>
+
+<!-- Dynamic Lifecycle Filter Tabs -->
+<div class="filter-tabs-container">
+  <div class="tabs-wrapper">
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'ALL'" 
+            (click)="setTab('ALL')">
+      <span>{{ 'ORDERS.TAB_ALL' | translate }}</span>
+      <span class="badge badge-all">{{ allCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'PROCESSING'" 
+            (click)="setTab('PROCESSING')">
+      <span>{{ 'ORDERS.TAB_PROCESSING' | translate }}</span>
+      <span class="badge badge-processing">{{ processingCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'SHIPPED'" 
+            (click)="setTab('SHIPPED')">
+      <span>{{ 'ORDERS.TAB_SHIPPED' | translate }}</span>
+      <span class="badge badge-shipped">{{ shippedCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'DELIVERED'" 
+            (click)="setTab('DELIVERED')">
+      <span>{{ 'ORDERS.TAB_DELIVERED' | translate }}</span>
+      <span class="badge badge-delivered">{{ deliveredCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'CANCELLED'" 
+            (click)="setTab('CANCELLED')">
+      <span>{{ 'ORDERS.TAB_CANCELLED' | translate }}</span>
+      <span class="badge badge-cancelled">{{ cancelledCount() }}</span>
+    </button>
+  </div>
+</div>
+
+@if (isLoading()) {
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading orders from Orders Service...</p>
+  </div>
+} @else if (errorMessage()) {
+  <div class="error-banner">
+    <span>{{ errorMessage() }}</span>
+    <button class="btn-retry" (click)="loadOrders()">Retry</button>
+  </div>
+} @else if (orders().length === 0) {
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    </div>
+    <h3>{{ 'ORDERS.EMPTY_STATE' | translate }}</h3>
+    <p>{{ 'ORDERS.EMPTY_SUBTITLE' | translate }}</p>
+    <a routerLink="/" class="btn-primary">{{ 'NAV.PRODUCTS' | translate }}</a>
+  </div>
+} @else if (filteredOrders().length === 0) {
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    </div>
+    <h3>{{ 'ORDERS.EMPTY_STATE' | translate }}</h3>
+    <p>{{ 'ORDERS.EMPTY_SUBTITLE' | translate }}</p>
+  </div>
+} @else {
+  <div class="orders-list">
+    @for (order of paginatedOrders(); track order.orderNumber || order.id) {
+      <div class="order-card" [class.order-cancelled]="order.orderStatus === 'CANCELLED'">
+        <div class="order-card-header">
+          <div class="order-id-group">
+            <span class="order-label">{{ 'ORDERS.ORDER_NUMBER' | translate }}</span>
+            <span class="order-number mono">#{{ order.orderNumber }}</span>
+            @if (order.customerName) {
+              <span class="order-customer-subtext">to {{ order.customerName }} ({{ order.city || 'Standard' }})</span>
+            }
+          </div>
+          <div class="order-status-badge" [ngClass]="getStatusClass(order.orderStatus)">
+            <span class="status-dot"></span>
+            <span>{{ getStatusLabel(order.orderStatus) }}</span>
+          </div>
+        </div>
+
+        <!-- 5-Stage Animated Logistics Tracking Stepper -->
+        <app-order-stepper 
+          [status]="order.orderStatus"
+          [trackingNumber]="order.trackingNumber"
+          [carrier]="order.carrier"
+          [deliveryMethod]="order.deliveryMethod"
+          [shippingAddress]="order.shippingAddress">
+        </app-order-stepper>
+
+        <div class="order-items-table">
+          @for (item of order.orderItems; track item.sku) {
+            <div class="order-item-row">
+              <div class="item-main">
+                <img [src]="getProductImageUrl({ sku: item.sku })" class="order-item-mini-thumb" alt="Product thumbnail" />
+                <span class="sku-tag mono">{{ item.sku }}</span>
+              </div>
+              <div class="item-qty">Qty: {{ item.quantity }}</div>
+              <div class="item-price mono">${{ item.price | number:'1.2-2' }}</div>
+              <div class="item-subtotal mono">${{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+            </div>
+          }
+        </div>
+
+        <div class="order-card-footer">
+          <div class="footer-left">
+            <!-- 1-Click Re-Order Button -->
+            <button class="btn-reorder" (click)="reorder(order)" title="Copy all items to shopping cart">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+              <span>{{ 'ORDERS.REORDER_BTN' | translate }}</span>
+            </button>
+
+            <!-- Digital Invoice Button -->
+            <button class="btn-details" (click)="openReceipt(order)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span>{{ 'ORDERS.RECEIPT_BTN' | translate }}</span>
+            </button>
+
+            <!-- Admin Logistics Actions -->
+            @if (keycloakService.isAdmin() && order.id && order.orderStatus !== 'CANCELLED') {
+              @if (order.orderStatus === 'PLACED') {
+                <button class="btn-admin-action ship" (click)="shipOrder(order)" title="Mark as SHIPPED (In Transit)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  <span>Dispatch (Ship)</span>
+                </button>
+              } @else if (order.orderStatus === 'SHIPPED') {
+                <button class="btn-admin-action deliver" (click)="deliverOrder(order)" title="Mark as DELIVERED">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span>Mark Delivered</span>
+                </button>
+              }
+            }
+
+            @if (order.id && order.orderStatus === 'PLACED') {
+              <button class="btn-cancel" 
+                      [disabled]="cancellingOrderId() === order.id"
+                      (click)="cancelOrder(order)">
+                @if (cancellingOrderId() === order.id) {
+                  <div class="mini-spinner"></div>
+                  <span>Cancelling...</span>
+                } @else {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span>{{ 'ORDERS.CANCEL_BTN' | translate }}</span>
+                }
+              </button>
+            }
+          </div>
+          <div class="total-group">
+            <span class="total-label">{{ 'ORDERS.TOTAL' | translate }}:</span>
+            <span class="order-total mono" [class.total-cancelled]="order.orderStatus === 'CANCELLED'">
+              ${{ calculateOrderTotal(order) | number:'1.2-2' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Digital Invoice Modal (Deferred) -->
+  @defer (when selectedOrderForReceipt()) {
+    <app-receipt-modal
+      [isOpen]="!!selectedOrderForReceipt()"
+      [order]="selectedOrderForReceipt()"
+      (closeEvent)="closeReceipt()"
+    ></app-receipt-modal>
+  }
+
+  <!-- Pagination Toolbar -->
+  <div class="pagination-bar">
+    <div class="pagination-info">
+      <span>{{ paginationInfo() }}</span>
+      <div class="page-size-selector">
+        <span class="page-size-label">Per page:</span>
+        <button class="size-btn" [class.active]="pageSize() === 5" (click)="setPageSize(5)">5</button>
+        <button class="size-btn" [class.active]="pageSize() === 10" (click)="setPageSize(10)">10</button>
+      </div>
+    </div>
+
+    @if (totalPages() > 1) {
+      <div class="pagination-controls">
+        <button class="btn-page btn-nav" [disabled]="currentPage() === 1" (click)="prevPage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>{{ 'PRODUCTS.PREV' | translate }}</span>
+        </button>
+
+        <div class="page-numbers">
+          @for (page of getPageArray(); track page) {
+            <button class="btn-page" [class.active]="currentPage() === page" (click)="goToPage(page)">
+              {{ page }}
+            </button>
+          }
+        </div>
+
+        <button class="btn-page btn-nav" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+          <span>{{ 'PRODUCTS.NEXT' | translate }}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </div>
+    }
+  </div>
+}

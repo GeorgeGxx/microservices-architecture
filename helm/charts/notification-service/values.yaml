@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  repository: georgegxx/notification-service
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8002
+
+containerPort: 8002
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+probes:
+  readinessPath: /actuator/notification/health/readiness
+  livenessPath: /actuator/notification/health/liveness
+  initialDelaySeconds: 15
+
+env: {}
+  # EXTRA_VAR: value
+
+envFrom:
+  configMapRef: microservices-config
+  secretRef: microservices-secrets
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+  # eks.amazonaws.com/role-arn: arn:aws:iam::...:role/xxx-irsa-xxx
+  # azure.workload.identity/client-id: xxxxxxxx-xxxx
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /actuator/notification/prometheus
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8002"
+  prometheus.io/path: "/actuator/notification/prometheus"

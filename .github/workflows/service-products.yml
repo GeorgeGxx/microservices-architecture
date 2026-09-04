@@ -1,0 +1,27 @@
+name: Products Service CI/CD
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    paths:
+      - 'products-service/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'products-service/**'
+      - 'pom.xml'
+  workflow_dispatch:
+
+concurrency:
+  group: products-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: products-service
+      service-type: spring-boot
+      service-dir: products-service
+    secrets: inherit

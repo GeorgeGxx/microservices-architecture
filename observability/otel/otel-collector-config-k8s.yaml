@@ -1,0 +1,49 @@
+# OpenTelemetry Collector config for AKS/EKS - extends the local
+# otel-collector-config.yaml with a metrics pipeline and cloud-native
+# trace/log backends. Deploy via the `open-telemetry/opentelemetry-collector`
+# Helm chart as a DaemonSet (node-level) or Deployment (gateway mode).
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  prometheus:
+    config:
+      scrape_configs:
+        - job_name: "kubernetes-pods"
+          kubernetes_sd_configs:
+            - role: pod
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+              action: keep
+              regex: true
+
+processors:
+  batch: {}
+  k8sattributes: {} # enriches spans/metrics with pod, namespace, node labels
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+
+exporters:
+  otlp/tempo:
+    endpoint: "tempo.observability:4317"
+    tls:
+      insecure: true
+  prometheusremotewrite:
+    endpoint: "http://kube-prometheus-prometheus.observability:9090/api/v1/write"
+  # Swap in a managed backend per cloud:
+  # awsxray: {}                          # AWS X-Ray
+  # azuremonitor:
+  #   connection_string: "${AZURE_MONITOR_CONNECTION_STRING}"
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, k8sattributes, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp, prometheus]
+      processors: [memory_limiter, batch]
+      exporters: [prometheusremotewrite]

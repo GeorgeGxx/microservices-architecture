@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: inventory-service
+spec:
+  ports:
+    - name: http-inventory
+      port: 8001
+      targetPort: 8001
+  selector:
+    app: inventory-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inventory-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: inventory-service
+  template:
+    metadata:
+      labels:
+        app: inventory-service
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8001"
+        prometheus.io/path: "/actuator/inventory/prometheus"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inventory-service
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: georgegxx/inventory-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          #image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/{repository_name}/inventory-service:v1.0.0
+          ports:
+            - containerPort: 8001
+          envFrom:
+            - configMapRef:
+                name: microservices-config
+            - secretRef:
+                name: microservices-secrets
+          env:
+            - name: PORT
+              value: "8001"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=inventory-service"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+              ephemeral-storage: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+              ephemeral-storage: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/inventory/health
+              port: 8001
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/inventory/health
+              port: 8001
+              scheme: HTTP
+            initialDelaySeconds: 25
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

@@ -1,0 +1,34 @@
+# Local minikube: images built directly into minikube's docker daemon
+# (see scripts/deploy-minikube.sh), no external registry needed.
+global:
+  environment: local
+  # Vault Integration Options (Choose Option A or Option B, or leave disabled for native K8s secrets)
+  vault:
+    enabled: false # Set to true to enable Vault integration
+    integrationMethod: "external-secrets" # Options: "external-secrets" (Recommended) | "sidecar"
+
+# ==============================================================================
+# Option A: Vault Agent Sidecar Injector (Per-pod sidecar template)
+# ==============================================================================
+# products-service:
+#   podAnnotations:
+#     vault.hashicorp.com/agent-inject: "true"
+#     vault.hashicorp.com/role: "products-service-role"
+#     vault.hashicorp.com/agent-inject-secret-database.env: "secret/data/products-service"
+#     vault.hashicorp.com/agent-inject-template-database.env: |
+#       {{- with secret "secret/data/products-service" -}}
+#       export SPRING_DATASOURCE_URL="{{ .Data.data.spring_datasource_url }}"
+#       export SPRING_DATASOURCE_USERNAME="{{ .Data.data.spring_datasource_username }}"
+#       export SPRING_DATASOURCE_PASSWORD="{{ .Data.data.spring_datasource_password }}"
+#       {{- end -}}
+
+api-gateway:
+  image: { repository: api-gateway, tag: "1.0.0" }
+inventory-service:
+  image: { repository: inventory-service, tag: "1.0.0" }
+notification-service:
+  image: { repository: notification-service, tag: "1.0.0" }
+orders-service:
+  image: { repository: orders-service, tag: "1.0.0" }
+products-service:
+  image: { repository: products-service, tag: "1.0.0" }

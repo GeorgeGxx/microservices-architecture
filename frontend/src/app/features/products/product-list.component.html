@@ -1,0 +1,365 @@
+<div class="page-header">
+  <div class="header-text">
+    <div class="badge-row">
+      <span class="header-pill">{{ 'PRODUCTS.CATALOG_BADGE' | translate }}</span>
+      <div class="live-pulse-badge" title="Real-time automatic synchronization active">
+        <span class="pulse-dot"></span>
+        <span class="live-text">{{ 'PRODUCTS.LIVE_SYNC' | translate }} ({{ lastUpdatedText() }})</span>
+      </div>
+    </div>
+    <h1 class="page-title">{{ 'PRODUCTS.TITLE' | translate }}</h1>
+    <p class="page-subtitle">{{ 'PRODUCTS.SUBTITLE' | translate }}</p>
+  </div>
+
+  <div class="search-container">
+    <div class="search-input-wrapper">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <input
+        type="text"
+        [placeholder]="'PRODUCTS.SEARCH_PLACEHOLDER' | translate"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)"
+        class="search-input"
+      />
+      @if (searchQuery()) {
+        <button class="clear-search" (click)="clearFilters()" aria-label="Clear search">✕</button>
+      }
+
+      <!-- Autocomplete Suggestions Dropdown -->
+      @if (showSearchSuggestions() && searchSuggestions().length > 0) {
+        <div class="autocomplete-dropdown">
+          <div class="dropdown-header-sm">{{ 'PRODUCTS.SUGGESTIONS' | translate }}</div>
+          @for (sug of searchSuggestions(); track sug.sku) {
+            <button class="sug-item" (click)="selectSuggestion(sug.name)">
+              <div class="sug-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+              </div>
+              <span class="sug-name">{{ sug.name }}</span>
+              <span class="sug-sku mono">${{ sug.price | number:'1.2-2' }}</span>
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Recent Search History Chips -->
+@if (recentSearches().length > 0 && !searchQuery()) {
+  <div class="recent-searches-bar">
+    <span class="recent-label">{{ 'PRODUCTS.RECENT_SEARCHES' | translate }}</span>
+    <div class="recent-chips">
+      @for (term of recentSearches(); track term) {
+        <button class="recent-chip" (click)="applyRecentSearch(term)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>{{ term }}</span>
+        </button>
+      }
+      <button class="btn-clear-history" (click)="clearRecentSearches()" title="Clear search history">{{ 'PRODUCTS.CLEAR' | translate }}</button>
+    </div>
+  </div>
+}
+
+<!-- Subtle Guest Mode Info Strip -->
+@if (!keycloakService.isAuthenticated()) {
+  <div class="guest-info-strip">
+    <svg class="guest-strip-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <div class="guest-strip-content">
+      <strong class="guest-strip-title">{{ 'PRODUCTS.GUEST_WELCOME' | translate }}</strong>
+      <span class="guest-strip-desc">{{ 'PRODUCTS.GUEST_DESC' | translate }}</span>
+    </div>
+  </div>
+}
+
+<!-- Quick Filter Chips & Price Tiers Toolbar -->
+<div class="filter-chips-bar">
+  <div class="chips-group">
+    <button
+      class="filter-chip"
+      [class.active]="stockFilter() === 'all'"
+      (click)="setStockFilter('all')"
+    >
+      {{ 'PRODUCTS.FILTER_ALL' | translate }} ({{ products().length }})
+    </button>
+    <button
+      class="filter-chip"
+      [class.active]="stockFilter() === 'in-stock'"
+      (click)="setStockFilter('in-stock')"
+    >
+      <span class="chip-dot in-stock"></span>
+      {{ 'PRODUCTS.FILTER_IN_STOCK' | translate }}
+    </button>
+    <button
+      class="filter-chip"
+      [class.active]="stockFilter() === 'out-of-stock'"
+      (click)="setStockFilter('out-of-stock')"
+    >
+      <span class="chip-dot out-of-stock"></span>
+      {{ 'PRODUCTS.FILTER_OUT_STOCK' | translate }}
+    </button>
+  </div>
+
+  <div class="chips-group price-chips">
+    <button
+      class="filter-chip"
+      [class.active]="minPrice() === null && maxPrice() === 100"
+      (click)="setPriceTier(null, 100)"
+    >
+      {{ 'PRODUCTS.PRICE_TIER1' | translate }}
+    </button>
+    <button
+      class="filter-chip"
+      [class.active]="minPrice() === 100 && maxPrice() === 500"
+      (click)="setPriceTier(100, 500)"
+    >
+      {{ 'PRODUCTS.PRICE_TIER2' | translate }}
+    </button>
+    <button
+      class="filter-chip"
+      [class.active]="minPrice() === 500 && maxPrice() === null"
+      (click)="setPriceTier(500, null)"
+    >
+      {{ 'PRODUCTS.PRICE_TIER3' | translate }}
+    </button>
+  </div>
+
+  @if (hasActiveFilters()) {
+    <button class="btn-clear-all" (click)="clearFilters()">
+      {{ 'PRODUCTS.CLEAR_ALL_FILTERS' | translate }}
+    </button>
+  }
+</div>
+
+<!-- Filters and Sorting Toolbar -->
+@if (products().length > 0) {
+  <div class="filters-toolbar">
+    <div class="filter-group">
+      <label class="filter-label">{{ 'PRODUCTS.SORT_LABEL' | translate }}</label>
+      <select [(ngModel)]="selectedSort" class="filter-select">
+        <option value="recent">{{ 'PRODUCTS.SORT_RECENT' | translate }}</option>
+        <option value="price-asc">{{ 'PRODUCTS.SORT_PRICE_ASC' | translate }}</option>
+        <option value="price-desc">{{ 'PRODUCTS.SORT_PRICE_DESC' | translate }}</option>
+        <option value="name-asc">{{ 'PRODUCTS.SORT_NAME_ASC' | translate }}</option>
+        <option value="name-desc">{{ 'PRODUCTS.SORT_NAME_DESC' | translate }}</option>
+      </select>
+    </div>
+
+    <div class="filter-group price-range-group">
+      <label class="filter-label">{{ 'PRODUCTS.PRICE_TIERS' | translate }}</label>
+      <div class="price-inputs">
+        <input
+          type="number"
+          placeholder="Min"
+          [(ngModel)]="minPrice"
+          class="price-range-input"
+        />
+        <span class="range-separator">-</span>
+        <input
+          type="number"
+          placeholder="Max"
+          [(ngModel)]="maxPrice"
+          class="price-range-input"
+        />
+      </div>
+    </div>
+
+    <div class="filter-group items-per-page">
+      <label class="filter-label">{{ 'PRODUCTS.PAGE' | translate }}:</label>
+      <select [(ngModel)]="pageSize" (ngModelChange)="currentPage.set(1)" class="filter-select">
+        <option [value]="6">6 items</option>
+        <option [value]="12">12 items</option>
+        <option [value]="24">24 items</option>
+      </select>
+    </div>
+  </div>
+}
+
+<!-- Shimmer Skeletons during Loading -->
+@if (isLoading() && products().length === 0) {
+  <div class="products-grid">
+    @for (i of [1, 2, 3, 4, 5, 6]; track i) {
+      <div class="skeleton-card skeleton-shimmer">
+        <div class="skeleton-header"></div>
+        <div class="skeleton-body"></div>
+        <div class="skeleton-footer"></div>
+      </div>
+    }
+  </div>
+} @else if (errorMessage() && products().length === 0) {
+  <div class="error-banner">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>{{ errorMessage() }}</span>
+    <button class="btn-retry" (click)="loadProducts(false)">Retry</button>
+  </div>
+} @else if (paginatedProducts().length === 0) {
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>
+    </div>
+    <h3>{{ 'PRODUCTS.NO_PRODUCTS' | translate }}</h3>
+    <p>{{ 'PRODUCTS.NO_PRODUCTS_DESC' | translate }}</p>
+    @if (hasActiveFilters()) {
+      <button class="btn-reset-empty" (click)="clearFilters()">{{ 'PRODUCTS.CLEAR_ALL_FILTERS' | translate }}</button>
+    }
+  </div>
+} @else {
+  <!-- Products Grid with Spotlight Effect -->
+  <div class="products-grid">
+    @for (product of paginatedProducts(); track product.sku) {
+      <div class="product-card spotlight-card" (mousemove)="onCardMouseMove($event)">
+        <div class="card-header">
+          <div class="header-badges-left">
+            <span class="sku-badge">{{ product.sku }}</span>
+            @if (product.isBestSeller) {
+              <span class="bestseller-badge">★ Best Seller</span>
+            }
+          </div>
+          <div class="stock-status" [class.in-stock]="product.inStock" [class.out-of-stock]="product.inStock === false">
+            @if (product.checkingStock) {
+              <span class="stock-dot pulse"></span> {{ 'PRODUCTS.CHECKING_STOCK' | translate }}
+            } @else if (product.inStock) {
+              <span class="stock-dot available"></span>
+              <span>{{ product.stockQuantity ? product.stockQuantity + ' ' + ('PRODUCTS.IN_STOCK' | translate) : ('PRODUCTS.IN_STOCK' | translate) }}</span>
+            } @else if (product.inStock === false) {
+              <span class="stock-dot unavailable"></span> {{ 'PRODUCTS.OUT_OF_STOCK' | translate }}
+            } @else {
+              <span class="stock-dot"></span> {{ 'PRODUCTS.NOT_VERIFIED' | translate }}
+            }
+          </div>
+        </div>
+
+        <!-- Product Hero Image -->
+        <div class="card-image-wrap" (click)="openQuickView(product, $event)">
+          <img 
+            [src]="getProductImageUrl(product)" 
+            [alt]="product.name" 
+            class="product-card-img" 
+            loading="lazy" 
+            (error)="onImageError($event, product)"
+          />
+          <div class="image-overlay-action">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>{{ 'PRODUCTS.QUICK_VIEW' | translate }}</span>
+          </div>
+        </div>
+
+        <div class="card-body">
+          @if (product.category) {
+            <span class="product-category-tag">{{ product.category }}</span>
+          }
+          <h3 class="product-title">{{ product.name }}</h3>
+
+          <!-- Amazon-Grade Social Proof & Star Ratings -->
+          <div class="product-rating-row">
+            <div class="stars-wrap">
+              <span class="star-icon">★</span>
+              <span class="rating-val">{{ product.rating ? (product.rating | number:'1.1-1') : '4.8' }}</span>
+            </div>
+            <span class="review-count">({{ product.reviewCount ? (product.reviewCount | number) : '1,240' }})</span>
+            <span class="fast-ship-tag">⚡ Fast Delivery</span>
+          </div>
+
+          <p class="product-description">{{ product.description }}</p>
+        </div>
+
+        <div class="card-actions-row">
+          <button class="btn-quick-view" (click)="openQuickView(product, $event)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <span>{{ 'PRODUCTS.QUICK_VIEW' | translate }}</span>
+          </button>
+          @if (keycloakService.isAdmin()) {
+            <button class="btn-qr-label" (click)="openProductQr(product, $event)">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="8" x="3" y="3" rx="1"/><rect width="8" height="8" x="13" y="3" rx="1"/><rect width="8" height="8" x="3" y="13" rx="1"/><rect width="4" height="4" x="14" y="14" rx="1"/></svg>
+              <span>{{ 'PRODUCTS.SHOW_QR' | translate }}</span>
+            </button>
+          }
+        </div>
+
+        <div class="card-footer">
+          <div class="price-container">
+            <span class="price-label">{{ 'PRODUCTS.PRICE' | translate }}</span>
+            <span class="product-price">${{ currencyService.getProductPrice(product) | number:'1.2-2' }} <small class="currency-tag">{{ currencyService.currentCurrency() }}</small></span>
+          </div>
+
+          @if (keycloakService.isAuthenticated()) {
+            <button
+              class="btn-add-cart"
+              [disabled]="product.inStock === false || !product.status"
+              (click)="addToCartWithAnimation(product, 1, $event)"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+              <span>{{ 'PRODUCTS.ADD_TO_CART' | translate }}</span>
+            </button>
+          } @else {
+            <button
+              class="btn-login-buy"
+              (click)="keycloakService.login()"
+              title="Sign in with Keycloak to purchase this item"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>{{ 'PRODUCTS.SIGN_IN_BUY' | translate }}</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Pagination Controls -->
+  @if (totalPages() > 1) {
+    <div class="pagination-wrapper">
+      <div class="pagination-info">
+        {{ 'PRODUCTS.SHOWING_PAGE' | translate }} <strong>{{ (currentPage() - 1) * pageSize() + 1 }}</strong> -
+        <strong>{{ Math.min(currentPage() * pageSize(), filteredProducts().length) }}</strong> {{ 'PRODUCTS.OF' | translate }}
+        <strong>{{ filteredProducts().length }}</strong> {{ 'PRODUCTS.PRODUCTS_COUNT' | translate }}
+      </div>
+
+      <div class="pagination-controls">
+        <button
+          class="page-nav-btn"
+          [disabled]="currentPage() === 1"
+          (click)="goToPage(currentPage() - 1)"
+        >
+          {{ 'PRODUCTS.PREV' | translate }}
+        </button>
+
+        @for (p of pageNumbers(); track p) {
+          <button
+            class="page-number-btn"
+            [class.active]="p === currentPage()"
+            (click)="goToPage(p)"
+          >
+            {{ p }}
+          </button>
+        }
+
+        <button
+          class="page-nav-btn"
+          [disabled]="currentPage() === totalPages()"
+          (click)="goToPage(currentPage() + 1)"
+        >
+          {{ 'PRODUCTS.NEXT' | translate }}
+        </button>
+      </div>
+    </div>
+  }
+}
+
+<!-- Quick View Modal (Deferred) -->
+@defer (when isQuickViewOpen()) {
+  <app-quick-view-modal
+    [isOpen]="isQuickViewOpen()"
+    [product]="quickViewProduct()"
+    (closeEvent)="closeQuickView()"
+    (addEvent)="addToCartWithAnimation($event.product, $event.quantity, $event.event)"
+  ></app-quick-view-modal>
+}
+
+<!-- Product QR Code Modal (Deferred) -->
+@defer (when isQrModalOpen()) {
+  <app-product-qr-modal
+    [isOpen]="isQrModalOpen()"
+    [product]="qrProduct()"
+    (closeEvent)="closeProductQr()"
+  ></app-product-qr-modal>
+}

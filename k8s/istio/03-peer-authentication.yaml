@@ -1,0 +1,143 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: ecommerce-zero-trust-mtls
+  namespace: ecommerce
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: orders-service-metrics-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: orders-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8003:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: products-service-metrics-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: products-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8004:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: inventory-service-metrics-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8001:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: api-gateway-metrics-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8080:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: notification-service-metrics-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8002:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: prometheus-telemetry-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: prometheus
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: grafana-telemetry-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: grafana
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: tempo-telemetry-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: tempo
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: loki-telemetry-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: loki
+  mtls:
+    mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: keycloak-telemetry-mtls
+  namespace: ecommerce
+spec:
+  selector:
+    matchLabels:
+      app: keycloak
+  mtls:
+    mode: PERMISSIVE

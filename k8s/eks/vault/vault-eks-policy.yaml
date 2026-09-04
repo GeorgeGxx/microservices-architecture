@@ -1,0 +1,55 @@
+# ==============================================================================
+# AWS EKS Vault ServiceAccounts, IRSA & Kubernetes Auth Config
+# ==============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: products-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ProductsServiceEKSRole"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orders-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/OrdersServiceEKSRole"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/InventoryServiceEKSRole"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-gateway
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ApiGatewayEKSRole"
+---
+# ConfigMap de documentación de comandos de configuración en Vault EKS
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vault-eks-setup-guide
+  namespace: vault
+data:
+  setup-vault-eks.sh: |
+    #!/bin/sh
+    # 1. Habilitar Auth Kubernetes en Vault EKS
+    vault auth enable kubernetes
+    vault write auth/kubernetes/config \
+      kubernetes_host="https://kubernetes.default.svc:443"
+
+    # 2. Mapear roles de EKS a políticas
+    vault write auth/kubernetes/role/products-service-role \
+      bound_service_account_names="products-service" \
+      bound_service_account_namespaces="staging,prod" \
+      policies="products-policy" \
+      ttl=1h

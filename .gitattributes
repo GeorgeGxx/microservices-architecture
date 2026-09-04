@@ -1,0 +1,12 @@
+# Normaliza line endings a LF para todo el repo (evita el mix CRLF/LF
+# que traían varios .java, .yaml y el bootstrap_keycloak.py — típico
+# cuando se edita desde Windows sin configurar core.autocrlf).
+* text=auto eol=lf
+
+*.sh text eol=lf
+*.py text eol=lf
+
+# Binarios: nunca tocar
+*.png binary
+*.jpg binary
+*.jar binary

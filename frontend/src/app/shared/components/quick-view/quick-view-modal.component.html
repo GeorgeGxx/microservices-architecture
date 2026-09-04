@@ -1,0 +1,148 @@
+@if (isOpen() && product(); as prod) {
+  <div class="modal-backdrop" (click)="close()">
+    <div class="modal-card" (click)="$event.stopPropagation()">
+      <button class="btn-close" (click)="close()" aria-label="Close modal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+
+      <div class="modal-grid">
+        <!-- Left: Product Visual Preview & Image -->
+        <div class="product-preview">
+          <div class="preview-badge">
+            @if (prod.inStock === false) {
+              <span class="stock-badge out">Out of Stock</span>
+            } @else if (prod.stockQuantity !== undefined && prod.stockQuantity <= 5 && prod.stockQuantity > 0) {
+              <span class="stock-badge low">Only {{ prod.stockQuantity }} left!</span>
+            } @else {
+              <span class="stock-badge in">In Stock</span>
+            }
+          </div>
+          
+          <div class="preview-image-container">
+            <img 
+              [src]="getProductImageUrl(prod)" 
+              [alt]="prod.name" 
+              class="preview-hero-img" 
+              loading="lazy" 
+              (error)="onImageError($event)"
+            />
+          </div>
+
+          <div class="preview-footer-chips">
+            <span class="preview-chip mono">SKU: {{ prod.sku }}</span>
+            <span class="preview-chip category-chip">{{ getProductCategory(prod) }}</span>
+          </div>
+        </div>
+
+        <!-- Right: Product Info, Specs & Actions -->
+        <div class="product-details">
+          <div class="details-header">
+            <div class="brand-row">
+              <span class="brand-tag">{{ getProductCategory(prod) }}</span>
+              @if (prod.isBestSeller) {
+                <span class="bestseller-badge">★ #1 Best Seller</span>
+              }
+            </div>
+            <h2 class="modal-title">{{ prod.name }}</h2>
+
+            <!-- Rating & Social Proof -->
+            <div class="modal-rating-row">
+              <div class="stars-wrap">
+                <span class="star-icon">★</span>
+                <span class="rating-val">{{ prod.rating ? (prod.rating | number:'1.1-1') : '4.8' }}</span>
+              </div>
+              <span class="review-count">({{ prod.reviewCount ? (prod.reviewCount | number) : '1,240' }} customer ratings)</span>
+              <span class="verified-dot">• 100% Authentic</span>
+            </div>
+
+            <div class="price-row">
+              <span class="modal-price"><span>$</span>{{ currencyService.getProductPrice(prod) | number:'1.2-2' }}</span>
+              <span class="currency">{{ currencyService.currentCurrency() }}</span>
+              <div class="availability-pill" [class.available]="prod.inStock" [class.unavailable]="prod.inStock === false">
+                <span class="pill-dot"></span>
+                <span>{{ prod.inStock ? 'Available for Instant Order' : 'Backorder / Restocking' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <p class="modal-desc">
+            {{ prod.description || 'High-performance hardware component managed via Spring Boot 3.4 Products Service with distributed caching and real-time Kafka event streaming.' }}
+          </p>
+
+          <!-- Value Proposition Feature Pills -->
+          <div class="value-pills-row">
+            <div class="value-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <span>Same-Day Dispatch</span>
+            </div>
+            <div class="value-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>2-Year Enterprise SLA</span>
+            </div>
+            <div class="value-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>30-Day Guarantee</span>
+            </div>
+          </div>
+
+          <!-- Structured Microservices Architecture & Product Specs -->
+          <div class="spec-grid">
+            <div class="spec-item">
+              <span class="spec-label">Service Domain</span>
+              <span class="spec-val">Products Service</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Inventory Engine</span>
+              <span class="spec-val">Inventory Live Stream</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Event Stream</span>
+              <span class="spec-val">Kafka Event Bus</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Live Units in Stock</span>
+              <span class="spec-val mono text-highlight">{{ prod.stockQuantity !== undefined ? prod.stockQuantity + ' Units' : 'Checking...' }}</span>
+            </div>
+          </div>
+
+          <!-- Quantity Selector & Cart CTA -->
+          <div class="action-footer">
+            @if (keycloakService.isAuthenticated()) {
+              <div class="qty-control">
+                <button class="btn-qty" (click)="decQty()" [disabled]="quantity() <= 1" aria-label="Decrease quantity">−</button>
+                <span class="qty-num mono">{{ quantity() }}</span>
+                <button class="btn-qty" (click)="incQty()" aria-label="Increase quantity">+</button>
+              </div>
+
+              <button 
+                class="btn-add-cart" 
+                [disabled]="prod.inStock === false || prod.checkingStock"
+                (click)="onAddToCart($event)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="8" cy="21" r="1"/>
+                  <circle cx="19" cy="21" r="1"/>
+                  <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>
+                </svg>
+                <span>{{ prod.inStock === false ? 'Out of Stock' : ('PRODUCTS.ADD_TO_CART' | translate) }}</span>
+              </button>
+            } @else {
+              <button 
+                class="btn-login-buy"
+                (click)="onLogin()"
+                title="Sign in with Keycloak to purchase this item">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>{{ 'PRODUCTS.SIGN_IN_BUY' | translate }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

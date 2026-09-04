@@ -1,0 +1,22 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "products-service.fullname" . }}-servicemonitor
+  labels:
+    app: {{ include "products-service.fullname" . }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{ include "products-service.fullname" . }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  endpoints:
+    - port: {{ .Values.service.port }}
+      path: {{ .Values.serviceMonitor.path }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: 10s
+      honorLabels: true
+{{- end }}

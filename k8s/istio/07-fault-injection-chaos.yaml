@@ -1,0 +1,93 @@
+# ==============================================================================
+# ISTIO FAULT INJECTION (CHAOS ENGINEERING ON ENVOY PROXY)
+# ==============================================================================
+# Apply this file to test how the system reacts under network degradation:
+# - Resilience4j Circuit Breakers tripping
+# - Inventory stock compensation saga triggering
+# - Grafana and Kiali live error rate alerting
+# ==============================================================================
+
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: products-service-chaos
+  namespace: ecommerce
+spec:
+  hosts:
+    - products-service
+  http:
+    - match:
+        - headers:
+            x-chaos-test:
+              exact: "delay"
+      fault:
+        delay:
+          percentage:
+            value: 100.0
+          fixedDelay: 5s # 5-second network latency to trigger Circuit Breakers
+      route:
+        - destination:
+            host: products-service
+            subset: v1
+
+    - match:
+        - headers:
+            x-chaos-test:
+              exact: "abort"
+      fault:
+        abort:
+          percentage:
+            value: 100.0
+          httpStatus: 503 # Force HTTP 503 to test Resilience4j Fallback
+      route:
+        - destination:
+            host: products-service
+            subset: v1
+
+    # Default production route when no chaos header is present
+    - route:
+        - destination:
+            host: products-service
+            subset: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: inventory-service-chaos
+  namespace: ecommerce
+spec:
+  hosts:
+    - inventory-service
+  http:
+    - match:
+        - headers:
+            x-chaos-test:
+              exact: "delay"
+      fault:
+        delay:
+          percentage:
+            value: 100.0
+          fixedDelay: 4s
+      route:
+        - destination:
+            host: inventory-service
+            subset: v1
+
+    - match:
+        - headers:
+            x-chaos-test:
+              exact: "abort"
+      fault:
+        abort:
+          percentage:
+            value: 50.0 # Randomly abort 50% of requests to test Saga Rollbacks
+          httpStatus: 500
+      route:
+        - destination:
+            host: inventory-service
+            subset: v1
+
+    - route:
+        - destination:
+            host: inventory-service
+            subset: v1

@@ -1,0 +1,119 @@
+spring:
+  threads:
+    virtual:
+      enabled: true
+  application:
+    name: ${ORDERS_SERVICE_NAME:orders-service}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  cloud:
+    vault:
+      enabled: ${VAULT_ENABLED:false}
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    url: ${ORDERS_SPRING_DATASOURCE_JDBC_URL:jdbc:postgresql://localhost:5435/orders_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+      leak-detection-threshold: 15000
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_JWT_URI:http://localhost:8181/realms/microservices-realm/protocol/openid-connect/certs}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: ${PORT:8003}
+  shutdown: graceful
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-size: 5
+        sliding-window-type: count_based
+        minimum-number-of-calls: 3
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        automatic-transition-from-open-to-half-open-enabled: true
+        permitted-number-of-calls-in-half-open-state: 2
+        ignore-exceptions:
+          - java.lang.IllegalArgumentException
+    instances:
+      orders-service:
+        base-config: default
+      inventory-service:
+        base-config: default
+      products-service:
+        base-config: default
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 3s
+    instances:
+      products-service:
+        timeout-duration: 3s
+      inventory-service:
+        timeout-duration: 3s
+      orders-service:
+        timeout-duration: 3s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+      base-path: /actuator/orders
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+
+otel:
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
+  resource:
+    attributes: service.name=${spring.application.name},service.version=1.0

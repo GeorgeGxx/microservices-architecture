@@ -1,0 +1,27 @@
+name: Inventory Service CI/CD
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    paths:
+      - 'inventory-service/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'inventory-service/**'
+      - 'pom.xml'
+  workflow_dispatch:
+
+concurrency:
+  group: inventory-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: inventory-service
+      service-type: spring-boot
+      service-dir: inventory-service
+    secrets: inherit

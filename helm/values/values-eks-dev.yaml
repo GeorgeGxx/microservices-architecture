@@ -1,0 +1,71 @@
+global:
+  environment: dev
+  cloudProvider: aws
+  storageClass: ebs-gp3-sc
+
+# AWS ECR Repository Placeholders (Replace <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com)
+api-gateway:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/api-gateway"
+    tag: "1.0.0"
+  replicaCount: 1
+
+inventory-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/inventory-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+notification-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/notification-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+orders-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/orders-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+products-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/products-service"
+    tag: "1.0.0"
+  replicaCount: 1
+  # Example activation of Vault Agent Injector in EKS:
+  # podAnnotations:
+  #   vault.hashicorp.com/agent-inject: "true"
+  #   vault.hashicorp.com/role: "products-service-role"
+  #   vault.hashicorp.com/agent-inject-secret-database.env: "secret/data/products-service"
+  #   vault.hashicorp.com/agent-inject-template-database.env: |
+  #     {{- with secret "secret/data/products-service" -}}
+  #     export SPRING_DATASOURCE_URL="{{ .Data.data.spring_datasource_url }}"
+  #     export SPRING_DATASOURCE_USERNAME="{{ .Data.data.spring_datasource_username }}"
+  #     export SPRING_DATASOURCE_PASSWORD="{{ .Data.data.spring_datasource_password }}"
+  #     {{- end -}}
+
+frontend:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/frontend"
+    tag: "1.0.0"
+  replicaCount: 1
+
+# AWS Load Balancer Controller Ingress Configuration
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: "api.aws-sandbox.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+          port: 8080
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 80

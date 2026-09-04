@@ -1,0 +1,32 @@
+# ==============================================================================
+# Spring Cloud Vault Configuration Profile (Approach B - Java Native)
+# Activate by running with: --spring.profiles.active=vault
+# ==============================================================================
+spring:
+  config:
+    activate:
+      on-profile: vault
+    import: "vault://"
+  cloud:
+    vault:
+      enabled: true
+      host: ${VAULT_HOST:localhost}
+      port: ${VAULT_PORT:8200}
+      scheme: ${VAULT_SCHEME:http}
+      connection-timeout: 5000
+      read-timeout: 15000
+      # Authentication modes: TOKEN (Local dev), KUBERNETES (K8s Cluster), APPROLE (CI/CD)
+      authentication: ${VAULT_AUTH_METHOD:TOKEN}
+      token: ${VAULT_TOKEN:root}
+      kubernetes:
+        role: ${VAULT_K8S_ROLE:notification-service-role}
+        kubernetes-path: ${VAULT_K8S_PATH:kubernetes}
+      app-role:
+        role-id: ${VAULT_APPROLE_ROLE_ID:}
+        secret-id: ${VAULT_APPROLE_SECRET_ID:}
+      kv:
+        enabled: true
+        backend: ${VAULT_BACKEND:secret}
+        default-context: ${VAULT_CONTEXT:notification-service}
+        application-name: ${spring.application.name}
+        profiles: ${spring.profiles.active}

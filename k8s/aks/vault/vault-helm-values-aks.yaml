@@ -1,0 +1,80 @@
+# ==============================================================================
+# HashiCorp Vault Helm Chart Values for Azure AKS (Production Grade)
+# Install via: helm repo add hashicorp https://helm.releases.hashicorp.com
+#              helm install vault hashicorp/vault -n vault --create-namespace -f vault-helm-values-aks.yaml
+# ==============================================================================
+
+global:
+  enabled: true
+  tlsDisable: false
+
+server:
+  image:
+    repository: "hashicorp/vault"
+    tag: "2.0.4"
+
+  # Azure Workload Identity
+  serviceAccount:
+    create: true
+    name: "vault-server"
+    annotations:
+      azure.workload.identity/client-id: "00000000-0000-0000-0000-000000000000"
+    labels:
+      azure.workload.identity/use: "true"
+
+  # High-Availability (HA) Raft Integrated Storage
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+        listener "tcp" {
+          tls_disable = 1
+          address = "[::]:8200"
+          cluster_address = "[::]:8201"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        # Azure Key Vault Auto-Unseal (Zero-touch unseal)
+        seal "azurekeyvault" {
+          vault_name = "msa-prod-keyvault"
+          key_name   = "vault-unseal-key"
+        }
+
+        service_registration "kubernetes" {}
+
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 1Gi
+      cpu: 500m
+
+  dataStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: "managed-csi-premium" # Azure Managed Premium Disk
+
+# Vault Agent Sidecar Injector
+injector:
+  enabled: true
+  replicas: 2
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+# Web UI
+ui:
+  enabled: true
+  serviceType: "ClusterIP"

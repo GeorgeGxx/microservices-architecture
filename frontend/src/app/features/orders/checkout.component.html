@@ -1,0 +1,423 @@
+<div class="checkout-container">
+  <div class="checkout-header">
+    <a routerLink="/" class="back-link">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      <span>{{ 'NAV.PRODUCTS' | translate }}</span>
+    </a>
+    <h1 class="page-title">{{ 'CHECKOUT.TITLE' | translate }}</h1>
+  </div>
+
+  @if (completedOrder()) {
+    <!-- Enterprise Order Confirmation View -->
+    <div class="success-card">
+      <div class="success-header-wrap">
+        <div class="success-icon-badge">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div>
+          <h2>Order Confirmed!</h2>
+          <p class="order-subtitle">We've sent a confirmation email to <strong>{{ completedOrder()?.customerEmail || customerEmail() }}</strong></p>
+        </div>
+      </div>
+
+      <div class="order-summary-pill-bar">
+        <div class="pill-item">
+          <span class="pill-label">{{ 'ORDERS.ORDER_NUMBER' | translate }}</span>
+          <span class="pill-val mono">#{{ completedOrder()?.orderNumber }}</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-label">Tracking Number</span>
+          <span class="pill-val mono tracking-highlight">{{ completedOrder()?.trackingNumber || 'DHL-PENDING' }}</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-label">Carrier</span>
+          <span class="pill-val">{{ completedOrder()?.carrier || 'DHL Express' }}</span>
+        </div>
+        <div class="pill-item">
+          <span class="pill-label">Destination</span>
+          <span class="pill-val">{{ completedOrder()?.city || city() }}, {{ completedOrder()?.postalCode || postalCode() }}</span>
+        </div>
+      </div>
+
+      <!-- Real-time Logistics Stepper -->
+      <div class="success-stepper-box">
+        <h4 class="box-title">Logistics & Delivery Pipeline</h4>
+        <app-order-stepper
+          [status]="completedOrder()?.orderStatus"
+          [trackingNumber]="completedOrder()?.trackingNumber"
+          [carrier]="completedOrder()?.carrier"
+          [deliveryMethod]="completedOrder()?.deliveryMethod || deliveryMethod()"
+          [shippingAddress]="completedOrder()?.shippingAddress || shippingAddress()"
+        ></app-order-stepper>
+      </div>
+
+      <div class="success-actions">
+        <button class="btn-receipt" (click)="openReceipt()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span>{{ 'CHECKOUT.VIEW_RECEIPT' | translate }}</span>
+        </button>
+        <a routerLink="/orders" class="btn-secondary">{{ 'NAV.ORDERS' | translate }}</a>
+        <a routerLink="/" class="btn-primary">Continue Shopping</a>
+      </div>
+    </div>
+
+    <!-- Receipt Invoice Modal -->
+    @defer (when showReceiptModal()) {
+      <app-receipt-modal
+        [isOpen]="showReceiptModal()"
+        [order]="completedOrder()"
+        (closeEvent)="closeReceipt()"
+      ></app-receipt-modal>
+    }
+  } @else if (cartStore.items().length === 0) {
+    <div class="empty-cart-view">
+      <div class="empty-icon">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+      </div>
+      <h3>{{ 'CART.EMPTY' | translate }}</h3>
+      <p>{{ 'CART.EMPTY_DESC' | translate }}</p>
+      <a routerLink="/" class="btn-primary">{{ 'NAV.PRODUCTS' | translate }}</a>
+    </div>
+  } @else {
+    <!-- Multi-Step Checkout Navigation -->
+    <div class="step-nav-bar">
+      <button class="step-tab" [class.active]="currentStep() === 1" [class.passed]="currentStep() > 1" (click)="goToStep(1)">
+        <span class="step-num">1</span>
+        <span class="step-txt">Shipping Address</span>
+      </button>
+      <div class="step-tab-line" [class.passed]="currentStep() > 1"></div>
+      <button class="step-tab" [class.active]="currentStep() === 2" [class.passed]="currentStep() > 2" (click)="goToStep(2)">
+        <span class="step-num">2</span>
+        <span class="step-txt">Delivery Speed</span>
+      </button>
+      <div class="step-tab-line" [class.passed]="currentStep() > 2"></div>
+      <button class="step-tab" [class.active]="currentStep() === 3" (click)="goToStep(3)">
+        <span class="step-num">3</span>
+        <span class="step-txt">Payment</span>
+      </button>
+    </div>
+
+    <div class="checkout-grid">
+      <!-- Left Column: Multi-Step Forms -->
+      <div class="checkout-main-flow">
+        <!-- STEP 1: Shipping Address -->
+        @if (currentStep() === 1) {
+          <div class="section-card form-card step-card">
+            <div class="card-form-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+              <span>1. Shipping Destination & Recipient</span>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-group span-2">
+                <label class="form-label">Full Name / Company</label>
+                <input type="text" class="form-input" [(ngModel)]="customerName" placeholder="e.g. Alex Morgan" required />
+              </div>
+
+              <div class="form-group span-2">
+                <label class="form-label">Email Address (for order tracking)</label>
+                <input type="email" class="form-input" [(ngModel)]="customerEmail" placeholder="alex@company.com" required />
+              </div>
+
+              <div class="form-group span-2">
+                <label class="form-label">Street Address & Apartment/Suite</label>
+                <input type="text" class="form-input" [(ngModel)]="shippingAddress" placeholder="e.g. 500 Howard Street, Suite 400" required />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">City / Municipality</label>
+                <input type="text" class="form-input" [(ngModel)]="city" placeholder="San Francisco" required />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Postal / ZIP Code</label>
+                <input type="text" class="form-input mono" [(ngModel)]="postalCode" placeholder="94105" required />
+              </div>
+
+              <div class="form-group span-2">
+                <label class="form-label">Phone Number (for courier SMS updates)</label>
+                <input type="tel" class="form-input mono" [(ngModel)]="phone" placeholder="+1 (555) 019-2834" />
+              </div>
+            </div>
+
+            <div class="save-address-row">
+              <label class="checkbox-label">
+                <input type="checkbox" [(ngModel)]="saveAddress" />
+                <span>Save this shipping address for future 1-click purchases</span>
+              </label>
+            </div>
+
+            <div class="step-action-bar">
+              <button class="btn-next" (click)="goToStep(2)">
+                <span>Continue to Delivery Speed</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- STEP 2: Delivery Speed Options -->
+        @if (currentStep() === 2) {
+          <div class="section-card form-card step-card">
+            <div class="card-form-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="3" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              <span>2. Choose Delivery Speed</span>
+            </div>
+
+            <div class="delivery-options-grid">
+              <div 
+                class="delivery-option-card" 
+                [class.selected]="deliveryMethod() === 'STANDARD'"
+                (click)="setDeliveryMethod('STANDARD')"
+              >
+                <div class="option-radio">
+                  <input type="radio" name="deliveryMethod" [checked]="deliveryMethod() === 'STANDARD'" />
+                </div>
+                <div class="option-details">
+                  <div class="option-header">
+                    <span class="option-title">Standard Delivery</span>
+                    <span class="option-price free">FREE</span>
+                  </div>
+                  <p class="option-desc">Estimated Arrival: 3-5 Business Days. Tracked by national postal carrier.</p>
+                </div>
+              </div>
+
+              <div 
+                class="delivery-option-card express-card" 
+                [class.selected]="deliveryMethod() === 'EXPRESS'"
+                (click)="setDeliveryMethod('EXPRESS')"
+              >
+                <div class="option-radio">
+                  <input type="radio" name="deliveryMethod" [checked]="deliveryMethod() === 'EXPRESS'" />
+                </div>
+                <div class="option-details">
+                  <div class="option-header">
+                    <div class="express-title-wrap">
+                      <span class="option-title">DHL Express Priority</span>
+                      <span class="badge-express-fast">⚡ 24-48h Delivery</span>
+                    </div>
+                    <span class="option-price">$9.99</span>
+                  </div>
+                  <p class="option-desc">Guaranteed priority dispatch with end-to-end live tracking and SMS alerts.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="step-action-bar flex-between">
+              <button class="btn-prev" (click)="goToStep(1)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                <span>Back to Address</span>
+              </button>
+              <button class="btn-next" (click)="goToStep(3)">
+                <span>Continue to Payment</span>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- STEP 3: Payment Details -->
+        @if (currentStep() === 3) {
+          <div class="section-card form-card step-card">
+            <div class="card-form-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              <span>3. Payment Information</span>
+            </div>
+
+            <!-- Payment Type Selector -->
+            <div class="payment-tabs">
+              <button class="pay-tab-btn" [class.active]="paymentType() === 'CARD'" (click)="paymentType.set('CARD')">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span>Credit / Debit Card</span>
+              </button>
+              <button class="pay-tab-btn" [class.active]="paymentType() === 'PAYPAL'" (click)="paymentType.set('PAYPAL')">
+                <span class="paypal-logo">P</span>
+                <span>PayPal Express</span>
+              </button>
+            </div>
+
+            @if (paymentType() === 'CARD') {
+              <div class="card-input-container">
+                <div class="form-group">
+                  <div class="label-with-brand">
+                    <label class="form-label">{{ 'CHECKOUT.CARD_NUMBER' | translate }}</label>
+                    <div class="brand-indicators">
+                      <span class="card-brand-badge" [class.highlight]="cardBrand() === 'visa'">VISA</span>
+                      <span class="card-brand-badge" [class.highlight]="cardBrand() === 'mastercard'">Mastercard</span>
+                      <span class="card-brand-badge" [class.highlight]="cardBrand() === 'amex'">AMEX</span>
+                    </div>
+                  </div>
+                  <div class="input-with-icon">
+                    <input
+                      type="text"
+                      class="form-input mono"
+                      [value]="cardNumber()"
+                      (input)="formatCardNumber($event)"
+                      placeholder="4532 8901 2345 6789"
+                      maxlength="19"
+                    />
+                    <div class="brand-logo-slot">
+                      @if (cardBrand() === 'visa') {
+                        <span class="brand-detected visa">VISA</span>
+                      } @else if (cardBrand() === 'mastercard') {
+                        <span class="brand-detected mc">MC</span>
+                      } @else if (cardBrand() === 'amex') {
+                        <span class="brand-detected amex">AMEX</span>
+                      }
+                    </div>
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">{{ 'CHECKOUT.CARD_HOLDER' | translate }}</label>
+                  <input
+                    type="text"
+                    class="form-input"
+                    [(ngModel)]="cardHolder"
+                    placeholder="CARDHOLDER NAME"
+                  />
+                </div>
+
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">{{ 'CHECKOUT.EXPIRES' | translate }}</label>
+                    <input
+                      type="text"
+                      class="form-input mono"
+                      [(ngModel)]="cardExp"
+                      placeholder="MM/YY"
+                      maxlength="5"
+                    />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">{{ 'CHECKOUT.CVV' | translate }}</label>
+                    <input
+                      type="password"
+                      class="form-input mono"
+                      [(ngModel)]="cardCvv"
+                      placeholder="•••"
+                      maxlength="4"
+                    />
+                  </div>
+                </div>
+              </div>
+            } @else {
+              <div class="paypal-callout">
+                <p>You will be redirected to PayPal to complete your purchase securely. Your card information will not be shared.</p>
+              </div>
+            }
+
+            <div class="security-badges-bar">
+              <div class="sec-badge">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span>256-Bit SSL Encrypted</span>
+              </div>
+              <div class="sec-badge">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>PCI-DSS Level 1 Compliant</span>
+              </div>
+              <div class="sec-badge">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>30-Day Money Back Guarantee</span>
+              </div>
+            </div>
+
+            <div class="step-action-bar flex-between">
+              <button class="btn-prev" (click)="goToStep(2)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+                <span>Back to Delivery</span>
+              </button>
+              <button class="btn-place-order" [disabled]="isPlacingOrder()" (click)="submitOrder()">
+                @if (isPlacingOrder()) {
+                  <span class="btn-spinner"></span>
+                  <span>Processing Payment...</span>
+                } @else {
+                  <span>Authorize & Pay ${{ totalAmount() | number:'1.2-2' }}</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                }
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Ordered Items Expandable List -->
+        <div class="section-card items-review-card">
+          <h3 class="review-title">{{ 'ORDERS.ITEMS' | translate }} ({{ cartStore.itemCount() }})</h3>
+          <div class="items-table">
+            @for (item of cartStore.items(); track item.product.sku) {
+              <div class="summary-item">
+                <div class="summary-thumb-wrap">
+                  <img [src]="getProductImageUrl(item.product)" [alt]="item.product.name" class="summary-thumb-img" loading="lazy" />
+                </div>
+                <div class="item-details">
+                  <span class="item-sku mono">{{ item.product.sku }}</span>
+                  <h4 class="item-name">{{ item.product.name }}</h4>
+                  <span class="item-unit-price">${{ currencyService.getProductPrice(item.product) | number:'1.2-2' }}</span>
+                </div>
+                <div class="item-qty-price">
+                  <div class="qty-pill">x{{ item.quantity }}</div>
+                  <div class="item-total-price mono">
+                    ${{ (currencyService.getProductPrice(item.product) * item.quantity) | number:'1.2-2' }}
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Sticky Order Summary & Guarantees -->
+      <div class="order-summary-sidebar">
+        <div class="section-card summary-card">
+          <h2 class="section-title">Order Summary</h2>
+
+          <div class="cost-breakdown">
+            <div class="cost-row">
+              <span>Items ({{ cartStore.itemCount() }})</span>
+              <span class="mono">${{ subtotal() | number:'1.2-2' }} {{ currencyService.currentCurrency() }}</span>
+            </div>
+            <div class="cost-row">
+              <span>Shipping Speed</span>
+              @if (shippingFee() === 0) {
+                <span class="free-badge">FREE (Standard)</span>
+              } @else {
+                <span class="mono express-fee">+$9.99 (Priority)</span>
+              }
+            </div>
+            <div class="cost-row">
+              <span>Estimated Tax (8%)</span>
+              <span class="mono">${{ taxAmount() | number:'1.2-2' }} {{ currencyService.currentCurrency() }}</span>
+            </div>
+            <div class="cost-divider"></div>
+            <div class="cost-row total-row">
+              <span>Order Total</span>
+              <span class="total-price mono">${{ totalAmount() | number:'1.2-2' }} {{ currencyService.currentCurrency() }}</span>
+            </div>
+          </div>
+
+          <div class="shipping-preview-pill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Arrives by <strong>{{ estimatedArrival() }}</strong></span>
+          </div>
+
+          <!-- Keycloak User Status -->
+          @if (keycloakService.isAuthenticated()) {
+            <div class="auth-session-box">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <span>Logged in as <strong>{{ keycloakService.userProfile()?.username }}</strong></span>
+            </div>
+          } @else {
+            <div class="auth-required-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <div>
+                <strong>Sign in required</strong>
+                <p>Authenticate with Keycloak to place your order.</p>
+              </div>
+              <button class="btn-login-inline" (click)="keycloakService.login()">{{ 'NAV.LOGIN' | translate }}</button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>

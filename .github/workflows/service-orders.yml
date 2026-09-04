@@ -1,0 +1,27 @@
+name: Orders Service CI/CD
+
+on:
+  push:
+    branches: [ main, develop, 'release/*' ]
+    paths:
+      - 'orders-service/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'orders-service/**'
+      - 'pom.xml'
+  workflow_dispatch:
+
+concurrency:
+  group: orders-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: orders-service
+      service-type: spring-boot
+      service-dir: orders-service
+    secrets: inherit

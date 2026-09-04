@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Builds Docker images for all microservices and the frontend in the repository.
+
+Usage:
+    python scripts/build/build-all.py [tag]
+    python scripts/build/build-all.py 1.0.0
+"""
+import sys
+import os
+import subprocess
+import argparse
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+
+SERVICES = [
+    "api-gateway",
+    "inventory-service",
+    "notification-service",
+    "orders-service",
+    "products-service",
+]
+
+
+def run_command(cmd, cwd=None):
+    print(f"\n==> Running: {' '.join(cmd)}")
+    result = subprocess.run(cmd, cwd=cwd)
+    if result.returncode != 0:
+        print(f"❌ Command failed with exit code {result.returncode}")
+        sys.exit(result.returncode)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build all microservice Docker images")
+    parser.add_argument("tag", nargs="?", default="1.0.0", help="Image tag (default: 1.0.0)")
+    parser.add_argument("--repo-prefix", default="georgegxx", help="Docker registry prefix")
+    args = parser.parse_args()
+
+    tag = args.tag
+    prefix = args.repo_prefix
+
+    print("=" * 60)
+    print(f" 🚀 BUILDING ALL CONTAINER IMAGES (TAG: {tag})")
+    print("=" * 60)
+
+    # 1. Build Spring Boot Microservices
+    for svc in SERVICES:
+        print(f"\n📦 Building service '{svc}:{tag}'...")
+        dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
+        cmd = [
+            "docker", "build",
+            "-t", f"{svc}:{tag}",
+            "-t", f"{prefix}/{svc}:{tag}",
+            "-t", f"microservices-architecture-{svc}:{tag}",
+            "-f", dockerfile,
+            ROOT_DIR
+        ]
+        run_command(cmd, cwd=ROOT_DIR)
+
+    # 2. Build Frontend SPA
+    print(f"\n🌐 Building frontend SPA 'frontend:{tag}'...")
+    frontend_dir = os.path.join(ROOT_DIR, "frontend")
+    frontend_dockerfile = os.path.join(frontend_dir, "Dockerfile")
+    cmd = [
+        "docker", "build",
+        "-t", f"frontend:{tag}",
+        "-t", f"{prefix}/frontend:{tag}",
+        "-t", f"microservices-architecture-frontend:{tag}",
+        "-f", frontend_dockerfile,
+        frontend_dir
+    ]
+    run_command(cmd, cwd=frontend_dir)
+
+    print("\n" + "=" * 60)
+    print(" ✨ ALL CONTAINER IMAGES BUILT SUCCESSFULLY!")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

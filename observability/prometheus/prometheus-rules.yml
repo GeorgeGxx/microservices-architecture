@@ -1,0 +1,95 @@
+groups:
+  - name: microservices-architecture-alerts
+    rules:
+      - alert: ServiceDown
+        expr: up{job="spring-services"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} is down"
+          description: "Service {{ $labels.service }} has been unreachable for more than 3 minutes."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{job="spring-services", status=~"5..", uri!~".*actuator.*"}[5m]))
+          / sum(rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx Error Rate"
+          description: "5xx HTTP error rate for Spring services exceeds 5% over the last 5 minutes."
+
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{job="spring-services", uri!~".*actuator.*"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Service Request Latency"
+          description: "P95 request latency for Spring services exceeds 1 second over the last 5 minutes."
+
+      - alert: RedisExporterDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis Exporter Unreachable"
+          description: "The Redis Prometheus exporter target is down or unreachable."
+
+      - alert: HighHeapUsage
+        expr: sum(jvm_memory_used_bytes{job="spring-services", area="heap"}) by (service)
+          / sum(jvm_memory_max_bytes{job="spring-services", area="heap"}) by (service) > 0.75
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM Heap Memory Usage"
+          description: "Service {{ $labels.service }} is consuming more than 75% of allocated JVM heap memory."
+
+      # Q6: How do you configure a Prometheus alert definition to catch a crashing pod before it triggers an engineering incident?
+      # Answer: In a DevSecOps environment, you monitor container states. The Prometheus metric kube_pod_container_status_waiting_reason can tell you if a pod is stuck in a loop.
+
+      - alert: ContainerStuckInCrashLoop
+        expr: sum by (namespace, pod, container) (kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}) > 0
+        for: 5m
+        labels:
+          severity: critical
+          team: devsecops
+        annotations:
+          summary: "Container {{ $labels.container }} in pod {{ $labels.pod }} is failing to start."
+          description: "The container has been stuck in a CrashLoopBackOff cycle for more than 5 minutes in the {{ $labels.namespace }} namespace."
+
+      # Security & DDoS Detection Alert Rules
+      - alert: PotentialDDoSAttack
+        expr: sum(rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[1m])) > 150
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Potential DDoS Attack In Progress"
+          description: "Global inbound HTTP throughput is spiking above 150 requests/sec across services."
+
+      - alert: RateLimiterHighRejections
+        expr: sum(rate(http_server_requests_seconds_count{status="429"}[1m])) > 25
+        for: 1m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High Volume of 429 Rate Limiter Blocks"
+          description: "Redis Rate Limiter is rejecting more than 25 requests/sec. Possible flood or brute-force attack."
+
+      - alert: TargetEndpointFlooding
+        expr: topk(1, sum by (uri) (rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[1m]))) > 80
+        for: 1m
+        labels:
+          severity: critical
+          category: security
+        annotations:
+          summary: "Layer 7 Endpoint Flooding Detected"
+          description: "Endpoint {{ $labels.uri }} is experiencing abnormally heavy concentrated traffic (> 80 req/s)."

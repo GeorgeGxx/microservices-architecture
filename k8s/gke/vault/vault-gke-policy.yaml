@@ -1,0 +1,26 @@
+# ==============================================================================
+# Google Cloud GKE Vault ServiceAccounts & Workload Identity
+# ==============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: products-service
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "products-service@msa-production-project.iam.gserviceaccount.com"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orders-service
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "orders-service@msa-production-project.iam.gserviceaccount.com"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-gateway
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "api-gateway@msa-production-project.iam.gserviceaccount.com"

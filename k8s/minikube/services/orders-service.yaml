@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orders-service
+spec:
+  ports:
+    - name: http-orders
+      port: 8003
+      targetPort: 8003
+  selector:
+    app: orders-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orders-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orders-service
+  template:
+    metadata:
+      labels:
+        app: orders-service
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8003"
+        prometheus.io/path: "/actuator/orders/prometheus"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: orders-service
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: georgegxx/orders-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: microservices-config
+            - secretRef:
+                name: microservices-secrets
+          env:
+            - name: PORT
+              value: "8003"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=orders-service"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+              ephemeral-storage: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+              ephemeral-storage: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/orders/health
+              port: 8003
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/orders/health
+              port: 8003
+              scheme: HTTP
+            initialDelaySeconds: 25
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

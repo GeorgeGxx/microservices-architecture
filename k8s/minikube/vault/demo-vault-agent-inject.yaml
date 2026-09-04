@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products-service-vault-demo
+  namespace: ecommerce
+  labels:
+    app: products-service-vault-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products-service-vault-demo
+  template:
+    metadata:
+      labels:
+        app: products-service-vault-demo
+      annotations:
+        # Enables the Vault Agent Sidecar Injector
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/role: "microservices-role"
+        vault.hashicorp.com/agent-inject-secret-database.env: "secret/data/products-service"
+        vault.hashicorp.com/agent-inject-template-database.env: |
+          {{- with secret "secret/data/products-service" -}}
+          export SPRING_DATASOURCE_URL="{{ .Data.data.spring_datasource_url }}"
+          export SPRING_DATASOURCE_USERNAME="{{ .Data.data.spring_datasource_username }}"
+          export SPRING_DATASOURCE_PASSWORD="{{ .Data.data.spring_datasource_password }}"
+          {{- end -}}
+    spec:
+      serviceAccountName: products-service
+      containers:
+        - name: products-service
+          image: georgegxx/products-service:1.0.0
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              if [ -f /vault/secrets/database.env ]; then
+                . /vault/secrets/database.env
+              fi
+              exec java -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0 org.springframework.boot.loader.launch.JarLauncher
+          ports:
+            - containerPort: 8004
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "200m"
+              memory: "256Mi"

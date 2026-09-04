@@ -1,0 +1,59 @@
+global:
+  environment: dev
+  cloudProvider: azure
+  storageClass: managed-premium-retain
+
+# Generic Azure ACR Repository Placeholders (Replace <ACR_NAME> before deployment)
+api-gateway:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/api-gateway"
+    tag: "1.0.0"
+  replicaCount: 1
+
+inventory-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/inventory-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+notification-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/notification-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+orders-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/orders-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+products-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/products-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+frontend:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/frontend"
+    tag: "1.0.0"
+  replicaCount: 1
+
+# Traefik Ingress Configuration for AKS Sandbox
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: "web, websecure"
+  hosts:
+    - host: "api.azure-sandbox.local"
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+          port: 8080
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 80

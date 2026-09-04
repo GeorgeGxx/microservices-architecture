@@ -1,0 +1,33 @@
+global:
+  environment: prod
+  # Azure Key Vault CSI driver (opt-in) - descomenta y completa para que los
+  # secrets vengan de Key Vault en vez de --set/--values planos. Ver
+  # helm/microservices-umbrella/templates/secretproviderclass.yaml.
+  # azureKeyVault:
+  #   enabled: true
+  #   name: georgegxx-msa-prod-kv
+  #   tenantId: "<tu-tenant-id>"
+  #   workloadIdentityClientId: "<client-id-de-la-workload-identity>"
+  #   secrets:
+  #     - name: db-password
+  #       alias: DB_PASSWORD
+
+api-gateway:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/api-gateway", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+inventory-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/inventory-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+notification-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/notification-service", tag: "1.0.0" }
+  replicaCount: 2
+orders-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/orders-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+products-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/products-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }

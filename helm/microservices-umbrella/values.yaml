@@ -1,0 +1,51 @@
+# Default values shared by every environment. Environment-specific
+# overrides live in helm/values/values-<env>.yaml and are passed with
+# `helm upgrade -f`.
+
+global:
+  environment: dev
+  otelEndpoint: "https://otel-collector:4317"
+
+  # Azure Key Vault CSI driver - AKS only, opt-in. When enabled, syncs the
+  # secrets listed below from Key Vault into the same K8s Secret
+  # (`secret.name`) the 6 services already read via envFrom, so no service
+  # chart needs to change. Requires: the "azureKeyvaultSecretsProvider"
+  # AKS add-on (already on via terraform/modules/azure/aks), the Key Vault
+  # RBAC role granted in terraform/modules/azure/keyvault, and an AKS
+  # Workload Identity client-id for discovery-server's ServiceAccount.
+  azureKeyVault:
+    enabled: false
+    name: ""                       # e.g. georgegxx-msa-dev-kv (matches terraform/modules/azure/keyvault naming: <name>-<environment>-kv)
+    tenantId: ""
+    workloadIdentityClientId: ""   # client-id de la Workload Identity con permiso "Key Vault Secrets User"
+    secrets: []
+    # - name: db-password        # nombre del secret en Azure Key Vault
+    #   alias: DB_PASSWORD       # key resultante en el K8s Secret sincronizado
+
+configMap:
+  create: true
+  name: microservices-config
+  data:
+    OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+
+secret:
+  # Plain Helm Secret (default, works everywhere - minikube, AKS, EKS).
+  # On AKS you can instead set global.azureKeyVault.enabled=true above to
+  # have this same Secret populated/synced from Azure Key Vault via the CSI
+  # driver (see templates/secretproviderclass.yaml) instead of passing raw
+  # values here. For EKS, the equivalent is the AWS Secrets Manager /
+  # SSM CSI driver - not wired in yet, same pattern would apply.
+  create: true
+  name: microservices-secrets
+  data: {}
+    # DB_PASSWORD: "changeme"   # base64 handled by the template, pass raw value here
+
+prometheusRule:
+  enabled: true
+
+# Per-subchart overrides (mirrors each chart's own values.yaml keys)
+api-gateway: {}
+inventory-service: {}
+notification-service: {}
+orders-service: {}
+products-service: {}

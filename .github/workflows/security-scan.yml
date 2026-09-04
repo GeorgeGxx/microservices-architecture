@@ -1,0 +1,102 @@
+name: Microservices Architecture Security & Vulnerability Scan
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * 0' # Weekly scan every Sunday
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # ==========================================================
+  # JOB 1: Trivy Vulnerability & Secret Scan (Filesystem / Dependencies)
+  # ==========================================================
+  trivy-scan:
+    name: 🛡️ 1. Trivy Vulnerability & Dependency Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner (SARIF output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Upload Trivy Scan Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
+
+      - name: Enforce Trivy Vulnerability Gate (fails on CRITICAL/HIGH)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # ==========================================================
+  # JOB 2: Gitleaks Repository-wide Secret Detection (Parallel)
+  # ==========================================================
+  gitleaks-scan:
+    name: 🔑 2. Gitleaks Secret Scanning Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Detector
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ==========================================================
+  # JOB 3: Checkov Repository-wide IaC Security Scan (Parallel)
+  # ==========================================================
+  checkov-scan:
+    name: 🏗️ 3. Checkov Multi-Framework IaC Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov IaC Scanner (Docker, K8s, Helm, Terraform)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: '.'
+          framework: 'all'
+          output_format: 'cli,sarif'
+          output_file_path: 'console,checkov-report.sarif'
+          soft_fail: false
+
+      - name: Upload Checkov Scan Results to GitHub Security Tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'checkov-report.sarif'
+          category: 'checkov'

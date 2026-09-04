@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: products-service
+spec:
+  ports:
+    - name: http-products
+      port: 8004
+      targetPort: 8004
+  selector:
+    app: products-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: products-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: products-service
+  template:
+    metadata:
+      labels:
+        app: products-service
+        version: "1.0.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8004"
+        prometheus.io/path: "/actuator/products/prometheus"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: products-service
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: georgegxx/products-service:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8004
+          envFrom:
+            - configMapRef:
+                name: microservices-config
+            - secretRef:
+                name: microservices-secrets
+          env:
+            - name: PORT
+              value: "8004"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "service.name=products-service"
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+              ephemeral-storage: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+              ephemeral-storage: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/products/health
+              port: 8004
+              scheme: HTTP
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /actuator/products/health
+              port: 8004
+              scheme: HTTP
+            initialDelaySeconds: 25
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

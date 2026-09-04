@@ -1,0 +1,30 @@
+# Helm values for the `prometheus-community/kube-prometheus-stack` chart.
+# Install with:
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install kube-prometheus prometheus-community/kube-prometheus-stack \
+#     -n observability --create-namespace -f observability/prometheus/dev/prometheus-values.yaml
+#
+# Uses Kubernetes service discovery (ServiceMonitor) instead of the static
+# targets used in the local docker-compose Prometheus, since pod IPs are
+# dynamic in AKS/EKS.
+
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests: { cpu: 200m, memory: 512Mi }
+      limits: { cpu: 500m, memory: 1Gi }
+
+grafana:
+  adminPassword: "changeme-in-dev" # override via --set or a sealed secret
+  persistence:
+    enabled: false
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }

@@ -1,0 +1,68 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: microservices-gateway
+  namespace: ecommerce
+spec:
+  selector:
+    istio: ingressgateway # Uses Istio default Ingress Gateway proxy
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: microservices-edge-routes
+  namespace: ecommerce
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - microservices-gateway
+  http:
+    # 1. API & Backend requests -> Routed to Spring Cloud API Gateway
+    - match:
+        - uri:
+            prefix: /api/
+        - uri:
+            prefix: /v3/api-docs
+        - uri:
+            prefix: /swagger-ui
+        - uri:
+            exact: /swagger-ui.html
+      route:
+        - destination:
+            host: api-gateway.ecommerce.svc.cluster.local
+            port:
+              number: 8080
+
+    # 2. Keycloak Auth requests -> Routed to Keycloak
+    - match:
+        - uri:
+            prefix: /realms/
+        - uri:
+            prefix: /resources/
+        - uri:
+            prefix: /admin/
+        - uri:
+            prefix: /js/
+      route:
+        - destination:
+            host: keycloak.ecommerce.svc.cluster.local
+            port:
+              number: 8181
+
+    # 3. Default / Root -> Routed to Angular 21 SPA Storefront
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: frontend.ecommerce.svc.cluster.local
+            port:
+              number: 80

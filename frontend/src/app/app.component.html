@@ -1,0 +1,22 @@
+<div class="app-layout">
+  <app-navbar></app-navbar>
+
+  <main class="main-content">
+    <div class="content-container">
+      <router-outlet></router-outlet>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-brand">
+        <span class="brand-name">{{ 'FOOTER.TITLE' | translate }}</span>
+        <span class="footer-copy">{{ 'FOOTER.COPY' | translate }}</span>
+      </div>
+    </div>
+  </footer>
+
+  <app-cart-drawer></app-cart-drawer>
+  <app-toast></app-toast>
+  <app-qr-scanner-modal></app-qr-scanner-modal>
+</div>

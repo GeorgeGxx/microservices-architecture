@@ -1,0 +1,74 @@
+replicaCount: 1
+
+image:
+  repository: georgegxx/api-gateway
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+containerPort: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+probes:
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  initialDelaySeconds: 15
+
+env: {}
+  # EXTRA_VAR: value
+
+envFrom:
+  configMapRef: microservices-config
+  secretRef: microservices-secrets
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+  # eks.amazonaws.com/role-arn: arn:aws:iam::...:role/xxx-irsa-xxx
+  # azure.workload.identity/client-id: xxxxxxxx-xxxx
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /actuator/prometheus
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/actuator/prometheus"

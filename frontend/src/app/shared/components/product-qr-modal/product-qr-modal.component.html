@@ -1,0 +1,30 @@
+@if (isOpen() && product(); as prod) {
+  <div class="modal-backdrop" (click)="close()">
+    <div class="qr-label-card" (click)="$event.stopPropagation()">
+      <button class="btn-close" (click)="close()" aria-label="Close">✕</button>
+
+      <div class="label-header">
+        <span class="brand-pill">MICROSTORE POS</span>
+        <span class="status-badge">ACTIVE SKU</span>
+      </div>
+
+      <h3 class="product-title">{{ prod.name }}</h3>
+      <p class="sku-text">SKU: <strong class="mono">{{ prod.sku }}</strong></p>
+
+      <div class="qr-svg-wrapper" [innerHTML]="qrSvg()"></div>
+
+      <div class="price-box">
+        <span class="price-val"><span>$</span>{{ prod.price | number:'1.2-2' }} USD</span>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-print" (click)="printLabel()">
+          🖨️ {{ 'QR_GEN.PRINT' | translate }}
+        </button>
+        <button class="btn-close-action" (click)="close()">
+          {{ 'QR_GEN.CLOSE' | translate }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
