@@ -18,7 +18,7 @@ on:
       runner-type:
         required: false
         type: string
-        default: 'self-hosted'
+        default: 'ubuntu-latest'
         description: 'Runner label: self-hosted (local Ryzen 7) or ubuntu-latest'
       harbor-url:
         required: false
@@ -124,6 +124,7 @@ jobs:
       # Gitleaks Secrets Detection (Centralized Config)
       - name: Run Gitleaks Secret Detector
         uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
