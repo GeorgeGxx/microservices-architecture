@@ -67,20 +67,20 @@ if (-not $ready) {
 }
 Write-Host "[OK] Keycloak is ready." -ForegroundColor Green
 
-# 2. Get Admin Token
-Write-Host "`n[2/5] Obtaining Master Admin Token..." -ForegroundColor Yellow
-$tokenBody = @{
-    client_id = "admin-cli"
-    grant_type = "password"
-    username = $AdminUser
-    password = $AdminPassword
+function Get-AdminHeaders {
+    $tokenBody = @{
+        client_id = "admin-cli"
+        grant_type = "password"
+        username = $AdminUser
+        password = $AdminPassword
+    }
+    $tokenResp = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/realms/master/protocol/openid-connect/token" -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+    return @{
+        Authorization = "Bearer $($tokenResp.access_token)"
+        "Content-Type" = "application/json"
+    }
 }
-$tokenResp = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/realms/master/protocol/openid-connect/token" -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
-$token = $tokenResp.access_token
-$headers = @{
-    Authorization = "Bearer $token"
-    "Content-Type" = "application/json"
-}
+$headers = Get-AdminHeaders
 Write-Host "[OK] Admin token acquired." -ForegroundColor Green
 
 # 3. Ensure Realm & Disable Profile Prompt Actions
@@ -311,20 +311,27 @@ function Ensure-KeycloakUser {
     } else {
         $userId = $users[0].id
         # Update user profile to ensure firstName, lastName, email, and clear all required actions
-        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId" -Headers $headers -Body ($userPayload | ConvertTo-Json)
+        $currentHeaders = Get-AdminHeaders
+        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId" -Headers $currentHeaders -Body ($userPayload | ConvertTo-Json)
         Write-Host "  [OK] User '$username' profile updated ($firstName $lastName, no required actions)." -ForegroundColor DarkGray
     }
 
     # Set password explicitly & ensure temporary=false
-    $pwdPayload = @{ type = "password"; value = $password; temporary = $false } | ConvertTo-Json
-    Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/reset-password" -Headers $headers -Body $pwdPayload
+    try {
+        $currentHeaders = Get-AdminHeaders
+        $pwdPayload = @{ type = "password"; value = $password; temporary = $false } | ConvertTo-Json
+        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/reset-password" -Headers $currentHeaders -Body $pwdPayload
+    } catch {
+        Write-Host "  Note: Password set advisory for $($username): $_" -ForegroundColor DarkGray
+    }
 
     # Map all requested roles
     if ($roles) {
+        $currentHeaders = Get-AdminHeaders
         $roleObjs = @()
         foreach ($r in $roles) {
             try {
-                $rObj = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$r" -Headers $headers
+                $rObj = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$r" -Headers $currentHeaders
                 $roleObjs += $rObj
             } catch {}
         }
@@ -334,7 +341,7 @@ function Ensure-KeycloakUser {
                 $roleMapPayload = "[$roleMapPayload]"
             }
             try {
-                Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/role-mappings/realm" -Headers $headers -Body $roleMapPayload
+                Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/role-mappings/realm" -Headers $currentHeaders -Body $roleMapPayload
             } catch {}
         }
     }
