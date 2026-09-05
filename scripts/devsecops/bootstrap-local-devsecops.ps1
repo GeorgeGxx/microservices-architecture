@@ -142,7 +142,14 @@ foreach ($t in $tunnels) {
     Start-Process -FilePath "kubectl" -ArgumentList "port-forward", "-n", "$($t.Namespace)", "--address", "0.0.0.0,127.0.0.1", "svc/$($t.Svc)", "$($t.LocalPort):$($t.RemotePort)" -WindowStyle Hidden -ErrorAction SilentlyContinue
     Write-Host "  [+] Tunnel initialized for $($t.Desc) on localhost:$($t.LocalPort)" -ForegroundColor Green
 }
-Start-Sleep -Seconds 3
+Start-Sleep -Seconds 5
+
+# 5.4 Bootstrap Keycloak Realm, Clients, and Test Users
+Write-Host "`n🔐 Bootstrapping Keycloak Realm and Test Users..." -ForegroundColor Yellow
+$keycloakBootstrapScript = Join-Path $PSScriptRoot "..\auth\bootstrap-keycloak.ps1"
+if (Test-Path $keycloakBootstrapScript) {
+    & $keycloakBootstrapScript
+}
 
 # 6. Service Access Summary
 Write-Host "`n================================================================================" -ForegroundColor Green
@@ -153,9 +160,9 @@ Write-Host "🚪 Istio Unified Gateway:  http://localhost:30080     (Routes /, /
 Write-Host "🔌 API Gateway Direct:     http://localhost:8080/api/product (Swagger: /swagger-ui.html)" -ForegroundColor White
 Write-Host "🔑 Keycloak IAM Console:   http://localhost:8181      (admin / admin)" -ForegroundColor White
 Write-Host "🔒 HashiCorp Vault UI:     http://localhost:8200      (Dev Token: root)" -ForegroundColor White
-Write-Host "🧭 Kiali Service Mesh:     http://localhost:20001" -ForegroundColor White
+Write-Host "🧭 Kiali Service Mesh:     http://localhost:20001/kiali/" -ForegroundColor White
 Write-Host "🐙 ArgoCD GitOps:          http://localhost:30088     (admin / ArgoCD12345)" -ForegroundColor White
 Write-Host "📦 Harbor Registry:        http://harbor.local:30002  (admin / Harbor12345)" -ForegroundColor White
-Write-Host "📊 Grafana Observability:  http://localhost:30030     (admin / Admin12345)" -ForegroundColor White
+Write-Host "📊 Grafana Observability:  http://localhost:30030     (admin / admin)" -ForegroundColor White
 Write-Host "📈 Prometheus Targets:     http://localhost:9090/targets" -ForegroundColor White
 Write-Host "================================================================================" -ForegroundColor Green

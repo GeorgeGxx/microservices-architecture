@@ -27,6 +27,6 @@ variable "argocd_admin_password" {
 variable "grafana_admin_password" {
   type        = string
   description = "Initial admin password for Grafana"
-  default     = "Admin12345"
+  default     = "admin"
   sensitive   = true
 }

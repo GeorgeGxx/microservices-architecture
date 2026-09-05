@@ -215,4 +215,21 @@ resource "helm_release" "observability" {
     name  = "prometheus.prometheusSpec.resources.limits.memory"
     value = "1536Mi"
   }
+  # Disable non-exposed host components in Minikube to keep all Prometheus targets green
+  set {
+    name  = "kubeControllerManager.enabled"
+    value = "false"
+  }
+  set {
+    name  = "kubeScheduler.enabled"
+    value = "false"
+  }
+  set {
+    name  = "kubeEtcd.enabled"
+    value = "false"
+  }
+  set {
+    name  = "kubeProxy.enabled"
+    value = "false"
+  }
 }
