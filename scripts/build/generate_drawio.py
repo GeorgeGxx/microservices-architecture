@@ -290,46 +290,46 @@ def build_drawio_xml():
     r9 = create_page("page_devsecops_pipeline", "9. Enterprise DevSecOps Platform & 12-Stage Pipeline")
     add_node(r9, "t9", "1", "<b style='font-size:22px;color:#1E293B;'>100% LOCAL ENTERPRISE DEVSECOPS PLATFORM & 12-STAGE CI/CD PIPELINE</b><br><span style='font-size:13px;color:#64748B;'>Hardware Budget: AMD Ryzen 7 (16 threads) • 32 GB RAM • Minikube (12 CPUs / 12 GB RAM) • Zero Cloud Cost Production Parity</span>", title_style, 300, 25, 1400, 50)
 
-    # Section 1: 12-Stage Pipeline Flow
-    add_node(r9, "c_ci", "1", "<b>🔨 CI PHASE: Continuous Integration & Shift-Left Security (GitHub Actions Windows Runner)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 60, 90, 880, 190)
+    # Section 1: CI Phase Flow
+    add_node(r9, "c_ci", "1", "<b>🔨 CI PHASE: Continuous Integration & Shift-Left Security (GitHub Actions Windows Runner)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 60, 90, 750, 190)
     add_node(r9, "s1", "1", "<b>1. Unit Tests</b><br>Maven / Angular<br>JaCoCo Coverage", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 80, 130, 125, 65)
-    add_node(r9, "s2", "1", "<b>2. SAST & Secrets</b><br>SonarQube Scan<br>Gitleaks Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 220, 130, 125, 65)
-    add_node(r9, "s3", "1", "<b>3. Container Build</b><br>Docker Daemon<br>Syft SBOM Gen", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 360, 130, 125, 65)
-    add_node(r9, "s4", "1", "<b>4. Trivy Scan</b><br>Container Audit<br>.trivyignore allow", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 500, 130, 125, 65)
-    add_node(r9, "s5", "1", "<b>5. Push to Harbor</b><br>harbor.local:30002<br>OCI Registry", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 640, 130, 125, 65)
-    add_node(r9, "s6", "1", "<b>6. Conftest (OPA)</b><br>Helm Pre-flight<br>Rego Policy Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 780, 130, 140, 65)
+    add_node(r9, "s2", "1", "<b>2. SAST & Secrets</b><br>SonarQube Scan<br>Gitleaks Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 225, 130, 125, 65)
+    add_node(r9, "s3", "1", "<b>3. Container Build</b><br>Docker Daemon<br>Syft SBOM Gen", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 370, 130, 125, 65)
+    add_node(r9, "s4", "1", "<b>4. Trivy Scan</b><br>Container Audit<br>.trivyignore allow", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 515, 130, 125, 65)
+    add_node(r9, "s5", "1", "<b>5. Conftest (OPA)</b><br>Helm Pre-flight<br>Rego Policy Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 660, 130, 135, 65)
 
     add_edge(r9, "pe1", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s1", "s2")
     add_edge(r9, "pe2", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s2", "s3")
     add_edge(r9, "pe3", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s3", "s4")
     add_edge(r9, "pe4", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s4", "s5")
-    add_edge(r9, "pe5", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s5", "s6")
 
-    # Section 2: CD Staging & QA Gates
-    add_node(r9, "c_cd", "1", "<b>🚀 CD PHASE: Staging Deployment, Dynamic QA & DAST Verification (Parallel Quality Gates)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 960, 90, 880, 190)
-    add_node(r9, "s7", "1", "<b>7. Deploy Staging</b><br>Helm Umbrella<br>SPRING=staging", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 980, 130, 125, 65)
-    add_node(r9, "s8", "1", "<b>8. Newman QA</b><br>API Integration<br>Postman Tests", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1120, 130, 125, 65)
-    add_node(r9, "s9", "1", "<b>9. Cypress E2E</b><br>UI Journey<br>Checkout Test", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1260, 130, 125, 65)
-    add_node(r9, "s10", "1", "<b>10. k6 Load Tests</b><br>SLO: p95&lt;500ms<br>Error Rate &lt; 1%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1400, 130, 125, 65)
-    add_node(r9, "s11", "1", "<b>11. OWASP ZAP</b><br>DAST Ingress Scan<br>Edge Attack Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;", 1540, 130, 125, 65)
-    add_node(r9, "s12", "1", "<b>12. Deploy Prod</b><br>Canary Rollout<br>Istio 10% ➔ 100%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;", 1680, 130, 140, 65)
+    # Section 2: CD Staging, Promotion & Prod
+    add_node(r9, "c_cd", "1", "<b>🚀 CD PHASE: Staging Quality Gates, Docker Hub Promotion & Production Canary</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 830, 90, 1010, 190)
+    add_node(r9, "s6", "1", "<b>6. Deploy Staging</b><br>Helm Umbrella<br>SPRING=staging", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 850, 130, 125, 65)
+    add_node(r9, "s7", "1", "<b>7. Newman QA</b><br>API Integration<br>Postman Tests", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 990, 130, 120, 65)
+    add_node(r9, "s8", "1", "<b>8. Cypress E2E</b><br>UI Journey<br>Checkout Test", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1125, 130, 120, 65)
+    add_node(r9, "s9", "1", "<b>9. k6 Load Tests</b><br>SLO: p95&lt;500ms<br>Error Rate &lt; 1%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1260, 130, 125, 65)
+    add_node(r9, "s10", "1", "<b>10. OWASP ZAP</b><br>DAST Ingress Scan<br>Edge Attack Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;", 1400, 130, 125, 65)
+    add_node(r9, "s11", "1", "<b>11. Push Docker Hub</b><br>georgegxx/*:1.0.0<br>Certified Release", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10;", 1540, 130, 135, 65)
+    add_node(r9, "s12", "1", "<b>12. Deploy Prod</b><br>Canary Rollout<br>Istio 10% ➔ 100%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;", 1690, 130, 135, 65)
 
-    add_edge(r9, "pe6", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "s6", "s7")
+    add_edge(r9, "pe5", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "s5", "s6")
+    add_edge(r9, "pe6", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s6", "s7")
     add_edge(r9, "pe7", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s7", "s8")
     add_edge(r9, "pe8", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s8", "s9")
-    add_edge(r9, "pe9", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s9", "s10")
-    add_edge(r9, "pe10", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;", "s10", "s11")
+    add_edge(r9, "pe9", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;", "s9", "s10")
+    add_edge(r9, "pe10", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=2;", "s10", "s11")
     add_edge(r9, "pe11", "1", "Quality Gates Passed", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=2;", "s11", "s12")
 
     # Section 3: Minikube In-Cluster Platform & Live Endpoints
     add_node(r9, "c_plat", "1", "<b>☸️ MINIKUBE PLATFORM TOPOLOGY (12 CPUs • 12 GB RAM • containerd • Ingress Controller)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 310, 1780, 380)
 
     # Tool Pods
-    add_node(r9, "p_harbor", "1", "<b>📦 Harbor Registry</b><br>Port 30002 (HTTP OCI)<br>harbor.local:30002<br>Private Image Registry", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 360, 240, 90)
-    add_node(r9, "p_argo", "1", "<b>🐙 ArgoCD GitOps</b><br>Port 30088 (Web UI)<br>GitOps Controller<br>Automated Sync Engine", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 360, 360, 240, 90)
+    add_node(r9, "p_loki", "1", "<b>📑 Loki & Alloy Logs</b><br>observability namespace<br>Log Aggregation Engine<br>Grafana Logs Datasource", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 360, 240, 90)
+    add_node(r9, "p_argo", "1", "<b>🐙 ArgoCD GitOps</b><br>Port 30088 (Web UI)<br>GitOps Controller (admin/admin)<br>Automated Sync Engine", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 360, 360, 240, 90)
     add_node(r9, "p_vault", "1", "<b>🔒 HashiCorp Vault</b><br>Port 8200 (Token: root)<br>Secrets Management<br>K8s ServiceAccount Auth", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 630, 360, 240, 90)
-    add_node(r9, "p_gatekeeper", "1", "<b>🛡️ OPA Gatekeeper</b><br>Admission Controller<br>Trusted Registry Audit<br>Resource Limits Guardrail", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 900, 360, 240, 90)
-    add_node(r9, "p_grafana", "1", "<b>📊 Grafana Observability</b><br>Port 30030 (admin/Admin12345)<br>Technical & Business Dashboards<br>Golden Signals & SLOs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1170, 360, 240, 90)
+    add_node(r9, "p_gatekeeper", "1", "<b>🛡️ OPA Gatekeeper</b><br>Admission Controller<br>Trusted Registry (georgegxx/*)<br>Resource Limits Guardrail", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 900, 360, 240, 90)
+    add_node(r9, "p_grafana", "1", "<b>📊 Grafana Observability</b><br>Port 30030 (admin/admin)<br>Technical & Business Dashboards<br>Prometheus + Loki Integrations", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1170, 360, 240, 90)
     add_node(r9, "p_prom", "1", "<b>📈 Prometheus Targets</b><br>Port 9090 (TSDB /targets)<br>15s Scrape Interval<br>Actuator Metrics Ingestion", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1440, 360, 240, 90)
 
     # Applications Layer in Staging
@@ -341,7 +341,7 @@ def build_drawio_xml():
     add_node(r9, "app_dbs", "1", "<b>💾 Persistence & Streams</b><br>PostgreSQL (Products, Orders, Inv, KC)<br>Apache Kafka 7.8 (KRaft Events)<br>Redis Cache Cluster", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 1440, 480, 240, 90)
 
     # Section 4: Architecture Operational Summary
-    add_node(r9, "ops_box", "1", "<b>⚙️ AUTOMATED LIFECYCLE SCRIPTS (Platform Engineering)</b><br>• <b>Bootstrap Ecosystem:</b> <code>.\\scripts\\devsecops\\bootstrap-local-devsecops.ps1</code> (Deploys Minikube, Terraform, Harbor, ArgoCD, Prometheus, Gatekeeper, Vault, Keycloak, Frontend & Tunnels).<br>• <b>Health Verification:</b> <code>.\\scripts\\devsecops\\verify-platform.ps1</code> (Runs automated deep diagnostics of all namespaces, pods, NodePorts, and policies).<br>• <b>Teardown & Pause:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1</code> (Gracefully pauses Minikube and frees 12 CPUs & 12 GB RAM, preserving state).<br>• <b>Total Cluster Purge:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState</code> (Destroys all volumes and reclaims 80 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
+    add_node(r9, "ops_box", "1", "<b>⚙️ AUTOMATED LIFECYCLE SCRIPTS (Platform Engineering)</b><br>• <b>Bootstrap Ecosystem:</b> <code>.\\scripts\\devsecops\\bootstrap-local-devsecops.ps1</code> (Deploys Minikube, Terraform, ArgoCD, Prometheus, Gatekeeper, Vault, Keycloak, Frontend & Tunnels).<br>• <b>Health Verification:</b> <code>.\\scripts\\devsecops\\verify-platform.ps1</code> (Runs automated deep diagnostics of all namespaces, pods, NodePorts, and policies).<br>• <b>Teardown & Pause:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1</code> (Gracefully pauses Minikube and frees 12 CPUs & 12 GB RAM, preserving state).<br>• <b>Total Cluster Purge:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState</code> (Destroys all volumes and reclaims 80 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
 
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)

@@ -3,7 +3,6 @@
 # ==============================================================================
 resource "kubernetes_namespace" "namespaces" {
   for_each = toset([
-    "harbor",
     "gatekeeper-system",
     "argocd",
     "observability",
@@ -19,63 +18,6 @@ resource "kubernetes_namespace" "namespaces" {
     } : {
       "environment" = each.key
     }
-  }
-}
-
-# ==============================================================================
-# 1. Harbor Container Registry (HTTP Insecure, NodePort 30002)
-# ==============================================================================
-resource "helm_release" "harbor" {
-  depends_on = [kubernetes_namespace.namespaces]
-
-  name       = "harbor"
-  repository = "https://helm.goharbor.io"
-  chart      = "harbor"
-  version    = "1.14.2"
-  namespace  = "harbor"
-  timeout    = 600
-
-  set {
-    name  = "expose.type"
-    value = "nodePort"
-  }
-  set {
-    name  = "expose.tls.enabled"
-    value = "false"
-  }
-  set {
-    name  = "expose.nodePort.ports.http.nodePort"
-    value = "30002"
-  }
-  set {
-    name  = "externalURL"
-    value = "http://harbor.local:30002"
-  }
-  set {
-    name  = "harborAdminPassword"
-    value = var.harbor_admin_password
-  }
-  # Disable built-in Trivy scanner inside Harbor to conserve RAM (Trivy runs in CI pipeline)
-  set {
-    name  = "trivy.enabled"
-    value = "false"
-  }
-  # Light resource limits for local minikube budget
-  set {
-    name  = "core.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "core.resources.requests.memory"
-    value = "128Mi"
-  }
-  set {
-    name  = "core.resources.limits.cpu"
-    value = "500m"
-  }
-  set {
-    name  = "core.resources.limits.memory"
-    value = "512Mi"
   }
 }
 

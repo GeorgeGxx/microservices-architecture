@@ -12,7 +12,7 @@ Write-Host "====================================================================
 
 # 1. Verify Platform Pods
 Write-Host "`n📊 Pod Status by Namespace:" -ForegroundColor Yellow
-$namespaces = @("harbor", "gatekeeper-system", "argocd", "observability", "istio-system", "vault")
+$namespaces = @("gatekeeper-system", "argocd", "observability", "istio-system", "vault", "staging")
 foreach ($ns in $namespaces) {
     Write-Host "`n--- Namespace: $ns ---" -ForegroundColor White
     kubectl get pods -n $ns --no-headers -o wide 2>$null
