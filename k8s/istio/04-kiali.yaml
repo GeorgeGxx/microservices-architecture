@@ -137,9 +137,8 @@ data:
         enabled: false
       grafana:
         enabled: true
-        url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
-        internal_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
-        external_url: "http://localhost:30030"
+        in_cluster_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
+        url: "http://localhost:30030"
         auth:
           type: "basic"
           username: "admin"
