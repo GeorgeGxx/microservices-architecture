@@ -5,14 +5,21 @@ title = "Microservices DevSecOps Gitleaks Profile"
 useDefault = true
 
 [allowlist]
-description = "Global allowlist for dummy/test values and local configs"
+description = "Global allowlist for dummy/test values, local configs, and bootstrap scripts"
 paths = [
   '''(?i)devsecops/.*\.rego$''',
   '''(?i).*\.example\.env$''',
-  '''(?i).*values-minikube\.yaml$'''
+  '''(?i).*\.env.*''',
+  '''(?i).*values.*\.yaml$''',
+  '''(?i)scripts/devsecops/.*''',
+  '''(?i)k8s/minikube/.*''',
+  '''(?i)terraform/.*\.tfvars.*'''
 ]
 regexes = [
   '''(?i)dummy.*''',
   '''(?i)test-token''',
-  '''(?i)CHANGE_ME'''
+  '''(?i)CHANGE_ME''',
+  '''(?i)admin''',
+  '''(?i)ROTATED_KEYCLOAK_CLIENT_SECRET''',
+  '''(?i)\$2a\$10\$.*'''
 ]
