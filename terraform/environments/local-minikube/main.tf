@@ -232,4 +232,13 @@ resource "helm_release" "observability" {
     name  = "kubeProxy.enabled"
     value = "false"
   }
+  # Enable discovery of ServiceMonitors across all namespaces (including staging)
+  set {
+    name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
+    value = "false"
+  }
+  set {
+    name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
+    value = "false"
+  }
 }
