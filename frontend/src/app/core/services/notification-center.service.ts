@@ -1,4 +1,4 @@
-import { Injectable, computed, signal, inject } from '@angular/core';
+import { Injectable, computed, signal, inject, effect } from '@angular/core';
 import { ToastService } from './toast.service';
 import { KeycloakService } from '../auth/keycloak.service';
 
@@ -15,28 +15,51 @@ export interface SystemNotification {
   providedIn: 'root'
 })
 export class NotificationCenterService {
-  private readonly STORAGE_KEY = 'microservices_notifications_history';
   private readonly toastService = inject(ToastService);
   private readonly keycloakService = inject(KeycloakService);
 
-  readonly notifications = signal<SystemNotification[]>(this.loadFromStorage());
+  readonly notifications = signal<SystemNotification[]>([]);
 
   readonly unreadCount = computed(() =>
     this.notifications().filter(n => !n.read).length
   );
 
   constructor() {
+    // Purge legacy unisolated notifications history
+    try {
+      sessionStorage.removeItem('microservices_notifications_history');
+      localStorage.removeItem('microservices_notifications_history');
+    } catch {}
+
     // Connect to Server-Sent Events stream
     this.connectSseStream();
 
-    // If there are no notifications, add an initial friendly welcome notification
-    if (this.notifications().length === 0) {
-      this.addNotification({
-        title: 'Welcome to MicroStore!',
-        message: 'Explore our curated hardware catalog with verified customer ratings and express delivery.',
-        type: 'info'
-      });
-    }
+    // Reactively refresh notification state whenever active user profile changes
+    effect(() => {
+      const profile = this.keycloakService.userProfile();
+      const currentList = this.loadFromStorage();
+      this.notifications.set(currentList);
+
+      if (currentList.length === 0) {
+        const welcomeTitle = profile?.username ? `Welcome, ${profile.username}!` : 'Welcome to MicroStore!';
+        const welcomeNotif: SystemNotification = {
+          id: crypto.randomUUID(),
+          title: welcomeTitle,
+          message: 'Explore our curated hardware catalog with verified customer ratings and express delivery.',
+          type: 'info',
+          timestamp: new Date(),
+          read: false
+        };
+        this.notifications.set([welcomeNotif]);
+        this.saveToStorage([welcomeNotif]);
+      }
+    });
+  }
+
+  private getStorageKey(): string {
+    const profile = this.keycloakService.userProfile();
+    const id = profile?.id || (this.keycloakService.isAuthenticated() ? 'user' : 'guest');
+    return `microservices_notifications_${id}`;
   }
 
   private connectSseStream(): void {
@@ -53,6 +76,28 @@ export class NotificationCenterService {
           }
 
           const data = JSON.parse(event.data);
+          const currentProfile = this.keycloakService.userProfile();
+          const currentUserId = currentProfile?.id;
+          const currentUsername = currentProfile?.username;
+          const isAdmin = this.keycloakService.isAdmin();
+
+          // Multi-Tenant Isolation Guard:
+          // Non-admin users MUST only receive notifications matching their own placed orders
+          if (!isAdmin) {
+            const matchesUserId = data.userId && currentUserId && data.userId === currentUserId;
+            const matchesUsername = data.username && currentUsername &&
+              data.username.toLowerCase() === currentUsername.toLowerCase();
+
+            // If the order has user identity and does not match the active user, ignore
+            if ((data.userId || data.username) && !matchesUserId && !matchesUsername) {
+              return;
+            }
+            // If the order lacks user identity (external simulation / anonymous), do not leak to basic user
+            if (!data.userId && !data.username) {
+              return;
+            }
+          }
+
           const isCancelled = data.orderStatus === 'CANCELLED';
           const shortOrder = data.orderNumber ? data.orderNumber.substring(0, 8).toUpperCase() : '';
           const tracking = data.trackingNumber || 'DHL Express';
@@ -116,7 +161,7 @@ export class NotificationCenterService {
 
   private loadFromStorage(): SystemNotification[] {
     try {
-      const data = sessionStorage.getItem(this.STORAGE_KEY);
+      const data = sessionStorage.getItem(this.getStorageKey());
       if (!data) return [];
       const parsed = JSON.parse(data);
       return parsed.map((item: any) => ({
@@ -130,7 +175,7 @@ export class NotificationCenterService {
 
   private saveToStorage(notifications: SystemNotification[]): void {
     try {
-      sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(notifications));
+      sessionStorage.setItem(this.getStorageKey(), JSON.stringify(notifications));
     } catch {
       // Ignore storage quota errors
     }

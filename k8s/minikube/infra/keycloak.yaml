@@ -29,7 +29,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:26.3.3
+          image: quay.io/keycloak/keycloak:26.7.3
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -92,13 +92,13 @@ spec:
                   key: KEYCLOAK_ADMIN_PASSWORD
           resources:
             requests:
-              cpu: "500m"
-              memory: "1024Mi"
-              ephemeral-storage: "1Gi"
+              cpu: "300m"
+              memory: "512Mi"
+              ephemeral-storage: "512Mi"
             limits:
-              cpu: "3000m"
-              memory: "3072Mi"
-              ephemeral-storage: "2Gi"
+              cpu: "1000m"
+              memory: "1280Mi"
+              ephemeral-storage: "1Gi"
           startupProbe:
             httpGet:
               path: /health/live

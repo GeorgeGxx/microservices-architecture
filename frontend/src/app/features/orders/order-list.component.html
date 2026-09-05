@@ -96,19 +96,31 @@
           [trackingNumber]="order.trackingNumber"
           [carrier]="order.carrier"
           [deliveryMethod]="order.deliveryMethod"
-          [shippingAddress]="order.shippingAddress">
+          [shippingAddress]="order.shippingAddress"
+          [orderId]="order.id"
+          [orderNumber]="order.orderNumber"
+          [city]="order.city"
+          (statusChange)="onOrderStatusUpdated($event)">
         </app-order-stepper>
 
         <div class="order-items-table">
           @for (item of order.orderItems; track item.sku) {
             <div class="order-item-row">
               <div class="item-main">
-                <img [src]="getProductImageUrl({ sku: item.sku })" class="order-item-mini-thumb" alt="Product thumbnail" />
-                <span class="sku-tag mono">{{ item.sku }}</span>
+                <img [src]="getItemImageUrl(item.sku)" (error)="onImageError($event, item.sku)" class="order-item-mini-thumb" [alt]="getItemName(item.sku)" loading="lazy" />
+                <div class="item-meta-wrap">
+                  <span class="item-title">{{ getItemName(item.sku) }}</span>
+                  <span class="sku-tag mono">{{ item.sku }}</span>
+                </div>
               </div>
-              <div class="item-qty">Qty: {{ item.quantity }}</div>
-              <div class="item-price mono">${{ item.price | number:'1.2-2' }}</div>
-              <div class="item-subtotal mono">${{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+              <div class="item-details-group">
+                <div class="item-qty-price">
+                  <span class="item-qty-badge">Qty: {{ item.quantity }}</span>
+                  <span class="item-mult-symbol">×</span>
+                  <span class="item-price mono">${{ item.price | number:'1.2-2' }}</span>
+                </div>
+                <div class="item-subtotal mono">${{ (item.price * item.quantity) | number:'1.2-2' }}</div>
+              </div>
             </div>
           }
         </div>

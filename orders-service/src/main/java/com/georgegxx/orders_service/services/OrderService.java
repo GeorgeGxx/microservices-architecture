@@ -12,6 +12,7 @@ import com.georgegxx.orders_service.repositories.OrderRepository;
 import com.georgegxx.orders_service.utils.JsonUtils;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.lang.NonNull;
@@ -72,6 +75,12 @@ public class OrderService implements org.springframework.beans.factory.Initializ
     private final AtomicReference<Double> dbCancelledRevenueUsd = new AtomicReference<>(0.0);
     private final AtomicLong dbItemsSold = new AtomicLong(0);
     private final Map<String, AtomicLong> dbSkuSales = new ConcurrentHashMap<>();
+
+    // Customer Retention & Cohort Metric State Holders (O(1) Bounded Cardinality)
+    private final Map<String, AtomicLong> dbOrdersByCohort = new ConcurrentHashMap<>();
+    private final Map<String, AtomicReference<Double>> dbRevenueByCohort = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> dbBasketSizes = new ConcurrentHashMap<>();
+    private final Map<String, AtomicLong> dbPipelineOrders = new ConcurrentHashMap<>();
 
     @Override
     public void afterPropertiesSet() {
@@ -127,6 +136,50 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 Gauge.builder("ecommerce_sku_sales_total", val, AtomicLong::get)
                         .tag("sku", s)
                         .description("Units sold per SKU aligned with PostgreSQL database")
+                        .register(this.meterRegistry);
+                return val;
+            })
+        );
+
+        // Pre-register Customer Loyalty Cohorts (O(1) bounded cardinality)
+        List.of("first_time", "repeat", "loyal_vip").forEach(cohort -> {
+            this.dbOrdersByCohort.computeIfAbsent(cohort, c -> {
+                AtomicLong val = new AtomicLong(0);
+                Gauge.builder("ecommerce_orders_by_cohort", val, AtomicLong::get)
+                        .tag("cohort", c)
+                        .description("Total completed orders aggregated by customer loyalty tier")
+                        .register(this.meterRegistry);
+                return val;
+            });
+            this.dbRevenueByCohort.computeIfAbsent(cohort, c -> {
+                AtomicReference<Double> val = new AtomicReference<>(0.0);
+                Gauge.builder("ecommerce_revenue_by_cohort_usd", val, AtomicReference::get)
+                        .tag("cohort", c)
+                        .description("Cumulative revenue in USD by customer loyalty tier")
+                        .register(this.meterRegistry);
+                return val;
+            });
+        });
+
+        // Pre-register Basket Size Distribution (O(1) bounded cardinality)
+        List.of("single_item", "2_3_items", "bulk_4_plus").forEach(range ->
+            this.dbBasketSizes.computeIfAbsent(range, r -> {
+                AtomicLong val = new AtomicLong(0);
+                Gauge.builder("ecommerce_order_basket_size_total", val, AtomicLong::get)
+                        .tag("size_range", r)
+                        .description("Order count distribution based on items in cart")
+                        .register(this.meterRegistry);
+                return val;
+            })
+        );
+
+        // Pre-register Logistics & Fulfillment 5-Stage Pipeline (O(1) bounded cardinality)
+        List.of("PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED").forEach(status ->
+            this.dbPipelineOrders.computeIfAbsent(status, s -> {
+                AtomicLong val = new AtomicLong(0);
+                Gauge.builder("ecommerce_orders_active_in_pipeline", val, AtomicLong::get)
+                        .tag("status", s)
+                        .description("Active order volume distributed across fulfillment lifecycle stages")
                         .register(this.meterRegistry);
                 return val;
             })
@@ -194,19 +247,98 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 }).set(count)
             );
 
-            log.info("Synchronized business metrics with PostgreSQL DB: {} completed orders, ${} revenue USD, {} units sold",
-                    activeOrders.size(), revenue, items);
+            // 1. Customer Loyalty Cohort Aggregation (O(1) Bounded Cardinality)
+            Map<String, Long> userOrderCounts = new HashMap<>();
+            Map<String, Double> userSpending = new HashMap<>();
+            activeOrders.forEach(o -> {
+                String u = (o.getUserId() != null && !o.getUserId().isBlank()) ? o.getUserId() : o.getUsername();
+                if (u != null && !u.isBlank() && !"guest".equalsIgnoreCase(u)) {
+                    userOrderCounts.merge(u, 1L, Long::sum);
+                    double orderTotal = o.getTotalAmount() != null ? o.getTotalAmount() : 0.0;
+                    userSpending.merge(u, orderTotal, Double::sum);
+                }
+            });
+
+            long firstTimeOrders = 0;
+            long repeatOrders = 0;
+            long vipOrders = 0;
+            double firstTimeRev = 0.0;
+            double repeatRev = 0.0;
+            double vipRev = 0.0;
+
+            for (Map.Entry<String, Long> entry : userOrderCounts.entrySet()) {
+                long count = entry.getValue();
+                double spend = userSpending.getOrDefault(entry.getKey(), 0.0);
+                if (count <= 1) {
+                    firstTimeOrders += count;
+                    firstTimeRev += spend;
+                } else if (count <= 4) {
+                    repeatOrders += count;
+                    repeatRev += spend;
+                } else {
+                    vipOrders += count;
+                    vipRev += spend;
+                }
+            }
+
+            this.dbOrdersByCohort.computeIfAbsent("first_time", k -> new AtomicLong(0)).set(firstTimeOrders);
+            this.dbOrdersByCohort.computeIfAbsent("repeat", k -> new AtomicLong(0)).set(repeatOrders);
+            this.dbOrdersByCohort.computeIfAbsent("loyal_vip", k -> new AtomicLong(0)).set(vipOrders);
+
+            this.dbRevenueByCohort.computeIfAbsent("first_time", k -> new AtomicReference<>(0.0)).set(firstTimeRev);
+            this.dbRevenueByCohort.computeIfAbsent("repeat", k -> new AtomicReference<>(0.0)).set(repeatRev);
+            this.dbRevenueByCohort.computeIfAbsent("loyal_vip", k -> new AtomicReference<>(0.0)).set(vipRev);
+
+            // 2. Basket Size Distribution Aggregation (O(1) Bounded Cardinality)
+            long singleItemOrders = 0;
+            long mediumOrders = 0;
+            long bulkOrders = 0;
+
+            for (Order o : activeOrders) {
+                long totalUnits = (o.getOrderItems() != null)
+                        ? o.getOrderItems().stream().mapToLong(i -> i.getQuantity() != null ? i.getQuantity() : 1L).sum()
+                        : 0L;
+                if (totalUnits <= 1) {
+                    singleItemOrders++;
+                } else if (totalUnits <= 3) {
+                    mediumOrders++;
+                } else {
+                    bulkOrders++;
+                }
+            }
+
+            this.dbBasketSizes.computeIfAbsent("single_item", k -> new AtomicLong(0)).set(singleItemOrders);
+            this.dbBasketSizes.computeIfAbsent("2_3_items", k -> new AtomicLong(0)).set(mediumOrders);
+            this.dbBasketSizes.computeIfAbsent("bulk_4_plus", k -> new AtomicLong(0)).set(bulkOrders);
+
+            // 3. Pipeline Lifecycle Distribution Aggregation (O(1) Bounded Cardinality)
+            Map<String, Long> pipelineCounts = activeOrders.stream()
+                    .collect(Collectors.groupingBy(o -> Optional.ofNullable(o.getOrderStatus()).map(Enum::name).orElse("PLACED"), Collectors.counting()));
+
+            List.of("PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED").forEach(status ->
+                this.dbPipelineOrders.computeIfAbsent(status, k -> new AtomicLong(0)).set(pipelineCounts.getOrDefault(status, 0L))
+            );
+
+            log.info("Synchronized business metrics with PostgreSQL DB: {} completed orders, ${} revenue USD, {} units sold, {} loyalty cohorts updated",
+                    activeOrders.size(), revenue, items, this.dbOrdersByCohort.size());
         } catch (Exception e) {
             log.error("Error syncing metrics from PostgreSQL database: {}", e.getMessage(), e);
         }
     }
 
     public OrderResponse placeOrder(OrderRequest orderRequest) {
-        return placeOrder(orderRequest, null);
+        return placeOrder(orderRequest, null, null, null);
     }
 
-    @CacheEvict(value = "orders", allEntries = true)
     public OrderResponse placeOrder(OrderRequest orderRequest, String idempotencyKey) {
+        return placeOrder(orderRequest, idempotencyKey, null, null);
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    public OrderResponse placeOrder(OrderRequest orderRequest, String idempotencyKey, String userId, String username) {
 
         // 0. Idempotency Check & Atomic Lock with Redis
         Optional<OrderResponse> cachedOrder = this.idempotencyManager.checkOrLock(idempotencyKey, orderRequest);
@@ -234,14 +366,34 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             decrementInventoryStock(orderRequest.getOrderItems());
             stockDeducted = true;
 
-            // 4. Save order to repository
-            Order savedOrder = saveOrder(orderRequest, authoritativeProducts);
+            // 4. Save order to repository with authenticated user identity
+            Order savedOrder = saveOrder(orderRequest, authoritativeProducts, userId, username);
 
             // 5. Asynchronous resilient Kafka event publishing
             publishOrderEvent(savedOrder);
 
             // 6. Record business KPIs in Micrometer / Prometheus
             syncDatabaseMetrics();
+
+            // Financial & Order Value Distribution (DistributionSummary)
+            DistributionSummary.builder("ecommerce_order_value_usd")
+                    .description("Order transaction total purchase value distribution in USD")
+                    .baseUnit("USD")
+                    .register(this.meterRegistry)
+                    .record(savedOrder.getTotalAmount() != null ? savedOrder.getTotalAmount() : 0.0);
+
+            String deliveryMethod = (savedOrder.getDeliveryMethod() != null && !savedOrder.getDeliveryMethod().isBlank())
+                    ? savedOrder.getDeliveryMethod() : "Standard";
+            this.meterRegistry.counter("ecommerce_shipping_revenue_usd", "method", deliveryMethod)
+                    .increment(savedOrder.getShippingFee() != null ? savedOrder.getShippingFee() : 0.0);
+
+            if (savedOrder.getTaxAmount() != null && savedOrder.getTaxAmount() > 0) {
+                this.meterRegistry.counter("ecommerce_tax_collected_usd").increment(savedOrder.getTaxAmount());
+            }
+
+            String cardBrand = (savedOrder.getPaymentMethod() != null && !savedOrder.getPaymentMethod().isBlank())
+                    ? savedOrder.getPaymentMethod() : "Visa";
+            this.meterRegistry.counter("ecommerce_payment_brand_total", "brand", cardBrand).increment();
 
             OrderResponse orderResponse = mapOrderToOrderResponse(savedOrder);
 
@@ -329,9 +481,11 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         }
     }
 
-    private Order saveOrder(OrderRequest orderRequest, Map<String, ProductPriceResponse> authoritativeProducts) {
+    private Order saveOrder(OrderRequest orderRequest, Map<String, ProductPriceResponse> authoritativeProducts, String userId, String username) {
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
+        order.setUserId(userId);
+        order.setUsername(username);
         order.setOrderStatus(OrderStatus.PLACED);
         List<OrderItems> items = orderRequest.getOrderItems().stream()
                 .map(itemRequest -> mapOrderItemRequestToOrderItem(itemRequest, order, authoritativeProducts))
@@ -376,7 +530,9 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         savedOrder.getCustomerName(),
                         savedOrder.getShippingAddress(),
                         savedOrder.getTrackingNumber(),
-                        savedOrder.getTotalAmount()
+                        savedOrder.getTotalAmount(),
+                        savedOrder.getUserId(),
+                        savedOrder.getUsername()
                 )
         );
         CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", payload);
@@ -390,7 +546,17 @@ public class OrderService implements org.springframework.beans.factory.Initializ
 
     private void publishCancelOrderEvent(Order cancelledOrder) {
         String payload = JsonUtils.toJson(
-                new OrderEvent(cancelledOrder.getOrderNumber(), cancelledOrder.getOrderItems().size(), OrderStatus.CANCELLED)
+                new OrderEvent(
+                        cancelledOrder.getOrderNumber(),
+                        cancelledOrder.getOrderItems().size(),
+                        OrderStatus.CANCELLED,
+                        cancelledOrder.getCustomerName(),
+                        cancelledOrder.getShippingAddress(),
+                        cancelledOrder.getTrackingNumber(),
+                        cancelledOrder.getTotalAmount(),
+                        cancelledOrder.getUserId(),
+                        cancelledOrder.getUsername()
+                )
         );
         CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", payload);
         future.whenComplete((result, throwable) ->
@@ -405,6 +571,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         try {
             log.warn("Executing compensating transaction: restoring inventory stock for {} items", orderItems.size());
             this.meterRegistry.counter("ecommerce_compensations_total").increment();
+            this.meterRegistry.counter("ecommerce_saga_compensations_total", "reason", "downstream_failure").increment();
             CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE);
             cb.executeSupplier(() -> this.webClientBuilder.build()
                     .post()
@@ -448,10 +615,32 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 .toList();
     }
 
-    @CacheEvict(value = "orders", allEntries = true)
+    @Cacheable(value = "user_orders", key = "#userId")
+    public List<OrderResponse> getOrdersForUser(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return Collections.emptyList();
+        }
+        return this.orderRepository.findAllByUserIdWithItems(userId).stream()
+                .map(this::mapOrderToOrderResponse)
+                .toList();
+    }
+
     public OrderResponse cancelOrder(@NonNull Long id) {
+        return cancelOrder(id, null, true);
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    public OrderResponse cancelOrder(@NonNull Long id, String currentUserId, boolean isAdmin) {
         Order order = this.orderRepository.findById(Objects.requireNonNull(id, "Order ID must not be null"))
                 .orElseThrow(() -> new OrderNotFoundException("Order with id " + id + " not found"));
+
+        // Enforce user-level ownership guard
+        if (!isAdmin && (order.getUserId() == null || !order.getUserId().equals(currentUserId))) {
+            throw new AccessDeniedException("You are not authorized to cancel orders belonging to another account.");
+        }
 
         // DDD Aggregate Root enforces cancellation invariant
         order.cancel();
@@ -490,6 +679,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         order.ship();
         Order updatedOrder = this.orderRepository.save(order);
         publishOrderStatusEvent(updatedOrder, OrderStatus.SHIPPED);
+        syncDatabaseMetrics();
         log.info("Order #{} marked as SHIPPED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
     }
@@ -503,13 +693,24 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         order.deliver();
         Order updatedOrder = this.orderRepository.save(order);
         publishOrderStatusEvent(updatedOrder, OrderStatus.DELIVERED);
+        syncDatabaseMetrics();
         log.info("Order #{} marked as DELIVERED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
     }
 
     private void publishOrderStatusEvent(Order order, OrderStatus status) {
         String payload = JsonUtils.toJson(
-                new OrderEvent(order.getOrderNumber(), order.getOrderItems().size(), status)
+                new OrderEvent(
+                        order.getOrderNumber(),
+                        order.getOrderItems().size(),
+                        status,
+                        order.getCustomerName(),
+                        order.getShippingAddress(),
+                        order.getTrackingNumber(),
+                        order.getTotalAmount(),
+                        order.getUserId(),
+                        order.getUsername()
+                )
         );
         this.kafkaTemplate.send("orders-topic", payload);
     }
@@ -518,6 +719,8 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         return new OrderResponse(
                 order.getId(),
                 order.getOrderNumber(),
+                order.getUserId(),
+                order.getUsername(),
                 Optional.ofNullable(order.getOrderStatus()).orElse(OrderStatus.PLACED),
                 Optional.ofNullable(order.getOrderItems())
                         .orElseGet(Collections::emptyList)
@@ -571,5 +774,23 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 .quantity(orderItemsRequest.getQuantity())
                 .order(order)
                 .build();
+    }
+
+    public void recordFunnelEvent(com.georgegxx.orders_service.model.dtos.FunnelEventRequest request) {
+        if (request == null || request.getEventType() == null) return;
+        switch (request.getEventType().toUpperCase()) {
+            case "CART_ADD" -> {
+                String cat = (request.getCategory() != null && !request.getCategory().isBlank()) ? request.getCategory() : "General";
+                this.meterRegistry.counter("ecommerce_cart_additions_total", "category", cat).increment();
+            }
+            case "CHECKOUT_START" -> {
+                this.meterRegistry.counter("ecommerce_checkout_started_total").increment();
+            }
+            case "CHECKOUT_STEP" -> {
+                String step = (request.getStep() != null && !request.getStep().isBlank()) ? request.getStep().toLowerCase() : "unknown";
+                this.meterRegistry.counter("ecommerce_checkout_step_reached_total", "step", step).increment();
+            }
+            default -> log.debug("Ignored unrecognized funnel event: {}", request.getEventType());
+        }
     }
 }

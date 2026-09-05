@@ -38,4 +38,16 @@ export class OrderService {
   deliverOrder(id: number): Observable<OrderResponse> {
     return this.http.put<OrderResponse>(`${this.apiUrl}/${id}/deliver`, {});
   }
+
+  recordFunnelEvent(eventType: string, metadata?: { sku?: string; category?: string; step?: string }): void {
+    const payload = {
+      eventType,
+      sku: metadata?.sku,
+      category: metadata?.category,
+      step: metadata?.step
+    };
+    this.http.post(`${this.apiUrl}/funnel`, payload).subscribe({
+      error: () => {} // Non-blocking fire-and-forget telemetry
+    });
+  }
 }

@@ -48,6 +48,10 @@
           [carrier]="completedOrder()?.carrier"
           [deliveryMethod]="completedOrder()?.deliveryMethod || deliveryMethod()"
           [shippingAddress]="completedOrder()?.shippingAddress || shippingAddress()"
+          [orderId]="completedOrder()?.id"
+          [orderNumber]="completedOrder()?.orderNumber"
+          [city]="completedOrder()?.city || city()"
+          (statusChange)="onCompletedOrderStatusUpdated($event)"
         ></app-order-stepper>
       </div>
 

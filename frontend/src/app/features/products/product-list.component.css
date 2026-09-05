@@ -479,6 +479,24 @@
   gap: 6px;
 }
 
+.inactive-admin-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.product-card.product-inactive {
+  opacity: 0.72;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.02);
+}
+
 .bestseller-badge {
   font-size: 0.68rem;
   font-weight: 800;

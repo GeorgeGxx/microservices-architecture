@@ -61,6 +61,14 @@ export class KeycloakService {
     }
   }
 
+  async register(): Promise<void> {
+    if (this.keycloakInstance) {
+      await this.keycloakInstance.register({
+        redirectUri: window.location.origin
+      });
+    }
+  }
+
   async logout(): Promise<void> {
     if (this.keycloakInstance) {
       await this.keycloakInstance.logout({

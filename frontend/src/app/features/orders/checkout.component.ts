@@ -11,6 +11,7 @@ import { OrderRequest, OrderResponse } from '../../core/models/order.model';
 import { ReceiptModalComponent } from '../../shared/components/receipt-modal/receipt-modal.component';
 import { OrderStepperComponent } from '../../shared/components/order-stepper/order-stepper.component';
 import { CurrencyService } from '../../core/services/currency.service';
+import { ProductService } from '../../core/services/product.service';
 import { TranslatePipe } from '../../core/pipes/translate.pipe';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
 
@@ -27,6 +28,7 @@ export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'generic';
 })
 export class CheckoutComponent implements OnInit {
   readonly cartStore = inject(CartStore);
+  private readonly productService = inject(ProductService);
   readonly getProductImageUrl = getProductImageUrl;
   private readonly orderService = inject(OrderService);
   readonly currencyService = inject(CurrencyService);
@@ -111,11 +113,18 @@ export class CheckoutComponent implements OnInit {
     this.postalCode.set('94105');
     this.phone.set('+1 (555) 019-2834');
     this.cardHolder.set(username.toUpperCase());
+
+    // Record initial checkout funnel events
+    this.orderService.recordFunnelEvent('CHECKOUT_START');
+    this.orderService.recordFunnelEvent('CHECKOUT_STEP', { step: 'shipping' });
   }
 
   goToStep(step: number): void {
     if (step === 2 && !this.validateAddressStep()) return;
     this.currentStep.set(step);
+
+    const stepName = step === 1 ? 'shipping' : step === 2 ? 'delivery' : 'payment';
+    this.orderService.recordFunnelEvent('CHECKOUT_STEP', { step: stepName });
   }
 
   setDeliveryMethod(method: DeliveryMethod): void {
@@ -167,6 +176,9 @@ export class CheckoutComponent implements OnInit {
       return;
     }
 
+    // Persist products into cache to guarantee image consistency in orders view
+    this.productService.cacheProducts(items.map(item => item.product));
+
     this.isPlacingOrder.set(true);
 
     const orderRequest: OrderRequest = {
@@ -215,5 +227,11 @@ export class CheckoutComponent implements OnInit {
 
   closeReceipt(): void {
     this.showReceiptModal.set(false);
+  }
+
+  onCompletedOrderStatusUpdated(event: { orderId?: number; status: 'PLACED' | 'CANCELLED' | 'SHIPPED' | 'DELIVERED' }): void {
+    if (this.completedOrder()) {
+      this.completedOrder.update(o => o ? { ...o, orderStatus: event.status } : null);
+    }
   }
 }

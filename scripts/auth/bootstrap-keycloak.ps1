@@ -85,25 +85,41 @@ Write-Host "[OK] Admin token acquired." -ForegroundColor Green
 
 # 3. Ensure Realm & Disable Profile Prompt Actions
 Write-Host "`n[3/5] Checking / Creating Realm '$Realm'..." -ForegroundColor Yellow
+$realmExists = $false
 try {
-    $existingRealm = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -ErrorAction SilentlyContinue
-    # Ensure profile prompt actions and email verification are disabled
-    $existingRealm.verifyEmail = $false
-    $existingRealm.resetPasswordAllowed = $false
-    $existingRealm.loginWithEmailAllowed = $true
-    Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -Body ($existingRealm | ConvertTo-Json -Depth 10)
-    Write-Host "  Realm '$Realm' updated with non-blocking profile policy." -ForegroundColor DarkGray
+    $existingRealm = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -ErrorAction Stop
+    if ($existingRealm -and $existingRealm.realm -eq $Realm) {
+        $realmExists = $true
+    }
 } catch {
+    $realmExists = $false
+}
+
+if (-not $realmExists) {
     $realmPayload = @{
         id = $Realm
         realm = $Realm
         enabled = $true
         verifyEmail = $false
-        resetPasswordAllowed = $false
+        resetPasswordAllowed = $true
+        registrationAllowed = $true
         loginWithEmailAllowed = $true
     } | ConvertTo-Json
     Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms" -Headers $headers -Body $realmPayload
     Write-Host "[OK] Realm '$Realm' created successfully." -ForegroundColor Green
+} else {
+    try {
+        $updatePayload = @{
+            verifyEmail = $false
+            resetPasswordAllowed = $true
+            registrationAllowed = $true
+            loginWithEmailAllowed = $true
+        } | ConvertTo-Json
+        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -Body $updatePayload
+        Write-Host "  Realm '$Realm' updated with non-blocking profile policy and user registration enabled." -ForegroundColor DarkGray
+    } catch {
+        Write-Host "  Realm '$Realm' already exists." -ForegroundColor Green
+    }
 }
 
 # Clear default required actions (like UPDATE_PROFILE or VERIFY_EMAIL) on realm level
@@ -235,6 +251,19 @@ foreach ($role in @("ADMIN", "USER")) {
         Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles" -Headers $headers -Body $rolePayload
         Write-Host "  [OK] Created role: $role" -ForegroundColor Green
     }
+}
+
+# Ensure USER role is a default role for newly registered users
+try {
+    $userRole = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/USER" -Headers $headers
+    $composites = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites" -Headers $headers
+    if (-not ($composites | Where-Object { $_.name -eq "USER" })) {
+        $addJson = "[$($userRole | ConvertTo-Json)]"
+        Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites" -Headers $headers -Body $addJson
+        Write-Host "  [OK] Assigned USER role to default-roles-$Realm (auto-assigned to new registrants)" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "  Note: Could not link USER into default-roles: $_" -ForegroundColor DarkGray
 }
 
 function Ensure-KeycloakUser {

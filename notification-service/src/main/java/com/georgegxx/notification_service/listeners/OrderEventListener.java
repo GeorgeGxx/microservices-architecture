@@ -3,6 +3,8 @@ package com.georgegxx.notification_service.listeners;
 import com.georgegxx.notification_service.events.OrderEvent;
 import com.georgegxx.notification_service.service.SseNotificationHub;
 import com.georgegxx.notification_service.utils.JsonUtils;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -21,11 +23,13 @@ public class OrderEventListener {
 
     private final StringRedisTemplate redisTemplate;
     private final SseNotificationHub sseNotificationHub;
+    private final MeterRegistry meterRegistry;
     private static final String NOTIFICATION_IDEMPOTENCY_PREFIX = "notification:processed:";
     private static final Duration NOTIFICATION_TTL = Duration.ofDays(7);
 
     @KafkaListener(topics = "orders-topic", groupId = "notification-group")
     public void handleOrdersNotifications(String message) {
+        Timer.Sample sample = Timer.start(this.meterRegistry);
         try {
             Optional.ofNullable(message)
                     .filter(Predicate.not(String::isBlank))
@@ -38,6 +42,8 @@ public class OrderEventListener {
         } catch (Exception ex) {
             log.error("Error processing Kafka message from orders-topic: {} | Raw: {}", ex.getMessage(), message, ex);
             throw new RuntimeException("Re-throwing to trigger Kafka DefaultErrorHandler / DLT recovery", ex);
+        } finally {
+            sample.stop(this.meterRegistry.timer("notification_processing_duration_seconds"));
         }
     }
 
@@ -50,6 +56,9 @@ public class OrderEventListener {
                     orderEvent.orderNumber(), orderEvent.orderStatus());
             return;
         }
+
+        String status = orderEvent.orderStatus() != null ? orderEvent.orderStatus().name() : "UNKNOWN";
+        this.meterRegistry.counter("notification_events_processed_total", "status", status).increment();
 
         log.info("🔔 Notification Dispatcher: Order {} event received for order: {} ({} items) | Customer: {} | Tracking: {} | Total: ${}",
                 orderEvent.orderStatus(),

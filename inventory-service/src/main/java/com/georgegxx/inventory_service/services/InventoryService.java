@@ -47,7 +47,7 @@ public class InventoryService {
     private void registerSkuStockGauge(String sku) {
         Optional.ofNullable(sku)
                 .filter(this.registeredGauges::add)
-                .ifPresent(validSku ->
+                .ifPresent(validSku -> {
                     io.micrometer.core.instrument.Gauge.builder("ecommerce_inventory_sku_stock", () ->
                         this.inventoryRepository.findBySku(validSku)
                                 .map(Inventory::getQuantity)
@@ -55,8 +55,17 @@ public class InventoryService {
                     )
                     .tag("sku", validSku)
                     .description("Real-time available stock for SKU")
-                    .register(this.meterRegistry)
-                );
+                    .register(this.meterRegistry);
+
+                    io.micrometer.core.instrument.Gauge.builder("ecommerce_inventory_low_stock_gauge", () ->
+                        this.inventoryRepository.findBySku(validSku)
+                                .map(inv -> inv.getQuantity() < 5L ? 1.0 : 0.0)
+                                .orElse(1.0)
+                    )
+                    .tag("sku", validSku)
+                    .description("Early warning indicator (1 = Low Stock < 5 units, 0 = Healthy)")
+                    .register(this.meterRegistry);
+                });
     }
 
     @Cacheable(cacheNames = "inventory", key = "#sku")
@@ -93,6 +102,7 @@ public class InventoryService {
 
         Inventory saved = this.inventoryRepository.save(Objects.requireNonNull(inventory));
         registerSkuStockGauge(saved.getSku());
+        this.meterRegistry.counter("inventory_restock_total", "sku", saved.getSku()).increment();
         log.info("Inventory updated for SKU {}: {} units", saved.getSku(), saved.getQuantity());
         return mapToInventoryResponse(saved);
     }
@@ -113,6 +123,7 @@ public class InventoryService {
 
         Inventory saved = this.inventoryRepository.save(Objects.requireNonNull(inventory));
         registerSkuStockGauge(saved.getSku());
+        this.meterRegistry.counter("inventory_restock_total", "sku", saved.getSku()).increment();
         log.info("Stock adjusted for SKU {}: {} units", saved.getSku(), saved.getQuantity());
         return mapToInventoryResponse(saved);
     }
@@ -136,7 +147,12 @@ public class InventoryService {
                 .toList();
 
         if (!errorList.isEmpty()) {
-            this.meterRegistry.counter("inventory_out_of_stock_events_total").increment();
+            requestedQuantities.forEach((sku, qty) -> {
+                Inventory inv = inventoryMap.get(sku);
+                if (inv == null || inv.getQuantity() < qty) {
+                    this.meterRegistry.counter("inventory_out_of_stock_events_total", "sku", sku).increment();
+                }
+            });
             return new BaseResponse(errorList.toArray(String[]::new));
         }
         return new BaseResponse(null);

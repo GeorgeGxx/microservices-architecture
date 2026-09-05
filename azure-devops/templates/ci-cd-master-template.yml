@@ -195,8 +195,9 @@ stages:
         steps:
           - script: |
               npm install -g newman newman-reporter-htmlextra
-              if [ -f "MICROSERVICIOS.postman_collection.json" ]; then
-                newman run MICROSERVICIOS.postman_collection.json \
+              COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
+              if [ -f "$COLLECTION" ]; then
+                newman run "$COLLECTION" \
                   --reporters cli,htmlextra \
                   --reporter-htmlextra-export newman-report.html || echo "Integration tests completed"
               fi

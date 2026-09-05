@@ -832,3 +832,351 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   Mobile & Responsive Viewport Optimizations (Smartphones & Tablets)
+   ========================================================================== */
+
+@media (max-width: 960px) {
+  .checkout-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+  .order-summary-sidebar {
+    position: static;
+    top: auto;
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .checkout-container {
+    padding: 8px 12px 48px;
+  }
+
+  .page-title {
+    font-size: 1.5rem;
+  }
+
+  .step-nav-bar {
+    padding: 8px 12px;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .step-tab {
+    padding: 6px 8px;
+    font-size: 0.80rem;
+    gap: 6px;
+  }
+
+  .section-card {
+    padding: 18px 16px;
+    border-radius: 14px;
+  }
+
+  .card-form-title {
+    font-size: 0.98rem;
+    margin-bottom: 16px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .delivery-option-card {
+    padding: 14px;
+    gap: 12px;
+  }
+
+  .security-badges-bar {
+    gap: 10px;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  .checkout-container {
+    padding: 6px 10px 40px;
+  }
+
+  .checkout-header {
+    margin-bottom: 16px;
+  }
+
+  .page-title {
+    font-size: 1.35rem;
+  }
+
+  /* Compact Multi-Step Nav */
+  .step-nav-bar {
+    padding: 6px 10px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .step-tab {
+    padding: 4px 6px;
+    font-size: 0.76rem;
+    gap: 5px;
+  }
+
+  .step-num {
+    width: 19px;
+    height: 19px;
+    font-size: 0.70rem;
+  }
+
+  /* Form and Field Optimizations */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .span-2 {
+    grid-column: span 1;
+  }
+
+  .form-label {
+    font-size: 0.78rem;
+    line-height: 1.3;
+    word-break: break-word;
+  }
+
+  .form-input {
+    padding: 10px 12px;
+    font-size: 0.88rem;
+  }
+
+  /* Delivery Speed Card Wrapping */
+  .delivery-option-card {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .option-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .express-title-wrap {
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .option-title {
+    font-size: 0.90rem;
+    word-break: break-word;
+  }
+
+  .badge-express-fast {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+
+  .option-price {
+    font-size: 0.92rem;
+  }
+
+  .option-desc {
+    font-size: 0.76rem;
+    line-height: 1.35;
+  }
+
+  /* Full-Width Mobile Action Buttons - No Text Clipping */
+  .step-action-bar {
+    margin-top: 18px;
+    width: 100%;
+  }
+
+  .step-action-bar.flex-between {
+    flex-direction: column-reverse;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn-next,
+  .btn-place-order,
+  .btn-prev {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 16px;
+    font-size: 0.90rem;
+    box-sizing: border-box;
+  }
+
+  .btn-place-order span,
+  .btn-next span,
+  .btn-prev span {
+    white-space: normal;
+    text-align: center;
+  }
+
+  /* Payment Details */
+  .payment-tabs {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .pay-tab-btn {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 0.84rem;
+  }
+
+  .label-with-brand {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .brand-indicators {
+    gap: 4px;
+  }
+
+  .card-brand-badge {
+    font-size: 0.62rem;
+    padding: 1px 5px;
+  }
+
+  .form-row {
+    gap: 10px;
+  }
+
+  .security-badges-bar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .sec-badge {
+    font-size: 0.72rem;
+  }
+
+  /* Items Review Card */
+  .items-review-card {
+    padding: 14px;
+  }
+
+  .summary-item {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .item-details {
+    min-width: calc(100% - 62px);
+  }
+
+  .item-name {
+    font-size: 0.84rem;
+    word-break: break-word;
+  }
+
+  .item-qty-price {
+    width: 100%;
+    justify-content: space-between;
+    padding-left: 58px;
+  }
+
+  /* Sidebar Summary */
+  .summary-card {
+    padding: 16px 14px;
+  }
+
+  .cost-row {
+    font-size: 0.82rem;
+  }
+
+  .total-row {
+    font-size: 0.98rem;
+  }
+
+  .total-price {
+    font-size: 1.18rem;
+  }
+
+  .shipping-preview-pill {
+    font-size: 0.76rem;
+    padding: 8px 10px;
+    word-break: break-word;
+  }
+
+  /* Confirmation Success Card */
+  .success-card {
+    padding: 18px 14px;
+    border-radius: 16px;
+  }
+
+  .success-header-wrap {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .success-header-wrap h2 {
+    font-size: 1.30rem;
+  }
+
+  .order-subtitle {
+    font-size: 0.84rem;
+    word-break: break-word;
+  }
+
+  .order-summary-pill-bar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+    margin-bottom: 18px;
+  }
+
+  .pill-label {
+    font-size: 0.66rem;
+  }
+
+  .pill-val {
+    font-size: 0.80rem;
+    word-break: break-all;
+  }
+
+  .success-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 10px;
+  }
+
+  .btn-receipt,
+  .btn-secondary,
+  .btn-primary {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 14px;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On very compact screens, only show the step text for the active tab to prevent any wrapping */
+  .step-tab:not(.active) .step-txt {
+    display: none;
+  }
+
+  .step-tab.active .step-txt {
+    display: inline;
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+
+  .step-tab {
+    padding: 4px 6px;
+  }
+
+  .step-tab-line {
+    margin: 0 2px;
+  }
+
+  .order-summary-pill-bar {
+    grid-template-columns: 1fr;
+  }
+}

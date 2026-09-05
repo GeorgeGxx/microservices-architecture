@@ -340,7 +340,7 @@
         </div>
 
         <div class="table-wrapper">
-          <table class="admin-table">
+          <table class="admin-table products-table">
             <thead>
               <tr>
                 <th>ID</th>
@@ -354,7 +354,7 @@
             </thead>
             <tbody>
               @for (prod of filteredTableProducts(); track prod.id || prod.sku) {
-                <tr [class.selected-row]="editingProductId() === prod.id">
+                <tr class="prod-row" [class.selected-row]="editingProductId() === prod.id">
                   <td class="id-cell">#{{ prod.id }}</td>
                   <td class="table-thumb-cell">
                     <img 
@@ -364,12 +364,14 @@
                       loading="lazy"
                     />
                   </td>
-                  <td><span class="sku-cell">{{ prod.sku }}</span></td>
+                  <td class="sku-col"><span class="sku-cell">{{ prod.sku }}</span></td>
                   <td class="name-cell">{{ prod.name }}</td>
                   <td class="price-cell">
+                    <span class="mobile-table-label">Price:</span>
                     <span class="price-usd">${{ prod.price | number:'1.2-2' }}</span>
                   </td>
-                  <td>
+                  <td class="status-col">
+                    <span class="mobile-table-label">Status:</span>
                     <span class="status-pill" [class.active]="prod.status" [class.inactive]="!prod.status">
                       {{ prod.status ? 'Active' : 'Inactive' }}
                     </span>
@@ -393,7 +395,7 @@
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="6" class="empty-cell">
+                  <td colspan="7" class="empty-cell">
                     @if (productFilter()) {
                       No products match "{{ productFilter() }}".
                     } @else {
@@ -526,7 +528,7 @@
         </div>
 
         <div class="table-wrapper">
-          <table class="admin-table">
+          <table class="admin-table inventory-table">
             <thead>
               <tr>
                 <th>Product & SKU</th>
@@ -537,15 +539,17 @@
             </thead>
             <tbody>
               @for (inv of filteredTableInventory(); track inv.sku) {
-                <tr>
-                  <td>
+                <tr class="inv-row">
+                  <td class="inv-prod-cell">
                     <div class="inv-prod-title">{{ getProductName(inv.sku) }}</div>
                     <span class="sku-cell">{{ inv.sku }}</span>
                   </td>
-                  <td class="quantity-cell">
-                    <strong>{{ inv.quantity }}</strong> units
+                  <td class="inv-quantity-cell">
+                    <span class="mobile-table-label">Units Available:</span>
+                    <span class="quantity-value"><strong>{{ inv.quantity }}</strong> units</span>
                   </td>
-                  <td>
+                  <td class="inv-status-cell">
+                    <span class="mobile-table-label">Stock Status:</span>
                     @if (inv.quantity > 5) {
                       <span class="stock-badge in-stock">In Stock</span>
                     } @else if (inv.quantity > 0) {
@@ -554,43 +558,46 @@
                       <span class="stock-badge out-stock">Out of Stock</span>
                     }
                   </td>
-                  <td class="actions-cell">
-                    <button
-                      class="btn-stock-adjust minus"
-                      [disabled]="inv.quantity <= 0"
-                      (click)="quickChangeStock(inv.sku, inv.quantity - 1)"
-                      title="Decrement 1 unit"
-                    >
-                      -1
-                    </button>
-                    <button
-                      class="btn-stock-adjust plus"
-                      (click)="quickChangeStock(inv.sku, inv.quantity + 1)"
-                      title="Increment 1 unit"
-                    >
-                      +1
-                    </button>
-                    <button
-                      class="btn-stock-adjust plus-bulk"
-                      (click)="quickChangeStock(inv.sku, inv.quantity + 10)"
-                      title="Add 10 units"
-                    >
-                      +10
-                    </button>
-                    <button
-                      class="btn-stock-adjust plus-bulk"
-                      (click)="quickChangeStock(inv.sku, inv.quantity + 50)"
-                      title="Add 50 units (Bulk)"
-                    >
-                      +50
-                    </button>
-                    <button
-                      class="btn-action edit"
-                      (click)="selectSkuForInventory(inv)"
-                      title="Edit in form"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </button>
+                  <td class="inv-actions-cell actions-cell">
+                    <span class="mobile-table-label">1-Click Quick Restock:</span>
+                    <div class="stock-btn-cluster">
+                      <button
+                        class="btn-stock-adjust minus"
+                        [disabled]="inv.quantity <= 0"
+                        (click)="quickChangeStock(inv.sku, inv.quantity - 1)"
+                        title="Decrement 1 unit"
+                      >
+                        -1
+                      </button>
+                      <button
+                        class="btn-stock-adjust plus"
+                        (click)="quickChangeStock(inv.sku, inv.quantity + 1)"
+                        title="Increment 1 unit"
+                      >
+                        +1
+                      </button>
+                      <button
+                        class="btn-stock-adjust plus-bulk"
+                        (click)="quickChangeStock(inv.sku, inv.quantity + 10)"
+                        title="Add 10 units"
+                      >
+                        +10
+                      </button>
+                      <button
+                        class="btn-stock-adjust plus-bulk"
+                        (click)="quickChangeStock(inv.sku, inv.quantity + 50)"
+                        title="Add 50 units (Bulk)"
+                      >
+                        +50
+                      </button>
+                      <button
+                        class="btn-action edit"
+                        (click)="selectSkuForInventory(inv)"
+                        title="Edit in form"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               } @empty {
@@ -695,7 +702,7 @@
         </div>
 
         <div class="table-wrapper">
-          <table class="admin-table">
+          <table class="admin-table orders-table">
             <thead>
               <tr>
                 <th>Order #</th>
@@ -707,17 +714,25 @@
             </thead>
             <tbody>
               @for (ord of filteredTableOrders(); track ord.orderNumber || ord.id) {
-                <tr [class.cancelled-row]="ord.orderStatus === 'CANCELLED'">
+                <tr class="order-row" [class.cancelled-row]="ord.orderStatus === 'CANCELLED'">
                   <td class="order-num-cell">
                     <span class="order-num-text">{{ ord.orderNumber }}</span>
-                    <span class="order-db-id">ID: #{{ ord.id }}</span>
+                    <div class="order-meta-sub">
+                      <span class="order-db-id">ID: #{{ ord.id }}</span>
+                      @if (ord.username) {
+                        <span class="order-user-tag" title="Customer: {{ ord.username }}">👤 {{ ord.username }}</span>
+                      } @else if (ord.customerName) {
+                        <span class="order-user-tag" title="Customer: {{ ord.customerName }}">👤 {{ ord.customerName }}</span>
+                      }
+                    </div>
                   </td>
-                  <td>
+                  <td class="order-status-cell">
                     <span class="order-status-tag" [ngClass]="getOrderStatusClass(ord.orderStatus)">
                       {{ ord.orderStatus || 'PLACED' }}
                     </span>
                   </td>
-                  <td>
+                  <td class="order-items-cell">
+                    <span class="mobile-table-label">Items & Breakdown:</span>
                     <div class="order-items-pills">
                       @for (it of ord.orderItems; track it.sku) {
                         <span class="item-pill">
@@ -726,10 +741,12 @@
                       }
                     </div>
                   </td>
-                  <td class="text-right price-cell" [class.cancelled-price]="ord.orderStatus === 'CANCELLED'">
-                    ${{ calculateOrderTotal(ord) | number:'1.2-2' }}
+                  <td class="order-total-cell price-cell" [class.cancelled-price]="ord.orderStatus === 'CANCELLED'">
+                    <span class="mobile-table-label">Order Total:</span>
+                    <span class="order-total-value">${{ calculateOrderTotal(ord) | number:'1.2-2' }}</span>
                   </td>
-                  <td class="actions-cell">
+                  <td class="order-mgmt-cell actions-cell">
+                    <span class="mobile-table-label">Management:</span>
                     @if (ord.id && ord.orderStatus !== 'CANCELLED') {
                       <button
                         class="btn-action admin-cancel-btn"

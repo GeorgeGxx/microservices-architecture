@@ -40,31 +40,45 @@ kubectl config set-context --current --namespace=$Namespace 2>$null
 Write-Host "`n[2/6] Verifying container images in Minikube..." -ForegroundColor Yellow
 $services = @("api-gateway", "inventory-service", "notification-service", "orders-service", "products-service", "frontend")
 
+$minikubeImgs = minikube image ls 2>$null
+$hostImgs = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
+
 if (-not $SkipBuild) {
-    & minikube -p minikube docker-env --shell powershell | Invoke-Expression
-    $existingImages = docker images --format "{{.Repository}}:{{.Tag}}" 2>$null
     foreach ($svc in $services) {
         $tagImg = "georgegxx/$($svc):1.0.0"
-        $localImg = "$($svc):1.0.0"
-        if ($Rebuild -or ($existingImages -notmatch "$($svc):1.0.0")) {
-            Write-Host "  Building $($svc):1.0.0..." -ForegroundColor Cyan
+        $builtNew = $false
+
+        if ($Rebuild -or ($hostImgs -notmatch "georgegxx/$($svc):1.0.0")) {
+            Write-Host "  Building $($tagImg)..." -ForegroundColor Cyan
             if ($svc -eq "frontend") {
                 Push-Location ./frontend
-                docker build -t "frontend:1.0.0" -t "georgegxx/frontend:1.0.0" .
-                Pop-Location
+                try {
+                    docker build -t $tagImg .
+                } finally {
+                    Pop-Location
+                }
             } else {
-                docker build -t $localImg -t $tagImg -f "./$svc/Dockerfile" .
+                docker build -t $tagImg -f "./$svc/Dockerfile" .
             }
+            $builtNew = $true
         } else {
-            Write-Host "  Image $($svc):1.0.0 already exists in Minikube (skipping build)." -ForegroundColor Green
+            Write-Host "  Image $($tagImg) already exists in host Docker." -ForegroundColor Green
+        }
+
+        # Ensure image is loaded into Minikube (containerd runtime)
+        if ($Rebuild -or $builtNew -or ($minikubeImgs -notmatch "georgegxx/$($svc):1.0.0")) {
+            Write-Host "    -> Loading $tagImg into Minikube..." -ForegroundColor Cyan
+            minikube image load $tagImg
+            Write-Host "  Image $tagImg loaded into Minikube." -ForegroundColor Green
+        } else {
+            Write-Host "  Image $tagImg already exists in Minikube." -ForegroundColor Green
         }
     }
 } else {
     Write-Host "  Build skipped (-SkipBuild flag detected). Ensuring images exist in Minikube..." -ForegroundColor Cyan
-    $minikubeImgs = minikube image ls 2>$null
     $missingInMinikube = @()
     foreach ($svc in $services) {
-        if (-not ($minikubeImgs -match "$($svc):1.0.0")) {
+        if (-not ($minikubeImgs -match "georgegxx/$($svc):1.0.0")) {
             $missingInMinikube += "georgegxx/$($svc):1.0.0"
         }
     }

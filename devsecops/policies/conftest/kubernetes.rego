@@ -1,7 +1,9 @@
 package main
 
+import rego.v1
+
 # Deny containers running in privileged mode
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   container.securityContext.privileged == true
@@ -9,7 +11,7 @@ deny[msg] {
 }
 
 # Deny containers without memory/cpu limits
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.resources.limits
@@ -17,7 +19,7 @@ deny[msg] {
 }
 
 # Deny containers using 'latest' tag in image
-deny[msg] {
+deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   endswith(container.image, ":latest")
@@ -25,7 +27,7 @@ deny[msg] {
 }
 
 # Warn if liveness probe is missing on Deployment containers
-warn[msg] {
+warn contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.livenessProbe
@@ -33,7 +35,7 @@ warn[msg] {
 }
 
 # Warn if readiness probe is missing on Deployment containers
-warn[msg] {
+warn contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
   not container.readinessProbe

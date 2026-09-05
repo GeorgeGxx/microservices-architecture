@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 10,
+  "version": 17,
   "tags": [
     "spring-boot",
     "java21",
@@ -30,14 +30,14 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up, service)",
+        "definition": "label_values(up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"}, service)",
         "query": {
-          "query": "label_values(up, service)",
+          "query": "label_values(up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"}, service)",
           "refId": "StandardVariableQuery"
         },
         "label": "Filter Microservice",
         "includeAll": true,
-        "allValue": ".*",
+        "allValue": ".+",
         "multi": true,
         "current": {
           "text": "All",
@@ -49,9 +49,9 @@
   },
   "panels": [
     {
-      "id": 50,
+      "id": 100,
       "type": "row",
-      "title": "🛡️ [SECURITY & DDoS ATTACK DETECTION] Real-Time Threat Analysis & Rate Limiting",
+      "title": "🟢 [GLOBAL SYSTEM HEALTH & GOLDEN SIGNALS] Core Microservices Health & Status",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -61,14 +61,138 @@
       }
     },
     {
-      "id": 51,
+      "id": 101,
       "type": "stat",
-      "title": "🚨 Security Attack Status & Threat Level",
-      "description": "Monitors rate-limit rejections (HTTP 429) and error spikes. Switches to RED during DDoS simulation attacks.",
+      "title": "🌐 Core Microservices Online",
+      "description": "Count of unique operational core business microservices active (Gateway, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 4
+              },
+              {
+                "color": "#10b981",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "count(count by (service) (up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+          "legendFormat": "Active Business Roles"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "stat",
+      "title": "⏱️ Global P95 Response Latency",
+      "description": "Overall 95th percentile response time across all microservice endpoints.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 250
+              },
+              {
+                "color": "#ef4444",
+                "value": 1000
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or vector(0)",
+          "legendFormat": "P95 Latency"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "stat",
+      "title": "🚨 Security Attack Status & Threat Level",
+      "description": "Monitors rate-limit rejections (HTTP 429) and server error spikes (Normal, Elevated, Under Attack).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
         "y": 1
       },
       "datasource": {
@@ -101,10 +225,10 @@
             {
               "type": "range",
               "options": {
-                "from": 0,
+                "from": null,
                 "to": 0.5,
                 "result": {
-                  "text": "🛡️ SECURE · NORMAL",
+                  "text": "NORMAL / SECURE",
                   "color": "#10b981"
                 }
               }
@@ -113,9 +237,9 @@
               "type": "range",
               "options": {
                 "from": 0.5,
-                "to": 4.9,
+                "to": 5,
                 "result": {
-                  "text": "⚠️ ELEVATED TRAFFIC",
+                  "text": "ELEVATED TRAFFIC",
                   "color": "#f59e0b"
                 }
               }
@@ -124,9 +248,9 @@
               "type": "range",
               "options": {
                 "from": 5,
-                "to": 999999,
+                "to": null,
                 "result": {
-                  "text": "🚨 UNDER ATTACK · DDoS SURGE",
+                  "text": "UNDER ATTACK / DDOS",
                   "color": "#ef4444"
                 }
               }
@@ -141,404 +265,8 @@
             "lastNotNull"
           ]
         },
-        "textMode": "value_and_name",
+        "textMode": "value",
         "colorMode": "background",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "(sum(rate(http_server_requests_seconds_count{status=~\"429|5..\"}[1m])) or vector(0))",
-          "legendFormat": "Attack Rate"
-        }
-      ]
-    },
-    {
-      "id": 52,
-      "type": "stat",
-      "title": "🛑 Blocked Attack Requests (HTTP 429)",
-      "description": "Total botnet flood requests throttled and blocked by Spring Cloud Gateway / Redis Token Bucket.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 1
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#10b981",
-                "value": null
-              },
-              {
-                "color": "#f59e0b",
-                "value": 1
-              },
-              {
-                "color": "#ef4444",
-                "value": 20
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "(sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m])) or vector(0))",
-          "legendFormat": "Blocked 429s"
-        }
-      ]
-    },
-    {
-      "id": 53,
-      "type": "timeseries",
-      "title": "Gateway Attack & Rate-Limit Traffic Distribution",
-      "description": "Real-time comparison between legitimate traffic (2xx), rate-limited attacks (429), and errors (5xx).",
-      "gridPos": {
-        "h": 4,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 25,
-            "spanNulls": true,
-            "stacking": {
-              "mode": "normal",
-              "group": "A"
-            }
-          },
-          "unit": "reqps"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"2..\"}[1m])) by (status)",
-          "legendFormat": "Legitimate (2xx)"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(http_server_requests_seconds_count{status=\"429\"}[1m])) by (status)",
-          "legendFormat": "Throttled (429)"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"5..\"}[1m])) by (status)",
-          "legendFormat": "Errors (5xx)"
-        }
-      ]
-    },
-    {
-      "id": 54,
-      "type": "bargauge",
-      "title": "🏴‍☠️ Captured Attacker IPs (DDoS Botnet Interceptions)",
-      "description": "Real-time count of blocked flood requests per attacker IP intercepted by Spring Cloud Gateway & Redis Tarpit.",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 5
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#f59e0b",
-                "value": null
-              },
-              {
-                "color": "#ef4444",
-                "value": 10
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "topk(10, sum by (ip, reason) (security_blocked_ip_total) or sum by (ip) (security_blocked_ip_total))",
-          "legendFormat": "{{ip}} ({{reason}})"
-        }
-      ]
-    },
-    {
-      "id": 55,
-      "type": "logs",
-      "title": "📜 DDoS Security & Auto-Ban Audit Stream (Loki)",
-      "description": "Live audit logs capturing AUTO-BAN events and blocked attacker IP requests from Gateway filter.",
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 5
-      },
-      "datasource": {
-        "uid": "loki-ds",
-        "type": "loki"
-      },
-      "options": {
-        "showLabels": false,
-        "wrapLogMessage": true,
-        "enableLogDetails": true,
-        "sortOrder": "Descending"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "loki-ds",
-            "type": "loki"
-          },
-          "expr": "{container=~\".+\"} |= \"SECURITY-AUDIT\"",
-          "legendFormat": "{{container}}"
-        }
-      ]
-    },
-    {
-      "id": 100,
-      "type": "row",
-      "title": "🟢 [LAYER 1] System Status & Core Infrastructure Health",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 11
-      }
-    },
-    {
-      "id": 101,
-      "type": "stat",
-      "title": "Spring Services Online",
-      "description": "Total active Spring Boot microservices scraped by Prometheus.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 12
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 3
-              },
-              {
-                "color": "#10b981",
-                "value": 5
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "count(up == 1) or vector(0)",
-          "legendFormat": "Online Services"
-        }
-      ]
-    },
-    {
-      "id": 102,
-      "type": "stat",
-      "title": "Total HTTP Requests",
-      "description": "Total HTTP requests handled across all Spring Boot services.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 12
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              },
-              {
-                "color": "#3b82f6",
-                "value": 100
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(http_server_requests_seconds_count) or vector(0)",
-          "legendFormat": "Total Requests"
-        }
-      ]
-    },
-    {
-      "id": 103,
-      "type": "stat",
-      "title": "Redis Cache Status",
-      "description": "Redis in-memory caching health from Redis Exporter.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 12
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "DOWN",
-                  "color": "red"
-                },
-                "1": {
-                  "text": "HEALTHY",
-                  "color": "green"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
         "graphMode": "none"
       },
       "targets": [
@@ -547,21 +275,21 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "min(redis_up) or vector(1)",
-          "legendFormat": "Redis Status"
+          "expr": "sum(rate(http_server_requests_seconds_count{status=~\"429|5..\"}[1m])) or vector(0)",
+          "legendFormat": "Threat Level"
         }
       ]
     },
     {
       "id": 104,
       "type": "stat",
-      "title": "Active JVM Live Threads",
-      "description": "Total active virtual & platform threads across JVM processes.",
+      "title": "⚡ Resilience4j Circuit Breakers Health",
+      "description": "State of circuit breakers protecting inter-service communication (2 = CLOSED / HEALTHY, 1 = HALF_OPEN, 0 = OPEN).",
       "gridPos": {
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 12
+        "y": 1
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -569,7 +297,6 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
           "color": {
             "mode": "thresholds"
           },
@@ -577,15 +304,38 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#10b981",
+                "color": "#ef4444",
                 "value": null
               },
               {
                 "color": "#f59e0b",
-                "value": 200
+                "value": 1
+              },
+              {
+                "color": "#10b981",
+                "value": 2
               }
             ]
-          }
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "2": {
+                  "text": "CLOSED / HEALTHY",
+                  "color": "#10b981"
+                },
+                "1": {
+                  "text": "HALF_OPEN / TESTING",
+                  "color": "#f59e0b"
+                },
+                "0": {
+                  "text": "OPEN / TRIPPED",
+                  "color": "#ef4444"
+                }
+              }
+            }
+          ]
         }
       },
       "options": {
@@ -596,171 +346,6 @@
           ]
         },
         "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(jvm_threads_live_threads) or vector(0)",
-          "legendFormat": "JVM Threads"
-        }
-      ]
-    },
-    {
-      "id": 200,
-      "type": "row",
-      "title": "⚡ [LAYER 2] Traffic Throughput & Status Code Distribution",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 16
-      }
-    },
-    {
-      "id": 201,
-      "type": "timeseries",
-      "title": "HTTP Request Rate by Microservice (RPS)",
-      "description": "Real-time requests per second throughput per microservice.",
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 0,
-        "y": 17
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 20,
-            "spanNulls": true
-          },
-          "unit": "reqps"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(http_server_requests_seconds_count[1m])) by (service) or sum(rate(http_server_requests_seconds_count[1m])) by (app)",
-          "legendFormat": "{{service}}{{app}}"
-        }
-      ]
-    },
-    {
-      "id": 202,
-      "type": "timeseries",
-      "title": "P95 & Average Request Latency (ms)",
-      "description": "Response time per microservice in milliseconds.",
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 9,
-        "y": 17
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 15,
-            "spanNulls": true
-          },
-          "unit": "ms"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "((sum(rate(http_server_requests_seconds_sum[1m])) by (service) / sum(rate(http_server_requests_seconds_count[1m])) by (service)) * 1000) or (histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[1m])) by (le, service)) * 1000)",
-          "legendFormat": "{{service}} Latency"
-        }
-      ]
-    },
-    {
-      "id": 203,
-      "type": "stat",
-      "title": "⚡ Circuit Breakers State",
-      "description": "Fault tolerance state per downstream service: CLOSED (Green / Healthy), OPEN (Red / Tripped), HALF_OPEN (Yellow / Testing).",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 17
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "displayName": "${__field.labels.name}",
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "CLOSED",
-                  "color": "#10b981"
-                },
-                "1": {
-                  "text": "OPEN",
-                  "color": "#ef4444"
-                },
-                "2": {
-                  "text": "HALF_OPEN",
-                  "color": "#f59e0b"
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#10b981",
-                "value": null
-              },
-              {
-                "color": "#ef4444",
-                "value": 1
-              },
-              {
-                "color": "#f59e0b",
-                "value": 2
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "orientation": "horizontal",
-        "textMode": "value_and_name",
         "colorMode": "background",
         "graphMode": "none"
       },
@@ -770,109 +355,33 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (name) ((resilience4j_circuitbreaker_state{state=\"open\"} == 1) * 1 or (resilience4j_circuitbreaker_state{state=\"half_open\"} == 1) * 2 or (resilience4j_circuitbreaker_state{state=\"closed\"} == 1) * 0)",
-          "legendFormat": "{{name}}"
+          "expr": "clamp_min(2 - 2 * (max(resilience4j_circuitbreaker_state{state=\"open\"}) or vector(0)) - (max(resilience4j_circuitbreaker_state{state=\"half_open\"}) or vector(0)), 0)",
+          "legendFormat": "Circuit Breakers"
         }
       ]
     },
     {
-      "id": 400,
+      "id": 200,
       "type": "row",
-      "title": "☕ [LAYER 3] JVM Runtime Performance & Memory Footprint (Java 21 / Spring Boot 3.4)",
+      "title": "⚡ [HTTP TRAFFIC THROUGHPUT, LATENCY & ERRORS] Real-Time Golden Signals",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 25
+        "y": 5
       }
     },
     {
-      "id": 401,
+      "id": 201,
       "type": "timeseries",
-      "title": "JVM Heap Memory Usage (MB)",
-      "description": "Used JVM heap memory by service.",
+      "title": "📈 HTTP Request Rate by Microservice & Status (RPS)",
+      "description": "Real-time throughput and HTTP status code distribution (2xx success vs 4xx/5xx errors).",
       "gridPos": {
-        "h": 8,
-        "w": 8,
+        "h": 7,
+        "w": 12,
         "x": 0,
-        "y": 26
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 20,
-            "spanNulls": true
-          },
-          "unit": "decmbytes"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(jvm_memory_used_bytes{area=\"heap\"}) by (service) / 1024 / 1024",
-          "legendFormat": "{{service}} Heap"
-        }
-      ]
-    },
-    {
-      "id": 402,
-      "type": "timeseries",
-      "title": "Process CPU Utilization (%)",
-      "description": "CPU percentage consumed by the JVM process.",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 26
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "fillOpacity": 20,
-            "spanNulls": true
-          },
-          "unit": "percent",
-          "min": 0,
-          "max": 100
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(process_cpu_usage) by (service) * 100",
-          "legendFormat": "{{service}} CPU"
-        }
-      ]
-    },
-    {
-      "id": 403,
-      "type": "timeseries",
-      "title": "🐘 HikariCP Database Connection Pool (PostgreSQL)",
-      "description": "Active SQL queries in execution vs idle ready connections and pending queued threads per database pool.",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 26
+        "y": 6
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -885,10 +394,12 @@
             "lineInterpolation": "smooth",
             "fillOpacity": 20,
             "showPoints": "auto",
-            "pointSize": 5,
-            "spanNulls": true
+            "pointSize": 5
           },
-          "unit": "short"
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "targets": [
@@ -897,49 +408,21 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(hikaricp_connections_active) by (service) or vector(0)",
-          "legendFormat": "Active (SQL In-Flight) - {{service}}"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(hikaricp_connections_idle) by (service) or vector(0)",
-          "legendFormat": "Idle (Ready) - {{service}}"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(hikaricp_connections_pending) by (service) or vector(0)",
-          "legendFormat": "Pending (Queued) - {{service}}"
+          "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m]))",
+          "legendFormat": "{{service}} ({{status}})"
         }
       ]
     },
     {
-      "id": 500,
-      "type": "row",
-      "title": "📨 [LAYER 4] Kafka Event Streaming & Async Pipelines",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 34
-      }
-    },
-    {
-      "id": 501,
+      "id": 202,
       "type": "timeseries",
-      "title": "Kafka Event Streaming Throughput (events/sec)",
-      "description": "Real-time rate of events published by Orders Service and consumed by Notification Service.",
+      "title": "⏱️ P95 Latency by Microservice (ms)",
+      "description": "95th percentile response times per microservice to detect latency degradation.",
       "gridPos": {
-        "h": 8,
-        "w": 16,
-        "x": 0,
-        "y": 35
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 6
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -951,9 +434,13 @@
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "fillOpacity": 20,
-            "spanNulls": true
+            "showPoints": "auto",
+            "pointSize": 5
           },
-          "unit": "ops"
+          "unit": "ms",
+          "color": {
+            "mode": "palette-classic"
+          }
         }
       },
       "targets": [
@@ -962,29 +449,33 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(rate(spring_kafka_template_seconds_count[1m])) or vector(0)",
-          "legendFormat": "Published Events (Orders Service)"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(spring_kafka_listener_seconds_count[1m])) or vector(0)",
-          "legendFormat": "Consumed Events (Notification Service)"
+          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000",
+          "legendFormat": "{{service}} (P95)"
         }
       ]
     },
     {
-      "id": 502,
-      "type": "stat",
-      "title": "Kafka Total Messages Streamed",
-      "description": "Cumulative count of events processed through Kafka topics.",
+      "id": 300,
+      "type": "row",
+      "title": "🔄 [DISTRIBUTED CONSISTENCY, IDEMPOTENCY & MESSAGING] Saga & Kafka Event Streams",
+      "collapsed": false,
       "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 35
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "id": 301,
+      "type": "bargauge",
+      "title": "🛡️ Idempotency Deduplication & Saga Compensations",
+      "description": "Duplicate orders intercepted by Redis locks vs compensating transactions executed upon failure.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 14
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1000,7 +491,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#8b5cf6",
+                "color": "#10b981",
                 "value": null
               }
             ]
@@ -1008,16 +499,15 @@
         }
       },
       "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
         "reduceOptions": {
           "values": false,
           "calcs": [
             "lastNotNull"
           ]
-        },
-        "orientation": "horizontal",
-        "textMode": "value_and_name",
-        "colorMode": "value",
-        "graphMode": "area"
+        }
       },
       "targets": [
         {
@@ -1025,48 +515,265 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(spring_kafka_template_seconds_count) or vector(0)",
-          "legendFormat": "Published to orders-topic"
+          "expr": "sum(ecommerce_idempotency_hits_total) or vector(0)",
+          "legendFormat": "Prevented Duplicates (Idempotency)"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(spring_kafka_listener_seconds_count) or vector(0)",
-          "legendFormat": "Consumed by notification-service"
+          "expr": "sum(ecommerce_saga_compensations_total) or sum(ecommerce_compensations_total) or vector(0)",
+          "legendFormat": "Saga Rollbacks & Compensations"
         }
       ]
     },
     {
-      "id": 600,
+      "id": 302,
+      "type": "timeseries",
+      "title": "📨 Kafka Event Streaming Rate (Orders Published vs Notifications Consumed)",
+      "description": "Real-time event processing throughput across Kafka asynchronous pipelines.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (status) (rate(notification_events_processed_total[1m]))",
+          "legendFormat": "Consumed by Notification ({{status}})"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(rate(spring_kafka_template_seconds_count[1m])) or vector(0)",
+          "legendFormat": "Published by Orders Service"
+        }
+      ]
+    },
+    {
+      "id": 400,
       "type": "row",
-      "title": "📝 [LAYER 5] Centralized Container Logs (Loki Stream)",
+      "title": "☕ [PLATFORM SATURATION & RESOURCES] JVM Memory, CPU & Database Pools",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 21
       }
     },
     {
-      "id": 601,
-      "type": "logs",
-      "title": "Live Aggregated Container Logs",
-      "description": "Structured container logs ingested by Grafana Alloy into Loki.",
+      "id": 401,
+      "type": "timeseries",
+      "title": "🧠 JVM Heap Memory Usage (MB)",
+      "description": "Real-time heap memory consumption across Spring Boot Java 21 containers.",
       "gridPos": {
-        "h": 8,
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "decmbytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (service) (jvm_memory_used_bytes{area=\"heap\", service=~\"$service\"}) / 1048576",
+          "legendFormat": "{{service}} (Heap)"
+        }
+      ]
+    },
+    {
+      "id": 402,
+      "type": "timeseries",
+      "title": "🐘 HikariCP Database Connection Pools (PostgreSQL - Active vs Total)",
+      "description": "Real-time SQL connection pools across PostgreSQL databases: Active in-flight queries vs Total allocated pool size.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (service) (hikaricp_connections_active{service=~\"$service\"})",
+          "legendFormat": "{{service}} (Active In-Flight)"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (service) (hikaricp_connections{service=~\"$service\"})",
+          "legendFormat": "{{service}} (Total Pool Size)"
+        }
+      ]
+    },
+    {
+      "id": 500,
+      "type": "row",
+      "title": "🛡️ [SECURITY, ANTI-DDOS & INCIDENT DIAGNOSTICS] Threat Interceptions & Error Logs",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 29
+      }
+    },
+    {
+      "id": 501,
+      "type": "bargauge",
+      "title": "🛑 Blocked Attacks (HTTP 429) & Captive Attacker IPs",
+      "description": "Total flood requests intercepted by Spring Cloud Gateway & Redis Tarpit.",
+      "gridPos": {
+        "h": 8,
+        "w": 10,
+        "x": 0,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#ef4444",
+                "value": 1
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m])) or vector(0)",
+          "legendFormat": "Blocked Attack Requests (HTTP 429)"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)",
+          "legendFormat": "IP: {{ip}}"
+        }
+      ]
+    },
+    {
+      "id": 502,
+      "type": "logs",
+      "title": "📜 Real-Time Incident Diagnostic Logs (Errors & Security Audits - Loki)",
+      "description": "Filtered log stream strictly displaying ERROR logs and security intercept events, eliminating container noise.",
+      "gridPos": {
+        "h": 8,
+        "w": 14,
+        "x": 10,
+        "y": 30
       },
       "datasource": {
         "uid": "loki-ds",
         "type": "loki"
       },
       "options": {
-        "showLabels": false,
+        "showLabels": true,
         "wrapLogMessage": true,
         "enableLogDetails": true,
         "sortOrder": "Descending"
@@ -1077,224 +784,8 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "{container=~\".+\"}",
-          "legendFormat": "{{container}}"
-        }
-      ]
-    },
-    {
-      "id": 700,
-      "type": "row",
-      "title": "🔐 [LAYER 6] HashiCorp Vault Secrets & Identity Engine",
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 52
-      }
-    },
-    {
-      "id": 701,
-      "type": "stat",
-      "title": "Vault Barrier Seal Status",
-      "description": "Vault storage barrier status (Unsealed / Operational vs Sealed / Locked).",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 53
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "UNSEALED · OPERATIONAL",
-                  "color": "#10b981"
-                },
-                "0": {
-                  "text": "SEALED · LOCKED",
-                  "color": "#ef4444"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "max(vault_core_unsealed or up{job=\"vault\"} or up{service=\"vault\"} or vector(1))",
-          "legendFormat": "Seal Status"
-        }
-      ]
-    },
-    {
-      "id": 702,
-      "type": "stat",
-      "title": "Active Vault Leadership Role",
-      "description": "Vault cluster high-availability leadership state.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 53
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "ACTIVE LEADER",
-                  "color": "#3b82f6"
-                },
-                "0": {
-                  "text": "STANDBY NODE",
-                  "color": "#f59e0b"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "max(vault_core_active or up{job=\"vault\"} or up{service=\"vault\"} or vector(1))",
-          "legendFormat": "Role"
-        }
-      ]
-    },
-    {
-      "id": 703,
-      "type": "stat",
-      "title": "Vault Ops / Sec Throughput",
-      "description": "Cryptographic operations and secret reads per second.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 53
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#8b5cf6"
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(rate(vault_core_response_status_code[1m])) or sum(rate(vault_barrier_get_count[1m])) or vector(0)",
-          "legendFormat": "Vault Ops"
-        }
-      ]
-    },
-    {
-      "id": 704,
-      "type": "stat",
-      "title": "Vault Engine Goroutines",
-      "description": "Concurrent Go runtime threads executed inside Vault.",
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 53
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#06b6d4"
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "max(go_goroutines{job=~\"vault.*\"} or go_goroutines{service=~\"vault.*\"} or vector(48))",
-          "legendFormat": "Goroutines"
+          "expr": "{service=~\"$service\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
+          "legendFormat": "{{service}}"
         }
       ]
     }

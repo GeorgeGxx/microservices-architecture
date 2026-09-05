@@ -15,7 +15,8 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "orders", indexes = {
-        @Index(name = "idx_orders_order_number", columnList = "orderNumber", unique = true)
+        @Index(name = "idx_orders_order_number", columnList = "orderNumber", unique = true),
+        @Index(name = "idx_orders_user_id", columnList = "userId")
 })
 @Getter
 @Setter
@@ -29,6 +30,13 @@ public class Order {
 
     @Column(nullable = false, unique = true)
     private String orderNumber;
+
+    // User Identity (Keycloak Authentication)
+    @Column(name = "user_id")
+    private String userId;
+
+    @Column(name = "username")
+    private String username;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

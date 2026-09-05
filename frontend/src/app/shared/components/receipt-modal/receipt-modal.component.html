@@ -48,7 +48,11 @@
         @for (item of ord.orderItems; track item.id || item.sku) {
           <div class="item-row">
             <div class="item-info">
-              <span class="item-sku mono">{{ item.sku }}</span>
+              <img [src]="getItemImageUrl(item.sku)" class="receipt-item-thumb" [alt]="getItemName(item.sku)" loading="lazy" />
+              <div class="receipt-item-meta">
+                <span class="item-name">{{ getItemName(item.sku) }}</span>
+                <span class="item-sku mono">{{ item.sku }}</span>
+              </div>
             </div>
             <span class="text-center">{{ item.quantity }}</span>
             <span class="text-right mono"><span>$</span>{{ item.price | number:'1.2-2' }}</span>

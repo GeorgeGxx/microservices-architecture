@@ -29,6 +29,8 @@ export interface OrderItemResponse {
 export interface OrderResponse {
   id?: number;
   orderNumber: string;
+  userId?: string;
+  username?: string;
   orderStatus?: 'PLACED' | 'CANCELLED' | 'SHIPPED' | 'DELIVERED';
   orderItems: OrderItemResponse[];
   customerName?: string;

@@ -1,0 +1,4 @@
+# Trivy Ignore Allowlist - Enterprise Risk Acceptance Registry
+# Format: CVE-ID  # Justification / Service / Expiration Date
+# Example:
+# CVE-2023-XXXXX # Suppressed pending upstream Spring Boot 3.4.x patch

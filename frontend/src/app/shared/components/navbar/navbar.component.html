@@ -98,6 +98,7 @@
 
           <!-- Notifications Dropdown -->
           @if (showNotifications()) {
+            <div class="dropdown-backdrop" (click)="showNotifications.set(false)"></div>
             <div class="notification-dropdown">
               <div class="dropdown-header">
                 <div class="dropdown-title">
@@ -163,10 +164,16 @@
           </button>
         </div>
       } @else {
-        <button class="btn-login" (click)="keycloakService.login()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          <span>{{ 'NAV.LOGIN' | translate }}</span>
-        </button>
+        <div class="auth-buttons-group">
+          <button class="btn-register" (click)="keycloakService.register()" title="Create an account">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            <span>{{ 'NAV.REGISTER' | translate }}</span>
+          </button>
+          <button class="btn-login" (click)="keycloakService.login()" title="Sign in to your account">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <span>{{ 'NAV.LOGIN' | translate }}</span>
+          </button>
+        </div>
       }
     </div>
   </div>

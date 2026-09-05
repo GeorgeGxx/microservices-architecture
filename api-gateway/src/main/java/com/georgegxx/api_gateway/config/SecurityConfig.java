@@ -47,6 +47,8 @@ public class SecurityConfig {
                     .permitAll()
                     .pathMatchers("/api/notifications/**")
                     .permitAll()
+                    .pathMatchers("/api/order/funnel")
+                    .permitAll()
                     .anyExchange()
                     .authenticated())
         .exceptionHandling(

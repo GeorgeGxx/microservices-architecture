@@ -10,6 +10,7 @@ import { ReceiptModalComponent } from '../../shared/components/receipt-modal/rec
 import { TranslationService } from '../../core/services/translation.service';
 import { TranslatePipe } from '../../core/pipes/translate.pipe';
 import { KeycloakService } from '../../core/auth/keycloak.service';
+import { ProductService } from '../../core/services/product.service';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
 
 type OrderFilterTab = 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'ALL';
@@ -28,6 +29,7 @@ export class OrderListComponent implements OnInit, OnDestroy {
   private readonly toastService = inject(ToastService);
   readonly translationService = inject(TranslationService);
   readonly keycloakService = inject(KeycloakService);
+  readonly productService = inject(ProductService);
   readonly getProductImageUrl = getProductImageUrl;
   private readonly router = inject(Router);
 
@@ -66,7 +68,15 @@ export class OrderListComponent implements OnInit, OnDestroy {
 
   readonly filteredOrders = computed(() => {
     const tab = this.selectedTab();
-    const list = this.orders();
+    // Sort descending: highest id first (latest orders on first page, oldest orders on last page)
+    const list = [...this.orders()].sort((a, b) => {
+      const idA = a.id ?? 0;
+      const idB = b.id ?? 0;
+      if (idB !== idA) {
+        return idB - idA;
+      }
+      return (b.orderNumber || '').localeCompare(a.orderNumber || '');
+    });
     switch (tab) {
       case 'PROCESSING':
         return list.filter(o => o.orderStatus === 'PLACED' || !o.orderStatus);
@@ -102,17 +112,20 @@ export class OrderListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadOrders(false);
+    this.loadCatalog();
 
     // Continuous auto-sync every 5 seconds
     this.autoRefreshTimer = setInterval(() => {
       if (!document.hidden) {
         this.loadOrders(true);
+        this.loadCatalog();
       }
     }, 5000);
 
     this.onVisibilityChangeHandler = () => {
       if (document.visibilityState === 'visible') {
         this.loadOrders(true);
+        this.loadCatalog();
       }
     };
     document.addEventListener('visibilitychange', this.onVisibilityChangeHandler);
@@ -168,7 +181,15 @@ export class OrderListComponent implements OnInit, OnDestroy {
 
     this.orderService.getOrders().subscribe({
       next: (data) => {
-        this.orders.set(data);
+        const sorted = [...data].sort((a, b) => {
+          const idA = a.id ?? 0;
+          const idB = b.id ?? 0;
+          if (idB !== idA) {
+            return idB - idA;
+          }
+          return (b.orderNumber || '').localeCompare(a.orderNumber || '');
+        });
+        this.orders.set(sorted);
         this.isLoading.set(false);
       },
       error: (err) => {
@@ -245,6 +266,14 @@ export class OrderListComponent implements OnInit, OnDestroy {
     });
   }
 
+  onOrderStatusUpdated(event: { orderId?: number; status: 'PLACED' | 'CANCELLED' | 'SHIPPED' | 'DELIVERED' }): void {
+    if (event.orderId) {
+      this.orders.update(list =>
+        list.map(o => o.id === event.orderId ? { ...o, orderStatus: event.status } : o)
+      );
+    }
+  }
+
   openReceipt(order: OrderResponse): void {
     this.selectedOrderForReceipt.set(order);
   }
@@ -291,6 +320,27 @@ export class OrderListComponent implements OnInit, OnDestroy {
 
   closeDetailsModal(): void {
     this.selectedOrderForModal.set(null);
+  }
+
+  loadCatalog(): void {
+    this.productService.getProducts().subscribe({
+      error: () => {} // Handled silently with local persistent fallback
+    });
+  }
+
+  getItemImageUrl(sku: string): string {
+    return this.productService.getProductImage(sku);
+  }
+
+  getItemName(sku: string): string {
+    return this.productService.getProductName(sku);
+  }
+
+  onImageError(event: Event, sku: string): void {
+    const img = event.target as HTMLImageElement;
+    if (img) {
+      img.src = getProductImageUrl({ sku });
+    }
   }
 
   getTracingUrl(): string {

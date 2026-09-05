@@ -9,9 +9,11 @@ public record OrderEvent(
         String customerName,
         String shippingAddress,
         String trackingNumber,
-        Double totalAmount
+        Double totalAmount,
+        String userId,
+        String username
 ) {
     public OrderEvent(String orderNumber, int itemsCount, OrderStatus orderStatus) {
-        this(orderNumber, itemsCount, orderStatus, null, null, null, null);
+        this(orderNumber, itemsCount, orderStatus, null, null, null, null, null, null);
     }
 }

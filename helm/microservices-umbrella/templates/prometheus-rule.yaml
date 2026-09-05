@@ -16,8 +16,8 @@ spec:
           labels:
             severity: critical
           annotations:
-            summary: "{{ '{{' }} $labels.job {{ '}}' }} is down"
-            description: "Service {{ '{{' }} $labels.job {{ '}}' }} has been unreachable for more than 3 minutes."
+            summary: "{{`{{ $labels.job }}`}} is down"
+            description: "Service {{`{{ $labels.job }}`}} has been unreachable for more than 3 minutes."
 
         - alert: HighErrorRate
           expr: |
@@ -48,7 +48,7 @@ spec:
             severity: warning
           annotations:
             summary: "High JVM Heap Memory Usage"
-            description: "Service {{ '{{' }} $labels.service {{ '}}' }} is consuming more than 75% of allocated JVM heap memory."
+            description: "Service {{`{{ $labels.service }}`}} is consuming more than 75% of allocated JVM heap memory."
 
         - alert: RedisExporterDown
           expr: up{job="redis"} == 0

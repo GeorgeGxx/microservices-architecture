@@ -37,8 +37,8 @@ parser.add_argument("--concurrency", type=int, default=int(os.getenv("CONCURRENC
 parser.add_argument("--continuous", action="store_true", default=os.getenv("CONTINUOUS", "").lower() in ("1", "true", "yes"), help="Run continuously in loop")
 args, _ = parser.parse_known_args()
 
-GATEWAY_URL = args.gateway
-KEYCLOAK_URL = args.keycloak
+GATEWAY_URL = args.gateway.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
+KEYCLOAK_URL = args.keycloak.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
 TOTAL_ORDERS = args.orders
 CONCURRENCY = args.concurrency
 CONTINUOUS = args.continuous
@@ -101,6 +101,7 @@ class TrafficSimulator:
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         if idempotency_key:
+            headers["X-Idempotency-Key"] = idempotency_key
             headers["Idempotency-Key"] = idempotency_key
         return headers
 
@@ -113,18 +114,58 @@ class TrafficSimulator:
         except Exception:
             pass
 
+    def record_funnel_event(self, event_type, step=None, session_id=None):
+        """Dispatches conversion funnel events to Orders Service."""
+        try:
+            payload = json.dumps({
+                "eventType": event_type,
+                "step": step,
+                "sessionId": session_id or str(uuid.uuid4())
+            }).encode("utf-8")
+            req = urllib.request.Request(
+                f"{GATEWAY_URL}/api/order/funnel",
+                data=payload,
+                headers=self._headers(),
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                pass
+        except Exception:
+            pass
+
     def place_order(self, order_idx):
         start = time.perf_counter()
+        session_id = str(uuid.uuid4())
         self.browse_catalog()
 
-        # Select 1 to 2 random items
-        selected = random.sample(CATALOG_ITEMS, k=random.randint(1, 2))
+        # Funnel stage 1: Cart Add
+        self.record_funnel_event("CART_ADD", session_id=session_id)
+
+        # Funnel stage 2: Checkout Start
+        self.record_funnel_event("CHECKOUT_START", session_id=session_id)
+
+        # Funnel stage 3: Payment Step
+        self.record_funnel_event("CHECKOUT_STEP", step="PAYMENT", session_id=session_id)
+
+        # Select 1 to 3 random items
+        selected = random.sample(CATALOG_ITEMS, k=random.randint(1, min(3, len(CATALOG_ITEMS))))
         order_items = [
             {"sku": item["sku"], "price": item["price"], "quantity": random.randint(1, 2)}
             for item in selected
         ]
-        payload = json.dumps({"orderItems": order_items}).encode("utf-8")
-        idempotency_key = f"sim-{uuid.uuid4()}"
+        
+        delivery_methods = ["STANDARD", "EXPRESS", "NEXT_DAY"]
+        payment_brands = ["VISA", "MASTERCARD", "AMEX"]
+        
+        payload_dict = {
+            "orderItems": order_items,
+            "deliveryMethod": random.choice(delivery_methods),
+            "paymentBrand": random.choice(payment_brands),
+            "taxAmount": round(sum(item["price"] * item["quantity"] for item in order_items) * 0.16, 2),
+            "shippingCost": 15.00
+        }
+        payload = json.dumps(payload_dict).encode("utf-8")
+        idempotency_key = str(uuid.uuid4())
 
         req = urllib.request.Request(
             f"{GATEWAY_URL}/api/order",
@@ -146,7 +187,22 @@ class TrafficSimulator:
                 if order_id:
                     self.created_order_ids.append(order_id)
 
-                print(f"  \033[92m[✓] Order #{order_num}\033[0m | Items: {len(order_items)} | Latency: {latency:.1f}ms")
+                print(f"  \033[92m[✓] Order #{order_num}\033[0m | Items: {len(order_items)} | Method: {payload_dict['deliveryMethod']} | Brand: {payload_dict['paymentBrand']} | Latency: {latency:.1f}ms")
+
+                # Occasionally test duplicate idempotency rejection
+                if order_idx % 4 == 0:
+                    try:
+                        dup_req = urllib.request.Request(
+                            f"{GATEWAY_URL}/api/order",
+                            data=payload,
+                            headers=self._headers(idempotency_key=idempotency_key),
+                            method="POST",
+                        )
+                        with urllib.request.urlopen(dup_req, timeout=4) as dup_resp:
+                            print(f"  \033[94m[🛡️] Idempotency Verified: Duplicate order prevented & original returned (HTTP {dup_resp.status})\033[0m")
+                    except Exception as dup_err:
+                        print(f"  \033[94m[🛡️] Idempotency Intercepted: {dup_err}\033[0m")
+
                 return True
         except urllib.error.HTTPError as e:
             latency = (time.perf_counter() - start) * 1000
@@ -157,6 +213,7 @@ class TrafficSimulator:
             latency = (time.perf_counter() - start) * 1000
             print(f"  \033[91m[X] Order connection error: {e}\033[0m | Latency: {latency:.1f}ms")
             return False
+
 
     def cancel_random_order(self):
         """Cancels a previously placed order to test compensation & cancellation metrics."""

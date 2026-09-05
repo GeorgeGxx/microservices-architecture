@@ -22,8 +22,10 @@ if sys.platform == "win32":
         pass
 
 # Configuration
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://localhost:8080")
-KEYCLOAK_URL = os.getenv("KEYCLOAK_URL", "http://localhost:8181")
+RAW_GATEWAY = os.getenv("GATEWAY_URL", "http://127.0.0.1:8080")
+RAW_KEYCLOAK = os.getenv("KEYCLOAK_URL", "http://127.0.0.1:8181")
+GATEWAY_URL = RAW_GATEWAY.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
+KEYCLOAK_URL = RAW_KEYCLOAK.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
 TOTAL_CHAOS_RUNS = int(os.getenv("CHAOS_RUNS", "40"))
 CONCURRENCY = int(os.getenv("CONCURRENCY", "8"))
 
