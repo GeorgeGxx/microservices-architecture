@@ -118,6 +118,17 @@ if (Test-Path $frontendManifest) {
 }
 helm upgrade --install microservices "$umbrellaDir" --namespace staging
 
+# 5.2.1 Provision Curated Grafana Dashboards & Calibrate ArgoCD Secret
+Write-Host "`n📊 Provisioning Business & Technical Dashboards in Grafana..." -ForegroundColor Yellow
+$dashboardsDir = Join-Path $PSScriptRoot "..\..\observability\grafana\dashboards"
+if (Test-Path $dashboardsDir) {
+    kubectl create configmap grafana-dashboard-business --from-file=business-operations-dashboard.json="$dashboardsDir\business-operations-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null
+    kubectl label configmap grafana-dashboard-business grafana_dashboard=1 -n observability --overwrite 2>$null
+    kubectl create configmap grafana-dashboard-technical --from-file=technical-security-dashboard.json="$dashboardsDir\technical-security-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null
+    kubectl label configmap grafana-dashboard-technical grafana_dashboard=1 -n observability --overwrite 2>$null
+}
+kubectl delete secret argocd-initial-admin-secret -n argocd --ignore-not-found 2>$null
+
 # 5.3 Spawn background port-forward tunnels for Windows localhost access
 Write-Host "`n🔌 Opening local background port-forward tunnels for Windows localhost access..." -ForegroundColor Yellow
 # Stop any orphaned tunnels first
@@ -125,7 +136,7 @@ Get-Process -Name "kubectl" -ErrorAction SilentlyContinue | Where-Object { $_.Co
 
 $tunnels = @(
     # DevSecOps Infrastructure Tunnels
-    @{ Svc = "harbor-portal"; Namespace = "harbor"; LocalPort = 30002; RemotePort = 80; Desc = "Harbor Registry" },
+    @{ Svc = "harbor"; Namespace = "harbor"; LocalPort = 30002; RemotePort = 80; Desc = "Harbor Registry" },
     @{ Svc = "argocd-server"; Namespace = "argocd"; LocalPort = 30088; RemotePort = 80; Desc = "ArgoCD Web UI" },
     @{ Svc = "vault"; Namespace = "vault"; LocalPort = 8200; RemotePort = 8200; Desc = "HashiCorp Vault UI" },
     @{ Svc = "kube-prometheus-grafana"; Namespace = "observability"; LocalPort = 30030; RemotePort = 80; Desc = "Grafana Observability" },

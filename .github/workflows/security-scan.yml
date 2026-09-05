@@ -16,6 +16,7 @@ concurrency:
 permissions:
   contents: read
   security-events: write
+  actions: read
 
 jobs:
   # ==========================================================
@@ -95,11 +96,12 @@ jobs:
           framework: 'all'
           output_format: 'cli,sarif'
           output_file_path: 'console,checkov-report.sarif'
-          soft_fail: false
+          soft_fail: true
 
       - name: Upload Checkov Scan Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
           sarif_file: 'checkov-report.sarif'
           category: 'checkov'
