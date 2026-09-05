@@ -15,6 +15,7 @@ spec:
     registries:
       - "georgegxx/"
       - "docker.io/georgegxx/"
+      - "quay.io/"
       - "localhost"
       - "10.0."
       - "192.168."
