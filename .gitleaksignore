@@ -1,0 +1,2 @@
+# Gitleaks ignore list for historical commits and known false positives
+b4b1caac6698b46f772480673c25300b834e0aad:scripts/devsecops/bootstrap-local-devsecops.ps1:generic-api-key:144

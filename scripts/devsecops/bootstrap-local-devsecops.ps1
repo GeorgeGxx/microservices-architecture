@@ -141,8 +141,10 @@ if (Test-Path $dashboardsDir) {
 
 # Calibrate ArgoCD: set admin password to 'admin', set url, configure repo secret
 kubectl delete secret argocd-initial-admin-secret -n argocd --ignore-not-found 2>$null
-$argocdSecretPatch = '{"data":{"admin.password":"JDJhJDEwJDc5cnlsVlc5cGlBRTZqN2FCUkpTZmVxcUl3TFQ0M0xmczNiQzE5YW9hREdWT29DbkdpVlku"}}'
-kubectl patch secret -n argocd argocd-secret --type merge -p $argocdSecretPatch 2>$null
+$rawBcrypt = '$2a$10$79rylVW9piAE6j7aBRJSfeqqIwLT43Lfs3bC19aoaDGVOoCnGiVY.'
+$b64Password = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rawBcrypt))
+$patchArgocd = "{`"data`":{`"admin.password`":`"$b64Password`"}}"
+kubectl patch secret -n argocd argocd-secret --type merge -p $patchArgocd 2>$null
 kubectl patch cm -n argocd argocd-cm --type merge -p '{"data":{"url":"https://localhost:30088"}}' 2>$null
 
 $ghToken = (gh auth token 2>$null)
