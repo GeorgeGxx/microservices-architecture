@@ -46,23 +46,27 @@ Write-Host "  Realm: $Realm"
 Write-Host "=======================================================`n"
 
 # 1. Wait for Keycloak readiness
-Write-Host "[1/5] Checking Keycloak accessibility..." -ForegroundColor Yellow
-$deadline = (Get-Date).AddSeconds(60)
+Write-Host "[1/5] Checking Keycloak accessibility on $KeycloakUrl..." -ForegroundColor Yellow
+$deadline = (Get-Date).AddSeconds(150)
 $ready = $false
+$elapsed = 0
 while ((Get-Date) -lt $deadline) {
     try {
-        $check = Invoke-WebRequest -Uri "$KeycloakUrl/realms/master" -Method GET -UseBasicParsing -TimeoutSec 3
-        if ($check.StatusCode -in 200, 302, 401) {
+        $check = Invoke-WebRequest -Uri "$KeycloakUrl/realms/master" -Method GET -UseBasicParsing -TimeoutSec 3 -ErrorAction SilentlyContinue
+        if ($check -and ($check.StatusCode -in 200, 302, 401)) {
             $ready = $true
             break
         }
     } catch {
-        Start-Sleep -Seconds 2
+        # Waiting for port-forward or Keycloak internal startup
     }
+    Write-Host "  ... waiting for Keycloak to respond ($elapsed s elapsed)" -ForegroundColor DarkGray
+    Start-Sleep -Seconds 3
+    $elapsed += 3
 }
 
 if (-not $ready) {
-    Write-Host "[X] Keycloak is not reachable on $KeycloakUrl. Ensure Keycloak is running." -ForegroundColor Red
+    Write-Host "[X] Keycloak is not reachable on $KeycloakUrl after 150s. Ensure Keycloak is running." -ForegroundColor Red
     exit 1
 }
 Write-Host "[OK] Keycloak is ready." -ForegroundColor Green
