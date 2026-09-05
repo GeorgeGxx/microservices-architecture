@@ -77,7 +77,7 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
 | **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `ecommerce` (Apps & DBs), `vault` (Security & RBAC Auth Delegator), and `istio-system` (Mesh Control Plane & Kiali). Includes dual local ingress port-forwarding: interactive (`start-tunnels.ps1`) and detached background daemon (`spawn-tunnels.ps1`). |
 | **Tab 7** | `7. End-to-End Request Flow & Order Processing Sequence` | Complete 14-step transaction journey: Angular 21 SPA ➔ Keycloak PKCE (Self-Registration & JWT `sub`/`preferred_username`) ➔ Istio Ingress ➔ API Gateway (Redis Rate Limit & JWT verify) ➔ Orders Service (Multi-Tenant Order Isolation) ➔ Products & Inventory DBs ➔ Kafka Event Bus ➔ Notification Service ➔ LGTM Distributed Telemetry (Compulsive Buyer Velocity Metrics). |
 | **Tab 8** | `8. Edge Cloud Tunneling, Vercel & Mobile PWA` | Cloudflare Anycast Quick Tunnels, Vercel Serverless Edge, Keycloak PKCE, Enterprise Multi-Step Checkout, and Universal Mobile Viewports ($360\text{px}-768\text{px}$). |
-| **Tab 9** | `9. Enterprise DevSecOps Platform & 12-Stage Pipeline` | Complete 12-stage enterprise CI/CD pipeline (Unit Tests, SonarQube/Gitleaks SAST, Syft SBOM, Trivy Soft-Gate, Harbor OCI, Conftest OPA, Staging Deploy, Newman QA, Cypress E2E, k6 Load Tests, OWASP ZAP DAST, and Canary Rollout) running 100% locally on Minikube with automated Platform Engineering scripts. |
+| **Tab 9** | `9. Enterprise DevSecOps Platform & 12-Stage Pipeline` | Complete 12-stage enterprise CI/CD pipeline (Unit Tests, SonarQube/Gitleaks SAST, Syft SBOM, Trivy Soft-Gate, Conftest OPA, Staging Deploy, Newman QA, Cypress E2E, k6 Load Tests, OWASP ZAP DAST, Docker Hub Publish, and Canary Rollout) running 100% locally on Minikube with automated Platform Engineering scripts. |
 
 ---
 
@@ -89,28 +89,31 @@ The architecture includes a production-parity **DevSecOps ecosystem** designed t
 flowchart LR
     subgraph CI ["🔨 CI: Continuous Integration & Security (Windows Local Runner)"]
         S1["1. Tests & JaCoCo"] --> S2["2. SAST SonarQube & Gitleaks"]
-        S2 --> S3["3. Build & Syft SBOM"]
+        S2 --> S3["3. Build Container & Syft SBOM"]
         S3 --> S4["4. Trivy Container Audit"]
-        S4 --> S5["5. Push to Local Harbor (:30002)"]
-        S5 --> S6["6. Conftest OPA Pre-flight"]
+        S4 --> S5["5. Conftest OPA Pre-flight"]
     end
 
-    subgraph CD_Stg ["🚀 CD Staging: Parallel Quality Gates"]
-        S6 --> S7["7. Helm Deploy to Staging<br/>(SPRING=staging)"]
-        S7 --> S8["8. Newman QA Integration"]
-        S7 --> S9["9. Cypress E2E Tests"]
-        S7 --> S10["10. k6 Performance (p95<500ms)"]
-        S7 --> S11["11. OWASP ZAP DAST Ingress Scan"]
+    subgraph CD_Stg ["🚀 CD Staging: Staging Deploy & Parallel Quality Gates"]
+        S5 --> S6["6. Helm Deploy to Staging<br/>(SPRING=staging)"]
+        S6 --> S7["7. Newman QA Integration"]
+        S6 --> S8["8. Cypress E2E Tests"]
+        S6 --> S9["9. k6 Performance (p95<500ms)"]
+        S6 --> S10["10. OWASP ZAP DAST Scan"]
+    end
+
+    subgraph Gate ["📦 Promotion: Quality Gate Passed"]
+        S7 & S8 & S9 & S10 --> S11["11. Push Certified Image to Docker Hub<br/>(georgegxx/*:1.0.0)"]
     end
 
     subgraph CD_Prod ["🚢 CD Production: Canary Rollout"]
-        S8 & S9 & S10 & S11 -->|Quality Gates Passed| S12["12. Istio Canary Rollout<br/>(SPRING=prod 10% ➔ 100%)"]
+        S11 --> S12["12. Istio Canary Rollout<br/>(SPRING=prod 10% ➔ 100%)"]
     end
 ```
 
 ### 🖥️ Local Platform Endpoints & Access Matrix
 
-All 10 services and dashboards are automated via background port-forwarding and available on Windows `localhost`:
+All services and dashboards are automated via background port-forwarding and available on Windows `localhost`:
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
@@ -120,15 +123,14 @@ All 10 services and dashboards are automated via background port-forwarding and 
 | 🔑 **Keycloak IAM** | [`http://localhost:8181`](http://localhost:8181) | `admin` / `admin` | Identity Provider, OAuth2/OIDC, PKCE Realm |
 | 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
 | 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
-| 🐙 **ArgoCD GitOps** | [`http://localhost:30088`](http://localhost:30088) | `admin` / `NqJT22tkqYZjG7G5` | GitOps Controller & Declarative Deployments |
-| 📦 **Harbor Container Registry** | [`http://harbor.local:30002`](http://harbor.local:30002) | `admin` / `Harbor12345` | Private HTTP Insecure OCI Registry (`harbor.local`) |
-| 📊 **Grafana Observability** | [`http://localhost:30030`](http://localhost:30030) | `admin` / `Admin12345` | Curated SRE & Business Intelligence Dashboards |
+| 🐙 **ArgoCD GitOps** | [`https://localhost:30088`](https://localhost:30088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
+| 📊 **Grafana Observability** | [`http://localhost:30030`](http://localhost:30030) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
 
 ### ⚙️ Platform Operational Lifecycle Commands
 
 ```powershell
-# 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, Harbor, ArgoCD, Vault, Apps & Tunnels)
+# 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, ArgoCD, Vault, Apps & Tunnels)
 .\scripts\devsecops\bootstrap-local-devsecops.ps1
 
 # 2. Verify platform health, pods, NodePorts, and Gatekeeper policies across all namespaces

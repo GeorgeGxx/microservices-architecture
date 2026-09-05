@@ -1,7 +1,7 @@
 apiVersion: constraints.gatekeeper.sh/v1beta1
 kind: K8sTrustedRegistries
 metadata:
-  name: enforce-harbor-registry
+  name: enforce-trusted-registry
 spec:
   match:
     kinds:
@@ -13,10 +13,9 @@ spec:
       - "ecommerce"
   parameters:
     registries:
-      - "harbor.local"
+      - "georgegxx/"
+      - "docker.io/georgegxx/"
+      - "localhost"
       - "10.0."
       - "192.168."
-      - "localhost"
-      - "microservices/"
-      - "georgegxx/"
       - "gcr.io/distroless"

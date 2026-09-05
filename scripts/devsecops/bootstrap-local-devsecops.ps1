@@ -1,5 +1,5 @@
 # ==============================================================================
-# Bootstrap Local DevSecOps Platform (Minikube + Terraform + Istio + Harbor)
+# Bootstrap Local DevSecOps Platform (Minikube + Terraform + Istio + Docker Hub)
 # AMD Ryzen 7 (16 threads) | 32 GB RAM Allocation
 # ==============================================================================
 [CmdletBinding()]
@@ -53,7 +53,7 @@ if (Test-Path "$umbrellaDir\Chart.yaml") {
 }
 
 # 3. Apply Terraform for Platform Infrastructure
-Write-Host "`n🏗️ Deploying platform via Terraform (Harbor, Gatekeeper, ArgoCD, Prometheus)..." -ForegroundColor Yellow
+Write-Host "`n🏗️ Deploying platform via Terraform (Gatekeeper, ArgoCD, Prometheus)..." -ForegroundColor Yellow
 $tfDir = Join-Path $PSScriptRoot "..\..\terraform\environments\local-minikube"
 Push-Location $tfDir
 try {
@@ -118,8 +118,19 @@ if (Test-Path $frontendManifest) {
 }
 helm upgrade --install microservices "$umbrellaDir" --namespace staging
 
-# 5.2.1 Provision Curated Grafana Dashboards & Calibrate ArgoCD Secret
-Write-Host "`n📊 Provisioning Business & Technical Dashboards in Grafana..." -ForegroundColor Yellow
+# 5.2.1 Provision Curated Grafana Dashboards, Loki, Alloy & ArgoCD Calibration
+Write-Host "`n📊 Provisioning Observability (Dashboards, Loki, Alloy, Prometheus-DS)..." -ForegroundColor Yellow
+$infraDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\infra"
+if (Test-Path "$infraDir\loki.yaml") {
+    kubectl apply -f "$infraDir\loki.yaml" -n observability 2>$null
+}
+if (Test-Path "$infraDir\alloy.yaml") {
+    kubectl apply -f "$infraDir\alloy.yaml" -n observability 2>$null
+}
+if (Test-Path "$infraDir\grafana-datasources.yaml") {
+    kubectl apply -f "$infraDir\grafana-datasources.yaml" -n observability 2>$null
+}
+
 $dashboardsDir = Join-Path $PSScriptRoot "..\..\observability\grafana\dashboards"
 if (Test-Path $dashboardsDir) {
     kubectl create configmap grafana-dashboard-business --from-file=business-operations-dashboard.json="$dashboardsDir\business-operations-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null
@@ -127,7 +138,33 @@ if (Test-Path $dashboardsDir) {
     kubectl create configmap grafana-dashboard-technical --from-file=technical-security-dashboard.json="$dashboardsDir\technical-security-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null
     kubectl label configmap grafana-dashboard-technical grafana_dashboard=1 -n observability --overwrite 2>$null
 }
+
+# Calibrate ArgoCD: set admin password to 'admin', set url, configure repo secret
 kubectl delete secret argocd-initial-admin-secret -n argocd --ignore-not-found 2>$null
+$argocdSecretPatch = '{"data":{"admin.password":"JDJhJDEwJDc5cnlsVlc5cGlBRTZqN2FCUkpTZmVxcUl3TFQ0M0xmczNiQzE5YW9hREdWT29DbkdpVlku"}}'
+kubectl patch secret -n argocd argocd-secret --type merge -p $argocdSecretPatch 2>$null
+kubectl patch cm -n argocd argocd-cm --type merge -p '{"data":{"url":"https://localhost:30088"}}' 2>$null
+
+$ghToken = (gh auth token 2>$null)
+if ($ghToken) {
+    $ghToken = $ghToken.Trim()
+    $repoSecret = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-microservices
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  type: git
+  url: https://github.com/GeorgeGxx/microservices-architecture.git
+  password: $ghToken
+  username: not-used
+"@
+    $repoSecret | kubectl apply -f - 2>$null
+}
 
 # 5.3 Spawn background port-forward tunnels for Windows localhost access
 Write-Host "`n🔌 Opening local background port-forward tunnels for Windows localhost access..." -ForegroundColor Yellow
@@ -136,7 +173,6 @@ Get-Process -Name "kubectl" -ErrorAction SilentlyContinue | Where-Object { $_.Co
 
 $tunnels = @(
     # DevSecOps Infrastructure Tunnels
-    @{ Svc = "harbor"; Namespace = "harbor"; LocalPort = 30002; RemotePort = 80; Desc = "Harbor Registry" },
     @{ Svc = "argocd-server"; Namespace = "argocd"; LocalPort = 30088; RemotePort = 80; Desc = "ArgoCD Web UI" },
     @{ Svc = "vault"; Namespace = "vault"; LocalPort = 8200; RemotePort = 8200; Desc = "HashiCorp Vault UI" },
     @{ Svc = "kube-prometheus-grafana"; Namespace = "observability"; LocalPort = 30030; RemotePort = 80; Desc = "Grafana Observability" },
@@ -172,8 +208,7 @@ Write-Host "🔌 API Gateway Direct:     http://localhost:8080/api/product (Swag
 Write-Host "🔑 Keycloak IAM Console:   http://localhost:8181      (admin / admin)" -ForegroundColor White
 Write-Host "🔒 HashiCorp Vault UI:     http://localhost:8200      (Dev Token: root)" -ForegroundColor White
 Write-Host "🧭 Kiali Service Mesh:     http://localhost:20001/kiali/" -ForegroundColor White
-Write-Host "🐙 ArgoCD GitOps:          http://localhost:30088     (admin / ArgoCD12345)" -ForegroundColor White
-Write-Host "📦 Harbor Registry:        http://harbor.local:30002  (admin / Harbor12345)" -ForegroundColor White
+Write-Host "🐙 ArgoCD GitOps:          https://localhost:30088    (admin / admin)" -ForegroundColor White
 Write-Host "📊 Grafana Observability:  http://localhost:30030     (admin / admin)" -ForegroundColor White
 Write-Host "📈 Prometheus Targets:     http://localhost:9090/targets" -ForegroundColor White
 Write-Host "================================================================================" -ForegroundColor Green

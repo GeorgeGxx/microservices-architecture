@@ -121,7 +121,6 @@ data:
         - "istio-system"
         - "vault"
         - "observability"
-        - "harbor"
         - "argocd"
     api:
       namespaces:

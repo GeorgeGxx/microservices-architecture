@@ -10,12 +10,6 @@ variable "kube_context" {
   default     = "minikube"
 }
 
-variable "harbor_admin_password" {
-  type        = string
-  description = "Initial admin password for Harbor registry"
-  default     = "Harbor12345"
-  sensitive   = true
-}
 
 variable "argocd_admin_password" {
   type        = string
