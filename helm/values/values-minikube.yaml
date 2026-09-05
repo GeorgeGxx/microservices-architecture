@@ -23,12 +23,12 @@ global:
 #       {{- end -}}
 
 api-gateway:
-  image: { repository: api-gateway, tag: "1.0.0" }
+  image: { repository: georgegxx/api-gateway, tag: "1.0.0" }
 inventory-service:
-  image: { repository: inventory-service, tag: "1.0.0" }
+  image: { repository: georgegxx/inventory-service, tag: "1.0.0" }
 notification-service:
-  image: { repository: notification-service, tag: "1.0.0" }
+  image: { repository: georgegxx/notification-service, tag: "1.0.0" }
 orders-service:
-  image: { repository: orders-service, tag: "1.0.0" }
+  image: { repository: georgegxx/orders-service, tag: "1.0.0" }
 products-service:
-  image: { repository: products-service, tag: "1.0.0" }
+  image: { repository: georgegxx/products-service, tag: "1.0.0" }
