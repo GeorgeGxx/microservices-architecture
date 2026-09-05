@@ -187,6 +187,10 @@ $tunnels = @(
     @{ Svc = "keycloak"; Namespace = "staging"; LocalPort = 8181; RemotePort = 8181; Desc = "Keycloak IAM Console (Direct)" }
 )
 
+# 5.2.2 Wait for essential IAM identity provider before tunneling
+Write-Host "`n⏳ Waiting for Keycloak to be Ready in namespace 'staging'..." -ForegroundColor Yellow
+kubectl wait --namespace staging --for=condition=ready pod -l app=keycloak --timeout=120s 2>$null
+
 foreach ($t in $tunnels) {
     Start-Process -FilePath "kubectl" -ArgumentList "port-forward", "-n", "$($t.Namespace)", "--address", "0.0.0.0,127.0.0.1", "svc/$($t.Svc)", "$($t.LocalPort):$($t.RemotePort)" -WindowStyle Hidden -ErrorAction SilentlyContinue
     Write-Host "  [+] Tunnel initialized for $($t.Desc) on localhost:$($t.LocalPort)" -ForegroundColor Green
