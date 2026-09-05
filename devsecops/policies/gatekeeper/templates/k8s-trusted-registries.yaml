@@ -29,7 +29,7 @@ spec:
           startswith(input.review.object.spec.template.spec.containers[_].image, registry)
         }
 
-        deny[msg] {
+        violation[{"msg": msg}] {
           input.review.kind.kind == "Deployment"
           container := input.review.object.spec.template.spec.containers[_]
           not satisfies_registry(container.image)

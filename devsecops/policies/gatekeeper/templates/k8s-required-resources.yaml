@@ -21,7 +21,7 @@ spec:
           not container.resources.limits.memory
         }
 
-        deny[msg] {
+        violation[{"msg": msg}] {
           input.review.kind.kind == "Deployment"
           container := input.review.object.spec.template.spec.containers[_]
           missing_resources(container)
