@@ -68,12 +68,23 @@ Write-Host "`n🛡️ Applying centralized Gatekeeper policies (devsecops/polici
 $gatekeeperDir = Join-Path $PSScriptRoot "..\..\devsecops\policies\gatekeeper"
 if (Test-Path $gatekeeperDir) {
     kubectl apply -f "$gatekeeperDir\templates\"
-    Start-Sleep -Seconds 3
+    # Wait for Gatekeeper controller to register CRDs
+    for ($i = 0; $i -lt 15; $i++) {
+        $crd = kubectl get crd k8strustedregistries.constraints.gatekeeper.sh --ignore-not-found
+        if ($crd) { break }
+        Start-Sleep -Seconds 2
+    }
     kubectl apply -f "$gatekeeperDir\constraints\"
 }
 
-# 5. Apply Istio Gateway, Kiali & Vault
-Write-Host "`n🚪 Applying Istio Gateway, Kiali & Vault..." -ForegroundColor Yellow
+# 5. Install Istio Service Mesh & Apply Gateway, Kiali, Vault
+Write-Host "`n🚪 Ensuring Istio Control Plane, Gateway, Kiali & Vault..." -ForegroundColor Yellow
+$istioNs = kubectl get ns istio-system --ignore-not-found
+if (-not $istioNs) {
+    Write-Host "Installing Istio Control Plane (profile=demo)..." -ForegroundColor Yellow
+    istioctl install --set profile=demo -y
+}
+
 $istioDir = Join-Path $PSScriptRoot "..\..\k8s\istio"
 if (Test-Path "$istioDir\02-gateway.yaml") {
     kubectl apply -f "$istioDir\02-gateway.yaml"
