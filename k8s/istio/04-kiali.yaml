@@ -141,7 +141,9 @@ data:
         internal_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
         external_url: "http://localhost:30030"
         auth:
-          type: "none"
+          type: "basic"
+          username: "admin"
+          password: "admin"
 ---
 apiVersion: v1
 kind: Service
