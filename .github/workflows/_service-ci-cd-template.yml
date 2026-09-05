@@ -449,20 +449,23 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
           DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
+          RELEASE_TAG="${{ env.IMAGE_NAME }}:1.0.0"
           SHA_TAG="${{ env.IMAGE_NAME }}:${{ github.sha }}"
           LATEST_TAG="${{ env.IMAGE_NAME }}:latest"
           
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $RELEASE_TAG
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $SHA_TAG
           docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $LATEST_TAG
           
           # Attempt login and push to Docker Hub (graceful fallback if secrets not configured)
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push $RELEASE_TAG
             docker push $SHA_TAG
             docker push $LATEST_TAG
-            echo "Successfully pushed certified image to Docker Hub: $SHA_TAG and $LATEST_TAG"
+            echo "Successfully pushed certified image to Docker Hub: $RELEASE_TAG, $SHA_TAG and $LATEST_TAG"
           else
-            echo "::notice::DOCKERHUB_TOKEN / DOCKER_PASSWORD secret not set — image tagged locally ($SHA_TAG) for Minikube evaluation."
+            echo "::notice::DOCKERHUB_TOKEN / DOCKER_PASSWORD secret not set — image tagged locally ($RELEASE_TAG) for Minikube evaluation."
           fi
 
   # ==========================================================
