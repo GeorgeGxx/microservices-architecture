@@ -2,9 +2,9 @@ name: Microservices Architecture Security & Vulnerability Scan
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main, staging ]
   pull_request:
-    branches: [ main ]
+    branches: [ master, main, staging ]
   schedule:
     - cron: '0 0 * * 0' # Weekly scan every Sunday
   workflow_dispatch:

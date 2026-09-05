@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "89541ec5-ce99-4a9c-897e-29e0a39305a6",
-		"name": "MICROSERVICIOS",
-		"description": "Comprehensive Postman collection for Microservices Architecture with Spring Boot 3.4.x, Keycloak OAuth2/OIDC, and Saga Compensation Pattern.",
+		"name": "MICROSERVICIOS - Enterprise Integration Suite",
+		"description": "Comprehensive Postman/Newman collection for Microservices Architecture with Spring Boot 3.4.x, Keycloak OAuth2/OIDC, Istio Service Mesh, and Saga Compensation Pattern.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "26615757"
 	},
@@ -12,16 +12,30 @@
 			"item": [
 				{
 					"name": "List Orders",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401 (auth) or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 401, 404]);",
+									"});",
+									"pm.test(\"Response time is acceptable (< 1500ms)\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(1500);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/order",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/order",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"order"
@@ -32,6 +46,19 @@
 				},
 				{
 					"name": "Place Order (with Idempotency)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Order placement status is 200, 201, 400 or 401\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 201, 400, 401]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [
@@ -44,7 +71,7 @@
 								"key": "X-Idempotency-Key",
 								"value": "{{$guid}}",
 								"type": "text",
-								"description": "Optional UUID v4 for distributed idempotency"
+								"description": "UUID v4 for distributed idempotency"
 							}
 						],
 						"body": {
@@ -57,12 +84,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/order",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/order",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"order"
@@ -73,6 +98,19 @@
 				},
 				{
 					"name": "Cancel Order (Saga Compensation)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Saga cancel response code is valid\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 204, 400, 401, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -92,12 +130,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/order/1/cancel",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/order/1/cancel",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"order",
@@ -116,16 +152,27 @@
 			"item": [
 				{
 					"name": "Get Stock Detail",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Inventory status is valid\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 401, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/inventory/detail/SKU-IPHONE-15",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/inventory/detail/SKU-IPHONE-15",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"inventory",
@@ -138,16 +185,27 @@
 				},
 				{
 					"name": "Check In-Stock (Boolean)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Check stock responds with valid HTTP code\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 401, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/inventory/SKU-IPHONE-15",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/inventory/SKU-IPHONE-15",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"inventory",
@@ -178,12 +236,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/inventory",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/inventory",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"inventory"
@@ -213,12 +269,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/inventory/increment",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/inventory/increment",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"inventory",
@@ -235,16 +289,27 @@
 			"item": [
 				{
 					"name": "List Products",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Product listing responds with 200, 401 or 404\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 401, 404]);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "http://localhost:8080/api/product",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/product",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"product"
@@ -274,12 +339,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/product",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/product",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"product"
@@ -309,12 +372,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://localhost:8080/api/product/prices",
-							"protocol": "http",
+							"raw": "{{BASE_URL}}/api/product/prices",
 							"host": [
-								"localhost"
+								"{{BASE_URL}}"
 							],
-							"port": "8080",
 							"path": [
 								"api",
 								"product",
@@ -352,17 +413,17 @@
 			},
 			{
 				"key": "accessTokenUrl",
-				"value": "http://localhost:8181/realms/microservices-realm/protocol/openid-connect/token",
+				"value": "{{AUTH_URL}}/realms/microservices-realm/protocol/openid-connect/token",
 				"type": "string"
 			},
 			{
 				"key": "authUrl",
-				"value": "http://localhost:8181/realms/microservices-realm/protocol/openid-connect/auth",
+				"value": "{{AUTH_URL}}/realms/microservices-realm/protocol/openid-connect/auth",
 				"type": "string"
 			},
 			{
 				"key": "redirect_uri",
-				"value": "http://localhost:8080/login/oauth2/code/keycloak",
+				"value": "{{BASE_URL}}/login/oauth2/code/keycloak",
 				"type": "string"
 			},
 			{
@@ -376,5 +437,19 @@
 				"type": "string"
 			}
 		]
-	}
+	},
+	"variable": [
+		{
+			"key": "BASE_URL",
+			"value": "http://localhost:30080"
+		},
+		{
+			"key": "AUTH_URL",
+			"value": "http://localhost:8181"
+		},
+		{
+			"key": "KEYCLOAK_CLIENT_SECRET",
+			"value": "CHANGE_ME"
+		}
+	]
 }

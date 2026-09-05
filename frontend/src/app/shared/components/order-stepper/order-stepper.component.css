@@ -63,24 +63,113 @@
   border-radius: 6px;
 }
 
-.btn-simulate {
+.btn-live-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(6, 182, 212, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  color: #818cf8;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+}
+
+.btn-live-track:hover:not(:disabled) {
+  background: linear-gradient(135deg, #6366f1, #06b6d4);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-live-track.is-running {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.5);
+  color: #38bdf8;
+  cursor: default;
+}
+
+.live-dot-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  animation: liveDotPulse 1.2s infinite ease-in-out;
+  box-shadow: 0 0 8px #38bdf8;
+}
+
+@keyframes liveDotPulse {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 1; }
+}
+
+.delivered-status-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--primary-glow);
-  border: 1px solid var(--border-hover);
-  color: var(--primary-color);
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 0.72rem;
   font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
 }
 
-.btn-simulate:hover {
-  background: var(--primary-color);
-  color: white;
+.steps-track-wrapper {
+  position: relative;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.delivery-courier-runner {
+  position: absolute;
+  top: 14px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  pointer-events: none;
+  transition: left 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.courier-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: #0f172a;
+  border: 2px solid #38bdf8;
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+  font-size: 0.85rem;
+  animation: courierBounce 1s infinite alternate ease-in-out;
+}
+
+.courier-badge.is-animating {
+  border-color: #06b6d4;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.8);
+}
+
+.courier-badge.is-delivered {
+  border-color: #10b981;
+  background: #064e3b;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.8);
+  animation: celebratePulse 1.2s infinite ease-in-out;
+}
+
+@keyframes courierBounce {
+  from { transform: translateY(0px); }
+  to { transform: translateY(-3px); }
+}
+
+@keyframes celebratePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
 }
 
 .steps-track {
@@ -255,10 +344,32 @@
   background: var(--border-color);
   margin-top: -18px;
   transition: background 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .step-connector.filled {
   background: var(--success-color);
+}
+
+.step-connector.active-pulse {
+  background: rgba(56, 189, 248, 0.4);
+}
+
+.step-connector.active-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, #38bdf8, #818cf8, transparent);
+  animation: connectorBeam 1.2s infinite linear;
+}
+
+@keyframes connectorBeam {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .cancelled-banner {
@@ -271,4 +382,82 @@
   padding: 6px 10px;
   background: rgba(239, 68, 68, 0.08);
   border-radius: 8px;
+}
+
+/* ==========================================================================
+   Mobile Responsive Rules for Logistics Stepper
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .stepper-container {
+    padding: 12px 10px;
+  }
+
+  .stepper-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .stepper-info-group {
+    width: 100%;
+    gap: 8px;
+  }
+
+  .btn-live-track,
+  .delivered-status-pill {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 6px 12px;
+  }
+
+  .step-title {
+    white-space: normal;
+    font-size: 0.62rem;
+    text-align: center;
+    line-height: 1.15;
+    max-width: 62px;
+    word-break: break-word;
+  }
+
+  .step-circle {
+    width: 26px;
+    height: 26px;
+    font-size: 0.72rem;
+  }
+
+  .courier-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 440px) {
+  .stepper-container {
+    padding: 10px 8px;
+  }
+
+  .step-title {
+    font-size: 0.52rem;
+    max-width: 50px;
+    line-height: 1.1;
+  }
+
+  .step-circle {
+    width: 22px;
+    height: 22px;
+    font-size: 0.65rem;
+  }
+
+  .step-connector {
+    margin-top: -15px;
+  }
+
+  .courier-badge {
+    width: 24px;
+    height: 24px;
+    font-size: 0.75rem;
+  }
 }

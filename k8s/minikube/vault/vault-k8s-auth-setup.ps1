@@ -7,14 +7,19 @@ param(
     [string]$VaultToken = "root"
 )
 
+$ErrorActionPreference = "SilentlyContinue"
+if (Test-Path Variable:\PSNativeCommandUseErrorActionPreference) {
+    $PSNativeCommandUseErrorActionPreference = $false
+}
+
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "   🔐 MINIKUBE VAULT - KUBERNETES AUTH & LEAST PRIVILEGE  " -ForegroundColor Cyan
+Write-Host "   MINIKUBE VAULT - KUBERNETES AUTH AND LEAST PRIVILEGE   " -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 # 1. Get Vault Pod Name
 $vaultPod = (kubectl get pod -n $Namespace -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
 if (-not $vaultPod) {
-    Write-Error "❌ No Vault pod found in namespace '$Namespace'. Is Vault running in Minikube?"
+    Write-Error "No Vault pod found in namespace '$Namespace'. Is Vault running in Minikube?"
     exit 1
 }
 
@@ -24,9 +29,9 @@ Write-Host "`n[1/5] Connecting to Vault Pod: $vaultPod in namespace '$Namespace'
 Write-Host "`n[2/5] Enabling Kubernetes Auth Method..." -ForegroundColor Yellow
 kubectl exec -n $Namespace $vaultPod -- vault auth enable kubernetes 2>$null
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "  ✅ Kubernetes Auth method enabled." -ForegroundColor Green
+    Write-Host "  [OK] Kubernetes Auth method enabled." -ForegroundColor Green
 } else {
-    Write-Host "  ℹ️ Kubernetes Auth method already enabled." -ForegroundColor Cyan
+    Write-Host "  [INFO] Kubernetes Auth method already enabled." -ForegroundColor Cyan
 }
 
 # 3. Configure Kubernetes backend using in-cluster ServiceAccount token
@@ -34,16 +39,16 @@ Write-Host "`n[3/5] Configuring Kubernetes backend with cluster host..." -Foregr
 kubectl exec -n $Namespace $vaultPod -- vault write auth/kubernetes/config `
     kubernetes_host="https://kubernetes.default.svc:443"
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "  ✅ Kubernetes Auth backend configured successfully." -ForegroundColor Green
+    Write-Host "  [OK] Kubernetes Auth backend configured successfully." -ForegroundColor Green
 }
 
 # 4. Enable KV-v2 Secret Engine
 Write-Host "`n[4/5] Enabling KV v2 Engine at 'secret/'..." -ForegroundColor Yellow
 kubectl exec -n $Namespace $vaultPod -- vault secrets enable -path=secret kv-v2 2>$null
 if ($LASTEXITCODE -eq 0) {
-    Write-Host "  ✅ KV v2 secret engine enabled." -ForegroundColor Green
+    Write-Host "  [OK] KV v2 secret engine enabled." -ForegroundColor Green
 } else {
-    Write-Host "  ℹ️ KV 'secret/' engine already enabled." -ForegroundColor Cyan
+    Write-Host "  [INFO] KV 'secret/' engine already enabled." -ForegroundColor Cyan
 }
 
 # 5. Create Least-Privilege Read Policies per Microservice
@@ -66,7 +71,7 @@ foreach ($svc in $services) {
         policies="${svc}-policy" `
         ttl=24h 2>$null
 
-    Write-Host "  ✅ Service: $svc -> Policy: '${svc}-policy' -> Role: '${svc}-role'" -ForegroundColor Green
+    Write-Host "  [OK] Service: $svc -> Policy: '${svc}-policy' -> Role: '${svc}-role'" -ForegroundColor Green
 }
 
 # General fallback role for backward compatibility
@@ -79,5 +84,5 @@ kubectl exec -n $Namespace $vaultPod -- vault write auth/kubernetes/role/microse
     ttl=24h 2>$null
 
 Write-Host "`n==========================================================" -ForegroundColor Green
-Write-Host "  🎉 MINIKUBE VAULT KUBERNETES AUTH CONFIGURED!           " -ForegroundColor Green
+Write-Host "  MINIKUBE VAULT KUBERNETES AUTH CONFIGURED!              " -ForegroundColor Green
 Write-Host "==========================================================" -ForegroundColor Green

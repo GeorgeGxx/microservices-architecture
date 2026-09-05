@@ -1,0 +1,29 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredresources
+  annotations:
+    description: "Requires containers to define CPU and memory requests and limits to ensure QoS."
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredResources
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredresources
+
+        missing_resources(container) {
+          not container.resources.limits.cpu
+        }
+        missing_resources(container) {
+          not container.resources.limits.memory
+        }
+
+        deny[msg] {
+          input.review.kind.kind == "Deployment"
+          container := input.review.object.spec.template.spec.containers[_]
+          missing_resources(container)
+          msg := sprintf("Container '%v' in Deployment '%v' must specify CPU and memory limits.", [container.name, input.review.object.metadata.name])
+        }

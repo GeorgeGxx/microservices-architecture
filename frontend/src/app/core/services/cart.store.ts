@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { ProductResponse } from '../models/product.model';
 import { CurrencyService } from './currency.service';
+import { OrderService } from './order.service';
 
 export interface CartItem {
   product: ProductResponse;
@@ -14,6 +15,7 @@ const CART_STORAGE_KEY = 'msa_cart_items';
 })
 export class CartStore {
   private readonly currencyService = inject(CurrencyService);
+  private readonly orderService = inject(OrderService);
   private readonly itemsSignal = signal<CartItem[]>(this.loadInitialCart());
 
   readonly items = this.itemsSignal.asReadonly();
@@ -57,6 +59,8 @@ export class CartStore {
   }
 
   addToCart(product: ProductResponse, quantity: number = 1): void {
+    if (product.status === false) return;
+    this.orderService.recordFunnelEvent('CART_ADD', { sku: product.sku, category: product.category });
     this.itemsSignal.update(items => {
       const exists = items.some(i => i.product.sku === product.sku);
       let updated: CartItem[];

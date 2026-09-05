@@ -27,18 +27,25 @@ configMap:
   name: microservices-config
   data:
     OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel-collector:4317"
+    REDIS_HOST: "redis"
+    REDIS_PORT: "6379"
+    KEYCLOAK_ISSUER_URI: "http://keycloak:8181/realms/microservices-realm"
+    KEYCLOAK_JWT_URI: "http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs"
+    INVENTORY_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-inventory:5432/ms_inventory"
+    ORDERS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-orders:5432/ms_orders"
+    PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products:5432/ms_products"
+    KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
 
 secret:
-  # Plain Helm Secret (default, works everywhere - minikube, AKS, EKS).
-  # On AKS you can instead set global.azureKeyVault.enabled=true above to
-  # have this same Secret populated/synced from Azure Key Vault via the CSI
-  # driver (see templates/secretproviderclass.yaml) instead of passing raw
-  # values here. For EKS, the equivalent is the AWS Secrets Manager /
-  # SSM CSI driver - not wired in yet, same pattern would apply.
   create: true
   name: microservices-secrets
-  data: {}
-    # DB_PASSWORD: "changeme"   # base64 handled by the template, pass raw value here
+  data:
+    KEYCLOAK_ADMIN: "admin"
+    KEYCLOAK_ADMIN_PASSWORD: "admin"
+    POSTGRES_USER: "postgres"
+    POSTGRES_PASSWORD: "admin"
+    REDIS_PASSWORD: "admin"
+    KEYCLOAK_CLIENT_SECRET: "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
 
 prometheusRule:
   enabled: true

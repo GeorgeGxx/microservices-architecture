@@ -1,0 +1,21 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sTrustedRegistries
+metadata:
+  name: enforce-harbor-registry
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    namespaces:
+      - "staging"
+      - "prod"
+      - "ecommerce"
+  parameters:
+    registries:
+      - "harbor.local"
+      - "10.0."
+      - "192.168."
+      - "localhost"
+      - "microservices/"
+      - "gcr.io/distroless"

@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 13,
   "tags": [
     "business",
     "ecommerce",
@@ -27,14 +27,14 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up, service)",
+        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service\"}, service)",
         "query": {
-          "query": "label_values(up, service)",
+          "query": "label_values(up{service=~\"orders-service|inventory-service|products-service\"}, service)",
           "refId": "StandardVariableQuery"
         },
         "label": "Filter Microservice",
         "includeAll": true,
-        "allValue": ".*",
+        "allValue": ".+",
         "multi": true,
         "current": {
           "text": "All",
@@ -48,7 +48,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "💰 [EXECUTIVE BUSINESS KPIS] Sales, Revenue & Net Orders",
+      "title": "💰 [EXECUTIVE BUSINESS SUMMARY] Top Financial & Operational KPIs",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -60,122 +60,12 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "🛍️ Completed Sales Orders (Net)",
-      "description": "Total purchase orders successfully processed and active (deducting cancellations).",
+      "title": "💵 Net Sales Revenue",
+      "description": "Total net monetary volume generated from active completed orders.",
       "gridPos": {
         "h": 4,
-        "w": 5,
+        "w": 6,
         "x": 0,
-        "y": 1
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#10b981"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#10b981",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "clamp_min(((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0))), 0)",
-          "legendFormat": "Net Completed Orders"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "stat",
-      "title": "❌ Cancelled & Refunded Orders",
-      "description": "Orders cancelled by customer or refunded (Saga inventory compensation triggered).",
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 5,
-        "y": 1
-      },
-      "datasource": {
-        "uid": "prometheus-ds",
-        "type": "prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#ef4444"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "#ef4444",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "values": false,
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-          "legendFormat": "Cancelled Orders"
-        }
-      ]
-    },
-    {
-      "id": 4,
-      "type": "stat",
-      "title": "💵 Total Sales Revenue (USD)",
-      "description": "Net revenue volume in US Dollars generated from active completed orders (deducting cancellations).",
-      "gridPos": {
-        "h": 4,
-        "w": 5,
-        "x": 10,
         "y": 1
       },
       "datasource": {
@@ -217,20 +107,20 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(((sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)) - (sum(ecommerce_revenue_cancelled_usd) or sum(ecommerce_revenue_cancelled_usd_total) or vector(0))), 0)",
+          "expr": "sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"}) or vector(0)",
           "legendFormat": "Net Revenue USD"
         }
       ]
     },
     {
-      "id": 5,
+      "id": 3,
       "type": "stat",
-      "title": "📦 Total Units Sold",
-      "description": "Physical unit count of products currently sold.",
+      "title": "🛍️ Net Completed Orders",
+      "description": "Total purchase orders successfully completed and active in platform.",
       "gridPos": {
         "h": 4,
-        "w": 5,
-        "x": 15,
+        "w": 6,
+        "x": 6,
         "y": 1
       },
       "datasource": {
@@ -240,6 +130,61 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#10b981"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
+          "legendFormat": "Net Orders"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "🏷️ Average Order Value (AOV)",
+      "description": "Average spend per completed order ticket (Revenue / Orders).",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
           "color": {
             "mode": "fixed",
             "fixedColor": "#8b5cf6"
@@ -272,20 +217,20 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_items_sold) or sum(ecommerce_items_sold_total) or vector(0)",
-          "legendFormat": "Units Sold"
+          "expr": "(sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"})) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"})), 1) or vector(0)",
+          "legendFormat": "AOV"
         }
       ]
     },
     {
-      "id": 6,
-      "type": "stat",
-      "title": "🏭 Total Warehouse Stock",
-      "description": "Real-time aggregated units available across all product SKUs in inventory.",
+      "id": 5,
+      "type": "gauge",
+      "title": "📉 Cart Abandonment Rate",
+      "description": "Percentage of created shopping carts not converted into finished purchases.",
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
+        "w": 6,
+        "x": 18,
         "y": 1
       },
       "datasource": {
@@ -294,7 +239,9 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
           "color": {
             "mode": "thresholds"
           },
@@ -302,7 +249,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#ef4444",
+                "color": "#10b981",
                 "value": null
               },
               {
@@ -310,8 +257,8 @@
                 "value": 50
               },
               {
-                "color": "#10b981",
-                "value": 150
+                "color": "#ef4444",
+                "value": 75
               }
             ]
           }
@@ -324,9 +271,8 @@
             "lastNotNull"
           ]
         },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "area"
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
       },
       "targets": [
         {
@@ -334,15 +280,15 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_inventory_stock_total) or sum(ecommerce_inventory_sku_stock) or vector(450))",
-          "legendFormat": "Available Units"
+          "expr": "clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)",
+          "legendFormat": "Abandonment"
         }
       ]
     },
     {
       "id": 10,
       "type": "row",
-      "title": "📦 [INVENTORY INTELLIGENCE & SKU FULFILLMENT] Stock Levels & Market Distribution",
+      "title": "🛒 [CONVERSION FUNNEL & ORDER FULFILLMENT] Buyer Journey & Fulfillment Flow",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -354,13 +300,157 @@
     {
       "id": 11,
       "type": "bargauge",
-      "title": "📊 Live Available Stock by SKU (Inventory Service)",
-      "description": "Real-time remaining units per product SKU in warehouse. Thresholds: Green (>20), Yellow (<10 Low Stock), Red (0 Out of Stock).",
+      "title": "🛒 E-Commerce Conversion Funnel Stages",
+      "description": "Customer progression from Cart Additions -> Checkout Started -> Payment Step -> Completed Order.",
       "gridPos": {
         "h": 7,
-        "w": 14,
+        "w": 12,
         "x": 0,
         "y": 6
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3b82f6",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_cart_additions_total) or vector(0)",
+          "legendFormat": "1. Cart Additions"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_checkout_started_total) or vector(0)",
+          "legendFormat": "2. Checkout Started"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_checkout_step_reached_total{step=\"PAYMENT\"}) or vector(0)",
+          "legendFormat": "3. Reached Payment"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
+          "legendFormat": "4. Order Completed"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "bargauge",
+      "title": "🚚 Active Orders Across 5-Stage Logistics Pipeline",
+      "description": "Real-time state machine progression: PLACED -> PREPARING -> IN_TRANSIT -> OUT_FOR_DELIVERY -> DELIVERED.",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3b82f6",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline{service=~\"$service\"})",
+          "legendFormat": "Stage: {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "📦 [PRODUCT DEMAND & INVENTORY INTELLIGENCE] SKU Stock & Catalog Performance",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "id": 21,
+      "type": "bargauge",
+      "title": "📊 Live Available Stock by SKU & Low Stock Alerts",
+      "description": "Units available in warehouse per SKU with stock health thresholds: Green (>20), Yellow (<10 Low), Red (<5 Critical).",
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 14
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -382,7 +472,7 @@
               },
               {
                 "color": "#f59e0b",
-                "value": 1
+                "value": 5
               },
               {
                 "color": "#10b981",
@@ -409,21 +499,21 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "ecommerce_inventory_sku_stock",
+          "expr": "ecommerce_inventory_sku_stock{service=~\"$service\"}",
           "legendFormat": "{{sku}}"
         }
       ]
     },
     {
-      "id": 12,
+      "id": 22,
       "type": "piechart",
-      "title": "🥧 SKU Sales Market Share & Catalog Distribution",
-      "description": "Visual distribution of purchases across product categories and SKUs.",
+      "title": "🥧 Top Selling SKUs & Catalog Market Share",
+      "description": "Sales volume market share per product SKU, indicating customer demand.",
       "gridPos": {
         "h": 7,
-        "w": 10,
-        "x": 14,
-        "y": 6
+        "w": 12,
+        "x": 12,
+        "y": 14
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -436,15 +526,15 @@
         }
       },
       "options": {
+        "pieType": "donut",
+        "tooltip": {
+          "mode": "single"
+        },
         "reduceOptions": {
           "values": false,
           "calcs": [
             "lastNotNull"
           ]
-        },
-        "pieType": "donut",
-        "tooltip": {
-          "mode": "single"
         },
         "legend": {
           "displayMode": "table",
@@ -461,33 +551,87 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total) or sum by (sku) (ecommerce_sku_sales_total_total)",
+          "expr": "sum by (sku) (ecommerce_sku_sales{service=~\"$service\"}) or sum by (sku) (ecommerce_sku_sales_total{service=~\"$service\"})",
           "legendFormat": "{{sku}}"
         }
       ]
     },
     {
-      "id": 20,
+      "id": 30,
       "type": "row",
-      "title": "📈 [HISTORICAL TIMELINE & VELOCITY TRENDS] Date & Time Analytics",
+      "title": "👥 [CUSTOMER RETENTION & REVENUE EVOLUTION] Loyalty Cohorts & Growth Timeline",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 21
       }
     },
     {
-      "id": 21,
-      "type": "timeseries",
-      "title": "📈 Cumulative Revenue Growth & Orders Timeline (Historical Evolution)",
-      "description": "Historical timeline tracking cumulative revenue generation, active sales orders and cancellations over the selected date/time range.",
+      "id": 31,
+      "type": "bargauge",
+      "title": "👥 Orders by Customer Loyalty Cohort (Retention)",
+      "description": "Order breakdown into discrete customer retention tiers (First Time vs Repeat vs Loyal VIP) without cardinality explosion.",
       "gridPos": {
         "h": 7,
-        "w": 24,
+        "w": 10,
         "x": 0,
-        "y": 14
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3b82f6",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (cohort) (ecommerce_orders_by_cohort{service=~\"$service\"})",
+          "legendFormat": "Tier: {{cohort}}"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "📈 Cumulative Revenue Growth & Completed Orders Timeline",
+      "description": "Historical timeline tracking net completed orders and cumulative gross merchandise revenue.",
+      "gridPos": {
+        "h": 7,
+        "w": 14,
+        "x": 10,
+        "y": 22
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -537,21 +681,6 @@
                 "value": "right"
               }
             ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "Cancelled Orders"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "fixedColor": "#ef4444",
-                  "mode": "fixed"
-                }
-              }
-            ]
           }
         ]
       },
@@ -561,7 +690,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0))), 0)",
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
           "legendFormat": "Cumulative Completed Orders"
         },
         {
@@ -569,16 +698,8 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(((sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)) - (sum(ecommerce_revenue_cancelled_usd) or sum(ecommerce_revenue_cancelled_usd_total) or vector(0))), 0)",
+          "expr": "sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"}) or vector(0)",
           "legendFormat": "Net Revenue ($ USD)"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-          "legendFormat": "Cancelled Orders"
         }
       ]
     }

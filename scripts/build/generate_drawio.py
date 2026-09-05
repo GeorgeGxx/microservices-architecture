@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
-    root_mxfile = ET.Element("mxfile", host="Electron", pages="7", type="device")
+    root_mxfile = ET.Element("mxfile", host="Electron", pages="8", type="device")
 
     # Helper function to create page
     def create_page(page_id, page_name):
@@ -45,13 +45,13 @@ def build_drawio_xml():
     # Edge / Gateway & Security
     add_node(r1, "c_edge", "1", "<b>🛡️ EDGE & IDENTITY LAYER</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 440, 110, 380, 420)
     add_node(r1, "n_gw", "1", "<b>Spring Cloud API Gateway</b><br>Port 8080<br>JWT Validation • Rate Limiting<br>Token Relay • Circuit Breakers", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;", 470, 170, 320, 80)
-    add_node(r1, "n_kc", "1", "<b>Keycloak 26 (IAM)</b><br>Port 8181 (OIDC / OAuth2)<br>Realm: microservices-realm<br>Users / Roles / PKCE", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;", 470, 280, 320, 80)
+    add_node(r1, "n_kc", "1", "<b>Keycloak 26 (IAM)</b><br>Port 8181 (OIDC / OAuth2)<br>Realm: microservices-realm<br>Self-Registration • Default USER Role<br>Users / Roles / PKCE", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;", 470, 280, 320, 80)
     add_node(r1, "n_db_kc", "1", "<b>PostgreSQL Keycloak</b><br>db-keycloak (Port 5434)<br>Persistent Realm Database", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;", 550, 400, 160, 70)
 
     # Microservices Backend Layer
     add_node(r1, "c_ms", "1", "<b>📦 CORE MICROSERVICES LAYER (Spring Boot 3.4 / Java 21)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 860, 110, 520, 780)
     add_node(r1, "n_prod", "1", "<b>Products Service</b><br>Port 8004<br>Catalog Management • Redis Cache", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 170, 220, 80)
-    add_node(r1, "n_orders", "1", "<b>Orders Service</b><br>Port 8003<br>Saga Coordinator • Resilience4j", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 350, 220, 80)
+    add_node(r1, "n_orders", "1", "<b>Orders Service</b><br>Port 8003<br>Saga Coordinator • Resilience4j<br>Multi-Tenant User Isolation (JWT sub)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 350, 220, 80)
     add_node(r1, "n_inv", "1", "<b>Inventory Service</b><br>Port 8001<br>Stock Validation • Lock/Deduct", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 530, 220, 80)
     add_node(r1, "n_notif", "1", "<b>Notification Service</b><br>Port 8002<br>Email Dispatcher • Event Consumer", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 710, 220, 80)
 
@@ -240,8 +240,8 @@ def build_drawio_xml():
     add_node(r7, "l_obs", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 1760, 160, 10, 780)
 
     # Steps
-    add_node(r7, "st1", "1", "1. User initiates login/checkout in Angular 21 SPA", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 160, 190, 400, 32)
-    add_node(r7, "st2", "1", "2. Keycloak completes OAuth2 PKCE auth & returns signed JWT Access Token", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;", 160, 240, 400, 32)
+    add_node(r7, "st1", "1", "1. User initiates Self-Registration or Login in Angular 21 SPA", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 160, 190, 400, 32)
+    add_node(r7, "st2", "1", "2. Keycloak registers user, assigns default ROLE_USER, and issues signed JWT Access Token", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;", 160, 240, 400, 32)
     add_node(r7, "st3", "1", "3. HTTP POST /api/order (Authorization: Bearer &lt;JWT&gt;, traceparent)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 160, 290, 200, 32)
     add_node(r7, "st4", "1", "4. Istio Ingress Gateway terminates edge TLS & forwards via STRICT mTLS (SPIFFE ID)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;", 360, 340, 400, 32)
     add_node(r7, "st5", "1", "5. API Gateway evaluates Redis Token Bucket Rate Limiter (20 req/s, burst 40)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;align=left;spacingLeft=8;", 760, 390, 200, 32)
@@ -249,16 +249,105 @@ def build_drawio_xml():
     add_node(r7, "st7", "1", "7. API Gateway creates OTel span and proxies request to Orders Service over mTLS", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 760, 490, 400, 32)
     add_node(r7, "st8", "1", "8. Orders Service calls Products Service (GET /api/product/{id}) to validate catalog & price", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 1160, 540, 200, 32)
     add_node(r7, "st9", "1", "9. Orders Service calls Inventory Service (POST /api/inventory/check-and-lock) to lock stock in db-inventory", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 1160, 590, 200, 32)
-    add_node(r7, "st10", "1", "10. Orders Service persists new Order record in db-orders PostgreSQL", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 1160, 640, 200, 32)
+    add_node(r7, "st10", "1", "10. Orders Service binds authenticated userId/username and persists Order in db-orders (Multi-Tenant Isolation)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 1160, 640, 450, 32)
     add_node(r7, "st11", "1", "11. Orders Service emits 'order-placed-topic' event to Apache Kafka cluster", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;", 1160, 690, 400, 32)
     add_node(r7, "st12", "1", "12. Orders Service returns HTTP 201 Created response ➔ API Gateway ➔ Frontend SPA", "rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;", 160, 740, 1000, 32)
     add_node(r7, "st13", "1", "13. Notification Service asynchronously consumes Kafka event & sends confirmation email", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;", 1560, 790, 150, 32)
-    add_node(r7, "st14", "1", "14. Continuous Telemetry: OTel spans to Tempo • Scrapes to Prometheus • Logs to Loki", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;", 760, 840, 1000, 32)
+    add_node(r7, "st14", "1", "14. Continuous Observability: Prometheus tracks conversion funnels, loyalty cohorts, basket sizes, logistics pipelines, idempotency & Grafana visualizes e-commerce business KPIs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;", 760, 840, 1000, 32)
+
+    # =========================================================================
+    # PAGE 8: Mature E-Commerce Observability & Business Intelligence Architecture
+    # =========================================================================
+    r8 = create_page("page_ecommerce_obs", "8. Mature E-Commerce Observability Architecture")
+    add_node(r8, "t8", "1", "<b style='font-size:22px;color:#1E293B;'>MATURE E-COMMERCE OBSERVABILITY & BUSINESS INTELLIGENCE (5 DIMENSIONS)</b><br><span style='font-size:13px;color:#64748B;'>High-cardinality prevention (O(1) discrete cohorts), conversion funnel, 5-stage logistics state machine, and distributed saga resilience</span>", title_style, 300, 30, 1400, 50)
+
+    # Dimension 1
+    add_node(r8, "d1", "1", "<b>1. Financial & Executive KPIs</b><br>• Net Completed Orders & Revenue ($ USD)<br>• Average Order Value (AOV)<br>• Collected Taxes (IVA/Tax)<br>• Shipping Revenue (DHL Express)<br>• Total Units Sold", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;", 100, 120, 320, 160)
+
+    # Dimension 2
+    add_node(r8, "d2", "1", "<b>2. Conversion Funnel & Cart</b><br>• Cart Additions (<code>ecommerce_cart_additions_total</code>)<br>• Checkout Started (<code>ecommerce_checkout_started_total</code>)<br>• Payment Step (<code>ecommerce_checkout_step_reached_total</code>)<br>• Cart Abandonment Rate (%)<br>• Payment Brand & Delivery Market Share", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=15;", 460, 120, 340, 160)
+
+    # Dimension 3
+    add_node(r8, "d3", "1", "<b>3. Inventory Intelligence</b><br>• Live Available Stock by SKU<br>• SKU Sales Market Share<br>• Stockout Incidents (<code>inventory_out_of_stock_events_total</code>)<br>• Low Stock Warnings (&lt;5 units)<br>• Warehouse Restock Operations", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=15;", 840, 120, 320, 160)
+
+    # Dimension 4
+    add_node(r8, "d4", "1", "<b>4. 5-Stage Logistics Pipeline</b><br>• <code>PLACED</code>: Order created & inventory reserved<br>• <code>PAYMENT_CONFIRMED</code>: Capture verified<br>• <code>PREPARING</code>: Warehouse picking & packing<br>• <code>SHIPPED</code>: In transit with DHL tracking<br>• <code>DELIVERED</code>: Final mile receipt confirmed", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;align=left;spacingLeft=15;", 1200, 120, 320, 160)
+
+    # Dimension 5
+    add_node(r8, "d5", "1", "<b>5. Distributed Consistency & Resilience</b><br>• Duplicate Orders Prevented (Idempotency Hits)<br>• Saga Distributed Rollbacks & Compensations<br>• Notification Kafka Processing Throughput & Lag<br>• Resilience4j Circuit Breaker Health Matrix", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;align=left;spacingLeft=15;", 100, 320, 320, 160)
+
+    # Customer Retention Architecture (O(1) Cardinality)
+    add_node(r8, "ret_box", "1", "<b>CUSTOMER RETENTION & BASKET DYNAMICS (O(1) Bounded Cardinality Architecture)</b><br>• <b>Problem:</b> Tagging metrics with unbounded <code>username</code> causes cardinality explosion (millions of time series in Prometheus TSDB).<br>• <b>Solution:</b> Aggregation into discrete business cohorts: <code>first_time</code>, <code>repeat</code>, and <code>loyal_vip</code>.<br>• <b>Basket Economics:</b> Order volume segmentation by basket size: <code>single_item</code>, <code>2_3_items</code>, <code>bulk_4_plus</code>.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 460, 320, 1060, 160)
+
+    # Dashboard Mapping
+    add_node(r8, "dash_biz", "1", "<b>📊 Grafana Dashboard: Curated Business Operations (10 High-Value Panels)</b><br>• <b>Dynamic Filter:</b> <code>Filter Microservice</code> dropdown (All / Orders / Inventory / Products)<br>• <b>1. Executive Summary:</b> Net Revenue, Net Orders, AOV & Abandonment Rate (Safe Clamping)<br>• <b>2. Conversion & Logistics:</b> Funnel Stages & 5-Stage Logistics Pipeline<br>• <b>3. Inventory & Demand:</b> Live Stock by SKU (Alerts &lt;5) & Top Selling SKUs Share<br>• <b>4. Customer Retention:</b> Discrete Loyalty Cohorts (O(1)) & Growth Timeline", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;align=left;spacingLeft=20;", 100, 520, 700, 200)
+
+    add_node(r8, "dash_tech", "1", "<b>🛡️ Grafana Dashboard: Curated Technical & SRE Operations (12 Essential Panels)</b><br>• <b>Dynamic Filter:</b> <code>Filter Microservice</code> drilldown (All / Gateway / Orders / Inventory / Products / Notif)<br>• <b>1. Global Health:</b> Core Microservices Online (5 Roles, Replica-Invariant), Global P95, Threat Level, Circuit Breakers<br>• <b>2. HTTP Golden Signals:</b> Request Rate (RPS: 2xx/4xx/5xx) & P95 Latency per Service<br>• <b>3. Distributed Resilience:</b> Idempotency Hits, Saga Rollbacks & Kafka Streaming Rate<br>• <b>4. Platform Saturation:</b> JVM Heap Memory, CPU & HikariCP Database Connection Pools (Active vs Total Pool Size)<br>• <b>5. Security & Diagnostics:</b> Blocked Attacks (HTTP 429) & Incident Logs Stream (Loki)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;align=left;spacingLeft=20;", 840, 520, 680, 200)
+
+    # =========================================================================
+    # PAGE 9: 100% Local Enterprise DevSecOps Platform & 12-Stage Pipeline
+    # =========================================================================
+    r9 = create_page("page_devsecops_pipeline", "9. Enterprise DevSecOps Platform & 12-Stage Pipeline")
+    add_node(r9, "t9", "1", "<b style='font-size:22px;color:#1E293B;'>100% LOCAL ENTERPRISE DEVSECOPS PLATFORM & 12-STAGE CI/CD PIPELINE</b><br><span style='font-size:13px;color:#64748B;'>Hardware Budget: AMD Ryzen 7 (16 threads) • 32 GB RAM • Minikube (12 CPUs / 12 GB RAM) • Zero Cloud Cost Production Parity</span>", title_style, 300, 25, 1400, 50)
+
+    # Section 1: 12-Stage Pipeline Flow
+    add_node(r9, "c_ci", "1", "<b>🔨 CI PHASE: Continuous Integration & Shift-Left Security (GitHub Actions Windows Runner)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 60, 90, 880, 190)
+    add_node(r9, "s1", "1", "<b>1. Unit Tests</b><br>Maven / Angular<br>JaCoCo Coverage", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 80, 130, 125, 65)
+    add_node(r9, "s2", "1", "<b>2. SAST & Secrets</b><br>SonarQube Scan<br>Gitleaks Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 220, 130, 125, 65)
+    add_node(r9, "s3", "1", "<b>3. Container Build</b><br>Docker Daemon<br>Syft SBOM Gen", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 360, 130, 125, 65)
+    add_node(r9, "s4", "1", "<b>4. Trivy Scan</b><br>Container Audit<br>.trivyignore allow", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 500, 130, 125, 65)
+    add_node(r9, "s5", "1", "<b>5. Push to Harbor</b><br>harbor.local:30002<br>OCI Registry", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 640, 130, 125, 65)
+    add_node(r9, "s6", "1", "<b>6. Conftest (OPA)</b><br>Helm Pre-flight<br>Rego Policy Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 780, 130, 140, 65)
+
+    add_edge(r9, "pe1", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s1", "s2")
+    add_edge(r9, "pe2", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s2", "s3")
+    add_edge(r9, "pe3", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s3", "s4")
+    add_edge(r9, "pe4", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s4", "s5")
+    add_edge(r9, "pe5", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "s5", "s6")
+
+    # Section 2: CD Staging & QA Gates
+    add_node(r9, "c_cd", "1", "<b>🚀 CD PHASE: Staging Deployment, Dynamic QA & DAST Verification (Parallel Quality Gates)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 960, 90, 880, 190)
+    add_node(r9, "s7", "1", "<b>7. Deploy Staging</b><br>Helm Umbrella<br>SPRING=staging", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 980, 130, 125, 65)
+    add_node(r9, "s8", "1", "<b>8. Newman QA</b><br>API Integration<br>Postman Tests", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1120, 130, 125, 65)
+    add_node(r9, "s9", "1", "<b>9. Cypress E2E</b><br>UI Journey<br>Checkout Test", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1260, 130, 125, 65)
+    add_node(r9, "s10", "1", "<b>10. k6 Load Tests</b><br>SLO: p95&lt;500ms<br>Error Rate &lt; 1%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;", 1400, 130, 125, 65)
+    add_node(r9, "s11", "1", "<b>11. OWASP ZAP</b><br>DAST Ingress Scan<br>Edge Attack Audit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;", 1540, 130, 125, 65)
+    add_node(r9, "s12", "1", "<b>12. Deploy Prod</b><br>Canary Rollout<br>Istio 10% ➔ 100%", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;", 1680, 130, 140, 65)
+
+    add_edge(r9, "pe6", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "s6", "s7")
+    add_edge(r9, "pe7", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s7", "s8")
+    add_edge(r9, "pe8", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s8", "s9")
+    add_edge(r9, "pe9", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "s9", "s10")
+    add_edge(r9, "pe10", "1", "", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;", "s10", "s11")
+    add_edge(r9, "pe11", "1", "Quality Gates Passed", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=2;", "s11", "s12")
+
+    # Section 3: Minikube In-Cluster Platform & Live Endpoints
+    add_node(r9, "c_plat", "1", "<b>☸️ MINIKUBE PLATFORM TOPOLOGY (12 CPUs • 12 GB RAM • containerd • Ingress Controller)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 310, 1780, 380)
+
+    # Tool Pods
+    add_node(r9, "p_harbor", "1", "<b>📦 Harbor Registry</b><br>Port 30002 (HTTP OCI)<br>harbor.local:30002<br>Private Image Registry", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 360, 240, 90)
+    add_node(r9, "p_argo", "1", "<b>🐙 ArgoCD GitOps</b><br>Port 30088 (Web UI)<br>GitOps Controller<br>Automated Sync Engine", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 360, 360, 240, 90)
+    add_node(r9, "p_vault", "1", "<b>🔒 HashiCorp Vault</b><br>Port 8200 (Token: root)<br>Secrets Management<br>K8s ServiceAccount Auth", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 630, 360, 240, 90)
+    add_node(r9, "p_gatekeeper", "1", "<b>🛡️ OPA Gatekeeper</b><br>Admission Controller<br>Trusted Registry Audit<br>Resource Limits Guardrail", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 900, 360, 240, 90)
+    add_node(r9, "p_grafana", "1", "<b>📊 Grafana Observability</b><br>Port 30030 (admin/Admin12345)<br>Technical & Business Dashboards<br>Golden Signals & SLOs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1170, 360, 240, 90)
+    add_node(r9, "p_prom", "1", "<b>📈 Prometheus Targets</b><br>Port 9090 (TSDB /targets)<br>15s Scrape Interval<br>Actuator Metrics Ingestion", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1440, 360, 240, 90)
+
+    # Applications Layer in Staging
+    add_node(r9, "app_ang", "1", "<b>🌐 Frontend Angular 21</b><br>Port 4200 (Direct) / :30080<br>Storefront E-Commerce SPA<br>Dynamic Product Catalog", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 480, 240, 90)
+    add_node(r9, "app_gw", "1", "<b>🔌 Spring Cloud Gateway</b><br>Port 8080 (/api/product)<br>Swagger: /swagger-ui.html<br>Keycloak JWT & Rate Limit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;", 360, 480, 240, 90)
+    add_node(r9, "app_kc", "1", "<b>🔑 Keycloak 26 IAM</b><br>Port 8181 (admin/admin)<br>Realm: microservices-realm<br>OIDC & User Management", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 630, 480, 240, 90)
+    add_node(r9, "app_istio", "1", "<b>🚪 Istio Unified Edge</b><br>Port 30080 (Ingress Gateway)<br>Routes: /, /api/*, /admin/*<br>Zero-Trust Service Mesh", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 900, 480, 240, 90)
+    add_node(r9, "app_kiali", "1", "<b>🧭 Kiali Visual Mesh</b><br>Port 20001 (/kiali)<br>Real-time Traffic Graph<br>mTLS Encryption Health", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 1170, 480, 240, 90)
+    add_node(r9, "app_dbs", "1", "<b>💾 Persistence & Streams</b><br>PostgreSQL (Products, Orders, Inv, KC)<br>Apache Kafka 7.8 (KRaft Events)<br>Redis Cache Cluster", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 1440, 480, 240, 90)
+
+    # Section 4: Architecture Operational Summary
+    add_node(r9, "ops_box", "1", "<b>⚙️ AUTOMATED LIFECYCLE SCRIPTS (Platform Engineering)</b><br>• <b>Bootstrap Ecosystem:</b> <code>.\\scripts\\devsecops\\bootstrap-local-devsecops.ps1</code> (Deploys Minikube, Terraform, Harbor, ArgoCD, Prometheus, Gatekeeper, Vault, Keycloak, Frontend & Tunnels).<br>• <b>Health Verification:</b> <code>.\\scripts\\devsecops\\verify-platform.ps1</code> (Runs automated deep diagnostics of all namespaces, pods, NodePorts, and policies).<br>• <b>Teardown & Pause:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1</code> (Gracefully pauses Minikube and frees 12 CPUs & 12 GB RAM, preserving state).<br>• <b>Total Cluster Purge:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState</code> (Destroys all volumes and reclaims 80 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
 
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)
     tree.write("docs/Diagrams.drawio", encoding="utf-8", xml_declaration=True)
-    print("Successfully generated docs/Diagrams.drawio in English with 7 comprehensive tabs!")
+    print("Successfully generated docs/Diagrams.drawio in English with 9 comprehensive tabs!")
 
 if __name__ == "__main__":
     build_drawio_xml()
+

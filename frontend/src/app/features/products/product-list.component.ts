@@ -91,8 +91,9 @@ export class ProductListComponent implements OnInit, OnDestroy {
   readonly searchSuggestions = computed(() => {
     const q = this.searchQuery().trim().toLowerCase();
     if (!q) return [];
+    const isAdmin = this.keycloakService.isAdmin();
     return this.products()
-      .filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
+      .filter(p => (isAdmin || p.status !== false) && (p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)))
       .slice(0, 5);
   });
 
@@ -102,8 +103,14 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const stock = this.stockFilter();
     const min = this.minPrice();
     const max = this.maxPrice();
+    const isAdmin = this.keycloakService.isAdmin();
 
     let list = this.products().filter(p => {
+      // Inactive products are completely hidden from regular customers (basic_user) and guests:
+      if (!isAdmin && p.status === false) {
+        return false;
+      }
+
       // Search query filter
       const matchesSearch = !q || (
         p.name.toLowerCase().includes(q) ||

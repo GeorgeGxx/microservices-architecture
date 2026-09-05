@@ -1,0 +1,42 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8strustedregistries
+  annotations:
+    description: "Requires container images to originate from approved container registries."
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sTrustedRegistries
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            registries:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8strustedregistries
+
+        operations := {"CREATE", "UPDATE"}
+
+        satisfies[registry] {
+          registry := input.parameters.registries[_]
+          startswith(input.review.object.spec.template.spec.containers[_].image, registry)
+        }
+
+        deny[msg] {
+          input.review.kind.kind == "Deployment"
+          container := input.review.object.spec.template.spec.containers[_]
+          not satisfies_registry(container.image)
+          msg := sprintf("Container image '%v' is not from a trusted registry. Allowed registries: %v", [container.image, input.parameters.registries])
+        }
+
+        satisfies_registry(image) {
+          registry := input.parameters.registries[_]
+          startswith(image, registry)
+        }

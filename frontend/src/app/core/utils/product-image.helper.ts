@@ -58,13 +58,81 @@ export const PRODUCT_IMAGE_PRESETS: ProductImagePreset[] = [
 
 const DEFAULT_FALLBACK = 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&w=800&q=80';
 
+export const PRODUCT_CACHE_KEY = 'msa_product_cache';
+
+/**
+ * Retrieves a cached product by SKU from localStorage to maintain
+ * image consistency across orders, checkout, and inventory views.
+ */
+export function getCachedProductBySku(sku?: string): { sku: string; name?: string; imageUrl?: string } | null {
+  if (!sku || typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(PRODUCT_CACHE_KEY);
+    if (!raw) return null;
+    const cache = JSON.parse(raw);
+    return cache[sku.toUpperCase()] || cache[sku] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves a single product into the persistent product cache.
+ */
+export function cacheProductInStorage(product: { sku: string; name?: string; imageUrl?: string }): void {
+  if (!product?.sku || typeof localStorage === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(PRODUCT_CACHE_KEY);
+    const cache = raw ? JSON.parse(raw) : {};
+    cache[product.sku.toUpperCase()] = {
+      sku: product.sku.toUpperCase(),
+      name: product.name,
+      imageUrl: product.imageUrl
+    };
+    localStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+}
+
+/**
+ * Saves multiple products into the persistent product cache.
+ */
+export function cacheMultipleProductsInStorage(products: Array<{ sku: string; name?: string; imageUrl?: string }>): void {
+  if (!Array.isArray(products) || typeof localStorage === 'undefined') return;
+  try {
+    const raw = localStorage.getItem(PRODUCT_CACHE_KEY);
+    const cache = raw ? JSON.parse(raw) : {};
+    for (const p of products) {
+      if (p?.sku) {
+        cache[p.sku.toUpperCase()] = {
+          sku: p.sku.toUpperCase(),
+          name: p.name,
+          imageUrl: p.imageUrl
+        };
+      }
+    }
+    localStorage.setItem(PRODUCT_CACHE_KEY, JSON.stringify(cache));
+  } catch {}
+}
+
 /**
  * Returns the product image URL if valid, or a smart matching fallback based on SKU / Name.
+ * Automatically inspects the persistent product cache if imageUrl is missing.
  */
 export function getProductImageUrl(product?: { sku?: string; name?: string; imageUrl?: string } | null): string {
   if (!product) return DEFAULT_FALLBACK;
   if (product.imageUrl && product.imageUrl.trim().length > 0) {
     return product.imageUrl.trim();
+  }
+
+  // Check persistent catalog cache to retrieve the exact user-uploaded inventory image
+  if (product.sku) {
+    const cached = getCachedProductBySku(product.sku);
+    if (cached?.imageUrl && cached.imageUrl.trim().length > 0) {
+      return cached.imageUrl.trim();
+    }
+    if (!product.name && cached?.name) {
+      product = { ...product, name: cached.name };
+    }
   }
 
   const query = `${product.sku || ''} ${product.name || ''}`.toLowerCase();

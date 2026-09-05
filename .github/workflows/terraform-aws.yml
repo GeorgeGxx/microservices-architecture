@@ -2,11 +2,11 @@ name: Microservices Architecture - Terraform AWS Infrastructure Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master, main ]
     paths:
       - 'terraform/**'
   pull_request:
-    branches: [ main ]
+    branches: [ master, main ]
     paths:
       - 'terraform/**'
   schedule:
@@ -172,7 +172,7 @@ jobs:
   tf-apply:
     name: 🚀 3. Terraform Apply (Deploy Infra)
     needs: tf-plan-cost
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event.inputs.action == 'apply')
+    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && (github.event_name == 'push' || github.event.inputs.action == 'apply')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:

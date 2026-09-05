@@ -1,0 +1,18 @@
+# Gitleaks Configuration - Enterprise DevSecOps Rule Set
+title = "Microservices DevSecOps Gitleaks Profile"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for dummy/test values and local configs"
+paths = [
+  '''(?i)devsecops/.*\.rego$''',
+  '''(?i).*\.example\.env$''',
+  '''(?i).*values-minikube\.yaml$'''
+]
+regexes = [
+  '''(?i)dummy.*''',
+  '''(?i)test-token''',
+  '''(?i)CHANGE_ME'''
+]

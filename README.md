@@ -23,7 +23,7 @@ graph TB
     end
 
     subgraph SecurityLayer ["🔐 Identity & Access Management"]
-        Keycloak["Keycloak 26 IAM (OAuth2 / OIDC / PKCE)<br/>(Realm: microservices-realm)<br/>(Port 8181 / 30181)"]
+        Keycloak["Keycloak 26.7.3 IAM (OAuth2 / OIDC / PKCE)<br/>(Realm: microservices-realm)<br/>(Port 8181 / 30181)"]
     end
 
     subgraph ServiceLayer ["⚙️ Spring Boot Microservices (Java 21)"]
@@ -69,16 +69,79 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
 
 | Tab # | Blueprint Name | Description & Focus Areas |
 | :--- | :--- | :--- |
-| **Tab 1** | `1. General Architecture & Microservices` | Full ecosystem topology: Frontend SPA, API Gateway, Keycloak, 4 Spring Boot Microservices, PostgreSQL databases, Kafka KRaft, Redis, Vault, and LGTM Observability. |
+| **Tab 1** | `1. General Architecture & Microservices` | Full ecosystem topology: Frontend SPA, API Gateway, Keycloak (Self-Registration & OIDC PKCE), 4 Spring Boot Microservices, PostgreSQL databases, Kafka KRaft, Redis, Vault, and LGTM Observability with Compulsive Buyer Telemetry. |
 | **Tab 2** | `2. HashiCorp Vault - Zero-Touch Security Architecture` | Zero-touch Vault container initialization, KV-v2 secret engine, dynamic database credentials engine, Transit data encryption, file audit logging, and least-privilege policies. |
 | **Tab 3** | `3. Sequence - Dynamic Database Secret Rotation` | Step-by-step sequence of ephemeral PostgreSQL user generation, automated revocation upon 1h lease expiration, and transparent connection pool recovery. |
 | **Tab 4** | `4. Istio Service Mesh & Zero-Trust mTLS` | STRICT mTLS zero-trust communication across namespace `ecommerce` with SPIFFE IDs, Istio Ingress Gateway, Istiod Citadel CA signed by Vault PKI Intermediate CA, and Canary traffic shaping (90/10). |
 | **Tab 5** | `5. Secret Isolation & Configuration Precedence` | Hierarchy of property sources explaining why zero collisions exist between `.env`, Spring Cloud Vault profile, and External Secrets Operator (ESO). |
-| **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `ecommerce` (Apps & DBs), `vault` (Security & RBAC Auth Delegator), and `istio-system` (Mesh Control Plane & Kiali). |
-| **Tab 7** | `7. End-to-End Request Flow & Order Processing Sequence` | Complete 14-step transaction journey: Angular 21 SPA ➔ Keycloak PKCE ➔ Istio Ingress ➔ API Gateway (Redis Rate Limit & JWT verify) ➔ Orders Service ➔ Products & Inventory DBs ➔ Kafka Event Bus ➔ Notification Service ➔ LGTM Distributed Telemetry. |
+| **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `ecommerce` (Apps & DBs), `vault` (Security & RBAC Auth Delegator), and `istio-system` (Mesh Control Plane & Kiali). Includes dual local ingress port-forwarding: interactive (`start-tunnels.ps1`) and detached background daemon (`spawn-tunnels.ps1`). |
+| **Tab 7** | `7. End-to-End Request Flow & Order Processing Sequence` | Complete 14-step transaction journey: Angular 21 SPA ➔ Keycloak PKCE (Self-Registration & JWT `sub`/`preferred_username`) ➔ Istio Ingress ➔ API Gateway (Redis Rate Limit & JWT verify) ➔ Orders Service (Multi-Tenant Order Isolation) ➔ Products & Inventory DBs ➔ Kafka Event Bus ➔ Notification Service ➔ LGTM Distributed Telemetry (Compulsive Buyer Velocity Metrics). |
 | **Tab 8** | `8. Edge Cloud Tunneling, Vercel & Mobile PWA` | Cloudflare Anycast Quick Tunnels, Vercel Serverless Edge, Keycloak PKCE, Enterprise Multi-Step Checkout, and Universal Mobile Viewports ($360\text{px}-768\text{px}$). |
-| **Tab 9** | `9. Dual-Mode Media Engine & Visual Storefront` | Dual-Mode Product Media Ingestion, HTML5 Canvas Base64 Compression ($40-90\text{ KB}$), PostgreSQL TEXT persistence, Redis cache layer, and HD Visual Display. |
-| **Tab 10** | `10. Enterprise E-Commerce, Logistics & Social Proof Architecture` | Multi-step checkout, address persistence (`localStorage`), tiered delivery speeds ($0.00 / $9.99), real-time card brand detection (Visa/MC/AMEX), consumer logistics lifecycle stepper, DHL tracking generation (`DHL-XXXXXXXX`), catalog social proof (★ 4.8 / 1,240 reviews / #1 Best Seller), admin Live Sync & Cluster Health supervision, and zero-jargon notifications. |
+| **Tab 9** | `9. Enterprise DevSecOps Platform & 12-Stage Pipeline` | Complete 12-stage enterprise CI/CD pipeline (Unit Tests, SonarQube/Gitleaks SAST, Syft SBOM, Trivy Soft-Gate, Harbor OCI, Conftest OPA, Staging Deploy, Newman QA, Cypress E2E, k6 Load Tests, OWASP ZAP DAST, and Canary Rollout) running 100% locally on Minikube with automated Platform Engineering scripts. |
+
+---
+
+## 🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD & Minikube)
+
+The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (AMD Ryzen 7, 32 GB RAM, 200 GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (12 CPUs / 12 GB RAM), and **Terraform**:
+
+```mermaid
+flowchart LR
+    subgraph CI ["🔨 CI: Continuous Integration & Security (Windows Local Runner)"]
+        S1["1. Tests & JaCoCo"] --> S2["2. SAST SonarQube & Gitleaks"]
+        S2 --> S3["3. Build & Syft SBOM"]
+        S3 --> S4["4. Trivy Container Audit"]
+        S4 --> S5["5. Push to Local Harbor (:30002)"]
+        S5 --> S6["6. Conftest OPA Pre-flight"]
+    end
+
+    subgraph CD_Stg ["🚀 CD Staging: Parallel Quality Gates"]
+        S6 --> S7["7. Helm Deploy to Staging<br/>(SPRING=staging)"]
+        S7 --> S8["8. Newman QA Integration"]
+        S7 --> S9["9. Cypress E2E Tests"]
+        S7 --> S10["10. k6 Performance (p95<500ms)"]
+        S7 --> S11["11. OWASP ZAP DAST Ingress Scan"]
+    end
+
+    subgraph CD_Prod ["🚢 CD Production: Canary Rollout"]
+        S8 & S9 & S10 & S11 -->|Quality Gates Passed| S12["12. Istio Canary Rollout<br/>(SPRING=prod 10% ➔ 100%)"]
+    end
+```
+
+### 🖥️ Local Platform Endpoints & Access Matrix
+
+All 10 services and dashboards are automated via background port-forwarding and available on Windows `localhost`:
+
+| Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
+| :--- | :--- | :--- | :--- |
+| 🌐 **Frontend Angular SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI (also via Istio at `:30080`) |
+| 🔌 **API Gateway (Swagger)** | [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) | Public Docs | Interactive Swagger OpenAPI documentation |
+| 🔌 **API Gateway (`/api/product`)** | [`http://localhost:8080/api/product`](http://localhost:8080/api/product) | Bearer JWT (Keycloak) | Spring Cloud Gateway with Redis Rate Limiting |
+| 🔑 **Keycloak IAM** | [`http://localhost:8181`](http://localhost:8181) | `admin` / `admin` | Identity Provider, OAuth2/OIDC, PKCE Realm |
+| 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
+| 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
+| 🐙 **ArgoCD GitOps** | [`http://localhost:30088`](http://localhost:30088) | `admin` / `NqJT22tkqYZjG7G5` | GitOps Controller & Declarative Deployments |
+| 📦 **Harbor Container Registry** | [`http://harbor.local:30002`](http://harbor.local:30002) | `admin` / `Harbor12345` | Private HTTP Insecure OCI Registry (`harbor.local`) |
+| 📊 **Grafana Observability** | [`http://localhost:30030`](http://localhost:30030) | `admin` / `Admin12345` | Curated SRE & Business Intelligence Dashboards |
+| 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
+
+### ⚙️ Platform Operational Lifecycle Commands
+
+```powershell
+# 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, Harbor, ArgoCD, Vault, Apps & Tunnels)
+.\scripts\devsecops\bootstrap-local-devsecops.ps1
+
+# 2. Verify platform health, pods, NodePorts, and Gatekeeper policies across all namespaces
+.\scripts\devsecops\verify-platform.ps1
+
+# 3. Gracefully pause Minikube and close tunnels (releases 12 CPUs & 12 GB RAM, preserves state)
+.\scripts\devsecops\teardown-local-devsecops.ps1
+
+# 4. Completely purge Minikube, delete storage volumes, and reset Terraform state
+.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState
+```
+
+For complete architecture, security policies, and step-by-step guides, refer to [`devsecops/README.md`](./devsecops/README.md) and [`devsecops/DEVSECOPS_LOCAL_GUIDE.md`](./devsecops/DEVSECOPS_LOCAL_GUIDE.md).
 
 ---
 
@@ -92,7 +155,7 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
     - [⚙️ Kubernetes Workload Right-Sizing \& Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation)
   - [📡 Microservices Catalog \& API Routing](#-microservices-catalog--api-routing)
   - [🔌 Ports \& Service Matrix](#-ports--service-matrix)
-  - [🔐 Identity \& Access Management (Keycloak 26)](#-identity--access-management-keycloak-26)
+  - [🔐 Identity \& Access Management (Keycloak 26.7.3)](#-identity--access-management-keycloak-2673)
   - [🔒 Secret Management with HashiCorp Vault (Multi-Cloud \& Local)](#-secret-management-with-hashicorp-vault-multi-cloud--local)
     - [1. Approach A: Local Development with Docker Compose (Zero-Touch)](#1-approach-a-local-development-with-docker-compose-zero-touch)
     - [2. Approach B: Native Java Spring Boot Integration (All 5 Services)](#2-approach-b-native-java-spring-boot-integration-all-5-services)
@@ -174,8 +237,8 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
 | Java (JDK) | 21 | Building/running Spring Boot services standalone |
 | Maven | 3.9+ | Java multi-module reactor build |
 | Node.js & npm | 22+ | Angular 21 frontend |
-| kubectl | 1.35.1 | Kubernetes / Minikube deployment |
-| Minikube | 1.38.1 | Local Kubernetes deployment |
+| kubectl | 1.37.0 | Kubernetes / Minikube deployment |
+| Minikube | 1.39.0 | Local Kubernetes deployment |
 | Istioctl | 1.31.0 | Service mesh install & Kiali dashboard |
 | Terraform | 1.15.8 | AWS / Azure / GCP provisioning |
 | Cloudflared CLI | 2026.8.30 | Cloudflare tunnels deployment |
@@ -195,7 +258,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Spring Cloud API Gateway** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
 | **Spring Boot Microservices (x4)** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
-| **Keycloak 26 IAM** | `500m` | `3000m` | `1024Mi` | `3072Mi` | `2Gi` | Fast bootstrap & authentication spikes |
+| **Keycloak 26.7.3 IAM** | `500m` | `3000m` | `1024Mi` | `3072Mi` | `2Gi` | Fast bootstrap & authentication spikes |
 | **HashiCorp Vault 2.0.4** | `250m` | `1000m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
 | **Apache Kafka (KRaft Broker)** | `200m` | `1500m` | `512Mi` | `1536Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
@@ -215,7 +278,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | :--- | :--- | :--- | :--- |
 | **API Gateway** | `/api/*` | `/actuator/health`, `/actuator/prometheus` | Reverse proxy, token validation, rate limiter |
 | **Products Service** | `/api/product` | `POST /api/product`, `GET /api/product` | Product catalog, pricing, Redis caching |
-| **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order` | Order placement, inventory validation, Kafka producer |
+| **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order`, `PUT /api/order/{id}/cancel` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry |
 | **Inventory Service** | `/api/inventory`| `GET /api/inventory?skuCode=...` | Real-time SKU stock verification & allocation |
 | **Notification Service**| N/A | Kafka Topic `orders-topic` | Consumes `OrderPlacedEvent`, customer email simulation |
 
@@ -245,12 +308,18 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 
 ---
 
-## 🔐 Identity & Access Management (Keycloak 26)
+## 🔐 Identity & Access Management (Keycloak 26.7.3)
 
 - **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in Angular 21 SPA.
+- **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
+- **Default Role Assignment:** Self-registered accounts automatically receive the standard `USER` role through composite assignment on `default-roles-microservices-realm`.
+- **Multi-Tenant Order Isolation & Ownership Guards:**
+  - `orders-service` securely extracts the caller's JWT claims (`sub` for User ID and `preferred_username` for Customer Handle).
+  - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
+  - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
+  - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
 - **Token Relay:** Spring Cloud Gateway validates incoming JWT tokens against Keycloak JWKS and forwards claims downstream via `Authorization: Bearer <token>`.
 - **Automated Realm Import:** Configuration pre-loaded via [`docs/realm-export.json`](./docs/realm-export.json) with client `frontend-client`, roles `USER` / `ADMIN`, and default credentials.
-- **Detailed Keycloak Guide:** See [`docs/KEYCLOAK_CONFIGURATION.md`](./docs/KEYCLOAK_CONFIGURATION.md) for full IAM manual.
 
 ---
 
@@ -343,12 +412,16 @@ npm start
   - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
 - **Admin Operations Console & Cluster Health:**
   - Centralized `/admin` dashboard with 4-second animated `LIVE SYNC` polling and a dedicated `Cluster Health` supervision tab monitoring all 12 microservices and infrastructure components in real time.
-- **Order Lifecycle & Saga Rollback:**
-  - Segregated view tabs for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`).
-  - Interactive `Cancel Order` action triggering real-time Saga inventory compensation.
-- **Progressive Web App (PWA) & Mobile UX:**
-  - Standalone installation (`manifest.webmanifest`), floating mobile scan FAB button, camera barcode scanner, and haptic vibration (`navigator.vibrate`).
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26 with automatic JWT token management and route guards.
+- **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
+  - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
+  - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.
+  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier clearly pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
+  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order` ensuring 100% button visibility on smartphones without overflowing.
+  - 📄 **Non-Clipping Mobile Pagination:** Ergonomic pagination controls with responsive button wrapping preventing `Next` button clipping.
+- **Progressive Web App (PWA) & Responsive Mobile UX:**
+  - 🔔 **Viewport-Bounded Notifications Drawer:** Fixed position mobile dropdown (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for long codes.
+  - 📱 **Mobile Storefront PWA:** Standalone installation (`manifest.webmanifest`), floating scan FAB button, camera WebRTC barcode scanner, and haptic vibration (`navigator.vibrate`).
+- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.3 with automatic JWT token management and route guards.
 
 ---
 
@@ -436,6 +509,7 @@ pwsh scripts/minikube/deploy-minikube.ps1 -SkipBuild -SkipIstio
 
 > 💡 **Smart Image Synchronization & Adaptive Observability:**
 > - **Zero-Rebuild Fallback:** When `-SkipBuild` is passed, the orchestrator automatically synchronizes any missing local Docker images into Minikube in seconds (`minikube image load`).
+> - **Standardized Image Nomenclature:** Strictly enforces the production naming format `georgegxx/<service>:1.0.0` across both Docker Compose and Minikube environments, preventing untagged duplicates or namespace collisions.
 > - **Adaptive Scraping:** Prometheus dynamically discovers Envoy sidecars and `istiod` when Istio is active, and cleanly drops them in `-SkipIstio` mode to avoid false-positive alert states.
 
 ### 2. 🔍 Verify Mesh Health & Zero-Trust Policies
@@ -448,8 +522,14 @@ pwsh scripts/istio/verify-mesh.ps1
 ### 3. 🌐 Open Local Browser Tunnels & Endpoint Access
 Expose all internal services and web consoles to `localhost`:
 ```powershell
-# Open background port-forward tunnels for all browser endpoints:
+# Option A: Interactive session (keeps terminal open with live status, press Enter/Ctrl+C to stop):
 pwsh scripts/minikube/start-tunnels.ps1
+
+# Option B: Detached background daemon (spawns hidden port-forwards without blocking your terminal):
+pwsh scripts/minikube/spawn-tunnels.ps1
+
+# To close/terminate all active background tunnels at any time:
+pwsh scripts/minikube/stop-tunnels.ps1
 ```
 
 Once tunnels are active, access local web interfaces:
@@ -582,23 +662,58 @@ python scripts/testing/simulate-traffic.py --continuous
 ```
 
 ### 2. ⚡ Resilience4j Circuit Breaker State Verification
-Test the automatic failure detection and self-healing lifecycle (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN` $\rightarrow$ `CLOSED`):
+Test the automatic failure detection and self-healing lifecycle:
+$$\text{🟢 CLOSED (Green)} \xrightarrow[\text{Failures}]{\text{Downstream outage}} \text{🔴 OPEN (Red, 15s window)} \xrightarrow[\text{15s timer}]{\text{Auto-recovery probe}} \text{🟡 HALF\_OPEN (Yellow)} \xrightarrow[\text{2 trial orders OK}]{\text{Health restored}} \text{🟢 CLOSED (Green)}$$
 
+> [!NOTE]
+> **Why Red only lasts 15 seconds:** `waitDurationInOpenState` is set to 15 seconds with `automaticTransitionFromOpenToHalfOpenEnabled: true`. Once tripped into **🔴 RED (`OPEN`)**, it will automatically transition to **🟡 YELLOW (`HALF_OPEN`)** after 15s of silence to test for backend recovery.
+
+#### Step-by-Step Test Procedure:
+
+##### 🔴 Step A: Trip Circuit Breaker into OPEN (Red `#ef4444`)
+Simulate downstream outage by stopping `inventory-service` and generating continuous traffic so the Red state remains continuously visible on Grafana without expiring:
 ```powershell
-# Step 1: Simulate downstream dependency outage by scaling inventory to 0:
+# 1. Stop inventory dependency:
+# For Docker Compose:
+docker compose stop inventory-service
+
+# For Kubernetes / Minikube:
 kubectl scale deployment inventory-service --replicas=0 -n ecommerce
 
-# Step 2: Send test traffic to trip the Circuit Breaker into OPEN (Red #ef4444):
-python scripts/testing/simulate-traffic.py --orders 5
+# 2. Run continuous traffic to keep the circuit in steady OPEN (Red #ef4444):
+python scripts/testing/simulate-traffic.py --continuous
+```
+* **Grafana Verification:** The panel **⚡ Resilience4j Circuit Breakers Health** will display **`OPEN / TRIPPED` (🔴 Red)**.
 
-# Step 3: Restore inventory service replica:
+---
+
+##### 🟡 Step B: Observe Transition into HALF_OPEN (Yellow `#f59e0b`)
+Pause incoming traffic for 15 seconds to allow Resilience4j's self-healing timer to transition into trial probe mode:
+```powershell
+# 1. Stop the continuous simulator in your terminal with: Ctrl + C
+
+# 2. Wait 16 seconds (waitDurationInOpenState = 15s):
+Start-Sleep -Seconds 16
+```
+* **Grafana Verification:** The panel automatically switches to **`HALF_OPEN / TESTING` (🟡 Yellow)**, awaiting 2 trial calls to evaluate backend health.
+
+---
+
+##### 🟢 Step C: Restore Backend Health and Return to CLOSED (Green `#10b981`)
+Restart `inventory-service` and send 2 trial orders through the gateway to prove backend recovery:
+```powershell
+# 1. Restore the inventory microservice:
+# For Docker Compose:
+docker compose start inventory-service
+
+# For Kubernetes / Minikube:
 kubectl scale deployment inventory-service --replicas=1 -n ecommerce
 
-# Step 4: Wait 15s (waitDurationInOpenState) for auto-transition to HALF_OPEN (Yellow),
-# then send 2 trial orders to prove backend health and return to CLOSED (Green #10b981):
-Start-Sleep -Seconds 16
+# 2. Send 2 trial orders (sequential concurrency) to satisfy the 2-call probe:
 python scripts/testing/simulate-traffic.py --orders 2 --concurrency 1
 ```
+* **Grafana Verification:** Both trial orders succeed with HTTP 201, and the panel instantly resets to **`CLOSED / HEALTHY` (🟢 Green)**.
+
 
 ### 3. 💥 Chaos Engineering & Fault Injection (`simulate-chaos.py`)
 Injects artificial network latency and downstream HTTP 500 errors to validate fault tolerance and OpenTelemetry tracing:
@@ -610,6 +725,9 @@ python scripts/testing/simulate-chaos.py
 Launches high-concurrency request floods against the API Gateway to trigger Redis Token Bucket rate limiting (HTTP 429) and activate the Security Threat Level gauge:
 ```powershell
 python scripts/testing/simulate-ddos.py
+python scripts/testing/simulate-ddos.py --burst
+python scripts/testing/simulate-ddos.py --distributed
+python scripts/testing/simulate-ddos.py --no-auth
 ```
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
@@ -622,7 +740,7 @@ pwsh scripts/testing/verify-swagger.ps1
 ```
 
 ### 📦 Postman Test Suite:
-Import [`MICROSERVICIOS.postman_collection.json`](./docs/MICROSERVICIOS.postman_collection.json) to execute automated end-to-end tests across OAuth2 auth flows, products CRUD, inventory reservation, and Kafka order events.
+Import [`microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) to execute automated end-to-end integration tests across OAuth2 auth flows, products CRUD, inventory reservation, and Kafka order events.
 
 ---
 
@@ -742,46 +860,47 @@ Navigate to **Dashboards** in Grafana ([http://localhost:3000/dashboards](http:/
 
 | Dashboard Name | File | Key Features & Focus Areas |
 | :--- | :--- | :--- |
-| **`🏢 Business Intelligence & Inventory Operations`** | [`business-operations-dashboard.json`](./observability/grafana/dashboards/business-operations-dashboard.json) | Executive KPIs, Gross Merchandise Value (GMV), completed & refunded orders, real-time available stock per SKU, and date/time revenue velocity trends |
-| **`🛡️ Technical, Infrastructure & Security Operations (SRE)`** | [`technical-security-dashboard.json`](./observability/grafana/dashboards/technical-security-dashboard.json) | DDoS attack detection, rate limiting (HTTP 429), P95 latency, circuit breakers, JVM memory, Kafka throughput, HashiCorp Vault secrets telemetry, and centralized Loki logs |
+| **`🏢 Business Intelligence & Inventory Operations`** | [`business-operations-dashboard.json`](./observability/grafana/dashboards/business-operations-dashboard.json) | Curated executive dashboard (4 sections, 10 high-value panels): Executive financial KPIs (Net Revenue, Orders, AOV, Abandonment), Conversion Funnel, 5-Stage Logistics Pipeline, Live Stock & Catalog Share, and Customer Retention Cohorts ($O(1)$) |
+| **`🛡️ Technical, Infrastructure & Security Operations (SRE)`** | [`technical-security-dashboard.json`](./observability/grafana/dashboards/technical-security-dashboard.json) | Curated SRE dashboard (5 sections, 12 essential panels): Global Health & Golden Signals (Online services, P95 latency, threat level, circuit breakers), HTTP Traffic & Errors, Idempotency & Saga Messaging, Platform Saturation, and Filtered Incident Logs |
+
+#### 🎯 Dynamic Interactive Filtering (`Filter Microservice`)
+Both dashboards feature a top-level **`Filter Microservice`** template variable:
+* **Global Overview (`All`):** Displays overall business financial volume, full-catalog stock, and cross-service latency/throughput comparisons.
+* **Targeted Drilldown (e.g., `orders-service` or `api-gateway`):** Dynamically isolates individual microservice HTTP requests, P95 latency curves, JVM memory utilization, PostgreSQL HikariCP connection pools, and real-time Loki incident diagnostic logs.
 
 #### 🏢 A. Business Intelligence & Inventory Operations (`business-operations-dashboard.json`)
 
 | Panel Name | Category / Row | Metric / Expression | Purpose & Operational Functionality |
 | :--- | :--- | :--- | :--- |
-| **Completed Sales Orders (Net)** | Executive Business KPIs | `ecommerce_orders_total{status="COMPLETED"}` | Total purchase orders successfully processed and active (deducting cancellations) |
-| **Cancelled & Refunded Orders** | Executive Business KPIs | `ecommerce_orders_total{status="CANCELLED"}` | Orders cancelled or refunded (Saga inventory compensation triggered) |
-| **Gross Merchandise Value (USD)** | Executive Business KPIs | `ecommerce_revenue_usd_total` | Net cumulative revenue volume generated from completed orders (GMV) |
-| **Total Units Sold** | Executive Business KPIs | `ecommerce_items_sold_total` | Total physical unit count of products deducted from stock across orders |
-| **Total Warehouse Stock Available** | Executive Business KPIs | `ecommerce_inventory_stock_total` | Real-time aggregated units available across all product SKUs in inventory |
-| **Live Available Stock by SKU** | Inventory Intelligence | `ecommerce_inventory_sku_stock` | Horizontal Bar Gauge showing real-time units per SKU (Green >20, Yellow <10, Red 0) |
-| **SKU Sales Market Share** | Inventory Intelligence | `ecommerce_sku_sales_total` | Donut/pie chart visualizing product category popularity and sales distribution |
-| **Order Velocity & Revenue Trends** | Timeline Analytics | `rate(ecommerce_orders_total[1m])` / `rate(ecommerce_revenue_usd_total[1m])` | Historical timeline tracking sales velocity, revenue growth, and cancellation rates over selected date/time ranges |
+| **Net Sales Revenue (USD)** | Executive Business Summary | `sum(ecommerce_revenue_usd{service=~"$service"})` | Cumulative net monetary revenue from active completed orders |
+| **Net Completed Orders** | Executive Business Summary | `sum(ecommerce_orders{status="COMPLETED", service=~"$service"})` | Total purchase orders successfully completed and active in platform |
+| **Average Order Value (AOV)** | Executive Business Summary | `sum(revenue) / clamp_min(sum(orders), 1)` | Average ticket value per completed order |
+| **Cart Abandonment Rate (%)** | Executive Business Summary | `(1 - (orders_completed / cart_additions)) * 100` | Percentage of created carts not converted into finished purchases |
+| **Conversion Funnel Stages** | Conversion & Logistics | `ecommerce_cart_additions_total` $\rightarrow$ `ecommerce_checkout_started_total` $\rightarrow$ `ecommerce_checkout_step_reached_total` $\rightarrow$ `ecommerce_orders` | Buyer journey progression: Cart Add $\rightarrow$ Checkout Start $\rightarrow$ Payment Step $\rightarrow$ Completed |
+| **5-Stage Logistics Pipeline** | Conversion & Logistics | `sum by (status) (ecommerce_orders_active_in_pipeline{service=~"$service"})` | Real-time fulfillment progression: `PLACED` $\rightarrow$ `PREPARING` $\rightarrow$ `IN_TRANSIT` $\rightarrow$ `OUT_FOR_DELIVERY` $\rightarrow$ `DELIVERED` |
+| **Live Stock by SKU & Low Stock** | Product & Inventory | `ecommerce_inventory_sku_stock{service=~"$service"}` | Real-time stock levels with color-coded warning thresholds (Green >20, Yellow <10, Red <5) |
+| **Top Selling SKUs Market Share** | Product & Inventory | `sum by (sku) (ecommerce_sku_sales{service=~"$service"})` | Donut chart displaying product category sales distribution and catalog demand |
+| **Customer Retention Cohorts** | Retention & Growth | `sum by (cohort) (ecommerce_orders_by_cohort{service=~"$service"})` | Aggregated order distribution across discrete cohorts (`first_time`, `repeat`, `loyal_vip`) without cardinality bloat |
+| **Revenue & Orders Timeline** | Retention & Growth | `sum(ecommerce_revenue_usd)` / `sum(ecommerce_orders)` | Historical timeline tracking net completed orders and cumulative revenue growth |
 
 #### 🛡️ B. Technical, Infrastructure & Security Operations (`technical-security-dashboard.json`)
 
 | Panel Name | Category / Row | Metric / Expression | Purpose & Operational Functionality |
 | :--- | :--- | :--- | :--- |
-| **Security Attack Status & Threat Level** | Security & DDoS | `sum(rate(http_server_requests_seconds_count{status=~"429\|5.."}[1m]))` | Real-time threat gauge; switches to RED during DDoS attacks or excessive rate-limiting |
-| **Blocked Attack Requests (HTTP 429)** | Security & DDoS | `sum(increase(http_server_requests_seconds_count{status="429"}[15m]))` | Total botnet flood requests throttled and blocked by Spring Cloud Gateway / Redis Token Bucket |
-| **Gateway Attack & Traffic Distribution** | Security & DDoS | `sum(rate(http_server_requests_seconds_count)) by (status)` | Stacked comparison of legitimate traffic (2xx) vs throttled attacks (429) vs errors (5xx) |
-| **Captured Attacker IPs & Botnets** | Security & DDoS | `topk(10, sum by (ip, reason) (security_blocked_ip_total))` | Horizontal Bar Gauge capturing each attacker IP identified and blocked by the Redis Tarpit |
-| **DDoS Security & Auto-Ban Audit Logs** | Security & DDoS | `{container=~".+"} \|= "SECURITY-AUDIT"` | Live Loki log stream showing real-time AUTO-BAN and blocked request events per IP |
-| **Spring Services Online** | System Status | `count(up == 1)` | Count of operational Spring Boot microservice instances scraped by Prometheus |
-| **Total HTTP Requests** | System Status | `sum(http_server_requests_seconds_count)` | Cumulative request volume processed across all microservices |
-| **Redis Cache Status** | System Status | `min(redis_up)` | Live connectivity state of the Redis distributed cache & token bucket instance |
-| **Active JVM Live Threads** | System Status | `jvm_threads_live_threads` | Active virtual (Loom) and platform thread count across JVM runtimes |
-| **P95 Latency by Microservice** | Latency & Performance | `histogram_quantile(0.95, sum by (le, service) (rate(...)))` | 95th percentile response time per microservice to detect latency degradation |
-| **Circuit Breakers State** | Latency & Performance | `resilience4j_circuitbreaker_state` | Real-time state (CLOSED=Healthy, OPEN=Tripped, HALF_OPEN=Testing) per service |
-| **JVM Heap Memory Usage** | Resources & Memory | `jvm_memory_used_bytes{area="heap"}` | Real-time memory consumption vs maximum allocated heap per container/pod |
-| **Process CPU Utilization (%)** | Resources & Capacity | `process_cpu_usage` | CPU percentage consumed by the JVM processes |
-| **HikariCP Active DB Connections** | Resources & Databases | `hikaricp_connections_active` | Multi-bar gauge of Active SQL queries and connection pool utilization |
-| **Kafka Event Streaming Throughput** | Messaging & Pipelines | `spring_kafka_template_seconds_count` / `spring_kafka_listener_seconds_count` | Real-time rate of events published by Orders Service and consumed by Notification Service |
-| **Centralized Live Logs (Loki)** | Live Logs & Auditing | `{container=~".+"}` | Streaming stdout/stderr container and pod logs with instant filtering and trace correlation |
-| **Vault Barrier Seal Status** | HashiCorp Vault Secrets | `max(vault_core_unsealed or up{job="vault"})` | High-visibility seal status gauge: UNSEALED (Green) or SEALED (Red) |
-| **Active Vault Leadership Role** | HashiCorp Vault Secrets | `max(vault_core_active or up{job="vault"})` | Cluster role indicator: ACTIVE LEADER (Blue) vs STANDBY NODE (Yellow) |
-| **Vault Ops / Sec Throughput** | HashiCorp Vault Secrets | `sum(rate(vault_core_response_status_code[1m]))` | Live secrets engine read/write operations per second |
-| **Vault Engine Goroutines** | HashiCorp Vault Secrets | `max(go_goroutines{job=~"vault.*"})` | Active Go runtime concurrency threads in the Vault server process |
+| **Core Microservices Online** | Global Health & Golden Signals | `count(count by (service) (up{service=~"api-gateway|orders-service|products-service|inventory-service|notification-service"} == 1))` | Operational count of unique core business microservices active, independent of pod replica scaling |
+| **Global P95 Response Latency** | Global Health & Golden Signals | `histogram_quantile(0.95, sum by (le) (rate(...))) * 1000` | 95th percentile response time across all microservice endpoints in milliseconds |
+| **Security Attack Threat Level** | Global Health & Golden Signals | `sum(rate(http_server_requests_seconds_count{status=~"429\|5.."}[1m]))` | 3-level threat indicator: `NORMAL` (<0.5 / Green), `ELEVATED` (0.5-5 / Yellow), `UNDER ATTACK` (≥5 / Red) |
+| **Circuit Breakers Health** | Global Health & Golden Signals | `clamp_min(2 - 2 * max(open) - max(half_open), 0)` | 3-state resilience lifecycle: `CLOSED` (2 / Green), `HALF_OPEN` (1 / Yellow), `OPEN` (0 / Red) |
+| **HTTP Request Rate & Status (RPS)** | HTTP Traffic & Latency | `sum by (service, status) (rate(http_server_requests_seconds_count{service=~"$service"}[1m]))` | Throughput and status code distribution (2xx success vs 4xx/5xx errors) |
+| **P95 Latency by Microservice** | HTTP Traffic & Latency | `histogram_quantile(0.95, sum by (le, service) (rate(...{service=~"$service"}))) * 1000` | Response latency degradation tracking per individual microservice |
+| **Idempotency & Saga Compensations** | Distributed Consistency | `sum(ecommerce_idempotency_hits_total)` / `sum(ecommerce_saga_compensations_total)` | Duplicate orders intercepted by Redis locks vs compensating transactions executed |
+| **Kafka Event Streaming Rate** | Distributed Consistency | `notification_events_processed_total` / `spring_kafka_template_seconds_count` | Real-time event throughput (Orders Published vs Notifications Consumed) |
+| **JVM Heap Memory Usage (MB)** | Platform Saturation | `sum by (service) (jvm_memory_used_bytes{area="heap", service=~"$service"}) / 1048576` | Total real-time heap memory consumption aggregated per Java 21 microservice container |
+| **HikariCP Database Pools (Active vs Total)** | Platform Saturation | `hikaricp_connections_active` vs `hikaricp_connections` | Real-time active in-flight SQL query connections vs total allocated pool size across PostgreSQL databases |
+| **Blocked Attacks (HTTP 429) & IPs** | Security & Diagnostics | `sum(increase(http_server_requests_seconds_count{status="429"}[15m]))` | Total botnet flood requests throttled and blocked by Spring Cloud Gateway & Redis Tarpit |
+| **Incident Diagnostic Logs (Loki)** | Security & Diagnostics | `{service=~"$service"} \|~ "(?i)ERROR\|Exception\|SECURITY-AUDIT"` | Clean, noise-free log stream filtered strictly for ERROR logs and security intercept events |
+
+
 
 ---
 
@@ -864,11 +983,15 @@ microservices-architecture/
 │   └── templates/                  # Reusable master templates
 ├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI to Google Artifact Registry (GAR)
 ├── api-gateway/                    # Spring Cloud Gateway (Port 8080)
+├── devsecops/                      # Centralized DevSecOps Hub (DAST, Policies OPA, SAST, Compliance, Testing)
+│   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
+│   ├── policies/                   # OPA Rego Conftest rules & Gatekeeper templates/constraints
+│   ├── sast/                       # Gitleaks and Semgrep static security configs
+│   ├── compliance/trivy/           # Trivy configuration and .trivyignore risk registry
+│   └── testing/newman/             # microservices.postman_collection.json API integration tests
 ├── docs/                           # Extended IAM & Architectural Documentation (Draw.io diagrams & guides)
 │   ├── Diagrams.drawio             # Multi-tab visual architecture (General, Vault, Rotations, Istio, K8s)
-│   ├── KEYCLOAK_CONFIGURATION.md   # IAM integration and token flow documentation
-│   ├── realm-export.json           # Keycloak 26 Realm static export backup
-│   └── MICROSERVICIOS.postman_collection.json # Automated API test collection
+│   └── realm-export.json           # Keycloak 26.7.3 Realm static export backup
 ├── frontend/                       # Angular 21 SPA (Nginx Distroless)
 ├── inventory-service/              # Stock verification & allocation (Port 8001)
 ├── notification-service/           # Kafka event consumer (Port 8002)
@@ -889,8 +1012,6 @@ microservices-architecture/
 │   ├── minikube/                   # Minikube deployment, port-forward tunnels & teardown
 │   ├── testing/                    # Smoke tests, Swagger verification, Chaos & DDoS simulation (Python)
 │   └── vault/                      # HashiCorp Vault local seed script (init-vault.ps1)
-├── policy/                         # Open Policy Agent (OPA) / Conftest compliance rules
-├── .zap/                           # OWASP ZAP DAST scan baseline rules
 ├── terraform/                      # Multi-Cloud Infrastructure as Code (AWS, Azure, GCP)
 │   ├── environments/
 │   │   ├── aws/                    # AWS Workspaces: dev, staging, prod
@@ -1042,8 +1163,24 @@ flowchart TD
 * **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
 
 ### 2. 🚚 Real-Time Logistics Tracking & Consumer Stepper
-* **Consumer-Facing Status Lifecycle:** Replaces internal engineering orchestrator terminology with e-commerce logistics stages:
-  $$\text{Order Placed} \longrightarrow \text{Preparing in Hub} \longrightarrow \text{In Transit (DHL Express)} \longrightarrow \text{Out for Delivery} \longrightarrow \text{Delivered}$$
+* **Interactive 5-Stage Live Delivery Pipeline:** Replaces static client-only status text with an interactive, end-to-end simulated parcel fulfillment journey:
+  $$\text{Order Placed} \longrightarrow \text{Preparing in Hub} \longrightarrow \text{In Transit (DHL Express)} \longrightarrow \text{Out for Delivery} \longrightarrow \text{Delivered \& Signed}$$
+  Triggered via the **"▶ Start Live Delivery Flow"** button on any active order in the customer dashboard.
+* **Animated Courier Runner & Dynamic Icon Morphing:**
+  - CSS-engineered runner (`.delivery-courier-runner`) that smoothly travels across the progress connector ($0\% \rightarrow 25\% \rightarrow 50\% \rightarrow 75\% \rightarrow 100\%$) synchronized with each fulfillment milestone.
+  - Real-time icon morphing illustrating physical logistics:
+    - **Stage 1 (Order Placed):** `📦` Parcel minted and inventory locked.
+    - **Stage 2 (Preparing in Hub):** `📦` Warehouse sorting, pick & pack operations.
+    - **Stage 3 (In Transit - DHL):** `🚚` Regional trunk line dispatch via DHL Express carrier.
+    - **Stage 4 (Out for Delivery):** `🚚` Local courier vehicle en route to customer doorstep.
+    - **Stage 5 (Delivered & Signed):** `✨` Delivery celebration, verified doorstep signature, and final receipt sealing.
+  - Active light-beam connector animation (`.step-connector.active-pulse`) emitting a glowing pulse along the active transit segment.
+* **Automated Backend State Persistence & Kafka Events:**
+  - **Stage 3 Integration:** Automatically executes `PUT /api/orders/{id}/ship` against [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java), setting `orderStatus = SHIPPED`, persisting to PostgreSQL `t_orders`, and emitting an enriched event to Kafka `orders-topic`.
+  - **Stage 5 Integration:** Automatically executes `PUT /api/orders/{id}/deliver`, setting `orderStatus = DELIVERED`, recording delivery timestamp, synchronizing PostgreSQL Micrometer database gauges (`syncDatabaseMetrics()`), and unlocking the **"Delivered & Signed"** seal.
+* **Real-Time Customer Milestones & Multi-Channel Alerts:**
+  - Milestone floating toasts dispatched at every physical handover stage (e.g. *"🚚 Package in Transit with DHL Express"*).
+  - Synchronous push into the **Customer Notification Center** drawer (`msa_customer_notifications` in `sessionStorage`), updating the top navigation badge counter with zero technical jargon.
 * **Automated DHL Tracking Generation:** Upon order placement, [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier:
   ```json
   {
@@ -1057,7 +1194,7 @@ flowchart TD
     "orderStatus": "PLACED"
   }
   ```
-* **Interactive Logistics Badging:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification.
+* **Interactive Logistics Badging & Digital Receipt:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification and itemized line items.
 
 ### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
 * **Customer Confidence Metrics:** Every catalog product showcases verified buyer ratings (`★ 4.8 / 5.0`), total ratings volume (`(1,240 customer ratings)`), and authenticity verification (`• 100% Authentic`).
@@ -1131,7 +1268,7 @@ graph LR
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
         APIGW["🚪 Spring Cloud Gateway (8080)<br/>(Anti-DDoS Whitelist / Token Relay)"]
-        Keycloak["🔐 Keycloak 26 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
+        Keycloak["🔐 Keycloak 26.7.3 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Microservices (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
 

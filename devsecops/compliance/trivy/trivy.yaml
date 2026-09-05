@@ -1,0 +1,13 @@
+# Trivy Configuration File
+severity:
+  - CRITICAL
+  - HIGH
+ignore-unfixed: true
+ignorefile: devsecops/compliance/trivy/.trivyignore
+timeout: 10m
+format: table
+exit-code: 0 # Calibrado: Modo Auditoría / Soft-Gate. Cambiar a 1 para Modo Enforce / Bloqueante
+vulnerability:
+  type:
+    - os
+    - library

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { OrderResponse } from '../../../core/models/order.model';
 import { QrGeneratorService } from '../../../core/services/qr-generator.service';
+import { ProductService } from '../../../core/services/product.service';
 
 @Component({
   selector: 'app-receipt-modal',
@@ -20,6 +21,7 @@ export class ReceiptModalComponent {
   readonly today = new Date();
   private readonly qrGenerator = inject(QrGeneratorService);
   private readonly sanitizer = inject(DomSanitizer);
+  readonly productService = inject(ProductService);
 
   qrSvg(): SafeHtml {
     const currentOrder = this.order();
@@ -32,6 +34,14 @@ export class ReceiptModalComponent {
     const currentOrder = this.order();
     if (!currentOrder || !currentOrder.orderItems) return 0;
     return currentOrder.orderItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  }
+
+  getItemImageUrl(sku: string): string {
+    return this.productService.getProductImage(sku);
+  }
+
+  getItemName(sku: string): string {
+    return this.productService.getProductName(sku);
   }
 
   close(): void {

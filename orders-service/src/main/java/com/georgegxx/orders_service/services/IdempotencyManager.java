@@ -5,6 +5,7 @@ import com.georgegxx.orders_service.exceptions.IdempotencyPayloadMismatchExcepti
 import com.georgegxx.orders_service.model.dtos.IdempotencyRecord;
 import com.georgegxx.orders_service.model.dtos.OrderResponse;
 import com.georgegxx.orders_service.utils.JsonUtils;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -26,6 +27,7 @@ import java.util.function.Predicate;
 public class IdempotencyManager {
 
     private final StringRedisTemplate redisTemplate;
+    private final MeterRegistry meterRegistry;
 
     public static final String IDEMPOTENCY_KEY_PREFIX = "idempotency:order:";
     public static final Duration IN_PROGRESS_TTL = Duration.ofSeconds(60);
@@ -55,6 +57,8 @@ public class IdempotencyManager {
                     .flatMap(record -> handleExistingRecord(key, currentHash, record));
 
             if (cachedResponse.isPresent()) {
+                this.meterRegistry.counter("ecommerce_idempotency_hits_total").increment();
+                log.info("Idempotency deduplication triggered for key: {}. Duplicate purchase avoided.", key);
                 return cachedResponse;
             }
 

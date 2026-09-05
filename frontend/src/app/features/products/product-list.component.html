@@ -206,10 +206,13 @@
   <!-- Products Grid with Spotlight Effect -->
   <div class="products-grid">
     @for (product of paginatedProducts(); track product.sku) {
-      <div class="product-card spotlight-card" (mousemove)="onCardMouseMove($event)">
+      <div class="product-card spotlight-card" [class.product-inactive]="product.status === false" (mousemove)="onCardMouseMove($event)">
         <div class="card-header">
           <div class="header-badges-left">
             <span class="sku-badge">{{ product.sku }}</span>
+            @if (product.status === false) {
+              <span class="inactive-admin-badge" title="This product is hidden from customers and guests">⚠️ Inactive (Admin Only)</span>
+            }
             @if (product.isBestSeller) {
               <span class="bestseller-badge">★ Best Seller</span>
             }

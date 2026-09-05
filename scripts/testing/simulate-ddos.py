@@ -32,8 +32,15 @@ if hasattr(sys.stdout, 'reconfigure'):
         pass
 
 # Target configuration
-GATEWAY_URL = os.environ.get('GATEWAY_URL', os.environ.get('BASE_URL', f"http://{os.environ.get('TARGET_HOST', 'localhost')}:{os.environ.get('TARGET_PORT', '8080')}"))
-KEYCLOAK_URL = os.environ.get('KEYCLOAK_URL', 'http://localhost:8181')
+# On Windows, 'localhost' resolves to IPv6 [::1] first, causing a 2-second timeout before falling back to IPv4
+# when using kubectl port-forward or local bindings. Normalizing to 127.0.0.1 ensures sub-millisecond
+# roundtrips, allowing high-throughput burst traffic that properly exercises Redis Token Bucket rate limiting.
+DEFAULT_HOST = '127.0.0.1'
+RAW_GATEWAY = os.environ.get('GATEWAY_URL', os.environ.get('BASE_URL', f"http://{os.environ.get('TARGET_HOST', DEFAULT_HOST)}:{os.environ.get('TARGET_PORT', '8080')}"))
+RAW_KEYCLOAK = os.environ.get('KEYCLOAK_URL', f"http://{DEFAULT_HOST}:8181")
+
+GATEWAY_URL = RAW_GATEWAY.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
+KEYCLOAK_URL = RAW_KEYCLOAK.replace('://localhost:', '://127.0.0.1:').replace('://localhost', '://127.0.0.1')
 BASE_URL = GATEWAY_URL
 
 # Attack parameters
@@ -236,10 +243,9 @@ def run_simulation():
     print(f"  Client/Server Errors:   \033[31m{stats.error}\033[0m")
     print(f"  Dropped / Timeouts:     {stats.failed}")
     print('======================================================================\n')
-    print('  🔭 Live Grafana Dashboards:')
-    print('   * ☸️  Kubernetes Master:      http://localhost:3000/d/kubernetes-master/dd5cbaa')
-    print('   * 🐳 Docker Compose Master:  http://localhost:3000/d/docker-compose-master/e83a309')
-    print('   * 🔍 Grafana Explore (Logs): http://localhost:3000/explore\n')
+    print('  🔭 Live Grafana Telemetry:')
+    print('   * 🛡️ Technical & Security:  http://localhost:3000/d/technical-security')
+    print('   * 🔍 Incident Logs (Loki):   http://localhost:3000/explore\n')
 
 
 if __name__ == '__main__':
