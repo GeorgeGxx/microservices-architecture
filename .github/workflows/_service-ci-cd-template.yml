@@ -20,24 +20,20 @@ on:
         type: string
         default: 'ubuntu-latest'
         description: 'Runner label: self-hosted (local Ryzen 7) or ubuntu-latest'
-      harbor-url:
+      dockerhub-owner:
         required: false
         type: string
-        default: 'harbor.local:30002'
-        description: 'Local insecure Harbor registry URL'
-      harbor-project:
-        required: false
-        type: string
-        default: 'microservices'
+        default: 'georgegxx'
+        description: 'Docker Hub user or organization namespace'
       istio-gateway-url:
         required: false
         type: string
-        default: 'http://localhost:30080'
+        default: 'http://localhost:30088'
         description: 'Base URL exposed by Istio Ingress Gateway'
     secrets:
-      HARBOR_USERNAME:
+      DOCKERHUB_USERNAME:
         required: false
-      HARBOR_PASSWORD:
+      DOCKERHUB_TOKEN:
         required: false
       SONAR_TOKEN:
         required: false
@@ -45,9 +41,8 @@ on:
         required: false
 
 env:
-  IMAGE_NAME: msa-${{ inputs.service-name }}
-  HARBOR_REGISTRY: ${{ inputs.harbor-url }}
-  HARBOR_PROJECT: ${{ inputs.harbor-project }}
+  DOCKERHUB_OWNER: ${{ inputs.dockerhub-owner || 'georgegxx' }}
+  IMAGE_NAME: ${{ inputs.dockerhub-owner || 'georgegxx' }}/${{ inputs.service-name }}
   ISTIO_GATEWAY_URL: ${{ inputs.istio-gateway-url }}
 
 permissions:
@@ -247,50 +242,12 @@ jobs:
           exit-code: '0'
 
   # ==========================================================
-  # STEP 5: 📦 Push to Local Harbor Registry (Insecure HTTP)
-  # ==========================================================
-  push-harbor:
-    name: "📦 5. Push to Harbor - ${{ inputs.service-name }}"
-    needs: image-scan
-    runs-on: ${{ inputs.runner-type }}
-    timeout-minutes: 15
-    steps:
-      - name: Download Image Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: image-${{ inputs.service-name }}
-          path: /tmp
-
-      - name: Load Image from Tarball
-        run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
-
-      - name: Tag and Push to Harbor Registry
-        env:
-          HARBOR_USER: ${{ secrets.HARBOR_USERNAME || 'admin' }}
-          HARBOR_PASS: ${{ secrets.HARBOR_PASSWORD || 'Harbor12345' }}
-        run: |
-          TARGET_TAG="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          LATEST_TAG="${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/${{ env.IMAGE_NAME }}:latest"
-          
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $TARGET_TAG
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $LATEST_TAG
-          
-          # Attempt login and push to local Harbor (graceful fallback if Harbor not yet started)
-          if echo "$HARBOR_PASS" | docker login ${{ env.HARBOR_REGISTRY }} -u "$HARBOR_USER" --password-stdin 2>/dev/null; then
-            docker push $TARGET_TAG
-            docker push $LATEST_TAG
-            echo "Successfully pushed to Harbor registry at $TARGET_TAG"
-          else
-            echo "::warning::Harbor registry not reachable at ${{ env.HARBOR_REGISTRY }} — tagged locally for Minikube evaluation."
-          fi
-
-  # ==========================================================
-  # STEP 6: 🧾 Pre-flight Policy Check (Governance - Conftest / Rego) — BLOCKING
+  # STEP 5: 🧾 Pre-flight Policy Check (Governance - Conftest / Rego) — BLOCKING
   #   Uses centralized policies in devsecops/policies/conftest/
   # ==========================================================
   compliance-check:
-    name: "🧾 6. Compliance & Policy Gate - ${{ inputs.service-name }}"
-    needs: push-harbor
+    name: "🧾 5. Compliance & Policy Gate - ${{ inputs.service-name }}"
+    needs: [build-container, image-scan]
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 10
     steps:
@@ -330,10 +287,10 @@ jobs:
           fi
 
   # ==========================================================
-  # STEP 7: 🚀 Deploy to Staging (GitOps / ArgoCD / Helm with Istio)
+  # STEP 6: 🚀 Deploy to Staging (GitOps / ArgoCD / Helm with Istio)
   # ==========================================================
   deploy-staging:
-    name: "🚀 7. Deploy to Staging - ${{ inputs.service-name }}"
+    name: "🚀 6. Deploy to Staging - ${{ inputs.service-name }}"
     needs: compliance-check
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
@@ -360,10 +317,11 @@ jobs:
           fi
 
   # ==========================================================
-  # STEP 8: 🔗 Integration Tests (QA - Newman / Postman) — Runs in parallel with 9, 10
+  # ==========================================================
+  # STEP 7: 🔗 Integration Tests (QA - Newman / Postman) — Runs in parallel with 8, 9, 10
   # ==========================================================
   integration-tests:
-    name: "🔗 8. Integration Tests (Postman/Newman) - ${{ inputs.service-name }}"
+    name: "🔗 7. Integration Tests (Postman/Newman) - ${{ inputs.service-name }}"
     needs: deploy-staging
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
@@ -399,10 +357,10 @@ jobs:
           if-no-files-found: ignore
 
   # ==========================================================
-  # STEP 9: 🧭 E2E Tests (Cypress)
+  # STEP 8: 🧭 E2E Tests (Cypress)
   # ==========================================================
   e2e-tests:
-    name: "🧭 9. E2E Tests (Cypress) - ${{ inputs.service-name }}"
+    name: "🧭 8. E2E Tests (Cypress) - ${{ inputs.service-name }}"
     needs: deploy-staging
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
@@ -420,11 +378,11 @@ jobs:
           fi
 
   # ==========================================================
-  # STEP 10: ⚡ Performance & Stress Tests (k6) (QA)
+  # STEP 9: ⚡ Performance & Stress Tests (k6) (QA)
   #   Targets Istio Ingress Gateway with SLI/SLO checks
   # ==========================================================
   performance-tests:
-    name: "⚡ 10. Performance Tests (k6) - ${{ inputs.service-name }}"
+    name: "⚡ 9. Performance Tests (k6) - ${{ inputs.service-name }}"
     needs: deploy-staging
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 10
@@ -444,11 +402,11 @@ jobs:
           fi
 
   # ==========================================================
-  # STEP 11: 🕵️ DAST Scan (OWASP ZAP) against Istio Ingress — BLOCKING
+  # STEP 10: 🕵️ DAST Scan (OWASP ZAP) against Istio Ingress
   #   Uses devsecops/dast/zap/rules.tsv
   # ==========================================================
   dast-scan:
-    name: "🕵️ 11. DAST Scan (OWASP ZAP) - ${{ inputs.service-name }}"
+    name: "🕵️ 10. DAST Scan (OWASP ZAP) - ${{ inputs.service-name }}"
     needs: [build-container, deploy-staging]
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
@@ -469,11 +427,51 @@ jobs:
           fail_action: false # Advisory in local staging; set true when ingress endpoints are live
 
   # ==========================================================
+  # STEP 11: 📦 Push Certified Image to Docker Hub
+  #   Runs ONLY after all automated tests, scans, and staging verification pass.
+  # ==========================================================
+  push-dockerhub:
+    name: "📦 11. Push to Docker Hub - ${{ inputs.service-name }}"
+    needs: [build-container, image-scan, compliance-check, deploy-staging, integration-tests, e2e-tests, performance-tests, dast-scan]
+    runs-on: ${{ inputs.runner-type }}
+    timeout-minutes: 15
+    steps:
+      - name: Download Image Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ inputs.service-name }}
+          path: /tmp
+
+      - name: Load Image from Tarball
+        run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
+
+      - name: Tag and Push to Docker Hub
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
+          DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+        run: |
+          SHA_TAG="${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          LATEST_TAG="${{ env.IMAGE_NAME }}:latest"
+          
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $SHA_TAG
+          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $LATEST_TAG
+          
+          # Attempt login and push to Docker Hub (graceful fallback if secrets not configured)
+          if [ -n "$DOCKER_PASS" ]; then
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push $SHA_TAG
+            docker push $LATEST_TAG
+            echo "Successfully pushed certified image to Docker Hub: $SHA_TAG and $LATEST_TAG"
+          else
+            echo "::notice::DOCKERHUB_TOKEN / DOCKER_PASSWORD secret not set — image tagged locally ($SHA_TAG) for Minikube evaluation."
+          fi
+
+  # ==========================================================
   # STEP 12: 🚢 Deploy to Production (Canary Rollout with Istio)
   # ==========================================================
   deploy-production:
     name: "🚢 12. Deploy to Production (Canary) - ${{ inputs.service-name }}"
-    needs: [integration-tests, e2e-tests, performance-tests, dast-scan]
+    needs: push-dockerhub
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
