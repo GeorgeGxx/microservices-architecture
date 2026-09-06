@@ -83,11 +83,11 @@ resource "helm_release" "argocd" {
   }
   set {
     name  = "server.insecure"
-    value = "true"
+    value = "false"
   }
   set {
     name  = "configs.params.server\\.insecure"
-    value = "true"
+    value = "false"
   }
   set {
     name  = "server.resources.requests.cpu"

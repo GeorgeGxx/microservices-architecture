@@ -43,6 +43,10 @@ spring:
           jwk-set-uri: ${KEYCLOAK_JWT_URI:http://localhost:8181/realms/microservices-realm/protocol/openid-connect/certs}
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
     producer:
       acks: all
       retries: 3

@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: microservices-config
+  namespace: staging
 data:
   GATEWAY_SERVICE_NAME: "api-gateway"
   GATEWAY_PORT: "8080"
@@ -23,7 +24,10 @@ data:
   INVENTORY_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-inventory:5432/ms_inventory"
   ORDERS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-orders:5432/ms_orders"
   PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products:5432/ms_products"
-  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9094"
+  KAFKA_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
+  KAFKA_SASL_MECHANISM: "PLAIN"
+  KAFKA_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-secret\";"
 
   # Redis (Cache / Rate Limiter)
   REDIS_HOST: "redis"
@@ -47,6 +51,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: microservices-secrets
+  namespace: staging
 type: Opaque
 stringData:
   KEYCLOAK_ADMIN: admin
