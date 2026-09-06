@@ -59,7 +59,7 @@
         <mxCell id="c_async" parent="1" value="&lt;b&gt;⚡ EVENT STREAMING &amp; CACHE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1420" y="110" width="440" height="340" as="geometry" />
         </mxCell>
-        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 7.8 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9092 / localhost:29092&lt;br&gt;Topics: order-placed, payment-processed, inventory-updated" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
+        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 7.8 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9094 (SASL_PLAINTEXT) • kafka:9092&lt;br&gt;Topics: orders-topic, orders-topic-dlt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
           <mxGeometry x="1450" y="170" width="380" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_redis" parent="1" value="&lt;b&gt;Redis 8.8 (Cache &amp; Rate Limiting)&lt;/b&gt;&lt;br&gt;redis:6379&lt;br&gt;Products &amp; Session Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
@@ -116,10 +116,10 @@
         <mxCell id="e5" parent="1" value="Stock Check" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e6" parent="1" value="Publish Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_orders" target="n_kafka">
+        <mxCell id="e6" parent="1" value="Publish (SASL 9094)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_orders" target="n_kafka">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" parent="1" value="Consume Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_kafka" target="n_notif">
+        <mxCell id="e7" parent="1" value="Consume (SASL 9094)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_kafka" target="n_notif">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e8" parent="1" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_prod" target="n_db_prod">
@@ -275,7 +275,7 @@
         <mxCell id="i_istiod" parent="1" value="&lt;b&gt;🛡️ ISTIOD CONTROL PLANE&lt;/b&gt;&lt;br&gt;Citadel CA &amp; Discovery Server&lt;br&gt;Mounted Secret: &lt;b&gt;istio-system/cacerts&lt;/b&gt;&lt;br&gt;(Signed by Vault PKI Intermediate CA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#DB2777;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
           <mxGeometry x="500" y="140" width="360" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="100" y="280" width="1340" height="480" as="geometry" />
         </mxCell>
         <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: api-gateway&lt;/b&gt;&lt;br&gt;App Container (8080)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/api-gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
@@ -473,13 +473,13 @@
         <mxCell id="st10" parent="1" value="10. Orders Service binds authenticated userId/username and persists Order in db-orders (Multi-Tenant Isolation)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="640" width="450" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st11" parent="1" value="11. Orders Service emits 'order-placed-topic' event to Apache Kafka cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st11" parent="1" value="11. Orders Service emits 'orders-topic' event to Apache Kafka cluster (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="690" width="400" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st12" parent="1" value="12. Orders Service returns HTTP 201 Created response ➔ API Gateway ➔ Frontend SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="160" y="740" width="1000" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st13" parent="1" value="13. Notification Service asynchronously consumes Kafka event &amp; sends confirmation email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st13" parent="1" value="13. Notification Service asynchronously consumes Kafka event over SASL PLAIN (Port 9094) &amp; sends confirmation email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1560" y="790" width="150" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st14" parent="1" value="14. Continuous Observability: Prometheus tracks conversion funnels, loyalty cohorts, basket sizes, logistics pipelines, idempotency &amp; Grafana visualizes e-commerce business KPIs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;" vertex="1">
@@ -642,7 +642,7 @@
         <mxCell id="app_kiali" parent="1" value="&lt;b&gt;🧭 Kiali Visual Mesh&lt;/b&gt;&lt;br&gt;Port 20001 (/kiali)&lt;br&gt;Real-time Traffic Graph&lt;br&gt;mTLS Encryption Health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
           <mxGeometry x="1170" y="480" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="app_dbs" parent="1" value="&lt;b&gt;💾 Persistence &amp; Streams&lt;/b&gt;&lt;br&gt;PostgreSQL (Products, Orders, Inv, KC)&lt;br&gt;Apache Kafka 7.8 (KRaft Events)&lt;br&gt;Redis Cache Cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
+        <mxCell id="app_dbs" parent="1" value="&lt;b&gt;💾 Persistence &amp; Streams&lt;/b&gt;&lt;br&gt;PostgreSQL (Products, Orders, Inv, KC)&lt;br&gt;Apache Kafka 7.8 (Port 9094 SASL PLAIN)&lt;br&gt;Redis Cache Cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
           <mxGeometry x="1440" y="480" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="ops_box" parent="1" value="&lt;b&gt;⚙️ AUTOMATED LIFECYCLE SCRIPTS (Platform Engineering)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Bootstrap Ecosystem:&lt;/b&gt; &lt;code&gt;.\scripts\devsecops\bootstrap-local-devsecops.ps1&lt;/code&gt; (Deploys Minikube, Terraform, ArgoCD, Prometheus, Gatekeeper, Vault, Keycloak, Frontend &amp; Tunnels).&lt;br&gt;• &lt;b&gt;Health Verification:&lt;/b&gt; &lt;code&gt;.\scripts\devsecops\verify-platform.ps1&lt;/code&gt; (Runs automated deep diagnostics of all namespaces, pods, NodePorts, and policies).&lt;br&gt;• &lt;b&gt;Teardown &amp; Pause:&lt;/b&gt; &lt;code&gt;.\scripts\devsecops\teardown-local-devsecops.ps1&lt;/code&gt; (Gracefully pauses Minikube and frees 12 CPUs &amp; 12 GB RAM, preserving state).&lt;br&gt;• &lt;b&gt;Total Cluster Purge:&lt;/b&gt; &lt;code&gt;.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState&lt;/code&gt; (Destroys all volumes and reclaims 80 GB disk)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">

@@ -482,7 +482,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | **Grafana Alloy** | `12345` | DaemonSet | DaemonSet | Telemetry & log collector (v1.18.1) |
 | **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
 | **PostgreSQL Databases** | `5432` | `30432` | RDS / Flexible / Cloud SQL | Managed multi-tenant DB |
-| **Apache Kafka Broker** | `9092` / `29092` | `30092` | Managed / Strimzi Operator | KRaft broker (Topic: `orders-topic`) |
+| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | `30092` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
 
 ---
 
@@ -696,6 +696,13 @@ Audit proxy synchronization and mutual TLS enforcement without needing browser t
 # Audit Istio control plane synchronization, Envoy sidecars, and STRICT mTLS:
 pwsh scripts/istio/verify-mesh.ps1
 ```
+
+> 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
+> - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `staging` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
+> - **Selective Actuator Scraping:** Ports `8080` and `8001-8004` feature `portLevelMtls: PERMISSIVE` in `k8s/istio/peer-authentication-staging.yaml`, enabling Prometheus to scrape Actuator metrics without `connection reset by peer` errors while business traffic remains 100% encrypted.
+> - **Kafka SASL Authentication (Port 9094):** Microservices produce and consume events through `kafka:9094` using SASL PLAIN (`app` credentials). In-mesh traffic benefits from **Defense-in-Depth** (Layer 7 SASL identification + Layer 4 Istio mTLS wire encryption).
+> - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
+
 
 ### 3. 🌐 Open Local Browser Tunnels & Endpoint Access
 Expose all internal services and web consoles to `localhost`:
