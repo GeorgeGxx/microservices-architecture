@@ -111,3 +111,28 @@ spec:
             limits:
               cpu: "1000m"
               memory: "512Mi"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: vault-servicemonitor
+  namespace: vault
+  labels:
+    app: vault
+    release: kube-prometheus
+spec:
+  namespaceSelector:
+    matchNames:
+      - vault
+  selector:
+    matchLabels:
+      app: vault
+  endpoints:
+    - port: http
+      path: /v1/sys/metrics
+      params:
+        format:
+          - prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+
