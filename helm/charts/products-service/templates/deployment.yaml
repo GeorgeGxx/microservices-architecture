@@ -7,7 +7,9 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
+{{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
+{{- end }}
   selector:
     matchLabels:
       app: products-service
@@ -15,6 +17,7 @@ spec:
     metadata:
       labels:
         app: products-service
+        version: {{ .Values.version | default "v1" }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}

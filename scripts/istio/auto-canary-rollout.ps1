@@ -24,7 +24,7 @@ param(
     [int]$StepDurationSeconds = 15,
     [double]$MaxErrorRatePercent = 1.0,
     [string]$PrometheusUrl = "http://localhost:9090",
-    [string]$Namespace = "ecommerce"
+    [string]$Namespace = "staging"
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan

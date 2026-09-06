@@ -33,7 +33,7 @@ param(
     [ValidateRange(0, 100)]
     [int]$WeightV2,
 
-    [string]$Namespace = "ecommerce"
+    [string]$Namespace = "staging"
 )
 
 if (($WeightV1 + $WeightV2) -ne 100) {

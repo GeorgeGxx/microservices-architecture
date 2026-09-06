@@ -1,0 +1,56 @@
+{{- if .Values.alertmanagerConfig.enabled }}
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: {{ .Release.Name }}-alertmanager-config
+  labels:
+    app: {{ .Release.Name }}
+    release: kube-prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  route:
+    groupBy: ['alertname', 'job', 'severity']
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    receiver: 'default-local-receiver'
+    routes:
+      {{- if .Values.alertmanagerConfig.slack.enabled }}
+      - receiver: 'slack-notifications'
+        continue: true
+      {{- end }}
+      {{- if .Values.alertmanagerConfig.jira.enabled }}
+      - receiver: 'jira-webhook'
+        matchers:
+          - name: severity
+            value: critical
+        continue: true
+      {{- end }}
+  receivers:
+    - name: 'default-local-receiver'
+    {{- if .Values.alertmanagerConfig.slack.enabled }}
+    - name: 'slack-notifications'
+      slackConfigs:
+        - channel: {{ .Values.alertmanagerConfig.slack.channel | quote }}
+          sendResolved: true
+          apiURL:
+            name: {{ .Values.alertmanagerConfig.slack.apiURLSecret.name | quote }}
+            key: {{ .Values.alertmanagerConfig.slack.apiURLSecret.key | quote }}
+          title: '{{`[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.job }})`}}'
+          text: '{{`{{ range .Alerts }}*Alert:* {{ .Annotations.summary }}\n*Description:* {{ .Annotations.description }}\n*Severity:* {{ .Labels.severity }}\n*Active since:* {{ .StartsAt }}\n{{ end }}`}}'
+    {{- end }}
+    {{- if .Values.alertmanagerConfig.jira.enabled }}
+    - name: 'jira-webhook'
+      webhookConfigs:
+        {{- if .Values.alertmanagerConfig.jira.urlSecret.enabled }}
+        - urlSecret:
+            name: {{ .Values.alertmanagerConfig.jira.urlSecret.name | quote }}
+            key: {{ .Values.alertmanagerConfig.jira.urlSecret.key | quote }}
+          sendResolved: false
+        {{- else }}
+        - url: {{ .Values.alertmanagerConfig.jira.webhookUrl | quote }}
+          sendResolved: false
+        {{- end }}
+    {{- end }}
+{{- end }}
