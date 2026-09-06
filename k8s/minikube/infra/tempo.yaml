@@ -46,6 +46,9 @@ spec:
     - name: grpc-otlp
       port: 4317
       targetPort: 4317
+    - name: http-otlp
+      port: 4318
+      targetPort: 4318
     - name: grpc
       port: 9095
       targetPort: 9095
@@ -85,6 +88,7 @@ spec:
           ports:
             - containerPort: 3200
             - containerPort: 4317
+            - containerPort: 4318
             - containerPort: 9095
           resources:
             requests:

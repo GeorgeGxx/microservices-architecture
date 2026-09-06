@@ -36,7 +36,7 @@ configMap:
     ORDERS_SERVICE_URI: "http://orders-service:8003"
     PRODUCTS_SERVICE_URI: "http://products-service:8004"
     NOTIFICATION_SERVICE_URI: "http://notification-service:8002"
-    OTEL_EXPORTER_OTLP_ENDPOINT: "http://localhost:4318"
+    OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.observability.svc.cluster.local:4318"
     REDIS_HOST: "redis"
     REDIS_PORT: "6379"
     KEYCLOAK_ISSUER_URI: "http://keycloak:8181/realms/microservices-realm"
