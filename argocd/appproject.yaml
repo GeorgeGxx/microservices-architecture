@@ -6,7 +6,7 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: Enterprise Microservices Architecture on Google Kubernetes Engine (GKE)
+  description: Enterprise Microservices Architecture
   sourceRepos:
     - '*'
   destinations:
