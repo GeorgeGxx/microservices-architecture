@@ -14,7 +14,7 @@ variable "kube_context" {
 variable "argocd_admin_password" {
   type        = string
   description = "Initial admin password for ArgoCD"
-  default     = "ArgoCD12345"
+  default     = "admin"
   sensitive   = true
 }
 

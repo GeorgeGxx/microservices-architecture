@@ -140,11 +140,10 @@ if (Test-Path $dashboardsDir) {
 }
 
 # Calibrate ArgoCD: set admin password to 'admin', set url, configure repo secret
-kubectl delete secret argocd-initial-admin-secret -n argocd --ignore-not-found 2>$null
-$rawBcrypt = '$2a$10$79rylVW9piAE6j7aBRJSfeqqIwLT43Lfs3bC19aoaDGVOoCnGiVY.'
-$b64Password = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($rawBcrypt))
-$patchArgocd = "{`"data`":{`"admin.password`":`"$b64Password`"}}"
-kubectl patch secret -n argocd argocd-secret --type merge -p $patchArgocd 2>$null
+$setArgoScript = Join-Path $PSScriptRoot "set_argocd_password.py"
+if (Test-Path $setArgoScript) {
+    python $setArgoScript
+}
 kubectl patch cm -n argocd argocd-cm --type merge -p '{"data":{"url":"https://localhost:30088"}}' 2>$null
 
 $ghToken = (gh auth token 2>$null)
@@ -191,9 +190,11 @@ $tunnels = @(
 Write-Host "`n⏳ Waiting for Keycloak to be Ready in namespace 'staging'..." -ForegroundColor Yellow
 kubectl wait --namespace staging --for=condition=ready pod -l app=keycloak --timeout=120s 2>$null
 
-foreach ($t in $tunnels) {
-    Start-Process -FilePath "kubectl" -ArgumentList "port-forward", "-n", "$($t.Namespace)", "--address", "0.0.0.0,127.0.0.1", "svc/$($t.Svc)", "$($t.LocalPort):$($t.RemotePort)" -WindowStyle Hidden -ErrorAction SilentlyContinue
-    Write-Host "  [+] Tunnel initialized for $($t.Desc) on localhost:$($t.LocalPort)" -ForegroundColor Green
+# Launch resilient tunnel supervisor daemon
+$supervisorScript = Join-Path $PSScriptRoot "supervise-tunnels.py"
+if (Test-Path $supervisorScript) {
+    Start-Process -FilePath "python" -ArgumentList $supervisorScript -WindowStyle Hidden -ErrorAction SilentlyContinue
+    Write-Host "  [+] Resilient tunnel supervisor daemon started in background." -ForegroundColor Green
 }
 Start-Sleep -Seconds 5
 

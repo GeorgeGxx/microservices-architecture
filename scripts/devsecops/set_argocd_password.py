@@ -1,14 +1,23 @@
 import subprocess
-import base64
-from datetime import datetime, timezone
+import datetime
+import time
 
-new_hash = "$2a$10$79rylVW9piAE6j7aBRJSfeqqIwLT43LfsNbC19aoaDGVOoCnGiVY."
-b64_hash = base64.b64encode(new_hash.encode()).decode()
-now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-b64_now = base64.b64encode(now.encode()).decode()
+print("Generating bcrypt hash from argocd-server...")
+hash_out = subprocess.check_output(
+    ["kubectl", "exec", "-n", "argocd", "deploy/argocd-server", "--", "argocd", "account", "bcrypt", "--password", "admin"]
+).decode().strip()
+print(f"Generated hash: {hash_out}")
 
-patch = f'{{"data":{{"admin.password":"{b64_hash}","admin.passwordMtime":"{b64_now}"}}}}'
+mtime = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+patch = f'{{"stringData":{{"admin.password":"{hash_out}","admin.passwordMtime":"{mtime}"}}}}'
 
-subprocess.run(['kubectl', 'patch', 'secret', '-n', 'argocd', 'argocd-secret', '--type', 'merge', '-p', patch], check=True)
-subprocess.run(['kubectl', 'rollout', 'restart', 'deploy/argocd-server', '-n', 'argocd'], check=True)
-print("ArgoCD admin password set to 'admin' and server restarted!")
+print("Patching argocd-secret...")
+subprocess.check_call(["kubectl", "patch", "secret", "-n", "argocd", "argocd-secret", "--type", "merge", "-p", patch])
+
+# Also ensure argocd-initial-admin-secret is deleted so it doesn't conflict
+subprocess.call(["kubectl", "delete", "secret", "argocd-initial-admin-secret", "-n", "argocd", "--ignore-not-found"])
+
+print("Restarting argocd-server deployment...")
+subprocess.check_call(["kubectl", "rollout", "restart", "deployment", "argocd-server", "-n", "argocd"])
+subprocess.check_call(["kubectl", "rollout", "status", "deployment", "argocd-server", "-n", "argocd", "--timeout=90s"])
+print("ArgoCD admin password successfully updated to 'admin'!")
