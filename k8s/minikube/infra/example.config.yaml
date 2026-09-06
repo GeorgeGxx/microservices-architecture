@@ -11,7 +11,7 @@ data:
   ORDERS_SERVICE_NAME: "orders-service"
   PRODUCTS_SERVICE_NAME: "products-service"
 
-  # 🔹 Service Discovery Nativo (CoreDNS / Istio Mesh)
+  # 🔹 Native Service Discovery (CoreDNS / Istio Mesh)
   INVENTORY_SERVICE_URI: "http://inventory-service:8001"
   ORDERS_SERVICE_URI: "http://orders-service:8003"
   PRODUCTS_SERVICE_URI: "http://products-service:8004"
@@ -63,5 +63,5 @@ stringData:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: <password>
   REDIS_PASSWORD: <password>
-  # Se inyecta automáticamente al ejecutar: python scripts/bootstrap_keycloak.py
-  KEYCLOAK_CLIENT_SECRET: <TU_KEYCLOAK_CLIENT_SECRET>
+  # Automatically injected when running: python scripts/bootstrap_keycloak.py
+  KEYCLOAK_CLIENT_SECRET: <YOUR_KEYCLOAK_CLIENT_SECRET>

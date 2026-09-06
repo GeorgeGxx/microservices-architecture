@@ -31,9 +31,9 @@ spec:
         app: redis
     spec:
       automountServiceAccountToken: false
-      # redis:8.8.1-alpine SÍ soporta correr como no-root de forma nativa
-      # (a diferencia de postgres/mysql, no necesita chown de un data
-      # dir preexistente en el primer boot) — no hace falta initContainer.
+      # redis:8.8.1-alpine DOES support running as non-root natively
+      # (unlike postgres/mysql, it does not require a chown of a pre-existing data
+      # dir on initial boot) — no initContainer needed.
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
