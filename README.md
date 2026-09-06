@@ -315,16 +315,17 @@ When you are ready to enforce strict blocking in production:
 - [🏢 Microservices Architecture: Multi-Cloud (AWS, Azure, GCP) \& Multi-CI/CD Platform](#-microservices-architecture-multi-cloud-aws-azure-gcp--multi-cicd-platform)
   - [🏛️ System Architecture](#️-system-architecture)
     - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
+  - [🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD \& Minikube)](#️-100-local-enterprise-devsecops-platform-12-stage-cicd--minikube)
     - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
     - [⚙️ Platform Operational Lifecycle Commands](#️-platform-operational-lifecycle-commands)
-    - [🛡️ DevSecOps & Governance Hub](#️-devsecops--governance-hub)
+    - [🛡️ DevSecOps \& Governance Hub](#️-devsecops--governance-hub)
       - [📂 Directory Structure](#-directory-structure)
       - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
-      - [🚀 Deployment & Operations Guide: 100% Local Enterprise DevSecOps on Minikube](#-deployment--operations-guide-100-local-enterprise-devsecops-on-minikube)
-        - [📋 1. Resource Allocation & Minikube Startup](#-1-resource-allocation--minikube-startup)
-        - [🐳 2. Docker Hub Authentication & Secrets Configuration](#-2-docker-hub-authentication--secrets-configuration)
+      - [🚀 Deployment \& Operations Guide: 100% Local Enterprise DevSecOps on Minikube](#-deployment--operations-guide-100-local-enterprise-devsecops-on-minikube)
+        - [📋 1. Resource Allocation \& Minikube Startup](#-1-resource-allocation--minikube-startup)
+        - [🐳 2. Docker Hub Authentication \& Secrets Configuration](#-2-docker-hub-authentication--secrets-configuration)
         - [🏗️ 3. Platform Deployment with Terraform](#️-3-platform-deployment-with-terraform)
-        - [🛡️ 4. Apply Gatekeeper Templates & Constraints](#️-4-apply-gatekeeper-templates--constraints)
+        - [🛡️ 4. Apply Gatekeeper Templates \& Constraints](#️-4-apply-gatekeeper-templates--constraints)
         - [🏃 5. Launch the GitHub Actions Self-Hosted Runner](#-5-launch-the-github-actions-self-hosted-runner)
         - [🔄 6. The 12-Stage Enterprise Pipeline Execution](#-6-the-12-stage-enterprise-pipeline-execution)
         - [🎯 7. Transitioning to Maturity Mode (Strict Enforce / Hard-Gate)](#-7-transitioning-to-maturity-mode-strict-enforce--hard-gate)
@@ -359,6 +360,10 @@ When you are ready to enforce strict blocking in production:
   - [🧪 Automated Testing, Load Simulation \& Chaos Engineering](#-automated-testing-load-simulation--chaos-engineering)
     - [1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate-traffic.py`)](#1--legitimate-e-commerce-traffic-generator-simulate-trafficpy)
     - [2. ⚡ Resilience4j Circuit Breaker State Verification](#2--resilience4j-circuit-breaker-state-verification)
+      - [Step-by-Step Test Procedure:](#step-by-step-test-procedure)
+        - [🔴 Step A: Trip Circuit Breaker into OPEN (Red `#ef4444`)](#-step-a-trip-circuit-breaker-into-open-red-ef4444)
+        - [🟡 Step B: Observe Transition into HALF\_OPEN (Yellow `#f59e0b`)](#-step-b-observe-transition-into-half_open-yellow-f59e0b)
+        - [🟢 Step C: Restore Backend Health and Return to CLOSED (Green `#10b981`)](#-step-c-restore-backend-health-and-return-to-closed-green-10b981)
     - [3. 💥 Chaos Engineering \& Fault Injection (`simulate-chaos.py`)](#3--chaos-engineering--fault-injection-simulate-chaospy)
     - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate-ddos.py`)](#4-️-ddos--rate-limiting-stress-attacks-simulate-ddospy)
     - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
@@ -368,6 +373,7 @@ When you are ready to enforce strict blocking in production:
     - [2. 📜 Grafana Loki (Centralized Logs \& LogQL) — `loki-ds`](#2--grafana-loki-centralized-logs--logql--loki-ds)
     - [3. 🔍 Grafana Tempo (Distributed Traces \& TraceQL) — `tempo-ds`](#3--grafana-tempo-distributed-traces--traceql--tempo-ds)
     - [4. 📊 Pre-Provisioned Universal Grafana Dashboards](#4--pre-provisioned-universal-grafana-dashboards)
+      - [🎯 Dynamic Interactive Filtering (`Filter Microservice`)](#-dynamic-interactive-filtering-filter-microservice)
       - [🏢 A. Business Intelligence \& Inventory Operations (`business-operations-dashboard.json`)](#-a-business-intelligence--inventory-operations-business-operations-dashboardjson)
       - [🛡️ B. Technical, Infrastructure \& Security Operations (`technical-security-dashboard.json`)](#️-b-technical-infrastructure--security-operations-technical-security-dashboardjson)
   - [☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)](#️-terraform-multi-cloud-infrastructure-aws-azure-gcp)
@@ -725,6 +731,7 @@ Once tunnels are active, access local web interfaces:
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
 - **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
 - **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
+- **ArgoCD Web UI:** [http://localhost:8080](http://localhost:8080)
 
 Alternatively, access services directly via Minikube NodePort without background tunnels:
 - **Frontend SPA:** `http://$(minikube ip):30080`
@@ -734,6 +741,7 @@ Alternatively, access services directly via Minikube NodePort without background
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
 - **Grafana LGTM:** `http://$(minikube ip):30300`
 - **Prometheus:** `http://$(minikube ip):30090`
+- **ArgoCD Web UI:** `http://$(minikube ip):30808`
 
 > 💡 **Production Compute Allocation:** All Kubernetes workloads and infrastructure manifests are engineered with **production-grade Right-Sizing**. Review the complete [Kubernetes Workload Right-Sizing & Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation) matrix for detailed CPU, memory, and storage limits.
 
