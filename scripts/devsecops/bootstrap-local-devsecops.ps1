@@ -124,6 +124,12 @@ $infraDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\infra"
 if (Test-Path "$infraDir\loki.yaml") {
     kubectl apply -f "$infraDir\loki.yaml" -n observability 2>$null
 }
+if (Test-Path "$infraDir\tempo.yaml") {
+    kubectl apply -f "$infraDir\tempo.yaml" -n observability 2>$null
+}
+if (Test-Path "$infraDir\otel.yaml") {
+    kubectl apply -f "$infraDir\otel.yaml" -n observability 2>$null
+}
 if (Test-Path "$infraDir\alloy.yaml") {
     kubectl apply -f "$infraDir\alloy.yaml" -n observability 2>$null
 }
