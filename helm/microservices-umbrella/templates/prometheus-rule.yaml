@@ -6,6 +6,8 @@ metadata:
   labels:
     app: {{ .Release.Name }}
     release: prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   groups:
     - name: microservices-architecture-alerts

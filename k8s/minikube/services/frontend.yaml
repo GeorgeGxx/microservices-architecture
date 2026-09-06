@@ -5,6 +5,8 @@ metadata:
   labels:
     app: frontend
     tier: presentation
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   replicas: 1
   selector:
@@ -53,6 +55,8 @@ metadata:
   name: frontend
   labels:
     app: frontend
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
 spec:
   type: NodePort
   ports:

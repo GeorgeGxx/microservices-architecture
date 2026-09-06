@@ -4,6 +4,8 @@ metadata:
   name: {{ include "orders-service.fullname" . }}
   labels:
     {{- include "orders-service.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   type: {{ .Values.service.type }}
   ports:

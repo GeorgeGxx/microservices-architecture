@@ -4,6 +4,8 @@ metadata:
   name: {{ include "inventory-service.fullname" . }}
   labels:
     {{- include "inventory-service.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
