@@ -1679,6 +1679,291 @@ flowchart TD
 
 ---
 
+## 🔄 Automated & Manual Rollback Operations Guide (Multi-Cloud & Multi-CI/CD)
+
+The platform implements an enterprise **4-Tier Automated Rollback Engine** across all CI/CD platforms (**GitHub Actions**, **Azure DevOps**, **Bitbucket Pipelines**) and GitOps (**ArgoCD**), ensuring zero downtime and immediate recovery from faulty deployments or degraded canary releases:
+
+```mermaid
+flowchart TD
+    A[🚀 Trigger Deployment] --> B[Stage 6: Helm Upgrade]
+    B -->|Pods Crash / Timeout > 5m| C[Tier 1: Helm --atomic Rollback]
+    B -->|Pods Ready 100%| D[Stages 7-10: Automated QA Suite]
+    D -->|Newman / Cypress / k6 Fail| E[Tier 2: CI/CD Automated Staging Rollback]
+    D -->|All QA Gates Pass| F[Stage 12: Production Canary 10%]
+    F -->|Rollout Timeout / Probe Failure| G[Tier 3: Emergency Canary Rollback]
+    F -->|Stabilized & Verified| H[Production Live 100%]
+    H -->|Production Outage / CVE| I[Tier 4: GitOps Rollback via ArgoCD]
+```
+
+### 1. 🛡️ The 4-Tier Automated Rollback Engine
+
+| Tier | Layer | Trigger Condition | Automated Action |
+| :--- | :--- | :--- | :--- |
+| **Tier 1** | **Helm Deploy Engine** | Pod enters `CrashLoopBackOff`, fails `readinessProbe`, or exceeds 5 min timeout. | `--atomic` and `--cleanup-on-fail` automatically abort the upgrade, clean up orphaned resources, and revert Kubernetes pods to the previous healthy revision. |
+| **Tier 2** | **Post-Deploy QA Failure** | Pods start, but Newman API contract, Cypress E2E, or k6 performance tests fail. | **GitHub Actions:** Job `rollback-staging` runs `if: failure()`.<br/>**Azure DevOps:** Stage `RollbackStaging` runs `condition: failed()`.<br/>**Bitbucket:** Step `&rollback-gke-staging` executes `helm rollback`. |
+| **Tier 3** | **Production Canary Health** | Canary rollout fails to stabilize within 2 minutes (`kubectl rollout status`). | CI/CD immediately executes `helm rollback microservices --namespace production --wait`, aborting traffic shift and protecting 100% of live users. |
+| **Tier 4** | **GitOps & Self-Healing** | Declarative configuration drift or post-release production issue. | **ArgoCD:** Configured with `PruneLast=true` (ensures new pods are healthy before destroying old pods) and exponential backoff `retry` policy (5 retries up to 3m). |
+
+---
+
+### 2. 🕹️ How to Execute Manual Rollbacks (CLI & UI Runbooks)
+
+#### A. Direct Kubernetes / Helm CLI (Universal):
+To immediately inspect revision history and roll back in any cluster (Minikube, EKS, AKS, GKE):
+```bash
+# 1. View deployment revision history:
+helm history microservices -n staging
+helm history microservices -n production
+
+# 2. Roll back to the immediately preceding revision:
+helm rollback microservices -n staging
+helm rollback microservices -n production
+
+# 3. Roll back to a specific revision (e.g. revision 3):
+helm rollback microservices 3 -n production --wait --timeout 5m
+```
+
+#### B. GitOps Rollback in ArgoCD:
+* **The GitOps Way (Recommended):** Revert the commit in Git so that the Git history remains the single source of truth:
+  ```bash
+  git revert HEAD
+  git push origin main
+  ```
+  ArgoCD will detect the revert and automatically reconcile (`selfHeal: true`) the cluster to the restored state.
+* **Emergency UI / CLI Rollback:**
+  * In the **ArgoCD Web Console**: Navigate to the application (`microservices-prod`) ➔ Click **History and Rollback** ➔ Select the desired revision ➔ Click **Rollback** (this temporarily pauses auto-sync until the incident is investigated).
+  * Via ArgoCD CLI:
+    ```bash
+    argocd app rollback microservices-prod <revision-id>
+    ```
+
+#### C. GitHub Actions:
+* If a release fails during staging verification, the `rollback-staging` job executes automatically.
+* To redeploy an earlier release manually, open the **Actions** tab ➔ Select the service workflow ➔ Click **Run workflow** ➔ Select the target branch or tag.
+
+#### D. Azure DevOps:
+* The `RollbackStaging` stage automatically triggers whenever `IntegrationTests`, `E2ETests`, `PerformanceTests`, or `DASTScan` fail.
+* To redeploy a previous build: Open **Pipelines** ➔ Select a previous successful build run ➔ Click **Run new** or **Redeploy stage**.
+
+#### E. Bitbucket Pipelines:
+* The step `&rollback-gke-staging` can be triggered or called via `after-script` with `$BITBUCKET_EXIT_CODE`.
+* To deploy a known stable version: Navigate to **Pipelines** ➔ **Run pipeline** ➔ Select branch and run custom `deploy-service` with `IMAGE_TAG=<previous-sha>`.
+
+---
+
+## ☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)
+
+This directory provides enterprise-grade reference templates for **Amazon Web Services (AWS)**, adhering to Zero-Trust security, GitOps best practices, and immutable delivery standards.
+
+> [!NOTE]
+> **Inert Reference State:** These files use the `.example` extension and are intentionally located outside `.github/workflows/`. **GitHub Actions will NOT trigger them** and **ArgoCD will NOT reconcile them** automatically. They serve as production-ready blueprints for AWS cloud deployments.
+
+### Included Reference Architecture Templates
+
+* **[github-actions-eks-pipeline.yml.example](./devsecops/reference/aws-eks/github-actions-eks-pipeline.yml.example):**
+  * **Dynamic S3 `.tfstate` Discovery:** Queries remote Terraform S3 state and DynamoDB lock to automatically extract EKS cluster name, ECR URLs, ALB ingress endpoints, frontend S3 bucket, and CloudFront distribution ID.
+  * **Zero-Trust IAM OIDC:** Uses `aws-actions/configure-aws-credentials@v4` with web identity federation (zero static keys).
+  * **Frontend SPA Deployment (Angular 21):** S3 sync with immutable caching headers (`max-age=31536000, immutable`), `no-cache` for `index.html`, and atomic CloudFront CDN invalidation (`/*`).
+  * **Amazon ECR Hardening:** Immutable tagging with Trivy vulnerability scanning gates.
+  * **Automated Rollbacks:** Dedicated `rollback-staging-eks` job and canary health check auto-rollback.
+* **[argocd-application-eks.yaml.example](./devsecops/reference/aws-eks/argocd-application-eks.yaml.example):**
+  * Declarative GitOps Application manifest for external AWS EKS clusters.
+  * Configures **AWS Load Balancer Controller (ALB)** with ACM TLS certificate ARN, AWS WAFv2 WebACL ARN, and SSL redirection.
+  * Injects **IRSA (IAM Roles for Service Accounts)** role ARN, **EBS CSI `gp3`** storage class, and **External Secrets Operator (ESO)** AWS Secrets Manager parameters.
+* **[argocd-applicationset-eks.yaml.example](./devsecops/reference/aws-eks/argocd-applicationset-eks.yaml.example):**
+  * Multi-environment matrix automating both `staging` (automated sync) and `prod` (manual gate with canary routing).
+
+### 🛠️ AWS Blueprint Step-by-Step Activation Guide
+
+#### 1. AWS IAM OIDC Configuration (Zero-Trust)
+To allow GitHub Actions to deploy to AWS without static access keys:
+1. Create an OpenID Connect (OIDC) identity provider in AWS IAM with provider URL `https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com`.
+2. Create an IAM Role (e.g., `GitHubActions-EKS-Deployer`) with an assume role policy trusting `repo:GeorgeGxx/microservices-architecture:*`.
+3. Add the ARN as a repository secret: `AWS_ROLE_ARN`.
+
+#### 2. Frontend S3 & CloudFront Setup
+* Configure an S3 Bucket with **Origin Access Control (OAC)** enabled so that direct public HTTP access to the bucket is blocked.
+* CloudFront serves all traffic over HTTPS with TLS 1.3.
+* During CI/CD, hashed bundles (`*.js`, `*.css`) are uploaded with `max-age=31536000, immutable`, while `index.html` is uploaded with `no-cache` to ensure instant updates.
+
+#### 3. Deploying to Amazon EKS via GitHub Actions
+1. Copy `github-actions-eks-pipeline.yml.example` to `.github/workflows/aws-eks-pipeline.yml`.
+2. Commit and push to Git. The workflow can now be triggered manually via the **Actions** tab or configured for automated push/merge triggers.
+
+#### 4. Deploying to Amazon EKS via ArgoCD
+1. Register your AWS EKS cluster in ArgoCD:
+   ```bash
+   aws eks update-kubeconfig --region us-east-1 --name msa-aws-prod-eks
+   argocd cluster add <cluster-context> --name aws-eks-prod
+   ```
+2. Apply the application manifest:
+   ```bash
+   kubectl apply -f ./devsecops/reference/aws-eks/argocd-application-eks.yaml.example
+   ```
+
+---
+
+## 🛠️ Enterprise Cloud Automation & FinOps Tooling (`scripts/cloud/`)
+
+The platform includes production-grade CLI tools for multi-cloud governance, disaster recovery, and storage lifecycle management:
+
+| Tool | Cloud | Purpose | Runbook Command |
+| :--- | :---: | :--- | :--- |
+| **[`audit-aws-resources.py`](./scripts/cloud/aws/audit-aws-resources.py)** | ☁️ AWS | **FinOps & Resource Inventory:** Audits active EKS clusters, ECR repositories, RDS databases, ALBs, VPCs, and EBS volumes to prevent orphaned resource billing. | `python scripts/cloud/aws/audit-aws-resources.py --region us-east-1 --service all-services` |
+| **[`clean-orphan-resources.py`](./scripts/cloud/aws/clean-orphan-resources.py)** | ☁️ AWS | **FinOps & Orphan Purger:** Detects and cleans unattached EBS volumes and unassociated Elastic IPs across regions to eliminate idle charges. | `python scripts/cloud/aws/clean-orphan-resources.py --region us-east-1 --apply` |
+| **[`check-security-groups.py`](./scripts/cloud/aws/check-security-groups.py)** | ☁️ AWS | **DevSecOps Port Auditor:** Detects open `0.0.0.0/0` ingress rules on sensitive ports (SSH 22, RDP 3389, DBs 5432/3306, KubeAPI 6443). | `python scripts/cloud/aws/check-security-groups.py --region us-east-1 --strict` |
+| **[`enforce-cloudwatch-retention.py`](./scripts/cloud/aws/enforce-cloudwatch-retention.py)** | ☁️ AWS | **FinOps Log Enforcer:** Audits Log Groups with 'Never Expire' policies and sets compliant retention (14/30/90 days) to prevent runaway costs. | `python scripts/cloud/aws/enforce-cloudwatch-retention.py --retention-days 30 --apply` |
+| **[`audit-iam-credentials.py`](./scripts/cloud/aws/audit-iam-credentials.py)** | ☁️ AWS | **CIS IAM Benchmark Auditor:** Flags Access Keys older than 90 days, inactive credentials, and console users lacking MFA. | `python scripts/cloud/aws/audit-iam-credentials.py --max-key-age 90 --strict` |
+| **[`acm-cert-expiration-watcher.py`](./scripts/cloud/aws/acm-cert-expiration-watcher.py)** | ☁️ AWS | **SSL/TLS Expiration Watcher:** Proactively monitors ACM certificates on ALBs and CloudFront expiring within $N$ days. | `python scripts/cloud/aws/acm-cert-expiration-watcher.py --warning-days 30 --strict` |
+| **[`rds-snapshot-backup.py`](./scripts/cloud/aws/rds-snapshot-backup.py)** | ☁️ AWS | **Disaster Recovery:** Automated timestamped snapshots of RDS PostgreSQL before CI/CD migrations with automated retention purging. | `python scripts/cloud/aws/rds-snapshot-backup.py --db-instance msa-aws-prod-postgres --environment prod --wait` |
+| **[`s3-state-dr-sync.py`](./scripts/cloud/aws/s3-state-dr-sync.py)** | ☁️ AWS | **Cross-Region DR:** Replicates Terraform `.tfstate` or frontend builds from `us-east-1` to a secondary disaster recovery bucket. | `python scripts/cloud/aws/s3-state-dr-sync.py --source georgegxx-ecommerce-tfstate --dest georgegxx-ecommerce-tfstate-dr` |
+| **[`s3-bucket-security-policy.py`](./scripts/cloud/aws/s3-bucket-security-policy.py)** | ☁️ AWS | **Security Hardening:** Enforces strict TLS 1.2+ HTTPS-only policies, public access blocks, and CloudFront OAC policies. | `python scripts/cloud/aws/s3-bucket-security-policy.py --bucket my-bucket --mode tls-enforce` |
+| **[`gke-disk-cleanup.py`](./scripts/cloud/gcp/gke-disk-cleanup.py)** | ☁️ GCP | **Persistent Disk FinOps:** Automatically purges expired GKE Persistent Disk snapshots (Kafka, PostgreSQL) older than $N$ days. | `python scripts/cloud/gcp/gke-disk-cleanup.py --project-id msa-gcp-prod --retention-days 14` |
+
+#### Detailed Cloud Automation Script Playbooks:
+
+##### 1. 🔍 AWS Resource Inventory & FinOps Auditor
+* **File:** [`scripts/cloud/aws/audit-aws-resources.py`](./scripts/cloud/aws/audit-aws-resources.py)
+* **Purpose:** Multi-region discovery and audit of active cloud resources with dedicated support for Kubernetes microservices infrastructure (EKS, ECR, RDS, ALB/ELBv2, VPC, EBS) to detect orphaned resources and optimize billing.
+* **Usage Examples:**
+  ```bash
+  # Audit all services in the primary region:
+  python scripts/cloud/aws/audit-aws-resources.py --region us-east-1 --service all-services
+
+  # Multi-region sweep for active EKS clusters:
+  python scripts/cloud/aws/audit-aws-resources.py --region all --service eks
+
+  # Export active RDS databases to JSON:
+  python scripts/cloud/aws/audit-aws-resources.py --region us-east-1 --service rds --json
+  ```
+
+##### 2. 🧹 AWS Orphan Resource & Idle FinOps Cleaner
+* **File:** [`scripts/cloud/aws/clean-orphan-resources.py`](./scripts/cloud/aws/clean-orphan-resources.py)
+* **Purpose:** Detects and cleans unattached EBS volumes (`status=available`) and unassociated Elastic IPs across AWS regions to eliminate wasted cloud spend.
+* **Usage Examples:**
+  ```bash
+  # Safe dry-run audit in us-east-1:
+  python scripts/cloud/aws/clean-orphan-resources.py --region us-east-1
+
+  # Multi-region sweep with JSON reporting:
+  python scripts/cloud/aws/clean-orphan-resources.py --region all --json
+
+  # Live deletion of orphan resources:
+  python scripts/cloud/aws/clean-orphan-resources.py --region us-east-1 --apply
+  ```
+
+##### 3. 🛡️ AWS Security Group & Open Ingress Inspector
+* **File:** [`scripts/cloud/aws/check-security-groups.py`](./scripts/cloud/aws/check-security-groups.py)
+* **Purpose:** Scans EC2 and VPC security groups for open `0.0.0.0/0` and `::/0` access to sensitive ports (SSH 22, RDP 3389, PostgreSQL 5432, MySQL 3306, Redis 6379, MongoDB 27017, Kubernetes API 6443).
+* **Usage Examples:**
+  ```bash
+  # Scan primary region:
+  python scripts/cloud/aws/check-security-groups.py --region us-east-1
+
+  # Multi-region scan with strict exit code (fails CI/CD on violations):
+  python scripts/cloud/aws/check-security-groups.py --region all --strict
+  ```
+
+##### 4. 📋 CloudWatch Log Retention Enforcer
+* **File:** [`scripts/cloud/aws/enforce-cloudwatch-retention.py`](./scripts/cloud/aws/enforce-cloudwatch-retention.py)
+* **Purpose:** Audits CloudWatch Log Groups configured with 'Never Expire' and applies a compliant retention policy (e.g. 14, 30, or 90 days) to prevent unexpected storage bills.
+* **Usage Examples:**
+  ```bash
+  # Dry-run audit for infinite retention log groups:
+  python scripts/cloud/aws/enforce-cloudwatch-retention.py --region us-east-1
+
+  # Enforce 30-day retention on all groups:
+  python scripts/cloud/aws/enforce-cloudwatch-retention.py --retention-days 30 --apply
+
+  # Filter specific prefix (e.g. EKS microservices):
+  python scripts/cloud/aws/enforce-cloudwatch-retention.py --prefix /aws/eks/ --retention-days 14 --apply
+  ```
+
+##### 5. 🔑 IAM Credential & CIS Benchmark Auditor
+* **File:** [`scripts/cloud/aws/audit-iam-credentials.py`](./scripts/cloud/aws/audit-iam-credentials.py)
+* **Purpose:** Enforces CIS AWS Foundations Benchmark by identifying Access Keys older than 90 days, inactive credentials (>90 days without use), and console users lacking MFA.
+* **Usage Examples:**
+  ```bash
+  # Standard audit (90-day threshold):
+  python scripts/cloud/aws/audit-iam-credentials.py
+
+  # Custom 60-day threshold with strict CI/CD gate:
+  python scripts/cloud/aws/audit-iam-credentials.py --max-key-age 60 --strict
+  ```
+
+##### 6. 🔒 ACM SSL/TLS Certificate Expiration Watcher
+* **File:** [`scripts/cloud/aws/acm-cert-expiration-watcher.py`](./scripts/cloud/aws/acm-cert-expiration-watcher.py)
+* **Purpose:** Proactively checks AWS Certificate Manager (ACM) SSL/TLS certificates on ALBs and CloudFront for expiration within $N$ days and verifies DNS renewal status.
+* **Usage Examples:**
+  ```bash
+  # Check primary region (30-day warning threshold):
+  python scripts/cloud/aws/acm-cert-expiration-watcher.py --region us-east-1
+
+  # Multi-region monitor with 45-day threshold and strict failure:
+  python scripts/cloud/aws/acm-cert-expiration-watcher.py --region all --warning-days 45 --strict
+  ```
+
+##### 7. 💾 Automated RDS PostgreSQL Snapshot Manager
+* **File:** [`scripts/cloud/aws/rds-snapshot-backup.py`](./scripts/cloud/aws/rds-snapshot-backup.py)
+* **Purpose:** Creates timestamped, compliance-tagged RDS snapshots before CI/CD deployments and enforces automated retention policies (purging snapshots older than $N$ days).
+* **Usage Examples:**
+  ```bash
+  # Pre-deployment snapshot of production PostgreSQL:
+  python scripts/cloud/aws/rds-snapshot-backup.py --db-instance msa-aws-prod-postgres --environment prod
+
+  # Create snapshot, wait for completion, and enforce 14-day retention:
+  python scripts/cloud/aws/rds-snapshot-backup.py --db-instance ecommerce-db --retention-days 14 --wait
+  ```
+
+##### 8. 🔄 S3 Cross-Region Disaster Recovery & State Sync
+* **File:** [`scripts/cloud/aws/s3-state-dr-sync.py`](./scripts/cloud/aws/s3-state-dr-sync.py)
+* **Purpose:** Safely replicates Terraform `.tfstate` archives or frontend static assets from a primary region (`us-east-1`) to a disaster recovery region (`us-west-2`).
+* **Usage Examples:**
+  ```bash
+  # Sync Terraform state bucket to DR bucket:
+  python scripts/cloud/aws/s3-state-dr-sync.py --source georgegxx-ecommerce-tfstate --dest georgegxx-ecommerce-tfstate-dr --dest-region us-west-2
+
+  # Dry-run preview:
+  python scripts/cloud/aws/s3-state-dr-sync.py --source my-frontend-bucket --dest my-backup-bucket --dry-run
+  ```
+
+##### 9. 🛡️ S3 Bucket Security Policy & OAC Hardening
+* **File:** [`scripts/cloud/aws/s3-bucket-security-policy.py`](./scripts/cloud/aws/s3-bucket-security-policy.py)
+* **Purpose:** Enforces TLS 1.2+ HTTPS-only transmission, blocks public exposure, and attaches CloudFront Origin Access Control (OAC) policies for private frontend deployments.
+* **Usage Examples:**
+  ```bash
+  # Attach CloudFront OAC policy to storefront S3 bucket:
+  python scripts/cloud/aws/s3-bucket-security-policy.py --bucket georgegxx-frontend-prod --mode cloudfront-oac --cf-arn arn:aws:cloudfront::123456789012:distribution/E1234EXAMPLE
+
+  # Enforce strict TLS-only requests on the Terraform state bucket:
+  python scripts/cloud/aws/s3-bucket-security-policy.py --bucket georgegxx-ecommerce-tfstate --mode tls-enforce
+  ```
+
+##### 10. 🧹 GKE Persistent Disk Snapshot FinOps Cleanup (GCP)
+* **File:** [`scripts/cloud/gcp/gke-disk-cleanup.py`](./scripts/cloud/gcp/gke-disk-cleanup.py)
+* **Purpose:** Audits and purges expired Google Cloud Persistent Disk snapshots generated by GKE stateful workloads (Kafka, PostgreSQL) to optimize storage costs.
+* **Usage Examples:**
+  ```bash
+  # Purge snapshots older than 14 days in GCP project:
+  python scripts/cloud/gcp/gke-disk-cleanup.py --project-id msa-gcp-prod --retention-days 14
+
+  # Simulation dry-run mode:
+  python scripts/cloud/gcp/gke-disk-cleanup.py --project-id msa-gcp-prod --dry-run
+  ```
+
+---
+
+## 🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)
+
+The platform provides lightweight, cloud-agnostic tools for post-deployment verification and zero-trust credential bootstrapping:
+
+| Tool | Purpose | Key DevSecOps Gates | Runbook Command |
+| :--- | :--- | :--- | :--- |
+| **[`endpoint-smoke-test.py`](./scripts/devsecops/endpoint-smoke-test.py)** | **Synthetic Post-Deployment Smoke Prober:** Works identically across Minikube, EKS, AKS, and GKE. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• **Negative Security Auth Gate:** Asserts 401/403 on unauthenticated routes (`/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/devsecops/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
+| **[`generate-secure-secrets.py`](./scripts/devsecops/generate-secure-secrets.py)** | **Zero-Trust Credential & Secret Generator:** Replaces default passwords with high-entropy cryptographic keys (CSPRNG). | • Generates database passwords, Keycloak client secrets, and 256-bit JWT keys<br/>• Exports directly to `.env`, JSON, or Kubernetes `Secret` YAML manifests | `python scripts/devsecops/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
+
+---
+
 ## 📄 License
 
 *(Add your license here — e.g. MIT, Apache 2.0 — and link a `LICENSE` file at the repo root.)*
