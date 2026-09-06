@@ -164,7 +164,32 @@ stringData:
   password: $ghToken
   username: not-used
 "@
-    $repoSecret | kubectl apply -f - 2>$null
+} else {
+    $repoSecret = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-microservices
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  type: git
+  url: https://github.com/GeorgeGxx/microservices-architecture.git
+"@
+}
+$repoSecret | kubectl apply -f - 2>$null
+
+# Register ArgoCD AppProject and Application with Sync Waves
+$argoProject = Join-Path $PSScriptRoot "..\..\argocd\appproject.yaml"
+$argoAppStaging = Join-Path $PSScriptRoot "..\..\argocd\application-staging.yaml"
+if (Test-Path $argoProject) {
+    kubectl apply -f $argoProject 2>$null
+}
+if (Test-Path $argoAppStaging) {
+    kubectl apply -f $argoAppStaging 2>$null
+    Write-Host "  [OK] ArgoCD Application 'microservices-staging' provisioned with GitOps Sync Waves." -ForegroundColor Green
 }
 
 # 5.3 Spawn background port-forward tunnels for Windows localhost access

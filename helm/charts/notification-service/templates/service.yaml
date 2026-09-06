@@ -4,6 +4,8 @@ metadata:
   name: {{ include "notification-service.fullname" . }}
   labels:
     {{- include "notification-service.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   type: {{ .Values.service.type }}
   ports:

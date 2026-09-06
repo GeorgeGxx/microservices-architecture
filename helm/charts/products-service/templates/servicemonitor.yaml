@@ -6,6 +6,8 @@ metadata:
   labels:
     app: {{ include "products-service.fullname" . }}
     release: prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
 spec:
   selector:
     matchLabels:
