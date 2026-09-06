@@ -143,7 +143,54 @@ All services and dashboards are automated via background port-forwarding and ava
 .\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState
 ```
 
-For complete architecture, security policies, and step-by-step guides, refer to [`devsecops/README.md`](./devsecops/README.md) and [`devsecops/DEVSECOPS_LOCAL_GUIDE.md`](./devsecops/DEVSECOPS_LOCAL_GUIDE.md).
+For complete architecture, security policies, and step-by-step guides, refer to [`devsecops/DEVSECOPS_LOCAL_GUIDE.md`](./devsecops/DEVSECOPS_LOCAL_GUIDE.md).
+
+### 🛡️ DevSecOps & Governance Hub
+
+This section centralizes all security, compliance, quality, and dynamic testing assets and policies for the `microservices-architecture` ecosystem.
+
+#### 📂 Directory Structure
+
+```
+devsecops/
+├── dast/                      # 🕵️ Dynamic Application Security Testing (DAST)
+│   └── zap/
+│       ├── rules.tsv          # OWASP ZAP threshold calibration & alert overrides
+│       └── zap-baseline.conf  # Execution parameters against Istio Ingress Gateway
+│
+├── policies/                  # 📜 Policy-as-Code (OPA / Rego)
+│   ├── conftest/
+│   │   └── kubernetes.rego    # Shift-Left: Pre-deployment Helm manifests audit (OPA v1)
+│   └── gatekeeper/            # Admission Controller: Runtime enforcement on Minikube
+│       ├── templates/         # ConstraintTemplates (Custom Rego CRDs)
+│       └── constraints/       # Constraints applied to target namespaces (staging / prod)
+│
+├── sast/                      # 🔍 Static Application Security Testing (SAST & Secrets)
+│   ├── gitleaks/
+│   │   └── .gitleaks.toml     # Hardcoded secret, API key, and token detection
+│   └── semgrep/               # Custom source code security rules
+│
+├── compliance/                # 🧰 Software Supply Chain Security
+│   ├── trivy/
+│   │   ├── trivy.yaml         # Container vulnerability scanner configuration
+│   │   └── .trivyignore       # Formal risk acceptance and CVE exception registry
+│   └── sbom/                  # Metadata schemas for CycloneDX / SPDX SBOMs
+│
+└── testing/                   # ⚡ Dynamic & Performance Testing
+    ├── k6/
+    │   └── load-test.js       # Stress testing & p95 latency SLO verification via Istio Gateway
+    └── newman/
+        └── microservices.postman_collection.json # API integration test suite
+```
+
+#### ⚙️ Security Operating Modes: Audit vs. Enforce
+
+| Tool | Current Mode (Audit / Soft-Gate) | Maturity Mode (Enforce / Hard-Gate) |
+| :--- | :--- | :--- |
+| **Trivy** | `--exit-code 0` (Reports vulnerabilities without breaking initial builds). | `--exit-code 1` (Blocks on any unpatched `CRITICAL` CVE not listed in `.trivyignore`). |
+| **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
+| **Conftest (OPA)** | Blocking on privileged containers or missing memory/CPU limits. | Extended blocking (enforces mandatory labels, network policies). |
+| **OWASP ZAP** | Fails on rules marked `FAIL` in `rules.tsv`; advisory on `WARN`. | Strict blocking on security headers and CSP violations. |
 
 ---
 
@@ -152,6 +199,11 @@ For complete architecture, security policies, and step-by-step guides, refer to 
 - [🏢 Microservices Architecture: Multi-Cloud (AWS, Azure, GCP) \& Multi-CI/CD Platform](#-microservices-architecture-multi-cloud-aws-azure-gcp--multi-cicd-platform)
   - [🏛️ System Architecture](#️-system-architecture)
     - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
+    - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
+    - [⚙️ Platform Operational Lifecycle Commands](#️-platform-operational-lifecycle-commands)
+    - [🛡️ DevSecOps & Governance Hub](#️-devsecops--governance-hub)
+      - [📂 Directory Structure](#-directory-structure)
+      - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
   - [📑 Table of Contents](#-table-of-contents)
   - [✅ Prerequisites](#-prerequisites)
     - [⚙️ Kubernetes Workload Right-Sizing \& Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation)
@@ -291,7 +343,8 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **Angular 21 Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern Angular SPA UI |
-| **Spring Cloud API Gateway** | `8080` | `30088` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
+| **Spring Cloud API Gateway** | `8080` | `8080` / `30080` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
+| 🐙 **ArgoCD GitOps** | `30088` | `30088` | Ingress / NodePort | `admin` / `admin` (GitOps Controller & Web UI) |
 | **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
@@ -540,12 +593,13 @@ Once tunnels are active, access local web interfaces:
 - **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
-- **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
+- **ArgoCD GitOps:** [https://localhost:30088](https://localhost:30088) (`admin` / `admin`)
+- **Grafana Observability (Metrics & Logs):** [http://localhost:30030](http://localhost:30030) (`admin` / `admin`)
 - **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
 
 Alternatively, access services directly via Minikube NodePort without background tunnels:
 - **Frontend SPA:** `http://$(minikube ip):30080`
-- **API Gateway:** `http://$(minikube ip):30088`
+- **ArgoCD GitOps:** `https://$(minikube ip):30088`
 - **Keycloak Admin:** `http://$(minikube ip):30181`
 - **Vault Web UI:** `http://$(minikube ip):30820`
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
