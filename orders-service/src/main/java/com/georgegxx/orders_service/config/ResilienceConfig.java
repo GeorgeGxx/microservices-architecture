@@ -1,8 +1,7 @@
 package com.georgegxx.orders_service.config;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.*;
 
 import java.time.Duration;
 
