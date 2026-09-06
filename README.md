@@ -9,6 +9,20 @@ Designed for true **Multi-Cloud Portability & Multi-CI/CD Automation**:
 
 ---
 
+> [!TIP]
+> 📐 **Interactive Architecture Blueprints ([`docs/Diagrams.drawio`](./docs/Diagrams.drawio)):**
+> The platform includes a comprehensive 10-page Draw.io architectural blueprint viewable in VS Code (Draw.io Integration extension) or [app.diagrams.net](https://app.diagrams.net):
+> 1. **General Architecture & Microservices** (Full topology overview)
+> 2. **Event-Driven Messaging** (Kafka KRaft, DLT, Consumer Deduplication)
+> 3. **Zero-Trust Security & Istio Mesh** (Strict mTLS, Ingress Gateway, Kiali)
+> 4. **IAM & Authentication** (Keycloak 26 OIDC, PKCE, Token Relay)
+> 5. **Distributed Resilience & Saga** (Resilience4j, Fallbacks, Idempotency)
+> 6. **Distributed Observability** (Grafana LGTM Stack, Micrometer, Traces, Logs)
+> 7. **Storage & Multi-Database Isolation** (PostgreSQL x4, Redis Cache)
+> 8. **Curated Metrics & Cardinality Engineering** (O(1) Bounded Cohorts, Business KPIs)
+> 9. **Enterprise DevSecOps Platform** (Minikube, 12-Stage CI/CD Pipeline, Gatekeeper)
+> 10. **Production Resiliency, Secrets & Canary** (HPA, PDB, ESO + Vault, Istio Canary, Alertmanager)
+
 ## 🏛️ System Architecture
 
 ```mermaid
@@ -132,6 +146,10 @@ All services and dashboards are automated via background port-forwarding and ava
 ```powershell
 # 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, ArgoCD, Vault, Apps & Tunnels)
 .\scripts\devsecops\bootstrap-local-devsecops.ps1
+
+# Deploy applications including Canary v2 pod (progressive traffic shifting between v1 and v2)
+# Deploy applications with Canary version v2 for zero-downtime progressive testing (e.g. 90% v1, 10% v2)
+.\scripts\devsecops\bootstrap-local-devsecops.ps1 -DeployCanary
 
 # 2. Verify platform health, pods, NodePorts, and Gatekeeper policies across all namespaces
 .\scripts\devsecops\verify-platform.ps1
@@ -409,6 +427,11 @@ When you are ready to enforce strict blocking in production:
     - [1. 📂 Client-Side Canvas Compression \& Base64 Data URL Engine](#1--client-side-canvas-compression--base64-data-url-engine)
     - [2. 💾 PostgreSQL Unlimited TEXT Persistence \& Redis Cache](#2--postgresql-unlimited-text-persistence--redis-cache)
     - [3. 🎨 High-Fidelity Storefront Visual Integration](#3--high-fidelity-storefront-visual-integration)
+  - [🛡️ Production-Grade Cluster Resiliency \& Advanced Operations](#️-production-grade-cluster-resiliency--advanced-operations)
+    - [1. ⚖️ Horizontal Pod Autoscaling (HPA) \& PodDisruptionBudgets (PDB)](#1-️-horizontal-pod-autoscaling-hpa--poddisruptionbudgets-pdb)
+    - [2. 🔐 External Secrets Operator (ESO) \& HashiCorp Vault Synchronization](#2--external-secrets-operator-eso--hashicorp-vault-synchronization)
+    - [3. 🌐 Progressive Canary Deployments in Istio Service Mesh](#3--progressive-canary-deployments-in-istio-service-mesh)
+    - [4. 🚨 Alertmanager Alert Routing (Local Default, Slack \& Jira Ready)](#4--alertmanager-alert-routing-local-default-slack--jira-ready)
   - [📄 License](#-license)
 
 ---

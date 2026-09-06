@@ -340,13 +340,66 @@ def build_drawio_xml():
     add_node(r9, "app_kiali", "1", "<b>🧭 Kiali Visual Mesh</b><br>Port 20001 (/kiali)<br>Real-time Traffic Graph<br>mTLS Encryption Health", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 1170, 480, 240, 90)
     add_node(r9, "app_dbs", "1", "<b>💾 Persistence & Streams</b><br>PostgreSQL (Products, Orders, Inv, KC)<br>Apache Kafka 7.8 (Port 9094 SASL PLAIN)<br>Redis Cache Cluster", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 1440, 480, 240, 90)
 
-    # Section 4: Architecture Operational Summary
     add_node(r9, "ops_box", "1", "<b>⚙️ AUTOMATED LIFECYCLE SCRIPTS (Platform Engineering)</b><br>• <b>Bootstrap Ecosystem:</b> <code>.\\scripts\\devsecops\\bootstrap-local-devsecops.ps1</code> (Deploys Minikube, Terraform, ArgoCD, Prometheus, Gatekeeper, Vault, Keycloak, Frontend & Tunnels).<br>• <b>Health Verification:</b> <code>.\\scripts\\devsecops\\verify-platform.ps1</code> (Runs automated deep diagnostics of all namespaces, pods, NodePorts, and policies).<br>• <b>Teardown & Pause:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1</code> (Gracefully pauses Minikube and frees 12 CPUs & 12 GB RAM, preserving state).<br>• <b>Total Cluster Purge:</b> <code>.\\scripts\\devsecops\\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState</code> (Destroys all volumes and reclaims 80 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
+
+    # =========================================================================
+    # PAGE 10: Production Resiliency, External Secrets, Canary & Alerting
+    # =========================================================================
+    r10 = create_page("page_resiliency_canary_ops", "10. Resiliency, Secrets, Canary & Alerts")
+    add_node(r10, "t10", "1", "<b style='font-size:22px;color:#1E293B;'>PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY & ALERTING ARCHITECTURE</b><br><span style='font-size:13px;color:#64748B;'>Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing</span>", title_style, 300, 25, 1400, 50)
+
+    # Section 1: HPA & PDB Quorum Protection
+    add_node(r10, "c_hpa", "1", "<b>⚖️ AUTOSCALING & HIGH AVAILABILITY (HPA & PDB)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 60, 90, 420, 470)
+    add_node(r10, "n_hpa", "1", "<b>Horizontal Pod Autoscaler (HPA)</b><br>• CPU Target: 70% • Memory Target: 80%<br>• minReplicas: 1 • maxReplicas: 1 (Dev/Staging)<br>• Active metrics-server scrape<br>• Real dynamic scaling under traffic", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 80, 140, 380, 80)
+    add_node(r10, "n_pdb", "1", "<b>PodDisruptionBudgets (PDB)</b><br>• minAvailable: 1 across all 5 services<br>• Guarantees application quorum<br>• Zero downtime during node drains & updates<br>• Dynamic allowedDisruptions calculation", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 80, 240, 380, 80)
+    add_node(r10, "n_pods", "1", "<b>Protected Microservice Deployments</b><br>• api-gateway (Port 8080)<br>• inventory-service (Port 8001)<br>• notification-service (Port 8002)<br>• orders-service (Port 8003)<br>• products-service (Port 8004)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 80, 340, 380, 100)
+    add_node(r10, "n_mem_opt", "1", "<b>💡 Local Memory Safeguard</b><br>Capped to maxReplicas: 1 in staging to prevent<br>JVM heap exhaustion on Windows / Minikube", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 80, 460, 380, 60)
+
+    add_edge(r10, "e_hpa_pod", "1", "Scale Controller", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "n_hpa", "n_pods")
+    add_edge(r10, "e_pdb_pod", "1", "Quorum Guard", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_pdb", "n_pods")
+
+    # Section 2: Vault + External Secrets Operator (ESO)
+    add_node(r10, "c_eso", "1", "<b>🔐 SECRETS MANAGEMENT (ESO + VAULT)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 510, 90, 420, 470)
+    add_node(r10, "n_vault_dev", "1", "<b>HashiCorp Vault (Port 8200)</b><br>• KV-v2 Secrets Engine at 'secret/'<br>• secret/data/application (DB & JWT)<br>• secret/data/api-gateway (Client Secret)<br>• secret/data/orders-service (Kafka)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 530, 140, 380, 80)
+    add_node(r10, "n_store", "1", "<b>SecretStore: vault-secret-store</b><br>• API: external-secrets.io/v1<br>• Auth: Kubernetes Token SecretRef<br>• Target Server: http://vault.vault.svc:8200<br>• Status: Valid (ReadWrite)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 530, 240, 380, 80)
+    add_node(r10, "n_es", "1", "<b>ExternalSecret: microservices-external-secret</b><br>• Refresh Interval: 1h (Auto-reconciliation)<br>• creationPolicy: Merge • deletionPolicy: Retain<br>• Status: SecretSynced (Ready: True)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 530, 340, 380, 80)
+    add_node(r10, "n_k8s_sec", "1", "<b>K8s Secret: microservices-secrets</b><br>Merged DB credentials, JWT Secret & Keycloak Client<br>Direct envFrom injection into Spring Boot pods", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 530, 440, 380, 80)
+
+    add_edge(r10, "e_v_ss", "1", "Vault API", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "n_vault_dev", "n_store")
+    add_edge(r10, "e_ss_es", "1", "Store Binding", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "n_store", "n_es")
+    add_edge(r10, "e_es_sec", "1", "Merge Secrets", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "n_es", "n_k8s_sec")
+
+    # Section 3: Istio Progressive Canary Deployments
+    add_node(r10, "c_canary", "1", "<b>🌐 ISTIO CANARY TRAFFIC MANAGEMENT</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 960, 90, 420, 470)
+    add_node(r10, "n_vs", "1", "<b>VirtualService: products-service-vs</b><br>• Header Match: x-canary: true ➔ 100% v2<br>• Weight Split: 90% Subset v1 / 10% Subset v2<br>• Retries: 2 attempts (5xx, connect-failure)<br>• Timeout: 5s per try", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 980, 140, 380, 80)
+    add_node(r10, "n_dr", "1", "<b>DestinationRule: products-service-dr</b><br>• Host: products-service.staging.svc<br>• Subset v1 (version=v1)<br>• Subset v2 (version=v2)<br>• TrafficPolicy: ISTIO_MUTUAL (mTLS)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 980, 240, 380, 80)
+    add_node(r10, "n_v1", "1", "<b>products-service v1 Pod (90%)</b><br>Stable Release • image: products-service:1.0.0<br>Labels: app=products-service, version=v1", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 980, 340, 380, 70)
+    add_node(r10, "n_v2", "1", "<b>products-service v2 Pod (10% + Header)</b><br>Canary Release • image: products-service:1.0.0<br>Labels: app=products-service, version=v2<br>Safe validation before full promotion", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 980, 430, 380, 90)
+
+    add_edge(r10, "e_vs_dr", "1", "Routes to", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "n_vs", "n_dr")
+    add_edge(r10, "e_dr_v1", "1", "90% Weight", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_dr", "n_v1")
+    add_edge(r10, "e_dr_v2", "1", "10% Weight / Header", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n_dr", "n_v2")
+
+    # Section 4: Alertmanager Real Routing
+    add_node(r10, "c_alerts", "1", "<b>🚨 ALERTING & INCIDENT ROUTING</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 1410, 90, 430, 470)
+    add_node(r10, "n_prule", "1", "<b>PrometheusRule (monitoring.coreos.com)</b><br>• Labels: release: kube-prometheus<br>• ServiceDown • HighErrorRate (5xx &gt; 5%)<br>• HighLatency (P95 &gt; 1s) • HighHeapUsage (&gt; 75%)<br>• RedisExporterDown", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;", 1430, 140, 390, 80)
+    add_node(r10, "n_amc", "1", "<b>AlertmanagerConfig: microservices-alerts</b><br>• API: monitoring.coreos.com/v1alpha1<br>• Namespace: staging (Matches Staging Alerts)<br>• GroupBy: alertname, job, severity", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;", 1430, 240, 390, 75)
+    add_node(r10, "n_local", "1", "<b>Active Local Receiver (Default)</b><br>• default-local-receiver (In-Cluster Alerts)<br>• Zero external dependencies, never fails", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1430, 335, 390, 60)
+    add_node(r10, "n_slack", "1", "<b>Slack Notifications (Ready to Enable)</b><br>• Secret: alertmanager-slack-webhook<br>• Channel: #alerts-microservices", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;", 1430, 410, 185, 90)
+    add_node(r10, "n_jira", "1", "<b>Jira Incident Webhook (Ready)</b><br>• severity: critical ➔ Issue Automation<br>• Direct ticket creation on outage", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=11;", 1635, 410, 185, 90)
+
+    add_edge(r10, "e_pr_amc", "1", "Firing Alerts", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;", "n_prule", "n_amc")
+    add_edge(r10, "e_amc_loc", "1", "Route Default", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_amc", "n_local")
+    add_edge(r10, "e_amc_slk", "1", "Configured", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1;dashed=1;", "n_amc", "n_slack")
+    add_edge(r10, "e_amc_jir", "1", "Critical", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1;dashed=1;", "n_amc", "n_jira")
+
+    # Section 5: Bottom Operational Summary
+    add_node(r10, "ops_box_10", "1", "<b>🚀 PRODUCTION-GRADE ADVANCED RESILIENCY SUMMARY (Zero Cloud Cost Local Cluster)</b><br>• <b>Autoscaling (HPA & PDB):</b> Scaled with CPU (70%) and Memory (80%) targets. Configured with <code>maxReplicas: 1</code> for lightweight local operation, expandable dynamically.<br>• <b>External Secrets:</b> Decouples secrets from Git, pulling from HashiCorp Vault into Kubernetes secrets with <code>creationPolicy: Merge</code>.<br>• <b>Canary Routing:</b> Progressive rollout via <code>.\\scripts\\istio\\set-canary-weight.ps1</code> and automated promotion via <code>.\\scripts\\istio\\auto-canary-rollout.ps1</code>.<br>• <b>Incident Response:</b> Alertmanager routes to local active receiver by default, with pre-configured templates for Slack and Jira webhook automation.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 580, 1780, 95)
 
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)
     tree.write("docs/Diagrams.drawio", encoding="utf-8", xml_declaration=True)
-    print("Successfully generated docs/Diagrams.drawio in English with 9 comprehensive tabs!")
+    print("Successfully generated docs/Diagrams.drawio in English with 10 comprehensive tabs!")
 
 if __name__ == "__main__":
     build_drawio_xml()

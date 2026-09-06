@@ -651,4 +651,117 @@
       </root>
     </mxGraphModel>
   </diagram>
+  <diagram id="page_resiliency_canary_ops" name="10. Resiliency, Secrets, Canary &amp; Alerts">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t10" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c_hpa" parent="1" value="&lt;b&gt;⚖️ AUTOSCALING &amp; HIGH AVAILABILITY (HPA &amp; PDB)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="60" y="90" width="420" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="n_hpa" parent="1" value="&lt;b&gt;Horizontal Pod Autoscaler (HPA)&lt;/b&gt;&lt;br&gt;• CPU Target: 70% • Memory Target: 80%&lt;br&gt;• minReplicas: 1 • maxReplicas: 1 (Dev/Staging)&lt;br&gt;• Active metrics-server scrape&lt;br&gt;• Real dynamic scaling under traffic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="80" y="140" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_pdb" parent="1" value="&lt;b&gt;PodDisruptionBudgets (PDB)&lt;/b&gt;&lt;br&gt;• minAvailable: 1 across all 5 services&lt;br&gt;• Guarantees application quorum&lt;br&gt;• Zero downtime during node drains &amp; updates&lt;br&gt;• Dynamic allowedDisruptions calculation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="80" y="240" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_pods" parent="1" value="&lt;b&gt;Protected Microservice Deployments&lt;/b&gt;&lt;br&gt;• api-gateway (Port 8080)&lt;br&gt;• inventory-service (Port 8001)&lt;br&gt;• notification-service (Port 8002)&lt;br&gt;• orders-service (Port 8003)&lt;br&gt;• products-service (Port 8004)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="80" y="340" width="380" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="n_mem_opt" parent="1" value="&lt;b&gt;💡 Local Memory Safeguard&lt;/b&gt;&lt;br&gt;Capped to maxReplicas: 1 in staging to prevent&lt;br&gt;JVM heap exhaustion on Windows / Minikube" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
+          <mxGeometry x="80" y="460" width="380" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_hpa_pod" parent="1" value="Scale Controller" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n_hpa" target="n_pods">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pdb_pod" parent="1" value="Quorum Guard" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_pdb" target="n_pods">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c_eso" parent="1" value="&lt;b&gt;🔐 SECRETS MANAGEMENT (ESO + VAULT)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="510" y="90" width="420" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="n_vault_dev" parent="1" value="&lt;b&gt;HashiCorp Vault (Port 8200)&lt;/b&gt;&lt;br&gt;• KV-v2 Secrets Engine at 'secret/'&lt;br&gt;• secret/data/application (DB &amp; JWT)&lt;br&gt;• secret/data/api-gateway (Client Secret)&lt;br&gt;• secret/data/orders-service (Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+          <mxGeometry x="530" y="140" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_store" parent="1" value="&lt;b&gt;SecretStore: vault-secret-store&lt;/b&gt;&lt;br&gt;• API: external-secrets.io/v1&lt;br&gt;• Auth: Kubernetes Token SecretRef&lt;br&gt;• Target Server: http://vault.vault.svc:8200&lt;br&gt;• Status: Valid (ReadWrite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+          <mxGeometry x="530" y="240" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_es" parent="1" value="&lt;b&gt;ExternalSecret: microservices-external-secret&lt;/b&gt;&lt;br&gt;• Refresh Interval: 1h (Auto-reconciliation)&lt;br&gt;• creationPolicy: Merge • deletionPolicy: Retain&lt;br&gt;• Status: SecretSynced (Ready: True)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+          <mxGeometry x="530" y="340" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_k8s_sec" parent="1" value="&lt;b&gt;K8s Secret: microservices-secrets&lt;/b&gt;&lt;br&gt;Merged DB credentials, JWT Secret &amp; Keycloak Client&lt;br&gt;Direct envFrom injection into Spring Boot pods" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="530" y="440" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e_v_ss" parent="1" value="Vault API" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n_vault_dev" target="n_store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ss_es" parent="1" value="Store Binding" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n_store" target="n_es">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_es_sec" parent="1" value="Merge Secrets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_es" target="n_k8s_sec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c_canary" parent="1" value="&lt;b&gt;🌐 ISTIO CANARY TRAFFIC MANAGEMENT&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="960" y="90" width="420" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="n_vs" parent="1" value="&lt;b&gt;VirtualService: products-service-vs&lt;/b&gt;&lt;br&gt;• Header Match: x-canary: true ➔ 100% v2&lt;br&gt;• Weight Split: 90% Subset v1 / 10% Subset v2&lt;br&gt;• Retries: 2 attempts (5xx, connect-failure)&lt;br&gt;• Timeout: 5s per try" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="980" y="140" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_dr" parent="1" value="&lt;b&gt;DestinationRule: products-service-dr&lt;/b&gt;&lt;br&gt;• Host: products-service.staging.svc&lt;br&gt;• Subset v1 (version=v1)&lt;br&gt;• Subset v2 (version=v2)&lt;br&gt;• TrafficPolicy: ISTIO_MUTUAL (mTLS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="980" y="240" width="380" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_v1" parent="1" value="&lt;b&gt;products-service v1 Pod (90%)&lt;/b&gt;&lt;br&gt;Stable Release • image: products-service:1.0.0&lt;br&gt;Labels: app=products-service, version=v1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="980" y="340" width="380" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="n_v2" parent="1" value="&lt;b&gt;products-service v2 Pod (10% + Header)&lt;/b&gt;&lt;br&gt;Canary Release • image: products-service:1.0.0&lt;br&gt;Labels: app=products-service, version=v2&lt;br&gt;Safe validation before full promotion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="980" y="430" width="380" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vs_dr" parent="1" value="Routes to" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n_vs" target="n_dr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dr_v1" parent="1" value="90% Weight" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dr_v2" parent="1" value="10% Weight / Header" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c_alerts" parent="1" value="&lt;b&gt;🚨 ALERTING &amp; INCIDENT ROUTING&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="1410" y="90" width="430" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="n_prule" parent="1" value="&lt;b&gt;PrometheusRule (monitoring.coreos.com)&lt;/b&gt;&lt;br&gt;• Labels: release: kube-prometheus&lt;br&gt;• ServiceDown • HighErrorRate (5xx &amp;gt; 5%)&lt;br&gt;• HighLatency (P95 &amp;gt; 1s) • HighHeapUsage (&amp;gt; 75%)&lt;br&gt;• RedisExporterDown" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;" vertex="1">
+          <mxGeometry x="1430" y="140" width="390" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_amc" parent="1" value="&lt;b&gt;AlertmanagerConfig: microservices-alerts&lt;/b&gt;&lt;br&gt;• API: monitoring.coreos.com/v1alpha1&lt;br&gt;• Namespace: staging (Matches Staging Alerts)&lt;br&gt;• GroupBy: alertname, job, severity" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;" vertex="1">
+          <mxGeometry x="1430" y="240" width="390" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n_local" parent="1" value="&lt;b&gt;Active Local Receiver (Default)&lt;/b&gt;&lt;br&gt;• default-local-receiver (In-Cluster Alerts)&lt;br&gt;• Zero external dependencies, never fails" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1430" y="335" width="390" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_slack" parent="1" value="&lt;b&gt;Slack Notifications (Ready to Enable)&lt;/b&gt;&lt;br&gt;• Secret: alertmanager-slack-webhook&lt;br&gt;• Channel: #alerts-microservices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="1430" y="410" width="185" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="n_jira" parent="1" value="&lt;b&gt;Jira Incident Webhook (Ready)&lt;/b&gt;&lt;br&gt;• severity: critical ➔ Issue Automation&lt;br&gt;• Direct ticket creation on outage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=11;" vertex="1">
+          <mxGeometry x="1635" y="410" width="185" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pr_amc" parent="1" value="Firing Alerts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;" edge="1" source="n_prule" target="n_amc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_amc_loc" parent="1" value="Route Default" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_amc" target="n_local">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_amc_slk" parent="1" value="Configured" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1;dashed=1;" edge="1" source="n_amc" target="n_slack">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_amc_jir" parent="1" value="Critical" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1;dashed=1;" edge="1" source="n_amc" target="n_jira">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ops_box_10" parent="1" value="&lt;b&gt;🚀 PRODUCTION-GRADE ADVANCED RESILIENCY SUMMARY (Zero Cloud Cost Local Cluster)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Autoscaling (HPA &amp; PDB):&lt;/b&gt; Scaled with CPU (70%) and Memory (80%) targets. Configured with &lt;code&gt;maxReplicas: 1&lt;/code&gt; for lightweight local operation, expandable dynamically.&lt;br&gt;• &lt;b&gt;External Secrets:&lt;/b&gt; Decouples secrets from Git, pulling from HashiCorp Vault into Kubernetes secrets with &lt;code&gt;creationPolicy: Merge&lt;/code&gt;.&lt;br&gt;• &lt;b&gt;Canary Routing:&lt;/b&gt; Progressive rollout via &lt;code&gt;.\scripts\istio\set-canary-weight.ps1&lt;/code&gt; and automated promotion via &lt;code&gt;.\scripts\istio\auto-canary-rollout.ps1&lt;/code&gt;.&lt;br&gt;• &lt;b&gt;Incident Response:&lt;/b&gt; Alertmanager routes to local active receiver by default, with pre-configured templates for Slack and Jira webhook automation." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="60" y="580" width="1780" height="95" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>
