@@ -612,7 +612,7 @@
         <mxCell id="p_loki" parent="1" value="&lt;b&gt;📑 Loki &amp; Alloy Logs&lt;/b&gt;&lt;br&gt;observability namespace&lt;br&gt;Log Aggregation Engine&lt;br&gt;Grafana Logs Datasource" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="90" y="360" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="p_argo" parent="1" value="&lt;b&gt;🐙 ArgoCD GitOps&lt;/b&gt;&lt;br&gt;Port 30088 (Web UI)&lt;br&gt;GitOps Controller (admin/admin)&lt;br&gt;Automated Sync Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
+        <mxCell id="p_argo" parent="1" value="&lt;b&gt;🐙 ArgoCD GitOps&lt;/b&gt;&lt;br&gt;Port 8088 (Web UI)&lt;br&gt;GitOps Controller (admin/admin)&lt;br&gt;Automated Sync Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
           <mxGeometry x="360" y="360" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p_vault" parent="1" value="&lt;b&gt;🔒 HashiCorp Vault&lt;/b&gt;&lt;br&gt;Port 8200 (Token: root)&lt;br&gt;Secrets Management&lt;br&gt;K8s ServiceAccount Auth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
@@ -621,13 +621,13 @@
         <mxCell id="p_gatekeeper" parent="1" value="&lt;b&gt;🛡️ OPA Gatekeeper&lt;/b&gt;&lt;br&gt;Admission Controller&lt;br&gt;Trusted Registry (georgegxx/*)&lt;br&gt;Resource Limits Guardrail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="900" y="360" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="p_grafana" parent="1" value="&lt;b&gt;📊 Grafana Observability&lt;/b&gt;&lt;br&gt;Port 30030 (admin/admin)&lt;br&gt;Technical &amp; Business Dashboards&lt;br&gt;Prometheus + Loki Integrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="p_grafana" parent="1" value="&lt;b&gt;📊 Grafana Observability&lt;/b&gt;&lt;br&gt;Port 3000 (admin/admin)&lt;br&gt;Technical &amp; Business Dashboards&lt;br&gt;Prometheus + Loki Integrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="1170" y="360" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p_prom" parent="1" value="&lt;b&gt;📈 Prometheus Targets&lt;/b&gt;&lt;br&gt;Port 9090 (TSDB /targets)&lt;br&gt;15s Scrape Interval&lt;br&gt;Actuator Metrics Ingestion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="1440" y="360" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="app_ang" parent="1" value="&lt;b&gt;🌐 Frontend Angular 21&lt;/b&gt;&lt;br&gt;Port 4200 (Direct) / :30080&lt;br&gt;Storefront E-Commerce SPA&lt;br&gt;Dynamic Product Catalog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="app_ang" parent="1" value="&lt;b&gt;🌐 Frontend Angular 21&lt;/b&gt;&lt;br&gt;Port 4200 (Storefront SPA)&lt;br&gt;Dynamic Product Catalog&lt;br&gt;Responsive UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="90" y="480" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="app_gw" parent="1" value="&lt;b&gt;🔌 Spring Cloud Gateway&lt;/b&gt;&lt;br&gt;Port 8080 (/api/product)&lt;br&gt;Swagger: /swagger-ui.html&lt;br&gt;Keycloak JWT &amp; Rate Limit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">

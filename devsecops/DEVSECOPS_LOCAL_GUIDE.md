@@ -52,8 +52,8 @@ terraform apply -auto-approve
 
 Terraform and bootstrap automation provision:
 * **Gatekeeper (OPA)** in namespace `gatekeeper-system`
-* **ArgoCD** in namespace `argocd` (Web UI at `https://localhost:30088`, credentials: `admin` / `admin`)
-* **Prometheus & Grafana** in namespace `observability` (Grafana at `http://localhost:30030`, credentials: `admin` / `admin`)
+* **ArgoCD** in namespace `argocd` (Web UI at `https://localhost:8088`, credentials: `admin` / `admin`)
+* **Prometheus & Grafana** in namespace `observability` (Grafana at `http://localhost:3000`, credentials: `admin` / `admin`)
 * **Loki & Alloy** log aggregation daemonset in namespace `observability`
 * **Vault** in namespace `vault` (Web UI at `http://localhost:8200`, dev token: `root`)
 * **Keycloak IAM** in namespace `staging` (Web UI at `http://localhost:8181`, credentials: `admin` / `admin`)

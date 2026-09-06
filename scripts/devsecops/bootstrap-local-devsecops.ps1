@@ -144,7 +144,7 @@ $setArgoScript = Join-Path $PSScriptRoot "set_argocd_password.py"
 if (Test-Path $setArgoScript) {
     python $setArgoScript
 }
-kubectl patch cm -n argocd argocd-cm --type merge -p '{"data":{"url":"https://localhost:30088"}}' 2>$null
+kubectl patch cm -n argocd argocd-cm --type merge -p '{"data":{"url":"https://localhost:8088"}}' 2>$null
 
 $ghToken = (gh auth token 2>$null)
 if ($ghToken) {
@@ -174,11 +174,10 @@ Get-Process -Name "kubectl" -ErrorAction SilentlyContinue | Where-Object { $_.Co
 
 $tunnels = @(
     # DevSecOps Infrastructure Tunnels
-    @{ Svc = "argocd-server"; Namespace = "argocd"; LocalPort = 30088; RemotePort = 80; Desc = "ArgoCD Web UI" },
+    @{ Svc = "argocd-server"; Namespace = "argocd"; LocalPort = 8088; RemotePort = 80; Desc = "ArgoCD Web UI" },
     @{ Svc = "vault"; Namespace = "vault"; LocalPort = 8200; RemotePort = 8200; Desc = "HashiCorp Vault UI" },
-    @{ Svc = "kube-prometheus-grafana"; Namespace = "observability"; LocalPort = 30030; RemotePort = 80; Desc = "Grafana Observability" },
+    @{ Svc = "kube-prometheus-grafana"; Namespace = "observability"; LocalPort = 3000; RemotePort = 80; Desc = "Grafana Observability" },
     @{ Svc = "kube-prometheus-kube-prome-prometheus"; Namespace = "observability"; LocalPort = 9090; RemotePort = 9090; Desc = "Prometheus Targets UI" },
-    @{ Svc = "istio-ingressgateway"; Namespace = "istio-system"; LocalPort = 30080; RemotePort = 80; Desc = "Istio Ingress Gateway (Unified Edge)" },
     @{ Svc = "kiali"; Namespace = "istio-system"; LocalPort = 20001; RemotePort = 20001; Desc = "Kiali Mesh Topology Console" },
     # Application & IAM Tunnels (in Staging)
     @{ Svc = "frontend"; Namespace = "staging"; LocalPort = 4200; RemotePort = 80; Desc = "Frontend Angular App (Direct)" },
@@ -209,13 +208,12 @@ if (Test-Path $keycloakBootstrapScript) {
 Write-Host "`n================================================================================" -ForegroundColor Green
 Write-Host "🎉 DEVSECOPS & APPLICATION PLATFORM READY AND OPERATIONAL" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Green
-Write-Host "🌐 Frontend Angular App:   http://localhost:4200      (or via Istio at :30080)" -ForegroundColor White
-Write-Host "🚪 Istio Unified Gateway:  http://localhost:30080     (Routes /, /api/*, /admin/*)" -ForegroundColor White
+Write-Host "🌐 Frontend Angular App:   http://localhost:4200" -ForegroundColor White
 Write-Host "🔌 API Gateway Direct:     http://localhost:8080/api/product (Swagger: /swagger-ui.html)" -ForegroundColor White
 Write-Host "🔑 Keycloak IAM Console:   http://localhost:8181      (admin / admin)" -ForegroundColor White
 Write-Host "🔒 HashiCorp Vault UI:     http://localhost:8200      (Dev Token: root)" -ForegroundColor White
 Write-Host "🧭 Kiali Service Mesh:     http://localhost:20001/kiali/" -ForegroundColor White
-Write-Host "🐙 ArgoCD GitOps:          https://localhost:30088    (admin / admin)" -ForegroundColor White
-Write-Host "📊 Grafana Observability:  http://localhost:30030     (admin / admin)" -ForegroundColor White
+Write-Host "🐙 ArgoCD GitOps:          https://localhost:8088     (admin / admin)" -ForegroundColor White
+Write-Host "📊 Grafana Observability:  http://localhost:3000      (admin / admin)" -ForegroundColor White
 Write-Host "📈 Prometheus Targets:     http://localhost:9090/targets" -ForegroundColor White
 Write-Host "================================================================================" -ForegroundColor Green
