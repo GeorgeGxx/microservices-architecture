@@ -1,9 +1,7 @@
 package com.georgegxx.orders_service.repositories;
 
 import com.georgegxx.orders_service.model.entities.Order;
-import org.springframework.data.jpa.repository.EntityGraph;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.*;
 
 import org.springframework.data.repository.query.Param;
 
