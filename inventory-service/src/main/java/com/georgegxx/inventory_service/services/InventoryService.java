@@ -1,27 +1,17 @@
 package com.georgegxx.inventory_service.services;
 
-import com.georgegxx.inventory_service.model.dtos.BaseResponse;
-import com.georgegxx.inventory_service.model.dtos.InventoryRequest;
-import com.georgegxx.inventory_service.model.dtos.InventoryResponse;
-import com.georgegxx.inventory_service.model.dtos.OrderItemsRequest;
+import com.georgegxx.inventory_service.model.dtos.*;
 import com.georgegxx.inventory_service.model.entities.Inventory;
 import com.georgegxx.inventory_service.repositories.InventoryRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
