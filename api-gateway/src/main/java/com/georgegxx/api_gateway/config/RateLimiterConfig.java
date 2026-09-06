@@ -1,10 +1,7 @@
 package com.georgegxx.api_gateway.config;
 
-import org.springframework.cloud.gateway.filter.ratelimit.KeyResolver;
-import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
+import org.springframework.cloud.gateway.filter.ratelimit.*;
+import org.springframework.context.annotation.*;
 
 import java.util.Optional;
 
