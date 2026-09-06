@@ -96,14 +96,18 @@ spec:
             httpGet:
               path: /v1/sys/health
               port: 8200
-            initialDelaySeconds: 3
-            periodSeconds: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
           livenessProbe:
             httpGet:
               path: /v1/sys/health
               port: 8200
-            initialDelaySeconds: 10
-            periodSeconds: 10
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           resources:
             requests:
               cpu: "250m"
