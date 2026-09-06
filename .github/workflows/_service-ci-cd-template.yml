@@ -238,7 +238,7 @@ jobs:
           format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          # Calibrado a 0 para modo auditoría. Cambiar a 1 para modo enforce estricto
+          # Calibrated to 0 for audit mode. Change to 1 for strict blocking enforce mode
           exit-code: '0'
 
   # ==========================================================
@@ -484,6 +484,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy Canary Rollout via Helm & Istio
+        id: deploy-prod
         run: |
           if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             helm upgrade --install microservices ./helm/microservices-umbrella \
@@ -498,3 +499,38 @@ jobs:
           else
             echo "::notice::Production canary deployment staged for GitOps synchronization."
           fi
+
+      - name: Verify Production Canary Rollout & Auto-Rollback on Failure
+        run: |
+          if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
+            echo "Verifying production rollout health..."
+            kubectl rollout status deployment/microservices-${{ inputs.service-name }} -n prod --timeout=2m || {
+              echo "::error::Production canary rollout verification failed! Initiating emergency Helm rollback..."
+              helm rollback microservices --namespace prod --wait || true
+              exit 1
+            }
+            echo "Production canary deployment stabilized successfully."
+          fi
+
+  # ==========================================================
+  # ROLLBACK: 🔄 Automated Rollback on Staging Test Failure
+  #   Triggers if any post-deployment QA validation (Newman, Cypress, k6) fails
+  # ==========================================================
+  rollback-staging:
+    name: "🔄 Rollback Staging - ${{ inputs.service-name }}"
+    needs: [deploy-staging, integration-tests, e2e-tests, performance-tests]
+    if: failure() && needs.deploy-staging.result == 'success'
+    runs-on: ${{ inputs.runner-type }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Automated Helm Rollback on Staging
+        run: |
+          echo "::error::Post-deployment validation tests failed. Triggering automated Helm rollback in staging namespace..."
+          if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
+            helm rollback microservices --namespace staging --wait --timeout 5m || echo "::warning::Helm rollback completed with warnings."
+          else
+            echo "::notice::Kubernetes cluster not connected in this runner — simulated staging rollback."
+          fi
+

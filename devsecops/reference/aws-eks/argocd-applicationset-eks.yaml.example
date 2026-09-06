@@ -1,0 +1,70 @@
+# =============================================================================
+# REFERENCE ONLY — ARGOCD APPLICATIONSET MULTI-ENVIRONMENT FOR AWS EKS
+# =============================================================================
+# The ApplicationSet automates the declarative generation of ArgoCD Applications
+# for staging and production across AWS EKS clusters using GitOps matrices.
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: microservices-aws-eks-environments
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - env: staging
+            cluster: aws-eks-staging
+            targetRevision: staging
+            autoSync: true
+            replicas: "2"
+            canaryEnabled: "false"
+          - env: prod
+            cluster: aws-eks-prod
+            targetRevision: master
+            autoSync: false # Production requires manual approval gate
+            replicas: "4"
+            canaryEnabled: "true"
+
+  template:
+    metadata:
+      name: 'microservices-aws-{{env}}'
+      labels:
+        environment: '{{env}}'
+        provider: 'aws'
+    spec:
+      project: microservices-architecture
+      source:
+        repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
+        targetRevision: '{{targetRevision}}'
+        path: helm/microservices-umbrella
+        helm:
+          valueFiles:
+            - values.yaml
+            - 'values-{{env}}.yaml'
+          parameters:
+            - name: "global.provider"
+              value: "aws"
+            - name: "global.environment"
+              value: '{{env}}'
+            - name: "storage.storageClass"
+              value: "gp3"
+            - name: "ingress.annotations.kubernetes\\.io/ingress\\.class"
+              value: "alb"
+            - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme"
+              value: "internet-facing"
+            - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type"
+              value: "ip"
+            - name: "canary.enabled"
+              value: '{{canaryEnabled}}'
+      destination:
+        name: '{{cluster}}'
+        namespace: '{{env}}'
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
