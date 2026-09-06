@@ -76,6 +76,24 @@ secret:
 prometheusRule:
   enabled: true
 
+alertmanagerConfig:
+  enabled: true
+  slack:
+    # Set to true and create secret 'alertmanager-slack-webhook' with key 'url'
+    enabled: false
+    channel: "#alerts-microservices"
+    apiURLSecret:
+      name: "alertmanager-slack-webhook"
+      key: "url"
+  jira:
+    # Set to true to route critical alerts to Jira webhook / automation endpoint
+    enabled: false
+    webhookUrl: "https://your-domain.atlassian.net/rest/api/3/issue"
+    urlSecret:
+      enabled: false
+      name: "alertmanager-jira-webhook"
+      key: "url"
+
 # Per-subchart overrides (mirrors each chart's own values.yaml keys)
 api-gateway:
   resources:
@@ -85,6 +103,16 @@ api-gateway:
     limits:
       cpu: 2000m
       memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
 inventory-service:
   resources:
     requests:
@@ -93,6 +121,16 @@ inventory-service:
     limits:
       cpu: 2000m
       memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
 notification-service:
   resources:
     requests:
@@ -101,6 +139,16 @@ notification-service:
     limits:
       cpu: 2000m
       memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
 orders-service:
   resources:
     requests:
@@ -109,6 +157,16 @@ orders-service:
     limits:
       cpu: 2000m
       memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
 products-service:
   resources:
     requests:
@@ -117,3 +175,13 @@ products-service:
     limits:
       cpu: 2000m
       memory: 768Mi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+

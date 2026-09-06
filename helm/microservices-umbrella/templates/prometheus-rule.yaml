@@ -5,7 +5,7 @@ metadata:
   name: {{ .Release.Name }}-microservices-alerts
   labels:
     app: {{ .Release.Name }}
-    release: prometheus
+    release: kube-prometheus
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 spec:
