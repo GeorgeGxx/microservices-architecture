@@ -564,7 +564,7 @@
         <mxCell id="c_cd" parent="1" value="&lt;b&gt;🚀 CD PHASE: Staging Quality Gates, Docker Hub Promotion &amp; Production Canary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="830" y="90" width="1010" height="190" as="geometry" />
         </mxCell>
-        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Deploy Staging&lt;/b&gt;&lt;br&gt;Helm Umbrella&lt;br&gt;SPRING=staging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Deploy Staging&lt;/b&gt;&lt;br&gt;Helm (Atomic)&lt;br&gt;Auto-Rollback on Fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
           <mxGeometry x="850" y="130" width="125" height="65" as="geometry" />
         </mxCell>
         <mxCell id="s7" parent="1" value="&lt;b&gt;7. Newman QA&lt;/b&gt;&lt;br&gt;API Integration&lt;br&gt;Postman Tests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
@@ -582,7 +582,7 @@
         <mxCell id="s11" parent="1" value="&lt;b&gt;11. Push Docker Hub&lt;/b&gt;&lt;br&gt;georgegxx/*:1.0.0&lt;br&gt;Certified Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10;" vertex="1">
           <mxGeometry x="1540" y="130" width="135" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s12" parent="1" value="&lt;b&gt;12. Deploy Prod&lt;/b&gt;&lt;br&gt;Canary Rollout&lt;br&gt;Istio 10% ➔ 100%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;" vertex="1">
+        <mxCell id="s12" parent="1" value="&lt;b&gt;12. Deploy Prod&lt;/b&gt;&lt;br&gt;Canary (Istio 10%)&lt;br&gt;Auto-Rollback on Drift" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;" vertex="1">
           <mxGeometry x="1690" y="130" width="135" height="65" as="geometry" />
         </mxCell>
         <mxCell id="pe5" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="s5" target="s6">
