@@ -1,14 +1,9 @@
 package com.georgegxx.inventory_service.controllers;
 
-import com.georgegxx.inventory_service.model.dtos.BaseResponse;
-import com.georgegxx.inventory_service.model.dtos.InventoryRequest;
-import com.georgegxx.inventory_service.model.dtos.InventoryResponse;
-import com.georgegxx.inventory_service.model.dtos.OrderItemsRequest;
+import com.georgegxx.inventory_service.model.dtos.*;
 import com.georgegxx.inventory_service.services.InventoryService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
