@@ -26,3 +26,25 @@ data:
         isDefault: false
         jsonData:
           maxLines: 1000
+      - name: Tempo
+        uid: tempo-ds
+        type: tempo
+        access: proxy
+        url: http://tempo.observability.svc.cluster.local:3200
+        isDefault: false
+        editable: true
+        jsonData:
+          httpMethod: GET
+          tracesToLogsV2:
+            datasourceUid: 'loki-ds'
+            spanStartTimeShift: '1h'
+            spanEndTimeShift: '1h'
+            filterByTraceId: true
+            filterBySpanId: false
+            query: '{service="$${__span.tags.service_name}"} |= "$${__span.traceId}"'
+          serviceMap:
+            datasourceUid: 'prometheus-ds'
+          nodeGraph:
+            enabled: true
+          lokiSearch:
+            datasourceUid: 'loki-ds'
