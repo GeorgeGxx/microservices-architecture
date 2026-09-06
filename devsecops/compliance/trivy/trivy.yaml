@@ -6,7 +6,7 @@ ignore-unfixed: true
 ignorefile: devsecops/compliance/trivy/.trivyignore
 timeout: 10m
 format: table
-exit-code: 0 # Calibrado: Modo Auditoría / Soft-Gate. Cambiar a 1 para Modo Enforce / Bloqueante
+exit-code: 0 # Calibrated: Audit Mode / Soft-Gate. Change to 1 for Enforce / Blocking Mode
 vulnerability:
   type:
     - os

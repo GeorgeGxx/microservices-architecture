@@ -1,0 +1,111 @@
+# =============================================================================
+# REFERENCE ONLY — ARGOCD APPLICATION MANIFEST FOR AWS EKS
+# =============================================================================
+# SECURITY / GITOPS NOTICE:
+# This file is placed in devsecops/reference/aws-eks with the '.example' extension
+# so that ArgoCD will NOT reconcile or synchronize it automatically.
+#
+# To activate in your ArgoCD cluster:
+# 1. Register the EKS cluster in ArgoCD:
+#      argocd cluster add <eks-arn-or-context> --name aws-eks-prod
+# 2. Add your Git repository credentials in ArgoCD.
+# 3. Rename this file to '.yaml' and apply:
+#      kubectl apply -f argocd-application-eks.yaml
+# =============================================================================
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: microservices-aws-eks-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    notifications.argoproj.io/subscribe.on-deployed.slack: "devops-deployments"
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: "devops-alerts"
+spec:
+  project: microservices-architecture
+
+  # ---------------------------------------------------------------------------
+  # SOURCE: Git Repository & Helm Umbrella Chart
+  # ---------------------------------------------------------------------------
+  source:
+    repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
+    targetRevision: master # or immutable release tag
+    path: helm/microservices-umbrella
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      parameters:
+        - name: "global.provider"
+          value: "aws"
+        - name: "global.environment"
+          value: "prod"
+        # AWS EBS CSI Driver (high IOPS gp3 volume)
+        - name: "storage.storageClass"
+          value: "gp3"
+        # AWS Load Balancer Controller (ALB Ingress)
+        - name: "ingress.annotations.kubernetes\\.io/ingress\\.class"
+          value: "alb"
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/scheme"
+          value: "internet-facing"
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/target-type"
+          value: "ip"
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/listen-ports"
+          value: '[{"HTTP": 80}, {"HTTPS": 443}]'
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/ssl-redirect"
+          value: "443"
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/certificate-arn"
+          value: "arn:aws:acm:us-east-1:123456789012:certificate/abc12345-6789-0abc-def0-1234567890ab"
+        - name: "ingress.annotations.alb\\.ingress\\.kubernetes\\.io/wafv2-acl-arn"
+          value: "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/microservices-waf/12345678"
+        # IAM Roles for Service Accounts (IRSA)
+        - name: "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
+          value: "arn:aws:iam::123456789012:role/microservices-irsa-role"
+        # External Secrets Operator (ESO) integration with AWS Secrets Manager
+        - name: "externalSecrets.provider"
+          value: "aws"
+        - name: "externalSecrets.aws.region"
+          value: "us-east-1"
+
+  # ---------------------------------------------------------------------------
+  # DESTINATION: AWS EKS Cluster (Registered in ArgoCD)
+  # ---------------------------------------------------------------------------
+  destination:
+    # Option A: Named cluster registered via 'argocd cluster add'
+    name: aws-eks-prod
+    # Option B: Direct API Server endpoint
+    # server: https://1234567890ABCDEF.gr7.us-east-1.eks.amazonaws.com
+    namespace: prod
+
+  # ---------------------------------------------------------------------------
+  # GITOPS SYNCHRONIZATION POLICY
+  # ---------------------------------------------------------------------------
+  syncPolicy:
+    automated:
+      prune: true     # Automatically deletes K8s resources removed from Git
+      selfHeal: true  # Reverts out-of-band manual changes back to Git state (Drift Correction)
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # ---------------------------------------------------------------------------
+  # IGNORE DIFFERENCES FOR CLOUD CONTROLLER MUTATIONS (HPA, Replicas, etc)
+  # ---------------------------------------------------------------------------
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas # Allows Kubernetes Horizontal Pod Autoscaler (HPA) to scale dynamically without Git conflicts
