@@ -1,9 +1,7 @@
 package com.georgegxx.products_service.controllers;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.*;
+import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import com.georgegxx.products_service.model.dtos.ProductRequest;
-import com.georgegxx.products_service.model.dtos.ProductResponse;
+import com.georgegxx.products_service.model.dtos.*;
 import com.georgegxx.products_service.services.ProductService;
 
 import java.util.List;
