@@ -343,8 +343,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **Angular 21 Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern Angular SPA UI |
-| **Spring Cloud API Gateway** | `8080` | `8080` / `30080` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
-| 🐙 **ArgoCD GitOps** | `30088` | `30088` | Ingress / NodePort | `admin` / `admin` (GitOps Controller & Web UI) |
+| **Spring Cloud API Gateway** | `8080` | `30088` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
 | **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
@@ -593,13 +592,12 @@ Once tunnels are active, access local web interfaces:
 - **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
-- **ArgoCD GitOps:** [https://localhost:30088](https://localhost:30088) (`admin` / `admin`)
-- **Grafana Observability (Metrics & Logs):** [http://localhost:30030](http://localhost:30030) (`admin` / `admin`)
+- **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
 - **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
 
 Alternatively, access services directly via Minikube NodePort without background tunnels:
 - **Frontend SPA:** `http://$(minikube ip):30080`
-- **ArgoCD GitOps:** `https://$(minikube ip):30088`
+- **API Gateway:** `http://$(minikube ip):30088`
 - **Keycloak Admin:** `http://$(minikube ip):30181`
 - **Vault Web UI:** `http://$(minikube ip):30820`
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
