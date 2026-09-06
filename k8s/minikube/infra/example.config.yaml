@@ -45,6 +45,7 @@ data:
   KUBE_PROMETHEUS_STACK_VERSION: "89.2.2"
   TEMPO_VERSION: "3.0.3"
   TEMPO_FALLBACK_VERSION: "2.7.0"
+  JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 ---
 apiVersion: v1
