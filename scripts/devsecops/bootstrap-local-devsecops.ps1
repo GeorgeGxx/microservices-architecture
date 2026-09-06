@@ -6,7 +6,8 @@
 param(
     [int]$Cpus = 12,
     [int]$MemoryMb = 12288,
-    [string]$DiskSize = "80g"
+    [string]$DiskSize = "80g",
+    [switch]$DeployCanary = $false
 )
 
 $ErrorActionPreference = "Stop"
@@ -92,11 +93,35 @@ if (Test-Path "$istioDir\02-gateway.yaml") {
 if (Test-Path "$istioDir\04-kiali.yaml") {
     kubectl apply -f "$istioDir\04-kiali.yaml"
 }
+if (Test-Path "$istioDir\destination-rules-staging.yaml") {
+    Write-Host "🌐 Applying Istio DestinationRules (subsets v1/v2)..." -ForegroundColor Yellow
+    kubectl apply -f "$istioDir\destination-rules-staging.yaml" 2>$null
+}
 
 $vaultManifest = Join-Path $PSScriptRoot "..\..\k8s\minikube\vault\vault-dev.yaml"
 if (Test-Path $vaultManifest) {
     Write-Host "🔒 Ensuring HashiCorp Vault is deployed..." -ForegroundColor Yellow
     kubectl apply -f $vaultManifest 2>$null
+    # Wait for Vault to become ready and seed secrets
+    kubectl wait -n vault --for=condition=ready pod -l app=vault --timeout=60s 2>$null
+    $initVaultScript = Join-Path $PSScriptRoot "..\vault\init-vault.ps1"
+    if (Test-Path $initVaultScript) {
+        & $initVaultScript 2>$null
+    }
+}
+
+# Ensure External Secrets Operator is installed
+$esoNs = kubectl get ns external-secrets --ignore-not-found
+if (-not $esoNs) {
+    Write-Host "🔐 Installing External Secrets Operator..." -ForegroundColor Yellow
+    helm repo add external-secrets https://charts.external-secrets.io 2>$null
+    helm repo update external-secrets 2>$null
+    helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace 2>$null
+}
+$esoDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\vault\external-secrets"
+if (Test-Path $esoDir) {
+    kubectl apply -f "$esoDir\external-secrets-store.yaml" 2>$null
+    kubectl apply -f "$esoDir\microservices-external-secret.yaml" 2>$null
 }
 
 # 5.1 Deploy Keycloak IAM & Backing Data Services to Staging
@@ -117,6 +142,14 @@ if (Test-Path $frontendManifest) {
     kubectl apply -f $frontendManifest -n staging
 }
 helm upgrade --install microservices "$umbrellaDir" --namespace staging
+
+if ($DeployCanary) {
+    $canaryManifest = Join-Path $PSScriptRoot "..\..\k8s\istio\canary-deployment-products-v2.yaml"
+    if (Test-Path $canaryManifest) {
+        Write-Host "🐥 Deploying Canary products-service v2..." -ForegroundColor Yellow
+        kubectl apply -f $canaryManifest -n staging
+    }
+}
 
 # 5.2.1 Provision Curated Grafana Dashboards, Loki, Alloy & ArgoCD Calibration
 Write-Host "`n📊 Provisioning Observability (Dashboards, Loki, Alloy, Prometheus-DS)..." -ForegroundColor Yellow
