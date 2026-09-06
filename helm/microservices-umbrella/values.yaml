@@ -72,8 +72,43 @@ prometheusRule:
   enabled: true
 
 # Per-subchart overrides (mirrors each chart's own values.yaml keys)
-api-gateway: {}
-inventory-service: {}
-notification-service: {}
-orders-service: {}
-products-service: {}
+api-gateway:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 768Mi
+inventory-service:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 768Mi
+notification-service:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 768Mi
+orders-service:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 768Mi
+products-service:
+  resources:
+    requests:
+      cpu: 200m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 768Mi
