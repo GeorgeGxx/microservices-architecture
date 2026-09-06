@@ -45,8 +45,14 @@ configMap:
     VAULT_ENABLED: "false"
     INVENTORY_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-inventory:5432/ms_inventory"
     ORDERS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-orders:5432/ms_orders"
-    PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products:5432/ms_products"
     KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    ARGOCD_VERSION: "3.5.2"
+    ARGOCD_HELM_CHART_VERSION: "10.8.0"
+    GATEKEEPER_VERSION: "3.23.1"
+    KUBE_PROMETHEUS_STACK_VERSION: "89.2.2"
+    TEMPO_VERSION: "3.0.3"
+    TEMPO_FALLBACK_VERSION: "2.7.0"
+
 
 secret:
   create: true

@@ -30,7 +30,7 @@ resource "helm_release" "gatekeeper" {
   name       = "gatekeeper"
   repository = "https://open-policy-agent.github.io/gatekeeper/charts"
   chart      = "gatekeeper"
-  version    = "3.16.0"
+  version    = "3.23.1"
   namespace  = "gatekeeper-system"
   timeout    = 600
 
@@ -69,7 +69,7 @@ resource "helm_release" "argocd" {
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  version    = "6.7.18"
+  version    = "10.8.0"
   namespace  = "argocd"
   timeout    = 600
 
@@ -83,6 +83,10 @@ resource "helm_release" "argocd" {
   }
   set {
     name  = "server.insecure"
+    value = "true"
+  }
+  set {
+    name  = "configs.params.server\\.insecure"
     value = "true"
   }
   set {
@@ -120,7 +124,7 @@ resource "helm_release" "observability" {
   name       = "kube-prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
-  version    = "58.2.2"
+  version    = "89.2.2"
   namespace  = "observability"
   timeout    = 900
 
