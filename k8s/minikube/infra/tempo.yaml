@@ -2,6 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: tempo-config
+  namespace: observability
 data:
   tempo.yaml: |
     server:
@@ -36,6 +37,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: tempo
+  namespace: observability
 spec:
   type: NodePort
   ports:
@@ -59,6 +61,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tempo
+  namespace: observability
 spec:
   replicas: 1
   selector:
@@ -78,7 +81,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: tempo
-          image: grafana/tempo:2.6.0
+          image: grafana/tempo:2.7.0
           args: ["-config.file=/etc/tempo/tempo.yaml"]
           securityContext:
             allowPrivilegeEscalation: false

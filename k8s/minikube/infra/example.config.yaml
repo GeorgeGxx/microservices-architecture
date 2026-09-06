@@ -29,10 +29,18 @@ data:
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
 
-  # OpenTelemetry (In-Cluster OTel Collector endpoint)
-  OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4318"
+  # OpenTelemetry & Tracing (Tempo in-cluster endpoint)
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.observability.svc.cluster.local:4318"
   OTEL_TRACES_SAMPLER: "parentbased_always_on"
   OTEL_RESOURCE_ATTRIBUTES: "service.namespace=microservices"
+
+  # Platform Tools Versions & Alignment
+  ARGOCD_VERSION: "3.5.2"
+  ARGOCD_HELM_CHART_VERSION: "10.8.0"
+  GATEKEEPER_VERSION: "3.23.1"
+  KUBE_PROMETHEUS_STACK_VERSION: "89.2.2"
+  TEMPO_VERSION: "3.0.3"
+  TEMPO_FALLBACK_VERSION: "2.7.0"
 
 ---
 apiVersion: v1
