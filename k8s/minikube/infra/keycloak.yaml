@@ -45,7 +45,7 @@ spec:
             - name: KC_DB
               value: postgres
             - name: KC_DB_URL
-              value: jdbc:postgresql://db-keycloak:5432/ms_keycloak
+              value: "jdbc:postgresql://db-keycloak:5432/ms_keycloak?sslmode=disable"
             - name: KC_HTTP_PORT
               value: "8181"
             - name: KC_HEALTH_ENABLED
