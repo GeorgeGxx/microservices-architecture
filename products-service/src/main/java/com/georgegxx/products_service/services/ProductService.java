@@ -1,23 +1,16 @@
 package com.georgegxx.products_service.services;
 
 import com.georgegxx.products_service.exceptions.ProductNotFoundException;
-import com.georgegxx.products_service.model.dtos.ProductRequest;
-import com.georgegxx.products_service.model.dtos.ProductResponse;
-import com.georgegxx.products_service.model.entities.Product;
-import com.georgegxx.products_service.model.entities.ProductPrice;
+import com.georgegxx.products_service.model.dtos.*;
+import com.georgegxx.products_service.model.entities.*;
 import com.georgegxx.products_service.repositories.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.*;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
