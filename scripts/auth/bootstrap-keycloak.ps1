@@ -4,6 +4,7 @@
 .DESCRIPTION
     Interacts directly with Keycloak REST API (port 8181) to ensure the realm, confidential client,
     public frontend client, and test users (admin_user, basic_user) are configured and ready.
+    Includes automated token refresh and re-authentication on 401 Unauthorized.
 .EXAMPLE
     .\scripts\bootstrap-keycloak.ps1
 #>
@@ -71,19 +72,78 @@ if (-not $ready) {
 }
 Write-Host "[OK] Keycloak is ready." -ForegroundColor Green
 
+# 2. Token Management & API Wrapper
+$script:AdminToken = $null
+$script:AdminTokenExpiresAt = [DateTime]::MinValue
+
 function Get-AdminHeaders {
-    $tokenBody = @{
-        client_id = "admin-cli"
-        grant_type = "password"
-        username = $AdminUser
-        password = $AdminPassword
+    param([switch]$ForceRefresh)
+    $now = [DateTime]::UtcNow
+    if ($ForceRefresh -or [string]::IsNullOrEmpty($script:AdminToken) -or $now -ge $script:AdminTokenExpiresAt) {
+        $tokenBody = @{
+            client_id = "admin-cli"
+            grant_type = "password"
+            username = $AdminUser
+            password = $AdminPassword
+        }
+        $tokenResp = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/realms/master/protocol/openid-connect/token" -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
+        $script:AdminToken = $tokenResp.access_token
+        $lifespan = if ($tokenResp.expires_in) { [int]$tokenResp.expires_in } else { 60 }
+        # Proactively refresh when token has less than 20 seconds remaining
+        $script:AdminTokenExpiresAt = $now.AddSeconds([math]::Max(10, $lifespan - 20))
     }
-    $tokenResp = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/realms/master/protocol/openid-connect/token" -Body $tokenBody -ContentType "application/x-www-form-urlencoded"
     return @{
-        Authorization = "Bearer $($tokenResp.access_token)"
+        Authorization = "Bearer $($script:AdminToken)"
         "Content-Type" = "application/json"
     }
 }
+
+function Invoke-KeycloakAdmin {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)][string]$Method,
+        [Parameter(Mandatory = $true)][string]$Uri,
+        [Parameter(Mandatory = $false)]$Body = $null
+    )
+
+    $hdrs = Get-AdminHeaders
+    $action = if ($PSBoundParameters.ContainsKey('ErrorAction')) { $PSBoundParameters['ErrorAction'] } else { "Stop" }
+    $callParams = @{
+        Method = $Method
+        Uri = $Uri
+        Headers = $hdrs
+        ErrorAction = $action
+    }
+    if ($null -ne $Body) {
+        $callParams["ContentType"] = "application/json"
+        if ($Body -is [string]) {
+            $callParams["Body"] = $Body
+        } else {
+            $callParams["Body"] = ($Body | ConvertTo-Json -Depth 10 -Compress)
+        }
+    }
+
+    try {
+        return Invoke-RestMethod @callParams
+    } catch {
+        $is401 = $false
+        if ($_.Exception -and $_.Exception.Response) {
+            try {
+                if ($_.Exception.Response.StatusCode.value__ -eq 401) { $is401 = $true }
+            } catch {}
+        }
+        if (-not $is401 -and ("$_" -match "401" -or "$_" -match "Unauthorized")) {
+            $is401 = $true
+        }
+
+        if ($is401) {
+            $callParams["Headers"] = Get-AdminHeaders -ForceRefresh
+            return Invoke-RestMethod @callParams
+        }
+        throw $_
+    }
+}
+
 $headers = Get-AdminHeaders
 Write-Host "[OK] Admin token acquired." -ForegroundColor Green
 
@@ -91,7 +151,7 @@ Write-Host "[OK] Admin token acquired." -ForegroundColor Green
 Write-Host "`n[3/5] Checking / Creating Realm '$Realm'..." -ForegroundColor Yellow
 $realmExists = $false
 try {
-    $existingRealm = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -ErrorAction Stop
+    $existingRealm = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm" -ErrorAction Stop
     if ($existingRealm -and $existingRealm.realm -eq $Realm) {
         $realmExists = $true
     }
@@ -109,7 +169,7 @@ if (-not $realmExists) {
         registrationAllowed = $true
         loginWithEmailAllowed = $true
     } | ConvertTo-Json
-    Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms" -Headers $headers -Body $realmPayload
+    Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
     Write-Host "[OK] Realm '$Realm' created successfully." -ForegroundColor Green
 } else {
     try {
@@ -119,7 +179,7 @@ if (-not $realmExists) {
             registrationAllowed = $true
             loginWithEmailAllowed = $true
         } | ConvertTo-Json
-        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm" -Headers $headers -Body $updatePayload
+        Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm" -Body $updatePayload
         Write-Host "  Realm '$Realm' updated with non-blocking profile policy and user registration enabled." -ForegroundColor DarkGray
     } catch {
         Write-Host "  Realm '$Realm' already exists." -ForegroundColor Green
@@ -128,11 +188,11 @@ if (-not $realmExists) {
 
 # Clear default required actions (like UPDATE_PROFILE or VERIFY_EMAIL) on realm level
 try {
-    $reqActions = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/authentication/required-actions" -Headers $headers
+    $reqActions = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/authentication/required-actions"
     foreach ($ra in $reqActions) {
         if ($ra.defaultAction) {
             $ra.defaultAction = $false
-            Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/authentication/required-actions/$($ra.alias)" -Headers $headers -Body ($ra | ConvertTo-Json)
+            Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/authentication/required-actions/$($ra.alias)" -Body ($ra | ConvertTo-Json)
         }
     }
 } catch {}
@@ -140,7 +200,7 @@ try {
 # 4. Ensure Clients
 Write-Host "`n[4/5] Configuring Clients..." -ForegroundColor Yellow
 # Frontend Public Client
-$clients = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_frontend" -Headers $headers
+$clients = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_frontend"
 if (-not $clients -or $clients.Count -eq 0) {
     $frontendClient = @{
         clientId = "microservices_frontend"
@@ -152,7 +212,7 @@ if (-not $clients -or $clients.Count -eq 0) {
         standardFlowEnabled = $true
         directAccessGrantsEnabled = $true
     } | ConvertTo-Json
-    Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Headers $headers -Body $frontendClient
+    Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Body $frontendClient
     Write-Host "  [OK] Created public client: microservices_frontend" -ForegroundColor Green
 } else {
     $fcId = $clients[0].id
@@ -166,12 +226,12 @@ if (-not $clients -or $clients.Count -eq 0) {
         standardFlowEnabled = $true
         directAccessGrantsEnabled = $true
     } | ConvertTo-Json
-    Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$fcId" -Headers $headers -Body $frontendClient
+    Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$fcId" -Body $frontendClient
     Write-Host "  [OK] Public client microservices_frontend updated with flexible origins and redirect URIs." -ForegroundColor DarkGray
 }
 
 # Backend Confidential Client
-$clients = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client" -Headers $headers
+$clients = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client"
 $confClientId = $null
 if (-not $clients -or $clients.Count -eq 0) {
     $confClient = @{
@@ -183,8 +243,8 @@ if (-not $clients -or $clients.Count -eq 0) {
         standardFlowEnabled = $true
         directAccessGrantsEnabled = $true
     } | ConvertTo-Json
-    Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Headers $headers -Body $confClient
-    $clients = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client" -Headers $headers
+    Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Body $confClient
+    $clients = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client"
     $confClientId = $clients[0].id
     Write-Host "  [OK] Created confidential client: microservices_client" -ForegroundColor Green
 } else {
@@ -196,14 +256,14 @@ if (-not $clients -or $clients.Count -eq 0) {
 try {
     $secret = $null
     try {
-        $existingSec = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -Headers $headers -ErrorAction SilentlyContinue
+        $existingSec = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -ErrorAction SilentlyContinue
         if ($existingSec.value) {
             $secret = $existingSec.value
         }
     } catch {}
 
     if (-not $secret) {
-        $secretObj = Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -Headers $headers
+        $secretObj = Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret"
         $secret = $secretObj.value
     }
 
@@ -249,21 +309,21 @@ try {
 Write-Host "`n[5/5] Configuring Roles and Users..." -ForegroundColor Yellow
 foreach ($role in @("ADMIN", "USER")) {
     try {
-        Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$role" -Headers $headers -ErrorAction Stop | Out-Null
+        Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$role" -ErrorAction Stop | Out-Null
     } catch {
         $rolePayload = @{ name = $role } | ConvertTo-Json
-        Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles" -Headers $headers -Body $rolePayload
+        Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles" -Body $rolePayload
         Write-Host "  [OK] Created role: $role" -ForegroundColor Green
     }
 }
 
 # Ensure USER role is a default role for newly registered users
 try {
-    $userRole = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/USER" -Headers $headers
-    $composites = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites" -Headers $headers
+    $userRole = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/USER"
+    $composites = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites"
     if (-not ($composites | Where-Object { $_.name -eq "USER" })) {
         $addJson = "[$($userRole | ConvertTo-Json)]"
-        Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites" -Headers $headers -Body $addJson
+        Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles/default-roles-$Realm/composites" -Body $addJson
         Write-Host "  [OK] Assigned USER role to default-roles-$Realm (auto-assigned to new registrants)" -ForegroundColor Green
     }
 } catch {
@@ -292,7 +352,7 @@ function Ensure-KeycloakUser {
         }
     }
 
-    $users = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/users?username=$username" -Headers $headers
+    $users = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/users?username=$username"
     $userId = $null
 
     $userPayload = @{
@@ -308,34 +368,31 @@ function Ensure-KeycloakUser {
     if (-not $users -or $users.Count -eq 0) {
         $userCreatePayload = $userPayload.Clone()
         $userCreatePayload["credentials"] = @(@{ type = "password"; value = $password; temporary = $false })
-        Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users" -Headers $headers -Body ($userCreatePayload | ConvertTo-Json)
-        $users = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/users?username=$username" -Headers $headers
+        Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users" -Body ($userCreatePayload | ConvertTo-Json)
+        $users = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/users?username=$username"
         $userId = $users[0].id
         Write-Host "  [OK] User '$username' created (Profile: $firstName $lastName, Email: $username@example.com)." -ForegroundColor Green
     } else {
         $userId = $users[0].id
         # Update user profile to ensure firstName, lastName, email, and clear all required actions
-        $currentHeaders = Get-AdminHeaders
-        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId" -Headers $currentHeaders -Body ($userPayload | ConvertTo-Json)
+        Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId" -Body ($userPayload | ConvertTo-Json)
         Write-Host "  [OK] User '$username' profile updated ($firstName $lastName, no required actions)." -ForegroundColor DarkGray
     }
 
     # Set password explicitly & ensure temporary=false
     try {
-        $currentHeaders = Get-AdminHeaders
         $pwdPayload = @{ type = "password"; value = $password; temporary = $false } | ConvertTo-Json
-        Invoke-RestMethod -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/reset-password" -Headers $currentHeaders -Body $pwdPayload
+        Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/reset-password" -Body $pwdPayload
     } catch {
         Write-Host "  Note: Password set advisory for $($username): $_" -ForegroundColor DarkGray
     }
 
     # Map all requested roles
     if ($roles) {
-        $currentHeaders = Get-AdminHeaders
         $roleObjs = @()
         foreach ($r in $roles) {
             try {
-                $rObj = Invoke-RestMethod -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$r" -Headers $currentHeaders
+                $rObj = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$r"
                 $roleObjs += $rObj
             } catch {}
         }
@@ -345,7 +402,7 @@ function Ensure-KeycloakUser {
                 $roleMapPayload = "[$roleMapPayload]"
             }
             try {
-                Invoke-RestMethod -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/role-mappings/realm" -Headers $currentHeaders -Body $roleMapPayload
+                Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users/$userId/role-mappings/realm" -Body $roleMapPayload
             } catch {}
         }
     }
