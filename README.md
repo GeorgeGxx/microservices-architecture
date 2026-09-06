@@ -1555,6 +1555,107 @@ flowchart LR
 
 ---
 
+## 🛡️ Production-Grade Cluster Resiliency & Advanced Operations
+
+The platform includes 5 production-grade operational capabilities configured for zero-cloud cost local Minikube deployment and enterprise readiness:
+
+```mermaid
+flowchart TD
+    subgraph Autoscaling["⚖️ Auto-Scaling & HA"]
+        HPA[Horizontal Pod Autoscaler<br/>CPU: 70% | Memory: 80%] -->|Scale Up / Down| PODS[Microservices Pods<br/>Min: 1 | Max: 2]
+        PDB[PodDisruptionBudgets<br/>minAvailable: 1] -->|Guarantees Quorum| PODS
+    end
+
+    subgraph Security["🔐 Secrets Management"]
+        VAULT[(HashiCorp Vault<br/>KV-v2 Secrets Engine)] -->|Read secret/data/*| ESO[External Secrets Operator<br/>SecretStore: vault-secret-store]
+        ESO -->|Synchronize & Merge| K8S_SEC[K8s Secret: microservices-secrets]
+        K8S_SEC -->|Inject Env Vars| PODS
+    end
+
+    subgraph TrafficMesh["🌐 Istio Canary Traffic Splitting"]
+        GW[Istio Ingress Gateway] --> VS[VirtualService<br/>products-service-vs]
+        VS -->|Header: x-canary: true| SUB_V2[Subset v2 - Canary 100%]
+        VS -->|Weight: 90%| SUB_V1[Subset v1 - Stable]
+        VS -->|Weight: 10%| SUB_V2
+        SUB_V1 --> PODS_V1[products-service v1 Pods]
+        SUB_V2 --> PODS_V2[products-service v2 Pods]
+    end
+
+    subgraph ObservabilityAlerts["🚨 Alert Routing Engine"]
+        PROM[Prometheus Operator<br/>release: kube-prometheus] -->|Evaluates Rules| PRULE[PrometheusRule<br/>microservices-staging-microservices-alerts]
+        PRULE -->|Sends Firing Alerts| AM[Alertmanager]
+        AM -->|Default Local| RECV_LOCAL[default-local-receiver]
+        AM -.->|Configurable Secret| SLACK[Slack Channel #alerts]
+        AM -.->|Configurable Webhook| JIRA[Jira Issue Automation]
+    end
+```
+
+### 1. ⚖️ Horizontal Pod Autoscaling (HPA) & PodDisruptionBudgets (PDB)
+* **Dynamic Scaling:** Configured across all 5 subcharts (`api-gateway`, `inventory-service`, `notification-service`, `orders-service`, `products-service`) targeting $70\%$ CPU utilization and $80\%$ JVM Memory utilization.
+* **Controlled Limits:** Scaled between `minReplicas: 1` and `maxReplicas: 2` (locally optimized for 12 GB RAM) preventing OOM node contention while handling traffic spikes.
+* **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never cause service unavailability.
+* **Verification Command:**
+  ```powershell
+  kubectl get hpa,pdb -n staging
+  ```
+
+### 2. 🔐 External Secrets Operator (ESO) & HashiCorp Vault Synchronization
+* **Operator Engine:** External Secrets Operator deployed in `external-secrets` namespace using API `external-secrets.io/v1`.
+* **SecretStore (`vault-secret-store`):** Authenticates to HashiCorp Vault using root token with `refreshInterval: 1h`.
+* **ExternalSecret (`microservices-external-secret`):** Automatically maps and pulls secrets from Vault KV paths (`secret/data/application`, `secret/data/api-gateway`, `secret/data/orders-service`) and merges them directly into the staging Kubernetes secret `microservices-secrets`.
+* **Vault Seeding Script:**
+  ```powershell
+  # Seed secrets into Kubernetes Vault pod:
+  $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}")
+  kubectl exec -n vault $vaultPod -- vault kv put secret/application spring.datasource.username=postgres spring.datasource.password=admin jwt.secret=super-secure-jwt-secret-key-for-microservices-dev-environment-12345
+  kubectl exec -n vault $vaultPod -- vault kv put secret/api-gateway keycloak.client-secret=microservices-client-secret-key-12345
+  ```
+* **Verification Command:**
+  ```powershell
+  kubectl get secretstore,externalsecret -n staging
+  ```
+
+### 3. 🌐 Progressive Canary Deployments in Istio Service Mesh
+* **Traffic Splitting:** Istio `VirtualService` (`products-service-vs`) and `DestinationRule` (`products-service-dr`) allow fine-grained traffic shifting between stable `v1` and canary `v2` pods.
+* **Instant Header Bypass:** Requests containing header `x-canary: true` route $100\%$ to the canary subset regardless of percentage weight, enabling safe QA verification before public traffic exposure.
+* **Automated Progressive Rollout Scripts:**
+  ```powershell
+  # Set arbitrary traffic split (e.g. 80% to v1, 20% to v2):
+  .\scripts\istio\set-canary-weight.ps1 -Service "products-service" -V1Weight 80 -V2Weight 20 -Namespace "staging"
+
+  # Run automated progressive canary promotion (10% -> 25% -> 50% -> 100%):
+  .\scripts\istio\auto-canary-rollout.ps1 -Service "products-service" -Namespace "staging" -StepIntervalSeconds 30
+  ```
+
+### 4. 🚨 Alertmanager Alert Routing (Local Default, Slack & Jira Ready)
+* **Prometheus Rule Discovery:** `helm/microservices-umbrella/templates/prometheus-rule.yaml` labeled with `release: kube-prometheus`, allowing the Prometheus Operator to automatically discover and monitor alerts (`ServiceDown`, `HighErrorRate`, `HighLatency`, `HighHeapUsage`, `RedisExporterDown`).
+* **AlertmanagerConfig CRD (`monitoring.coreos.com/v1alpha1`):** Deployed directly in the `staging` namespace with label `release: kube-prometheus`.
+* **Active Default Local Receiver:** Routes alerts cleanly to `default-local-receiver` inside Alertmanager without failing or requiring external credentials.
+* **Activating Slack Notifications:**
+  1. Create the Slack incoming webhook secret in namespace `staging`:
+     ```powershell
+     kubectl create secret generic alertmanager-slack-webhook -n staging --from-literal=url='https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+     ```
+  2. In `helm/microservices-umbrella/values.yaml`, enable Slack:
+     ```yaml
+     alertmanagerConfig:
+       slack:
+         enabled: true
+         channel: "#alerts-microservices"
+     ```
+* **Activating Jira Issue Creation:**
+  1. Set up a Jira Automation incoming webhook rule or alert forwarder URL.
+  2. In `helm/microservices-umbrella/values.yaml`, enable Jira:
+     ```yaml
+     alertmanagerConfig:
+       jira:
+         enabled: true
+         webhookUrl: "https://automation.atlassian.com/pro/hooks/YOUR-JIRA-WEBHOOK-KEY"
+     ```
+  3. All `severity: critical` alerts will automatically trigger webhook payloads creating Jira issues.
+
+---
+
 ## 📄 License
 
 *(Add your license here — e.g. MIT, Apache 2.0 — and link a `LICENSE` file at the repo root.)*
