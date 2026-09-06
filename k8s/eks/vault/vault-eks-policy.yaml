@@ -33,7 +33,7 @@ metadata:
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ApiGatewayEKSRole"
 ---
-# ConfigMap de documentación de comandos de configuración en Vault EKS
+# Documentation ConfigMap for Vault EKS setup commands
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -42,12 +42,12 @@ metadata:
 data:
   setup-vault-eks.sh: |
     #!/bin/sh
-    # 1. Habilitar Auth Kubernetes en Vault EKS
+    # 1. Enable Kubernetes Auth in Vault EKS
     vault auth enable kubernetes
     vault write auth/kubernetes/config \
       kubernetes_host="https://kubernetes.default.svc:443"
 
-    # 2. Mapear roles de EKS a políticas
+    # 2. Map EKS roles to policies
     vault write auth/kubernetes/role/products-service-role \
       bound_service_account_names="products-service" \
       bound_service_account_namespaces="staging,prod" \

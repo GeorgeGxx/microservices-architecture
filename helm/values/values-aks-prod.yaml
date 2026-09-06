@@ -1,13 +1,13 @@
 global:
   environment: prod
-  # Azure Key Vault CSI driver (opt-in) - descomenta y completa para que los
-  # secrets vengan de Key Vault en vez de --set/--values planos. Ver
+  # Azure Key Vault CSI driver (opt-in) - uncomment and fill to fetch
+  # secrets from Key Vault instead of plain --set/--values. See
   # helm/microservices-umbrella/templates/secretproviderclass.yaml.
   # azureKeyVault:
   #   enabled: true
   #   name: georgegxx-msa-prod-kv
-  #   tenantId: "<tu-tenant-id>"
-  #   workloadIdentityClientId: "<client-id-de-la-workload-identity>"
+  #   tenantId: "<your-tenant-id>"
+  #   workloadIdentityClientId: "<workload-identity-client-id>"
   #   secrets:
   #     - name: db-password
   #       alias: DB_PASSWORD
