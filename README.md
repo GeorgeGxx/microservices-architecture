@@ -117,14 +117,14 @@ All services and dashboards are automated via background port-forwarding and ava
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
-| 🌐 **Frontend Angular SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI (also via Istio at `:30080`) |
+| 🌐 **Frontend Angular SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI |
 | 🔌 **API Gateway (Swagger)** | [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) | Public Docs | Interactive Swagger OpenAPI documentation |
 | 🔌 **API Gateway (`/api/product`)** | [`http://localhost:8080/api/product`](http://localhost:8080/api/product) | Bearer JWT (Keycloak) | Spring Cloud Gateway with Redis Rate Limiting |
 | 🔑 **Keycloak IAM** | [`http://localhost:8181`](http://localhost:8181) | `admin` / `admin` | Identity Provider, OAuth2/OIDC, PKCE Realm |
 | 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
 | 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
-| 🐙 **ArgoCD GitOps** | [`https://localhost:30088`](https://localhost:30088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
-| 📊 **Grafana Observability** | [`http://localhost:30030`](http://localhost:30030) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
+| 🐙 **ArgoCD GitOps** | [`https://localhost:8088`](https://localhost:8088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
+| 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
 
 ### ⚙️ Platform Operational Lifecycle Commands
