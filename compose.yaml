@@ -27,6 +27,7 @@ services:
       KC_HOSTNAME_STRICT: "false"
       KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
+      JAVA_OPTS_APPEND: "-Xms256m -Xmx768m -XX:MaxRAMPercentage=70.0"
     networks:
       - spring
   ### Postgres database for Keycloak
@@ -263,6 +264,10 @@ services:
       - spring
     env_file:
       - .env
+    ports:
+      - "9092:9092"
+      - "9094:9094"
+      - "29092:29092"
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID}
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
@@ -274,6 +279,9 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: ${KAFKA_CONTROLLER_LISTENER_NAMES}
       KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
+      KAFKA_SASL_ENABLED_MECHANISMS: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_LISTENER_NAME_SASL_PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret" user_admin="admin-secret" user_app="microservices-secret";'
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
       KAFKA_LOG_DIRS: ${KAFKA_LOG_DIRS}
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
