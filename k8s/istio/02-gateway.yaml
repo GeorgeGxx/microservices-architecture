@@ -53,7 +53,7 @@ spec:
             prefix: /js/
       route:
         - destination:
-            host: keycloak.staging.svc.cluster.local
+            host: keycloak.auth.svc.cluster.local
             port:
               number: 8181
 

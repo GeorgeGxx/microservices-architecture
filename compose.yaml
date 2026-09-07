@@ -280,7 +280,8 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
       KAFKA_SASL_ENABLED_MECHANISMS: ${KAFKA_SASL_MECHANISM:-PLAIN}
-      KAFKA_LISTENER_NAME_SASL_PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: 'org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="admin-secret" user_admin="admin-secret" user_app="microservices-secret";'
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: ${KAFKA_BROKER_SASL_JAAS_CONFIG}
+      KAFKA_OPTS: ${KAFKA_OPTS}
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
       KAFKA_LOG_DIRS: ${KAFKA_LOG_DIRS}
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
@@ -481,9 +482,9 @@ services:
         echo "📦 [Vault Auto-Init] Seeding microservice secrets..."
         vault kv put secret/application spring.datasource.username="postgres" spring.datasource.password="postgres" jwt.secret="super-secure-jwt-secret-key-12345" 2>/dev/null || true
         vault kv put secret/products-service spring.datasource.url="jdbc:postgresql://db-products:5432/ms_products" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-secret";' 2>/dev/null || true
+        vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' 2>/dev/null || true
         vault kv put secret/inventory-service spring.datasource.url="jdbc:postgresql://db-inventory:5432/ms_inventory" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-secret";' spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
+        vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
         vault kv put secret/api-gateway keycloak.client-secret="microservices-client-secret-key-12345" keycloak.issuer-uri="http://keycloak:8181/realms/microservices-realm" 2>/dev/null || true
         
         echo "🔐 [Vault Auto-Init] Enabling Transit Encryption Engine..."
