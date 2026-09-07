@@ -36,7 +36,7 @@ if ($DeleteCluster) {
     Write-Host "`n⏸️ Pausing and stopping Minikube (releases 12 GB RAM & 12 CPUs)..." -ForegroundColor Yellow
     minikube stop
     Write-Host "✅ Minikube stopped. Your cluster state, images, and data are safely preserved." -ForegroundColor Green
-    Write-Host "💡 To start everything up again later, just run: .\scripts\devsecops\bootstrap-local-devsecops.ps1" -ForegroundColor Cyan
+    Write-Host "💡 To start everything up again later, just run: .\scripts\devsecops\bootstrap-multistage-devsecops.ps1" -ForegroundColor Cyan
 }
 
 Write-Host "`n================================================================================" -ForegroundColor Green

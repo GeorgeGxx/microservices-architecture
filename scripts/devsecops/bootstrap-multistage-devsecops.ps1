@@ -1,19 +1,26 @@
 # ==============================================================================
 # Bootstrap Local DevSecOps Platform (Minikube + Terraform + Istio + Docker Hub)
 # AMD Ryzen 7 (16 threads) | 32 GB RAM Allocation
+# Environments Correlation:
+#   - Git Branch: 'develop' -> Local Minikube Environment ('dev' namespace)
+#   - Supporting Tools: 'observability', 'auth', 'vault', 'data', 'argocd'
 # ==============================================================================
 [CmdletBinding()]
 param(
+    [ValidateSet("dev", "staging", "prod")]
+    [string]$Environment = "dev",
     [int]$Cpus = 12,
     [int]$MemoryMb = 12288,
     [string]$DiskSize = "80g",
-    [switch]$DeployCanary = $false
+    [switch]$DeployCanary = $false,
+    [switch]$WithAwsBackend = $false,
+    [string]$AwsRegion = "us-east-1"
 )
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================================================" -ForegroundColor Cyan
-Write-Host "🚀 BOOTSTRAP: Local Enterprise DevSecOps Platform (Minikube)" -ForegroundColor Cyan
+Write-Host "🚀 BOOTSTRAP: Enterprise DevSecOps Platform (Target: '$Environment')" -ForegroundColor Cyan
 Write-Host "   Resource Budget: $Cpus CPUs | $($MemoryMb / 1024) GB RAM | $DiskSize Disk" -ForegroundColor Cyan
 Write-Host "================================================================================" -ForegroundColor Cyan
 
@@ -53,8 +60,8 @@ if (Test-Path "$umbrellaDir\Chart.yaml") {
     helm dependency build $umbrellaDir | Out-Null
 }
 
-# 3. Apply Terraform for Platform Infrastructure
-Write-Host "`n🏗️ Deploying platform via Terraform (Gatekeeper, ArgoCD, Prometheus)..." -ForegroundColor Yellow
+# 3. Apply Terraform for Platform Infrastructure & Namespaces
+Write-Host "`n🏗️ Deploying platform via Terraform (Gatekeeper, ArgoCD, Prometheus, Namespaces)..." -ForegroundColor Yellow
 $tfDir = Join-Path $PSScriptRoot "..\..\terraform\environments\local-minikube"
 Push-Location $tfDir
 try {
@@ -63,6 +70,13 @@ try {
 } finally {
     Pop-Location
 }
+
+# Ensure explicit namespaces and Istio sidecar injection labels
+$namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system")
+foreach ($ns in $namespaces) {
+    kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f - | Out-Null
+}
+kubectl label namespace dev istio-injection=enabled environment=dev --overwrite | Out-Null
 
 # 4. Apply Gatekeeper OPA Policies
 Write-Host "`n🛡️ Applying centralized Gatekeeper policies (devsecops/policies/gatekeeper)..." -ForegroundColor Yellow
@@ -93,9 +107,25 @@ if (Test-Path "$istioDir\02-gateway.yaml") {
 if (Test-Path "$istioDir\04-kiali.yaml") {
     kubectl apply -f "$istioDir\04-kiali.yaml"
 }
-if (Test-Path "$istioDir\destination-rules-staging.yaml") {
-    Write-Host "🌐 Applying Istio DestinationRules (subsets v1/v2)..." -ForegroundColor Yellow
-    kubectl apply -f "$istioDir\destination-rules-staging.yaml" 2>$null
+$envDr = Join-Path $istioDir "destination-rules-$Environment.yaml"
+if (Test-Path $envDr) {
+    Write-Host "🌐 Applying Istio DestinationRules for '$Environment'..." -ForegroundColor Yellow
+    kubectl apply -f $envDr 2>$null
+}
+$envPa = Join-Path $istioDir "peer-authentication-$Environment.yaml"
+if (Test-Path $envPa) {
+    Write-Host "🛡️ Applying Istio PeerAuthentication for '$Environment'..." -ForegroundColor Yellow
+    kubectl apply -f $envPa 2>$null
+}
+
+# Optional Multi-Stage AWS Backend Bootstrap (Zero redundancy for pure Minikube / Docker Compose)
+if ($WithAwsBackend) {
+    Write-Host "`n☁️ Initializing AWS S3 Remote State Backend & DynamoDB Lock Tables..." -ForegroundColor Yellow
+    $backendScript = Join-Path $PSScriptRoot "..\cloud\terraform\terraform-bootstrap-backend.ps1"
+    if (Test-Path $backendScript) {
+        $targetCloudEnv = if ($Environment -eq "dev") { "all" } else { $Environment }
+        & $backendScript -Cloud aws -Region $AwsRegion -Environment $targetCloudEnv
+    }
 }
 
 $vaultManifest = Join-Path $PSScriptRoot "..\..\k8s\minikube\vault\vault-dev.yaml"
@@ -118,42 +148,64 @@ if (-not $esoNs) {
     helm repo update external-secrets 2>$null
     helm upgrade --install external-secrets external-secrets/external-secrets -n external-secrets --create-namespace 2>$null
 }
-$esoDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\vault\external-secrets"
-if (Test-Path $esoDir) {
-    kubectl apply -f "$esoDir\external-secrets-store.yaml" 2>$null
-    kubectl apply -f "$esoDir\microservices-external-secret.yaml" 2>$null
+$esoDevManifest = Join-Path $PSScriptRoot "..\..\k8s\minikube\vault\external-secrets\external-secrets-dev.yaml"
+if (Test-Path $esoDevManifest) {
+    kubectl apply -f $esoDevManifest 2>$null
 }
 
-# 5.1 Deploy Keycloak IAM & Backing Data Services to Staging
-Write-Host "`n🔑 Deploying Keycloak IAM & Backing Data Services (PostgreSQL, Kafka, Redis)..." -ForegroundColor Yellow
+# 5.1 Deploy Keycloak IAM to 'auth' and Backing Data Services to 'data'
+Write-Host "`n🔑 Deploying Secrets, Keycloak IAM to 'auth' and Backing Data Services to 'data'..." -ForegroundColor Yellow
 $infraDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\infra"
-kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n staging
-kubectl apply -f "$infraDir\postgres-products.yaml" -n staging
-kubectl apply -f "$infraDir\postgres-orders.yaml" -n staging
-kubectl apply -f "$infraDir\postgres-inventory.yaml" -n staging
-kubectl apply -f "$infraDir\redis.yaml" -n staging
-kubectl apply -f "$infraDir\kafka.yaml" -n staging
-kubectl apply -f "$infraDir\keycloak.yaml" -n staging
 
-# 5.2 Deploy Frontend Angular SPA & Microservices via Helm
-Write-Host "`n🌐 Deploying Frontend Angular & Spring Boot Microservices to Staging..." -ForegroundColor Yellow
-$frontendManifest = Join-Path $PSScriptRoot "..\..\k8s\minikube\services\frontend.yaml"
-if (Test-Path $frontendManifest) {
-    kubectl apply -f $frontendManifest -n staging
+# Seed microservices-secrets into auth and data namespaces for databases & Keycloak
+$seedSecrets = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: microservices-secrets
+type: Opaque
+stringData:
+  KEYCLOAK_ADMIN: admin
+  KEYCLOAK_ADMIN_PASSWORD: admin
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: admin
+  REDIS_PASSWORD: admin
+  KEYCLOAK_CLIENT_SECRET: mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu
+"@
+@("auth", "data") | ForEach-Object { $seedSecrets | kubectl apply -n $_ -f - | Out-Null }
+
+# Data namespace services
+kubectl apply -f "$infraDir\postgres-products.yaml" -n data
+kubectl apply -f "$infraDir\postgres-orders.yaml" -n data
+kubectl apply -f "$infraDir\postgres-inventory.yaml" -n data
+kubectl apply -f "$infraDir\redis.yaml" -n data
+kubectl apply -f "$infraDir\kafka.yaml" -n data
+
+# Auth namespace services
+kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth
+kubectl apply -f "$infraDir\keycloak.yaml" -n auth
+
+# Infrastructure Bridges for 'dev' namespace
+$devBridges = Join-Path $infraDir "dev-infra-bridges.yaml"
+if (Test-Path $devBridges) {
+    Write-Host "🌉 Applying Infrastructure DNS Bridges for 'dev' namespace..." -ForegroundColor Yellow
+    kubectl apply -f $devBridges
 }
-helm upgrade --install microservices "$umbrellaDir" --namespace staging
+
+# 5.2 Deploy Frontend Angular SPA & Microservices to 'dev' via Helm Umbrella Chart
+Write-Host "`n🌐 Deploying Frontend Angular & Spring Boot Microservices to 'dev' via Helm..." -ForegroundColor Yellow
+helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev
 
 if ($DeployCanary) {
     $canaryManifest = Join-Path $PSScriptRoot "..\..\k8s\istio\canary-deployment-products-v2.yaml"
     if (Test-Path $canaryManifest) {
-        Write-Host "🐥 Deploying Canary products-service v2..." -ForegroundColor Yellow
-        kubectl apply -f $canaryManifest -n staging
+        Write-Host "🐥 Deploying Canary products-service v2 to 'dev'..." -ForegroundColor Yellow
+        kubectl apply -f $canaryManifest -n dev
     }
 }
 
 # 5.2.1 Provision Curated Grafana Dashboards, Loki, Alloy & ArgoCD Calibration
 Write-Host "`n📊 Provisioning Observability (Dashboards, Loki, Alloy, Prometheus-DS)..." -ForegroundColor Yellow
-$infraDir = Join-Path $PSScriptRoot "..\..\k8s\minikube\infra"
 if (Test-Path "$infraDir\loki.yaml") {
     kubectl apply -f "$infraDir\loki.yaml" -n observability 2>$null
 }
@@ -220,15 +272,15 @@ stringData:
 }
 $repoSecret | kubectl apply -f - 2>$null
 
-# Register ArgoCD AppProject and Application with Sync Waves
+# Register ArgoCD AppProject and Application for 'dev'
 $argoProject = Join-Path $PSScriptRoot "..\..\argocd\appproject.yaml"
-$argoAppStaging = Join-Path $PSScriptRoot "..\..\argocd\application-staging.yaml"
+$argoAppDev = Join-Path $PSScriptRoot "..\..\argocd\application-dev.yaml"
 if (Test-Path $argoProject) {
     kubectl apply -f $argoProject 2>$null
 }
-if (Test-Path $argoAppStaging) {
-    kubectl apply -f $argoAppStaging 2>$null
-    Write-Host "  [OK] ArgoCD Application 'microservices-staging' provisioned with GitOps Sync Waves." -ForegroundColor Green
+if (Test-Path $argoAppDev) {
+    kubectl apply -f $argoAppDev 2>$null
+    Write-Host "  [OK] ArgoCD Application 'microservices-dev' provisioned with GitOps Sync Waves." -ForegroundColor Green
 }
 
 # 5.3 Spawn background port-forward tunnels for Windows localhost access
@@ -243,15 +295,15 @@ $tunnels = @(
     @{ Svc = "kube-prometheus-grafana"; Namespace = "observability"; LocalPort = 3000; RemotePort = 80; Desc = "Grafana Observability" },
     @{ Svc = "kube-prometheus-kube-prome-prometheus"; Namespace = "observability"; LocalPort = 9090; RemotePort = 9090; Desc = "Prometheus Targets UI" },
     @{ Svc = "kiali"; Namespace = "istio-system"; LocalPort = 20001; RemotePort = 20001; Desc = "Kiali Mesh Topology Console" },
-    # Application & IAM Tunnels (in Staging)
-    @{ Svc = "frontend"; Namespace = "staging"; LocalPort = 4200; RemotePort = 80; Desc = "Frontend Angular App (Direct)" },
-    @{ Svc = "api-gateway"; Namespace = "staging"; LocalPort = 8080; RemotePort = 8080; Desc = "API Gateway (Direct)" },
-    @{ Svc = "keycloak"; Namespace = "staging"; LocalPort = 8181; RemotePort = 8181; Desc = "Keycloak IAM Console (Direct)" }
+    # Application & IAM Tunnels
+    @{ Svc = "frontend"; Namespace = "dev"; LocalPort = 4200; RemotePort = 80; Desc = "Frontend Angular App (Direct)" },
+    @{ Svc = "api-gateway"; Namespace = "dev"; LocalPort = 8080; RemotePort = 8080; Desc = "API Gateway (Direct)" },
+    @{ Svc = "keycloak"; Namespace = "auth"; LocalPort = 8181; RemotePort = 8181; Desc = "Keycloak IAM Console (Direct)" }
 )
 
 # 5.2.2 Wait for essential IAM identity provider before tunneling
-Write-Host "`n⏳ Waiting for Keycloak to be Ready in namespace 'staging'..." -ForegroundColor Yellow
-kubectl wait --namespace staging --for=condition=ready pod -l app=keycloak --timeout=120s 2>$null
+Write-Host "`n⏳ Waiting for Keycloak to be Ready in namespace 'auth'..." -ForegroundColor Yellow
+kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=120s 2>$null
 
 # Launch resilient tunnel supervisor daemon
 $supervisorScript = Join-Path $PSScriptRoot "supervise-tunnels.py"
@@ -270,7 +322,7 @@ if (Test-Path $keycloakBootstrapScript) {
 
 # 6. Service Access Summary
 Write-Host "`n================================================================================" -ForegroundColor Green
-Write-Host "🎉 DEVSECOPS & APPLICATION PLATFORM READY AND OPERATIONAL" -ForegroundColor Green
+Write-Host "🎉 DEVSECOPS & APPLICATION PLATFORM READY AND OPERATIONAL ('dev')" -ForegroundColor Green
 Write-Host "================================================================================" -ForegroundColor Green
 Write-Host "🌐 Frontend Angular App:   http://localhost:4200" -ForegroundColor White
 Write-Host "🔌 API Gateway Direct:     http://localhost:8080/api/product (Swagger: /swagger-ui.html)" -ForegroundColor White
@@ -281,3 +333,11 @@ Write-Host "🐙 ArgoCD GitOps:          https://localhost:8088     (admin / adm
 Write-Host "📊 Grafana Observability:  http://localhost:3000      (admin / admin)" -ForegroundColor White
 Write-Host "📈 Prometheus Targets:     http://localhost:9090/targets" -ForegroundColor White
 Write-Host "================================================================================" -ForegroundColor Green
+
+# 7. Local FinOps Savings Report (Air-Gapped / Zero SaaS)
+$costEstimator = Join-Path $PSScriptRoot "..\cloud\terraform\local-cost-estimator.py"
+if (Test-Path $costEstimator) {
+    $finopsEnv = if ($Environment -eq "dev") { "minikube" } else { $Environment }
+    python $costEstimator --env $finopsEnv
+}
+
