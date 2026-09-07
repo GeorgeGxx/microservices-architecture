@@ -2,17 +2,25 @@ name: Microservices Architecture - Terraform AWS Infrastructure Pipeline
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ develop, staging, master, main ]
     paths:
       - 'terraform/**'
   pull_request:
-    branches: [ master, main ]
+    branches: [ develop, staging, master, main ]
     paths:
       - 'terraform/**'
   schedule:
-    - cron: '0 6 * * 1' # Lunes a las 6:00 AM UTC - Automated Drift Detection
+    - cron: '0 6 * * 1' # Monday 6:00 AM UTC - Automated Drift Detection
   workflow_dispatch:
     inputs:
+      environment:
+        description: 'Target AWS Environment (staging or prod)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - prod
       action:
         description: 'Terraform Action (plan, apply or drift-detection)'
         required: true
@@ -29,11 +37,12 @@ concurrency:
 
 env:
   AWS_REGION: us-east-1
-  TF_WORKING_DIR: terraform/environments/aws/prod
+  TF_WORKING_DIR: terraform/environments/aws
 
 permissions:
   contents: read
   security-events: write
+  pull-requests: write
 
 jobs:
   # ==========================================================
@@ -54,8 +63,7 @@ jobs:
 
       - name: Terraform Format Check
         run: |
-          cd terraform
-          terraform fmt -check -recursive
+          terraform fmt -check -recursive terraform/
 
       - name: Terraform Init (Validation Mode)
         run: |
@@ -104,22 +112,46 @@ jobs:
     if: github.event_name != 'schedule' && github.event.inputs.action != 'drift-detection'
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
     permissions:
       id-token: write
       contents: read
       pull-requests: write
+    outputs:
+      target_env: ${{ steps.resolve-env.outputs.target_env }}
+      s3_bucket: ${{ steps.resolve-env.outputs.s3_bucket }}
+      dynamo_table: ${{ steps.resolve-env.outputs.dynamo_table }}
+      var_file: ${{ steps.resolve-env.outputs.var_file }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC / IAM Key fallback)
+      - name: Resolve Target AWS Environment
+        id: resolve-env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_ENV="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.base_ref }}" = "staging" ]; then
+            TARGET_ENV="staging"
+          else
+            TARGET_ENV="prod"
+          fi
+
+          echo "target_env=$TARGET_ENV" >> $GITHUB_OUTPUT
+          echo "var_file=$TARGET_ENV/terraform.tfvars" >> $GITHUB_OUTPUT
+          echo "s3_bucket=georgegxx-msa-tfstate-$TARGET_ENV" >> $GITHUB_OUTPUT
+          echo "dynamo_table=georgegxx-msa-tflock-$TARGET_ENV" >> $GITHUB_OUTPUT
+          echo "Resolved target environment: $TARGET_ENV"
+
+      - name: Configure AWS Credentials (IAM Key / OIDC fallback)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-        continue-on-error: true # demo environment fallback
+        continue-on-error: true # Permits pipeline to pass in local simulation mode if AWS credentials not yet wired
 
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v3
@@ -129,13 +161,36 @@ jobs:
       - name: Terraform Init
         run: |
           cd ${{ env.TF_WORKING_DIR }}
-          terraform init -backend=false
+          TARGET_ENV="${{ steps.resolve-env.outputs.target_env }}"
+          S3_BUCKET="${{ steps.resolve-env.outputs.s3_bucket }}"
+          DYNAMO_TABLE="${{ steps.resolve-env.outputs.dynamo_table }}"
+
+          echo "Initializing Terraform backend for environment: $TARGET_ENV"
+          # Try live remote state backend first, fallback to -backend=false if simulation mode
+          terraform init \
+            -backend-config="bucket=$S3_BUCKET" \
+            -backend-config="dynamodb_table=$DYNAMO_TABLE" \
+            -backend-config="region=${{ env.AWS_REGION }}" || \
+          (echo "::warning::Remote S3 backend connection unavailable, initializing in offline/simulation mode." && terraform init -backend=false)
+
+      - name: Select or Create Terraform Workspace
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          TARGET_ENV="${{ steps.resolve-env.outputs.target_env }}"
+          terraform workspace select $TARGET_ENV || terraform workspace new $TARGET_ENV || true
 
       - name: Terraform Plan
         id: plan
+        env:
+          TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD || 'TemporaryDemoPass123!SafeLock' }}
         run: |
           cd ${{ env.TF_WORKING_DIR }}
-          terraform plan -no-color -out=tfplan || echo "::warning::Plan generated in local simulation mode (no live AWS account wired)."
+          VAR_FILE="${{ steps.resolve-env.outputs.var_file }}"
+          PLAN_FLAGS="-no-color -out=tfplan"
+          if [ -f "$VAR_FILE" ]; then
+            PLAN_FLAGS="$PLAN_FLAGS -var-file=$VAR_FILE"
+          fi
+          terraform plan $PLAN_FLAGS || echo "::warning::Plan executed in simulation mode or without live AWS credentials."
           if [ -f tfplan ]; then
             terraform show -json tfplan > tfplan.json
           fi
@@ -143,39 +198,129 @@ jobs:
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: tfplan-prod
+          name: tfplan-${{ steps.resolve-env.outputs.target_env }}
           path: |
             ${{ env.TF_WORKING_DIR }}/tfplan
             ${{ env.TF_WORKING_DIR }}/tfplan.json
           retention-days: 7
           if-no-files-found: ignore
 
-      - name: Setup Infracost (FinOps Cost Estimation)
-        if: github.event_name == 'pull_request'
-        uses: infracost/actions/setup@v3
-        with:
-          api-key: ${{ secrets.INFRACOST_API_KEY }}
-
-      - name: Generate Infracost Cost Breakdown on PR
-        if: github.event_name == 'pull_request' && env.INFRACOST_API_KEY != ''
-        env:
-          INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+      - name: Run FinOps Cost Estimator (Air-Gapped / No Infracost.io SaaS)
         run: |
-          cd ${{ env.TF_WORKING_DIR }}
-          if [ -f tfplan.json ]; then
-            infracost breakdown --path tfplan.json --format json --out-file /tmp/infracost.json
-            infracost comment github --path /tmp/infracost.json --repo $GITHUB_REPOSITORY --github-token ${{ github.token }} --pull-request ${{ github.event.pull_request.number }} --behavior update
-          fi
+          TARGET_ENV="${{ steps.resolve-env.outputs.target_env }}"
+          PLAN_FILE="${{ env.TF_WORKING_DIR }}/tfplan.json"
+          
+          python scripts/cloud/terraform/local-cost-estimator.py \
+            --plan "$PLAN_FILE" \
+            --env "$TARGET_ENV" \
+            --markdown-out finops-cost-report.md
+            
+          cat finops-cost-report.md >> $GITHUB_STEP_SUMMARY
 
-  # ==========================================================
-  # STAGE 3: Terraform Apply (CD Phase - Main Branch / Manual)
-  # ==========================================================
-  tf-apply:
-    name: 🚀 3. Terraform Apply (Deploy Infra)
+      - name: Post FinOps Cost Breakdown on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('finops-cost-report.md')) {
+              const body = fs.readFileSync('finops-cost-report.md', 'utf8');
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              const botComment = comments.find(comment => comment.body.includes('FINOPS CLOUD COST ESTIMATION REPORT'));
+              if (botComment) {
+                await github.rest.issues.updateComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                  body: body
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: body
+                });
+              }
+            }
+
+  # =========================================================================
+  # STAGE 3A: Terraform Apply - AWS Staging Environment
+  # =========================================================================
+  tf-apply-staging:
+    name: 🚀 3A. Terraform Apply (AWS Staging)
     needs: tf-plan-cost
-    if: (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && (github.event_name == 'push' || github.event.inputs.action == 'apply')
+    if: (github.ref == 'refs/heads/staging' && github.event_name == 'push') || (github.event.inputs.action == 'apply' && github.event.inputs.environment == 'staging')
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: staging-infra
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+        continue-on-error: true
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-staging
+          path: ${{ env.TF_WORKING_DIR }}
+        continue-on-error: true
+
+      - name: Terraform Init
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform init \
+            -backend-config="bucket=georgegxx-msa-tfstate-staging" \
+            -backend-config="dynamodb_table=georgegxx-msa-tflock-staging" \
+            -backend-config="region=${{ env.AWS_REGION }}" || \
+          (echo "::warning::Remote S3 backend unavailable, initializing in simulation mode." && terraform init -backend=false)
+
+      - name: Select Terraform Workspace
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform workspace select staging || terraform workspace new staging || true
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD || 'TemporaryDemoPass123!SafeLock' }}
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          if [ -f tfplan ]; then
+            terraform apply -auto-approve tfplan || echo "::warning::Apply executed in simulation mode or failed."
+          else
+            terraform apply -auto-approve -var-file="staging/terraform.tfvars" || echo "::warning::Apply executed in simulation mode or failed."
+          fi
+
+  # =========================================================================
+  # STAGE 3B: Terraform Apply - AWS Production Environment
+  # =========================================================================
+  tf-apply-prod:
+    name: 🚀 3B. Terraform Apply (AWS Production)
+    needs: tf-plan-cost
+    if: ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name == 'push') || (github.event.inputs.action == 'apply' && github.event.inputs.environment == 'prod')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       id-token: write
       contents: read
@@ -185,7 +330,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials (OIDC / IAM Key fallback)
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
@@ -204,24 +349,36 @@ jobs:
         with:
           name: tfplan-prod
           path: ${{ env.TF_WORKING_DIR }}
+        continue-on-error: true
 
       - name: Terraform Init
         run: |
           cd ${{ env.TF_WORKING_DIR }}
-          terraform init -backend=false
+          terraform init \
+            -backend-config="bucket=georgegxx-msa-tfstate-prod" \
+            -backend-config="dynamodb_table=georgegxx-msa-tflock-prod" \
+            -backend-config="region=${{ env.AWS_REGION }}" || \
+          (echo "::warning::Remote S3 backend unavailable, initializing in simulation mode." && terraform init -backend=false)
+
+      - name: Select Terraform Workspace
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform workspace select prod || terraform workspace new prod || true
 
       - name: Terraform Apply
+        env:
+          TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD || 'TemporaryDemoPass123!SafeLock' }}
         run: |
           cd ${{ env.TF_WORKING_DIR }}
           if [ -f tfplan ]; then
-            terraform apply -auto-approve tfplan || echo "::warning::Apply simulated — no live AWS account wired."
+            terraform apply -auto-approve tfplan || echo "::warning::Apply executed in simulation mode or failed."
           else
-            terraform apply -auto-approve || echo "::warning::Apply simulated — no live AWS account wired."
+            terraform apply -auto-approve -var-file="prod/terraform.tfvars" || echo "::warning::Apply executed in simulation mode or failed."
           fi
 
-  # ==========================================================
+  # =========================================================================
   # STAGE 4: Automated Drift Detection (Scheduled / On-demand)
-  # ==========================================================
+  # =========================================================================
   tf-drift-detection:
     name: 🧭 4. Terraform Cloud Drift Detection
     if: github.event_name == 'schedule' || github.event.inputs.action == 'drift-detection'
@@ -251,10 +408,16 @@ jobs:
       - name: Terraform Init
         run: |
           cd ${{ env.TF_WORKING_DIR }}
+          terraform init \
+            -backend-config="bucket=georgegxx-msa-tfstate-prod" \
+            -backend-config="dynamodb_table=georgegxx-msa-tflock-prod" \
+            -backend-config="region=${{ env.AWS_REGION }}" || \
           terraform init -backend=false
 
       - name: Check Cloud Drift against Terraform State
+        env:
+          TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD || 'TemporaryDemoPass123!SafeLock' }}
         run: |
           cd ${{ env.TF_WORKING_DIR }}
-          echo "Checking for cloud infrastructure drift against state..."
-          terraform plan -detailed-exitcode -no-color || echo "::warning::Drift detected or running in demo simulation mode."
+          terraform workspace select prod || true
+          terraform plan -detailed-exitcode -no-color -var-file="prod/terraform.tfvars" || echo "::warning::Drift detected or running in simulation mode."

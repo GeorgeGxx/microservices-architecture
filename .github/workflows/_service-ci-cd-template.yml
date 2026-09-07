@@ -39,6 +39,8 @@ on:
         required: false
       SONAR_HOST_URL:
         required: false
+      SONAR_ORGANIZATION:
+        required: false
 
 env:
   DOCKERHUB_OWNER: ${{ inputs.dockerhub-owner || 'georgegxx' }}
@@ -150,18 +152,46 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || 'georgegxx' }}
         run: |
           if [ -n "$SONAR_TOKEN" ]; then
             cd ${{ inputs.service-dir }}
-            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-              -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-              -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            SONAR_ARGS="-Dsonar.projectKey=msa-${{ inputs.service-name }} \
+              -Dsonar.projectName=\"MSA ${{ inputs.service-name }}\" \
               -Dsonar.host.url=$SONAR_HOST_URL \
               -Dsonar.token=$SONAR_TOKEN \
               -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-              -Dsonar.qualitygate.wait=false || echo "::warning::Sonar analysis completed with advisory warnings."
+              -Dsonar.qualitygate.wait=false"
+            if [ -n "$SONAR_ORGANIZATION" ] && [ "$SONAR_HOST_URL" = "https://sonarcloud.io" ]; then
+              SONAR_ARGS="$SONAR_ARGS -Dsonar.organization=$SONAR_ORGANIZATION"
+            fi
+            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar $SONAR_ARGS || echo "::warning::Sonar analysis completed with advisory warnings."
           else
-            echo "::warning::SONAR_TOKEN not set — skipping SonarQube Quality Gate in local testing."
+            echo "::warning::SONAR_TOKEN not set — skipping SonarQube Quality Gate."
+          fi
+
+      - name: Sonar Analysis (Angular Frontend)
+        if: inputs.service-type == 'angular'
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || 'georgegxx' }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ]; then
+            cd frontend
+            SONAR_ARGS="-Dsonar.projectKey=msa-frontend \
+              -Dsonar.projectName=\"MSA Frontend Angular\" \
+              -Dsonar.host.url=$SONAR_HOST_URL \
+              -Dsonar.token=$SONAR_TOKEN \
+              -Dsonar.sources=src \
+              -Dsonar.qualitygate.wait=false"
+            if [ -n "$SONAR_ORGANIZATION" ] && [ "$SONAR_HOST_URL" = "https://sonarcloud.io" ]; then
+              SONAR_ARGS="$SONAR_ARGS -Dsonar.organization=$SONAR_ORGANIZATION"
+            fi
+            npx -y sonar-scanner $SONAR_ARGS || echo "::warning::Frontend Sonar analysis completed with warnings."
+          else
+            echo "::warning::SONAR_TOKEN not set — skipping frontend SonarQube scan."
           fi
 
   # ==========================================================
@@ -287,33 +317,46 @@ jobs:
           fi
 
   # ==========================================================
-  # STEP 6: 🚀 Deploy to Staging (GitOps / ArgoCD / Helm with Istio)
+  # STEP 6: 🚀 Deploy to Target Environment (GitOps / ArgoCD / Helm with Istio)
+  #   - Branch develop/dev: Deploys to Local Minikube in 'dev' namespace
+  #   - Branch staging: Deploys to AWS Cloud EKS in 'staging' namespace
   # ==========================================================
   deploy-staging:
-    name: "🚀 6. Deploy to Staging - ${{ inputs.service-name }}"
+    name: "🚀 6. Deploy Service - ${{ inputs.service-name }}"
     needs: compliance-check
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
-    environment:
-      name: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Deploy to Minikube Staging via Helm
+      - name: Deploy to Target Environment via Helm
         run: |
+          if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            TARGET_ENV="dev"
+            TARGET_NS="dev"
+          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+            TARGET_ENV="staging"
+            TARGET_NS="staging"
+          else
+            TARGET_ENV="dev"
+            TARGET_NS="dev"
+          fi
+
+          echo "Target Environment: $TARGET_ENV (Namespace: $TARGET_NS)"
           if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             helm upgrade --install microservices ./helm/microservices-umbrella \
-              --namespace staging \
+              --namespace "$TARGET_NS" \
               --create-namespace \
               --set ${{ inputs.service-name }}.image.tag=${{ github.sha }} \
-              --set global.environment=staging \
-              --set configMap.data.SPRING_PROFILES_ACTIVE=staging \
+              --set global.environment="$TARGET_ENV" \
+              --set configMap.data.SPRING_PROFILES_ACTIVE="$TARGET_ENV" \
               --wait --timeout 5m \
               --atomic \
               --cleanup-on-fail
+            echo "Successfully deployed ${{ inputs.service-name }} to $TARGET_NS namespace."
           else
-            echo "::warning::Minikube cluster not connected in this job — simulated staging deploy."
+            echo "::warning::Kubernetes cluster not connected in this runner — simulated $TARGET_ENV deployment."
           fi
 
   # ==========================================================
@@ -525,12 +568,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Execute Automated Helm Rollback on Staging
+      - name: Execute Automated Helm Rollback
         run: |
-          echo "::error::Post-deployment validation tests failed. Triggering automated Helm rollback in staging namespace..."
-          if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
-            helm rollback microservices --namespace staging --wait --timeout 5m || echo "::warning::Helm rollback completed with warnings."
+          if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            TARGET_NS="dev"
+          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
+            TARGET_NS="staging"
           else
-            echo "::notice::Kubernetes cluster not connected in this runner — simulated staging rollback."
+            TARGET_NS="dev"
+          fi
+
+          echo "::error::Post-deployment validation tests failed. Triggering automated Helm rollback in namespace $TARGET_NS..."
+          if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
+            helm rollback microservices --namespace "$TARGET_NS" --wait --timeout 5m || echo "::warning::Helm rollback completed with warnings."
+          else
+            echo "::notice::Kubernetes cluster not connected in this runner — simulated $TARGET_NS rollback."
           fi
 

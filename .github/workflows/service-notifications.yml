@@ -2,12 +2,12 @@ name: Notification Service CI/CD
 
 on:
   push:
-    branches: [ master, main, staging, develop, 'release/*' ]
+    branches: [ develop ]
     paths:
       - 'notification-service/**'
       - 'pom.xml'
   pull_request:
-    branches: [ master, main, staging, develop ]
+    branches: [ develop ]
     paths:
       - 'notification-service/**'
       - 'pom.xml'
