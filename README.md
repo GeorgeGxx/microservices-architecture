@@ -385,6 +385,7 @@ When you are ready to enforce strict blocking in production:
     - [3. 💥 Chaos Engineering \& Fault Injection (`simulate-chaos.py`)](#3--chaos-engineering--fault-injection-simulate-chaospy)
     - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate-ddos.py`)](#4-️-ddos--rate-limiting-stress-attacks-simulate-ddospy)
     - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
+    - [6. 📉 Cart Abandonment Rate KPI Verification & Testing](#6--cart-abandonment-rate-kpi-verification--testing)
     - [📦 Postman Test Suite:](#-postman-test-suite)
   - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
     - [1. 📈 Prometheus (Metrics \& PromQL) — `prometheus-ds`](#1--prometheus-metrics--promql--prometheus-ds)
@@ -432,6 +433,34 @@ When you are ready to enforce strict blocking in production:
     - [2. 🔐 External Secrets Operator (ESO) \& HashiCorp Vault Synchronization](#2--external-secrets-operator-eso--hashicorp-vault-synchronization)
     - [3. 🌐 Progressive Canary Deployments in Istio Service Mesh](#3--progressive-canary-deployments-in-istio-service-mesh)
     - [4. 🚨 Alertmanager Alert Routing (Local Default, Slack \& Jira Ready)](#4--alertmanager-alert-routing-local-default-slack--jira-ready)
+  - [� Automated \& Manual Rollback Operations Guide (Multi-Cloud \& Multi-CI/CD)](#-automated--manual-rollback-operations-guide-multi-cloud--multi-cicd)
+    - [1. 🛡️ The 4-Tier Automated Rollback Engine](#1-️-the-4-tier-automated-rollback-engine)
+    - [2. 🕹️ How to Execute Manual Rollbacks (CLI \& UI Runbooks)](#2-️-how-to-execute-manual-rollbacks-cli--ui-runbooks)
+      - [A. Direct Kubernetes / Helm CLI (Universal):](#a-direct-kubernetes--helm-cli-universal)
+      - [B. GitOps Rollback in ArgoCD:](#b-gitops-rollback-in-argocd)
+      - [C. GitHub Actions:](#c-github-actions)
+      - [D. Azure DevOps:](#d-azure-devops)
+      - [E. Bitbucket Pipelines:](#e-bitbucket-pipelines)
+  - [☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)](#️-enterprise-aws-architecture-reference-suite-devsecopsreferenceaws-eks)
+    - [Included Reference Architecture Templates](#included-reference-architecture-templates)
+    - [🛠️ AWS Blueprint Step-by-Step Activation Guide](#️-aws-blueprint-step-by-step-activation-guide)
+      - [1. AWS IAM OIDC Configuration (Zero-Trust)](#1-aws-iam-oidc-configuration-zero-trust)
+      - [2. Frontend S3 \& CloudFront Setup](#2-frontend-s3--cloudfront-setup)
+      - [3. Deploying to Amazon EKS via GitHub Actions](#3-deploying-to-amazon-eks-via-github-actions)
+      - [4. Deploying to Amazon EKS via ArgoCD](#4-deploying-to-amazon-eks-via-argocd)
+  - [🛠️ Enterprise Cloud Automation \& FinOps Tooling (`scripts/cloud/`)](#️-enterprise-cloud-automation--finops-tooling-scriptscloud)
+      - [Detailed Cloud Automation Script Playbooks:](#detailed-cloud-automation-script-playbooks)
+        - [1. 🔍 AWS Resource Inventory \& FinOps Auditor](#1--aws-resource-inventory--finops-auditor)
+        - [2. 🧹 AWS Orphan Resource \& Idle FinOps Cleaner](#2--aws-orphan-resource--idle-finops-cleaner)
+        - [3. 🛡️ AWS Security Group \& Open Ingress Inspector](#3-️-aws-security-group--open-ingress-inspector)
+        - [4. 📋 CloudWatch Log Retention Enforcer](#4--cloudwatch-log-retention-enforcer)
+        - [5. 🔑 IAM Credential \& CIS Benchmark Auditor](#5--iam-credential--cis-benchmark-auditor)
+        - [6. 🔒 ACM SSL/TLS Certificate Expiration Watcher](#6--acm-ssltls-certificate-expiration-watcher)
+        - [7. 💾 Automated RDS PostgreSQL Snapshot Manager](#7--automated-rds-postgresql-snapshot-manager)
+        - [8. 🔄 S3 Cross-Region Disaster Recovery \& State Sync](#8--s3-cross-region-disaster-recovery--state-sync)
+        - [9. 🛡️ S3 Bucket Security Policy \& OAC Hardening](#9-️-s3-bucket-security-policy--oac-hardening)
+        - [10. 🧹 GKE Persistent Disk Snapshot FinOps Cleanup (GCP)](#10--gke-persistent-disk-snapshot-finops-cleanup-gcp)
+  - [🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)](#️-cloud-agnostic-devsecops-cli-tooling-scriptsdevsecops)
   - [📄 License](#-license)
 
 ---
@@ -955,6 +984,54 @@ pwsh scripts/testing/smoke-test.ps1
 pwsh scripts/testing/verify-swagger.ps1
 ```
 
+### 6. 📉 Cart Abandonment Rate KPI Verification & Testing
+The **📉 Cart Abandonment Rate** panel in the **`🏢 Business Intelligence & Inventory Operations`** Grafana dashboard evaluates the proportion of buyer journeys where items were added to the shopping cart but never converted into finalized purchases:
+
+$$\text{Cart Abandonment Rate (\%)} = \text{clamp}\left(\left(1 - \frac{\sum \text{Orders Completed}}{\sum \text{Cart Additions}}\right) \times 100,\, 0,\, 100\right)$$
+
+* **🟢 0% – 50% (Green):** High sales conversion efficiency (healthy e-commerce funnel).
+* **🟡 50% – 75% (Yellow):** Moderate abandonment indicating checkout friction or drop-off.
+* **🔴 75% – 100% (Red):** Critical commercial warning (high drop-off rate, uncompleted purchases).
+
+#### Step-by-Step Testing Procedures (3 Verified Methods):
+
+##### 🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)
+Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) without completing checkouts:
+
+```powershell
+# Inject 30 abandoned cart events via the public Orders Funnel API:
+1..30 | ForEach-Object {
+    Invoke-RestMethod -Uri "http://localhost:8080/api/order/funnel" `
+      -Method POST `
+      -ContentType "application/json" `
+      -Body '{"eventType":"CART_ADD","category":"Electronics"}'
+}
+```
+
+* **Grafana Verification:** Open **http://localhost:3000** &rarr; Dashboards &rarr; **`🏢 Business Intelligence & Inventory Operations`**.
+* The **`📉 Cart Abandonment Rate`** gauge instantly spikes into the **🟡 Yellow** / **🔴 Red** zone (~70% – 85%), reflecting the sudden drop in conversion.
+
+---
+
+##### 🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA
+1. Open the storefront in your web browser: **[http://localhost:4200](http://localhost:4200)**.
+2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click emits a real-time `CART_ADD` telemetry event to `orders-service`).
+3. Leave the session idle or close the shopping cart drawer (abandoning the purchase).
+4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the gauge needle climb upward.
+5. Next, proceed through the checkout flow and click **"Place Order & Pay"**: once the order completes with `HTTP 201 Created`, the gauge needle immediately swings back down toward the **🟢 Green** zone.
+
+---
+
+##### ⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate-traffic.py`)
+Run the autonomous e-commerce load generator to exercise the complete funnel stages (`CART_ADD` $\rightarrow$ `CHECKOUT_START` $\rightarrow$ `CHECKOUT_STEP` $\rightarrow$ `PLACED` $\rightarrow$ `DELIVERED`):
+
+```powershell
+# Simulate 20 realistic shopper journeys with 4 parallel threads:
+python scripts/testing/simulate-traffic.py --orders 20 --concurrency 4
+```
+
+* **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
+
 ### 📦 Postman Test Suite:
 Import [`microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) to execute automated end-to-end integration tests across OAuth2 auth flows, products CRUD, inventory reservation, and Kafka order events.
 
@@ -1003,7 +1080,15 @@ Select the **Prometheus** datasource to query real-time system metrics, throughp
   ```
 * **Business Metric - Total Orders Placed:**
   ```promql
-  orders_placed_total
+  ecommerce_orders{status="COMPLETED"}
+  ```
+* **Business Metric - Real-Time Revenue (USD):**
+  ```promql
+  ecommerce_revenue_usd
+  ```
+* **Business Metric - Physical Units Sold:**
+  ```promql
+  ecommerce_items_sold
   ```
 * **HashiCorp Vault Seal Status (1 = Unsealed, 0 = Sealed):**
   ```promql
@@ -1012,6 +1097,26 @@ Select the **Prometheus** datasource to query real-time system metrics, throughp
 * **HashiCorp Vault Secret Request Rate (Ops/sec):**
   ```promql
   sum by (code, type) (rate(vault_core_response_status_code[1m])) or (sum(up{job="vault"}) * 0)
+  ```
+* **Redis Cache Hit Ratio (%):**
+  ```promql
+  sum(rate(redis_keyspace_hits_total[1m])) / (sum(rate(redis_keyspace_hits_total[1m])) + sum(rate(redis_keyspace_misses_total[1m]))) * 100
+  ```
+* **Redis Memory Consumption (MB):**
+  ```promql
+  redis_memory_used_bytes / (1024 * 1024)
+  ```
+* **Kafka Consumer Lag by Topic & Group (Unprocessed Events):**
+  ```promql
+  sum by (topic, consumergroup) (kafka_consumergroup_lag)
+  ```
+* **PostgreSQL Transaction Commits per Second:**
+  ```promql
+  sum by (datname) (rate(pg_stat_database_xact_commit[1m]))
+  ```
+* **Keycloak IAM Active Management & JVM Commit Rate:**
+  ```promql
+  rate(vendor_transactions_commits{cache="userRevisions"}[1m])
   ```
 
 ---
@@ -1042,6 +1147,11 @@ Select the **Loki** datasource to stream and filter structured logs from all mic
 * **Filter Warning Logs for a Specific Microservice:**
   ```logql
   {service="api-gateway"} |= "WARN"
+  ```
+  *(Requires a time range covering recent security/warning events, e.g., `Last 3 hours`, or running `simulate-chaos.py`)*
+* **Real-Time HTTP Traffic & Access Logs for API Gateway (Istio Proxy):**
+  ```logql
+  {container="istio-proxy", pod=~"api-gateway.+"}
   ```
 
 ---
@@ -1091,7 +1201,7 @@ Both dashboards feature a top-level **`Filter Microservice`** template variable:
 | **Net Sales Revenue (USD)** | Executive Business Summary | `sum(ecommerce_revenue_usd{service=~"$service"})` | Cumulative net monetary revenue from active completed orders |
 | **Net Completed Orders** | Executive Business Summary | `sum(ecommerce_orders{status="COMPLETED", service=~"$service"})` | Total purchase orders successfully completed and active in platform |
 | **Average Order Value (AOV)** | Executive Business Summary | `sum(revenue) / clamp_min(sum(orders), 1)` | Average ticket value per completed order |
-| **Cart Abandonment Rate (%)** | Executive Business Summary | `(1 - (orders_completed / cart_additions)) * 100` | Percentage of created carts not converted into finished purchases |
+| **Cart Abandonment Rate (%)** | Executive Business Summary | `(1 - (orders_completed / cart_additions)) * 100` | Percentage of created carts not converted into finished purchases. *(See [testing guide](#6--cart-abandonment-rate-kpi-verification--testing))* |
 | **Conversion Funnel Stages** | Conversion & Logistics | `ecommerce_cart_additions_total` $\rightarrow$ `ecommerce_checkout_started_total` $\rightarrow$ `ecommerce_checkout_step_reached_total` $\rightarrow$ `ecommerce_orders` | Buyer journey progression: Cart Add $\rightarrow$ Checkout Start $\rightarrow$ Payment Step $\rightarrow$ Completed |
 | **5-Stage Logistics Pipeline** | Conversion & Logistics | `sum by (status) (ecommerce_orders_active_in_pipeline{service=~"$service"})` | Real-time fulfillment progression: `PLACED` $\rightarrow$ `PREPARING` $\rightarrow$ `IN_TRANSIT` $\rightarrow$ `OUT_FOR_DELIVERY` $\rightarrow$ `DELIVERED` |
 | **Live Stock by SKU & Low Stock** | Product & Inventory | `ecommerce_inventory_sku_stock{service=~"$service"}` | Real-time stock levels with color-coded warning thresholds (Green >20, Yellow <10, Red <5) |
