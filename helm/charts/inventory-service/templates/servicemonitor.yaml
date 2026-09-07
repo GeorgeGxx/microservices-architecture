@@ -2,7 +2,7 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "inventory-service.fullname" . }}-servicemonitor
+  name: {{ include "inventory-service.fullname" . }}
   labels:
     app: {{ include "inventory-service.fullname" . }}
     release: prometheus

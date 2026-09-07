@@ -1,0 +1,42 @@
+# ==============================================================================
+# Gatekeeper (OPA) Prometheus Metrics Service & ServiceMonitor
+# Exports OPA admission, audit, and constraint metrics on port 8888
+# Scraped by kube-prometheus-stack Prometheus Operator
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatekeeper-metrics
+  namespace: gatekeeper-system
+  labels:
+    app: gatekeeper
+    gatekeeper.sh/system: "yes"
+spec:
+  ports:
+    - name: metrics
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+  selector:
+    app: gatekeeper
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: gatekeeper
+  namespace: gatekeeper-system
+  labels:
+    app: gatekeeper
+    release: kube-prometheus
+spec:
+  jobLabel: app
+  selector:
+    matchLabels:
+      app: gatekeeper
+  endpoints:
+    - port: metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - targetLabel: job
+          replacement: gatekeeper

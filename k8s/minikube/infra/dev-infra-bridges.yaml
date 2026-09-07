@@ -1,0 +1,120 @@
+# ==============================================================================
+# Microservices Architecture - Infrastructure Bridges for 'dev' Namespace
+# Transparent DNS routing from 'dev' to backing service namespaces:
+#   - Authentication Services -> 'auth' namespace
+#   - Data Services (PostgreSQL, Kafka, Redis) -> 'data' namespace
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: keycloak.auth.svc.cluster.local
+  ports:
+    - name: http-keycloak
+      port: 8181
+      targetPort: 8181
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: kafka.data.svc.cluster.local
+  ports:
+    - name: tcp-kafka
+      port: 9092
+      targetPort: 9092
+    - name: tcp-kafka-sasl
+      port: 9094
+      targetPort: 9094
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: redis.data.svc.cluster.local
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-inventory
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-inventory.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-orders
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-orders.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-products
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-products.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-keycloak
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-keycloak.auth.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432

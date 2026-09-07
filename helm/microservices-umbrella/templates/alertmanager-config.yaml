@@ -15,6 +15,7 @@ spec:
     groupInterval: 5m
     repeatInterval: 4h
     receiver: 'default-local-receiver'
+    {{- if or .Values.alertmanagerConfig.slack.enabled .Values.alertmanagerConfig.jira.enabled }}
     routes:
       {{- if .Values.alertmanagerConfig.slack.enabled }}
       - receiver: 'slack-notifications'
@@ -27,6 +28,7 @@ spec:
             value: critical
         continue: true
       {{- end }}
+    {{- end }}
   receivers:
     - name: 'default-local-receiver'
     {{- if .Values.alertmanagerConfig.slack.enabled }}
