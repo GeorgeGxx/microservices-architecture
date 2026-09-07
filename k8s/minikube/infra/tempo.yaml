@@ -113,3 +113,21 @@ spec:
             name: tempo-config
         - name: data
           emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tempo
+  namespace: staging
+spec:
+  type: ExternalName
+  externalName: tempo.observability.svc.cluster.local
+  ports:
+    - name: http
+      port: 3200
+    - name: grpc-otlp
+      port: 4317
+    - name: http-otlp
+      port: 4318
+    - name: grpc
+      port: 9095
