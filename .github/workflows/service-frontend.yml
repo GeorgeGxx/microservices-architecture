@@ -2,11 +2,11 @@ name: Frontend Angular CI/CD
 
 on:
   push:
-    branches: [ master, main, staging, develop, 'release/*' ]
+    branches: [ develop ]
     paths:
       - 'frontend/**'
   pull_request:
-    branches: [ master, main, staging, develop ]
+    branches: [ develop ]
     paths:
       - 'frontend/**'
   workflow_dispatch:

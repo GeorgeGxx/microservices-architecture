@@ -2,12 +2,12 @@ name: API Gateway CI/CD
 
 on:
   push:
-    branches: [ master, main, staging, develop, 'release/*' ]
+    branches: [ develop ]
     paths:
       - 'api-gateway/**'
       - 'pom.xml'
   pull_request:
-    branches: [ master, main, staging, develop ]
+    branches: [ develop ]
     paths:
       - 'api-gateway/**'
       - 'pom.xml'

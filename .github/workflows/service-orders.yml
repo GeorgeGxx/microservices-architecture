@@ -2,12 +2,12 @@ name: Orders Service CI/CD
 
 on:
   push:
-    branches: [ master, main, staging, develop, 'release/*' ]
+    branches: [ develop ]
     paths:
       - 'orders-service/**'
       - 'pom.xml'
   pull_request:
-    branches: [ master, main, staging, develop ]
+    branches: [ develop ]
     paths:
       - 'orders-service/**'
       - 'pom.xml'

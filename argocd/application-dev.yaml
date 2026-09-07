@@ -8,7 +8,7 @@ metadata:
 spec:
   project: microservices-architecture
   source:
-    repoURL: https://github.com/georgegxx/microservices-architecture.git
+    repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
     targetRevision: develop
     path: helm/microservices-umbrella
     helm:
@@ -23,3 +23,11 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
