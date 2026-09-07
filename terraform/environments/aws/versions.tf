@@ -12,13 +12,16 @@ terraform {
     }
   }
 
-  # State is per-workspace: key includes ${terraform.workspace}
-  # bootstrap the bucket/table once with scripts/terraform-bootstrap-backend.sh
+  # AWS Well-Architected Security Pillar & Principle of Least Privilege (PoLP):
+  # Remote state is isolated per environment (staging vs prod).
+  # Run scripts/cloud/terraform/terraform-bootstrap-backend.ps1 to provision the backends.
+  # Dynamic backend configuration can be supplied during `terraform init`:
+  #   terraform init -backend-config="bucket=georgegxx-msa-tfstate-${ENV}" -backend-config="dynamodb_table=georgegxx-msa-tflock-${ENV}"
   backend "s3" {
-    bucket         = "georgegxx-ecommerce-tfstate"
-    key            = "aws/ecommerce.tfstate"
+    bucket         = "georgegxx-msa-tfstate-prod"
+    key            = "aws/microservices.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "georgegxx-ecommerce-tflock"
+    dynamodb_table = "georgegxx-msa-tflock-prod"
     encrypt        = true
   }
 }
@@ -28,9 +31,10 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "ecommerce"
+      Project     = "microservices-architecture"
       Environment = terraform.workspace
       ManagedBy   = "terraform"
+      Compliance  = "AWS-Well-Architected-Security-Pillar"
     }
   }
 }
