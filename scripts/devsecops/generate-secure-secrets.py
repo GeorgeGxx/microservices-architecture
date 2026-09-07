@@ -77,7 +77,7 @@ def format_as_env(creds: Dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def format_as_k8s_secret(creds: Dict[str, str], name: str = "microservices-secrets", namespace: str = "staging") -> str:
+def format_as_k8s_secret(creds: Dict[str, str], name: str = "microservices-secrets", namespace: str = "dev") -> str:
     lines = [
         "apiVersion: v1",
         "kind: Secret",
@@ -105,7 +105,7 @@ def main():
     )
     parser.add_argument("--length", type=int, default=32, help="Minimum character length for generated passwords (Default: 32)")
     parser.add_argument("--output-file", help="Optional file path to write output directly")
-    parser.add_argument("--namespace", default="staging", help="Target Kubernetes namespace when using format 'k8s-yaml' (Default: staging)")
+    parser.add_argument("--namespace", default="dev", help="Target Kubernetes namespace when using format 'k8s-yaml' (Default: dev)")
 
     args = parser.parse_args()
     creds = build_credentials_bundle(length=args.length)

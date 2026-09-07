@@ -2,10 +2,14 @@ import subprocess
 import time
 import sys
 
+# Port-forward tunnels for local Minikube DevSecOps platform:
+# - Microservices and Presentation Frontend run in 'dev' namespace
+# - Authentication / IAM runs in 'auth' namespace
+# - Platform tools run in 'argocd', 'observability', 'vault', and 'istio-system'
 tunnels = [
-    {"name": "Keycloak", "ns": "staging", "svc": "keycloak", "local": 8181, "remote": 8181},
-    {"name": "API-Gateway", "ns": "staging", "svc": "api-gateway", "local": 8080, "remote": 8080},
-    {"name": "Frontend", "ns": "staging", "svc": "frontend", "local": 4200, "remote": 80},
+    {"name": "Frontend", "ns": "dev", "svc": "frontend", "local": 4200, "remote": 80},
+    {"name": "API-Gateway", "ns": "dev", "svc": "api-gateway", "local": 8080, "remote": 8080},
+    {"name": "Keycloak", "ns": "auth", "svc": "keycloak", "local": 8181, "remote": 8181},
     {"name": "ArgoCD", "ns": "argocd", "svc": "argocd-server", "local": 8088, "remote": 80},
     {"name": "Grafana", "ns": "observability", "svc": "kube-prometheus-grafana", "local": 3000, "remote": 80},
     {"name": "Prometheus", "ns": "observability", "svc": "kube-prometheus-kube-prome-prometheus", "local": 9090, "remote": 9090},
@@ -28,7 +32,7 @@ def start_tunnel(t):
 # Start all tunnels
 for t in tunnels:
     processes[t["name"]] = (t, start_tunnel(t))
-    print(f"[+] Tunnel started: {t['name']} on localhost:{t['local']}")
+    print(f"[+] Tunnel started: {t['name']} ({t['ns']}) on localhost:{t['local']}")
 
 while True:
     time.sleep(5)

@@ -145,11 +145,11 @@ All services and dashboards are automated via background port-forwarding and ava
 
 ```powershell
 # 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, ArgoCD, Vault, Apps & Tunnels)
-.\scripts\devsecops\bootstrap-local-devsecops.ps1
+.\scripts\devsecops\bootstrap-multistage-devsecops.ps1
 
 # Deploy applications including Canary v2 pod (progressive traffic shifting between v1 and v2)
 # Deploy applications with Canary version v2 for zero-downtime progressive testing (e.g. 90% v1, 10% v2)
-.\scripts\devsecops\bootstrap-local-devsecops.ps1 -DeployCanary
+.\scripts\devsecops\bootstrap-multistage-devsecops.ps1 -DeployCanary
 
 # 2. Verify platform health, pods, NodePorts, and Gatekeeper policies across all namespaces
 .\scripts\devsecops\verify-platform.ps1
