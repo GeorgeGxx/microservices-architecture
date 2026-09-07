@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     ports:
       - "${KEYCLOAK_PORT:-8181}:${KEYCLOAK_PORT:-8181}"
+      - "9000:9000"
     depends_on:
       db-keycloak:
         condition: service_healthy
@@ -290,6 +291,21 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     volumes:
       - kafka_data:/var/lib/kafka/data
+
+  ### Kafka Prometheus Exporter - http://localhost:9308/metrics
+  kafka-exporter:
+    image: "danielqsj/kafka-exporter:${KAFKA_EXPORTER_VERSION:-v1.9.0}"
+    container_name: kafka-exporter
+    command:
+      - --kafka.server=kafka:9092
+    ports:
+      - "9308:9308"
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_started
+    networks:
+      - spring
   
   redis:
     image: "redis:${REDIS_VERSION}"
@@ -309,7 +325,7 @@ services:
       - spring
 
   redis-exporter:
-    image: "oliver006/redis_exporter:${REDIS_EXPORTER_VERSION}"
+    image: "oliver006/redis_exporter:${REDIS_EXPORTER_VERSION:-v1.82.0}"
     container_name: redis-exporter
     env_file:
       - .env
@@ -321,6 +337,25 @@ services:
     restart: unless-stopped
     depends_on:
       redis:
+        condition: service_healthy
+    networks:
+      - spring
+
+  ### PostgreSQL Prometheus Exporter - http://localhost:9187/metrics
+  postgres-exporter:
+    image: "prometheuscommunity/postgres-exporter:${POSTGRES_EXPORTER_VERSION:-v0.20.1}"
+    container_name: postgres-exporter
+    env_file:
+      - .env
+    environment:
+      DATA_SOURCE_URI: "db-orders:5432/${ORDERS_POSTGRES_DB}?sslmode=disable"
+      DATA_SOURCE_USER: ${POSTGRES_USER}
+      DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
+    ports:
+      - "9187:9187"
+    restart: unless-stopped
+    depends_on:
+      db-orders:
         condition: service_healthy
     networks:
       - spring
@@ -338,6 +373,9 @@ services:
       - "9090:9090"
     depends_on:
       - api-gateway
+      - redis-exporter
+      - kafka-exporter
+      - postgres-exporter
     restart: unless-stopped
     networks:
       - spring

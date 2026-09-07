@@ -51,8 +51,9 @@ scrape_configs:
     static_configs:
       - targets: ['redis-exporter:9121']
         labels:
-          service: 'redis-exporter'
+          service: 'redis'
           job: 'redis'
+          app: 'redis'
 
   - job_name: 'vault'
     metrics_path: /v1/sys/metrics
@@ -65,3 +66,30 @@ scrape_configs:
           service: 'vault'
           job: 'vault'
           app: 'vault'
+
+  - job_name: 'keycloak'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['keycloak:9000']
+        labels:
+          service: 'keycloak'
+          job: 'keycloak'
+          app: 'keycloak'
+
+  - job_name: 'kafka'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['kafka-exporter:9308']
+        labels:
+          service: 'kafka'
+          job: 'kafka'
+          app: 'kafka'
+
+  - job_name: 'postgres'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+          job: 'postgres'
+          app: 'postgres'
