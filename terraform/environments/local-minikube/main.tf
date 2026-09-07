@@ -6,16 +6,20 @@ resource "kubernetes_namespace" "namespaces" {
     "gatekeeper-system",
     "argocd",
     "observability",
+    "auth",
+    "data",
+    "vault",
+    "dev",
     "staging",
     "prod"
   ])
 
   metadata {
     name = each.key
-    labels = contains(["staging", "prod"], each.key) ? {
+    labels = contains(["dev", "staging", "prod"], each.key) ? {
       "istio-injection" = "enabled"
       "environment"     = each.key
-    } : {
+      } : {
       "environment" = each.key
     }
   }
