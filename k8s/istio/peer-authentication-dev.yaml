@@ -1,0 +1,73 @@
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: dev
+spec:
+  mtls:
+    mode: STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: api-gateway-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: api-gateway
+  portLevelMtls:
+    8080:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: inventory-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  portLevelMtls:
+    8001:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: notification-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  portLevelMtls:
+    8002:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: orders-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: orders-service
+  portLevelMtls:
+    8003:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: products-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: products-service
+  portLevelMtls:
+    8004:
+      mode: PERMISSIVE
