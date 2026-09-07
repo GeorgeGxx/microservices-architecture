@@ -30,6 +30,7 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
   readonly shippingAddress = input<string | undefined>();
   readonly city = input<string | undefined>();
   readonly statusChange = output<{ orderId?: number; status: 'PLACED' | 'CANCELLED' | 'SHIPPED' | 'DELIVERED' }>();
+  readonly stageChange = output<{ orderId?: number; stage: number; stageName: string }>();
 
   private readonly orderService = inject(OrderService);
   private readonly toastService = inject(ToastService);
@@ -66,7 +67,7 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
       case 'CANCELLED': return 0;
       case 'DELIVERED': return 5;
       case 'SHIPPED': return 3;
-      default: return 2; // Placed & Preparing
+      default: return 1; // Stage 1: Placed
     }
   });
 
@@ -103,7 +104,7 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
       case 'CANCELLED': return 'Cancelled';
       case 'DELIVERED': return 'Delivered to Destination';
       case 'SHIPPED': return 'In Transit with Carrier';
-      default: return 'Order Confirmed - Preparing';
+      default: return 'Order Placed - Confirmed';
     }
   });
 
@@ -165,6 +166,7 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
 
     // Stage 1: Placed (Immediate)
     this.liveStage.set(1);
+    this.stageChange.emit({ orderId: orderIdVal, stage: 1, stageName: 'Placed' });
     this.toastService.info('Stage 1/5: Order Placed', `Order #${num} payment verified and logged in database.`);
     this.notifService.addNotification({
       title: `Order #${num} Confirmed`,
@@ -172,21 +174,23 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
       type: 'info'
     });
 
-    // Stage 2: Preparing (after 2.2s)
+    // Stage 2: Preparing (after 2.2s) - Warehouse Hub
     const t2 = setTimeout(() => {
       this.liveStage.set(2);
-      this.toastService.info('Stage 2/5: Warehouse Hub', `Order #${num} is being picked, packed & barcoded.`);
+      this.stageChange.emit({ orderId: orderIdVal, stage: 2, stageName: 'Preparing' });
+      this.toastService.info('Stage 2/5: Warehouse Hub (Preparing)', `Order #${num} is being picked, packed & barcoded. Cancellation locked.`);
       this.notifService.addNotification({
         title: `Order #${num} Packaging`,
-        message: `Fulfillment Center completed quality inspection and carton seal.`,
+        message: `Fulfillment Center completed quality inspection and carton seal. Cancellation locked.`,
         type: 'info'
       });
     }, 2200);
     this.timers.push(t2);
 
-    // Stage 3: In Transit (after 4.8s)
+    // Stage 3: In Transit (after 4.8s) - Carrier Handover
     const t3 = setTimeout(() => {
       this.liveStage.set(3);
+      this.stageChange.emit({ orderId: orderIdVal, stage: 3, stageName: 'In Transit' });
       if (orderIdVal) {
         this.orderService.shipOrder(orderIdVal).subscribe({
           next: () => this.statusChange.emit({ orderId: orderIdVal, status: 'SHIPPED' }),
@@ -202,9 +206,10 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
     }, 4800);
     this.timers.push(t3);
 
-    // Stage 4: Out for Delivery (after 7.6s)
+    // Stage 4: Out for Delivery (after 7.6s) - Local Courier
     const t4 = setTimeout(() => {
       this.liveStage.set(4);
+      this.stageChange.emit({ orderId: orderIdVal, stage: 4, stageName: 'Out for Delivery' });
       this.toastService.info('Stage 4/5: Out for Delivery', `Courier vehicle is on route in ${dest}. Arriving shortly!`);
       this.notifService.addNotification({
         title: `Courier Out for Delivery`,
@@ -214,11 +219,12 @@ export class OrderStepperComponent implements OnInit, OnDestroy {
     }, 7600);
     this.timers.push(t4);
 
-    // Stage 5: Delivered (after 10.4s)
+    // Stage 5: Delivered (after 10.4s) - Final Delivery Handover
     const t5 = setTimeout(() => {
       this.liveStage.set(5);
       this.simulatedStatus.set('DELIVERED');
       this.isLiveFlowRunning.set(false);
+      this.stageChange.emit({ orderId: orderIdVal, stage: 5, stageName: 'Delivered' });
 
       if (orderIdVal) {
         this.orderService.deliverOrder(orderIdVal).subscribe({

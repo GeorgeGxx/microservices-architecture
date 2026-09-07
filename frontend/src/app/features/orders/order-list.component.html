@@ -100,7 +100,8 @@
           [orderId]="order.id"
           [orderNumber]="order.orderNumber"
           [city]="order.city"
-          (statusChange)="onOrderStatusUpdated($event)">
+          (statusChange)="onOrderStatusUpdated($event)"
+          (stageChange)="onOrderStageUpdated($event)">
         </app-order-stepper>
 
         <div class="order-items-table">
@@ -143,7 +144,7 @@
             @if (keycloakService.isAdmin() && order.id && order.orderStatus !== 'CANCELLED') {
               @if (order.orderStatus === 'PLACED') {
                 <button class="btn-admin-action ship" (click)="shipOrder(order)" title="Mark as SHIPPED (In Transit)">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
                   <span>Dispatch (Ship)</span>
                 </button>
               } @else if (order.orderStatus === 'SHIPPED') {
@@ -154,13 +155,21 @@
               }
             }
 
-            @if (order.id && order.orderStatus === 'PLACED') {
+            @if (order.id && order.orderStatus !== 'CANCELLED') {
               <button class="btn-cancel" 
-                      [disabled]="cancellingOrderId() === order.id"
-                      (click)="cancelOrder(order)">
+                      [class.is-disabled]="isCancelDisabled(order)"
+                      [disabled]="isCancelDisabled(order)"
+                      [title]="getCancelTooltip(order)"
+                      (click)="!isCancelDisabled(order) && cancelOrder(order)">
                 @if (cancellingOrderId() === order.id) {
                   <div class="mini-spinner"></div>
                   <span>Cancelling...</span>
+                } @else if (isCancelDisabled(order)) {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <span>{{ 'ORDERS.CANCEL_LOCKED' | translate }}</span>
                 } @else {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   <span>{{ 'ORDERS.CANCEL_BTN' | translate }}</span>
