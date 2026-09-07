@@ -6,7 +6,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Namespace = "ecommerce"
+    [string]$Namespace = "staging"
 )
 
 Write-Host "==========================================================" -ForegroundColor Cyan

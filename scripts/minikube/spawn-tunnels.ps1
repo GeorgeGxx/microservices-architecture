@@ -9,12 +9,13 @@
 
 # Clean up any existing or orphaned kubectl port-forward processes
 $tunnels = @(
-    @{ Svc = "frontend";         Namespace = "ecommerce"; LocalPort = 4200;  RemotePort = 80 },
-    @{ Svc = "api-gateway";      Namespace = "ecommerce"; LocalPort = 8080;  RemotePort = 8080 },
-    @{ Svc = "keycloak";         Namespace = "ecommerce"; LocalPort = 8181;  RemotePort = 8181 },
+    @{ Svc = "frontend";         Namespace = "staging"; LocalPort = 4200;  RemotePort = 80 },
+    @{ Svc = "api-gateway";      Namespace = "staging"; LocalPort = 8080;  RemotePort = 8080 },
+    @{ Svc = "keycloak";         Namespace = "auth";    LocalPort = 8181;  RemotePort = 8181 },
     @{ Svc = "vault";            Namespace = "vault";   LocalPort = 8200;  RemotePort = 8200 },
-    @{ Svc = "grafana";          Namespace = "ecommerce"; LocalPort = 3000;  RemotePort = 3000 },
-    @{ Svc = "prometheus";       Namespace = "ecommerce"; LocalPort = 9090;  RemotePort = 9090 }
+    @{ Svc = "grafana";          Namespace = "observability"; LocalPort = 3000;  RemotePort = 3000 },
+    @{ Svc = "prometheus";       Namespace = "observability"; LocalPort = 9090;  RemotePort = 9090 },
+    @{ Svc = "tempo";            Namespace = "observability"; LocalPort = 3200;  RemotePort = 3200 }
 )
 
 Get-Process -Name "kubectl" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue

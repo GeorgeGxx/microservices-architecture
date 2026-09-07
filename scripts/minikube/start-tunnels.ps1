@@ -16,13 +16,14 @@ Write-Host ""
 Get-Process -Name "kubectl" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 
 $tunnels = @(
-    @{ Svc = "frontend";         Namespace = "ecommerce"; LocalPort = 4200;  RemotePort = 80;    Desc = "Frontend Angular SPA" },
-    @{ Svc = "api-gateway";      Namespace = "ecommerce"; LocalPort = 8080;  RemotePort = 8080;  Desc = "Spring Cloud API Gateway" },
-    @{ Svc = "keycloak";         Namespace = "ecommerce"; LocalPort = 8181;  RemotePort = 8181;  Desc = "Keycloak IAM Provider (admin/admin)" },
+    @{ Svc = "frontend";         Namespace = "staging"; LocalPort = 4200;  RemotePort = 80;    Desc = "Frontend Angular SPA" },
+    @{ Svc = "api-gateway";      Namespace = "staging"; LocalPort = 8080;  RemotePort = 8080;  Desc = "Spring Cloud API Gateway" },
+    @{ Svc = "keycloak";         Namespace = "auth";    LocalPort = 8181;  RemotePort = 8181;  Desc = "Keycloak IAM Provider (admin/admin)" },
     @{ Svc = "vault";            Namespace = "vault";   LocalPort = 8200;  RemotePort = 8200;  Desc = "HashiCorp Vault UI (Token: root)" },
     @{ Svc = "kiali";            Namespace = "istio-system"; LocalPort = 20001; RemotePort = 20001; Desc = "Kiali Visual Mesh Topology" },
-    @{ Svc = "grafana";          Namespace = "ecommerce"; LocalPort = 3000;  RemotePort = 3000;  Desc = "Grafana Dashboards & LGTM Observability (admin/admin)" },
-    @{ Svc = "prometheus";       Namespace = "ecommerce"; LocalPort = 9090;  RemotePort = 9090;  Desc = "Prometheus Metrics Dashboard" }
+    @{ Svc = "grafana";          Namespace = "observability"; LocalPort = 3000;  RemotePort = 3000;  Desc = "Grafana Dashboards & LGTM Observability (admin/admin)" },
+    @{ Svc = "prometheus";       Namespace = "observability"; LocalPort = 9090;  RemotePort = 9090;  Desc = "Prometheus Metrics Dashboard" },
+    @{ Svc = "tempo";            Namespace = "observability"; LocalPort = 3200;  RemotePort = 3200;  Desc = "Tempo Distributed Tracing UI" }
 )
 
 $processes = @()
