@@ -392,9 +392,21 @@
   color: #fca5a5;
   border-color: rgba(239, 68, 68, 0.4);
 }
-.btn-cancel:disabled {
-  opacity: 0.6;
+.btn-cancel:disabled,
+.btn-cancel.is-disabled {
+  background: rgba(148, 163, 184, 0.08);
+  border: 1px dashed rgba(148, 163, 184, 0.3);
+  color: #94a3b8;
+  opacity: 0.75;
   cursor: not-allowed;
+  filter: grayscale(0.5);
+  pointer-events: auto;
+}
+.btn-cancel:disabled:hover,
+.btn-cancel.is-disabled:hover {
+  background: rgba(148, 163, 184, 0.14);
+  border-color: rgba(148, 163, 184, 0.45);
+  color: #cbd5e1;
 }
 .mini-spinner {
   width: 12px;

@@ -282,7 +282,10 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   }
 
   adminCancelOrder(order: OrderResponse): void {
-    if (!order.id || order.orderStatus === 'CANCELLED') return;
+    if (!order.id || order.orderStatus !== 'PLACED') {
+      this.toastService.warning('Cannot Cancel', `Order #${order.orderNumber} cannot be cancelled because it is in status ${order.orderStatus}.`);
+      return;
+    }
 
     const confirmed = window.confirm(`Admin Confirmation: Are you sure you want to cancel Order #${order.orderNumber}? Reserved stock will be returned to inventory via Saga compensation.`);
     if (!confirmed) return;

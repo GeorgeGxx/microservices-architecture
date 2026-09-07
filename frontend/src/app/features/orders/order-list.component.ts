@@ -45,6 +45,7 @@ export class OrderListComponent implements OnInit, OnDestroy {
   readonly selectedOrderForReceipt = signal<OrderResponse | null>(null);
   readonly pageSize = signal<number>(5);
   readonly currentPage = signal<number>(1);
+  readonly orderStages = signal<Record<number, number>>({});
 
   readonly processingCount = computed(() => 
     this.orders().filter(o => o.orderStatus === 'PLACED' || !o.orderStatus).length
@@ -203,13 +204,16 @@ export class OrderListComponent implements OnInit, OnDestroy {
   }
 
   cancelOrder(order: OrderResponse): void {
-    if (!order.id || order.orderStatus === 'CANCELLED') return;
+    if (this.isCancelDisabled(order)) {
+      this.toastService.warning('Cannot Cancel Order', this.getCancelTooltip(order));
+      return;
+    }
 
     const confirmed = confirm(`Are you sure you want to cancel Order #${order.orderNumber}? The stock will be restored to inventory.`);
     if (!confirmed) return;
 
-    this.cancellingOrderId.set(order.id);
-    this.orderService.cancelOrder(order.id).subscribe({
+    this.cancellingOrderId.set(order.id || null);
+    this.orderService.cancelOrder(order.id!).subscribe({
       next: () => {
         this.orders.update(list => list.map(o => o.id === order.id ? { ...o, orderStatus: 'CANCELLED' } : o));
         this.cancellingOrderId.set(null);
@@ -220,6 +224,40 @@ export class OrderListComponent implements OnInit, OnDestroy {
         this.toastService.error('Cancellation Failed', err.error?.message || 'Could not cancel order.');
       }
     });
+  }
+
+  getOrderStage(order: OrderResponse): number {
+    if (order.orderStatus === 'CANCELLED') return 0;
+    if (order.orderStatus === 'DELIVERED') return 5;
+    if (order.orderStatus === 'SHIPPED') return 3;
+    if (order.id && this.orderStages()[order.id] !== undefined) {
+      return this.orderStages()[order.id];
+    }
+    return 1; // Default for PLACED orders is Stage 1: Placed
+  }
+
+  isCancelDisabled(order: OrderResponse): boolean {
+    if (this.cancellingOrderId() === order.id) return true;
+    if (!order.id || order.orderStatus === 'CANCELLED') return true;
+    if (order.orderStatus === 'SHIPPED' || order.orderStatus === 'DELIVERED') return true;
+    const stage = this.getOrderStage(order);
+    return stage >= 2; // Locked from Stage 2 (Preparing) through Delivered (Stage 5)
+  }
+
+  getCancelTooltip(order: OrderResponse): string {
+    if (order.orderStatus === 'CANCELLED') {
+      return 'Order is already cancelled.';
+    }
+    if (order.orderStatus === 'DELIVERED' || this.getOrderStage(order) === 5) {
+      return 'Cannot cancel: Package has already been delivered to destination.';
+    }
+    if (order.orderStatus === 'SHIPPED' || this.getOrderStage(order) >= 3) {
+      return 'Cannot cancel: Order is already in transit with delivery carrier.';
+    }
+    if (this.getOrderStage(order) === 2) {
+      return 'Cannot cancel: Order is being prepared and packed at fulfillment center.';
+    }
+    return 'Cancel Order (Restores inventory via Saga compensation)';
   }
 
   reorder(order: OrderResponse): void {
@@ -271,6 +309,15 @@ export class OrderListComponent implements OnInit, OnDestroy {
       this.orders.update(list =>
         list.map(o => o.id === event.orderId ? { ...o, orderStatus: event.status } : o)
       );
+    }
+  }
+
+  onOrderStageUpdated(event: { orderId?: number; stage: number; stageName: string }): void {
+    if (event.orderId) {
+      this.orderStages.update(map => ({
+        ...map,
+        [event.orderId!]: event.stage
+      }));
     }
   }
 
