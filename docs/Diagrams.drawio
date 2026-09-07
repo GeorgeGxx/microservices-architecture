@@ -339,44 +339,53 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t6" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Namespace isolation, ServiceAccount identities, RBAC Auth Delegator, and Istio Service Mesh&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t6" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Pure Separation of Concerns (SoC): staging, auth, data, observability, vault, and istio-system&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="ns_vault" parent="1" value="&lt;b&gt;🔒 NAMESPACE: vault&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="80" y="120" width="380" height="480" as="geometry" />
+          <mxGeometry x="60" y="110" width="280" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_vault_pod" parent="1" value="&lt;b&gt;Deployment: vault&lt;/b&gt;&lt;br&gt;hashicorp/vault:2.0.4&lt;br&gt;Service: vault:8200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;" vertex="1">
-          <mxGeometry x="110" y="180" width="320" height="80" as="geometry" />
+        <mxCell id="k_vault_pod" parent="1" value="&lt;b&gt;Deployment: vault&lt;/b&gt;&lt;br&gt;hashicorp/vault:2.0.4&lt;br&gt;Port 8200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=11;" vertex="1">
+          <mxGeometry x="80" y="160" width="240" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k_sa_vault" parent="1" value="&lt;b&gt;ServiceAccount: vault-auth&lt;/b&gt;&lt;br&gt;ClusterRoleBinding: system:auth-delegator&lt;br&gt;Validates Pod JWT tokens with K8s API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" vertex="1">
-          <mxGeometry x="110" y="290" width="320" height="80" as="geometry" />
+        <mxCell id="k_sa_vault" parent="1" value="&lt;b&gt;ServiceAccount: vault-auth&lt;/b&gt;&lt;br&gt;ClusterRoleBinding: system:auth-delegator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" vertex="1">
+          <mxGeometry x="80" y="250" width="240" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k_script_auth" parent="1" value="&lt;b&gt;vault-k8s-auth-setup.ps1&lt;/b&gt;&lt;br&gt;Configures Kubernetes Auth Method&lt;br&gt;+ Least-Privilege Roles &amp; Policies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" vertex="1">
-          <mxGeometry x="110" y="400" width="320" height="80" as="geometry" />
+        <mxCell id="k_script_auth" parent="1" value="&lt;b&gt;vault-k8s-auth-setup.ps1&lt;/b&gt;&lt;br&gt;Kubernetes Auth Method &amp; App Roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" vertex="1">
+          <mxGeometry x="80" y="340" width="240" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="ns_istio" parent="1" value="&lt;b&gt;🌐 NAMESPACE: istio-system&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="500" y="120" width="380" height="480" as="geometry" />
+        <mxCell id="ns_auth" parent="1" value="&lt;b&gt;🛡️ NAMESPACE: auth&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="360" y="110" width="300" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_istiod" parent="1" value="&lt;b&gt;Deployment: istiod&lt;/b&gt;&lt;br&gt;Istio Control Plane &amp; Citadel&lt;br&gt;Manages mTLS &amp; Envoy proxy configs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" vertex="1">
-          <mxGeometry x="530" y="180" width="320" height="80" as="geometry" />
+        <mxCell id="k_kc_pod" parent="1" value="&lt;b&gt;Deployment: keycloak&lt;/b&gt;&lt;br&gt;Keycloak 26.7.3 (IdP)&lt;br&gt;Port 8181 (HTTP) &amp; 9000 (Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
+          <mxGeometry x="380" y="160" width="260" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k_cacerts" parent="1" value="&lt;b&gt;Secret: cacerts&lt;/b&gt;&lt;br&gt;Intermediate CA from Vault PKI&lt;br&gt;ca-cert.pem / root-cert.pem" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#312E81;fontSize=11;" vertex="1">
-          <mxGeometry x="530" y="290" width="320" height="80" as="geometry" />
+        <mxCell id="k_db_kc" parent="1" value="&lt;b&gt;StatefulSet: db-keycloak&lt;/b&gt;&lt;br&gt;PostgreSQL 16 (Port 5432)&lt;br&gt;Dedicated IAM database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;" vertex="1">
+          <mxGeometry x="380" y="250" width="260" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="k_ingw" parent="1" value="&lt;b&gt;Deployment: istio-ingressgateway&lt;/b&gt;&lt;br&gt;Edge Proxy LoadBalancer (Port 80/443)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#312E81;fontSize=11;" vertex="1">
-          <mxGeometry x="530" y="400" width="320" height="80" as="geometry" />
+        <mxCell id="ns_data" parent="1" value="&lt;b&gt;💾 NAMESPACE: data (Stateful &amp; Exporters)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="680" y="110" width="380" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="ns_default" parent="1" value="&lt;b&gt;📦 NAMESPACE: ecommerce (Apps &amp; Databases)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="920" y="120" width="520" height="480" as="geometry" />
+        <mxCell id="k_data_pods" parent="1" value="&lt;b&gt;StatefulSets:&lt;/b&gt;&lt;br&gt;• Kafka KRaft (9092/9094)&lt;br&gt;• Redis 8.8 (6379)&lt;br&gt;• Postgres (orders, inventory, products: 5432)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="700" y="160" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="k_sa_apps" parent="1" value="&lt;b&gt;ServiceAccounts:&lt;/b&gt;&lt;br&gt;products-service • orders-service&lt;br&gt;inventory-service • notification-service • api-gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="950" y="180" width="460" height="70" as="geometry" />
+        <mxCell id="k_data_exp" parent="1" value="&lt;b&gt;Infrastructure Exporters:&lt;/b&gt;&lt;br&gt;• kafka-exporter v1.9.0 (Port 9308)&lt;br&gt;• postgres-exporter v0.20.1 (Port 9187)&lt;br&gt;• redis-exporter (Port 9121)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
+          <mxGeometry x="700" y="270" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="k_eso_objs" parent="1" value="&lt;b&gt;External Secrets Operator (ESO):&lt;/b&gt;&lt;br&gt;SecretStore: vault-secret-store&lt;br&gt;ExternalSecret -&gt; Secret: microservices-secrets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="950" y="280" width="460" height="80" as="geometry" />
+        <mxCell id="ns_staging" parent="1" value="&lt;b&gt;📦 NAMESPACE: staging (Core Microservices)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="1080" y="110" width="400" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_apps_pods" parent="1" value="&lt;b&gt;Deployments &amp; Pods (Istio Sidecar Injected):&lt;/b&gt;&lt;br&gt;api-gateway • products-service • orders-service&lt;br&gt;inventory-service • notification-service • frontend&lt;br&gt;Postgres (products, orders, inventory, keycloak) • Kafka • Redis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="950" y="390" width="460" height="90" as="geometry" />
+        <mxCell id="k_apps_pods" parent="1" value="&lt;b&gt;Deployments (Istio Sidecars Injected):&lt;/b&gt;&lt;br&gt;• api-gateway (8080)&lt;br&gt;• products-service (8004)&lt;br&gt;• orders-service (8003)&lt;br&gt;• inventory-service (8001)&lt;br&gt;• notification-service (8002)&lt;br&gt;• frontend Angular SPA (80)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1100" y="160" width="360" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="k_eso_objs" parent="1" value="&lt;b&gt;ExternalName Cross-Namespace Bridges:&lt;/b&gt;&lt;br&gt;• keycloak -&gt; keycloak.auth&lt;br&gt;• kafka / redis / db-* -&gt; data.svc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1100" y="300" width="360" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="ns_obs" parent="1" value="&lt;b&gt;📊 NAMESPACE: observability (LGTM Telemetry)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="1500" y="110" width="360" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.13 (Port 9090)&lt;br&gt;• Grafana 13.0 (Port 3000)&lt;br&gt;• Tempo 2.7 / 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="1520" y="160" width="320" height="160" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
@@ -520,6 +529,9 @@
         <mxCell id="dash_tech" parent="1" value="&lt;b&gt;🛡️ Grafana Dashboard: Curated Technical &amp; SRE Operations (12 Essential Panels)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Dynamic Filter:&lt;/b&gt; &lt;code&gt;Filter Microservice&lt;/code&gt; drilldown (All / Gateway / Orders / Inventory / Products / Notif)&lt;br&gt;• &lt;b&gt;1. Global Health:&lt;/b&gt; Core Microservices Online (5 Roles, Replica-Invariant), Global P95, Threat Level, Circuit Breakers&lt;br&gt;• &lt;b&gt;2. HTTP Golden Signals:&lt;/b&gt; Request Rate (RPS: 2xx/4xx/5xx) &amp; P95 Latency per Service&lt;br&gt;• &lt;b&gt;3. Distributed Resilience:&lt;/b&gt; Idempotency Hits, Saga Rollbacks &amp; Kafka Streaming Rate&lt;br&gt;• &lt;b&gt;4. Platform Saturation:&lt;/b&gt; JVM Heap Memory, CPU &amp; HikariCP Database Connection Pools (Active vs Total Pool Size)&lt;br&gt;• &lt;b&gt;5. Security &amp; Diagnostics:&lt;/b&gt; Blocked Attacks (HTTP 429) &amp; Incident Logs Stream (Loki)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="840" y="520" width="680" height="200" as="geometry" />
         </mxCell>
+        <mxCell id="dash_infra" parent="1" value="&lt;b&gt;⚙️ Prometheus Infrastructure Targets: Full-Stack Coverage (All Targets UP)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;redis-exporter:&lt;/b&gt; Cache hit ratio, keyspace stats, memory limit, rate limiter load (Port 9121)&lt;br&gt;• &lt;b&gt;kafka-exporter v1.9.0:&lt;/b&gt; Consumer lag, topic partition throughput, broker count (Port 9308)&lt;br&gt;• &lt;b&gt;postgres-exporter v0.20.1:&lt;/b&gt; Active connections, commit rate, lock deadlocks (Port 9187)&lt;br&gt;• &lt;b&gt;keycloak:&lt;/b&gt; OIDC authentication success/fail, token issuance latency, JVM heap (Port 9000)&lt;br&gt;• &lt;b&gt;vault &amp; istiod:&lt;/b&gt; KMS seal status, API rates, Envoy mesh telemetry &amp; mTLS golden signals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="100" y="740" width="1420" height="100" as="geometry" />
+        </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
@@ -564,7 +576,7 @@
         <mxCell id="c_cd" parent="1" value="&lt;b&gt;🚀 CD PHASE: Staging Quality Gates, Docker Hub Promotion &amp; Production Canary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="830" y="90" width="1010" height="190" as="geometry" />
         </mxCell>
-        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Deploy Staging&lt;/b&gt;&lt;br&gt;Helm (Atomic)&lt;br&gt;Auto-Rollback on Fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Deploy Staging&lt;/b&gt;&lt;br&gt;Helm Umbrella&lt;br&gt;SPRING=staging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
           <mxGeometry x="850" y="130" width="125" height="65" as="geometry" />
         </mxCell>
         <mxCell id="s7" parent="1" value="&lt;b&gt;7. Newman QA&lt;/b&gt;&lt;br&gt;API Integration&lt;br&gt;Postman Tests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
@@ -582,7 +594,7 @@
         <mxCell id="s11" parent="1" value="&lt;b&gt;11. Push Docker Hub&lt;/b&gt;&lt;br&gt;georgegxx/*:1.0.0&lt;br&gt;Certified Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10;" vertex="1">
           <mxGeometry x="1540" y="130" width="135" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s12" parent="1" value="&lt;b&gt;12. Deploy Prod&lt;/b&gt;&lt;br&gt;Canary (Istio 10%)&lt;br&gt;Auto-Rollback on Drift" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;" vertex="1">
+        <mxCell id="s12" parent="1" value="&lt;b&gt;12. Deploy Prod&lt;/b&gt;&lt;br&gt;Canary Rollout&lt;br&gt;Istio 10% ➔ 100%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;" vertex="1">
           <mxGeometry x="1690" y="130" width="135" height="65" as="geometry" />
         </mxCell>
         <mxCell id="pe5" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="s5" target="s6">
