@@ -12,7 +12,7 @@ param (
     [string]$IstioProfile = "demo",
 
     [Parameter(Mandatory = $false)]
-    [string]$Namespace = "ecommerce"
+    [string]$Namespace = "staging"
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,10 +31,25 @@ if ($status -ne "Running") {
     Write-Host "  Minikube is already running." -ForegroundColor Green
 }
 
-# Ensure target namespace exists and configure active kubectl context
-Write-Host "  Ensuring namespace '$Namespace' exists and setting active context..." -ForegroundColor Cyan
-kubectl create namespace $Namespace --dry-run=client -o yaml | kubectl apply -f - 2>$null
+# Ensure metrics-server addon is enabled for HPA (HorizontalPodAutoscaler)
+Write-Host "  Ensuring metrics-server addon is enabled for HPA..." -ForegroundColor Cyan
+minikube addons enable metrics-server 2>$null
+
+# Ensure target namespace and supporting namespaces exist and configure active kubectl context
+Write-Host "  Ensuring namespaces exist ('$Namespace', 'observability', 'vault', 'auth', 'data') and setting active context..." -ForegroundColor Cyan
+@($Namespace, "observability", "vault", "auth", "data") | ForEach-Object {
+    kubectl create namespace $_ --dry-run=client -o yaml | kubectl apply -f - 2>$null
+}
 kubectl config set-context --current --namespace=$Namespace 2>$null
+
+# Clean up legacy 'ecommerce' namespace to prevent NodePort collisions (30181, 30300, 30090)
+if ($Namespace -ne "ecommerce") {
+    $legacyEcom = kubectl get namespace ecommerce --ignore-not-found 2>$null
+    if ($legacyEcom) {
+        Write-Host "  Detected legacy 'ecommerce' namespace holding NodePorts. Cleaning up..." -ForegroundColor Yellow
+        kubectl delete namespace ecommerce --ignore-not-found=true --timeout=60s 2>$null
+    }
+}
 
 # 2. Build or Load Container Images in Minikube
 Write-Host "`n[2/6] Verifying container images in Minikube..." -ForegroundColor Yellow
@@ -123,8 +138,10 @@ if (-not $SkipIstio) {
         Write-Host "  Installing Istio Control Plane (profile '$IstioProfile')..." -ForegroundColor Cyan
         & istioctl install --set profile=$IstioProfile -y 2>$null
         
-        Write-Host "  Enabling automatic sidecar injection on namespace '$Namespace'..." -ForegroundColor Cyan
-        kubectl label namespace $Namespace istio-injection=enabled --overwrite
+        Write-Host "  Enabling automatic sidecar injection on namespaces ('$Namespace', 'auth', 'data')..." -ForegroundColor Cyan
+        @($Namespace, "auth", "data") | ForEach-Object {
+            kubectl label namespace $_ istio-injection=enabled --overwrite 2>$null
+        }
 
         $manifestDir = Join-Path (Split-Path -Parent $PSScriptRoot) "k8s\istio"
         if (-not (Test-Path $manifestDir)) { $manifestDir = ".\k8s\istio" }
@@ -132,7 +149,10 @@ if (-not $SkipIstio) {
         # Clean up legacy Istio objects in default namespace to prevent duplicate gateway conflicts (IST0145)
         if ($Namespace -ne "default") {
             kubectl delete gateway,virtualservice,destinationrule,peerauthentication -n default --all --ignore-not-found=true 2>$null
-            kubectl label namespace default istio-injection- 2>$null
+            $defaultLabels = kubectl get namespace default -o jsonpath='{.metadata.labels}' 2>$null
+            if ($defaultLabels -and ($defaultLabels -match "istio-injection")) {
+                kubectl label namespace default istio-injection- 2>$null | Out-Null
+            }
         }
 
         if (Test-Path "$manifestDir\02-gateway.yaml") { kubectl apply -f "$manifestDir\02-gateway.yaml" }
@@ -168,25 +188,42 @@ if (-not (Test-Path "./.env")) {
 }
 
 # Provision Grafana ConfigMaps dynamically from observability source files
-Write-Host "  Provisioning Grafana datasources and dashboards from ./observability/grafana/..." -ForegroundColor Cyan
-kubectl create configmap grafana-datasources --from-file="./observability/grafana/provisioning/datasources/" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create configmap grafana-dashboard-provider --from-file="./observability/grafana/provisioning/dashboards/" --dry-run=client -o yaml | kubectl apply -f -
-kubectl create configmap grafana-dashboards --from-file="./observability/grafana/dashboards/" --dry-run=client -o yaml | kubectl apply -f -
+Write-Host "  Provisioning Grafana datasources and dashboards in namespace 'observability'..." -ForegroundColor Cyan
+kubectl create configmap grafana-datasources --from-file="./observability/grafana/provisioning/datasources/" -n observability --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap grafana-dashboard-provider --from-file="./observability/grafana/provisioning/dashboards/" -n observability --dry-run=client -o yaml | kubectl apply -f -
+kubectl create configmap grafana-dashboards --from-file="./observability/grafana/dashboards/" -n observability --dry-run=client -o yaml | kubectl apply -f -
+
+# Synchronize microservices-secrets to auth and data namespaces for databases, Redis, and Keycloak
+Write-Host "  Replicating credentials secret into 'auth' and 'data' namespaces..." -ForegroundColor Cyan
+if (Test-Path "./k8s/minikube/infra/config.yaml") {
+    kubectl apply -f "./k8s/minikube/infra/config.yaml"
+    @("auth", "data") | ForEach-Object {
+        $targetNs = $_
+        $secJson = kubectl get secret microservices-secrets -n $Namespace -o json 2>$null | ConvertFrom-Json
+        if ($secJson) {
+            $secJson.metadata.namespace = $targetNs
+            $secJson.metadata.PSObject.Properties.Remove("resourceVersion")
+            $secJson.metadata.PSObject.Properties.Remove("uid")
+            $secJson.metadata.PSObject.Properties.Remove("creationTimestamp")
+            $secJson | ConvertTo-Json -Depth 10 | kubectl apply -f - 2>$null | Out-Null
+        }
+    }
+}
 
 Get-ChildItem "./k8s/minikube/infra/*.yaml" | Where-Object { $_.Name -notlike "*example*" } | ForEach-Object { kubectl apply -f $_.FullName }
 
 Write-Host "  Waiting for stateful infrastructure and databases to be ready..." -ForegroundColor Cyan
-kubectl rollout status statefulset/db-keycloak --timeout=180s
-kubectl rollout status statefulset/db-inventory --timeout=180s
-kubectl rollout status statefulset/db-orders --timeout=180s
-kubectl rollout status statefulset/db-products --timeout=180s
-kubectl rollout status statefulset/kafka --timeout=180s
-kubectl rollout status statefulset/redis --timeout=120s
-kubectl rollout status deployment/keycloak --timeout=240s
+kubectl rollout status statefulset/db-keycloak -n auth --timeout=180s
+kubectl rollout status statefulset/db-inventory -n data --timeout=180s
+kubectl rollout status statefulset/db-orders -n data --timeout=180s
+kubectl rollout status statefulset/db-products -n data --timeout=180s
+kubectl rollout status statefulset/kafka -n data --timeout=180s
+kubectl rollout status statefulset/redis -n data --timeout=120s
+kubectl rollout status deployment/keycloak -n auth --timeout=240s
 
 # 5. Bootstrap Keycloak & Deploy HashiCorp Vault v2.0.4
 Write-Host "`n[5/6] Bootstrapping Keycloak & HashiCorp Vault..." -ForegroundColor Yellow
-$pfProcess = Start-Process -FilePath "kubectl" -ArgumentList "port-forward", "svc/keycloak", "8181:8181" -PassThru -WindowStyle Hidden
+$pfProcess = Start-Process -FilePath "kubectl" -ArgumentList "port-forward", "-n", "auth", "svc/keycloak", "8181:8181" -PassThru -WindowStyle Hidden
 
 # Wait for port-forward socket to become active
 $retries = 0
@@ -216,7 +253,7 @@ try {
             $patchPayload = @{ stringData = @{ KEYCLOAK_CLIENT_SECRET = $clientSecret } } | ConvertTo-Json -Compress
             $tempPatchFile = Join-Path $env:TEMP "patch-secret-$([guid]::NewGuid().ToString('N')).json"
             Set-Content -Path $tempPatchFile -Value $patchPayload -Encoding UTF8
-            kubectl patch secret microservices-secrets --type merge --patch-file $tempPatchFile
+            kubectl patch secret microservices-secrets -n $Namespace --type merge --patch-file $tempPatchFile
             Remove-Item -Path $tempPatchFile -Force -ErrorAction SilentlyContinue
             Write-Host "  Secret synchronized successfully." -ForegroundColor Green
         } else {
@@ -267,7 +304,7 @@ Write-Host "`n Direct Service URLs (Cluster IP: $minikubeIp):" -ForegroundColor 
 Write-Host "  - Frontend SPA:     http://${minikubeIp}:30080" -ForegroundColor Cyan
 Write-Host "  - API Gateway:      http://${minikubeIp}:30088" -ForegroundColor Cyan
 Write-Host "  - Keycloak Admin:   http://${minikubeIp}:30181 (admin/admin)" -ForegroundColor Cyan
-Write-Host "  - Vault Web UI:     http://${minikubeIp}:30200 (Token: root)" -ForegroundColor Cyan
+Write-Host "  - Vault Web UI:     http://${minikubeIp}:30820 (Token: root)" -ForegroundColor Cyan
 Write-Host "  - Kiali Topology:   http://${minikubeIp}:32001/kiali" -ForegroundColor Cyan
 Write-Host "  - Grafana LGTM:     http://${minikubeIp}:30300 (admin/admin)" -ForegroundColor Cyan
 Write-Host "  - Prometheus:       http://${minikubeIp}:30090" -ForegroundColor Cyan
