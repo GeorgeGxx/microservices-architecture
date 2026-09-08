@@ -4,7 +4,7 @@
       <div class="drawer-header">
         <div class="drawer-title-group">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
-          <h2>{{ 'CART.TITLE' | translate }} ({{ cartStore.itemCount() }})</h2>
+          <h2>Shopping Cart ({{ cartStore.itemCount() }})</h2>
         </div>
         <div class="header-actions">
           @if (keycloakService.isAdmin()) {
@@ -25,11 +25,11 @@
             <div class="empty-icon">
               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
             </div>
-            <h3>{{ 'CART.EMPTY' | translate }}</h3>
-            <p>{{ 'CART.ADD_SOME' | translate }}</p>
+            <h3>Your cart is empty</h3>
+            <p>Scan a product SKU or browse the catalog to start shopping.</p>
             @if (keycloakService.isAdmin()) {
               <button class="btn-scan-empty" (click)="openScanner()">
-                📷 {{ 'NAV.SCAN_QR' | translate }}
+                📷 Scan QR
               </button>
             }
           </div>
@@ -69,13 +69,13 @@
       @if (cartStore.items().length > 0) {
         <div class="drawer-footer">
           <div class="subtotal-row">
-            <span>{{ 'CART.SUBTOTAL' | translate }}:</span>
+            <span>Subtotal:</span>
             <span class="subtotal-amount">${{ cartStore.totalAmount() | number:'1.2-2' }} {{ currencyService.currentCurrency() }}</span>
           </div>
           <div class="footer-actions">
             <button class="btn-clear" (click)="cartStore.clearCart()">Clear</button>
             <button class="btn-checkout" (click)="goToCheckout()">
-              <span>{{ 'CART.CHECKOUT' | translate }}</span>
+              <span>Proceed to Checkout</span>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
             </button>
           </div>

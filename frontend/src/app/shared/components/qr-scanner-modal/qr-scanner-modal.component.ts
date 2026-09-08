@@ -5,8 +5,6 @@ import { AgnosticQrScannerService, ScanResult } from '../../../core/services/agn
 import { ProductService } from '../../../core/services/product.service';
 import { CartStore } from '../../../core/services/cart.store';
 import { ToastService } from '../../../core/services/toast.service';
-import { TranslationService } from '../../../core/services/translation.service';
-import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 import { ProductResponse } from '../../../core/models/product.model';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -16,7 +14,7 @@ import { ScannerModalService } from '../../../core/services/scanner-modal.servic
 @Component({
   selector: 'app-qr-scanner-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule],
   templateUrl: './qr-scanner-modal.component.html',
   styleUrls: ['./qr-scanner-modal.component.css']
 })
@@ -26,7 +24,6 @@ export class QrScannerModalComponent implements OnInit, OnDestroy {
   private readonly productService = inject(ProductService);
   private readonly cartStore = inject(CartStore);
   private readonly toastService = inject(ToastService);
-  readonly translationService = inject(TranslationService);
   private readonly router = inject(Router);
 
   @ViewChild('videoPreview') videoPreview?: ElementRef<HTMLVideoElement>;

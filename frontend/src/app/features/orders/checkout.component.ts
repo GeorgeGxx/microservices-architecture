@@ -12,7 +12,6 @@ import { ReceiptModalComponent } from '../../shared/components/receipt-modal/rec
 import { OrderStepperComponent } from '../../shared/components/order-stepper/order-stepper.component';
 import { CurrencyService } from '../../core/services/currency.service';
 import { ProductService } from '../../core/services/product.service';
-import { TranslatePipe } from '../../core/pipes/translate.pipe';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
 
 export type DeliveryMethod = 'STANDARD' | 'EXPRESS';
@@ -21,7 +20,7 @@ export type CardBrand = 'visa' | 'mastercard' | 'amex' | 'generic';
 @Component({
   selector: 'app-checkout',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ReceiptModalComponent, OrderStepperComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, RouterModule, ReceiptModalComponent, OrderStepperComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './checkout.component.html',
   styleUrl: './checkout.component.css'

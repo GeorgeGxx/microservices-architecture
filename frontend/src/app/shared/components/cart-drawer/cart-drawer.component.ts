@@ -5,13 +5,12 @@ import { CartStore } from '../../../core/services/cart.store';
 import { KeycloakService } from '../../../core/auth/keycloak.service';
 import { ScannerModalService } from '../../../core/services/scanner-modal.service';
 import { CurrencyService } from '../../../core/services/currency.service';
-import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 import { getProductImageUrl } from '../../../core/utils/product-image.helper';
 
 @Component({
   selector: 'app-cart-drawer',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './cart-drawer.component.html',
   styleUrl: './cart-drawer.component.css'

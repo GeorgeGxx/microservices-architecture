@@ -3,8 +3,8 @@
     <!-- Header -->
     <div class="modal-header">
       <div class="header-info">
-        <h3>{{ 'SCANNER.TITLE' | translate }}</h3>
-        <p class="subtitle">{{ 'SCANNER.SUBTITLE' | translate }}</p>
+        <h3>Universal QR & Barcode Scanner</h3>
+        <p class="subtitle">Camera • Image File • USB & Bluetooth Laser Readers</p>
       </div>
       <button class="close-btn" (click)="closeModal()" aria-label="Close">✕</button>
     </div>
@@ -15,19 +15,19 @@
         class="tab-btn" 
         [class.active]="activeTab() === 'CAMERA'" 
         (click)="setTab('CAMERA')">
-        📷 {{ 'SCANNER.TAB_CAMERA' | translate }}
+        📷 Camera Scanner
       </button>
       <button 
         class="tab-btn" 
         [class.active]="activeTab() === 'FILE'" 
         (click)="setTab('FILE')">
-        📁 {{ 'SCANNER.TAB_FILE' | translate }}
+        📁 Upload Image
       </button>
       <button 
         class="tab-btn" 
         [class.active]="activeTab() === 'HARDWARE'" 
         (click)="setTab('HARDWARE')">
-        🔌 {{ 'SCANNER.TAB_HARDWARE' | translate }}
+        🔌 USB / Bluetooth HID
       </button>
     </div>
 
@@ -45,19 +45,19 @@
 
         <!-- Camera Controls -->
         <div class="camera-controls">
-          <button class="control-btn" (click)="toggleCameraLens()" [title]="'SCANNER.SWITCH_CAM' | translate">
-            🔄 {{ 'SCANNER.SWITCH_CAM' | translate }}
+          <button class="control-btn" (click)="toggleCameraLens()" title="Switch Camera">
+            🔄 Switch Camera
           </button>
           <button 
             class="control-btn" 
             *ngIf="scannerService.hasTorch()" 
             (click)="toggleFlash()" 
             [class.active]="scannerService.torchOn()">
-            🔦 {{ (scannerService.torchOn() ? 'SCANNER.TORCH_OFF' : 'SCANNER.TORCH_ON') | translate }}
+            🔦 {{ scannerService.torchOn() ? 'Flash Off' : 'Flash On' }}
           </button>
         </div>
       </div>
-      <p class="hint-text">{{ 'SCANNER.CAMERA_HINT' | translate }}</p>
+      <p class="hint-text">Point your camera at a Product SKU or Order QR code</p>
     </div>
 
     <!-- Tab 2: File Upload Dropzone -->
@@ -66,7 +66,7 @@
         <input type="file" accept="image/*" (change)="onFileSelected($event)" class="file-input" />
         <div class="dropzone-content">
           <span class="upload-icon">📤</span>
-          <p class="upload-text">{{ 'SCANNER.FILE_DROPZONE' | translate }}</p>
+          <p class="upload-text">Click or drag & drop a QR code image here</p>
           <span class="upload-sub">PNG, JPG, JPEG, WebP</span>
         </div>
       </label>
@@ -79,8 +79,8 @@
           <span class="pulse-dot"></span>
           <span class="pulse-ring"></span>
         </div>
-        <h4>{{ 'SCANNER.HARDWARE_READY' | translate }}</h4>
-        <p>{{ 'SCANNER.HARDWARE_DESC' | translate }}</p>
+        <h4>Hardware Scanner Active & Listening</h4>
+        <p>Pull the trigger on your USB or Bluetooth scanner anywhere in the app to instantly decode codes.</p>
         <div class="supported-badges">
           <span class="badge">🔌 USB HID Laser</span>
           <span class="badge">📶 Bluetooth Ring Scanner</span>
@@ -93,7 +93,7 @@
     <div class="manual-input-bar">
       <input 
         type="text" 
-        [placeholder]="'SCANNER.MANUAL_PLACEHOLDER' | translate" 
+        placeholder="Or type SKU / Code manually and press Enter..."
         [ngModel]="manualInput()" 
         (ngModelChange)="manualInput.set($event)"
         (keyup.enter)="onManualSubmit()" />
@@ -117,15 +117,15 @@
           <span class="match-sku">SKU: {{ p.sku }}</span>
         </div>
         <button class="add-cart-btn" (click)="addScannedProductToCart()">
-          🛒 {{ 'PRODUCTS.ADD_TO_CART' | translate }}
+          🛒 Add to Cart
         </button>
       </div>
 
       <!-- If Order Code Match -->
       <div class="order-match" *ngIf="isOrderCode()">
-        <p>🧾 {{ 'RECEIPT.TITLE' | translate }}: <strong>{{ lastScan()?.code }}</strong></p>
+        <p>🧾 Purchase Receipt: <strong>{{ lastScan()?.code }}</strong></p>
         <button class="view-orders-btn" (click)="goToOrders()">
-          📋 {{ 'NAV.ORDERS' | translate }}
+          📋 My Orders
         </button>
       </div>
     </div>
