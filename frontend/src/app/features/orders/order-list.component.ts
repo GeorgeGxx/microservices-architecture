@@ -7,8 +7,6 @@ import { ToastService } from '../../core/services/toast.service';
 import { OrderResponse } from '../../core/models/order.model';
 import { OrderStepperComponent } from '../../shared/components/order-stepper/order-stepper.component';
 import { ReceiptModalComponent } from '../../shared/components/receipt-modal/receipt-modal.component';
-import { TranslationService } from '../../core/services/translation.service';
-import { TranslatePipe } from '../../core/pipes/translate.pipe';
 import { KeycloakService } from '../../core/auth/keycloak.service';
 import { ProductService } from '../../core/services/product.service';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
@@ -18,7 +16,7 @@ type OrderFilterTab = 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'AL
 @Component({
   selector: 'app-order-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, OrderStepperComponent, ReceiptModalComponent, TranslatePipe],
+  imports: [CommonModule, RouterModule, OrderStepperComponent, ReceiptModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './order-list.component.html',
   styleUrl: './order-list.component.css'
@@ -27,7 +25,6 @@ export class OrderListComponent implements OnInit, OnDestroy {
   private readonly orderService = inject(OrderService);
   private readonly cartStore = inject(CartStore);
   private readonly toastService = inject(ToastService);
-  readonly translationService = inject(TranslationService);
   readonly keycloakService = inject(KeycloakService);
   readonly productService = inject(ProductService);
   readonly getProductImageUrl = getProductImageUrl;

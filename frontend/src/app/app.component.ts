@@ -6,12 +6,10 @@ import { CartDrawerComponent } from './shared/components/cart-drawer/cart-drawer
 
 import { QrScannerModalComponent } from './shared/components/qr-scanner-modal/qr-scanner-modal.component';
 
-import { TranslatePipe } from './core/pipes/translate.pipe';
-
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, NavbarComponent, ToastComponent, CartDrawerComponent, QrScannerModalComponent, TranslatePipe],
+  imports: [RouterOutlet, NavbarComponent, ToastComponent, CartDrawerComponent, QrScannerModalComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })

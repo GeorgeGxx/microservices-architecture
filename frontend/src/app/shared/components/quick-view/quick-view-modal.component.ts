@@ -4,7 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { ProductResponse } from '../../../core/models/product.model';
 import { CurrencyService } from '../../../core/services/currency.service';
 import { KeycloakService } from '../../../core/auth/keycloak.service';
-import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 import { getProductImageUrl } from '../../../core/utils/product-image.helper';
 
 interface ProductWithStock extends ProductResponse {
@@ -16,7 +15,7 @@ interface ProductWithStock extends ProductResponse {
 @Component({
   selector: 'app-quick-view-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule, TranslatePipe],
+  imports: [CommonModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './quick-view-modal.component.html',
   styleUrls: ['./quick-view-modal.component.css']

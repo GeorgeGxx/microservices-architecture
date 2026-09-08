@@ -1,12 +1,11 @@
 import { Component, OnInit, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SystemStatusService } from '../../core/services/system-status.service';
-import { TranslatePipe } from '../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-system-status',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule],
   templateUrl: './system-status.component.html',
   styleUrl: './system-status.component.css'
 })

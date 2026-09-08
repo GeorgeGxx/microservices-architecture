@@ -3,13 +3,11 @@ import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ProductResponse } from '../../../core/models/product.model';
 import { QrGeneratorService } from '../../../core/services/qr-generator.service';
-import { TranslationService } from '../../../core/services/translation.service';
-import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 
 @Component({
   selector: 'app-product-qr-modal',
   standalone: true,
-  imports: [CommonModule, TranslatePipe],
+  imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-qr-modal.component.html',
   styleUrls: ['./product-qr-modal.component.css']
@@ -21,7 +19,6 @@ export class ProductQrModalComponent {
 
   private readonly qrGenerator = inject(QrGeneratorService);
   private readonly sanitizer = inject(DomSanitizer);
-  readonly translationService = inject(TranslationService);
 
   qrSvg(): SafeHtml {
     const currentProd = this.product();

@@ -522,27 +522,6 @@
   transform: translateY(-1px);
 }
 
-/* Language Toggle Button */
-.lang-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f1f5f9;
-  padding: 6px 10px;
-  border-radius: 10px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.lang-toggle-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  border-color: rgba(255, 255, 255, 0.25);
-}
-
 /* Mobile Floating Scan Button (FAB) */
 .mobile-scan-fab {
   display: none;
@@ -622,7 +601,7 @@
     padding: 0 8px;
     gap: 6px;
   }
-  .icon-btn, .cart-trigger-btn, .lang-toggle-btn {
+  .icon-btn, .cart-trigger-btn {
     padding: 7px;
   }
   .nav-link {

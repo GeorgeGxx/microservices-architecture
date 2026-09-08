@@ -8,8 +8,6 @@ import { ToastService } from '../../core/services/toast.service';
 import { KeycloakService } from '../../core/auth/keycloak.service';
 import { ProductResponse } from '../../core/models/product.model';
 import { ProductQuickViewModalComponent } from '../../shared/components/quick-view/quick-view-modal.component';
-import { TranslationService } from '../../core/services/translation.service';
-import { TranslatePipe } from '../../core/pipes/translate.pipe';
 import { ProductQrModalComponent } from '../../shared/components/product-qr-modal/product-qr-modal.component';
 import { CurrencyService } from '../../core/services/currency.service';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
@@ -23,7 +21,7 @@ export interface ProductWithStock extends ProductResponse {
 @Component({
   selector: 'app-product-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, ProductQuickViewModalComponent, ProductQrModalComponent, TranslatePipe],
+  imports: [CommonModule, FormsModule, ProductQuickViewModalComponent, ProductQrModalComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './product-list.component.html',
   styleUrl: './product-list.component.css'
@@ -33,7 +31,6 @@ export class ProductListComponent implements OnInit, OnDestroy {
   private readonly inventoryService = inject(InventoryService);
   private readonly cartStore = inject(CartStore);
   private readonly toastService = inject(ToastService);
-  readonly translationService = inject(TranslationService);
   readonly currencyService = inject(CurrencyService);
   readonly keycloakService = inject(KeycloakService);
   readonly getProductImageUrl = getProductImageUrl;

@@ -5,15 +5,13 @@ import { KeycloakService } from '../../../core/auth/keycloak.service';
 import { CartStore } from '../../../core/services/cart.store';
 import { NotificationCenterService } from '../../../core/services/notification-center.service';
 import { ThemeService, AppTheme } from '../../../core/services/theme.service';
-import { TranslationService } from '../../../core/services/translation.service';
-import { TranslatePipe } from '../../../core/pipes/translate.pipe';
 import { ScannerModalService } from '../../../core/services/scanner-modal.service';
 import { CurrencyService } from '../../../core/services/currency.service';
 
 @Component({
   selector: 'app-navbar',
   standalone: true,
-  imports: [CommonModule, RouterModule, TranslatePipe],
+  imports: [CommonModule, RouterModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './navbar.component.html',
   styleUrl: './navbar.component.css'
@@ -23,7 +21,6 @@ export class NavbarComponent {
   readonly cartStore = inject(CartStore);
   readonly notifService = inject(NotificationCenterService);
   readonly themeService = inject(ThemeService);
-  readonly translationService = inject(TranslationService);
   readonly scannerModal = inject(ScannerModalService);
   readonly currencyService = inject(CurrencyService);
 

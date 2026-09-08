@@ -2,9 +2,9 @@
   <div class="checkout-header">
     <a routerLink="/" class="back-link">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
-      <span>{{ 'NAV.PRODUCTS' | translate }}</span>
+      <span>Catalog</span>
     </a>
-    <h1 class="page-title">{{ 'CHECKOUT.TITLE' | translate }}</h1>
+    <h1 class="page-title">Secure Checkout & Payment</h1>
   </div>
 
   @if (completedOrder()) {
@@ -22,7 +22,7 @@
 
       <div class="order-summary-pill-bar">
         <div class="pill-item">
-          <span class="pill-label">{{ 'ORDERS.ORDER_NUMBER' | translate }}</span>
+          <span class="pill-label">Order #</span>
           <span class="pill-val mono">#{{ completedOrder()?.orderNumber }}</span>
         </div>
         <div class="pill-item">
@@ -58,9 +58,9 @@
       <div class="success-actions">
         <button class="btn-receipt" (click)="openReceipt()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span>{{ 'CHECKOUT.VIEW_RECEIPT' | translate }}</span>
+          <span>View Digital Receipt & QR</span>
         </button>
-        <a routerLink="/orders" class="btn-secondary">{{ 'NAV.ORDERS' | translate }}</a>
+        <a routerLink="/orders" class="btn-secondary">My Orders</a>
         <a routerLink="/" class="btn-primary">Continue Shopping</a>
       </div>
     </div>
@@ -78,9 +78,9 @@
       <div class="empty-icon">
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
       </div>
-      <h3>{{ 'CART.EMPTY' | translate }}</h3>
-      <p>{{ 'CART.EMPTY_DESC' | translate }}</p>
-      <a routerLink="/" class="btn-primary">{{ 'NAV.PRODUCTS' | translate }}</a>
+      <h3>Your cart is empty</h3>
+      <p>Scan a product SKU with laser/camera or browse catalog to start register.</p>
+      <a routerLink="/" class="btn-primary">Catalog</a>
     </div>
   } @else {
     <!-- Multi-Step Checkout Navigation -->
@@ -244,7 +244,7 @@
               <div class="card-input-container">
                 <div class="form-group">
                   <div class="label-with-brand">
-                    <label class="form-label">{{ 'CHECKOUT.CARD_NUMBER' | translate }}</label>
+                    <label class="form-label">CARD NUMBER</label>
                     <div class="brand-indicators">
                       <span class="card-brand-badge" [class.highlight]="cardBrand() === 'visa'">VISA</span>
                       <span class="card-brand-badge" [class.highlight]="cardBrand() === 'mastercard'">Mastercard</span>
@@ -273,7 +273,7 @@
                 </div>
 
                 <div class="form-group">
-                  <label class="form-label">{{ 'CHECKOUT.CARD_HOLDER' | translate }}</label>
+                    <label class="form-label">CARDHOLDER NAME</label>
                   <input
                     type="text"
                     class="form-input"
@@ -284,7 +284,7 @@
 
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">{{ 'CHECKOUT.EXPIRES' | translate }}</label>
+                    <label class="form-label">EXPIRES</label>
                     <input
                       type="text"
                       class="form-input mono"
@@ -294,7 +294,7 @@
                     />
                   </div>
                   <div class="form-group">
-                    <label class="form-label">{{ 'CHECKOUT.CVV' | translate }}</label>
+                    <label class="form-label">CVV</label>
                     <input
                       type="password"
                       class="form-input mono"
@@ -346,7 +346,7 @@
 
         <!-- Ordered Items Expandable List -->
         <div class="section-card items-review-card">
-          <h3 class="review-title">{{ 'ORDERS.ITEMS' | translate }} ({{ cartStore.itemCount() }})</h3>
+          <h3 class="review-title">Order Items ({{ cartStore.itemCount() }})</h3>
           <div class="items-table">
             @for (item of cartStore.items(); track item.product.sku) {
               <div class="summary-item">
@@ -417,7 +417,7 @@
                 <strong>Sign in required</strong>
                 <p>Authenticate with Keycloak to place your order.</p>
               </div>
-              <button class="btn-login-inline" (click)="keycloakService.login()">{{ 'NAV.LOGIN' | translate }}</button>
+              <button class="btn-login-inline" (click)="keycloakService.login()">Sign In</button>
             </div>
           }
         </div>
