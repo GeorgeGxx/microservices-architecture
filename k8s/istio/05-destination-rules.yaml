@@ -2,7 +2,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: products-service-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: products-service
   trafficPolicy:
@@ -28,7 +28,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: orders-service-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: orders-service
   trafficPolicy:
@@ -54,7 +54,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: inventory-service-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: inventory-service
   trafficPolicy:
@@ -80,7 +80,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: notification-service-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: notification-service
   trafficPolicy:
@@ -100,7 +100,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: api-gateway-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: api-gateway
   trafficPolicy:
@@ -121,7 +121,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
   name: frontend-dr
-  namespace: staging
+  namespace: dev
 spec:
   host: frontend
   trafficPolicy:

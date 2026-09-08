@@ -8,5 +8,6 @@ spec:
       - apiGroups: ["apps"]
         kinds: ["Deployment"]
     namespaces:
+      - "dev"
       - "staging"
       - "prod"

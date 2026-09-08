@@ -31,3 +31,14 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: microservices-secrets
+      jsonPointers:
+        - /data
+        - /stringData
+    - group: "monitoring.coreos.com"
+      kind: ServiceMonitor
+      jsonPointers:
+        - /spec/endpoints

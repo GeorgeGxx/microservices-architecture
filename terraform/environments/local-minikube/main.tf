@@ -9,16 +9,14 @@ resource "kubernetes_namespace" "namespaces" {
     "auth",
     "data",
     "vault",
-    "dev",
-    "staging",
-    "prod"
+    "dev"
   ])
 
   metadata {
     name = each.key
-    labels = contains(["dev", "staging", "prod"], each.key) ? {
+    labels = each.key == "dev" ? {
       "istio-injection" = "enabled"
-      "environment"     = each.key
+      "environment"     = "dev"
       } : {
       "environment" = each.key
     }
@@ -76,6 +74,16 @@ resource "helm_release" "argocd" {
   version    = "10.8.0"
   namespace  = "argocd"
   timeout    = 600
+
+  set_sensitive {
+    name  = "configs.secret.argocdServerAdminPassword"
+    value = var.argocd_admin_password_hash
+  }
+
+  set {
+    name  = "configs.secret.argocdServerAdminPasswordMtime"
+    value = var.argocd_admin_password_mtime
+  }
 
   set {
     name  = "server.service.type"

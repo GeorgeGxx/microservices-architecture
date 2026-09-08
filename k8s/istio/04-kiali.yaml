@@ -123,11 +123,13 @@ data:
         exclude:
           - "default"
           - "kube-.*"
+          - "staging"
+          - "prod"
     external_services:
       istio:
         root_namespace: istio-system
       prometheus:
-        url: "http://prometheus.observability.svc.cluster.local:9090"
+        url: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
       tracing:
         enabled: true
         provider: "tempo"
@@ -136,7 +138,7 @@ data:
         use_grpc: false
       grafana:
         enabled: true
-        in_cluster_url: "http://grafana.observability.svc.cluster.local:3000"
+        in_cluster_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
         url: "http://localhost:3000"
         auth:
           type: "basic"
@@ -205,7 +207,7 @@ spec:
             - name: SERVER_PORT
               value: "20001"
             - name: PROMETHEUS_URL
-              value: "http://prometheus.staging.svc.cluster.local:9090"
+              value: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
           ports:
             - name: api-port
               containerPort: 20001
@@ -255,7 +257,7 @@ metadata:
   namespace: istio-system
 spec:
   type: ExternalName
-  externalName: prometheus.observability.svc.cluster.local
+  externalName: kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local
   ports:
     - name: http-prom
       port: 9090
@@ -281,8 +283,8 @@ metadata:
   namespace: istio-system
 spec:
   type: ExternalName
-  externalName: grafana.observability.svc.cluster.local
+  externalName: kube-prometheus-grafana.observability.svc.cluster.local
   ports:
     - name: http-grafana
-      port: 3000
-      targetPort: 3000
+      port: 80
+      targetPort: 80

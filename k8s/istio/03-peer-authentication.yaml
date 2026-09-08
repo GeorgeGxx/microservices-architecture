@@ -1,8 +1,8 @@
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: staging-zero-trust-mtls
-  namespace: staging
+  name: dev-zero-trust-mtls
+  namespace: dev
 spec:
   mtls:
     mode: STRICT
@@ -11,7 +11,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: orders-service-metrics-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -26,7 +26,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: products-service-metrics-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -41,7 +41,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: inventory-service-metrics-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -56,7 +56,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: api-gateway-metrics-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -71,7 +71,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: notification-service-metrics-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -86,7 +86,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: prometheus-telemetry-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -98,7 +98,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: grafana-telemetry-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -110,7 +110,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: tempo-telemetry-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
@@ -122,7 +122,7 @@ apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
   name: loki-telemetry-mtls
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     matchLabels:
