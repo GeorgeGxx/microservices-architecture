@@ -2,7 +2,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: Gateway
 metadata:
   name: microservices-gateway
-  namespace: staging
+  namespace: dev
 spec:
   selector:
     istio: ingressgateway # Uses Istio default Ingress Gateway proxy
@@ -18,7 +18,7 @@ apiVersion: networking.istio.io/v1alpha3
 kind: VirtualService
 metadata:
   name: microservices-edge-routes
-  namespace: staging
+  namespace: dev
 spec:
   hosts:
     - "*"
@@ -37,7 +37,7 @@ spec:
             exact: /swagger-ui.html
       route:
         - destination:
-            host: api-gateway.staging.svc.cluster.local
+            host: api-gateway.dev.svc.cluster.local
             port:
               number: 8080
 
@@ -63,6 +63,6 @@ spec:
             prefix: /
       route:
         - destination:
-            host: frontend.staging.svc.cluster.local
+            host: frontend.dev.svc.cluster.local
             port:
               number: 80

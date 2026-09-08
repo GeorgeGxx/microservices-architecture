@@ -88,7 +88,7 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
 | **Tab 3** | `3. Sequence - Dynamic Database Secret Rotation` | Step-by-step sequence of ephemeral PostgreSQL user generation, automated revocation upon 1h lease expiration, and transparent connection pool recovery. |
 | **Tab 4** | `4. Istio Service Mesh & Zero-Trust mTLS` | STRICT mTLS zero-trust communication across namespace `ecommerce` with SPIFFE IDs, Istio Ingress Gateway, Istiod Citadel CA signed by Vault PKI Intermediate CA, and Canary traffic shaping (90/10). |
 | **Tab 5** | `5. Secret Isolation & Configuration Precedence` | Hierarchy of property sources explaining why zero collisions exist between `.env`, Spring Cloud Vault profile, and External Secrets Operator (ESO). |
-| **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `ecommerce` (Apps & DBs), `vault` (Security & RBAC Auth Delegator), and `istio-system` (Mesh Control Plane & Kiali). Includes dual local ingress port-forwarding: interactive (`start-tunnels.ps1`) and detached background daemon (`spawn-tunnels.ps1`). |
+| **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `dev` (Apps & Microservices), `data` (PostgreSQL, Kafka, Redis), `auth` (Keycloak), `vault`, `observability`, and `istio-system` (Mesh Control Plane & Kiali). Includes background supervisor daemon (`platform.ps1 tunnels`). |
 | **Tab 7** | `7. End-to-End Request Flow & Order Processing Sequence` | Complete 14-step transaction journey: Angular 21 SPA ➔ Keycloak PKCE (Self-Registration & JWT `sub`/`preferred_username`) ➔ Istio Ingress ➔ API Gateway (Redis Rate Limit & JWT verify) ➔ Orders Service (Multi-Tenant Order Isolation) ➔ Products & Inventory DBs ➔ Kafka Event Bus ➔ Notification Service ➔ LGTM Distributed Telemetry (Compulsive Buyer Velocity Metrics). |
 | **Tab 8** | `8. Edge Cloud Tunneling, Vercel & Mobile PWA` | Cloudflare Anycast Quick Tunnels, Vercel Serverless Edge, Keycloak PKCE, Enterprise Multi-Step Checkout, and Universal Mobile Viewports ($360\text{px}-768\text{px}$). |
 | **Tab 9** | `9. Enterprise DevSecOps Platform & 12-Stage Pipeline` | Complete 12-stage enterprise CI/CD pipeline (Unit Tests, SonarQube/Gitleaks SAST, Syft SBOM, Trivy Soft-Gate, Conftest OPA, Staging Deploy, Newman QA, Cypress E2E, k6 Load Tests, OWASP ZAP DAST, Docker Hub Publish, and Canary Rollout) running 100% locally on Minikube with automated Platform Engineering scripts. |
@@ -141,24 +141,42 @@ All services and dashboards are automated via background port-forwarding and ava
 | 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
 
-### ⚙️ Platform Operational Lifecycle Commands
+### ⚙️ Platform Operational Lifecycle Commands (Unified CLI)
+
+All ecosystem operations are unified under the single-entrypoint orchestrator [`platform.ps1`](file:///c:/Users/jorge/codegxx/microservices-architecture/platform.ps1):
 
 ```powershell
 # 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, ArgoCD, Vault, Apps & Tunnels)
-.\scripts\devsecops\bootstrap-multistage-devsecops.ps1
+.\platform.ps1 up
 
-# Deploy applications including Canary v2 pod (progressive traffic shifting between v1 and v2)
 # Deploy applications with Canary version v2 for zero-downtime progressive testing (e.g. 90% v1, 10% v2)
-.\scripts\devsecops\bootstrap-multistage-devsecops.ps1 -DeployCanary
+.\platform.ps1 up -DeployCanary
 
-# 2. Verify platform health, pods, NodePorts, and Gatekeeper policies across all namespaces
-.\scripts\devsecops\verify-platform.ps1
+# Bootstrap with automatic AWS S3 remote state and DynamoDB state lock preparation
+.\platform.ps1 up -WithAwsBackend
 
-# 3. Gracefully pause Minikube and close tunnels (releases 12 CPUs & 12 GB RAM, preserves state)
-.\scripts\devsecops\teardown-local-devsecops.ps1
+# 2. Verify platform health, pods, NodePorts, and Gatekeeper OPA policies
+.\platform.ps1 doctor
 
-# 4. Completely purge Minikube, delete storage volumes, and reset Terraform state
-.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster -CleanTerraformState
+# 3. FinOps Cloud Cost Estimation & Local Savings Breakdown (Air-Gapped / Zero SaaS)
+.\platform.ps1 cost -Environment minikube
+.\platform.ps1 cost -Environment staging
+.\platform.ps1 cost -Environment prod
+
+# 4. Display active platform URLs and access credentials table
+.\platform.ps1 urls
+
+# 5. Run end-to-end HTTP smoke test across all microservices
+.\platform.ps1 smoke
+
+# 6. Launch or restart resilient background port-forward tunnels daemon
+.\platform.ps1 tunnels
+
+# 7. Gracefully pause Minikube and close tunnels (releases 12 CPUs & 12 GB RAM, preserves state)
+.\platform.ps1 down
+
+# 8. Completely purge Minikube, delete storage volumes, and reset Terraform state
+.\platform.ps1 down -DeleteCluster -CleanTerraformState
 ```
 
 ### 🛡️ DevSecOps & Governance Hub
@@ -729,35 +747,32 @@ The unified deployment orchestrator automates the complete lifecycle end-to-end:
 ### 1. 🚀 One-Shot Cluster Deployment
 Deploy the entire infrastructure, security, mesh, and microservices in a single command:
 ```powershell
-# Master one-shot orchestrator (Installs Istio, Vault, Keycloak, DBs, and Microservices):
-pwsh scripts/minikube/deploy-minikube.ps1
+# Unified Enterprise CLI Orchestrator (Installs Minikube, Istio, Vault, Keycloak, DBs, Apps & Tunnels):
+.\platform.ps1 up
 
 # Options:
-# Skip container image rebuilds on subsequent runs:
-pwsh scripts/minikube/deploy-minikube.ps1 -SkipBuild
+# Deploy with canary version v2 enabled:
+.\platform.ps1 up -DeployCanary
 
-# Deploy without Istio Service Mesh (standard Kubernetes without Envoy sidecars):
-pwsh scripts/minikube/deploy-minikube.ps1 -SkipIstio
-
-# Skip image build and Istio mesh simultaneously:
-pwsh scripts/minikube/deploy-minikube.ps1 -SkipBuild -SkipIstio
+# Deploy with automatic AWS S3 remote backend preparation:
+.\platform.ps1 up -WithAwsBackend
 ```
 
 > 💡 **Smart Image Synchronization & Adaptive Observability:**
-> - **Zero-Rebuild Fallback:** When `-SkipBuild` is passed, the orchestrator automatically synchronizes any missing local Docker images into Minikube in seconds (`minikube image load`).
+> - **Zero-Rebuild Fallback:** The orchestrator automatically synchronizes any missing local Docker images into Minikube in seconds (`minikube image load`).
 > - **Standardized Image Nomenclature:** Strictly enforces the production naming format `georgegxx/<service>:1.0.0` across both Docker Compose and Minikube environments, preventing untagged duplicates or namespace collisions.
-> - **Adaptive Scraping:** Prometheus dynamically discovers Envoy sidecars and `istiod` when Istio is active, and cleanly drops them in `-SkipIstio` mode to avoid false-positive alert states.
+> - **Adaptive Scraping:** Prometheus dynamically discovers Envoy sidecars and `istiod` when Istio is active, and cleanly monitors Actuator metrics across all microservices.
 
 ### 2. 🔍 Verify Mesh Health & Zero-Trust Policies
 Audit proxy synchronization and mutual TLS enforcement without needing browser tunnels:
 ```powershell
-# Audit Istio control plane synchronization, Envoy sidecars, and STRICT mTLS:
-pwsh scripts/istio/verify-mesh.ps1
+# Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
+.\platform.ps1 doctor
 ```
 
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
-> - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `staging` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
-> - **Selective Actuator Scraping:** Ports `8080` and `8001-8004` feature `portLevelMtls: PERMISSIVE` in `k8s/istio/peer-authentication-staging.yaml`, enabling Prometheus to scrape Actuator metrics without `connection reset by peer` errors while business traffic remains 100% encrypted.
+> - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
+> - **Selective Actuator Scraping:** Ports `8080` and `8001-8004` feature `portLevelMtls: PERMISSIVE` in `k8s/istio/peer-authentication-dev.yaml`, enabling Prometheus to scrape Actuator metrics without `connection reset by peer` errors while business traffic remains 100% encrypted.
 > - **Kafka SASL Authentication (Port 9094):** Microservices produce and consume events through `kafka:9094` using SASL PLAIN (`app` credentials). In-mesh traffic benefits from **Defense-in-Depth** (Layer 7 SASL identification + Layer 4 Istio mTLS wire encryption).
 > - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
 
@@ -765,14 +780,11 @@ pwsh scripts/istio/verify-mesh.ps1
 ### 3. 🌐 Open Local Browser Tunnels & Endpoint Access
 Expose all internal services and web consoles to `localhost`:
 ```powershell
-# Option A: Interactive session (keeps terminal open with live status, press Enter/Ctrl+C to stop):
-pwsh scripts/minikube/start-tunnels.ps1
+# Launch or supervise all background port-forward tunnels:
+.\platform.ps1 tunnels
 
-# Option B: Detached background daemon (spawns hidden port-forwards without blocking your terminal):
-pwsh scripts/minikube/spawn-tunnels.ps1
-
-# To close/terminate all active background tunnels at any time:
-pwsh scripts/minikube/stop-tunnels.ps1
+# Display formatted table of active URLs and credentials:
+.\platform.ps1 urls
 ```
 
 Once tunnels are active, access local web interfaces:

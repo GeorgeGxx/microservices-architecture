@@ -8,9 +8,9 @@ spec:
       - apiGroups: ["apps"]
         kinds: ["Deployment"]
     namespaces:
+      - "dev"
       - "staging"
       - "prod"
-      - "ecommerce"
   parameters:
     registries:
       - "georgegxx/"

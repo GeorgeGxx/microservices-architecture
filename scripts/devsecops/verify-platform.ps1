@@ -41,7 +41,7 @@ spec:
           image: evil-repo.io/untrusted-app:latest
 "@
 
-$applyResult = $maliciousManifest | kubectl apply -f - 2>&1
+$applyResult = $maliciousManifest | kubectl apply --dry-run=server -f - 2>&1
 if ($applyResult -like "*denied*" -or $applyResult -like "*is not from a trusted registry*") {
     Write-Host "✅ SUCCESS: Gatekeeper OPA successfully blocked the untrusted container image!" -ForegroundColor Green
     Write-Host "   Admission Response: $applyResult" -ForegroundColor DarkGray

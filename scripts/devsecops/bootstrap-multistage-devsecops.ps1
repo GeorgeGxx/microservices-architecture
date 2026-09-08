@@ -72,11 +72,11 @@ try {
 }
 
 # Ensure explicit namespaces and Istio sidecar injection labels
-$namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system")
-foreach ($ns in $namespaces) {
-    kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f - | Out-Null
-}
-kubectl label namespace dev istio-injection=enabled environment=dev --overwrite | Out-Null
+# $namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system")
+# foreach ($ns in $namespaces) {
+#     kubectl create namespace $ns --dry-run=client -o yaml | kubectl apply -f - | Out-Null
+# }
+# kubectl label namespace dev istio-injection=enabled environment=dev --overwrite | Out-Null
 
 # 4. Apply Gatekeeper OPA Policies
 Write-Host "`n🛡️ Applying centralized Gatekeeper policies (devsecops/policies/gatekeeper)..." -ForegroundColor Yellow
