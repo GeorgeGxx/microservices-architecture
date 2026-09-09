@@ -1,6 +1,6 @@
 resource "google_sql_database_instance" "this" {
-  name             = "${var.name}-${var.environment}-pg16"
-  database_version = "POSTGRES_16"
+  name             = "${var.name}-${var.environment}-pg17"
+  database_version = "POSTGRES_17"
   region           = var.region
 
   depends_on = [var.vpc_peering_dependency]

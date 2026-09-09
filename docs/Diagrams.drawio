@@ -1,140 +1,139 @@
-<?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="8" type="device">
+<mxfile host="Electron" pages="10">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
-    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+    <mxGraphModel dx="1837" dy="1026" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t1" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Spring Boot 3.4 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
-          <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
+        <mxCell id="t1" parent="1" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Spring Boot 3.4 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="1200" x="300" y="30" as="geometry" />
         </mxCell>
-        <mxCell id="c_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="60" y="110" width="340" height="420" as="geometry" />
+        <mxCell id="c_client" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="340" x="60" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="n_spa" parent="1" value="&lt;b&gt;Angular 21 SPA&lt;/b&gt;&lt;br&gt;Storefront UI (Port 4200)&lt;br&gt;PKCE Flow &amp; Token Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
-          <mxGeometry x="90" y="170" width="280" height="70" as="geometry" />
+        <mxCell id="n_spa" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" value="&lt;b&gt;Angular 21 SPA&lt;/b&gt;&lt;br&gt;Storefront UI (Port 4200)&lt;br&gt;PKCE Flow &amp; Token Storage" vertex="1">
+          <mxGeometry height="70" width="280" x="90" y="170" as="geometry" />
         </mxCell>
-        <mxCell id="n_traffic" parent="1" value="&lt;b&gt;Traffic Simulator&lt;/b&gt;&lt;br&gt;simulate-traffic.py&lt;br&gt;Load &amp; E2E Purchase Flow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
-          <mxGeometry x="90" y="270" width="280" height="70" as="geometry" />
+        <mxCell id="n_traffic" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" value="&lt;b&gt;Traffic Simulator&lt;/b&gt;&lt;br&gt;simulate-traffic.py&lt;br&gt;Load &amp; E2E Purchase Flow" vertex="1">
+          <mxGeometry height="70" width="280" x="90" y="270" as="geometry" />
         </mxCell>
-        <mxCell id="n_postman" parent="1" value="&lt;b&gt;Postman / API Clients&lt;/b&gt;&lt;br&gt;Swagger UI &amp; OpenAPI Docs&lt;br&gt;/v3/api-docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
-          <mxGeometry x="90" y="370" width="280" height="70" as="geometry" />
+        <mxCell id="n_postman" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" value="&lt;b&gt;Postman / API Clients&lt;/b&gt;&lt;br&gt;Swagger UI &amp; OpenAPI Docs&lt;br&gt;/v3/api-docs" vertex="1">
+          <mxGeometry height="70" width="280" x="90" y="370" as="geometry" />
         </mxCell>
-        <mxCell id="c_edge" parent="1" value="&lt;b&gt;🛡️ EDGE &amp; IDENTITY LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="440" y="110" width="380" height="420" as="geometry" />
+        <mxCell id="c_edge" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;🛡️ EDGE &amp; IDENTITY LAYER&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="380" x="440" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="n_gw" parent="1" value="&lt;b&gt;Spring Cloud API Gateway&lt;/b&gt;&lt;br&gt;Port 8080&lt;br&gt;JWT Validation • Rate Limiting&lt;br&gt;Token Relay • Circuit Breakers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" vertex="1">
-          <mxGeometry x="470" y="170" width="320" height="80" as="geometry" />
+        <mxCell id="n_gw" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" value="&lt;b&gt;Spring Cloud API Gateway&lt;/b&gt;&lt;br&gt;Port 8080&lt;br&gt;JWT Validation • Rate Limiting&lt;br&gt;Token Relay • Circuit Breakers" vertex="1">
+          <mxGeometry height="80" width="320" x="470" y="170" as="geometry" />
         </mxCell>
-        <mxCell id="n_kc" parent="1" value="&lt;b&gt;Keycloak 26 (IAM)&lt;/b&gt;&lt;br&gt;Port 8181 (OIDC / OAuth2)&lt;br&gt;Realm: microservices-realm&lt;br&gt;Self-Registration • Default USER Role&lt;br&gt;Users / Roles / PKCE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
-          <mxGeometry x="470" y="280" width="320" height="80" as="geometry" />
+        <mxCell id="n_kc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" value="&lt;b&gt;Keycloak 26 (IAM)&lt;/b&gt;&lt;br&gt;Port 8181 (OIDC / OAuth2)&lt;br&gt;Realm: microservices-realm&lt;br&gt;Self-Registration • Default USER Role&lt;br&gt;Users / Roles / PKCE" vertex="1">
+          <mxGeometry height="80" width="320" x="470" y="280" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_kc" parent="1" value="&lt;b&gt;PostgreSQL Keycloak&lt;/b&gt;&lt;br&gt;db-keycloak (Port 5434)&lt;br&gt;Persistent Realm Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;" vertex="1">
-          <mxGeometry x="550" y="400" width="160" height="70" as="geometry" />
+        <mxCell id="n_db_kc" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;" value="&lt;b&gt;PostgreSQL Keycloak&lt;/b&gt;&lt;br&gt;db-keycloak (Port 5434)&lt;br&gt;Persistent Realm Database" vertex="1">
+          <mxGeometry height="70" width="160" x="550" y="400" as="geometry" />
         </mxCell>
-        <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 3.4 / Java 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="860" y="110" width="520" height="780" as="geometry" />
+        <mxCell id="c_ms" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 3.4 / Java 21)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="780" width="520" x="860" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="170" width="220" height="80" as="geometry" />
+        <mxCell id="n_prod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache" vertex="1">
+          <mxGeometry height="80" width="220" x="900" y="170" as="geometry" />
         </mxCell>
-        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="350" width="220" height="80" as="geometry" />
+        <mxCell id="n_orders" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" vertex="1">
+          <mxGeometry height="80" width="220" x="900" y="350" as="geometry" />
         </mxCell>
-        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • Lock/Deduct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="530" width="220" height="80" as="geometry" />
+        <mxCell id="n_inv" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • Lock/Deduct" vertex="1">
+          <mxGeometry height="80" width="220" x="900" y="530" as="geometry" />
         </mxCell>
-        <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="710" width="220" height="80" as="geometry" />
+        <mxCell id="n_notif" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer" vertex="1">
+          <mxGeometry height="80" width="220" x="900" y="710" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_prod" parent="1" value="&lt;b&gt;db-products&lt;/b&gt;&lt;br&gt;PostgreSQL 16&lt;br&gt;Port 5433" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="175" width="160" height="70" as="geometry" />
+        <mxCell id="n_db_prod" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" value="&lt;b&gt;db-products&lt;/b&gt;&lt;br&gt;PostgreSQL 17&lt;br&gt;Port 5433" vertex="1">
+          <mxGeometry height="70" width="160" x="1180" y="175" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_orders" parent="1" value="&lt;b&gt;db-orders&lt;/b&gt;&lt;br&gt;PostgreSQL 16&lt;br&gt;Port 5432" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="355" width="160" height="70" as="geometry" />
+        <mxCell id="n_db_orders" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" value="&lt;b&gt;db-orders&lt;/b&gt;&lt;br&gt;PostgreSQL 17&lt;br&gt;Port 5432" vertex="1">
+          <mxGeometry height="70" width="160" x="1180" y="355" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_inv" parent="1" value="&lt;b&gt;db-inventory&lt;/b&gt;&lt;br&gt;PostgreSQL 16&lt;br&gt;Port 5431" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="535" width="160" height="70" as="geometry" />
+        <mxCell id="n_db_inv" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" value="&lt;b&gt;db-inventory&lt;/b&gt;&lt;br&gt;PostgreSQL 17&lt;br&gt;Port 5431" vertex="1">
+          <mxGeometry height="70" width="160" x="1180" y="535" as="geometry" />
         </mxCell>
-        <mxCell id="c_async" parent="1" value="&lt;b&gt;⚡ EVENT STREAMING &amp; CACHE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="1420" y="110" width="440" height="340" as="geometry" />
+        <mxCell id="c_async" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;⚡ EVENT STREAMING &amp; CACHE&lt;/b&gt;" vertex="1">
+          <mxGeometry height="340" width="440" x="1420" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 7.8 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9094 (SASL_PLAINTEXT) • kafka:9092&lt;br&gt;Topics: orders-topic, orders-topic-dlt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
-          <mxGeometry x="1450" y="170" width="380" height="80" as="geometry" />
+        <mxCell id="n_kafka" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" value="&lt;b&gt;Apache Kafka 7.8 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9094 (SASL_PLAINTEXT) • kafka:9092&lt;br&gt;Topics: orders-topic, orders-topic-dlt" vertex="1">
+          <mxGeometry height="80" width="380" x="1450" y="170" as="geometry" />
         </mxCell>
-        <mxCell id="n_redis" parent="1" value="&lt;b&gt;Redis 8.8 (Cache &amp; Rate Limiting)&lt;/b&gt;&lt;br&gt;redis:6379&lt;br&gt;Products &amp; Session Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
-          <mxGeometry x="1450" y="290" width="380" height="80" as="geometry" />
+        <mxCell id="n_redis" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" value="&lt;b&gt;Redis 8.8 (Cache &amp; Rate Limiting)&lt;/b&gt;&lt;br&gt;redis:6379&lt;br&gt;Products &amp; Session Caching" vertex="1">
+          <mxGeometry height="80" width="380" x="1450" y="290" as="geometry" />
         </mxCell>
-        <mxCell id="c_vault" parent="1" value="&lt;b&gt;🔒 ENTERPRISE SECURITY (HashiCorp Vault)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="60" y="570" width="760" height="320" as="geometry" />
+        <mxCell id="c_vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;🔒 ENTERPRISE SECURITY (HashiCorp Vault)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="320" width="760" x="60" y="570" as="geometry" />
         </mxCell>
-        <mxCell id="n_vault" parent="1" value="&lt;b&gt;HashiCorp Vault v2.0.4&lt;/b&gt;&lt;br&gt;Port 8200 (Dev/Prod Engine)&lt;br&gt;KV-v2 Secrets • Dynamic DB Credentials&lt;br&gt;Transit Encryption • Audit Device Logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;" vertex="1">
-          <mxGeometry x="90" y="630" width="340" height="90" as="geometry" />
+        <mxCell id="n_vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;" value="&lt;b&gt;HashiCorp Vault v2.0.4&lt;/b&gt;&lt;br&gt;Port 8200 (Dev/Prod Engine)&lt;br&gt;KV-v2 Secrets • Dynamic DB Credentials&lt;br&gt;Transit Encryption • Audit Device Logging" vertex="1">
+          <mxGeometry height="90" width="340" x="90" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="n_vault_init" parent="1" value="&lt;b&gt;vault-init (Zero-Touch Seeder)&lt;/b&gt;&lt;br&gt;Ephemeral Startup Container&lt;br&gt;Seeds DB passwords, Keycloak Secrets,&lt;br&gt;Kafka configs &amp; Least-Privilege Policies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;" vertex="1">
-          <mxGeometry x="460" y="630" width="330" height="90" as="geometry" />
+        <mxCell id="n_vault_init" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;" value="&lt;b&gt;vault-init (Zero-Touch Seeder)&lt;/b&gt;&lt;br&gt;Ephemeral Startup Container&lt;br&gt;Seeds DB passwords, Keycloak Secrets,&lt;br&gt;Kafka configs &amp; Least-Privilege Policies" vertex="1">
+          <mxGeometry height="90" width="330" x="460" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="n_eso" parent="1" value="&lt;b&gt;External Secrets Operator (ESO)&lt;/b&gt;&lt;br&gt;K8s SecretStore &amp; ExternalSecret&lt;br&gt;Syncs Vault -&gt; Native K8s Secrets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" vertex="1">
-          <mxGeometry x="90" y="760" width="340" height="70" as="geometry" />
+        <mxCell id="n_eso" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" value="&lt;b&gt;External Secrets Operator (ESO)&lt;/b&gt;&lt;br&gt;K8s SecretStore &amp; ExternalSecret&lt;br&gt;Syncs Vault -&gt; Native K8s Secrets" vertex="1">
+          <mxGeometry height="70" width="340" x="90" y="760" as="geometry" />
         </mxCell>
-        <mxCell id="n_pki" parent="1" value="&lt;b&gt;Vault PKI Plug-in CA&lt;/b&gt;&lt;br&gt;Intermediate CA -&gt; istio-system/cacerts&lt;br&gt;Signs Istio Zero-Trust mTLS Mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" vertex="1">
-          <mxGeometry x="460" y="760" width="330" height="70" as="geometry" />
+        <mxCell id="n_pki" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" value="&lt;b&gt;Vault PKI Plug-in CA&lt;/b&gt;&lt;br&gt;Intermediate CA -&gt; istio-system/cacerts&lt;br&gt;Signs Istio Zero-Trust mTLS Mesh" vertex="1">
+          <mxGeometry height="70" width="330" x="460" y="760" as="geometry" />
         </mxCell>
-        <mxCell id="c_obs" parent="1" value="&lt;b&gt;📊 FULL-STACK OBSERVABILITY &amp; TELEMETRY&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="1420" y="480" width="440" height="410" as="geometry" />
+        <mxCell id="c_obs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;📊 FULL-STACK OBSERVABILITY &amp; TELEMETRY&lt;/b&gt;" vertex="1">
+          <mxGeometry height="410" width="440" x="1420" y="480" as="geometry" />
         </mxCell>
-        <mxCell id="n_otel" parent="1" value="&lt;b&gt;OpenTelemetry Collector&lt;/b&gt;&lt;br&gt;OTLP Receiver (Port 4317 / 4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
-          <mxGeometry x="1450" y="540" width="180" height="60" as="geometry" />
+        <mxCell id="n_otel" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" value="&lt;b&gt;OpenTelemetry Collector&lt;/b&gt;&lt;br&gt;OTLP Receiver (Port 4317 / 4318)" vertex="1">
+          <mxGeometry height="60" width="180" x="1450" y="540" as="geometry" />
         </mxCell>
-        <mxCell id="n_alloy" parent="1" value="&lt;b&gt;Grafana Alloy (Logs/Traces)&lt;/b&gt;&lt;br&gt;Collector &amp; Pipeline Processor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
-          <mxGeometry x="1650" y="540" width="180" height="60" as="geometry" />
+        <mxCell id="n_alloy" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" value="&lt;b&gt;Grafana Alloy (Logs/Traces)&lt;/b&gt;&lt;br&gt;Collector &amp; Pipeline Processor" vertex="1">
+          <mxGeometry height="60" width="180" x="1650" y="540" as="geometry" />
         </mxCell>
-        <mxCell id="n_prom" parent="1" value="&lt;b&gt;Prometheus v3&lt;/b&gt;&lt;br&gt;Metrics Store (9090)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
-          <mxGeometry x="1450" y="630" width="180" height="60" as="geometry" />
+        <mxCell id="n_prom" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" value="&lt;b&gt;Prometheus v3&lt;/b&gt;&lt;br&gt;Metrics Store (9090)" vertex="1">
+          <mxGeometry height="60" width="180" x="1450" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="n_loki" parent="1" value="&lt;b&gt;Grafana Loki&lt;/b&gt;&lt;br&gt;Log Aggregation (3100)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
-          <mxGeometry x="1650" y="630" width="180" height="60" as="geometry" />
+        <mxCell id="n_loki" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" value="&lt;b&gt;Grafana Loki&lt;/b&gt;&lt;br&gt;Log Aggregation (3100)" vertex="1">
+          <mxGeometry height="60" width="180" x="1650" y="630" as="geometry" />
         </mxCell>
-        <mxCell id="n_tempo" parent="1" value="&lt;b&gt;Grafana Tempo&lt;/b&gt;&lt;br&gt;Distributed Tracing (3200)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
-          <mxGeometry x="1450" y="720" width="180" height="60" as="geometry" />
+        <mxCell id="n_tempo" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" value="&lt;b&gt;Grafana Tempo&lt;/b&gt;&lt;br&gt;Distributed Tracing (3200)" vertex="1">
+          <mxGeometry height="60" width="180" x="1450" y="720" as="geometry" />
         </mxCell>
-        <mxCell id="n_grafana" parent="1" value="&lt;b&gt;Grafana Dashboard&lt;/b&gt;&lt;br&gt;Port 3000 (Unified Master UI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;" vertex="1">
-          <mxGeometry x="1650" y="720" width="180" height="60" as="geometry" />
+        <mxCell id="n_grafana" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;" value="&lt;b&gt;Grafana Dashboard&lt;/b&gt;&lt;br&gt;Port 3000 (Unified Master UI)" vertex="1">
+          <mxGeometry height="60" width="180" x="1650" y="720" as="geometry" />
         </mxCell>
-        <mxCell id="e1" parent="1" value="HTTP / OIDC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="n_spa" target="n_gw">
+        <mxCell id="e1" edge="1" parent="1" source="n_spa" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;" target="n_gw" value="HTTP / OIDC">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e2" parent="1" value="Auth Check / JWKS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EC4899;strokeWidth=2;" edge="1" source="n_gw" target="n_kc">
+        <mxCell id="e2" edge="1" parent="1" source="n_gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EC4899;strokeWidth=2;" target="n_kc" value="Auth Check / JWKS">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e3" parent="1" value="mTLS / Bearer Token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n_gw" target="n_prod">
+        <mxCell id="e3" edge="1" parent="1" source="n_gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" target="n_prod" value="mTLS / Bearer Token">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e4" parent="1" value="mTLS / Bearer Token" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n_gw" target="n_orders">
+        <mxCell id="e4" edge="1" parent="1" source="n_gw" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" target="n_orders" value="mTLS / Bearer Token">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e5" parent="1" value="Stock Check" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
+        <mxCell id="e5" edge="1" parent="1" source="n_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" target="n_inv" value="Stock Check">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e6" parent="1" value="Publish (SASL 9094)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_orders" target="n_kafka">
+        <mxCell id="e6" edge="1" parent="1" source="n_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" target="n_kafka" value="Publish (SASL 9094)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e7" parent="1" value="Consume (SASL 9094)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_kafka" target="n_notif">
+        <mxCell id="e7" edge="1" parent="1" source="n_kafka" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" target="n_notif" value="Consume (SASL 9094)">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e8" parent="1" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_prod" target="n_db_prod">
+        <mxCell id="e8" edge="1" parent="1" source="n_prod" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" target="n_db_prod" value="JDBC">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e9" parent="1" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_orders" target="n_db_orders">
+        <mxCell id="e9" edge="1" parent="1" source="n_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" target="n_db_orders" value="JDBC">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e10" parent="1" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_inv" target="n_db_inv">
+        <mxCell id="e10" edge="1" parent="1" source="n_inv" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" target="n_db_inv" value="JDBC">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e11" parent="1" value="Zero-Touch Seed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" source="n_vault_init" target="n_vault">
+        <mxCell id="e11" edge="1" parent="1" source="n_vault_init" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;" target="n_vault" value="Zero-Touch Seed">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e12" parent="1" value="Inject Secrets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;dashed=1;" edge="1" source="n_vault" target="n_orders">
+        <mxCell id="e12" edge="1" parent="1" source="n_vault" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;dashed=1;" target="n_orders" value="Inject Secrets">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
@@ -145,7 +144,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t2" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;HASHICORP VAULT - ZERO-TOUCH ENTERPRISE SECURITY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Automated provisioning, least-privilege policy isolation, and advanced cryptographic engines&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t2" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;HASHICORP VAULT - ZERO-TOUCH ENTERPRISE SECURITY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Automated provisioning, least-privilege policy isolation, and advanced cryptographic engines&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="v_box_init" parent="1" value="&lt;b&gt;1. STARTUP PHASE (Zero-Touch)&lt;/b&gt;&lt;br&gt;compose.yaml: vault-init container&lt;br&gt;• Waits for Vault to be healthy&lt;br&gt;• Enables KV-v2, Transit, Database, Audit&lt;br&gt;• Seeds microservices credentials&lt;br&gt;• Exits cleanly (exit 0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=15;" vertex="1">
@@ -204,7 +203,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t3" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;DYNAMIC DATABASE SECRET ROTATION SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Ephemeral user generation, automated revocation, and transparent lease renewals&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t3" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;DYNAMIC DATABASE SECRET ROTATION SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Ephemeral user generation, automated revocation, and transparent lease renewals&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="act_docker" parent="1" value="&lt;b&gt;1. Docker / K8s&lt;br&gt;Bootstrap&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;" vertex="1">
@@ -240,10 +239,10 @@
         <mxCell id="s3" parent="1" value="3. Microservice requests DB connection: GET database/creds/products-db-role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="750" y="340" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s4" parent="1" value="4. Vault executes in Postgres: CREATE ROLE 'v-token-prod-a1b2' PASSWORD 'X#9...' VALID UNTIL 1h" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s4" parent="1" value="4. Vault executes in Postgres: CREATE ROLE &#39;v-token-prod-a1b2&#39; PASSWORD &#39;X#9...&#39; VALID UNTIL 1h" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="410" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s5" parent="1" value="5. Vault delivers dynamic user 'v-token-prod-a1b2' &amp; temporary password (Lease TTL: 1h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s5" parent="1" value="5. Vault delivers dynamic user &#39;v-token-prod-a1b2&#39; &amp; temporary password (Lease TTL: 1h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="750" y="480" width="280" height="40" as="geometry" />
         </mxCell>
         <mxCell id="s6" parent="1" value="6. Microservice opens JDBC connection pool using the ephemeral user credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
@@ -252,10 +251,10 @@
         <mxCell id="s7" parent="1" value="⏰ &lt;b&gt;1 HOUR ELAPSES (Lease TTL Expiration)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontColor=#991B1B;fontSize=12;align=center;" vertex="1">
           <mxGeometry x="380" y="620" width="680" height="35" as="geometry" />
         </mxCell>
-        <mxCell id="s8" parent="1" value="7. Vault destroys previous user in Postgres: DROP ROLE 'v-token-prod-a1b2'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s8" parent="1" value="7. Vault destroys previous user in Postgres: DROP ROLE &#39;v-token-prod-a1b2&#39;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="680" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s9" parent="1" value="8. Vault generates &amp; issues new user 'v-token-prod-c3d4' with zero service downtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s9" parent="1" value="8. Vault generates &amp; issues new user &#39;v-token-prod-c3d4&#39; with zero service downtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="750" width="560" height="40" as="geometry" />
         </mxCell>
       </root>
@@ -266,7 +265,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t4" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ISTIO SERVICE MESH - ZERO-TRUST MTLS &amp; TRAFFIC SHAPING&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;STRICT mTLS security with SPIFFE identities, Vault Intermediate CA, and progressive Canary releases&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t4" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;ISTIO SERVICE MESH - ZERO-TRUST MTLS &amp; TRAFFIC SHAPING&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;STRICT mTLS security with SPIFFE identities, Vault Intermediate CA, and progressive Canary releases&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="i_ingress" parent="1" value="&lt;b&gt;🌐 ISTIO INGRESS GATEWAY&lt;/b&gt;&lt;br&gt;microservices-gateway (Port 80 / 443)&lt;br&gt;TLS Termination • Edge Routing to Mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" vertex="1">
@@ -275,25 +274,25 @@
         <mxCell id="i_istiod" parent="1" value="&lt;b&gt;🛡️ ISTIOD CONTROL PLANE&lt;/b&gt;&lt;br&gt;Citadel CA &amp; Discovery Server&lt;br&gt;Mounted Secret: &lt;b&gt;istio-system/cacerts&lt;/b&gt;&lt;br&gt;(Signed by Vault PKI Intermediate CA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#DB2777;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
           <mxGeometry x="500" y="140" width="360" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#64748B;&#39;&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="100" y="280" width="1340" height="480" as="geometry" />
         </mxCell>
-        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: api-gateway&lt;/b&gt;&lt;br&gt;App Container (8080)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/api-gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: api-gateway&lt;/b&gt;&lt;br&gt;App Container (8080)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;spiffe://cluster.local/ns/ecommerce/sa/api-gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="140" y="350" width="320" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="540" y="350" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - 10%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Canary Release (set-canary-weight.ps1)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - 10%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Canary Release (set-canary-weight.ps1)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="960" y="350" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_orders" parent="1" value="&lt;b&gt;Pod: orders-service&lt;/b&gt;&lt;br&gt;App Container (8003)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Resilience4j Circuit Breaker &amp; Outlier Detection&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_orders" parent="1" value="&lt;b&gt;Pod: orders-service&lt;/b&gt;&lt;br&gt;App Container (8003)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Resilience4j Circuit Breaker &amp; Outlier Detection&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="140" y="520" width="320" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_inv" parent="1" value="&lt;b&gt;Pod: inventory-service&lt;/b&gt;&lt;br&gt;App Container (8001)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Stock Validation &amp; Lock Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_inv" parent="1" value="&lt;b&gt;Pod: inventory-service&lt;/b&gt;&lt;br&gt;App Container (8001)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Stock Validation &amp; Lock Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="540" y="520" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_notif" parent="1" value="&lt;b&gt;Pod: notification-service&lt;/b&gt;&lt;br&gt;App Container (8002)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Event Driven Consumer&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_notif" parent="1" value="&lt;b&gt;Pod: notification-service&lt;/b&gt;&lt;br&gt;App Container (8002)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Event Driven Consumer&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="960" y="520" width="340" height="90" as="geometry" />
         </mxCell>
         <mxCell id="ie1" parent="1" value="Rotates X.509 certs (24h)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#DB2777;strokeWidth=1.5;dashed=1;" edge="1" source="i_istiod" target="pod_gw">
@@ -316,13 +315,13 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t5" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;CONFIGURATION PRECEDENCE &amp; SECRET ISOLATION HIERARCHY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Why zero collisions or race conditions exist between Spring Cloud Vault, Sidecar, ESO, and .env&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t5" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;CONFIGURATION PRECEDENCE &amp; SECRET ISOLATION HIERARCHY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Why zero collisions or race conditions exist between Spring Cloud Vault, Sidecar, ESO, and .env&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="p1" parent="1" value="&lt;b&gt;LEVEL 1: Operating System Environment Variables (Highest Priority)&lt;/b&gt;&lt;br&gt;• Local &lt;b&gt;.env&lt;/b&gt; file in Docker Compose&lt;br&gt;• Injected secrets from &lt;b&gt;Vault Agent Sidecar&lt;/b&gt; (/vault/secrets/database.env)&lt;br&gt;• Standard Kubernetes Secret mounted via &lt;b&gt;External Secrets Operator (ESO)&lt;/b&gt;&lt;br&gt;&lt;i&gt;Overrides any packaged or static application configuration.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="200" y="130" width="1100" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="p2" parent="1" value="&lt;b&gt;LEVEL 2: Active Profile Properties (application-vault.yml)&lt;/b&gt;&lt;br&gt;• Active &lt;b&gt;strictly&lt;/b&gt; when passing &lt;code&gt;--spring.profiles.active=vault&lt;/code&gt;&lt;br&gt;• Connects directly via REST API to Vault Server to load secrets into JVM memory&lt;br&gt;• &lt;i&gt;If the 'vault' profile is not active, this bootstrap configuration remains totally inert.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+        <mxCell id="p2" parent="1" value="&lt;b&gt;LEVEL 2: Active Profile Properties (application-vault.yml)&lt;/b&gt;&lt;br&gt;• Active &lt;b&gt;strictly&lt;/b&gt; when passing &lt;code&gt;--spring.profiles.active=vault&lt;/code&gt;&lt;br&gt;• Connects directly via REST API to Vault Server to load secrets into JVM memory&lt;br&gt;• &lt;i&gt;If the &#39;vault&#39; profile is not active, this bootstrap configuration remains totally inert.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="200" y="260" width="1100" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p3" parent="1" value="&lt;b&gt;LEVEL 3: Base Application Properties (application.yml)&lt;/b&gt;&lt;br&gt;• Default fallback properties packaged inside the Spring Boot JAR&lt;br&gt;• Parameterized placeholders: &lt;code&gt;${SPRING_DATASOURCE_URL:...}&lt;/code&gt;&lt;br&gt;• Acts as a safe fallback when no environment variables or Vault profiles are supplied." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
@@ -335,57 +334,57 @@
     </mxGraphModel>
   </diagram>
   <diagram id="page_k8s_topo" name="6. Kubernetes &amp; Minikube Cluster Topology">
-    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+    <mxGraphModel dx="1837" dy="1026" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t6" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Pure Separation of Concerns (SoC): staging, auth, data, observability, vault, and istio-system&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
-          <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
+        <mxCell id="t6" parent="1" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Pure Separation of Concerns (SoC): staging, auth, data, observability, vault, and istio-system&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="1200" x="300" y="30" as="geometry" />
         </mxCell>
-        <mxCell id="ns_vault" parent="1" value="&lt;b&gt;🔒 NAMESPACE: vault&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="60" y="110" width="280" height="420" as="geometry" />
+        <mxCell id="ns_vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;🔒 NAMESPACE: vault&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="280" x="60" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="k_vault_pod" parent="1" value="&lt;b&gt;Deployment: vault&lt;/b&gt;&lt;br&gt;hashicorp/vault:2.0.4&lt;br&gt;Port 8200" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=11;" vertex="1">
-          <mxGeometry x="80" y="160" width="240" height="70" as="geometry" />
+        <mxCell id="k_vault_pod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=11;" value="&lt;b&gt;Deployment: vault&lt;/b&gt;&lt;br&gt;hashicorp/vault:2.0.4&lt;br&gt;Port 8200" vertex="1">
+          <mxGeometry height="70" width="240" x="80" y="160" as="geometry" />
         </mxCell>
-        <mxCell id="k_sa_vault" parent="1" value="&lt;b&gt;ServiceAccount: vault-auth&lt;/b&gt;&lt;br&gt;ClusterRoleBinding: system:auth-delegator" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" vertex="1">
-          <mxGeometry x="80" y="250" width="240" height="70" as="geometry" />
+        <mxCell id="k_sa_vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" value="&lt;b&gt;ServiceAccount: vault-auth&lt;/b&gt;&lt;br&gt;ClusterRoleBinding: system:auth-delegator" vertex="1">
+          <mxGeometry height="70" width="240" x="80" y="250" as="geometry" />
         </mxCell>
-        <mxCell id="k_script_auth" parent="1" value="&lt;b&gt;vault-k8s-auth-setup.ps1&lt;/b&gt;&lt;br&gt;Kubernetes Auth Method &amp; App Roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" vertex="1">
-          <mxGeometry x="80" y="340" width="240" height="70" as="geometry" />
+        <mxCell id="k_script_auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;" value="&lt;b&gt;vault-k8s-auth-setup.ps1&lt;/b&gt;&lt;br&gt;Kubernetes Auth Method &amp; App Roles" vertex="1">
+          <mxGeometry height="70" width="240" x="80" y="340" as="geometry" />
         </mxCell>
-        <mxCell id="ns_auth" parent="1" value="&lt;b&gt;🛡️ NAMESPACE: auth&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="360" y="110" width="300" height="420" as="geometry" />
+        <mxCell id="ns_auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;🛡️ NAMESPACE: auth&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="300" x="360" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="k_kc_pod" parent="1" value="&lt;b&gt;Deployment: keycloak&lt;/b&gt;&lt;br&gt;Keycloak 26.7.3 (IdP)&lt;br&gt;Port 8181 (HTTP) &amp; 9000 (Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
-          <mxGeometry x="380" y="160" width="260" height="70" as="geometry" />
+        <mxCell id="k_kc_pod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" value="&lt;b&gt;Deployment: keycloak&lt;/b&gt;&lt;br&gt;Keycloak 26.7.3 (IdP)&lt;br&gt;Port 8181 (HTTP) &amp; 9000 (Metrics)" vertex="1">
+          <mxGeometry height="70" width="260" x="380" y="160" as="geometry" />
         </mxCell>
-        <mxCell id="k_db_kc" parent="1" value="&lt;b&gt;StatefulSet: db-keycloak&lt;/b&gt;&lt;br&gt;PostgreSQL 16 (Port 5432)&lt;br&gt;Dedicated IAM database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;" vertex="1">
-          <mxGeometry x="380" y="250" width="260" height="70" as="geometry" />
+        <mxCell id="k_db_kc" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;" value="&lt;b&gt;StatefulSet: db-keycloak&lt;/b&gt;&lt;br&gt;PostgreSQL 17 (Port 5432)&lt;br&gt;Dedicated IAM database" vertex="1">
+          <mxGeometry height="70" width="260" x="380" y="250" as="geometry" />
         </mxCell>
-        <mxCell id="ns_data" parent="1" value="&lt;b&gt;💾 NAMESPACE: data (Stateful &amp; Exporters)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="680" y="110" width="380" height="420" as="geometry" />
+        <mxCell id="ns_data" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;💾 NAMESPACE: data (Stateful &amp; Exporters)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="380" x="680" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="k_data_pods" parent="1" value="&lt;b&gt;StatefulSets:&lt;/b&gt;&lt;br&gt;• Kafka KRaft (9092/9094)&lt;br&gt;• Redis 8.8 (6379)&lt;br&gt;• Postgres (orders, inventory, products: 5432)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
-          <mxGeometry x="700" y="160" width="340" height="90" as="geometry" />
+        <mxCell id="k_data_pods" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" value="&lt;b&gt;StatefulSets:&lt;/b&gt;&lt;br&gt;• Kafka KRaft (9092/9094)&lt;br&gt;• Redis 8.8 (6379)&lt;br&gt;• Postgres (orders, inventory, products: 5432)" vertex="1">
+          <mxGeometry height="90" width="340" x="700" y="160" as="geometry" />
         </mxCell>
-        <mxCell id="k_data_exp" parent="1" value="&lt;b&gt;Infrastructure Exporters:&lt;/b&gt;&lt;br&gt;• kafka-exporter v1.9.0 (Port 9308)&lt;br&gt;• postgres-exporter v0.20.1 (Port 9187)&lt;br&gt;• redis-exporter (Port 9121)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
-          <mxGeometry x="700" y="270" width="340" height="90" as="geometry" />
+        <mxCell id="k_data_exp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" value="&lt;b&gt;Infrastructure Exporters:&lt;/b&gt;&lt;br&gt;• kafka-exporter v1.9.0 (Port 9308)&lt;br&gt;• postgres-exporter v0.20.1 (Port 9187)&lt;br&gt;• redis-exporter (Port 9121)" vertex="1">
+          <mxGeometry height="90" width="340" x="700" y="270" as="geometry" />
         </mxCell>
-        <mxCell id="ns_staging" parent="1" value="&lt;b&gt;📦 NAMESPACE: staging (Core Microservices)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="1080" y="110" width="400" height="420" as="geometry" />
+        <mxCell id="ns_staging" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;📦 NAMESPACE: staging (Core Microservices)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="400" x="1080" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="k_apps_pods" parent="1" value="&lt;b&gt;Deployments (Istio Sidecars Injected):&lt;/b&gt;&lt;br&gt;• api-gateway (8080)&lt;br&gt;• products-service (8004)&lt;br&gt;• orders-service (8003)&lt;br&gt;• inventory-service (8001)&lt;br&gt;• notification-service (8002)&lt;br&gt;• frontend Angular SPA (80)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1100" y="160" width="360" height="120" as="geometry" />
+        <mxCell id="k_apps_pods" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" value="&lt;b&gt;Deployments (Istio Sidecars Injected):&lt;/b&gt;&lt;br&gt;• api-gateway (8080)&lt;br&gt;• products-service (8004)&lt;br&gt;• orders-service (8003)&lt;br&gt;• inventory-service (8001)&lt;br&gt;• notification-service (8002)&lt;br&gt;• frontend Angular SPA (80)" vertex="1">
+          <mxGeometry height="120" width="360" x="1100" y="160" as="geometry" />
         </mxCell>
-        <mxCell id="k_eso_objs" parent="1" value="&lt;b&gt;ExternalName Cross-Namespace Bridges:&lt;/b&gt;&lt;br&gt;• keycloak -&gt; keycloak.auth&lt;br&gt;• kafka / redis / db-* -&gt; data.svc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
-          <mxGeometry x="1100" y="300" width="360" height="80" as="geometry" />
+        <mxCell id="k_eso_objs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" value="&lt;b&gt;ExternalName Cross-Namespace Bridges:&lt;/b&gt;&lt;br&gt;• keycloak -&gt; keycloak.auth&lt;br&gt;• kafka / redis / db-* -&gt; data.svc" vertex="1">
+          <mxGeometry height="80" width="360" x="1100" y="300" as="geometry" />
         </mxCell>
-        <mxCell id="ns_obs" parent="1" value="&lt;b&gt;📊 NAMESPACE: observability (LGTM Telemetry)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
-          <mxGeometry x="1500" y="110" width="360" height="420" as="geometry" />
+        <mxCell id="ns_obs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" value="&lt;b&gt;📊 NAMESPACE: observability (LGTM Telemetry)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="420" width="360" x="1500" y="110" as="geometry" />
         </mxCell>
-        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.13 (Port 9090)&lt;br&gt;• Grafana 13.0 (Port 3000)&lt;br&gt;• Tempo 2.7 / 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
-          <mxGeometry x="1520" y="160" width="320" height="160" as="geometry" />
+        <mxCell id="k_obs_pods" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.13 (Port 9090)&lt;br&gt;• Grafana 13.0 (Port 3000)&lt;br&gt;• Tempo 2.7 / 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" vertex="1">
+          <mxGeometry height="160" width="320" x="1520" y="160" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
@@ -395,7 +394,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t7" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;END-TO-END REQUEST FLOW &amp; ORDER PROCESSING SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Complete journey: Angular 21 SPA ➔ Istio Ingress ➔ API Gateway ➔ Microservices ➔ Kafka ➔ Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t7" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;END-TO-END REQUEST FLOW &amp; ORDER PROCESSING SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Complete journey: Angular 21 SPA ➔ Istio Ingress ➔ API Gateway ➔ Microservices ➔ Kafka ➔ Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1300" height="50" as="geometry" />
         </mxCell>
         <mxCell id="e_fe" parent="1" value="&lt;b&gt;1. Frontend SPA&lt;br&gt;(Angular 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
@@ -482,7 +481,7 @@
         <mxCell id="st10" parent="1" value="10. Orders Service binds authenticated userId/username and persists Order in db-orders (Multi-Tenant Isolation)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="640" width="450" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st11" parent="1" value="11. Orders Service emits 'orders-topic' event to Apache Kafka cluster (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st11" parent="1" value="11. Orders Service emits &#39;orders-topic&#39; event to Apache Kafka cluster (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="690" width="400" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st12" parent="1" value="12. Orders Service returns HTTP 201 Created response ➔ API Gateway ➔ Frontend SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
@@ -502,7 +501,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t8" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MATURE E-COMMERCE OBSERVABILITY &amp; BUSINESS INTELLIGENCE (5 DIMENSIONS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;High-cardinality prevention (O(1) discrete cohorts), conversion funnel, 5-stage logistics state machine, and distributed saga resilience&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t8" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;MATURE E-COMMERCE OBSERVABILITY &amp; BUSINESS INTELLIGENCE (5 DIMENSIONS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;High-cardinality prevention (O(1) discrete cohorts), conversion funnel, 5-stage logistics state machine, and distributed saga resilience&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="d1" parent="1" value="&lt;b&gt;1. Financial &amp; Executive KPIs&lt;/b&gt;&lt;br&gt;• Net Completed Orders &amp; Revenue ($ USD)&lt;br&gt;• Average Order Value (AOV)&lt;br&gt;• Collected Taxes (IVA/Tax)&lt;br&gt;• Shipping Revenue (DHL Express)&lt;br&gt;• Total Units Sold" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;" vertex="1">
@@ -540,7 +539,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t9" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;100% LOCAL ENTERPRISE DEVSECOPS PLATFORM &amp; 12-STAGE CI/CD PIPELINE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Hardware Budget: AMD Ryzen 7 (16 threads) • 32 GB RAM • Minikube (12 CPUs / 12 GB RAM) • Zero Cloud Cost Production Parity&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t9" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;100% LOCAL ENTERPRISE DEVSECOPS PLATFORM &amp; 12-STAGE CI/CD PIPELINE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Hardware Budget: AMD Ryzen 7 (16 threads) • 32 GB RAM • Minikube (12 CPUs / 12 GB RAM) • Zero Cloud Cost Production Parity&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_ci" parent="1" value="&lt;b&gt;🔨 CI PHASE: Continuous Integration &amp; Shift-Left Security (GitHub Actions Windows Runner)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -668,7 +667,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t10" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t10" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_hpa" parent="1" value="&lt;b&gt;⚖️ AUTOSCALING &amp; HIGH AVAILABILITY (HPA &amp; PDB)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -695,7 +694,7 @@
         <mxCell id="c_eso" parent="1" value="&lt;b&gt;🔐 SECRETS MANAGEMENT (ESO + VAULT)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="510" y="90" width="420" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="n_vault_dev" parent="1" value="&lt;b&gt;HashiCorp Vault (Port 8200)&lt;/b&gt;&lt;br&gt;• KV-v2 Secrets Engine at 'secret/'&lt;br&gt;• secret/data/application (DB &amp; JWT)&lt;br&gt;• secret/data/api-gateway (Client Secret)&lt;br&gt;• secret/data/orders-service (Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+        <mxCell id="n_vault_dev" parent="1" value="&lt;b&gt;HashiCorp Vault (Port 8200)&lt;/b&gt;&lt;br&gt;• KV-v2 Secrets Engine at &#39;secret/&#39;&lt;br&gt;• secret/data/application (DB &amp; JWT)&lt;br&gt;• secret/data/api-gateway (Client Secret)&lt;br&gt;• secret/data/orders-service (Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
           <mxGeometry x="530" y="140" width="380" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_store" parent="1" value="&lt;b&gt;SecretStore: vault-secret-store&lt;/b&gt;&lt;br&gt;• API: external-secrets.io/v1&lt;br&gt;• Auth: Kubernetes Token SecretRef&lt;br&gt;• Target Server: http://vault.vault.svc:8200&lt;br&gt;• Status: Valid (ReadWrite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">

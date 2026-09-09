@@ -353,7 +353,7 @@ When you are ready to enforce strict blocking in production:
     - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
   - [🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD \& Minikube)](#️-100-local-enterprise-devsecops-platform-12-stage-cicd--minikube)
     - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
-    - [⚙️ Platform Operational Lifecycle Commands](#️-platform-operational-lifecycle-commands)
+    - [⚙️ Platform Operational Lifecycle Commands (Unified CLI)](#️-platform-operational-lifecycle-commands-unified-cli)
     - [🛡️ DevSecOps \& Governance Hub](#️-devsecops--governance-hub)
       - [📂 Directory Structure](#-directory-structure)
       - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
@@ -403,7 +403,11 @@ When you are ready to enforce strict blocking in production:
     - [3. 💥 Chaos Engineering \& Fault Injection (`simulate-chaos.py`)](#3--chaos-engineering--fault-injection-simulate-chaospy)
     - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate-ddos.py`)](#4-️-ddos--rate-limiting-stress-attacks-simulate-ddospy)
     - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
-    - [6. 📉 Cart Abandonment Rate KPI Verification & Testing](#6--cart-abandonment-rate-kpi-verification--testing)
+    - [6. 📉 Cart Abandonment Rate KPI Verification \& Testing](#6--cart-abandonment-rate-kpi-verification--testing)
+      - [Step-by-Step Testing Procedures (3 Verified Methods):](#step-by-step-testing-procedures-3-verified-methods)
+        - [🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)](#-method-1-instant-cli--powershell-event-injection-simulate-mass-abandonment)
+        - [🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA](#️-method-2-interactive-browser-testing-via-angular-frontend-spa)
+        - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate-traffic.py`)](#-method-3-multi-threaded-realistic-funnel-generation-simulate-trafficpy)
     - [📦 Postman Test Suite:](#-postman-test-suite)
   - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
     - [1. 📈 Prometheus (Metrics \& PromQL) — `prometheus-ds`](#1--prometheus-metrics--promql--prometheus-ds)
@@ -451,7 +455,7 @@ When you are ready to enforce strict blocking in production:
     - [2. 🔐 External Secrets Operator (ESO) \& HashiCorp Vault Synchronization](#2--external-secrets-operator-eso--hashicorp-vault-synchronization)
     - [3. 🌐 Progressive Canary Deployments in Istio Service Mesh](#3--progressive-canary-deployments-in-istio-service-mesh)
     - [4. 🚨 Alertmanager Alert Routing (Local Default, Slack \& Jira Ready)](#4--alertmanager-alert-routing-local-default-slack--jira-ready)
-  - [� Automated \& Manual Rollback Operations Guide (Multi-Cloud \& Multi-CI/CD)](#-automated--manual-rollback-operations-guide-multi-cloud--multi-cicd)
+  - [🔄 Automated \& Manual Rollback Operations Guide (Multi-Cloud \& Multi-CI/CD)](#-automated--manual-rollback-operations-guide-multi-cloud--multi-cicd)
     - [1. 🛡️ The 4-Tier Automated Rollback Engine](#1-️-the-4-tier-automated-rollback-engine)
     - [2. 🕹️ How to Execute Manual Rollbacks (CLI \& UI Runbooks)](#2-️-how-to-execute-manual-rollbacks-cli--ui-runbooks)
       - [A. Direct Kubernetes / Helm CLI (Universal):](#a-direct-kubernetes--helm-cli-universal)
@@ -1666,7 +1670,7 @@ flowchart LR
     subgraph Backend["⚙️ Products Service :8004"]
         C -->|REST POST/PUT| H[ProductRequest DTO]
         H --> I[JPA Product Entity]
-        I -->|Column TEXT| J[(PostgreSQL 16)]
+        I -->|Column TEXT| J[(PostgreSQL 17)]
         I -->|products-cache| K[(Redis 8.8)]
     end
 

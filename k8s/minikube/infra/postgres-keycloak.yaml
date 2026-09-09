@@ -58,7 +58,7 @@ spec:
               mountPath: /var/lib/postgresql/data
       containers:
         - name: postgres
-          image: postgres:16-alpine
+          image: postgres:17-alpine
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
