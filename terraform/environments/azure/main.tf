@@ -79,7 +79,7 @@ module "postgresql" {
   private_dns_zone_id    = azurerm_private_dns_zone.postgres[0].id
   sku_name               = local.cfg.db_sku_name
   storage_mb             = local.cfg.db_storage_mb
-  postgres_version       = "16"
+  postgres_version       = "17"
   administrator_login    = "psqladmin"
   administrator_password = var.administrator_password
   high_availability      = local.cfg.db_ha

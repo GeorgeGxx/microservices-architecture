@@ -35,7 +35,7 @@ variable "storage_mb" {
 
 variable "postgres_version" {
   type    = string
-  default = "16"
+  default = "17"
 }
 
 variable "administrator_login" {

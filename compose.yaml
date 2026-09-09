@@ -35,7 +35,7 @@ services:
   db-keycloak:
     hostname: db-keycloak
     container_name: db-keycloak
-    image: "postgres:${KEYCLOAK_POSTGRES_VERSION}"
+    image: "postgres:${POSTGRES_VERSION}"
     restart: unless-stopped
     env_file:
       - .env
@@ -90,7 +90,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_PORT_INTERNAL}"
+      - "${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
     restart: unless-stopped
     depends_on:
       - api-gateway
@@ -192,7 +192,7 @@ services:
   db-orders:
     hostname: db-orders
     container_name: db-orders
-    image: "postgres:${ORDERS_POSTGRES_VERSION}"
+    image: "postgres:${POSTGRES_VERSION}"
     restart: unless-stopped
     env_file:
       - .env
@@ -236,7 +236,7 @@ services:
   db-products:
     hostname: db-products
     container_name: db-products
-    image: "postgres:${PRODUCTS_POSTGRES_VERSION}"
+    image: "postgres:${POSTGRES_VERSION}"
     restart: unless-stopped
     env_file:
       - .env
