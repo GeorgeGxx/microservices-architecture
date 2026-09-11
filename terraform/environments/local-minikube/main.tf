@@ -125,6 +125,23 @@ resource "helm_release" "argocd" {
     name  = "applicationController.resources.requests.memory"
     value = "128Mi"
   }
+  # Fast reconciliation (poll Git every 15s without jitter for rapid dev sync)
+  set {
+    name  = "configs.cm.timeout\\.reconciliation"
+    value = "15s"
+  }
+  set {
+    name  = "configs.cm.timeout\\.reconciliation\\.jitter"
+    value = "0s"
+  }
+  set {
+    name  = "configs.params.reposerver\\.default\\.cache\\.expiration"
+    value = "15s"
+  }
+  set {
+    name  = "configs.params.controller\\.app\\.state\\.cache\\.expiration"
+    value = "15s"
+  }
 }
 
 # ==============================================================================
