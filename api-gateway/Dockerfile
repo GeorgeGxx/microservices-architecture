@@ -22,16 +22,17 @@ COPY ./api-gateway/src ./src
 RUN --mount=type=cache,target=/root/.m2 \
     ./mvnw clean package -T 1C -DskipTests -Dmaven.javadoc.skip=true -B
 
-# 5) Extract Spring Boot layers
+# 5) Rename + extract Spring Boot layers
 WORKDIR /app/api-gateway/target
-RUN java -Djarmode=layertools -jar *.jar extract --destination /app/extracted
+RUN cp $(ls *.jar | grep -v -e '.original' -e 'sources' -e 'javadoc' | head -n1) application.jar
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination /app/extracted
 
 # ---- Stage 2: Secure Distroless Runtime (non-root) ----
 FROM gcr.io/distroless/java21-debian13:nonroot
 
 WORKDIR /app
 
-# The 4 Spring Boot layers in a single COPY instruction
+# The 4 Spring Boot layers in a single COPY instruction (1 layer instead of 4)
 COPY --from=builder --chown=nonroot:nonroot \
     /app/extracted/dependencies/ \
     /app/extracted/spring-boot-loader/ \
@@ -43,4 +44,4 @@ EXPOSE 8080
 
 USER nonroot
 
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:+ExitOnOutOfMemoryError", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:+ExitOnOutOfMemoryError", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "application.jar"]

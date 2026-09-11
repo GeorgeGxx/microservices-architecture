@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/inventory", "/api/inventory/**").permitAll()
-                        .requestMatchers("/api/inventory/in-stock", "/api/inventory/decrement", "/api/inventory/{sku}")
+                        .requestMatchers("/api/inventory/in-stock", "/api/inventory/decrement", "/api/inventory/increment", "/api/inventory/{sku}")
                         .permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())

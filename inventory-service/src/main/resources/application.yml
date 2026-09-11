@@ -1,41 +1,59 @@
 spring:
+  application:
+    name: ${INVENTORY_SERVICE_NAME:inventory-service}
+  
   threads:
     virtual:
       enabled: true
-  application:
-    name: ${INVENTORY_SERVICE_NAME:inventory-service}
+  
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  
   cloud:
     vault:
       enabled: ${VAULT_ENABLED:false}
+  
   datasource:
     driver-class-name: org.postgresql.Driver
     url: ${INVENTORY_SPRING_DATASOURCE_JDBC_URL:jdbc:postgresql://localhost:5431/inventory_db}
     username: ${POSTGRES_USER:postgres}
     password: ${POSTGRES_PASSWORD:postgres}
     hikari:
+      pool-name: InventoryHikariPool
       maximum-pool-size: 5
       minimum-idle: 2
       idle-timeout: 300000
       max-lifetime: 1800000
       connection-timeout: 20000
       leak-detection-threshold: 15000
+
   jpa:
+    open-in-view: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: update # For prod ${HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        '[default_batch_fetch_size]': 25    # Reduces the N+1 query problem.
+        '[order_inserts]': true             # Optimize batch inserts.
+        '[order_updates]': true             # Optimize batch updates
+        jdbc:
+          '[batch_size]': 25
+
   cache:
     type: redis
     redis:
       time-to-live: 300000
+      cache-null-values: false # Avoid filling Redis with empty/null responses
+      use-key-prefix: true
+      key-prefix: "cache:inventory"
+
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+
   security:
     oauth2:
       resourceserver:
@@ -50,26 +68,32 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        include: health,prometheus,info
       base-path: /actuator/inventory
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+  # Enable only if you migrate from Prometheus scraper to OTLP Push for metrics:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  #       url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
   tracing:
     sampling:
       probability: 1.0
-  otlp:
+  opentelemetry:
+    resource-attributes:
+      '["service.name"]': ${spring.application.name}
+      '["service.version"]': "1.0"
+      '["deployment.environment"]': ${ENVIRONMENT:dev}
     tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
   metrics:
     distribution:
       percentiles-histogram:
         "[http.server.requests]": true
-
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
-  resource:
-    attributes: service.name=${spring.application.name},service.version=1.0

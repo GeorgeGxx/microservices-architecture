@@ -24,7 +24,8 @@ RUN --mount=type=cache,target=/root/.m2 \
 
 # 5) Extract Spring Boot layers
 WORKDIR /app/orders-service/target
-RUN java -Djarmode=layertools -jar *.jar extract --destination /app/extracted
+RUN cp $(ls *.jar | grep -v -e '.original' -e 'sources' -e 'javadoc' | head -n1) application.jar
+RUN java -Djarmode=tools -jar application.jar extract --layers --destination /app/extracted
 
 # ---- Stage 2: Secure Distroless Runtime (non-root) ----
 FROM gcr.io/distroless/java21-debian13:nonroot
@@ -41,4 +42,4 @@ COPY --from=builder --chown=nonroot:nonroot \
 
 USER nonroot
 
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:+ExitOnOutOfMemoryError", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:+ExitOnOutOfMemoryError", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "application.jar"]
