@@ -4,9 +4,13 @@ import io.swagger.v3.oas.annotations.*;
 import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import com.georgegxx.products_service.model.dtos.*;
@@ -17,6 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/product")
 @RequiredArgsConstructor
+@Validated
 @Tag(name = "Products Management", description = "Endpoints for managing products catalog and resolving authoritative prices")
 public class ProductController {
     private final ProductService productService;
@@ -85,7 +90,11 @@ public class ProductController {
     })
     @PostMapping("/prices")
     @ResponseStatus(HttpStatus.OK)
-    public List<ProductResponse> getPricesBySkus(@RequestBody List<String> skus){
+    public List<ProductResponse> getPricesBySkus(
+            @RequestBody
+            @NotEmpty(message = "skus cannot be empty")
+            @Size(max = 200, message = "cannot request more than 200 SKUs at once")
+            List<@Pattern(regexp = "^[A-Z0-9\\-]{6,20}$") String> skus) {
         return this.productService.getPricesBySkus(skus);
     }
 

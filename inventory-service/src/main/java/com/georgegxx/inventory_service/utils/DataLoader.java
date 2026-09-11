@@ -18,20 +18,22 @@ public class DataLoader implements CommandLineRunner {
     private final InventoryService inventoryService;
 
     @Override
-    @SuppressWarnings("null")
-    public void run(String... args) throws Exception {
-        log.info("Loading data...");
+    public void run(String... args) {
+        log.info("Checking inventory seed data...");
         if (inventoryRepository.findAll().isEmpty()) {
+            log.info("Loading initial inventory seed data...");
             inventoryRepository.saveAll(
-                    List.of(
-                            Inventory.builder().sku("LAPTOP-PRO").quantity(10L).build(),
-                            Inventory.builder().sku("000001").quantity(10L).build(),
-                            Inventory.builder().sku("000002").quantity(20L).build(),
-                            Inventory.builder().sku("000003").quantity(30L).build(),
-                            Inventory.builder().sku("000004").quantity(0L).build()
-                    )
+                List.of(
+                        Inventory.builder().sku("LAPTOP-PRO").quantity(10L).build(),
+                        Inventory.builder().sku("000001").quantity(10L).build(),
+                        Inventory.builder().sku("000002").quantity(20L).build(),
+                        Inventory.builder().sku("000003").quantity(30L).build(),
+                        Inventory.builder().sku("000004").quantity(0L).build()
+                )
             );
+            log.info("Initial inventory seed data successfully loaded.");
         }
-        inventoryService.registerInventoryGauges();
+        // Sincroniza las métricas en memoria tras la verificación/inserción
+        inventoryService.registerAllSkuGauges();
     }
 }

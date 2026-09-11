@@ -11,12 +11,14 @@ import io.github.resilience4j.circuitbreaker.*;
 import io.micrometer.core.instrument.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.*;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.access.AccessDeniedException;
+import lombok.NonNull;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -37,6 +39,10 @@ public class OrderService implements org.springframework.beans.factory.Initializ
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final MeterRegistry meterRegistry;
     private final IdempotencyManager idempotencyManager;
+
+    @Autowired
+    @Lazy
+    private OrderService self;
 
     private io.github.resilience4j.circuitbreaker.CircuitBreaker inventoryCircuitBreaker;
     private io.github.resilience4j.circuitbreaker.CircuitBreaker productsCircuitBreaker;
@@ -519,7 +525,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         savedOrder.getUsername()
                 )
         );
-        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", payload);
+        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", savedOrder.getOrderNumber(), payload);
         future.whenComplete((result, throwable) ->
             Optional.ofNullable(throwable).ifPresentOrElse(
                     err -> log.error("Failed to publish OrderEvent to Kafka: {}", err.getMessage(), err),
@@ -542,7 +548,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         cancelledOrder.getUsername()
                 )
         );
-        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", payload);
+        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", cancelledOrder.getOrderNumber(), payload);
         future.whenComplete((result, throwable) ->
             Optional.ofNullable(throwable).ifPresentOrElse(
                     err -> log.error("Failed to publish Cancel OrderEvent to Kafka: {}", err.getMessage(), err),
@@ -609,57 +615,64 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 .toList();
     }
 
+    @Transactional
     public OrderResponse cancelOrder(@NonNull Long id) {
-        return cancelOrder(id, null, true);
+        return (self != null ? self : this).cancelOrder(id, null, true);
     }
 
     @Caching(evict = {
             @CacheEvict(value = "orders", allEntries = true),
             @CacheEvict(value = "user_orders", allEntries = true)
     })
+    @Transactional
     public OrderResponse cancelOrder(@NonNull Long id, String currentUserId, boolean isAdmin) {
-        Order order = this.orderRepository.findById(Objects.requireNonNull(id, "Order ID must not be null"))
+        // 1. Load items initialized from the query
+        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, "Order ID must not be null"))
                 .orElseThrow(() -> new OrderNotFoundException("Order with id " + id + " not found"));
 
-        // Enforce user-level ownership guard
         if (!isAdmin && (order.getUserId() == null || !order.getUserId().equals(currentUserId))) {
             throw new AccessDeniedException("You are not authorized to cancel orders belonging to another account.");
         }
 
-        // DDD Aggregate Root enforces cancellation invariant
         order.cancel();
         Order updatedOrder = this.orderRepository.save(order);
 
-        // Synchronize database-backed metrics
-        syncDatabaseMetrics();
+        // 2. Extract data from memory while the transaction is active.
+        List<OrderItemsRequest> itemsToRestore = Optional.ofNullable(order.getOrderItems())
+                .orElse(Collections.emptyList())
+                .stream()
+                .map(item -> OrderItemsRequest.builder()
+                        .sku(item.getSku())
+                        .price(item.getPrice())
+                        .quantity(item.getQuantity())
+                        .build())
+                .toList();
 
-        // Compensate / Restore inventory stock
-        Optional.ofNullable(order.getOrderItems())
-                .filter(items -> !items.isEmpty())
-                .ifPresent(items -> {
-                    List<OrderItemsRequest> itemsToRestore = items.stream()
-                            .map(item -> OrderItemsRequest.builder()
-                                    .sku(item.getSku())
-                                    .price(item.getPrice())
-                                    .quantity(item.getQuantity())
-                                    .build())
-                            .toList();
-                    compensateInventoryStock(itemsToRestore);
-                });
+        // 3. Map the response before external calls.
+        OrderResponse response = mapOrderToOrderResponse(updatedOrder);
 
-        // Publish Kafka cancellation event
+        // 4. Compensation and external integration (Kafka / Inventory)
+        if (!itemsToRestore.isEmpty()) {
+            compensateInventoryStock(itemsToRestore);
+        }
         publishCancelOrderEvent(updatedOrder);
 
+        // 5. Metrics at the end
+        syncDatabaseMetrics();
+
         log.info("Order #{} successfully cancelled and stock restored", updatedOrder.getOrderNumber());
-        return mapOrderToOrderResponse(updatedOrder);
+        return response;
     }
 
-    @CacheEvict(value = "orders", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
     public OrderResponse shipOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findById(Objects.requireNonNull(id, "Order ID must not be null"))
+        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, "Order ID must not be null"))
                 .orElseThrow(() -> new OrderNotFoundException("Order with id " + id + " not found"));
 
-        // DDD Aggregate Root enforces shipping invariant
         order.ship();
         Order updatedOrder = this.orderRepository.save(order);
         publishOrderStatusEvent(updatedOrder, OrderStatus.SHIPPED);
@@ -668,12 +681,15 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         return mapOrderToOrderResponse(updatedOrder);
     }
 
-    @CacheEvict(value = "orders", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
     public OrderResponse deliverOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findById(Objects.requireNonNull(id, "Order ID must not be null"))
+        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, "Order ID must not be null"))
                 .orElseThrow(() -> new OrderNotFoundException("Order with id " + id + " not found"));
 
-        // DDD Aggregate Root enforces delivery invariant
         order.deliver();
         Order updatedOrder = this.orderRepository.save(order);
         publishOrderStatusEvent(updatedOrder, OrderStatus.DELIVERED);
@@ -696,7 +712,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         order.getUsername()
                 )
         );
-        this.kafkaTemplate.send("orders-topic", payload);
+        this.kafkaTemplate.send("orders-topic", order.getOrderNumber(), payload);
     }
 
     private OrderResponse mapOrderToOrderResponse(Order order) {

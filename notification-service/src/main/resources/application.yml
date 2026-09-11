@@ -1,34 +1,42 @@
 spring:
+  application:
+    name: ${NOTIFICATION_SERVICE_NAME:notification-service}
+
   threads:
     virtual:
       enabled: true
-  application:
-    name: ${NOTIFICATION_SERVICE_NAME:notification-service}
+  
   lifecycle:
     timeout-per-shutdown-phase: 30s
+
   cloud:
     vault:
       enabled: ${VAULT_ENABLED:false}
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     properties:
-      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
-      sasl.mechanism: ${KAFKA_SASL_MECHANISM:PLAIN}
-      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+      "[security.protocol]": ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      "[sasl.mechanism]": ${KAFKA_SASL_MECHANISM:PLAIN}
+      "[sasl.jaas.config]": ${KAFKA_SASL_JAAS_CONFIG:}
     consumer:
-      group-id: notification-service
+      group-id: ${NOTIFICATION_KAFKA_GROUP_ID:notification-service}
       auto-offset-reset: earliest
+      enable-auto-commit: false        # Prevents message loss if processing fails.
+      max-poll-records: 50             # Controls batch size per poll
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-  cache:
-    type: redis
-    redis:
-      time-to-live: 300000
+    listener:
+      ack-mode: record                 # Confirm the offset only after successfully processing each record.
+      concurrency: 3                   # Adjust based on the typical number of partitions for your topics.
+      observation-enabled: true        # Propagate distributed tracing context from Kafka headers
+
   data:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
 
 server:
   port: ${PORT:8002}
@@ -38,26 +46,32 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        include: health,prometheus,info
       base-path: /actuator/notification
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+  # Enable only if you migrate from Prometheus scraper to OTLP Push for metrics:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  #       url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
   tracing:
     sampling:
       probability: 1.0
-  otlp:
+  opentelemetry:
+    resource-attributes:
+      "[service.name]": ${spring.application.name}
+      "[service.version]": "1.0"
+      "[deployment.environment]": ${ENVIRONMENT:dev}
     tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
   metrics:
     distribution:
       percentiles-histogram:
         "[http.server.requests]": true
-
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
-  resource:
-    attributes: service.name=${spring.application.name},service.version=1.0

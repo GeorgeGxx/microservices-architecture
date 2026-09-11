@@ -7,12 +7,17 @@ import io.swagger.v3.oas.annotations.responses.*;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 
 @RestController
@@ -31,8 +36,14 @@ public class InventoryController {
     @GetMapping
     @ResponseStatus(HttpStatus.OK)
     public List<InventoryResponse> getAllInventory() {
-        return inventoryService.getAllInventory();
+            return inventoryService.getAllInventory();
     }
+    
+    // SkuPathVariable.java
+    @Target({ElementType.PARAMETER})
+    @Retention(RetentionPolicy.RUNTIME)
+    @Pattern(regexp = "^[A-Z0-9\\-]{6,20}$", message = "Invalid SKU format")
+    public @interface ValidSku {}
 
     @Operation(summary = "Check if product is in stock", description = "Returns true if the SKU has stock greater than 0")
     @ApiResponses(value = {
@@ -41,11 +52,7 @@ public class InventoryController {
     })
     @GetMapping("/{sku}")
     @ResponseStatus(HttpStatus.OK)
-    public boolean isInStock(
-            @Parameter(description = "Product SKU code", required = true)
-            @PathVariable("sku")
-            @Pattern(regexp = "^[A-Z0-9\\-]{6,20}$", message = "Invalid SKU format")
-            String sku) {
+    public boolean isInStock(@PathVariable("sku") @ValidSku String sku) {
         return inventoryService.isInStock(sku);
     }
 
@@ -57,11 +64,7 @@ public class InventoryController {
     })
     @GetMapping("/detail/{sku}")
     @ResponseStatus(HttpStatus.OK)
-    public InventoryResponse getInventoryDetail(
-            @Parameter(description = "Product SKU code", required = true)
-            @PathVariable("sku")
-            @Pattern(regexp = "^[A-Z0-9\\-]{6,20}$", message = "Invalid SKU format")
-            String sku) {
+    public InventoryResponse getInventoryDetail(@PathVariable("sku") @ValidSku String sku) {
         return inventoryService.getInventoryBySku(sku);
     }
 
@@ -87,13 +90,7 @@ public class InventoryController {
     @PutMapping("/{sku}")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasRole('ADMIN')")
-    public InventoryResponse updateStock(
-            @Parameter(description = "Product SKU code", required = true)
-            @PathVariable("sku")
-            @Pattern(regexp = "^[A-Z0-9\\-]{6,20}$", message = "Invalid SKU format")
-            String sku,
-            @Parameter(description = "New quantity", required = true)
-            @RequestParam("quantity") Long quantity) {
+    public InventoryResponse updateStock(@PathVariable ("sku") @ValidSku String sku, @RequestParam("quantity") @PositiveOrZero Long quantity) {
         return inventoryService.updateStock(sku, quantity);
     }
 

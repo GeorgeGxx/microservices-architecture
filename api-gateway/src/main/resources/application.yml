@@ -7,87 +7,94 @@ spring:
     vault:
       enabled: ${VAULT_ENABLED:false}
     gateway:
-      default-filters:
-        - name: RequestRateLimiter
-          args:
-            key-resolver: "#{@userKeyResolver}"
-            '[redis-rate-limiter.replenishRate]': 20
-            '[redis-rate-limiter.burstCapacity]': 40
-      routes:
-        - id: inventory-service
-          uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
-          predicates:
-            - Path=/api/inventory, /api/inventory/**
+      server:
+        webflux:
+          default-filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                "[redis-rate-limiter.replenishRate]": 20
+                "[redis-rate-limiter.burstCapacity]": 40
+          routes:
+            # --- Inventory Service ---
+            - id: inventory-service
+              uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
+              predicates:
+                - Path=/api/inventory,/api/inventory/**
 
-        - id: orders-service
-          uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
-          predicates:
-            - Path=/api/order, /api/order/**
+            - id: inventory-service-actuator
+              uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
+              predicates:
+                - Path=/actuator/inventory/**
 
-        - id: products-service
-          uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
-          predicates:
-            - Path=/api/product, /api/product/**
+            - id: inventory-service-docs
+              uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
+              predicates:
+                - Path=/v3/api-docs/inventory-service
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: inventory-service-actuator
-          uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
-          predicates:
-            - Path=/actuator/inventory/**
+            # --- Orders Service ---
+            - id: orders-service
+              uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
+              predicates:
+                - Path=/api/order,/api/order/**
 
-        - id: orders-service-actuator
-          uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
-          predicates:
-            - Path=/actuator/orders/**
+            - id: orders-service-actuator
+              uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
+              predicates:
+                - Path=/actuator/orders/**
 
-        - id: products-service-actuator
-          uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
-          predicates:
-            - Path=/actuator/products/**
+            - id: orders-service-docs
+              uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
+              predicates:
+                - Path=/v3/api-docs/orders-service
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: products-service-docs
-          uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
-          predicates:
-            - Path=/v3/api-docs/products-service
-          filters:
-            - SetPath=/v3/api-docs
+            # --- Products Service ---
+            - id: products-service
+              uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
+              predicates:
+                - Path=/api/product,/api/product/**
 
-        - id: orders-service-docs
-          uri: ${ORDERS_SERVICE_URI:http://localhost:8003}
-          predicates:
-            - Path=/v3/api-docs/orders-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: products-service-actuator
+              uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
+              predicates:
+                - Path=/actuator/products/**
 
-        - id: inventory-service-docs
-          uri: ${INVENTORY_SERVICE_URI:http://localhost:8001}
-          predicates:
-            - Path=/v3/api-docs/inventory-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: products-service-docs
+              uri: ${PRODUCTS_SERVICE_URI:http://localhost:8004}
+              predicates:
+                - Path=/v3/api-docs/products-service
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: notification-service
-          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
-          predicates:
-            - Path=/api/notifications, /api/notifications/**
+            # --- Notification Service ---
+            - id: notification-service
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
+              predicates:
+                - Path=/api/notifications,/api/notifications/**
 
-        - id: notification-service-actuator
-          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
-          predicates:
-            - Path=/actuator/notification/**, /actuator/notifications/**
+            - id: notification-service-actuator
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
+              predicates:
+                - Path=/actuator/notification/**,/actuator/notifications/**
 
-        - id: notification-service-docs
-          uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
-          predicates:
-            - Path=/v3/api-docs/notification-service
-          filters:
-            - SetPath=/v3/api-docs
+            - id: notification-service-docs
+              uri: ${NOTIFICATION_SERVICE_URI:http://localhost:8002}
+              predicates:
+                - Path=/v3/api-docs/notification-service
+              filters:
+                - SetPath=/v3/api-docs
 
-        - id: vault-health
-          uri: ${VAULT_ADDR:http://vault:8200}
-          predicates:
-            - Path=/actuator/vault/health
-          filters:
-            - SetPath=/v1/sys/health
+            # --- Vault Health ---
+            - id: vault-health
+              uri: ${VAULT_ADDR:http://vault:8200}
+              predicates:
+                - Path=/actuator/vault/health
+              filters:
+                - SetPath=/v1/sys/health
 
   data:
     redis:
@@ -122,34 +129,38 @@ springdoc:
 logging:
   level:
     root: info
-    "[org.springframework.cloud.gateway]": info
-    "[org.springframework.cloud.gateway.route.RouteDefinitionRouteLocator]": info
+    "[org.springframework.cloud.gateway.server.webflux]": info
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,prometheus
+        include: health,prometheus,gateway
       base-path: /actuator
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+  # Enable only if you migrate from Prometheus scraper to OTLP Push for metrics:
+  otlp:
+    metrics:
+      export:
+        enabled: false
+  #       url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
   tracing:
-    enabled: true
     sampling:
       probability: 1.0
-  otlp:
+  opentelemetry:
+    resource-attributes:
+      "[service.name]": ${spring.application.name}
+      "[service.version]": "1.0"
+      "[deployment.environment]": ${ENVIRONMENT:dev}
     tracing:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+      export:
+        otlp:
+          endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
   metrics:
     distribution:
       percentiles-histogram:
         "[http.server.requests]": true
-
-otel:
-  exporter:
-    otlp:
-      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}
-  resource:
-    attributes: service.name=${spring.application.name},service.version=1.0
