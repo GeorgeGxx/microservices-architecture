@@ -73,8 +73,8 @@ spec:
         app: otel-collector
     spec:
       automountServiceAccountToken: false
-      # otel-collector-contrib SÍ trae un usuario no-root (UID 10001)
-      # definido en su propia imagen desde hace varias versiones.
+      # otel-collector-contrib *does* include a non-root user (UID 10001)
+      # defined in its own image—a feature present for several versions now.
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

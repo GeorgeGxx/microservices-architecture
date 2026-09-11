@@ -78,6 +78,7 @@ services:
     depends_on:
       - keycloak
       - redis
+      - otel-collector
     networks:
       - spring
 
@@ -117,6 +118,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - spring
   ### Postgres database for inventory
@@ -186,6 +189,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - spring
   ### Postgres database for orders
@@ -230,6 +235,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - spring
   ### Postgres database for products

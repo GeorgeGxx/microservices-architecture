@@ -22,6 +22,9 @@ grafana:
     enabled: false
   resources:
     requests: { cpu: 100m, memory: 256Mi }
+  sidecar:
+    datasources:
+      defaultDatasourceEnabled: false
 
 alertmanager:
   enabled: true
