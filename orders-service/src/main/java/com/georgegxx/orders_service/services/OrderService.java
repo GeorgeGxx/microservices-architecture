@@ -21,7 +21,8 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.RestClient;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -34,7 +35,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class OrderService implements org.springframework.beans.factory.InitializingBean {
     private final OrderRepository orderRepository;
-    private final WebClient.Builder webClientBuilder;
+    private final RestClient.Builder restClientBuilder;
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final MeterRegistry meterRegistry;
@@ -425,13 +426,12 @@ public class OrderService implements org.springframework.beans.factory.Initializ
 
         BaseResponse result;
         try {
-            result = cb.executeSupplier(() -> this.webClientBuilder.build()
+            result = cb.executeSupplier(() -> this.restClientBuilder.build()
                     .post()
                     .uri(this.inventoryServiceUri + "/api/inventory/in-stock")
-                    .bodyValue(Objects.requireNonNull(orderItems))
+                    .body(Objects.requireNonNull(orderItems))
                     .retrieve()
-                    .bodyToMono(BaseResponse.class)
-                    .block());
+                    .body(BaseResponse.class));
         } catch (Exception throwable) {
             log.error("Circuit Breaker triggered for inventory stock check: {}", throwable.getMessage());
             throw new ServiceUnavailableException("Inventory service is currently unavailable or degraded.");
@@ -454,13 +454,12 @@ public class OrderService implements org.springframework.beans.factory.Initializ
 
         BaseResponse decrementResult;
         try {
-            decrementResult = cb.executeSupplier(() -> this.webClientBuilder.build()
+            decrementResult = cb.executeSupplier(() -> this.restClientBuilder.build()
                     .post()
                     .uri(this.inventoryServiceUri + "/api/inventory/decrement")
-                    .bodyValue(Objects.requireNonNull(orderItems))
+                    .body(Objects.requireNonNull(orderItems))
                     .retrieve()
-                    .bodyToMono(BaseResponse.class)
-                    .block());
+                    .body(BaseResponse.class));
         } catch (Exception throwable) {
             log.error("Circuit Breaker triggered for inventory decrement: {}", throwable.getMessage());
             throw new ServiceUnavailableException("Failed to secure inventory allocation. Service unavailable.");
@@ -563,13 +562,12 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             this.meterRegistry.counter("ecommerce_compensations_total").increment();
             this.meterRegistry.counter("ecommerce_saga_compensations_total", "reason", "downstream_failure").increment();
             CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE);
-            cb.executeSupplier(() -> this.webClientBuilder.build()
+            cb.executeSupplier(() -> this.restClientBuilder.build()
                     .post()
                     .uri(this.inventoryServiceUri + "/api/inventory/increment")
-                    .bodyValue(Objects.requireNonNull(orderItems))
+                    .body(Objects.requireNonNull(orderItems))
                     .retrieve()
-                    .bodyToMono(BaseResponse.class)
-                    .block());
+                    .body(BaseResponse.class));
         } catch (Exception e) {
             log.error("CRITICAL: Error occurred while dispatching inventory compensation: {}", e.getMessage(), e);
         }
@@ -579,14 +577,12 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker("products-service");
         List<ProductPriceResponse> products;
         try {
-            products = cb.executeSupplier(() -> this.webClientBuilder.build()
+            products = cb.executeSupplier(() -> this.restClientBuilder.build()
                     .post()
                     .uri(this.productsServiceUri + "/api/product/prices")
-                    .bodyValue(Objects.requireNonNull(skus))
+                    .body(Objects.requireNonNull(skus))
                     .retrieve()
-                    .bodyToFlux(ProductPriceResponse.class)
-                    .collectList()
-                    .block());
+                    .body(new ParameterizedTypeReference<List<ProductPriceResponse>>() {}));
         } catch (Exception throwable) {
             log.error("Circuit Breaker triggered for product prices resolution: {}", throwable.getMessage());
             products = Collections.emptyList();
