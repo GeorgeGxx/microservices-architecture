@@ -475,14 +475,14 @@
         <mxCell id="st8" parent="1" value="8. Orders Service calls Products Service (GET /api/product/{id}) to validate catalog &amp; price" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="540" width="200" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st9" parent="1" value="9. Orders Service calls Inventory Service (POST /api/inventory/check-and-lock) to lock stock in db-inventory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="590" width="200" height="32" as="geometry" />
+        <mxCell id="st9" parent="1" value="9. Orders Service calls Inventory Service (POST /api/inventory/in-stock &amp; POST /api/inventory/decrement) with pessimistic lock; POST /api/inventory/increment for Saga rollbacks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="1160" y="590" width="450" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st10" parent="1" value="10. Orders Service binds authenticated userId/username and persists Order in db-orders (Multi-Tenant Isolation)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1160" y="640" width="450" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st11" parent="1" value="11. Orders Service emits &#39;orders-topic&#39; event to Apache Kafka cluster (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="690" width="400" height="32" as="geometry" />
+        <mxCell id="st11" parent="1" value="11. Orders Service emits &#39;orders-topic&#39; event to Apache Kafka cluster (Key: orderNumber for ordered partition hashing, W3C TraceContext injected)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="1160" y="690" width="450" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st12" parent="1" value="12. Orders Service returns HTTP 201 Created response ➔ API Gateway ➔ Frontend SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="160" y="740" width="1000" height="32" as="geometry" />
