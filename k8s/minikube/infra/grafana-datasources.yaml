@@ -9,12 +9,12 @@ data:
   datasources.yaml: |
     apiVersion: 1
     datasources:
-      - name: Prometheus-DS
+      - name: Prometheus
         uid: prometheus-ds
         type: prometheus
         access: proxy
         url: http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090
-        isDefault: false
+        isDefault: true
         jsonData:
           httpMethod: POST
           timeInterval: 15s

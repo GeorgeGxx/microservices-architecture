@@ -116,3 +116,27 @@ spec:
             storage: 1Gi
           limits:
             storage: 1Gi
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis
+  namespace: data
+  labels:
+    app: redis
+    release: prometheus
+spec:
+  jobLabel: app
+  selector:
+    matchLabels:
+      app: redis
+  endpoints:
+    - port: http-metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - targetLabel: job
+          replacement: redis
+        - targetLabel: service
+          replacement: redis
+

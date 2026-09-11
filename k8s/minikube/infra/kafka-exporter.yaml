@@ -48,3 +48,27 @@ spec:
               cpu: "200m"
               memory: "128Mi"
               ephemeral-storage: "128Mi"
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka-exporter
+  namespace: data
+  labels:
+    app: kafka-exporter
+    release: prometheus
+spec:
+  jobLabel: app
+  selector:
+    matchLabels:
+      app: kafka-exporter
+  endpoints:
+    - port: http-metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - targetLabel: job
+          replacement: kafka
+        - targetLabel: service
+          replacement: kafka
+

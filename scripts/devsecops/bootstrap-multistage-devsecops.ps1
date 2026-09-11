@@ -180,6 +180,7 @@ kubectl apply -f "$infraDir\postgres-orders.yaml" -n data
 kubectl apply -f "$infraDir\postgres-inventory.yaml" -n data
 kubectl apply -f "$infraDir\redis.yaml" -n data
 kubectl apply -f "$infraDir\kafka.yaml" -n data
+kubectl apply -f "$infraDir\kafka-exporter.yaml" -n data
 
 # Auth namespace services
 kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth

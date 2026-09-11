@@ -152,6 +152,10 @@ resource "helm_release" "observability" {
     name  = "grafana.service.nodePort"
     value = "30030"
   }
+  set {
+    name  = "grafana.sidecar.datasources.defaultDatasourceEnabled"
+    value = "false"
+  }
   # Optimized retention to save Minikube disk and RAM
   set {
     name  = "prometheus.prometheusSpec.retention"
