@@ -1,6 +1,6 @@
 # 🏢 Microservices Architecture: Multi-Cloud (AWS, Azure, GCP) & Multi-CI/CD Platform
 
-Enterprise-grade, distributed microservices platform built with **Java 21 (Spring Boot 3.4.2, Spring Cloud 2024, Spring Cloud Gateway, Kubernetes CoreDNS & Istio Service Mesh)** and **Angular 21 SPA (Nginx Distroless)**.
+Enterprise-grade, distributed microservices platform built with **Java 21 (Spring Boot 4.0.8, Spring Cloud 2025, Spring Cloud Gateway, Kubernetes CoreDNS & Istio Service Mesh)** and **Angular 21 SPA (Nginx Distroless)**.
 
 Designed for true **Multi-Cloud Portability & Multi-CI/CD Automation**:
 - ☁️ **Amazon Web Services (AWS)**: Provisioned with **Terraform AWS** (EKS, ECR, RDS PostgreSQL, VPC, ALB, IAM-IRSA) and deployed via **GitHub Actions** (12-Stage Enterprise Pipeline).
@@ -52,7 +52,7 @@ graph TB
     end
 
     subgraph ObservabilityLayer ["📊 Distributed Observability Suite (Grafana LGTM Stack)"]
-        Prometheus["📈 Prometheus (9090)<br/>(Scraping Actuator & Micrometer 1.16)"]
+        Prometheus["📈 Prometheus (9090)<br/>(Scraping Actuator & Micrometer 2.2.1)"]
         Grafana["📊 Grafana 13.0.7 (3000)<br/>(Master Dashboards & Trace Viewer)"]
         Tempo["🔍 Grafana Tempo 3.0.3 (3200)<br/>(Distributed Tracing via OTLP 4317)"]
         Loki["📝 Grafana Loki 3.7.4 (3100)<br/>(Centralized Log Aggregator)"]
@@ -71,7 +71,7 @@ graph TB
     Orders -->|Produce OrderPlaced Event| Kafka
     Kafka -->|Consume| Notifications
 
-    Products & Orders & Inventory & Notifications & APIGW -->|Micrometer 1.16 / OTLP 0.159| Prometheus & Tempo & Loki
+    Products & Orders & Inventory & Notifications & APIGW -->|Micrometer 2.2.1 / OTLP 0.159| Prometheus & Tempo & Loki
     Prometheus & Tempo & Loki --> Grafana
 ```
 
@@ -308,7 +308,11 @@ In your GitHub repository:
    ```
 4. Start the runner:
    ```powershell
-   .\run.cmd
+   .\run.cmd # You can optionally configure it as a service.
+   ```
+5. Test Runner on Windows:
+   ```powershell
+   Get-Service -Name "actions.runner.*"   
    ```
 
 The runner leverages the 16 threads of the Ryzen 7 processor to compile and test Maven/Node modules in parallel (`-T 1C`).
@@ -537,7 +541,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | **API Gateway** | `/api/*` | `/actuator/health`, `/actuator/prometheus` | Reverse proxy, token validation, rate limiter |
 | **Products Service** | `/api/product` | `POST /api/product`, `GET /api/product` | Product catalog, pricing, Redis caching |
 | **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order`, `PUT /api/order/{id}/cancel` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry |
-| **Inventory Service** | `/api/inventory`| `GET /api/inventory?skuCode=...` | Real-time SKU stock verification & allocation |
+| **Inventory Service** | `/api/inventory`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `PUT /api/inventory/{sku}` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction |
 | **Notification Service**| N/A | Kafka Topic `orders-topic` | Consumes `OrderPlacedEvent`, customer email simulation |
 
 ---
@@ -1056,15 +1060,27 @@ Import [`microservices.postman_collection.json`](./devsecops/testing/newman/micr
 ## 📊 Full-Stack Observability & Telemetry (Grafana LGTM Stack)
 
 The architecture implements the modern **Grafana LGTM + OpenTelemetry** standard:
-- **Metrics (Prometheus & Micrometer 1.16.6):** Actuator exposes JVM metrics, HTTP latencies, connection pools (HikariCP) and business metrics scraped every 5s by Prometheus.
-- **Distributed Tracing (Tempo 3.0.3 & OTel Collector 0.159.0):** Every request entering Spring Cloud Gateway receives a W3C `traceparent` context propagated across Feign clients, Kafka event producers, and consumers.
+- **Metrics (Prometheus & Micrometer 2.2.1):** Actuator exposes JVM metrics, HTTP latencies, connection pools (HikariCP) and business metrics scraped every 5s by Prometheus. In-memory gauges avoid SQL queries during Prometheus scrapes.
+- **Distributed Tracing (Tempo 3.0.3, OTel Collector 0.159.0 & Native Spring OpenTelemetry):** Services utilize `spring-boot-starter-opentelemetry` exporting to OTLP. Requests passing through Spring Cloud Gateway receive W3C `traceparent` context propagated across downstream WebClients and asynchronous Kafka topics via `observation-enabled: true` on both `KafkaTemplate` and `@KafkaListener`.
 - **Centralized Logging (Loki 3.7.4 & Grafana Alloy v1.18.1):** Grafana Alloy collects container stdout/stderr logs and streams them to Loki.
 - **Correlated Navigation (Grafana 13.0.7):** One-click transition from Tempo spans to corresponding Loki logs and Prometheus metrics.
 
 Access the interactive query interface at **[http://localhost:3000/explore](http://localhost:3000/explore)** (Login: `admin` / `admin`) to execute deep telemetry analysis:
 
-### 1. 📈 Prometheus (Metrics & PromQL) — `prometheus-ds`
-Select the **Prometheus** datasource to query real-time system metrics, throughput, latency, and security counters:
+#### 🗄️ Standardized Grafana Datasources (Explore & Dashboards)
+
+All telemetry datasources adhere to unified naming conventions across both Docker Compose and Kubernetes (Minikube):
+
+| Explore Display Name | Datasource Type | Datasource UID | Default | Target Service & Port |
+| :--- | :--- | :--- | :---: | :--- |
+| **`Prometheus`** | `prometheus` | `prometheus-ds` | ✅ Yes | Metrics & PromQL engine (`:9090`) |
+| **`Loki`** | `loki` | `loki-ds` | ❌ No | Centralized structured log streams (`:3100`) |
+| **`Tempo`** | `tempo` | `tempo-ds` | ❌ No | Distributed traces with traces-to-logs correlation (`:3200`) |
+
+---
+
+### 1. 📈 Prometheus (Metrics & PromQL) — Datasource: `Prometheus` (UID: `prometheus-ds`)
+Select the **Prometheus** datasource from the Explore dropdown to query real-time system metrics, throughput, latency, and security counters:
 
 * **Real-time HTTP Request Rate by Status & Service:**
   ```promql
@@ -1126,19 +1142,19 @@ Select the **Prometheus** datasource to query real-time system metrics, throughp
   ```promql
   sum by (topic, consumergroup) (kafka_consumergroup_lag)
   ```
-* **PostgreSQL Transaction Commits per Second:**
+* **Active Database Connections per Microservice (HikariCP & Micrometer 2.2.1):**
   ```promql
-  sum by (datname) (rate(pg_stat_database_xact_commit[1m]))
+  sum by (app) (hikaricp_connections_active)
   ```
-* **Keycloak IAM Active Management & JVM Commit Rate:**
+* **Top Blocked Malicious / Attacking IPs (Security Gateway & Resilience4j):**
   ```promql
-  rate(vendor_transactions_commits{cache="userRevisions"}[1m])
+  topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)
   ```
 
 ---
 
-### 2. 📜 Grafana Loki (Centralized Logs & LogQL) — `loki-ds`
-Select the **Loki** datasource to stream and filter structured logs from all microservices and security components:
+### 2. 📜 Grafana Loki (Centralized Logs & LogQL) — Datasource: `Loki` (UID: `loki-ds`)
+Select the **Loki** datasource from the Explore dropdown to stream and filter structured logs from all microservices and security components:
 
 * **Stream Logs for a Specific Microservice:**
   ```logql
@@ -1172,8 +1188,8 @@ Select the **Loki** datasource to stream and filter structured logs from all mic
 
 ---
 
-### 3. 🔍 Grafana Tempo (Distributed Traces & TraceQL) — `tempo-ds`
-Select the **Tempo** datasource to inspect end-to-end distributed traces across API Gateway, Orders, Products, Inventory, and Kafka:
+### 3. 🔍 Grafana Tempo (Distributed Traces & TraceQL) — Datasource: `Tempo` (UID: `tempo-ds`)
+Select the **Tempo** datasource from the Explore dropdown to inspect end-to-end distributed traces across API Gateway, Orders, Products, Inventory, and Kafka:
 
 * **Search by Trace ID:** Paste any `traceId` (from API response headers or Loki logs) directly into the Search box.
 * **TraceQL Query for End-to-End Microservice Traces (Active Spans):**
