@@ -157,12 +157,24 @@ class TrafficSimulator:
         delivery_methods = ["STANDARD", "EXPRESS", "NEXT_DAY"]
         payment_brands = ["VISA", "MASTERCARD", "AMEX"]
         
+        subtotal = sum(item["price"] * item["quantity"] for item in order_items)
+        tax = round(subtotal * 0.16, 2)
+        shipping_fee = 15.00
+        total_amount = round(subtotal + tax + shipping_fee, 2)
+
         payload_dict = {
             "orderItems": order_items,
+            "customerName": f"Customer-{order_idx}",
+            "customerEmail": f"user{order_idx}@example.com",
+            "shippingAddress": f"123 Innovation Way, Suite {order_idx}",
+            "city": "Austin",
+            "postalCode": "78701",
+            "phone": "+1-555-0199",
             "deliveryMethod": random.choice(delivery_methods),
-            "paymentBrand": random.choice(payment_brands),
-            "taxAmount": round(sum(item["price"] * item["quantity"] for item in order_items) * 0.16, 2),
-            "shippingCost": 15.00
+            "paymentMethod": random.choice(payment_brands),
+            "shippingFee": shipping_fee,
+            "taxAmount": tax,
+            "totalAmount": total_amount,
         }
         payload = json.dumps(payload_dict).encode("utf-8")
         idempotency_key = str(uuid.uuid4())
@@ -187,7 +199,7 @@ class TrafficSimulator:
                 if order_id:
                     self.created_order_ids.append(order_id)
 
-                print(f"  \033[92m[✓] Order #{order_num}\033[0m | Items: {len(order_items)} | Method: {payload_dict['deliveryMethod']} | Brand: {payload_dict['paymentBrand']} | Latency: {latency:.1f}ms")
+                print(f"  \033[92m[✓] Order #{order_num}\033[0m | Items: {len(order_items)} | Method: {payload_dict['deliveryMethod']} | Brand: {payload_dict.get('paymentMethod', 'VISA')} | Latency: {latency:.1f}ms")
 
                 # Occasionally test duplicate idempotency rejection
                 if order_idx % 4 == 0:
@@ -207,7 +219,8 @@ class TrafficSimulator:
         except urllib.error.HTTPError as e:
             latency = (time.perf_counter() - start) * 1000
             self.latencies.append(latency)
-            print(f"  \033[91m[X] Order failed (HTTP {e.code})\033[0m | Latency: {latency:.1f}ms")
+            err_body = e.read().decode("utf-8", errors="replace")
+            print(f"  \033[91m[X] Order failed (HTTP {e.code}): {err_body}\033[0m | Latency: {latency:.1f}ms")
             return False
         except Exception as e:
             latency = (time.perf_counter() - start) * 1000
