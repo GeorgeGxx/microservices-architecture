@@ -13,6 +13,9 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import java.time.Duration;
+
 @Configuration
 public class RestClientConfig {
 
@@ -28,7 +31,12 @@ public class RestClientConfig {
             return execution.execute(request, body);
         };
 
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(Duration.ofSeconds(2));
+        requestFactory.setReadTimeout(Duration.ofSeconds(3));
+
         return RestClient.builder()
+                .requestFactory(requestFactory)
                 .requestInterceptor(bearerAuthInterceptor);
     }
 

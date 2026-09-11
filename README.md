@@ -414,9 +414,10 @@ When you are ready to enforce strict blocking in production:
         - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate-traffic.py`)](#-method-3-multi-threaded-realistic-funnel-generation-simulate-trafficpy)
     - [📦 Postman Test Suite:](#-postman-test-suite)
   - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
-    - [1. 📈 Prometheus (Metrics \& PromQL) — `prometheus-ds`](#1--prometheus-metrics--promql--prometheus-ds)
-    - [2. 📜 Grafana Loki (Centralized Logs \& LogQL) — `loki-ds`](#2--grafana-loki-centralized-logs--logql--loki-ds)
-    - [3. 🔍 Grafana Tempo (Distributed Traces \& TraceQL) — `tempo-ds`](#3--grafana-tempo-distributed-traces--traceql--tempo-ds)
+      - [🗄️ Standardized Grafana Datasources (Explore \& Dashboards)](#️-standardized-grafana-datasources-explore--dashboards)
+    - [1. 📈 Prometheus (Metrics \& PromQL) — Datasource: `Prometheus` (UID: `prometheus-ds`)](#1--prometheus-metrics--promql--datasource-prometheus-uid-prometheus-ds)
+    - [2. 📜 Grafana Loki (Centralized Logs \& LogQL) — Datasource: `Loki` (UID: `loki-ds`)](#2--grafana-loki-centralized-logs--logql--datasource-loki-uid-loki-ds)
+    - [3. 🔍 Grafana Tempo (Distributed Traces \& TraceQL) — Datasource: `Tempo` (UID: `tempo-ds`)](#3--grafana-tempo-distributed-traces--traceql--datasource-tempo-uid-tempo-ds)
     - [4. 📊 Pre-Provisioned Universal Grafana Dashboards](#4--pre-provisioned-universal-grafana-dashboards)
       - [🎯 Dynamic Interactive Filtering (`Filter Microservice`)](#-dynamic-interactive-filtering-filter-microservice)
       - [🏢 A. Business Intelligence \& Inventory Operations (`business-operations-dashboard.json`)](#-a-business-intelligence--inventory-operations-business-operations-dashboardjson)
@@ -943,7 +944,7 @@ Simulate downstream outage by stopping `inventory-service` and generating contin
 docker compose stop inventory-service
 
 # For Kubernetes / Minikube:
-kubectl scale deployment inventory-service --replicas=0 -n ecommerce
+kubectl scale deployment inventory-service --replicas=0 -n dev
 
 # 2. Run continuous traffic to keep the circuit in steady OPEN (Red #ef4444):
 python scripts/testing/simulate-traffic.py --continuous
@@ -972,7 +973,7 @@ Restart `inventory-service` and send 2 trial orders through the gateway to prove
 docker compose start inventory-service
 
 # For Kubernetes / Minikube:
-kubectl scale deployment inventory-service --replicas=1 -n ecommerce
+kubectl scale deployment inventory-service --replicas=1 -n dev
 
 # 2. Send 2 trial orders (sequential concurrency) to satisfy the 2-call probe:
 python scripts/testing/simulate-traffic.py --orders 2 --concurrency 1
@@ -989,9 +990,22 @@ python scripts/testing/simulate-chaos.py
 ### 4. 🛡️ DDoS & Rate Limiting Stress Attacks (`simulate-ddos.py`)
 Launches high-concurrency request floods against the API Gateway to trigger Redis Token Bucket rate limiting (HTTP 429) and activate the Security Threat Level gauge:
 ```powershell
+# 1. Default: 30-second sustained flood with live terminal ticker (keeps Threat Level RED in Grafana):
 python scripts/testing/simulate-ddos.py
-python scripts/testing/simulate-ddos.py --burst
+
+# 2. Custom sustained duration (e.g. 60 seconds):
+python scripts/testing/simulate-ddos.py --duration 60
+
+# 3. Continuous flood (runs indefinitely until Ctrl + C):
+python scripts/testing/simulate-ddos.py --continuous
+
+# 4. Instant fixed burst (300 requests):
+python scripts/testing/simulate-ddos.py --requests 300
+
+# 5. Distributed botnet simulation (rotates 12 distinct attacker IP addresses):
 python scripts/testing/simulate-ddos.py --distributed
+
+# 6. Anonymous attack without Keycloak authentication:
 python scripts/testing/simulate-ddos.py --no-auth
 ```
 
