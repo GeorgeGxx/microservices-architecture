@@ -63,6 +63,8 @@ spring:
       time-to-live: 300000
   data:
     redis:
+      repositories:
+        enabled: false
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
