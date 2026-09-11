@@ -1,19 +1,22 @@
 package com.georgegxx.orders_service.model.dtos;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import lombok.*;
 
 import java.io.Serializable;
 
 // Local representation of products-service response (POST /api/product/prices).
-// @JsonIgnoreProperties(ignoreUnknown = true) ensures resilience against extra fields.
+// Converted to Java 21 Record with backward-compatible getter accessors.
 @JsonIgnoreProperties(ignoreUnknown = true)
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class ProductPriceResponse implements Serializable {
+public record ProductPriceResponse(
+        String sku,
+        Double price,
+        Boolean status
+) implements Serializable {
     private static final long serialVersionUID = 1L;
-    private String sku;
-    private Double price;
-    private Boolean status;
+
+    // Backward-compatibility getters for existing callers and method references
+    public String getSku() { return sku; }
+    public Double getPrice() { return price; }
+    public Boolean getStatus() { return status; }
 }
+

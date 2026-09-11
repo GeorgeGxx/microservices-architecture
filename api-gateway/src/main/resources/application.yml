@@ -1,6 +1,9 @@
 spring:
   application:
     name: ${GATEWAY_SERVICE_NAME:api-gateway}
+  threads:
+    virtual:
+      enabled: true
   lifecycle:
     timeout-per-shutdown-phase: 30s
   cloud:
