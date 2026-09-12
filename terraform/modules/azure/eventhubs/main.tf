@@ -24,7 +24,7 @@ resource "azurerm_eventhub_consumer_group" "notifications" {
   resource_group_name = var.resource_group_name
 }
 
-resource "azurerm_eventhub_authorization_rule" "microservices" {
+resource "azurerm_eventhub_namespace_authorization_rule" "microservices" {
   name                = "msa-kafka-auth"
   namespace_name      = azurerm_eventhub_namespace.this.name
   resource_group_name = var.resource_group_name
