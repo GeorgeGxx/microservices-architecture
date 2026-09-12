@@ -6,6 +6,10 @@ resource "azurerm_eventhub_namespace" "this" {
   capacity            = var.capacity
   minimum_tls_version = "1.2"
 
+  identity {
+    type = "SystemAssigned"
+  }
+
   tags = var.tags
 }
 
