@@ -100,6 +100,870 @@ The platform includes a comprehensive, 12-tab architectural blueprint formatted 
 
 ---
 
+## 📑 Table of Contents
+
+- [🏢 Microservices Architecture: Multi-Cloud (AWS, Azure, GCP) \& Multi-CI/CD Platform](#-microservices-architecture-multi-cloud-aws-azure-gcp--multi-cicd-platform)
+  - [🏛️ System Architecture](#️-system-architecture)
+    - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [📁 Repository Structure](#-repository-structure)
+  - [🏛️ Domain-Driven Design (DDD) \& Microservices Tactical Patterns](#️-domain-driven-design-ddd--microservices-tactical-patterns)
+    - [🧩 1. Bounded Contexts \& Aggregate Roots](#-1-bounded-contexts--aggregate-roots)
+    - [🛡️ 2. Functional Programming \& RFC 7807 Error Handling](#️-2-functional-programming--rfc-7807-error-handling)
+  - [📡 Microservices Catalog \& API Routing](#-microservices-catalog--api-routing)
+  - [🔌 Ports \& Service Matrix](#-ports--service-matrix)
+  - [🔐 Identity \& Access Management (Keycloak 26.7.3)](#-identity--access-management-keycloak-2673)
+  - [🔒 Secret Management with HashiCorp Vault (Multi-Cloud \& Local)](#-secret-management-with-hashicorp-vault-multi-cloud--local)
+    - [1. Approach A: Local Development with Docker Compose (Zero-Touch)](#1-approach-a-local-development-with-docker-compose-zero-touch)
+    - [2. Approach B: Native Java Spring Boot Integration (All 5 Services)](#2-approach-b-native-java-spring-boot-integration-all-5-services)
+    - [3. Approach C: Kubernetes External Secrets Operator (ESO - Recommended)](#3-approach-c-kubernetes-external-secrets-operator-eso---recommended)
+    - [4. Approach D: Kubernetes Multi-Cloud Vault Agent Sidecar Injector](#4-approach-d-kubernetes-multi-cloud-vault-agent-sidecar-injector)
+  - [🗺️ Multi-Cloud \& Multi-CI/CD Matrix](#️-multi-cloud--multi-cicd-matrix)
+  - [⚡ Modern Angular 21 Reactive SPA Architecture](#-modern-angular-21-reactive-spa-architecture)
+  - [🖼️ Dual-Mode Product Media \& Visual Storefront Architecture](#️-dual-mode-product-media--visual-storefront-architecture)
+    - [1. 📂 Client-Side Canvas Compression \& Base64 Data URL Engine](#1--client-side-canvas-compression--base64-data-url-engine)
+    - [2. 💾 PostgreSQL Unlimited TEXT Persistence \& Redis Cache](#2--postgresql-unlimited-text-persistence--redis-cache)
+    - [3. 🎨 High-Fidelity Storefront Visual Integration](#3--high-fidelity-storefront-visual-integration)
+  - [🏷️ End-to-End QR Code \& Point of Sale (POS) Workflow](#️-end-to-end-qr-code--point-of-sale-pos-workflow)
+  - [🛒 Enterprise E-Commerce \& Logistics Architecture (Amazon \& Mercado Libre)](#-enterprise-e-commerce--logistics-architecture-amazon--mercado-libre)
+    - [1. 📦 Multi-Step Checkout \& Persistent Recipient Profile](#1--multi-step-checkout--persistent-recipient-profile)
+    - [2. 🚚 Real-Time Logistics Tracking \& Consumer Stepper](#2--real-time-logistics-tracking--consumer-stepper)
+    - [3. ⭐ Social Proof, Verified Ratings \& Best Seller Engine](#3--social-proof-verified-ratings--best-seller-engine)
+    - [4. 🛡️ Admin Operations Console, Live Sync \& Cluster Health](#4-️-admin-operations-console-live-sync--cluster-health)
+    - [5. 🔔 Customer-Centric Notification Center (Zero-Jargon)](#5--customer-centric-notification-center-zero-jargon)
+    - [6. 📱 Responsive Media \& Aspect-Ratio Scaling](#6--responsive-media--aspect-ratio-scaling)
+  - [📱 Mobile Application \& Google Play Store Architecture Guide](#-mobile-application--google-play-store-architecture-guide)
+    - [1. 🚀 Mobile Packaging Options:](#1--mobile-packaging-options)
+    - [2. 🔐 Mobile Security \& OIDC Integration:](#2--mobile-security--oidc-integration)
+    - [3. 📦 Google Play Store Publication Checklist:](#3--google-play-store-publication-checklist)
+  - [🌐 Edge Cloud Tunneling \& Serverless Frontend (Cloudflare \& Vercel)](#-edge-cloud-tunneling--serverless-frontend-cloudflare--vercel)
+    - [1. 🚇 Cloudflare Quick Tunnels Automation (`start-cloudflare-tunnels.ps1`)](#1--cloudflare-quick-tunnels-automation-start-cloudflare-tunnelsps1)
+    - [2. 🚀 Vercel Monorepo Deployment \& Output Directory Configuration](#2--vercel-monorepo-deployment--output-directory-configuration)
+    - [3. 📱 Full-Stack Mobile PWA Responsiveness \& Touch Optimization](#3--full-stack-mobile-pwa-responsiveness--touch-optimization)
+  - [✅ Prerequisites](#-prerequisites)
+    - [⚙️ Kubernetes Workload Right-Sizing \& Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation)
+  - [🛠️ Winget DevSecOps \& Platform CLI Tool Suite](#️-winget-devsecops--platform-cli-tool-suite)
+    - [1. IaC \& FinOps](#1-iac--finops)
+    - [2. DevSecOps \& Security](#2-devsecops--security)
+    - [3. Container \& Kubernetes Orchestration](#3-container--kubernetes-orchestration)
+    - [4. Runtimes, Build Tools \& Productivity](#4-runtimes-build-tools--productivity)
+  - [💻 Local Standalone Development](#-local-standalone-development)
+    - [1. Spring Boot Microservices (Java 21 / Maven)](#1-spring-boot-microservices-java-21--maven)
+    - [2. Angular 21 SPA](#2-angular-21-spa)
+  - [🚀 Quick Start with Docker Compose](#-quick-start-with-docker-compose)
+    - [1. Launch Keycloak (Auth Layer)](#1-launch-keycloak-auth-layer)
+    - [2. Bootstrap Keycloak (Clients, Users \& Secrets)](#2-bootstrap-keycloak-clients-users--secrets)
+      - [Pre-Configured Test Users:](#pre-configured-test-users)
+    - [3. Launch Full Microservices Ecosystem](#3-launch-full-microservices-ecosystem)
+    - [4. Useful Docker Compose Commands:](#4-useful-docker-compose-commands)
+  - [🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD \& Minikube)](#️-100-local-enterprise-devsecops-platform-12-stage-cicd--minikube)
+    - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
+    - [⚙️ Platform Operational Lifecycle Commands (Unified Master CLI \& 4 Isolated Versions)](#️-platform-operational-lifecycle-commands-unified-master-cli--4-isolated-versions)
+      - [1. Quick Start with Master CLI (`platform.ps1`)](#1-quick-start-with-master-cli-platformps1)
+      - [2. Direct Execution of Platform-Specific Scripts](#2-direct-execution-of-platform-specific-scripts)
+    - [🛡️ DevSecOps \& Governance Hub](#️-devsecops--governance-hub)
+      - [📂 Directory Structure](#-directory-structure)
+      - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
+      - [🚀 Deployment \& Operations Guide: 100% Local Enterprise DevSecOps on Minikube](#-deployment--operations-guide-100-local-enterprise-devsecops-on-minikube)
+        - [📋 1. Resource Allocation \& Minikube Startup](#-1-resource-allocation--minikube-startup)
+        - [🐳 2. Docker Hub Authentication \& Secrets Configuration](#-2-docker-hub-authentication--secrets-configuration)
+        - [🏗️ 3. Platform Deployment with Terraform](#️-3-platform-deployment-with-terraform)
+        - [🛡️ 4. Apply Gatekeeper Templates \& Constraints](#️-4-apply-gatekeeper-templates--constraints)
+        - [🏃 5. Launch the GitHub Actions Self-Hosted Runner](#-5-launch-the-github-actions-self-hosted-runner)
+        - [🔄 6. The 12-Stage Enterprise Pipeline Execution](#-6-the-12-stage-enterprise-pipeline-execution)
+        - [🎯 7. Transitioning to Maturity Mode (Strict Enforce / Hard-Gate)](#-7-transitioning-to-maturity-mode-strict-enforce--hard-gate)
+  - [☸️ Local Kubernetes Deployment (Minikube, Istio Mesh \& Canary Operations)](#️-local-kubernetes-deployment-minikube-istio-mesh--canary-operations)
+    - [1. 🚀 One-Shot Cluster Deployment](#1--one-shot-cluster-deployment)
+    - [2. 🔍 Verify Mesh Health \& Zero-Trust Policies](#2--verify-mesh-health--zero-trust-policies)
+    - [3. 🌐 Open Local Browser Tunnels \& Endpoint Access](#3--open-local-browser-tunnels--endpoint-access)
+    - [4. 🔀 Traffic Routing \& Progressive Canary Rollouts](#4--traffic-routing--progressive-canary-rollouts)
+    - [5. 🛑 Cluster Teardown \& Resource Cleanup](#5--cluster-teardown--resource-cleanup)
+    - [Useful commands](#useful-commands)
+  - [🧪 Automated Testing, Load Simulation \& Chaos Engineering](#-automated-testing-load-simulation--chaos-engineering)
+    - [1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)](#1--legitimate-e-commerce-traffic-generator-simulatepy---scenario-traffic)
+    - [2. ⚡ Resilience4j Circuit Breaker State Verification](#2--resilience4j-circuit-breaker-state-verification)
+      - [Step-by-Step Test Procedure:](#step-by-step-test-procedure)
+        - [🔴 Step A: Trip Circuit Breaker into OPEN (Red `#ef4444`)](#-step-a-trip-circuit-breaker-into-open-red-ef4444)
+        - [🟡 Step B: Observe Transition into HALF\_OPEN (Yellow `#f59e0b`)](#-step-b-observe-transition-into-half_open-yellow-f59e0b)
+        - [🟢 Step C: Restore Backend Health and Return to CLOSED (Green `#10b981`)](#-step-c-restore-backend-health-and-return-to-closed-green-10b981)
+    - [3. 💥 Chaos Engineering \& Fault Injection (`simulate.py --scenario chaos`)](#3--chaos-engineering--fault-injection-simulatepy---scenario-chaos)
+    - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate.py --scenario ddos`)](#4-️-ddos--rate-limiting-stress-attacks-simulatepy---scenario-ddos)
+    - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
+    - [6. 📉 Cart Abandonment Rate KPI Verification \& Testing](#6--cart-abandonment-rate-kpi-verification--testing)
+      - [Step-by-Step Testing Procedures (3 Verified Methods):](#step-by-step-testing-procedures-3-verified-methods)
+        - [🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)](#-method-1-instant-cli--powershell-event-injection-simulate-mass-abandonment)
+        - [🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA](#️-method-2-interactive-browser-testing-via-angular-frontend-spa)
+        - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate.py --scenario traffic`)](#-method-3-multi-threaded-realistic-funnel-generation-simulatepy---scenario-traffic)
+    - [📦 Postman Test Suite:](#-postman-test-suite)
+  - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
+      - [🗄️ Standardized Grafana Datasources (Explore \& Dashboards)](#️-standardized-grafana-datasources-explore--dashboards)
+    - [1. 📈 Prometheus (Metrics \& PromQL) — Datasource: `Prometheus` (UID: `prometheus-ds`)](#1--prometheus-metrics--promql--datasource-prometheus-uid-prometheus-ds)
+    - [2. 📜 Grafana Loki (Centralized Logs \& LogQL) — Datasource: `Loki` (UID: `loki-ds`)](#2--grafana-loki-centralized-logs--logql--datasource-loki-uid-loki-ds)
+    - [3. 🔍 Grafana Tempo (Distributed Traces \& TraceQL) — Datasource: `Tempo` (UID: `tempo-ds`)](#3--grafana-tempo-distributed-traces--traceql--datasource-tempo-uid-tempo-ds)
+    - [4. 📊 Pre-Provisioned Universal Grafana Dashboards](#4--pre-provisioned-universal-grafana-dashboards)
+      - [🎯 Dynamic Interactive Filtering (`Filter Microservice`)](#-dynamic-interactive-filtering-filter-microservice)
+      - [🏢 A. Business Intelligence \& Inventory Operations (`business-operations-dashboard.json`)](#-a-business-intelligence--inventory-operations-business-operations-dashboardjson)
+      - [🛡️ B. Technical, Infrastructure \& Security Operations (`technical-security-dashboard.json`)](#️-b-technical-infrastructure--security-operations-technical-security-dashboardjson)
+  - [🛡️ Production-Grade Cluster Resiliency \& Advanced Operations](#️-production-grade-cluster-resiliency--advanced-operations)
+    - [1. ⚖️ Horizontal Pod Autoscaling (HPA) \& PodDisruptionBudgets (PDB)](#1-️-horizontal-pod-autoscaling-hpa--poddisruptionbudgets-pdb)
+    - [2. 🔐 External Secrets Operator (ESO) \& HashiCorp Vault Synchronization](#2--external-secrets-operator-eso--hashicorp-vault-synchronization)
+    - [3. 🌐 Progressive Canary Deployments in Istio Service Mesh](#3--progressive-canary-deployments-in-istio-service-mesh)
+    - [4. 🚨 Alertmanager Alert Routing (Local Default, Slack \& Jira Ready)](#4--alertmanager-alert-routing-local-default-slack--jira-ready)
+  - [🔄 Automated \& Manual Rollback Operations Guide (Multi-Cloud \& Multi-CI/CD)](#-automated--manual-rollback-operations-guide-multi-cloud--multi-cicd)
+    - [1. 🛡️ The 4-Tier Automated Rollback Engine](#1-️-the-4-tier-automated-rollback-engine)
+    - [2. 🕹️ How to Execute Manual Rollbacks (CLI \& UI Runbooks)](#2-️-how-to-execute-manual-rollbacks-cli--ui-runbooks)
+      - [A. Direct Kubernetes / Helm CLI (Universal):](#a-direct-kubernetes--helm-cli-universal)
+      - [B. GitOps Rollback in ArgoCD:](#b-gitops-rollback-in-argocd)
+      - [C. GitHub Actions:](#c-github-actions)
+      - [D. Azure DevOps:](#d-azure-devops)
+      - [E. Bitbucket Pipelines:](#e-bitbucket-pipelines)
+  - [☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)](#️-terraform-multi-cloud-infrastructure-aws-azure-gcp)
+    - [1. AWS Provider (Amazon EKS / RDS / VPC)](#1-aws-provider-amazon-eks--rds--vpc)
+    - [2. Azure Provider (Azure AKS / ACR / PostgreSQL)](#2-azure-provider-azure-aks--acr--postgresql)
+    - [3. GCP Provider (Google GKE / Artifact Registry / Cloud SQL)](#3-gcp-provider-google-gke--artifact-registry--cloud-sql)
+  - [☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)](#️-multi-cloud-terraform-12-module-matrix-aws--azure--gcp)
+  - [☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)](#️-enterprise-aws-architecture-reference-suite-devsecopsreferenceaws-eks)
+    - [Included Reference Architecture Templates](#included-reference-architecture-templates)
+    - [🛠️ AWS Blueprint Step-by-Step Activation Guide](#️-aws-blueprint-step-by-step-activation-guide)
+      - [1. AWS IAM OIDC Configuration (Zero-Trust)](#1-aws-iam-oidc-configuration-zero-trust)
+      - [2. Frontend S3 \& CloudFront Setup](#2-frontend-s3--cloudfront-setup)
+      - [3. Deploying to Amazon EKS via GitHub Actions](#3-deploying-to-amazon-eks-via-github-actions)
+      - [4. Deploying to Amazon EKS via ArgoCD](#4-deploying-to-amazon-eks-via-argocd)
+  - [🤖 Multi-CI/CD \& GitOps Automation](#-multi-cicd--gitops-automation)
+    - [1. GitHub Actions ➔ AWS Cloud](#1-github-actions--aws-cloud)
+    - [2. Azure DevOps Pipelines ➔ Azure Cloud](#2-azure-devops-pipelines--azure-cloud)
+    - [3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP](#3-bitbucket-pipelines-ci--argocd-gitops-cd--gcp)
+  - [🔄 Multi-Cloud CI/CD \& Automated Rollback Architecture](#-multi-cloud-cicd--automated-rollback-architecture)
+    - [1. GitHub Actions (CI) + ArgoCD (CD) - AWS \& Minikube](#1-github-actions-ci--argocd-cd---aws--minikube)
+    - [2. Azure DevOps - Single Unified Pipeline (Azure Cloud)](#2-azure-devops---single-unified-pipeline-azure-cloud)
+    - [3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)](#3-bitbucket-pipelines---single-unified-pipeline-google-cloud-platform)
+    - [4. Automated Rollback \& Incident Recovery Summary](#4-automated-rollback--incident-recovery-summary)
+  - [🚀 Enterprise Platform Unified CLI (`platform.ps1`)](#-enterprise-platform-unified-cli-platformps1)
+    - [📋 Complete Combinations Reference Guide](#-complete-combinations-reference-guide)
+      - [1. 🚀 Bootstrap \& Deployment (`up` / `bootstrap`)](#1--bootstrap--deployment-up--bootstrap)
+      - [2. ⏸️ Teardown, Pause \& Cluster Purge (`down` / `stop` / `destroy`)](#2-️-teardown-pause--cluster-purge-down--stop--destroy)
+      - [3. 📝 Terraform Infrastructure Planning \& Apply (`plan` / `apply`)](#3--terraform-infrastructure-planning--apply-plan--apply)
+      - [4. 🔄 Automated Emergency Rollbacks (`rollback`)](#4--automated-emergency-rollbacks-rollback)
+      - [5. 🔍 Health Diagnostics \& Verification (`doctor` / `verify` / `status`)](#5--health-diagnostics--verification-doctor--verify--status)
+      - [6. 💰 FinOps Cloud Cost Breakdown \& Savings (`cost` / `finops`)](#6--finops-cloud-cost-breakdown--savings-cost--finops)
+      - [7. 🛠️ Host CLI Audit \& Automated Winget Installation (`tools`)](#7-️-host-cli-audit--automated-winget-installation-tools)
+      - [8. ⚡ Productivity, Security \& Verification Utilities](#8--productivity-security--verification-utilities)
+  - [🛠️ Enterprise Cloud Automation \& FinOps Tooling (`scripts/cloud/`)](#️-enterprise-cloud-automation--finops-tooling-scriptscloud)
+      - [Detailed Cloud Automation Script Playbooks:](#detailed-cloud-automation-script-playbooks)
+        - [1. 🔍 AWS Resource Inventory \& FinOps Auditor](#1--aws-resource-inventory--finops-auditor)
+        - [2. 🧹 AWS Orphan Resource \& Idle FinOps Cleaner](#2--aws-orphan-resource--idle-finops-cleaner)
+        - [3. 🛡️ AWS Security Group \& Open Ingress Inspector](#3-️-aws-security-group--open-ingress-inspector)
+        - [4. 📋 CloudWatch Log Retention Enforcer](#4--cloudwatch-log-retention-enforcer)
+        - [5. 🔑 IAM Credential \& CIS Benchmark Auditor](#5--iam-credential--cis-benchmark-auditor)
+        - [6. 🔒 ACM SSL/TLS Certificate Expiration Watcher](#6--acm-ssltls-certificate-expiration-watcher)
+        - [7. 💾 Automated RDS PostgreSQL Snapshot Manager](#7--automated-rds-postgresql-snapshot-manager)
+        - [8. 🔄 S3 Cross-Region Disaster Recovery \& State Sync](#8--s3-cross-region-disaster-recovery--state-sync)
+        - [9. 🛡️ S3 Bucket Security Policy \& OAC Hardening](#9-️-s3-bucket-security-policy--oac-hardening)
+        - [10. 🧹 GKE Persistent Disk Snapshot FinOps Cleanup (GCP)](#10--gke-persistent-disk-snapshot-finops-cleanup-gcp)
+  - [🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)](#️-cloud-agnostic-devsecops-cli-tooling-scriptsdevsecops)
+  - [📂 Comprehensive Scripts Portfolio Directory (`scripts/`)](#-comprehensive-scripts-portfolio-directory-scripts)
+    - [1. `scripts/devsecops/` (Cluster Lifecycle, Security \& Verification)](#1-scriptsdevsecops-cluster-lifecycle-security--verification)
+    - [2. `scripts/cloud/terraform/` (Terraform Orchestration \& FinOps)](#2-scriptscloudterraform-terraform-orchestration--finops)
+    - [3. `scripts/cloud/aws/` (Unified AWS Operations \& Well-Architected Governance)](#3-scriptscloudaws-unified-aws-operations--well-architected-governance)
+    - [4. `scripts/cloud/azure/` (Unified Azure Cloud Operations)](#4-scriptscloudazure-unified-azure-cloud-operations)
+    - [5. `scripts/cloud/gcp/` (Unified Google Cloud Operations)](#5-scriptscloudgcp-unified-google-cloud-operations)
+    - [6. `scripts/cloud/cloudflare/` (Zero-Trust Tunnels)](#6-scriptscloudcloudflare-zero-trust-tunnels)
+    - [7. `scripts/istio/` (Service Mesh \& Traffic Management)](#7-scriptsistio-service-mesh--traffic-management)
+    - [8. `scripts/auth/` \& `scripts/vault/` (Identity \& Secrets Provisioning)](#8-scriptsauth--scriptsvault-identity--secrets-provisioning)
+    - [9. `scripts/build/` (Build \& Release Automation)](#9-scriptsbuild-build--release-automation)
+    - [10. `scripts/testing/` (Enterprise Testing \& Simulation Super-Scripts)](#10-scriptstesting-enterprise-testing--simulation-super-scripts)
+  - [📄 License](#-license)
+
+---
+
+## 📁 Repository Structure
+
+```
+microservices-architecture/
+├── .github/workflows/              # GitHub Actions CI/CD to AWS Cloud (12 Stages)
+│   ├── _service-ci-cd-template.yml # Reusable master template
+│   ├── service-*.yml               # Service path-filtered triggers
+│   └── terraform-aws.yml           # Terraform AWS automated pipeline
+├── argocd/                         # ArgoCD GitOps to Google Kubernetes Engine (GKE)
+│   ├── appproject.yaml             # AppProject definition
+│   ├── application-dev.yaml        # Sync to GKE dev namespace
+│   ├── application-staging.yaml    # Sync to GKE staging namespace
+│   └── application-prod.yaml       # Sync to GKE production namespace
+├── azure-devops/                   # Azure DevOps Pipelines to Azure Cloud (12 Stages)
+│   ├── pipelines/                  # Microservices and Terraform pipelines
+│   └── templates/                  # Reusable master templates
+├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI to Google Artifact Registry (GAR)
+├── api-gateway/                    # Spring Cloud Gateway (Port 8080)
+├── devsecops/                      # Centralized DevSecOps Hub (DAST, Policies OPA, SAST, Compliance, Testing)
+│   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
+│   ├── policies/                   # OPA Rego Conftest rules & Gatekeeper templates/constraints
+│   ├── sast/                       # Gitleaks and Semgrep static security configs
+│   ├── compliance/trivy/           # Trivy configuration and .trivyignore risk registry
+│   └── testing/newman/             # microservices.postman_collection.json API integration tests
+├── docs/                           # Extended IAM & Architectural Documentation (Draw.io diagrams & guides)
+│   ├── Diagrams.drawio             # Multi-tab visual architecture (General, Vault, Rotations, Istio, K8s)
+│   └── realm-export.json           # Keycloak 26.7.3 Realm static export backup
+├── frontend/                       # Angular 21 SPA (Nginx Distroless)
+├── inventory-service/              # Stock verification & allocation (Port 8001)
+├── notification-service/           # Kafka event consumer (Port 8002)
+├── orders-service/                 # Order orchestration & Saga (Port 8003)
+├── products-service/               # Product catalog domain (Port 8004)
+├── helm/                           # Helm Charts (Umbrella chart & subcharts)
+├── k8s/                            # Kubernetes manifests & Istio service mesh
+├── observability/                  # Observability provisioning (Grafana LGTM, Alloy, Tempo, Loki)
+├── scripts/                        # Enterprise operational automation (100% PowerShell & Python)
+│   ├── auth/                       # Keycloak bootstrap (bootstrap-keycloak.ps1)
+│   ├── build/                      # Build (build-all.py), push, and Helm deployment
+│   ├── cloud/                      # Multi-Cloud deployment helpers
+│   │   ├── aws/                    # Unified AWS operations (manage-aws.ps1: ECR login, EKS deploy & audit-aws.py)
+│   │   ├── azure/                  # Unified Azure operations (manage-azure.ps1: ACR login, AKS credentials & Helm deploy)
+│   │   ├── gcp/                    # Unified GCP operations (manage-gcp.ps1: GAR login, GKE credentials, Helm deploy & FinOps cleanup)
+│   │   └── terraform/              # Multi-Cloud Terraform plan, apply & backend bootstrap scripts
+│   ├── istio/                      # Istio mesh, Canary weighting & Kiali scripts
+│   ├── minikube/                   # Minikube deployment, port-forward tunnels & teardown
+│   ├── testing/                    # Smoke tests, Swagger verification, Chaos & DDoS simulation (Python)
+│   └── vault/                      # HashiCorp Vault local seed script (init-vault.ps1)
+├── terraform/                      # Multi-Cloud Infrastructure as Code (AWS, Azure, GCP)
+│   ├── environments/
+│   │   ├── aws/                    # AWS Workspaces: dev, staging, prod
+│   │   ├── azure/                  # Azure Workspaces: dev, staging, prod
+│   │   └── gcp/                    # GCP Workspaces: dev, staging, prod
+│   └── modules/
+│       ├── aws/                    # Reusable AWS modules (EKS, ECR, RDS, VPC, ALB, IAM)
+│       ├── azure/                  # Reusable Azure modules (AKS, ACR, PostgreSQL, VNet, KeyVault)
+│       └── gcp/                    # Reusable GCP modules (GKE, GAR, Cloud SQL, VPC, Memorystore)
+├── compose.yaml                    # Full local development stack (15 services)
+├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 3.4.2)
+└── README.md                       # Master Multi-Cloud Architecture & Operational Guide
+```
+
+---
+
+## 🏛️ Domain-Driven Design (DDD) & Microservices Tactical Patterns
+
+The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
+
+### 🧩 1. Bounded Contexts & Aggregate Roots
+* **🛍️ Catalog & Multi-Currency Context (`products-service`):**
+  * **Aggregate Root `Product`:** Encapsulates pricing rules across multiple currencies (USD, MXN) and guarantees catalog status invariants.
+* **📦 Order Lifecycle & Fulfillment Context (`orders-service`):**
+  * **Aggregate Root `Order`:** Directly guards state transitions (`cancel()`, `ship()`, `deliver()`, `assignItems()`). Prevents business conflicts such as cancelling already shipped/delivered orders or duplicate items.
+* **🏭 Warehouse Stock Allocation Context (`inventory-service`):**
+  * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and Saga compensations.
+* **🔔 Notification & Real-Time Stream Context (`notification-service`):**
+  * **Reactive Hub:** Implements idempotent event ingestion with Redis `SETNX` (7-day TTL) and dispatches real-time Server-Sent Events (SSE) to connected clients.
+
+### 🛡️ 2. Functional Programming & RFC 7807 Error Handling
+* **Monadic Try/Result Pipelines:** Elimination of procedural `try-catch` blocks in favor of Java 21 Streams and monadic Optional chains (`Optional.filter().map().ifPresentOrElse()`).
+* **Typed Domain Exceptions:** `OrderNotFoundException` (404), `InsufficientStockException` (409), `ProductNotFoundException` (404), and `ServiceUnavailableException` (503).
+* **RFC 7807 Problem Details:** Unified `GlobalExceptionHandler` returning consistent JSON error payloads across all 4 microservices.
+
+---
+
+## 📡 Microservices Catalog & API Routing
+
+| Service | Path Prefix | Key Endpoints | Responsibilities |
+| :--- | :--- | :--- | :--- |
+| **API Gateway** | `/api/*` | `/actuator/health`, `/actuator/prometheus` | Reverse proxy, token validation, rate limiter |
+| **Products Service** | `/api/product` | `POST /api/product`, `GET /api/product` | Product catalog, pricing, Redis caching |
+| **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order`, `PUT /api/order/{id}/cancel` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry |
+| **Inventory Service** | `/api/inventory`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `PUT /api/inventory/{sku}` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction |
+| **Notification Service**| N/A | Kafka Topic `orders-topic` | Consumes `OrderPlacedEvent`, customer email simulation |
+
+---
+
+## 🔌 Ports & Service Matrix
+
+| Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
+| :--- | :---: | :---: | :---: | :--- |
+| **Angular 21 Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern Angular SPA UI |
+| **Spring Cloud API Gateway** | `8080` | `30088` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
+| **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
+| **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
+| **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
+| **Notification Service** | `8002` | `30002` | ClusterIP | Kafka Consumer & customer alerts |
+| **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
+| **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
+| **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (`/kiali`) |
+| **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
+| **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
+| **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine (v3.14.0) |
+| **Grafana Loki** | `3100` | `30100` | ClusterIP | Centralized logging engine (v3.7.4) |
+| **Grafana Alloy** | `12345` | DaemonSet | DaemonSet | Telemetry & log collector (v1.18.1) |
+| **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
+| **PostgreSQL Databases** | `5432` | `30432` | RDS / Flexible / Cloud SQL | Managed multi-tenant DB |
+| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | `30092` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
+
+---
+
+## 🔐 Identity & Access Management (Keycloak 26.7.3)
+
+- **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in Angular 21 SPA.
+- **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
+- **Default Role Assignment:** Self-registered accounts automatically receive the standard `USER` role through composite assignment on `default-roles-microservices-realm`.
+- **Multi-Tenant Order Isolation & Ownership Guards:**
+  - `orders-service` securely extracts the caller's JWT claims (`sub` for User ID and `preferred_username` for Customer Handle).
+  - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
+  - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
+  - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
+- **Token Relay:** Spring Cloud Gateway validates incoming JWT tokens against Keycloak JWKS and forwards claims downstream via `Authorization: Bearer <token>`.
+- **Automated Realm Import:** Configuration pre-loaded via [`docs/realm-export.json`](./docs/realm-export.json) with client `frontend-client`, roles `USER` / `ADMIN`, and default credentials.
+
+---
+
+## 🔒 Secret Management with HashiCorp Vault (Multi-Cloud & Local)
+
+The platform provides enterprise-grade secret management across 4 distinct implementation patterns with **Least-Privilege Policies**:
+
+### 1. Approach A: Local Development with Docker Compose (Zero-Touch)
+- **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Dev Token: `root`)
+- **Zero-Touch Auto-Initialization:** When running `docker compose up -d`, the ephemeral [`vault-init`](./compose.yaml) container automatically creates the KV-v2 engine, seeds database credentials, Kafka parameters, Keycloak secrets, and configures Least-Privilege access policies.
+- **Optional Manual Reset Tool:** [`scripts/vault/init-vault.ps1`](./scripts/vault/init-vault.ps1) is available if you ever need to manually re-seed secrets and policies without restarting containers:
+  ```powershell
+  pwsh .\scripts\vault\init-vault.ps1
+  ```
+
+### 2. Approach B: Native Java Spring Boot Integration (All 5 Services)
+- **Zero-Friction Activation:** Microservices run natively by default. To connect directly to Vault via Spring Cloud Config:
+  ```powershell
+  # Run any microservice with the 'vault' profile:
+  cd products-service;     mvn spring-boot:run -Dspring-boot.run.profiles=vault
+  cd orders-service;       mvn spring-boot:run -Dspring-boot.run.profiles=vault
+  cd inventory-service;    mvn spring-boot:run -Dspring-boot.run.profiles=vault
+  cd notification-service; mvn spring-boot:run -Dspring-boot.run.profiles=vault
+  cd api-gateway;          mvn spring-boot:run -Dspring-boot.run.profiles=vault
+  ```
+- **Configuration Profile:** Managed via `application-vault.yml` in each service with support for `TOKEN` (Local), `KUBERNETES` (Cluster), and `APPROLE` (CI/CD) authentication.
+
+### 3. Approach C: Kubernetes External Secrets Operator (ESO - Recommended)
+- **Zero-Sidecar Footprint:** Synchronizes secrets directly from Vault into native Kubernetes `Secret` resources (`microservices-secrets`) without requiring sidecar containers.
+- **Manifests:** Located in [`k8s/minikube/vault/external-secrets/`](./k8s/minikube/vault/external-secrets/).
+  ```powershell
+  # Apply SecretStore & ExternalSecret sync:
+  kubectl apply -f k8s/minikube/vault/external-secrets/
+  ```
+
+### 4. Approach D: Kubernetes Multi-Cloud Vault Agent Sidecar Injector
+- **Minikube:** Manifests in [`k8s/minikube/vault/`](./k8s/minikube/vault/) with RBAC and [`vault-k8s-auth-setup.ps1`](./k8s/minikube/vault/vault-k8s-auth-setup.ps1) for Least-Privilege roles (`products-service-role`, `orders-service-role`, etc.).
+- **AWS EKS:** Production Helm values in [`k8s/eks/vault/vault-helm-values-eks.yaml`](./k8s/eks/vault/vault-helm-values-eks.yaml) featuring **AWS KMS Auto-Unseal** and **IRSA**.
+- **Azure AKS:** Production Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](./k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
+- **Google Cloud GKE:** Production Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](./k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
+- **Demo Deployment:** Test sidecar injection with [`k8s/minikube/vault/demo-vault-agent-inject.yaml`](./k8s/minikube/vault/demo-vault-agent-inject.yaml).
+
+---
+
+## 🗺️ Multi-Cloud & Multi-CI/CD Matrix
+
+| Target Cloud | CI / Build Provider | CD / Deployment Tool | Container Registry | Terraform IaC Pipeline | Environments |
+| :--- | :--- | :--- | :--- | :--- | :---: |
+| **AWS Cloud** | **GitHub Actions** | **GitHub Actions** (Helm to EKS) | Amazon ECR | `.github/workflows/terraform-aws.yml` | `dev`, `staging`, `prod` |
+| **Azure Cloud** | **Azure DevOps** | **Azure DevOps** (Helm to AKS) | Azure Container Registry (ACR) | `azure-devops/azure-pipelines-terraform.yml` | `dev`, `staging`, `prod` |
+| **Google Cloud (GCP)**| **Bitbucket Pipelines** | **ArgoCD** (GitOps Sync to GKE) | Google Artifact Registry (GAR) | Bitbucket Step `terraform-gcp-apply` | `dev`, `staging`, `prod` |
+
+---
+
+## ⚡ Modern Angular 21 Reactive SPA Architecture
+
+The frontend storefront is engineered with **Angular 21** utilizing state-of-the-art performance and reactive patterns:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 Angular 21 Reactive SPA                     │
+│                                                             │
+│   ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐  │
+│   │   CartStore      │  │ ChangeDetection  │  │  @defer  │  │
+│   │ (Signal Pattern) │  │     .OnPush      │  │  Chunks  │  │
+│   └──────────────────┘  └──────────────────┘  └──────────┘  │
+│                                                             │
+│   • PreloadAllModules: 0ms background route preloading      │
+│   • Modern Signal Primitives: input<T>() / output<T>()      │
+└──────────────────────────────┬──────────────────────────────┘
+```
+
+1. **Signal Store Pattern (`CartStore`):** Pure immutable reactive state management using `signal()` and memoized `computed()` derivations.
+2. **`ChangeDetectionStrategy.OnPush` Everywhere:** Applied across all smart and presentation components to minimize browser CPU cycles.
+3. **Deferrable Views (`@defer` Pattern):** Heavy secondary UI components are partitioned into independent lazy `.js` chunks and loaded on demand:
+   * `@defer (when isQuickViewOpen()) { <app-quick-view-modal> }`: Modal chunk loaded only upon user click.
+   * `@defer (when isQrModalOpen()) { <app-product-qr-modal> }`: QR SVG generator loaded on demand.
+   * `@defer (when selectedOrderForReceipt()) { <app-receipt-modal> }`: Printable invoice loaded upon checkout completion.
+4. **Instant Route Transitions (`PreloadAllModules`):** Preloads `/orders`, `/checkout`, and `/admin` in the background with zero UI freeze.
+
+---
+
+## 🖼️ Dual-Mode Product Media & Visual Storefront Architecture
+
+The system features an enterprise, zero-dependency **Media Ingestion & Rendering Engine** supporting both offline/local file uploads and external CDN URLs:
+
+```mermaid
+flowchart LR
+    subgraph Client["🎨 Angular 21 Client"]
+        A[📂 Local File Picker] -->|Raw File| B[⚡ HTML5 Canvas Compressor]
+        B -->|Base64 Data URL 40-90 KB| C[Form Payload]
+        D[🔗 Web URL Input] --> C
+        E[✨ Tech Image Presets] --> C
+        F[🛡️ Keyword Fallback Engine] -.->|On Error/Null| G[HD Storefront Display]
+    end
+
+    subgraph Backend["⚙️ Products Service :8004"]
+        C -->|REST POST/PUT| H[ProductRequest DTO]
+        H --> I[JPA Product Entity]
+        I -->|Column TEXT| J[(PostgreSQL 17)]
+        I -->|products-cache| K[(Redis 8.8)]
+    end
+
+    subgraph Views["🖥️ Storefront UI"]
+        H --> G
+        G --> V1[🛍️ Catalog Grid Banners]
+        G --> V2[🔍 Quick View Hero Modal]
+        G --> V3[🛒 Cart Drawer Avatars 52x52]
+        G --> V4[💳 Checkout Matrix 46x46]
+        G --> V5[📦 Order History 32x32]
+        G --> V6[⚙️ Admin Table 44x44]
+    end
+```
+
+### 1. 📂 Client-Side Canvas Compression & Base64 Data URL Engine
+* **Offline-First Local File Uploads:** Upload raw `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device without requiring third-party cloud storage (e.g. AWS S3 buckets or Cloudinary).
+* **Automated Canvas Rescaling ([`product-image.helper.ts`](./frontend/src/app/core/utils/product-image.helper.ts)):** Raw photos (5–15 MB) are scaled to a maximum dimension of $800\text{ px}$ with $82\%$ lossy quality encoding on an offscreen HTML5 Canvas element, converting large images into lightweight **Base64 Data URLs** ($40\text{--}90\text{ KB}$) in milliseconds.
+* **1-Click Curated Presets:** Instant template selector for high-end hardware categories (*Apple Vision Pro, PlayStation 5 Pro, RTX 4090 OC, Dell XPS 16 OLED, Bose QC Ultra, Server Racks*).
+* **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
+
+### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
+* **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to support arbitrary-length Base64 strings or HTTPS URLs up to $1\text{ GB}$ in PostgreSQL without database truncation errors.
+* **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](./products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
+* **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through Spring Cloud Gateway.
+
+### 3. 🎨 High-Fidelity Storefront Visual Integration
+* **Catalog Grid ([`product-list`](./frontend/src/app/features/products/)):** 16:10 responsive aspect ratio image banners (`aspect-ratio: 16 / 10; object-fit: contain;`) with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
+* **Quick View Hero Modal ([`quick-view`](./frontend/src/app/shared/components/quick-view/)):** High-resolution hero display with dynamic category labels, real-time stock indicators, 2-Year SLA guarantees, and express dispatch chips.
+* **Cart, Checkout & Order History:** Consistent square visual thumbnails ($52\times52\text{ px}$ in Cart Drawer, $46\times46\text{ px}$ in Checkout Summary, and $32\times32\text{ px}$ in Order History rows).
+* **Admin Dashboard ([`admin-dashboard`](./frontend/src/app/features/admin/)):** File picker, URL input, live image preview card, and product table thumbnail column.
+
+---
+
+## 🏷️ End-to-End QR Code & Point of Sale (POS) Workflow
+
+The platform provides a complete hardware-agnostic **Point of Sale (POS) and QR code management system**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as 👨‍💼 Administrator
+    actor POS as 🛒 POS Cashier / Customer
+    participant SPA as 💻 Angular SPA
+    participant Scanner as 📷 QR / Barcode Scanner
+    participant APIGW as 🚪 API Gateway
+    participant OrderMS as 📦 Orders Service
+    participant InvMS as 🏭 Inventory Service
+
+    Note over Admin, SPA: 1. Label Generation & Shelf Tagging
+    Admin->>SPA: Selects product in Catalog (SKU: 000001)
+    SPA->>SPA: Generates vector SVG QR label
+    Admin->>SPA: Clicks "Print Label" for physical barcode sticker
+
+    Note over POS, InvMS: 2. POS Scanning & Instant Cart Allocation
+    POS->>SPA: Opens Scanner Modal in Navbar / Cart Drawer
+    SPA->>Scanner: Activates Live Camera / USB Laser Reader
+    Scanner->>SPA: Scans barcode ➔ Resolves SKU: 000001
+    SPA->>APIGW: GET /api/product (lookup price & details)
+    SPA->>SPA: Auto-adds scanned product to CartStore
+
+    Note over POS, InvMS: 3. Checkout & Authenticity Verification
+    POS->>SPA: Submits Checkout with Idempotency Key
+    SPA->>OrderMS: POST /api/order (X-Idempotency-Key)
+    OrderMS->>InvMS: Atomically decrements warehouse stock
+    OrderMS->>SPA: Returns Order #d8f4163d (Status: PLACED)
+    SPA->>SPA: Displays Receipt with AUTH-d8f4163d-VERIFIED QR
+```
+
+---
+
+## 🛒 Enterprise E-Commerce & Logistics Architecture (Amazon & Mercado Libre)
+
+The storefront and backend microservices are fully aligned with tier-1 enterprise e-commerce paradigms (such as **Amazon** and **Mercado Libre**), eliminating arcade or unstandardized prototypes in favor of production-grade customer journeys, real-time logistics tracking, social proof, and operational supervision:
+
+```mermaid
+flowchart TD
+    subgraph Storefront ["🛒 Angular 21 Enterprise Storefront"]
+        Catalog["⭐ Product Catalog<br/>★ 4.8 Stars • 1,240 Reviews<br/>#1 Best Seller • Category Tags"]
+        CheckoutStep1["📍 Step 1: Recipient Profile<br/>Address, City, Postal Code, Phone<br/>(localStorage: msa_shipping_address)"]
+        CheckoutStep2["🚚 Step 2: Tiered Delivery<br/>Free Standard ($0.00) vs<br/>⚡ DHL Express Priority ($9.99)"]
+        CheckoutStep3["💳 Step 3: Secure Payment<br/>Real-Time Brand (Visa/MC/AMEX)<br/>PCI-DSS & 256-bit SSL Badges"]
+        StickySummary["📊 Sticky Order Summary<br/>Subtotal + Shipping + 8% Tax = Total"]
+        LogisticsStepper["📦 Consumer Logistics Stepper<br/>Placed ➔ Preparing in Hub ➔<br/>In Transit (DHL) ➔ Out for Delivery ➔ Delivered"]
+    end
+
+    subgraph BackendMS ["⚙️ Spring Boot 3.4 Microservices"]
+        OrdersMS["📦 Orders Service (:8003)<br/>• Computes Tax & Shipping<br/>• Auto-Generates DHL-XXXXXXXX Tracking<br/>• Stores Complete Recipient Profile"]
+        ProductsMS["🏷️ Products Service (:8004)<br/>• Delivers Ratings & Review Counts<br/>• #1 Best Seller Tag Engine<br/>• Multi-Level Redis Cache"]
+        KafkaBus["⚡ Kafka KRaft (orders-topic)<br/>Event Payload with Tracking ID,<br/>Carrier & Customer Coordinates"]
+        NotifMS["🔔 Notification Service (:8002)<br/>• Zero Technical Jargon<br/>• Customer Confirmation Email<br/>• Real-Time Order SSE Broadcast"]
+    end
+
+    subgraph AdminConsole ["🛡️ Admin Operations (/admin)"]
+        ClusterTab["🏥 Cluster Health Tab<br/>Live Status & Latency for 12 Services"]
+        LiveSync["🔄 Real-Time Live Sync Indicator<br/>4s Auto-Polling + 1-Click Sync"]
+    end
+
+    Catalog --> CheckoutStep1
+    CheckoutStep1 --> CheckoutStep2
+    CheckoutStep2 --> CheckoutStep3
+    CheckoutStep3 --> StickySummary
+    StickySummary -->|POST /api/order| OrdersMS
+    OrdersMS -->|OrderEvent| KafkaBus
+    KafkaBus --> NotifMS
+    OrdersMS -->|Return Tracking ID| LogisticsStepper
+    NotifMS -->|Customer Alert| Storefront
+    ProductsMS --> Catalog
+    AdminConsole -.->|Health Probes| BackendMS
+```
+
+### 1. 📦 Multi-Step Checkout & Persistent Recipient Profile
+* **3-Step Frictionless Funnel:** Replaces monolithic forms with a structured, guided sequence:
+  1. **Shipping Destination & Contact:** Full Name, Email, Mobile Phone, Street Address, City, Postal Code, and Country.
+  2. **Delivery Speed Tiering:** Instant choice between **Free Standard Shipping** ($0.00, 3–5 business days) and **⚡ DHL Express Priority** ($9.99, 24–48 hours) with dynamic delivery date estimates.
+  3. **Payment Method & Card Brand Recognition:** Real-time IIN/BIN regex detection identifying **Visa**, **Mastercard**, and **American Express**, coupled with expiration date masking (`MM/YY`), CVV security, and PCI-DSS / 256-bit SSL compliance badges.
+* **1-Click LocalStorage Persistence (`msa_shipping_address`):** Frequently returning customers have their shipping coordinates stored securely on their local device, enabling instant auto-fill upon subsequent visits.
+* **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
+
+### 2. 🚚 Real-Time Logistics Tracking & Consumer Stepper
+* **Interactive 5-Stage Live Delivery Pipeline:** Replaces static client-only status text with an interactive, end-to-end simulated parcel fulfillment journey:
+  $$\text{Order Placed} \longrightarrow \text{Preparing in Hub} \longrightarrow \text{In Transit (DHL Express)} \longrightarrow \text{Out for Delivery} \longrightarrow \text{Delivered \& Signed}$$
+  Triggered via the **"▶ Start Live Delivery Flow"** button on any active order in the customer dashboard.
+* **Animated Courier Runner & Dynamic Icon Morphing:**
+  - CSS-engineered runner (`.delivery-courier-runner`) that smoothly travels across the progress connector ($0\% \rightarrow 25\% \rightarrow 50\% \rightarrow 75\% \rightarrow 100\%$) synchronized with each fulfillment milestone.
+  - Real-time icon morphing illustrating physical logistics:
+    - **Stage 1 (Order Placed):** `📦` Parcel minted and inventory locked.
+    - **Stage 2 (Preparing in Hub):** `📦` Warehouse sorting, pick & pack operations.
+    - **Stage 3 (In Transit - DHL):** `🚚` Regional trunk line dispatch via DHL Express carrier.
+    - **Stage 4 (Out for Delivery):** `🚚` Local courier vehicle en route to customer doorstep.
+    - **Stage 5 (Delivered & Signed):** `✨` Delivery celebration, verified doorstep signature, and final receipt sealing.
+  - Active light-beam connector animation (`.step-connector.active-pulse`) emitting a glowing pulse along the active transit segment.
+* **Automated Backend State Persistence & Kafka Events:**
+  - **Stage 3 Integration:** Automatically executes `PUT /api/orders/{id}/ship` against [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java), setting `orderStatus = SHIPPED`, persisting to PostgreSQL `t_orders`, and emitting an enriched event to Kafka `orders-topic`.
+  - **Stage 5 Integration:** Automatically executes `PUT /api/orders/{id}/deliver`, setting `orderStatus = DELIVERED`, recording delivery timestamp, synchronizing PostgreSQL Micrometer database gauges (`syncDatabaseMetrics()`), and unlocking the **"Delivered & Signed"** seal.
+* **Real-Time Customer Milestones & Multi-Channel Alerts:**
+  - Milestone floating toasts dispatched at every physical handover stage (e.g. *"🚚 Package in Transit with DHL Express"*).
+  - Synchronous push into the **Customer Notification Center** drawer (`msa_customer_notifications` in `sessionStorage`), updating the top navigation badge counter with zero technical jargon.
+* **Automated DHL Tracking Generation:** Upon order placement, [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier:
+  ```json
+  {
+    "orderNumber": "ORD-68F4A12B",
+    "trackingNumber": "DHL-A8E29C1F",
+    "carrier": "DHL Express",
+    "deliveryMethod": "EXPRESS",
+    "shippingFee": 9.99,
+    "taxAmount": 47.92,
+    "totalAmount": 656.91,
+    "orderStatus": "PLACED"
+  }
+  ```
+* **Interactive Logistics Badging & Digital Receipt:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification and itemized line items.
+
+### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
+* **Customer Confidence Metrics:** Every catalog product showcases verified buyer ratings (`★ 4.8 / 5.0`), total ratings volume (`(1,240 customer ratings)`), and authenticity verification (`• 100% Authentic`).
+* **Ecommerce Amber `#1 Best Seller` Badge:** Distinctive `#e67a00` badge applied to top-tier SKUs in both catalog cards and Quick View modals.
+* **Backend Database Schema:** Enriched columns in [`t_products`](./products-service/src/main/resources/db/migration/V1__init.sql) persisted in PostgreSQL:
+  ```sql
+  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION DEFAULT 4.8;
+  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 1200;
+  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false;
+  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'Electronics';
+  ```
+
+### 4. 🛡️ Admin Operations Console, Live Sync & Cluster Health
+* **Cluster Health Supervision Tab:** Direct integration of [`SystemStatusComponent`](./frontend/src/app/features/status/system-status.component.ts) into the administrative dashboard, polling `/actuator/health` across all **12 system microservices and infrastructure components** (Gateway, Keycloak, Products, Orders, Inventory, Notifications, PostgreSQL clusters, Kafka, Redis, Vault).
+* **Modern Live Sync Indicator:** Replaced legacy unstyled refresh buttons with an animated, pulsing glassmorphism `● LIVE SYNC` widget that auto-synchronizes catalog and warehouse stock every 4 seconds or on manual click.
+
+### 5. 🔔 Customer-Centric Notification Center (Zero-Jargon)
+* **Buyer-Oriented Messaging:** Removed internal architecture jargon (such as *"Saga orchestrator"*, *"distributed compensation"*, *"Kafka stream active"*).
+* **Clear Commercial Notifications:** Buyers receive clean status updates directly in the notification drawer:
+  * 📦 *"Order #d8f4163d Confirmed! We are preparing your shipment via DHL Express to Monterrey."*
+  * 🚚 *"Tracking Number Assigned: DHL-A8E29C1F — Estimated delivery in 24-48h."*
+  * 💳 *"Payment Verified — Secure 256-bit SSL transaction complete."*
+
+### 6. 📱 Responsive Media & Aspect-Ratio Scaling
+* **Dynamic Aspect-Ratio Optimization (`16 / 10`):** Replaced hardcoded heights (`height: 165px`) on product cards with fluid aspect ratios and `object-fit: contain;`, guaranteeing that laptops, keyboards, and accessories are 100% visible without clipping on mobile screens.
+* **Single-Viewport Modal Scrolling:** Quick View modal cards enforce `max-height: 90dvh; overflow-y: auto;` with zero secondary or nested scrollbars, ensuring seamless touch momentum scrolling across iOS and Android browsers.
+
+---
+
+## 📱 Mobile Application & Google Play Store Architecture Guide
+
+The backend microservices are **100% Client-Agnostic** and fully prepared for native Android / iOS or cross-platform deployment:
+
+### 1. 🚀 Mobile Packaging Options:
+* **Capacitor / Ionic (Recommended):** Wrap the existing Angular 21 codebase into native Android Studio and Xcode projects without rewriting business logic:
+  ```bash
+  npm install @capacitor/core @capacitor/cli @capacitor/android
+  npx cap init "MicroStore" "com.georgegxx.microstore"
+  npx cap add android
+  npm run build && npx cap sync
+  ```
+* **Hardware Camera Integration:** Access native 60 fps barcode scanning with flashlight/autofocus using `@capacitor-community/barcode-scanner`.
+
+### 2. 🔐 Mobile Security & OIDC Integration:
+* **Keycloak Deep Linking:** Register custom redirect URIs (e.g. `com.georgegxx.microstore://auth/callback`) in `microservices-realm` for seamless OAuth2 PKCE login.
+* **HTTPS/TLS Termination:** Android enforces `cleartextTrafficPermitted="false"`. The API Gateway must be fronted by a valid TLS certificate.
+
+### 3. 📦 Google Play Store Publication Checklist:
+1. **Google Play Console Account:** $25 USD one-time developer registration.
+2. **Package Format:** Android App Bundle (`.aab`) signed via `keytool` and Google Play App Signing.
+3. **Camera Permissions:** Declared in `AndroidManifest.xml`: `<uses-permission android:name="android.permission.CAMERA" />`.
+4. **Testing Track:** Deploy first to **Internal Testing Track** for instant device verification without Google manual review wait times.
+
+---
+
+## 🌐 Edge Cloud Tunneling & Serverless Frontend (Cloudflare & Vercel)
+
+The platform provides an out-of-the-box hybrid integration to expose local microservices (Docker Compose or Minikube) securely to public internet clients, serverless platforms (Vercel), and mobile smartphones without requiring public static IPs, router port forwarding, or firewall tampering:
+
+```mermaid
+graph LR
+    subgraph PublicInternet ["☁️ Public Edge & Mobile Clients"]
+        Mobile["📱 Mobile Smartphone / PWA<br/>(Android / iOS / Tablets)"]
+        Vercel["⚡ Vercel Edge Serverless<br/>(Angular 21 SPA Storefront)"]
+    end
+
+    subgraph CloudflareEdge ["🛡️ Cloudflare Anycast Quick Tunnels (*.trycloudflare.com)"]
+        CFTunnel1["🚇 Gateway Tunnel (HTTPS)<br/>https://*.trycloudflare.com"]
+        CFTunnel2["🚇 Keycloak IAM Tunnel (HTTPS)<br/>https://*.trycloudflare.com"]
+    end
+
+    subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
+        APIGW["🚪 Spring Cloud Gateway (8080)<br/>(Anti-DDoS Whitelist / Token Relay)"]
+        Keycloak["🔐 Keycloak 26.7.3 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
+        Microservices["⚙️ Core Microservices (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
+    end
+
+    Mobile -->|HTTPS / WSS| Vercel
+    Mobile & Vercel -->|REST Calls| CFTunnel1
+    Mobile & Vercel -->|OAuth2 / PKCE Login| CFTunnel2
+    CFTunnel1 -->|HTTP Proxy| APIGW
+    CFTunnel2 -->|HTTP Proxy| Keycloak
+    APIGW --> Microservices
+```
+
+### 1. 🚇 Cloudflare Quick Tunnels Automation (`start-cloudflare-tunnels.ps1`)
+* **Zero-Configuration Anonymous Tunneling:** Exposes **Spring Cloud Gateway** (`:8080`) and **Keycloak IAM** (`:8181`) with valid Cloudflare TLS certificates using [`scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1`](./scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1).
+* **Automated Frontend Environment Sync:** Running with `-UpdateFrontendEnv` automatically injects the active ephemeral HTTPS endpoints into `frontend/src/environments/environment.prod.ts` and `environment.ts`:
+  ```powershell
+  # For Local Use / Temporary Testing
+  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1
+  # For Deployment to Vercel or Remote Production, be careful, it overwrite your environment.prod.ts and environment.ts files.
+  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1 -UpdateFrontendEnv
+  # API Gateway with Products Endpoint Example
+  https://destination-neon-ent-coral.trycloudflare.com/api/product
+  ```
+* **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](./compose.yaml) and [`keycloak.yaml`](./k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
+
+### 2. 🚀 Vercel Monorepo Deployment & Output Directory Configuration
+* **Angular 21 Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist/frontend/browser"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
+* **Dual Client IAM Architecture:**
+  * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
+  * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for Spring Cloud Gateway and machine-to-machine clients.
+
+### 3. 📱 Full-Stack Mobile PWA Responsiveness & Touch Optimization
+* **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
+  * **Floating Action Button (FAB):** Ergonomic bottom-right quick scanner trigger on mobile devices.
+  * **Touch Momentum Scrolling:** Horizontal smooth scrolling for order status filter tabs without page clipping.
+  * **Touch-Friendly Modals:** Responsive Quick View and QR barcode labels with unified single-viewport touch momentum scrolling (`max-height: 90dvh`).
+* **Vector SVG Favicon & PWA Icons:** Crisp $512\times512\text{ px}$ vector icon ([`frontend/public/favicon.svg`](./frontend/public/favicon.svg)) integrated with Apple Touch Icons and Web App Manifest ([`frontend/public/manifest.webmanifest`](./frontend/public/manifest.webmanifest)).
+* **Clean Enterprise E-Commerce Standard:** Decommissioned arcade synthesizer sound effects and 3D card gimmicks, standardizing on silent, high-performance interactions matching Amazon and Mercado Libre.
+* **Resilient Network Tolerance:** Staggered health checks and automatic RxJS retry backoff (`retry({ count: 2, delay: 1000 })`) preventing false-positive connectivity drops over high-latency mobile networks.
+* **API Gateway Anti-DDoS Exclusions:** [`IpBlacklistFilter.java`](./api-gateway/src/main/java/com/georgegxx/api_gateway/filters/IpBlacklistFilter.java) excludes `/actuator/**` health probes and `OPTIONS` preflight queries from rate limit ban counters with an expanded burst threshold ($120$ requests/5s).
+
+---
+
+## ✅ Prerequisites
+
+| Tool | Version | Required for |
+| :--- | :---: | :--- |
+| Docker & Docker Compose | Latest | Quick Start (full stack) |
+| Java (JDK) | 21 | Building/running Spring Boot services standalone |
+| Maven | 3.9+ | Java multi-module reactor build |
+| Node.js & npm | 22+ | Angular 21 frontend |
+| kubectl | 1.37.0 | Kubernetes / Minikube deployment |
+| Minikube | 1.39.0 | Local Kubernetes deployment |
+| Istioctl | 1.31.0 | Service mesh install & Kiali dashboard |
+| Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
+| Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
+| PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
+| Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
+
+**Recommended local resources:** 8+ CPU cores and 16 GB+ RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+
+> ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
+
+---
+
+### ⚙️ Kubernetes Workload Right-Sizing & Production Resource Allocation
+All microservices and infrastructure pods are pre-configured with enterprise resource requests and limits to guarantee sub-millisecond execution, prevent GC pauses, and avoid `OOMKilled` eviction (optimized for Minikube clusters running with 12 CPUs and 12 GB RAM):
+
+| Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
+| **Spring Cloud API Gateway** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
+| **Spring Boot Microservices (x4)** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
+| **Keycloak 26.7.3 IAM** | `500m` | `3000m` | `1024Mi` | `3072Mi` | `2Gi` | Fast bootstrap & authentication spikes |
+| **HashiCorp Vault 2.0.4** | `250m` | `1000m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
+| **Apache Kafka (KRaft Broker)** | `200m` | `1500m` | `512Mi` | `1536Mi` | `2Gi` | High-throughput event streaming |
+| **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
+| **Redis 8 Cache & Token Bucket** | `100m` | `500m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
+| **Frontend Angular 21 SPA (Nginx)** | `50m` | `250m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
+| **Prometheus 3 Metrics Server** | `200m` | `1500m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
+| **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
+| **Grafana Loki (Log Ingestion)** | `300m` | `2000m` | `512Mi` | `2048Mi` | `4Gi` | Centralized container log indexing |
+| **Grafana Tempo (Tracing Backend)** | `150m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | W3C distributed trace span storage |
+| **Kiali Visual Mesh Topology** | `300m` | `2000m` | `512Mi` | `1024Mi` | `1Gi` | Real-time Istio Service Mesh visualizer |
+
+---
+
+## 🛠️ Winget DevSecOps & Platform CLI Tool Suite
+
+The platform standardizes **17 essential industry-standard CLI applications** managed via Windows Package Manager (`winget`):
+
+### 1. IaC & FinOps
+- **`Hashicorp.Terraform` (`terraform`)**: Multi-cloud Infrastructure as Code engine.
+- **`TerraformLinters.tflint` (`tflint`)**: Framework linter enforcing module conventions and catching provider errors.
+- **`Infracost.Infracost` (`infracost`)**: Cloud cost estimation engine for Terraform.
+- **`Graphviz.Graphviz` (`dot`)**: Dependency graph visualization utility (`terraform graph | dot -Tpng -o graph.png`).
+
+### 2. DevSecOps & Security
+- **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
+- **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
+- **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
+- **`Hashicorp.Vault` (`vault`)**: Client for HashiCorp Vault (KV-v2 secrets, PKI engine).
+
+### 3. Container & Kubernetes Orchestration
+- **`Docker.DockerDesktop` (`docker`)**: Local container engine and runtime.
+- **`Kubernetes.minikube` (`minikube`)**: Local Kubernetes cluster driver.
+- **`Kubernetes.kubectl` (`kubectl`)**: Kubernetes cluster management CLI.
+- **`Helm.Helm` (`helm`)**: Kubernetes package manager for umbrella chart deployment.
+- **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
+
+### 4. Runtimes, Build Tools & Productivity
+- **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
+- **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for Angular frontend compilation.
+- **`Git.Git` (`git`)**: Distributed version control system.
+- **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
+
+> ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
+> To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
+
+---
+
+## 💻 Local Standalone Development
+
+To develop or debug microservices individually outside Docker:
+
+### 1. Spring Boot Microservices (Java 21 / Maven)
+```powershell
+# Compile entire reactor
+mvn clean compile
+
+# Run specific service with dev profile
+mvn spring-boot:run -pl api-gateway
+mvn spring-boot:run -pl products-service
+mvn spring-boot:run -pl orders-service
+mvn spring-boot:run -pl inventory-service
+mvn spring-boot:run -pl notification-service
+```
+
+### 2. Angular 21 SPA
+```powershell
+cd frontend
+npm install
+npm start
+```
+
+**Key Frontend, Mobile PWA & Storefront Features (`http://localhost:4200`):**
+- **Hardware-Agnostic Universal QR & Barcode Engine:**
+  - 📷 **Live Camera Stream (WebRTC):** Lens switching (front/rear), flashlight/torch toggle, and real-time laser animation.
+  - 📁 **Image File Upload:** Drag-and-drop or file picker decoding of QR codes and barcodes.
+  - 🔌 **USB & Bluetooth Laser Scanners (HID Wedge):** Real-time keystroke burst interceptor ($< 45\text{ ms}$) enabling $100\%$ driverless plug-and-play barcode guns (Honeywell, Zebra, Tera).
+  - 🎨 **Dynamic QR Vector Generation:** On-demand SVG/Canvas QR labels for product shelf tags and order pickup receipts.
+- **Enterprise Multi-Step Checkout & Logistics (Amazon & Mercado Libre):**
+  - 📍 **Persistent Recipient Profile:** Automatic `localStorage` persistence (`msa_shipping_address`) enabling 1-click address recall for repeat buyers.
+  - 🚚 **Tiered Delivery & DHL Tracking:** Real-time choice between Free Standard Shipping (3-5 days) and ⚡ DHL Express Priority ($9.99, 24-48h) with automated `DHL-XXXXXXXX` tracking generation.
+  - 💳 **Real-Time Card Brand Detection:** Instant IIN/BIN recognition (Visa, Mastercard, AMEX) with dynamic cardholder validation, CVV security, and 256-bit SSL badges.
+- **Product Catalog Social Proof & Verified Ratings:**
+  - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
+- **Admin Operations Console & Cluster Health:**
+  - Centralized `/admin` dashboard with 4-second animated `LIVE SYNC` polling and a dedicated `Cluster Health` supervision tab monitoring all 12 microservices and infrastructure components in real time.
+- **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
+  - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
+  - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.
+  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier clearly pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
+  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order` ensuring 100% button visibility on smartphones without overflowing.
+  - 📄 **Non-Clipping Mobile Pagination:** Ergonomic pagination controls with responsive button wrapping preventing `Next` button clipping.
+- **Progressive Web App (PWA) & Responsive Mobile UX:**
+  - 🔔 **Viewport-Bounded Notifications Drawer:** Fixed position mobile dropdown (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for long codes.
+  - 📱 **Mobile Storefront PWA:** Standalone installation (`manifest.webmanifest`), floating scan FAB button, camera WebRTC barcode scanner, and haptic vibration (`navigator.vibrate`).
+- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.3 with automatic JWT token management and route guards.
+
+---
+
+## 🚀 Quick Start with Docker Compose
+
+### 1. Launch Keycloak (Auth Layer)
+Keycloak and its PostgreSQL database must be initialized first:
+
+```powershell
+# 1. Clone the repository and navigate to project directory
+cd microservices-architecture
+
+# 2. Copy environment file if not already present
+cp .example.env .env
+
+# 3. Start Keycloak and its database in detached mode
+docker compose up -d --build keycloak
+
+# 4. Verify Keycloak is healthy
+docker compose ps keycloak
+```
+
+### 2. Bootstrap Keycloak (Clients, Users & Secrets)
+Run the bootstrap script to create realm `microservices-realm`, configure public and confidential clients, generate passwords, and **automatically synchronize `KEYCLOAK_CLIENT_SECRET` into your `.env`**:
+
+```powershell
+# Native PowerShell script (auto-syncs client secret into .env):
+pwsh -File .\scripts\auth\bootstrap-keycloak.ps1
+```
+
+#### Pre-Configured Test Users:
+| Username | Password | Roles | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`admin_user`** | `admin` | `ADMIN`, `USER` | Full administration & product management |
+| **`basic_user`** | `password` | `USER` | Browsing catalog & placing orders |
+
+### 3. Launch Full Microservices Ecosystem
+Once Keycloak is bootstrapped and `.env` has the synced client secret, spin up all remaining containers (microservices, databases, messaging, LGTM observability stack, and HashiCorp Vault). 
+
+**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](./compose.yaml) container on startup:
+
+```powershell
+# Build and launch all services in detached mode
+docker compose up -d --build
+
+# Check real-time container health
+# Note: It's OK if the vault-init service has exited in Docker Compose.
+docker compose ps -a
+```
+
+### 4. Useful Docker Compose Commands:
+```powershell
+# View aggregated live logs
+docker compose logs -f
+
+# View logs for a specific service
+docker compose logs -f api-gateway
+
+# Graceful shutdown & volume teardown
+docker compose down -v
+```
+
+---
+
 ## 🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD & Minikube)
 
 The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (AMD Ryzen 7, 32 GB RAM, 200 GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (12 CPUs / 12 GB RAM), and **Terraform**:
@@ -395,439 +1259,6 @@ When you are ready to enforce strict blocking in production:
    fail_action: true # Fails the job if ZAP encounters rules flagged with FAIL
    ```
 3. **Risk Exceptions**: Document any accepted CVE in `devsecops/compliance/trivy/.trivyignore`.
-
----
-
-## 📑 Table of Contents
-
-- [🏢 Microservices Architecture: Multi-Cloud (AWS, Azure, GCP) \& Multi-CI/CD Platform](#-microservices-architecture-multi-cloud-aws-azure-gcp--multi-cicd-platform)
-  - [🏛️ System Architecture](#️-system-architecture)
-    - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
-  - [🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD \& Minikube)](#️-100-local-enterprise-devsecops-platform-12-stage-cicd--minikube)
-    - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
-    - [⚙️ Platform Operational Lifecycle Commands (Unified Master CLI \& 4 Isolated Versions)](#️-platform-operational-lifecycle-commands-unified-master-cli--4-isolated-versions)
-      - [1. Quick Start with Master CLI (`platform.ps1`)](#1-quick-start-with-master-cli-platformps1)
-      - [2. Direct Execution of Platform-Specific Scripts](#2-direct-execution-of-platform-specific-scripts)
-    - [🛡️ DevSecOps \& Governance Hub](#️-devsecops--governance-hub)
-      - [📂 Directory Structure](#-directory-structure)
-      - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
-      - [🚀 Deployment \& Operations Guide: 100% Local Enterprise DevSecOps on Minikube](#-deployment--operations-guide-100-local-enterprise-devsecops-on-minikube)
-        - [📋 1. Resource Allocation \& Minikube Startup](#-1-resource-allocation--minikube-startup)
-        - [🐳 2. Docker Hub Authentication \& Secrets Configuration](#-2-docker-hub-authentication--secrets-configuration)
-        - [🏗️ 3. Platform Deployment with Terraform](#️-3-platform-deployment-with-terraform)
-        - [🛡️ 4. Apply Gatekeeper Templates \& Constraints](#️-4-apply-gatekeeper-templates--constraints)
-        - [🏃 5. Launch the GitHub Actions Self-Hosted Runner](#-5-launch-the-github-actions-self-hosted-runner)
-        - [🔄 6. The 12-Stage Enterprise Pipeline Execution](#-6-the-12-stage-enterprise-pipeline-execution)
-        - [🎯 7. Transitioning to Maturity Mode (Strict Enforce / Hard-Gate)](#-7-transitioning-to-maturity-mode-strict-enforce--hard-gate)
-  - [📑 Table of Contents](#-table-of-contents)
-  - [✅ Prerequisites](#-prerequisites)
-    - [⚙️ Kubernetes Workload Right-Sizing \& Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation)
-  - [📡 Microservices Catalog \& API Routing](#-microservices-catalog--api-routing)
-  - [🔌 Ports \& Service Matrix](#-ports--service-matrix)
-  - [🔐 Identity \& Access Management (Keycloak 26.7.3)](#-identity--access-management-keycloak-2673)
-  - [🔒 Secret Management with HashiCorp Vault (Multi-Cloud \& Local)](#-secret-management-with-hashicorp-vault-multi-cloud--local)
-    - [1. Approach A: Local Development with Docker Compose (Zero-Touch)](#1-approach-a-local-development-with-docker-compose-zero-touch)
-    - [2. Approach B: Native Java Spring Boot Integration (All 5 Services)](#2-approach-b-native-java-spring-boot-integration-all-5-services)
-    - [3. Approach C: Kubernetes External Secrets Operator (ESO - Recommended)](#3-approach-c-kubernetes-external-secrets-operator-eso---recommended)
-    - [4. Approach D: Kubernetes Multi-Cloud Vault Agent Sidecar Injector](#4-approach-d-kubernetes-multi-cloud-vault-agent-sidecar-injector)
-  - [🗺️ Multi-Cloud \& Multi-CI/CD Matrix](#️-multi-cloud--multi-cicd-matrix)
-  - [💻 Local Standalone Development](#-local-standalone-development)
-    - [1. Spring Boot Microservices (Java 21 / Maven)](#1-spring-boot-microservices-java-21--maven)
-    - [2. Angular 21 SPA](#2-angular-21-spa)
-  - [🚀 Quick Start with Docker Compose](#-quick-start-with-docker-compose)
-    - [1. Launch Keycloak (Auth Layer)](#1-launch-keycloak-auth-layer)
-    - [2. Bootstrap Keycloak (Clients, Users \& Secrets)](#2-bootstrap-keycloak-clients-users--secrets)
-      - [Pre-Configured Test Users:](#pre-configured-test-users)
-    - [3. Launch Full Microservices Ecosystem](#3-launch-full-microservices-ecosystem)
-    - [4. Useful Docker Compose Commands:](#4-useful-docker-compose-commands)
-  - [☸️ Local Kubernetes Deployment (Minikube, Istio Mesh \& Canary Operations)](#️-local-kubernetes-deployment-minikube-istio-mesh--canary-operations)
-    - [1. 🚀 One-Shot Cluster Deployment](#1--one-shot-cluster-deployment)
-    - [2. 🔍 Verify Mesh Health \& Zero-Trust Policies](#2--verify-mesh-health--zero-trust-policies)
-    - [3. 🌐 Open Local Browser Tunnels \& Endpoint Access](#3--open-local-browser-tunnels--endpoint-access)
-    - [4. 🔀 Traffic Routing \& Progressive Canary Rollouts](#4--traffic-routing--progressive-canary-rollouts)
-    - [5. 🛑 Cluster Teardown \& Resource Cleanup](#5--cluster-teardown--resource-cleanup)
-    - [Useful commands](#useful-commands)
-  - [🧪 Automated Testing, Load Simulation \& Chaos Engineering](#-automated-testing-load-simulation--chaos-engineering)
-    - [1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)](#1--legitimate-e-commerce-traffic-generator-simulatepy---scenario-traffic)
-    - [2. ⚡ Resilience4j Circuit Breaker State Verification](#2--resilience4j-circuit-breaker-state-verification)
-      - [Step-by-Step Test Procedure:](#step-by-step-test-procedure)
-        - [🔴 Step A: Trip Circuit Breaker into OPEN (Red `#ef4444`)](#-step-a-trip-circuit-breaker-into-open-red-ef4444)
-        - [🟡 Step B: Observe Transition into HALF\_OPEN (Yellow `#f59e0b`)](#-step-b-observe-transition-into-half_open-yellow-f59e0b)
-        - [🟢 Step C: Restore Backend Health and Return to CLOSED (Green `#10b981`)](#-step-c-restore-backend-health-and-return-to-closed-green-10b981)
-    - [3. 💥 Chaos Engineering \& Fault Injection (`simulate.py --scenario chaos`)](#3--chaos-engineering--fault-injection-simulatepy---scenario-chaos)
-    - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate.py --scenario ddos`)](#4-️-ddos--rate-limiting-stress-attacks-simulatepy---scenario-ddos)
-    - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
-    - [6. 📉 Cart Abandonment Rate KPI Verification \& Testing](#6--cart-abandonment-rate-kpi-verification--testing)
-      - [Step-by-Step Testing Procedures (3 Verified Methods):](#step-by-step-testing-procedures-3-verified-methods)
-        - [🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)](#-method-1-instant-cli--powershell-event-injection-simulate-mass-abandonment)
-        - [🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA](#️-method-2-interactive-browser-testing-via-angular-frontend-spa)
-        - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate.py --scenario traffic`)](#-method-3-multi-threaded-realistic-funnel-generation-simulatepy---scenario-traffic)
-    - [📦 Postman Test Suite:](#-postman-test-suite)
-  - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
-      - [🗄️ Standardized Grafana Datasources (Explore \& Dashboards)](#️-standardized-grafana-datasources-explore--dashboards)
-    - [1. 📈 Prometheus (Metrics \& PromQL) — Datasource: `Prometheus` (UID: `prometheus-ds`)](#1--prometheus-metrics--promql--datasource-prometheus-uid-prometheus-ds)
-    - [2. 📜 Grafana Loki (Centralized Logs \& LogQL) — Datasource: `Loki` (UID: `loki-ds`)](#2--grafana-loki-centralized-logs--logql--datasource-loki-uid-loki-ds)
-    - [3. 🔍 Grafana Tempo (Distributed Traces \& TraceQL) — Datasource: `Tempo` (UID: `tempo-ds`)](#3--grafana-tempo-distributed-traces--traceql--datasource-tempo-uid-tempo-ds)
-    - [4. 📊 Pre-Provisioned Universal Grafana Dashboards](#4--pre-provisioned-universal-grafana-dashboards)
-      - [🎯 Dynamic Interactive Filtering (`Filter Microservice`)](#-dynamic-interactive-filtering-filter-microservice)
-      - [🏢 A. Business Intelligence \& Inventory Operations (`business-operations-dashboard.json`)](#-a-business-intelligence--inventory-operations-business-operations-dashboardjson)
-      - [🛡️ B. Technical, Infrastructure \& Security Operations (`technical-security-dashboard.json`)](#️-b-technical-infrastructure--security-operations-technical-security-dashboardjson)
-  - [☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)](#️-terraform-multi-cloud-infrastructure-aws-azure-gcp)
-    - [1. AWS Provider (Amazon EKS / RDS / VPC)](#1-aws-provider-amazon-eks--rds--vpc)
-    - [2. Azure Provider (Azure AKS / ACR / PostgreSQL)](#2-azure-provider-azure-aks--acr--postgresql)
-    - [3. GCP Provider (Google GKE / Artifact Registry / Cloud SQL)](#3-gcp-provider-google-gke--artifact-registry--cloud-sql)
-  - [🤖 Multi-CI/CD \& GitOps Automation](#-multi-cicd--gitops-automation)
-    - [1. GitHub Actions ➔ AWS Cloud](#1-github-actions--aws-cloud)
-    - [2. Azure DevOps Pipelines ➔ Azure Cloud](#2-azure-devops-pipelines--azure-cloud)
-    - [3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP](#3-bitbucket-pipelines-ci--argocd-gitops-cd--gcp)
-  - [📁 Repository Structure](#-repository-structure)
-  - [🏛️ Domain-Driven Design (DDD) \& Microservices Tactical Patterns](#️-domain-driven-design-ddd--microservices-tactical-patterns)
-    - [🧩 1. Bounded Contexts \& Aggregate Roots](#-1-bounded-contexts--aggregate-roots)
-    - [🛡️ 2. Functional Programming \& RFC 7807 Error Handling](#️-2-functional-programming--rfc-7807-error-handling)
-  - [⚡ Modern Angular 21 Reactive SPA Architecture](#-modern-angular-21-reactive-spa-architecture)
-  - [🏷️ End-to-End QR Code \& Point of Sale (POS) Workflow](#️-end-to-end-qr-code--point-of-sale-pos-workflow)
-  - [🛒 Enterprise E-Commerce \& Logistics Architecture (Amazon \& Mercado Libre)](#-enterprise-e-commerce--logistics-architecture-amazon--mercado-libre)
-    - [1. 📦 Multi-Step Checkout \& Persistent Recipient Profile](#1--multi-step-checkout--persistent-recipient-profile)
-    - [2. 🚚 Real-Time Logistics Tracking \& Consumer Stepper](#2--real-time-logistics-tracking--consumer-stepper)
-    - [3. ⭐ Social Proof, Verified Ratings \& Best Seller Engine](#3--social-proof-verified-ratings--best-seller-engine)
-    - [4. 🛡️ Admin Operations Console, Live Sync \& Cluster Health](#4-️-admin-operations-console-live-sync--cluster-health)
-    - [5. 🔔 Customer-Centric Notification Center (Zero-Jargon)](#5--customer-centric-notification-center-zero-jargon)
-    - [6. 📱 Responsive Media \& Aspect-Ratio Scaling](#6--responsive-media--aspect-ratio-scaling)
-  - [📱 Mobile Application \& Google Play Store Architecture Guide](#-mobile-application--google-play-store-architecture-guide)
-    - [1. 🚀 Mobile Packaging Options:](#1--mobile-packaging-options)
-    - [2. 🔐 Mobile Security \& OIDC Integration:](#2--mobile-security--oidc-integration)
-    - [3. 📦 Google Play Store Publication Checklist:](#3--google-play-store-publication-checklist)
-  - [🌐 Edge Cloud Tunneling \& Serverless Frontend (Cloudflare \& Vercel)](#-edge-cloud-tunneling--serverless-frontend-cloudflare--vercel)
-    - [1. 🚇 Cloudflare Quick Tunnels Automation (`start-cloudflare-tunnels.ps1`)](#1--cloudflare-quick-tunnels-automation-start-cloudflare-tunnelsps1)
-    - [2. 🚀 Vercel Monorepo Deployment \& Output Directory Configuration](#2--vercel-monorepo-deployment--output-directory-configuration)
-    - [3. 📱 Full-Stack Mobile PWA Responsiveness \& Touch Optimization](#3--full-stack-mobile-pwa-responsiveness--touch-optimization)
-  - [🖼️ Dual-Mode Product Media \& Visual Storefront Architecture](#️-dual-mode-product-media--visual-storefront-architecture)
-    - [1. 📂 Client-Side Canvas Compression \& Base64 Data URL Engine](#1--client-side-canvas-compression--base64-data-url-engine)
-    - [2. 💾 PostgreSQL Unlimited TEXT Persistence \& Redis Cache](#2--postgresql-unlimited-text-persistence--redis-cache)
-    - [3. 🎨 High-Fidelity Storefront Visual Integration](#3--high-fidelity-storefront-visual-integration)
-  - [🛡️ Production-Grade Cluster Resiliency \& Advanced Operations](#️-production-grade-cluster-resiliency--advanced-operations)
-    - [1. ⚖️ Horizontal Pod Autoscaling (HPA) \& PodDisruptionBudgets (PDB)](#1-️-horizontal-pod-autoscaling-hpa--poddisruptionbudgets-pdb)
-    - [2. 🔐 External Secrets Operator (ESO) \& HashiCorp Vault Synchronization](#2--external-secrets-operator-eso--hashicorp-vault-synchronization)
-    - [3. 🌐 Progressive Canary Deployments in Istio Service Mesh](#3--progressive-canary-deployments-in-istio-service-mesh)
-    - [4. 🚨 Alertmanager Alert Routing (Local Default, Slack \& Jira Ready)](#4--alertmanager-alert-routing-local-default-slack--jira-ready)
-  - [🔄 Automated \& Manual Rollback Operations Guide (Multi-Cloud \& Multi-CI/CD)](#-automated--manual-rollback-operations-guide-multi-cloud--multi-cicd)
-    - [1. 🛡️ The 4-Tier Automated Rollback Engine](#1-️-the-4-tier-automated-rollback-engine)
-    - [2. 🕹️ How to Execute Manual Rollbacks (CLI \& UI Runbooks)](#2-️-how-to-execute-manual-rollbacks-cli--ui-runbooks)
-      - [A. Direct Kubernetes / Helm CLI (Universal):](#a-direct-kubernetes--helm-cli-universal)
-      - [B. GitOps Rollback in ArgoCD:](#b-gitops-rollback-in-argocd)
-      - [C. GitHub Actions:](#c-github-actions)
-      - [D. Azure DevOps:](#d-azure-devops)
-      - [E. Bitbucket Pipelines:](#e-bitbucket-pipelines)
-  - [☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)](#️-enterprise-aws-architecture-reference-suite-devsecopsreferenceaws-eks)
-    - [Included Reference Architecture Templates](#included-reference-architecture-templates)
-    - [🛠️ AWS Blueprint Step-by-Step Activation Guide](#️-aws-blueprint-step-by-step-activation-guide)
-      - [1. AWS IAM OIDC Configuration (Zero-Trust)](#1-aws-iam-oidc-configuration-zero-trust)
-      - [2. Frontend S3 \& CloudFront Setup](#2-frontend-s3--cloudfront-setup)
-      - [3. Deploying to Amazon EKS via GitHub Actions](#3-deploying-to-amazon-eks-via-github-actions)
-      - [4. Deploying to Amazon EKS via ArgoCD](#4-deploying-to-amazon-eks-via-argocd)
-  - [🛠️ Enterprise Cloud Automation \& FinOps Tooling (`scripts/cloud/`)](#️-enterprise-cloud-automation--finops-tooling-scriptscloud)
-      - [Detailed Cloud Automation Script Playbooks:](#detailed-cloud-automation-script-playbooks)
-        - [1. 🔍 AWS Resource Inventory \& FinOps Auditor](#1--aws-resource-inventory--finops-auditor)
-        - [2. 🧹 AWS Orphan Resource \& Idle FinOps Cleaner](#2--aws-orphan-resource--idle-finops-cleaner)
-        - [3. 🛡️ AWS Security Group \& Open Ingress Inspector](#3-️-aws-security-group--open-ingress-inspector)
-        - [4. 📋 CloudWatch Log Retention Enforcer](#4--cloudwatch-log-retention-enforcer)
-        - [5. 🔑 IAM Credential \& CIS Benchmark Auditor](#5--iam-credential--cis-benchmark-auditor)
-        - [6. 🔒 ACM SSL/TLS Certificate Expiration Watcher](#6--acm-ssltls-certificate-expiration-watcher)
-        - [7. 💾 Automated RDS PostgreSQL Snapshot Manager](#7--automated-rds-postgresql-snapshot-manager)
-        - [8. 🔄 S3 Cross-Region Disaster Recovery \& State Sync](#8--s3-cross-region-disaster-recovery--state-sync)
-        - [9. 🛡️ S3 Bucket Security Policy \& OAC Hardening](#9-️-s3-bucket-security-policy--oac-hardening)
-        - [10. 🧹 GKE Persistent Disk Snapshot FinOps Cleanup (GCP)](#10--gke-persistent-disk-snapshot-finops-cleanup-gcp)
-  - [🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)](#️-cloud-agnostic-devsecops-cli-tooling-scriptsdevsecops)
-  - [🚀 Enterprise Platform Unified CLI (`platform.ps1`)](#-enterprise-platform-unified-cli-platformps1)
-    - [📋 Complete Combinations Reference Guide](#-complete-combinations-reference-guide)
-      - [1. 🚀 Bootstrap \& Deployment (`up` / `bootstrap`)](#1--bootstrap--deployment-up--bootstrap)
-      - [2. ⏸️ Teardown, Pause \& Cluster Purge (`down` / `stop` / `destroy`)](#2-️-teardown-pause--cluster-purge-down--stop--destroy)
-      - [3. 📝 Terraform Infrastructure Planning \& Apply (`plan` / `apply`)](#3--terraform-infrastructure-planning--apply-plan--apply)
-      - [4. 🔄 Automated Emergency Rollbacks (`rollback`)](#4--automated-emergency-rollbacks-rollback)
-      - [5. 🔍 Health Diagnostics \& Verification (`doctor` / `verify` / `status`)](#5--health-diagnostics--verification-doctor--verify--status)
-      - [6. 💰 FinOps Cloud Cost Breakdown \& Savings (`cost` / `finops`)](#6--finops-cloud-cost-breakdown--savings-cost--finops)
-      - [7. 🛠️ Host CLI Audit \& Automated Winget Installation (`tools`)](#7-️-host-cli-audit--automated-winget-installation-tools)
-      - [8. ⚡ Productivity, Security \& Verification Utilities](#8--productivity-security--verification-utilities)
-  - [🛠️ Winget DevSecOps \& Platform CLI Tool Suite](#️-winget-devsecops--platform-cli-tool-suite)
-    - [1. IaC \& FinOps](#1-iac--finops)
-    - [2. DevSecOps \& Security](#2-devsecops--security)
-    - [3. Container \& Kubernetes Orchestration](#3-container--kubernetes-orchestration)
-    - [4. Runtimes, Build Tools \& Productivity](#4-runtimes-build-tools--productivity)
-  - [📂 Comprehensive Scripts Portfolio Directory (`scripts/`)](#-comprehensive-scripts-portfolio-directory-scripts)
-    - [1. `scripts/devsecops/` (Cluster Lifecycle, Security \& Verification)](#1-scriptsdevsecops-cluster-lifecycle-security--verification)
-    - [2. `scripts/cloud/terraform/` (Terraform Orchestration \& FinOps)](#2-scriptscloudterraform-terraform-orchestration--finops)
-    - [3. `scripts/cloud/aws/` (Unified AWS Operations \& Well-Architected Governance)](#3-scriptscloudaws-unified-aws-operations--well-architected-governance)
-    - [4. `scripts/cloud/azure/` (Unified Azure Cloud Operations)](#4-scriptscloudazure-unified-azure-cloud-operations)
-    - [5. `scripts/cloud/gcp/` (Unified Google Cloud Operations)](#5-scriptscloudgcp-unified-google-cloud-operations)
-    - [6. `scripts/cloud/cloudflare/` (Zero-Trust Tunnels)](#6-scriptscloudcloudflare-zero-trust-tunnels)
-    - [7. `scripts/istio/` (Service Mesh \& Traffic Management)](#7-scriptsistio-service-mesh--traffic-management)
-    - [8. `scripts/auth/` \& `scripts/vault/` (Identity \& Secrets Provisioning)](#8-scriptsauth--scriptsvault-identity--secrets-provisioning)
-    - [9. `scripts/build/` (Build \& Release Automation)](#9-scriptsbuild-build--release-automation)
-    - [10. `scripts/testing/` (Enterprise Testing \& Simulation Super-Scripts)](#10-scriptstesting-enterprise-testing--simulation-super-scripts)
-  - [☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)](#️-multi-cloud-terraform-12-module-matrix-aws--azure--gcp)
-  - [🔄 Multi-Cloud CI/CD \& Automated Rollback Architecture](#-multi-cloud-cicd--automated-rollback-architecture)
-    - [1. GitHub Actions (CI) + ArgoCD (CD) - AWS \& Minikube](#1-github-actions-ci--argocd-cd---aws--minikube)
-    - [2. Azure DevOps - Single Unified Pipeline (Azure Cloud)](#2-azure-devops---single-unified-pipeline-azure-cloud)
-    - [3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)](#3-bitbucket-pipelines---single-unified-pipeline-google-cloud-platform)
-    - [4. Automated Rollback \& Incident Recovery Summary](#4-automated-rollback--incident-recovery-summary)
-  - [📄 License](#-license)
-
----
-
-## ✅ Prerequisites
-
-| Tool | Version | Required for |
-| :--- | :---: | :--- |
-| Docker & Docker Compose | Latest | Quick Start (full stack) |
-| Java (JDK) | 21 | Building/running Spring Boot services standalone |
-| Maven | 3.9+ | Java multi-module reactor build |
-| Node.js & npm | 22+ | Angular 21 frontend |
-| kubectl | 1.37.0 | Kubernetes / Minikube deployment |
-| Minikube | 1.39.0 | Local Kubernetes deployment |
-| Istioctl | 1.31.0 | Service mesh install & Kiali dashboard |
-| Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
-| Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
-| PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
-| Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
-
-**Recommended local resources:** 8+ CPU cores and 16 GB+ RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
-
-> ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
-
----
-
-### ⚙️ Kubernetes Workload Right-Sizing & Production Resource Allocation
-All microservices and infrastructure pods are pre-configured with enterprise resource requests and limits to guarantee sub-millisecond execution, prevent GC pauses, and avoid `OOMKilled` eviction (optimized for Minikube clusters running with 12 CPUs and 12 GB RAM):
-
-| Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Spring Cloud API Gateway** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
-| **Spring Boot Microservices (x4)** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
-| **Keycloak 26.7.3 IAM** | `500m` | `3000m` | `1024Mi` | `3072Mi` | `2Gi` | Fast bootstrap & authentication spikes |
-| **HashiCorp Vault 2.0.4** | `250m` | `1000m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
-| **Apache Kafka (KRaft Broker)** | `200m` | `1500m` | `512Mi` | `1536Mi` | `2Gi` | High-throughput event streaming |
-| **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
-| **Redis 8 Cache & Token Bucket** | `100m` | `500m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
-| **Frontend Angular 21 SPA (Nginx)** | `50m` | `250m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
-| **Prometheus 3 Metrics Server** | `200m` | `1500m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
-| **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
-| **Grafana Loki (Log Ingestion)** | `300m` | `2000m` | `512Mi` | `2048Mi` | `4Gi` | Centralized container log indexing |
-| **Grafana Tempo (Tracing Backend)** | `150m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | W3C distributed trace span storage |
-| **Kiali Visual Mesh Topology** | `300m` | `2000m` | `512Mi` | `1024Mi` | `1Gi` | Real-time Istio Service Mesh visualizer |
-
----
-
-## 📡 Microservices Catalog & API Routing
-
-| Service | Path Prefix | Key Endpoints | Responsibilities |
-| :--- | :--- | :--- | :--- |
-| **API Gateway** | `/api/*` | `/actuator/health`, `/actuator/prometheus` | Reverse proxy, token validation, rate limiter |
-| **Products Service** | `/api/product` | `POST /api/product`, `GET /api/product` | Product catalog, pricing, Redis caching |
-| **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order`, `PUT /api/order/{id}/cancel` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry |
-| **Inventory Service** | `/api/inventory`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `PUT /api/inventory/{sku}` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction |
-| **Notification Service**| N/A | Kafka Topic `orders-topic` | Consumes `OrderPlacedEvent`, customer email simulation |
-
----
-
-## 🔌 Ports & Service Matrix
-
-| Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
-| :--- | :---: | :---: | :---: | :--- |
-| **Angular 21 Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern Angular SPA UI |
-| **Spring Cloud API Gateway** | `8080` | `30088` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
-| **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
-| **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
-| **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
-| **Notification Service** | `8002` | `30002` | ClusterIP | Kafka Consumer & customer alerts |
-| **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
-| **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
-| **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (`/kiali`) |
-| **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
-| **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
-| **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine (v3.14.0) |
-| **Grafana Loki** | `3100` | `30100` | ClusterIP | Centralized logging engine (v3.7.4) |
-| **Grafana Alloy** | `12345` | DaemonSet | DaemonSet | Telemetry & log collector (v1.18.1) |
-| **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
-| **PostgreSQL Databases** | `5432` | `30432` | RDS / Flexible / Cloud SQL | Managed multi-tenant DB |
-| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | `30092` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
-
----
-
-## 🔐 Identity & Access Management (Keycloak 26.7.3)
-
-- **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in Angular 21 SPA.
-- **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
-- **Default Role Assignment:** Self-registered accounts automatically receive the standard `USER` role through composite assignment on `default-roles-microservices-realm`.
-- **Multi-Tenant Order Isolation & Ownership Guards:**
-  - `orders-service` securely extracts the caller's JWT claims (`sub` for User ID and `preferred_username` for Customer Handle).
-  - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
-  - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
-  - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
-- **Token Relay:** Spring Cloud Gateway validates incoming JWT tokens against Keycloak JWKS and forwards claims downstream via `Authorization: Bearer <token>`.
-- **Automated Realm Import:** Configuration pre-loaded via [`docs/realm-export.json`](./docs/realm-export.json) with client `frontend-client`, roles `USER` / `ADMIN`, and default credentials.
-
----
-
-## 🔒 Secret Management with HashiCorp Vault (Multi-Cloud & Local)
-
-The platform provides enterprise-grade secret management across 4 distinct implementation patterns with **Least-Privilege Policies**:
-
-### 1. Approach A: Local Development with Docker Compose (Zero-Touch)
-- **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Dev Token: `root`)
-- **Zero-Touch Auto-Initialization:** When running `docker compose up -d`, the ephemeral [`vault-init`](./compose.yaml) container automatically creates the KV-v2 engine, seeds database credentials, Kafka parameters, Keycloak secrets, and configures Least-Privilege access policies.
-- **Optional Manual Reset Tool:** [`scripts/vault/init-vault.ps1`](./scripts/vault/init-vault.ps1) is available if you ever need to manually re-seed secrets and policies without restarting containers:
-  ```powershell
-  pwsh .\scripts\vault\init-vault.ps1
-  ```
-
-### 2. Approach B: Native Java Spring Boot Integration (All 5 Services)
-- **Zero-Friction Activation:** Microservices run natively by default. To connect directly to Vault via Spring Cloud Config:
-  ```powershell
-  # Run any microservice with the 'vault' profile:
-  cd products-service;     mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  cd orders-service;       mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  cd inventory-service;    mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  cd notification-service; mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  cd api-gateway;          mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  ```
-- **Configuration Profile:** Managed via `application-vault.yml` in each service with support for `TOKEN` (Local), `KUBERNETES` (Cluster), and `APPROLE` (CI/CD) authentication.
-
-### 3. Approach C: Kubernetes External Secrets Operator (ESO - Recommended)
-- **Zero-Sidecar Footprint:** Synchronizes secrets directly from Vault into native Kubernetes `Secret` resources (`microservices-secrets`) without requiring sidecar containers.
-- **Manifests:** Located in [`k8s/minikube/vault/external-secrets/`](./k8s/minikube/vault/external-secrets/).
-  ```powershell
-  # Apply SecretStore & ExternalSecret sync:
-  kubectl apply -f k8s/minikube/vault/external-secrets/
-  ```
-
-### 4. Approach D: Kubernetes Multi-Cloud Vault Agent Sidecar Injector
-- **Minikube:** Manifests in [`k8s/minikube/vault/`](./k8s/minikube/vault/) with RBAC and [`vault-k8s-auth-setup.ps1`](./k8s/minikube/vault/vault-k8s-auth-setup.ps1) for Least-Privilege roles (`products-service-role`, `orders-service-role`, etc.).
-- **AWS EKS:** Production Helm values in [`k8s/eks/vault/vault-helm-values-eks.yaml`](./k8s/eks/vault/vault-helm-values-eks.yaml) featuring **AWS KMS Auto-Unseal** and **IRSA**.
-- **Azure AKS:** Production Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](./k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
-- **Google Cloud GKE:** Production Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](./k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
-- **Demo Deployment:** Test sidecar injection with [`k8s/minikube/vault/demo-vault-agent-inject.yaml`](./k8s/minikube/vault/demo-vault-agent-inject.yaml).
-
----
-
-## 🗺️ Multi-Cloud & Multi-CI/CD Matrix
-
-| Target Cloud | CI / Build Provider | CD / Deployment Tool | Container Registry | Terraform IaC Pipeline | Environments |
-| :--- | :--- | :--- | :--- | :--- | :---: |
-| **AWS Cloud** | **GitHub Actions** | **GitHub Actions** (Helm to EKS) | Amazon ECR | `.github/workflows/terraform-aws.yml` | `dev`, `staging`, `prod` |
-| **Azure Cloud** | **Azure DevOps** | **Azure DevOps** (Helm to AKS) | Azure Container Registry (ACR) | `azure-devops/azure-pipelines-terraform.yml` | `dev`, `staging`, `prod` |
-| **Google Cloud (GCP)**| **Bitbucket Pipelines** | **ArgoCD** (GitOps Sync to GKE) | Google Artifact Registry (GAR) | Bitbucket Step `terraform-gcp-apply` | `dev`, `staging`, `prod` |
-
----
-
-## 💻 Local Standalone Development
-
-To develop or debug microservices individually outside Docker:
-
-### 1. Spring Boot Microservices (Java 21 / Maven)
-```powershell
-# Compile entire reactor
-mvn clean compile
-
-# Run specific service with dev profile
-mvn spring-boot:run -pl api-gateway
-mvn spring-boot:run -pl products-service
-mvn spring-boot:run -pl orders-service
-mvn spring-boot:run -pl inventory-service
-mvn spring-boot:run -pl notification-service
-```
-
-### 2. Angular 21 SPA
-```powershell
-cd frontend
-npm install
-npm start
-```
-
-**Key Frontend, Mobile PWA & Storefront Features (`http://localhost:4200`):**
-- **Hardware-Agnostic Universal QR & Barcode Engine:**
-  - 📷 **Live Camera Stream (WebRTC):** Lens switching (front/rear), flashlight/torch toggle, and real-time laser animation.
-  - 📁 **Image File Upload:** Drag-and-drop or file picker decoding of QR codes and barcodes.
-  - 🔌 **USB & Bluetooth Laser Scanners (HID Wedge):** Real-time keystroke burst interceptor ($< 45\text{ ms}$) enabling $100\%$ driverless plug-and-play barcode guns (Honeywell, Zebra, Tera).
-  - 🎨 **Dynamic QR Vector Generation:** On-demand SVG/Canvas QR labels for product shelf tags and order pickup receipts.
-- **Enterprise Multi-Step Checkout & Logistics (Amazon & Mercado Libre):**
-  - 📍 **Persistent Recipient Profile:** Automatic `localStorage` persistence (`msa_shipping_address`) enabling 1-click address recall for repeat buyers.
-  - 🚚 **Tiered Delivery & DHL Tracking:** Real-time choice between Free Standard Shipping (3-5 days) and ⚡ DHL Express Priority ($9.99, 24-48h) with automated `DHL-XXXXXXXX` tracking generation.
-  - 💳 **Real-Time Card Brand Detection:** Instant IIN/BIN recognition (Visa, Mastercard, AMEX) with dynamic cardholder validation, CVV security, and 256-bit SSL badges.
-- **Product Catalog Social Proof & Verified Ratings:**
-  - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
-- **Admin Operations Console & Cluster Health:**
-  - Centralized `/admin` dashboard with 4-second animated `LIVE SYNC` polling and a dedicated `Cluster Health` supervision tab monitoring all 12 microservices and infrastructure components in real time.
-- **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
-  - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
-  - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.
-  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier clearly pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
-  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order` ensuring 100% button visibility on smartphones without overflowing.
-  - 📄 **Non-Clipping Mobile Pagination:** Ergonomic pagination controls with responsive button wrapping preventing `Next` button clipping.
-- **Progressive Web App (PWA) & Responsive Mobile UX:**
-  - 🔔 **Viewport-Bounded Notifications Drawer:** Fixed position mobile dropdown (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for long codes.
-  - 📱 **Mobile Storefront PWA:** Standalone installation (`manifest.webmanifest`), floating scan FAB button, camera WebRTC barcode scanner, and haptic vibration (`navigator.vibrate`).
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.3 with automatic JWT token management and route guards.
-
----
-
-## 🚀 Quick Start with Docker Compose
-
-### 1. Launch Keycloak (Auth Layer)
-Keycloak and its PostgreSQL database must be initialized first:
-
-```powershell
-# 1. Clone the repository and navigate to project directory
-cd microservices-architecture
-
-# 2. Copy environment file if not already present
-cp .example.env .env
-
-# 3. Start Keycloak and its database in detached mode
-docker compose up -d --build keycloak
-
-# 4. Verify Keycloak is healthy
-docker compose ps keycloak
-```
-
-### 2. Bootstrap Keycloak (Clients, Users & Secrets)
-Run the bootstrap script to create realm `microservices-realm`, configure public and confidential clients, generate passwords, and **automatically synchronize `KEYCLOAK_CLIENT_SECRET` into your `.env`**:
-
-```powershell
-# Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\auth\bootstrap-keycloak.ps1
-```
-
-#### Pre-Configured Test Users:
-| Username | Password | Roles | Purpose |
-| :--- | :--- | :--- | :--- |
-| **`admin_user`** | `admin` | `ADMIN`, `USER` | Full administration & product management |
-| **`basic_user`** | `password` | `USER` | Browsing catalog & placing orders |
-
-### 3. Launch Full Microservices Ecosystem
-Once Keycloak is bootstrapped and `.env` has the synced client secret, spin up all remaining containers (microservices, databases, messaging, LGTM observability stack, and HashiCorp Vault). 
-
-**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](./compose.yaml) container on startup:
-
-```powershell
-# Build and launch all services in detached mode
-docker compose up -d --build
-
-# Check real-time container health
-# Note: It's OK if the vault-init service has exited in Docker Compose.
-docker compose ps -a
-```
-
-### 4. Useful Docker Compose Commands:
-```powershell
-# View aggregated live logs
-docker compose logs -f
-
-# View logs for a specific service
-docker compose logs -f api-gateway
-
-# Graceful shutdown & volume teardown
-docker compose down -v
-```
 
 ---
 
@@ -1370,464 +1801,6 @@ Both dashboards feature a top-level **`Filter Microservice`** template variable:
 
 ---
 
-## ☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)
-
-### 1. AWS Provider (Amazon EKS / RDS / VPC)
-Located in `terraform/environments/aws/` and `terraform/modules/aws/`:
-```powershell
-cd terraform/environments/aws
-terraform init
-terraform workspace select staging || terraform workspace new staging
-terraform plan -var-file=staging/terraform.tfvars
-terraform apply -var-file=staging/terraform.tfvars
-```
-
-### 2. Azure Provider (Azure AKS / ACR / PostgreSQL)
-Located in `terraform/environments/azure/` and `terraform/modules/azure/`:
-```powershell
-cd terraform/environments/azure
-terraform init
-terraform workspace select staging || terraform workspace new staging
-terraform plan -var-file=staging/terraform.tfvars
-terraform apply -var-file=staging/terraform.tfvars
-```
-
-### 3. GCP Provider (Google GKE / Artifact Registry / Cloud SQL)
-Located in `terraform/environments/gcp/` and `terraform/modules/gcp/`:
-```powershell
-cd terraform/environments/gcp
-terraform init
-terraform workspace select staging || terraform workspace new staging
-terraform plan -var-file=staging/terraform.tfvars
-terraform apply -var-file=staging/terraform.tfvars
-```
-
----
-
-## 🤖 Multi-CI/CD & GitOps Automation
-
-### 1. GitHub Actions ➔ AWS Cloud
-Located in `.github/workflows/`:
-- **12-Stage Master Template ([`_service-ci-cd-template.yml`](./.github/workflows/_service-ci-cd-template.yml))**:
-  1. `Unit Tests` (JUnit 5 / JaCoCo) $\rightarrow$ 2. `SAST & Secrets` (SonarCloud, Semgrep, Gitleaks, Checkov) $\rightarrow$ 3. `Build & SBOM` (BuildKit, CycloneDX) $\rightarrow$ 4. `Container Scan` (Trivy) $\rightarrow$ 5. `Push to ECR` $\rightarrow$ 6. `Deploy to EKS Staging` $\rightarrow$ 7. `Integration Tests` (Postman / Newman) $\rightarrow$ 8. `E2E Tests` (Cypress) $\rightarrow$ 9. `Performance Tests` (k6) $\rightarrow$ 10. `DAST` (OWASP ZAP) $\rightarrow$ 11. `Compliance Gate` $\rightarrow$ 12. `Deploy to EKS Production` (Canary Rollout).
-- **Terraform Pipeline ([`terraform-aws.yml`](./.github/workflows/terraform-aws.yml))**: Automated IaC plan, apply, and drift detection.
-
-### 2. Azure DevOps Pipelines ➔ Azure Cloud
-Located in `azure-devops/`:
-- **Master Template ([`ci-cd-master-template.yml`](./azure-devops/templates/ci-cd-master-template.yml))**: Implements the same 12-stage DevSecOps cycle, adapted for Spring Boot Java 21 and Angular 21, targeting Azure Container Registry (ACR) and Azure AKS.
-- **Per-Service Pipelines**: [`api-gateway.yml`](./azure-devops/pipelines/api-gateway.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
-- **Terraform Pipeline ([`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml))**: Deploys Azure AKS / VNet / PostgreSQL Flexible infrastructure.
-
-### 3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP
-- **Bitbucket Pipelines ([`bitbucket-pipelines.yml`](./bitbucket-pipelines.yml))**:
-  - Builds with Maven 3.9 / Temurin 21, static scans with Checkov and Gitleaks, OCI image build with SBOM, vulnerability audit with Trivy, and authenticated push to **Google Artifact Registry (GAR)**.
-  - Runs Terraform GCP in the `terraform-gcp-apply` pipeline.
-- **ArgoCD GitOps ([`argocd/`](./argocd/))**:
-  - Continuous, declarative sync to **Google Kubernetes Engine (GKE)** across all 3 environments:
-    - [`appproject.yaml`](./argocd/appproject.yaml)
-    - [`application-dev.yaml`](./argocd/application-dev.yaml)
-    - [`application-staging.yaml`](./argocd/application-staging.yaml)
-    - [`application-prod.yaml`](./argocd/application-prod.yaml)
-
----
-
-## 📁 Repository Structure
-
-```
-microservices-architecture/
-├── .github/workflows/              # GitHub Actions CI/CD to AWS Cloud (12 Stages)
-│   ├── _service-ci-cd-template.yml # Reusable master template
-│   ├── service-*.yml               # Service path-filtered triggers
-│   └── terraform-aws.yml           # Terraform AWS automated pipeline
-├── argocd/                         # ArgoCD GitOps to Google Kubernetes Engine (GKE)
-│   ├── appproject.yaml             # AppProject definition
-│   ├── application-dev.yaml        # Sync to GKE dev namespace
-│   ├── application-staging.yaml    # Sync to GKE staging namespace
-│   └── application-prod.yaml       # Sync to GKE production namespace
-├── azure-devops/                   # Azure DevOps Pipelines to Azure Cloud (12 Stages)
-│   ├── pipelines/                  # Microservices and Terraform pipelines
-│   └── templates/                  # Reusable master templates
-├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI to Google Artifact Registry (GAR)
-├── api-gateway/                    # Spring Cloud Gateway (Port 8080)
-├── devsecops/                      # Centralized DevSecOps Hub (DAST, Policies OPA, SAST, Compliance, Testing)
-│   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
-│   ├── policies/                   # OPA Rego Conftest rules & Gatekeeper templates/constraints
-│   ├── sast/                       # Gitleaks and Semgrep static security configs
-│   ├── compliance/trivy/           # Trivy configuration and .trivyignore risk registry
-│   └── testing/newman/             # microservices.postman_collection.json API integration tests
-├── docs/                           # Extended IAM & Architectural Documentation (Draw.io diagrams & guides)
-│   ├── Diagrams.drawio             # Multi-tab visual architecture (General, Vault, Rotations, Istio, K8s)
-│   └── realm-export.json           # Keycloak 26.7.3 Realm static export backup
-├── frontend/                       # Angular 21 SPA (Nginx Distroless)
-├── inventory-service/              # Stock verification & allocation (Port 8001)
-├── notification-service/           # Kafka event consumer (Port 8002)
-├── orders-service/                 # Order orchestration & Saga (Port 8003)
-├── products-service/               # Product catalog domain (Port 8004)
-├── helm/                           # Helm Charts (Umbrella chart & subcharts)
-├── k8s/                            # Kubernetes manifests & Istio service mesh
-├── observability/                  # Observability provisioning (Grafana LGTM, Alloy, Tempo, Loki)
-├── scripts/                        # Enterprise operational automation (100% PowerShell & Python)
-│   ├── auth/                       # Keycloak bootstrap (bootstrap-keycloak.ps1)
-│   ├── build/                      # Build (build-all.py), push, and Helm deployment
-│   ├── cloud/                      # Multi-Cloud deployment helpers
-│   │   ├── aws/                    # Unified AWS operations (manage-aws.ps1: ECR login, EKS deploy & audit-aws.py)
-│   │   ├── azure/                  # Unified Azure operations (manage-azure.ps1: ACR login, AKS credentials & Helm deploy)
-│   │   ├── gcp/                    # Unified GCP operations (manage-gcp.ps1: GAR login, GKE credentials, Helm deploy & FinOps cleanup)
-│   │   └── terraform/              # Multi-Cloud Terraform plan, apply & backend bootstrap scripts
-│   ├── istio/                      # Istio mesh, Canary weighting & Kiali scripts
-│   ├── minikube/                   # Minikube deployment, port-forward tunnels & teardown
-│   ├── testing/                    # Smoke tests, Swagger verification, Chaos & DDoS simulation (Python)
-│   └── vault/                      # HashiCorp Vault local seed script (init-vault.ps1)
-├── terraform/                      # Multi-Cloud Infrastructure as Code (AWS, Azure, GCP)
-│   ├── environments/
-│   │   ├── aws/                    # AWS Workspaces: dev, staging, prod
-│   │   ├── azure/                  # Azure Workspaces: dev, staging, prod
-│   │   └── gcp/                    # GCP Workspaces: dev, staging, prod
-│   └── modules/
-│       ├── aws/                    # Reusable AWS modules (EKS, ECR, RDS, VPC, ALB, IAM)
-│       ├── azure/                  # Reusable Azure modules (AKS, ACR, PostgreSQL, VNet, KeyVault)
-│       └── gcp/                    # Reusable GCP modules (GKE, GAR, Cloud SQL, VPC, Memorystore)
-├── compose.yaml                    # Full local development stack (15 services)
-├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 3.4.2)
-└── README.md                       # Master Multi-Cloud Architecture & Operational Guide
-```
-
----
-
-## 🏛️ Domain-Driven Design (DDD) & Microservices Tactical Patterns
-
-The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
-
-### 🧩 1. Bounded Contexts & Aggregate Roots
-* **🛍️ Catalog & Multi-Currency Context (`products-service`):**
-  * **Aggregate Root `Product`:** Encapsulates pricing rules across multiple currencies (USD, MXN) and guarantees catalog status invariants.
-* **📦 Order Lifecycle & Fulfillment Context (`orders-service`):**
-  * **Aggregate Root `Order`:** Directly guards state transitions (`cancel()`, `ship()`, `deliver()`, `assignItems()`). Prevents business conflicts such as cancelling already shipped/delivered orders or duplicate items.
-* **🏭 Warehouse Stock Allocation Context (`inventory-service`):**
-  * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and Saga compensations.
-* **🔔 Notification & Real-Time Stream Context (`notification-service`):**
-  * **Reactive Hub:** Implements idempotent event ingestion with Redis `SETNX` (7-day TTL) and dispatches real-time Server-Sent Events (SSE) to connected clients.
-
-### 🛡️ 2. Functional Programming & RFC 7807 Error Handling
-* **Monadic Try/Result Pipelines:** Elimination of procedural `try-catch` blocks in favor of Java 21 Streams and monadic Optional chains (`Optional.filter().map().ifPresentOrElse()`).
-* **Typed Domain Exceptions:** `OrderNotFoundException` (404), `InsufficientStockException` (409), `ProductNotFoundException` (404), and `ServiceUnavailableException` (503).
-* **RFC 7807 Problem Details:** Unified `GlobalExceptionHandler` returning consistent JSON error payloads across all 4 microservices.
-
----
-
-## ⚡ Modern Angular 21 Reactive SPA Architecture
-
-The frontend storefront is engineered with **Angular 21** utilizing state-of-the-art performance and reactive patterns:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                 Angular 21 Reactive SPA                     │
-│                                                             │
-│   ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐  │
-│   │   CartStore      │  │ ChangeDetection  │  │  @defer  │  │
-│   │ (Signal Pattern) │  │     .OnPush      │  │  Chunks  │  │
-│   └──────────────────┘  └──────────────────┘  └──────────┘  │
-│                                                             │
-│   • PreloadAllModules: 0ms background route preloading      │
-│   • Modern Signal Primitives: input<T>() / output<T>()      │
-└──────────────────────────────┬──────────────────────────────┘
-```
-
-1. **Signal Store Pattern (`CartStore`):** Pure immutable reactive state management using `signal()` and memoized `computed()` derivations.
-2. **`ChangeDetectionStrategy.OnPush` Everywhere:** Applied across all smart and presentation components to minimize browser CPU cycles.
-3. **Deferrable Views (`@defer` Pattern):** Heavy secondary UI components are partitioned into independent lazy `.js` chunks and loaded on demand:
-   * `@defer (when isQuickViewOpen()) { <app-quick-view-modal> }`: Modal chunk loaded only upon user click.
-   * `@defer (when isQrModalOpen()) { <app-product-qr-modal> }`: QR SVG generator loaded on demand.
-   * `@defer (when selectedOrderForReceipt()) { <app-receipt-modal> }`: Printable invoice loaded upon checkout completion.
-4. **Instant Route Transitions (`PreloadAllModules`):** Preloads `/orders`, `/checkout`, and `/admin` in the background with zero UI freeze.
-
----
-
-## 🏷️ End-to-End QR Code & Point of Sale (POS) Workflow
-
-The platform provides a complete hardware-agnostic **Point of Sale (POS) and QR code management system**:
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Admin as 👨‍💼 Administrator
-    actor POS as 🛒 POS Cashier / Customer
-    participant SPA as 💻 Angular SPA
-    participant Scanner as 📷 QR / Barcode Scanner
-    participant APIGW as 🚪 API Gateway
-    participant OrderMS as 📦 Orders Service
-    participant InvMS as 🏭 Inventory Service
-
-    Note over Admin, SPA: 1. Label Generation & Shelf Tagging
-    Admin->>SPA: Selects product in Catalog (SKU: 000001)
-    SPA->>SPA: Generates vector SVG QR label
-    Admin->>SPA: Clicks "Print Label" for physical barcode sticker
-
-    Note over POS, InvMS: 2. POS Scanning & Instant Cart Allocation
-    POS->>SPA: Opens Scanner Modal in Navbar / Cart Drawer
-    SPA->>Scanner: Activates Live Camera / USB Laser Reader
-    Scanner->>SPA: Scans barcode ➔ Resolves SKU: 000001
-    SPA->>APIGW: GET /api/product (lookup price & details)
-    SPA->>SPA: Auto-adds scanned product to CartStore
-
-    Note over POS, InvMS: 3. Checkout & Authenticity Verification
-    POS->>SPA: Submits Checkout with Idempotency Key
-    SPA->>OrderMS: POST /api/order (X-Idempotency-Key)
-    OrderMS->>InvMS: Atomically decrements warehouse stock
-    OrderMS->>SPA: Returns Order #d8f4163d (Status: PLACED)
-    SPA->>SPA: Displays Receipt with AUTH-d8f4163d-VERIFIED QR
-```
-
----
-
-## 🛒 Enterprise E-Commerce & Logistics Architecture (Amazon & Mercado Libre)
-
-The storefront and backend microservices are fully aligned with tier-1 enterprise e-commerce paradigms (such as **Amazon** and **Mercado Libre**), eliminating arcade or unstandardized prototypes in favor of production-grade customer journeys, real-time logistics tracking, social proof, and operational supervision:
-
-```mermaid
-flowchart TD
-    subgraph Storefront ["🛒 Angular 21 Enterprise Storefront"]
-        Catalog["⭐ Product Catalog<br/>★ 4.8 Stars • 1,240 Reviews<br/>#1 Best Seller • Category Tags"]
-        CheckoutStep1["📍 Step 1: Recipient Profile<br/>Address, City, Postal Code, Phone<br/>(localStorage: msa_shipping_address)"]
-        CheckoutStep2["🚚 Step 2: Tiered Delivery<br/>Free Standard ($0.00) vs<br/>⚡ DHL Express Priority ($9.99)"]
-        CheckoutStep3["💳 Step 3: Secure Payment<br/>Real-Time Brand (Visa/MC/AMEX)<br/>PCI-DSS & 256-bit SSL Badges"]
-        StickySummary["📊 Sticky Order Summary<br/>Subtotal + Shipping + 8% Tax = Total"]
-        LogisticsStepper["📦 Consumer Logistics Stepper<br/>Placed ➔ Preparing in Hub ➔<br/>In Transit (DHL) ➔ Out for Delivery ➔ Delivered"]
-    end
-
-    subgraph BackendMS ["⚙️ Spring Boot 3.4 Microservices"]
-        OrdersMS["📦 Orders Service (:8003)<br/>• Computes Tax & Shipping<br/>• Auto-Generates DHL-XXXXXXXX Tracking<br/>• Stores Complete Recipient Profile"]
-        ProductsMS["🏷️ Products Service (:8004)<br/>• Delivers Ratings & Review Counts<br/>• #1 Best Seller Tag Engine<br/>• Multi-Level Redis Cache"]
-        KafkaBus["⚡ Kafka KRaft (orders-topic)<br/>Event Payload with Tracking ID,<br/>Carrier & Customer Coordinates"]
-        NotifMS["🔔 Notification Service (:8002)<br/>• Zero Technical Jargon<br/>• Customer Confirmation Email<br/>• Real-Time Order SSE Broadcast"]
-    end
-
-    subgraph AdminConsole ["🛡️ Admin Operations (/admin)"]
-        ClusterTab["🏥 Cluster Health Tab<br/>Live Status & Latency for 12 Services"]
-        LiveSync["🔄 Real-Time Live Sync Indicator<br/>4s Auto-Polling + 1-Click Sync"]
-    end
-
-    Catalog --> CheckoutStep1
-    CheckoutStep1 --> CheckoutStep2
-    CheckoutStep2 --> CheckoutStep3
-    CheckoutStep3 --> StickySummary
-    StickySummary -->|POST /api/order| OrdersMS
-    OrdersMS -->|OrderEvent| KafkaBus
-    KafkaBus --> NotifMS
-    OrdersMS -->|Return Tracking ID| LogisticsStepper
-    NotifMS -->|Customer Alert| Storefront
-    ProductsMS --> Catalog
-    AdminConsole -.->|Health Probes| BackendMS
-```
-
-### 1. 📦 Multi-Step Checkout & Persistent Recipient Profile
-* **3-Step Frictionless Funnel:** Replaces monolithic forms with a structured, guided sequence:
-  1. **Shipping Destination & Contact:** Full Name, Email, Mobile Phone, Street Address, City, Postal Code, and Country.
-  2. **Delivery Speed Tiering:** Instant choice between **Free Standard Shipping** ($0.00, 3–5 business days) and **⚡ DHL Express Priority** ($9.99, 24–48 hours) with dynamic delivery date estimates.
-  3. **Payment Method & Card Brand Recognition:** Real-time IIN/BIN regex detection identifying **Visa**, **Mastercard**, and **American Express**, coupled with expiration date masking (`MM/YY`), CVV security, and PCI-DSS / 256-bit SSL compliance badges.
-* **1-Click LocalStorage Persistence (`msa_shipping_address`):** Frequently returning customers have their shipping coordinates stored securely on their local device, enabling instant auto-fill upon subsequent visits.
-* **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
-
-### 2. 🚚 Real-Time Logistics Tracking & Consumer Stepper
-* **Interactive 5-Stage Live Delivery Pipeline:** Replaces static client-only status text with an interactive, end-to-end simulated parcel fulfillment journey:
-  $$\text{Order Placed} \longrightarrow \text{Preparing in Hub} \longrightarrow \text{In Transit (DHL Express)} \longrightarrow \text{Out for Delivery} \longrightarrow \text{Delivered \& Signed}$$
-  Triggered via the **"▶ Start Live Delivery Flow"** button on any active order in the customer dashboard.
-* **Animated Courier Runner & Dynamic Icon Morphing:**
-  - CSS-engineered runner (`.delivery-courier-runner`) that smoothly travels across the progress connector ($0\% \rightarrow 25\% \rightarrow 50\% \rightarrow 75\% \rightarrow 100\%$) synchronized with each fulfillment milestone.
-  - Real-time icon morphing illustrating physical logistics:
-    - **Stage 1 (Order Placed):** `📦` Parcel minted and inventory locked.
-    - **Stage 2 (Preparing in Hub):** `📦` Warehouse sorting, pick & pack operations.
-    - **Stage 3 (In Transit - DHL):** `🚚` Regional trunk line dispatch via DHL Express carrier.
-    - **Stage 4 (Out for Delivery):** `🚚` Local courier vehicle en route to customer doorstep.
-    - **Stage 5 (Delivered & Signed):** `✨` Delivery celebration, verified doorstep signature, and final receipt sealing.
-  - Active light-beam connector animation (`.step-connector.active-pulse`) emitting a glowing pulse along the active transit segment.
-* **Automated Backend State Persistence & Kafka Events:**
-  - **Stage 3 Integration:** Automatically executes `PUT /api/orders/{id}/ship` against [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java), setting `orderStatus = SHIPPED`, persisting to PostgreSQL `t_orders`, and emitting an enriched event to Kafka `orders-topic`.
-  - **Stage 5 Integration:** Automatically executes `PUT /api/orders/{id}/deliver`, setting `orderStatus = DELIVERED`, recording delivery timestamp, synchronizing PostgreSQL Micrometer database gauges (`syncDatabaseMetrics()`), and unlocking the **"Delivered & Signed"** seal.
-* **Real-Time Customer Milestones & Multi-Channel Alerts:**
-  - Milestone floating toasts dispatched at every physical handover stage (e.g. *"🚚 Package in Transit with DHL Express"*).
-  - Synchronous push into the **Customer Notification Center** drawer (`msa_customer_notifications` in `sessionStorage`), updating the top navigation badge counter with zero technical jargon.
-* **Automated DHL Tracking Generation:** Upon order placement, [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier:
-  ```json
-  {
-    "orderNumber": "ORD-68F4A12B",
-    "trackingNumber": "DHL-A8E29C1F",
-    "carrier": "DHL Express",
-    "deliveryMethod": "EXPRESS",
-    "shippingFee": 9.99,
-    "taxAmount": 47.92,
-    "totalAmount": 656.91,
-    "orderStatus": "PLACED"
-  }
-  ```
-* **Interactive Logistics Badging & Digital Receipt:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification and itemized line items.
-
-### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
-* **Customer Confidence Metrics:** Every catalog product showcases verified buyer ratings (`★ 4.8 / 5.0`), total ratings volume (`(1,240 customer ratings)`), and authenticity verification (`• 100% Authentic`).
-* **Ecommerce Amber `#1 Best Seller` Badge:** Distinctive `#e67a00` badge applied to top-tier SKUs in both catalog cards and Quick View modals.
-* **Backend Database Schema:** Enriched columns in [`t_products`](./products-service/src/main/resources/db/migration/V1__init.sql) persisted in PostgreSQL:
-  ```sql
-  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION DEFAULT 4.8;
-  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 1200;
-  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false;
-  ALTER TABLE t_products ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'Electronics';
-  ```
-
-### 4. 🛡️ Admin Operations Console, Live Sync & Cluster Health
-* **Cluster Health Supervision Tab:** Direct integration of [`SystemStatusComponent`](./frontend/src/app/features/status/system-status.component.ts) into the administrative dashboard, polling `/actuator/health` across all **12 system microservices and infrastructure components** (Gateway, Keycloak, Products, Orders, Inventory, Notifications, PostgreSQL clusters, Kafka, Redis, Vault).
-* **Modern Live Sync Indicator:** Replaced legacy unstyled refresh buttons with an animated, pulsing glassmorphism `● LIVE SYNC` widget that auto-synchronizes catalog and warehouse stock every 4 seconds or on manual click.
-
-### 5. 🔔 Customer-Centric Notification Center (Zero-Jargon)
-* **Buyer-Oriented Messaging:** Removed internal architecture jargon (such as *"Saga orchestrator"*, *"distributed compensation"*, *"Kafka stream active"*).
-* **Clear Commercial Notifications:** Buyers receive clean status updates directly in the notification drawer:
-  * 📦 *"Order #d8f4163d Confirmed! We are preparing your shipment via DHL Express to Monterrey."*
-  * 🚚 *"Tracking Number Assigned: DHL-A8E29C1F — Estimated delivery in 24-48h."*
-  * 💳 *"Payment Verified — Secure 256-bit SSL transaction complete."*
-
-### 6. 📱 Responsive Media & Aspect-Ratio Scaling
-* **Dynamic Aspect-Ratio Optimization (`16 / 10`):** Replaced hardcoded heights (`height: 165px`) on product cards with fluid aspect ratios and `object-fit: contain;`, guaranteeing that laptops, keyboards, and accessories are 100% visible without clipping on mobile screens.
-* **Single-Viewport Modal Scrolling:** Quick View modal cards enforce `max-height: 90dvh; overflow-y: auto;` with zero secondary or nested scrollbars, ensuring seamless touch momentum scrolling across iOS and Android browsers.
-
----
-
-## 📱 Mobile Application & Google Play Store Architecture Guide
-
-The backend microservices are **100% Client-Agnostic** and fully prepared for native Android / iOS or cross-platform deployment:
-
-### 1. 🚀 Mobile Packaging Options:
-* **Capacitor / Ionic (Recommended):** Wrap the existing Angular 21 codebase into native Android Studio and Xcode projects without rewriting business logic:
-  ```bash
-  npm install @capacitor/core @capacitor/cli @capacitor/android
-  npx cap init "MicroStore" "com.georgegxx.microstore"
-  npx cap add android
-  npm run build && npx cap sync
-  ```
-* **Hardware Camera Integration:** Access native 60 fps barcode scanning with flashlight/autofocus using `@capacitor-community/barcode-scanner`.
-
-### 2. 🔐 Mobile Security & OIDC Integration:
-* **Keycloak Deep Linking:** Register custom redirect URIs (e.g. `com.georgegxx.microstore://auth/callback`) in `microservices-realm` for seamless OAuth2 PKCE login.
-* **HTTPS/TLS Termination:** Android enforces `cleartextTrafficPermitted="false"`. The API Gateway must be fronted by a valid TLS certificate.
-
-### 3. 📦 Google Play Store Publication Checklist:
-1. **Google Play Console Account:** $25 USD one-time developer registration.
-2. **Package Format:** Android App Bundle (`.aab`) signed via `keytool` and Google Play App Signing.
-3. **Camera Permissions:** Declared in `AndroidManifest.xml`: `<uses-permission android:name="android.permission.CAMERA" />`.
-4. **Testing Track:** Deploy first to **Internal Testing Track** for instant device verification without Google manual review wait times.
-
----
-
-## 🌐 Edge Cloud Tunneling & Serverless Frontend (Cloudflare & Vercel)
-
-The platform provides an out-of-the-box hybrid integration to expose local microservices (Docker Compose or Minikube) securely to public internet clients, serverless platforms (Vercel), and mobile smartphones without requiring public static IPs, router port forwarding, or firewall tampering:
-
-```mermaid
-graph LR
-    subgraph PublicInternet ["☁️ Public Edge & Mobile Clients"]
-        Mobile["📱 Mobile Smartphone / PWA<br/>(Android / iOS / Tablets)"]
-        Vercel["⚡ Vercel Edge Serverless<br/>(Angular 21 SPA Storefront)"]
-    end
-
-    subgraph CloudflareEdge ["🛡️ Cloudflare Anycast Quick Tunnels (*.trycloudflare.com)"]
-        CFTunnel1["🚇 Gateway Tunnel (HTTPS)<br/>https://*.trycloudflare.com"]
-        CFTunnel2["🚇 Keycloak IAM Tunnel (HTTPS)<br/>https://*.trycloudflare.com"]
-    end
-
-    subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
-        APIGW["🚪 Spring Cloud Gateway (8080)<br/>(Anti-DDoS Whitelist / Token Relay)"]
-        Keycloak["🔐 Keycloak 26.7.3 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
-        Microservices["⚙️ Core Microservices (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
-    end
-
-    Mobile -->|HTTPS / WSS| Vercel
-    Mobile & Vercel -->|REST Calls| CFTunnel1
-    Mobile & Vercel -->|OAuth2 / PKCE Login| CFTunnel2
-    CFTunnel1 -->|HTTP Proxy| APIGW
-    CFTunnel2 -->|HTTP Proxy| Keycloak
-    APIGW --> Microservices
-```
-
-### 1. 🚇 Cloudflare Quick Tunnels Automation (`start-cloudflare-tunnels.ps1`)
-* **Zero-Configuration Anonymous Tunneling:** Exposes **Spring Cloud Gateway** (`:8080`) and **Keycloak IAM** (`:8181`) with valid Cloudflare TLS certificates using [`scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1`](./scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1).
-* **Automated Frontend Environment Sync:** Running with `-UpdateFrontendEnv` automatically injects the active ephemeral HTTPS endpoints into `frontend/src/environments/environment.prod.ts` and `environment.ts`:
-  ```powershell
-  # For Local Use / Temporary Testing
-  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1
-  # For Deployment to Vercel or Remote Production, be careful, it overwrite your environment.prod.ts and environment.ts files.
-  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1 -UpdateFrontendEnv
-  # API Gateway with Products Endpoint Example
-  https://destination-neon-ent-coral.trycloudflare.com/api/product
-  ```
-* **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](./compose.yaml) and [`keycloak.yaml`](./k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
-
-### 2. 🚀 Vercel Monorepo Deployment & Output Directory Configuration
-* **Angular 21 Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist/frontend/browser"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
-* **Dual Client IAM Architecture:**
-  * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
-  * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for Spring Cloud Gateway and machine-to-machine clients.
-
-### 3. 📱 Full-Stack Mobile PWA Responsiveness & Touch Optimization
-* **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
-  * **Floating Action Button (FAB):** Ergonomic bottom-right quick scanner trigger on mobile devices.
-  * **Touch Momentum Scrolling:** Horizontal smooth scrolling for order status filter tabs without page clipping.
-  * **Touch-Friendly Modals:** Responsive Quick View and QR barcode labels with unified single-viewport touch momentum scrolling (`max-height: 90dvh`).
-* **Vector SVG Favicon & PWA Icons:** Crisp $512\times512\text{ px}$ vector icon ([`frontend/public/favicon.svg`](./frontend/public/favicon.svg)) integrated with Apple Touch Icons and Web App Manifest ([`frontend/public/manifest.webmanifest`](./frontend/public/manifest.webmanifest)).
-* **Clean Enterprise E-Commerce Standard:** Decommissioned arcade synthesizer sound effects and 3D card gimmicks, standardizing on silent, high-performance interactions matching Amazon and Mercado Libre.
-* **Resilient Network Tolerance:** Staggered health checks and automatic RxJS retry backoff (`retry({ count: 2, delay: 1000 })`) preventing false-positive connectivity drops over high-latency mobile networks.
-* **API Gateway Anti-DDoS Exclusions:** [`IpBlacklistFilter.java`](./api-gateway/src/main/java/com/georgegxx/api_gateway/filters/IpBlacklistFilter.java) excludes `/actuator/**` health probes and `OPTIONS` preflight queries from rate limit ban counters with an expanded burst threshold ($120$ requests/5s).
-
----
-
-## 🖼️ Dual-Mode Product Media & Visual Storefront Architecture
-
-The system features an enterprise, zero-dependency **Media Ingestion & Rendering Engine** supporting both offline/local file uploads and external CDN URLs:
-
-```mermaid
-flowchart LR
-    subgraph Client["🎨 Angular 21 Client"]
-        A[📂 Local File Picker] -->|Raw File| B[⚡ HTML5 Canvas Compressor]
-        B -->|Base64 Data URL 40-90 KB| C[Form Payload]
-        D[🔗 Web URL Input] --> C
-        E[✨ Tech Image Presets] --> C
-        F[🛡️ Keyword Fallback Engine] -.->|On Error/Null| G[HD Storefront Display]
-    end
-
-    subgraph Backend["⚙️ Products Service :8004"]
-        C -->|REST POST/PUT| H[ProductRequest DTO]
-        H --> I[JPA Product Entity]
-        I -->|Column TEXT| J[(PostgreSQL 17)]
-        I -->|products-cache| K[(Redis 8.8)]
-    end
-
-    subgraph Views["🖥️ Storefront UI"]
-        H --> G
-        G --> V1[🛍️ Catalog Grid Banners]
-        G --> V2[🔍 Quick View Hero Modal]
-        G --> V3[🛒 Cart Drawer Avatars 52x52]
-        G --> V4[💳 Checkout Matrix 46x46]
-        G --> V5[📦 Order History 32x32]
-        G --> V6[⚙️ Admin Table 44x44]
-    end
-```
-
-### 1. 📂 Client-Side Canvas Compression & Base64 Data URL Engine
-* **Offline-First Local File Uploads:** Upload raw `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device without requiring third-party cloud storage (e.g. AWS S3 buckets or Cloudinary).
-* **Automated Canvas Rescaling ([`product-image.helper.ts`](./frontend/src/app/core/utils/product-image.helper.ts)):** Raw photos (5–15 MB) are scaled to a maximum dimension of $800\text{ px}$ with $82\%$ lossy quality encoding on an offscreen HTML5 Canvas element, converting large images into lightweight **Base64 Data URLs** ($40\text{--}90\text{ KB}$) in milliseconds.
-* **1-Click Curated Presets:** Instant template selector for high-end hardware categories (*Apple Vision Pro, PlayStation 5 Pro, RTX 4090 OC, Dell XPS 16 OLED, Bose QC Ultra, Server Racks*).
-* **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
-
-### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
-* **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to support arbitrary-length Base64 strings or HTTPS URLs up to $1\text{ GB}$ in PostgreSQL without database truncation errors.
-* **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](./products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
-* **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through Spring Cloud Gateway.
-
-### 3. 🎨 High-Fidelity Storefront Visual Integration
-* **Catalog Grid ([`product-list`](./frontend/src/app/features/products/)):** 16:10 responsive aspect ratio image banners (`aspect-ratio: 16 / 10; object-fit: contain;`) with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
-* **Quick View Hero Modal ([`quick-view`](./frontend/src/app/shared/components/quick-view/)):** High-resolution hero display with dynamic category labels, real-time stock indicators, 2-Year SLA guarantees, and express dispatch chips.
-* **Cart, Checkout & Order History:** Consistent square visual thumbnails ($52\times52\text{ px}$ in Cart Drawer, $46\times46\text{ px}$ in Checkout Summary, and $32\times32\text{ px}$ in Order History rows).
-* **Admin Dashboard ([`admin-dashboard`](./frontend/src/app/features/admin/)):** File picker, URL input, live image preview card, and product table thumbnail column.
-
----
-
 ## 🛡️ Production-Grade Cluster Resiliency & Advanced Operations
 
 The platform includes 5 production-grade operational capabilities configured for zero-cloud cost local Minikube deployment and enterprise readiness:
@@ -2001,6 +1974,73 @@ helm rollback microservices 3 -n production --wait --timeout 5m
 
 ---
 
+## ☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)
+
+### 1. AWS Provider (Amazon EKS / RDS / VPC)
+Located in `terraform/environments/aws/` and `terraform/modules/aws/`:
+```powershell
+cd terraform/environments/aws
+terraform init
+terraform workspace select staging || terraform workspace new staging
+terraform plan -var-file=staging/terraform.tfvars
+terraform apply -var-file=staging/terraform.tfvars
+```
+
+### 2. Azure Provider (Azure AKS / ACR / PostgreSQL)
+Located in `terraform/environments/azure/` and `terraform/modules/azure/`:
+```powershell
+cd terraform/environments/azure
+terraform init
+terraform workspace select staging || terraform workspace new staging
+terraform plan -var-file=staging/terraform.tfvars
+terraform apply -var-file=staging/terraform.tfvars
+```
+
+### 3. GCP Provider (Google GKE / Artifact Registry / Cloud SQL)
+Located in `terraform/environments/gcp/` and `terraform/modules/gcp/`:
+```powershell
+cd terraform/environments/gcp
+terraform init
+terraform workspace select staging || terraform workspace new staging
+terraform plan -var-file=staging/terraform.tfvars
+terraform apply -var-file=staging/terraform.tfvars
+```
+
+---
+
+## ☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)
+
+The infrastructure layer in `terraform/` provides **100% architectural parity** across Amazon Web Services, Microsoft Azure, and Google Cloud Platform for environments **`dev`**, **`staging`**, and **`prod`**:
+
+```text
+terraform/
+├── environments/
+│   ├── aws/       (locals.tf, main.tf, outputs.tf, variables.tf)
+│   ├── azure/     (locals.tf, main.tf, outputs.tf, variables.tf)
+│   └── gcp/       (locals.tf, main.tf, outputs.tf, variables.tf)
+└── modules/
+    ├── aws/       (alb, cloudfront, cloudwatch, eks, elasticache, iam_irsa, kms, msk, rds, route53_acm, s3, vpc)
+    ├── azure/     (acr, aks, app_gateway, dns_zone, eventhubs, frontdoor, keyvault, monitor, postgresql, redis, storage_account, vnet, workload_identity)
+    └── gcp/       (cloud_armor_lb, cloud_cdn, cloud_dns, cloud_monitoring, cloudsql, gar, gcs, gke, kms, managed_kafka, memorystore, vpc, workload_identity)
+```
+
+| Architectural Layer | AWS Native Module | Azure Native Module | GCP Native Module |
+| :--- | :--- | :--- | :--- |
+| **1. VPC / Networking** | `modules/aws/vpc` | `modules/azure/vnet` | `modules/gcp/vpc` |
+| **2. Kubernetes (K8s)** | `modules/aws/eks` | `modules/azure/aks` | `modules/gcp/gke` |
+| **3. Relational Database** | `modules/aws/rds` | `modules/azure/postgresql` | `modules/gcp/cloudsql` |
+| **4. Redis Cache** | `modules/aws/elasticache` | `modules/azure/redis` | `modules/gcp/memorystore` |
+| **5. Event Streaming (Kafka)** | `modules/aws/msk` | `modules/azure/eventhubs` | `modules/gcp/managed_kafka` |
+| **6. Object Storage** | `modules/aws/s3` | `modules/azure/storage_account` | `modules/gcp/gcs` |
+| **7. KMS / Key Management** | `modules/aws/kms` | `modules/azure/keyvault` | `modules/gcp/kms` |
+| **8. Workload Identity (IRSA)** | `modules/aws/iam_irsa` | `modules/azure/workload_identity` | `modules/gcp/workload_identity` |
+| **9. Application Load Balancer** | `modules/aws/alb` | `modules/azure/app_gateway` | `modules/gcp/cloud_armor_lb` |
+| **10. CDN & Edge Cache** | `modules/aws/cloudfront` | `modules/azure/frontdoor` | `modules/gcp/cloud_cdn` |
+| **11. Observability & Alarms** | `modules/aws/cloudwatch` | `modules/azure/monitor` | `modules/gcp/cloud_monitoring` |
+| **12. DNS & Certificates** | `modules/aws/route53_acm` | `modules/azure/dns_zone` | `modules/gcp/cloud_dns` |
+
+---
+
 ## ☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)
 
 This directory provides enterprise-grade reference templates for **Amazon Web Services (AWS)**, adhering to Zero-Trust security, GitOps best practices, and immutable delivery standards.
@@ -2050,6 +2090,194 @@ To allow GitHub Actions to deploy to AWS without static access keys:
    ```bash
    kubectl apply -f ./devsecops/reference/aws-eks/argocd-application-eks.yaml.example
    ```
+
+---
+
+## 🤖 Multi-CI/CD & GitOps Automation
+
+### 1. GitHub Actions ➔ AWS Cloud
+Located in `.github/workflows/`:
+- **12-Stage Master Template ([`_service-ci-cd-template.yml`](./.github/workflows/_service-ci-cd-template.yml))**:
+  1. `Unit Tests` (JUnit 5 / JaCoCo) $\rightarrow$ 2. `SAST & Secrets` (SonarCloud, Semgrep, Gitleaks, Checkov) $\rightarrow$ 3. `Build & SBOM` (BuildKit, CycloneDX) $\rightarrow$ 4. `Container Scan` (Trivy) $\rightarrow$ 5. `Push to ECR` $\rightarrow$ 6. `Deploy to EKS Staging` $\rightarrow$ 7. `Integration Tests` (Postman / Newman) $\rightarrow$ 8. `E2E Tests` (Cypress) $\rightarrow$ 9. `Performance Tests` (k6) $\rightarrow$ 10. `DAST` (OWASP ZAP) $\rightarrow$ 11. `Compliance Gate` $\rightarrow$ 12. `Deploy to EKS Production` (Canary Rollout).
+- **Terraform Pipeline ([`terraform-aws.yml`](./.github/workflows/terraform-aws.yml))**: Automated IaC plan, apply, and drift detection.
+
+### 2. Azure DevOps Pipelines ➔ Azure Cloud
+Located in `azure-devops/`:
+- **Master Template ([`ci-cd-master-template.yml`](./azure-devops/templates/ci-cd-master-template.yml))**: Implements the same 12-stage DevSecOps cycle, adapted for Spring Boot Java 21 and Angular 21, targeting Azure Container Registry (ACR) and Azure AKS.
+- **Per-Service Pipelines**: [`api-gateway.yml`](./azure-devops/pipelines/api-gateway.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
+- **Terraform Pipeline ([`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml))**: Deploys Azure AKS / VNet / PostgreSQL Flexible infrastructure.
+
+### 3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP
+- **Bitbucket Pipelines ([`bitbucket-pipelines.yml`](./bitbucket-pipelines.yml))**:
+  - Builds with Maven 3.9 / Temurin 21, static scans with Checkov and Gitleaks, OCI image build with SBOM, vulnerability audit with Trivy, and authenticated push to **Google Artifact Registry (GAR)**.
+  - Runs Terraform GCP in the `terraform-gcp-apply` pipeline.
+- **ArgoCD GitOps ([`argocd/`](./argocd/))**:
+  - Continuous, declarative sync to **Google Kubernetes Engine (GKE)** across all 3 environments:
+    - [`appproject.yaml`](./argocd/appproject.yaml)
+    - [`application-dev.yaml`](./argocd/application-dev.yaml)
+    - [`application-staging.yaml`](./argocd/application-staging.yaml)
+    - [`application-prod.yaml`](./argocd/application-prod.yaml)
+
+---
+
+## 🔄 Multi-Cloud CI/CD & Automated Rollback Architecture
+
+The project features decoupled and single-unified CI/CD pipelines across major enterprise platforms with automated emergency rollback engines:
+
+### 1. GitHub Actions (CI) + ArgoCD (CD) - AWS & Minikube
+- **GitHub Actions (`.github/workflows/`)**: Strictly governs **Continuous Integration (CI)** (Stages 1-5: Unit tests, SAST/Gitleaks, BuildKit image build, CycloneDX SBOM, Trivy vulnerability audit, Conftest OPA policy audit), image publishing to AWS ECR, and triggers declarative GitOps synchronization. Includes automated rollback (`rollback-argocd`) on sync/cluster health failure.
+- **ArgoCD (`argocd/`)**: Strictly governs **Continuous Deployment (CD)** declaratively:
+  - **`develop` branch**: Deploys via `application-dev.yaml` to namespace **`dev`** on Minikube with `values-minikube.yaml`.
+  - **`staging` branch**: Deploys via `application-staging.yaml` to namespace **`staging`** on AWS EKS with medium-performance resources (`values-eks-staging.yaml`).
+  - **`main`/`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, ALB, and Istio Canary 90/10).
+  - **Automated Rollback**: Configured with automated prune, selfHeal, exponential retry backoff, and instant revert via `argocd app rollback`.
+- **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Provisions AWS infrastructure across `staging` and `prod` with automated state lock release (`terraform force-unlock`) on failure.
+
+### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
+- **Unified Pipeline (`azure-devops/templates/ci-cd-master-template.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
+  - Stages 1-5: Unit Tests (Maven/Angular, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
+  - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
+  - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
+  - **Promotion**: Certified image promotion to Azure Container Registry (ACR).
+  - **Production Tier (Stage 12)**: Deploys to AKS namespace **`production`** with Istio Canary progressive traffic shifting (90/10) and **`RollbackProduction`** emergency rollback on canary health check failure.
+- **Azure Terraform Pipeline (`azure-devops/azure-pipelines-terraform.yml`)**: Triggers on `develop`, `staging`, `main`, `master`, dynamically manages workspaces **`dev`**, **`staging`**, **`prod`**, provisions AKS namespaces, and automatically unlocks stranded Azure Blob Storage state leases on error.
+
+### 3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)
+- **Unified Pipeline (`bitbucket-pipelines.yml`)**: Executes **all 12+ stages** in a single pipeline across Google Cloud:
+  - **`develop` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Dev (workspace `dev`) $\rightarrow$ GKE Dev deploy (namespace `dev`) $\rightarrow$ **`rollback-gke-dev`** on error.
+  - **`staging` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Staging (workspace `staging`, medium performance) $\rightarrow$ GKE Staging deploy (namespace `staging`) $\rightarrow$ QA Validation (Newman, Cypress, k6, ZAP DAST) $\rightarrow$ GAR Push $\rightarrow$ **`rollback-gke-staging`** on test failure.
+  - **`main`/`master` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Production (workspace `prod`, high performance HA) $\rightarrow$ Pre-flight QA $\rightarrow$ GAR Push $\rightarrow$ GKE Production Canary with Istio traffic shifting (90/10) $\rightarrow$ **`rollback-gke-production`** on rollout health failure.
+
+### 4. Automated Rollback & Incident Recovery Summary
+| Disaster Scenario | Recovery Mechanism | Recovery Time Objective (RTO) |
+| :--- | :--- | :--- |
+| **Terraform State Lock** | `terraform force-unlock` in backend cleanup step | Immediate (< 10 seconds) |
+| **ArgoCD Sync/Health Failure** | `argocd app rollback` to previous Git SHA | < 1 minute |
+| **Staging Integration/DAST Failure** | Automated Helm rollback (`helm rollback microservices`) | < 30 seconds |
+| **Production Canary Degradation** | Emergency Istio route reset (100% v1) + Helm rollback | < 15 seconds |
+
+---
+
+## 🚀 Enterprise Platform Unified CLI (`platform.ps1`)
+
+The repository includes a single, master PowerShell orchestrator [`platform.ps1`](./platform.ps1) providing a standardized entrypoint for all platform operations across **4 target platforms** (`minikube`, `aws`, `azure`, `gcp`) and **3 environments** (`dev`, `staging`, `prod`):
+
+```powershell
+.\platform.ps1 <command> [-Platform minikube|aws|azure|gcp] [-Environment dev|staging|prod] [options]
+```
+
+### 📋 Complete Combinations Reference Guide
+
+#### 1. 🚀 Bootstrap & Deployment (`up` / `bootstrap`)
+
+| Platform | Command / Combination | Description & Effects |
+| :--- | :--- | :--- |
+| **Minikube** | `.\platform.ps1 up` | Default bootstrap: Minikube cluster, Istio Demo profile, Envoy sidecars, Gatekeeper OPA, Keycloak + `db-keycloak`, Vault, Data tier, Apps, Grafana/Prometheus, Tunnels & FinOps. |
+| **Minikube** | `.\platform.ps1 up -Platform minikube -WithIstio` | Explicitly enables Istio service mesh, STRICT mTLS and Envoy proxy injection. |
+| **Minikube** | `.\platform.ps1 up -Platform minikube -WithoutIstio` | Native Kubernetes mode without Envoy sidecars or Istio control plane overhead (saves 1.5 GB RAM). |
+| **Minikube** | `.\platform.ps1 up -DeployCanary` | Provisions base microservices plus version `v2` in Canary mode with 90/10 Istio traffic routing. |
+| **Minikube** | `.\platform.ps1 up -SkipScans` | Fast-track bootstrap: skips pre-flight Gitleaks, TFLint, Trivy, and Cosign validations. |
+| **Minikube** | `.\platform.ps1 up -Cpus 8 -MemoryMb 8192 -DiskSize 50g` | Custom hardware allocation for lower-spec developer workstations. |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment dev` | Deploys AWS Dev tier (corresponds to `develop` branch, namespace `dev`, burstable resources). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment staging` | Deploys AWS Staging tier (`staging` branch, namespace `staging`, medium performance: 2 replicas, 250m-500m CPU). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment prod` | Deploys AWS Production tier (`main`/`master` branch, namespace `production`, high performance HA: 3-10 replicas, ALB, Canary). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment <env> -AutoApprove` | Automated, non-interactive Terraform apply for CI/CD runners. |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment dev` | Deploys Azure Dev tier (corresponds to `develop` branch, namespace `dev`, burstable B-series). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment staging` | Deploys Azure Staging tier (`staging` branch, namespace `staging`, medium performance D-series). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment prod` | Deploys Azure Production tier (`main`/`master` branch, namespace `production`, high performance HA, App Gateway). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Azure DevOps pipelines. |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment dev` | Deploys GCP Dev tier (corresponds to `develop` branch, namespace `dev`, e2-standard). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment staging` | Deploys GCP Staging tier (`staging` branch, namespace `staging`, medium performance). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment prod` | Deploys GCP Production tier (`main`/`master` branch, namespace `production`, high performance HA, Cloud Armor). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Bitbucket Pipelines. |
+
+---
+
+#### 2. ⏸️ Teardown, Pause & Cluster Purge (`down` / `stop` / `destroy`)
+
+| Command / Combination | Platform | Description & Effects |
+| :--- | :--- | :--- |
+| `.\platform.ps1 down` | Minikube | Gracefully terminates background tunnels and pauses Minikube. Preserves all container images, database data, and state. |
+| `.\platform.ps1 down -Destroy` | Minikube | Deletes the Minikube VM/container, purges persistent volumes, and cleans local Terraform state. |
+| `.\platform.ps1 destroy -Platform minikube` | Minikube | Direct alias for complete Minikube cluster and state purge. |
+| `.\platform.ps1 down -Platform aws -Environment <dev\|staging\|prod>` | AWS | Runs `terraform destroy` against the specified AWS workspace. |
+| `.\platform.ps1 destroy -Platform aws -Environment prod -AutoApprove` | AWS | Non-interactive purge of AWS production resources. |
+| `.\platform.ps1 down -Platform azure -Environment <dev\|staging\|prod>` | Azure | Runs `terraform destroy` against the specified Azure workspace. |
+| `.\platform.ps1 destroy -Platform azure -Environment prod -AutoApprove` | Azure | Non-interactive purge of Azure production resources. |
+| `.\platform.ps1 down -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Runs `terraform destroy` against the specified GCP workspace. |
+| `.\platform.ps1 destroy -Platform gcp -Environment prod -AutoApprove` | GCP | Non-interactive purge of GCP production resources. |
+
+---
+
+#### 3. 📝 Terraform Infrastructure Planning & Apply (`plan` / `apply`)
+
+| Command / Combination | Platform | Description & Effects |
+| :--- | :--- | :--- |
+| `.\platform.ps1 plan -Platform minikube` | Minikube | Generates the Graphviz visual dependency diagram (`docs/terraform-graph.png`). |
+| `.\platform.ps1 plan -Platform aws -Environment <dev\|staging\|prod>` | AWS | Executes `terraform plan` for the selected AWS workspace and outputs plan file. |
+| `.\platform.ps1 plan -Platform azure -Environment <dev\|staging\|prod>` | Azure | Executes `terraform plan` for the selected Azure workspace. |
+| `.\platform.ps1 plan -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Executes `terraform plan` for the selected GCP workspace. |
+| `.\platform.ps1 apply -Platform aws -Environment staging -AutoApprove` | AWS | Provisions AWS staging infrastructure without interactive prompts. |
+| `.\platform.ps1 apply -Platform azure -Environment prod -AutoApprove` | Azure | Provisions Azure production infrastructure without interactive prompts. |
+| `.\platform.ps1 apply -Platform gcp -Environment dev -AutoApprove` | GCP | Provisions GCP dev infrastructure without interactive prompts. |
+
+---
+
+#### 4. 🔄 Automated Emergency Rollbacks (`rollback`)
+
+| Command / Combination | Target | Recovery Action Performed |
+| :--- | :--- | :--- |
+| `.\platform.ps1 rollback` | Minikube | Rolls back the Helm umbrella release in namespace `dev` to the previous stable revision. |
+| `.\platform.ps1 rollback -Platform aws -Environment staging` | AWS | Initiates emergency rollback: releases S3/DynamoDB state lock and triggers ArgoCD sync fallback. |
+| `.\platform.ps1 rollback -Platform aws -Environment prod -LockId <ID>` | AWS | Forces release of a specific DynamoDB state lock (`terraform force-unlock <ID>`) and triggers rollback. |
+| `.\platform.ps1 rollback -Platform azure -Environment staging` | Azure | Releases Azure Blob Storage state lease and triggers Helm rollback on AKS. |
+| `.\platform.ps1 rollback -Platform azure -Environment prod -LockId <ID>` | Azure | Unlocks Azure Blob storage lease and executes production fallback. |
+| `.\platform.ps1 rollback -Platform gcp -Environment staging` | GCP | Releases GCS state lock and executes GKE deployment rollback to previous replica revision. |
+| `.\platform.ps1 rollback -Platform gcp -Environment prod -LockId <ID>` | GCP | Clears GCS state lock and triggers production rollback. |
+
+---
+
+#### 5. 🔍 Health Diagnostics & Verification (`doctor` / `verify` / `status`)
+
+| Command / Combination | Target | Diagnostic Scope |
+| :--- | :--- | :--- |
+| `.\platform.ps1 doctor` | Minikube | Verifies pods across `dev`, `observability`, `auth`, `vault`, `data`, `argocd`, `gatekeeper-system`, active NodePorts, and runs synthetic OPA admission test. |
+| `.\platform.ps1 doctor -Platform aws -Environment staging` | AWS | Inspects AWS EKS pod status, ALB ingress controller, and IRSA bindings. |
+| `.\platform.ps1 doctor -Platform azure -Environment prod` | Azure | Inspects Azure AKS pod status, Application Gateway ingress, and Workload Identity. |
+| `.\platform.ps1 doctor -Platform gcp -Environment dev` | GCP | Inspects Google GKE pod status, Cloud Armor LB, and Workload Identity. |
+
+---
+
+#### 6. 💰 FinOps Cloud Cost Breakdown & Savings (`cost` / `finops`)
+
+| Command / Combination | Environment | Analysis Performed |
+| :--- | :--- | :--- |
+| `.\platform.ps1 cost` | Minikube | Air-gapped offline cost analysis: computes local developer cost ($0/mo) and calculates monthly savings vs. AWS ($1,864/mo), Azure ($1,792/mo), and GCP ($1,680/mo). |
+| `.\platform.ps1 cost -Environment staging` | Staging | Displays medium performance tier monthly spending breakdown across compute, databases, cache, and networking. |
+| `.\platform.ps1 cost -Environment prod` | Production | Displays high performance HA tier monthly cost breakdown across multi-AZ clusters, managed databases, and enterprise services. |
+
+---
+
+#### 7. 🛠️ Host CLI Audit & Automated Winget Installation (`tools`)
+
+| Command / Combination | Mode | Description |
+| :--- | :--- | :--- |
+| `.\platform.ps1 tools` | Audit Only | Fast audit (< 1s) checking presence and version of 17 essential platform tools. Excludes 9 non-essential CLIs. |
+| `.\platform.ps1 tools -Install` | Unattended Install | Automatically installs any missing tools via `winget install --id ... --silent --accept-package-agreements`. |
+
+---
+
+#### 8. ⚡ Productivity, Security & Verification Utilities
+
+| Command | Action Performed |
+| :--- | :--- |
+| `.\platform.ps1 urls` | Prints interactive colorized dashboard of all active frontend, API Gateway, Keycloak IAM, Vault UI, Kiali, ArgoCD, Grafana, and Prometheus URLs with credentials. |
+| `.\platform.ps1 smoke` | Executes automated synthetic integration smoke tests against API Gateway and microservices validating health, latency, and negative security gates. |
+| `.\platform.ps1 tunnels` | Launches the resilient background port-forward supervisor daemon with automatic reconnection. |
+| `.\platform.ps1 secrets [-Environment <dev\|staging\|prod>]` | Generates high-entropy CSPRNG cryptographic secrets (JWT keys, DB passwords, Keycloak client secrets) for Kubernetes manifests or `.env`. |
+| `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
+| `.\platform.ps1 graph` | Generates a visual Terraform dependency graph PNG at `docs/terraform-graph.png` using Graphviz (`dot`). |
+| `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 12 architectural tabs in [`docs/Diagrams.drawio`](./docs/Diagrams.drawio) via Python. |
 
 ---
 
@@ -2216,163 +2444,6 @@ The platform provides lightweight, cloud-agnostic tools for post-deployment veri
 | **[`generate-secure-secrets.py`](./scripts/devsecops/generate-secure-secrets.py)** | **Zero-Trust Credential & Secret Generator:** Replaces default passwords with high-entropy cryptographic keys (CSPRNG). | • Generates database passwords, Keycloak client secrets, and 256-bit JWT keys<br/>• Exports directly to `.env`, JSON, or Kubernetes `Secret` YAML manifests | `python scripts/devsecops/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
 | **[`supervise-tunnels.py`](./scripts/devsecops/supervise-tunnels.py)** | **Resilient Port-Forward Tunnel Supervisor:** Maintains background port-forwarding daemons with automatic reconnects. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Recovers from connection drops | `python scripts/devsecops/supervise-tunnels.py` |
 | **[`teardown-local-devsecops.ps1`](./scripts/devsecops/teardown-local-devsecops.ps1)** | **Platform Teardown & Resource Release:** Pauses Minikube or completely purges cluster, state and tunnels. | • Graceful pod drain<br/>• Reclaims 12 CPUs and 12 GB RAM<br/>• Optional `-DeleteCluster` cleans 80 GB disk | `.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster` |
-
----
-
-## 🚀 Enterprise Platform Unified CLI (`platform.ps1`)
-
-The repository includes a single, master PowerShell orchestrator [`platform.ps1`](./platform.ps1) providing a standardized entrypoint for all platform operations across **4 target platforms** (`minikube`, `aws`, `azure`, `gcp`) and **3 environments** (`dev`, `staging`, `prod`):
-
-```powershell
-.\platform.ps1 <command> [-Platform minikube|aws|azure|gcp] [-Environment dev|staging|prod] [options]
-```
-
-### 📋 Complete Combinations Reference Guide
-
-#### 1. 🚀 Bootstrap & Deployment (`up` / `bootstrap`)
-
-| Platform | Command / Combination | Description & Effects |
-| :--- | :--- | :--- |
-| **Minikube** | `.\platform.ps1 up` | Default bootstrap: Minikube cluster, Istio Demo profile, Envoy sidecars, Gatekeeper OPA, Keycloak + `db-keycloak`, Vault, Data tier, Apps, Grafana/Prometheus, Tunnels & FinOps. |
-| **Minikube** | `.\platform.ps1 up -Platform minikube -WithIstio` | Explicitly enables Istio service mesh, STRICT mTLS and Envoy proxy injection. |
-| **Minikube** | `.\platform.ps1 up -Platform minikube -WithoutIstio` | Native Kubernetes mode without Envoy sidecars or Istio control plane overhead (saves 1.5 GB RAM). |
-| **Minikube** | `.\platform.ps1 up -DeployCanary` | Provisions base microservices plus version `v2` in Canary mode with 90/10 Istio traffic routing. |
-| **Minikube** | `.\platform.ps1 up -SkipScans` | Fast-track bootstrap: skips pre-flight Gitleaks, TFLint, Trivy, and Cosign validations. |
-| **Minikube** | `.\platform.ps1 up -Cpus 8 -MemoryMb 8192 -DiskSize 50g` | Custom hardware allocation for lower-spec developer workstations. |
-| **AWS** | `.\platform.ps1 up -Platform aws -Environment dev` | Deploys AWS Dev tier (corresponds to `develop` branch, namespace `dev`, burstable resources). |
-| **AWS** | `.\platform.ps1 up -Platform aws -Environment staging` | Deploys AWS Staging tier (`staging` branch, namespace `staging`, medium performance: 2 replicas, 250m-500m CPU). |
-| **AWS** | `.\platform.ps1 up -Platform aws -Environment prod` | Deploys AWS Production tier (`main`/`master` branch, namespace `production`, high performance HA: 3-10 replicas, ALB, Canary). |
-| **AWS** | `.\platform.ps1 up -Platform aws -Environment <env> -AutoApprove` | Automated, non-interactive Terraform apply for CI/CD runners. |
-| **Azure** | `.\platform.ps1 up -Platform azure -Environment dev` | Deploys Azure Dev tier (corresponds to `develop` branch, namespace `dev`, burstable B-series). |
-| **Azure** | `.\platform.ps1 up -Platform azure -Environment staging` | Deploys Azure Staging tier (`staging` branch, namespace `staging`, medium performance D-series). |
-| **Azure** | `.\platform.ps1 up -Platform azure -Environment prod` | Deploys Azure Production tier (`main`/`master` branch, namespace `production`, high performance HA, App Gateway). |
-| **Azure** | `.\platform.ps1 up -Platform azure -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Azure DevOps pipelines. |
-| **GCP** | `.\platform.ps1 up -Platform gcp -Environment dev` | Deploys GCP Dev tier (corresponds to `develop` branch, namespace `dev`, e2-standard). |
-| **GCP** | `.\platform.ps1 up -Platform gcp -Environment staging` | Deploys GCP Staging tier (`staging` branch, namespace `staging`, medium performance). |
-| **GCP** | `.\platform.ps1 up -Platform gcp -Environment prod` | Deploys GCP Production tier (`main`/`master` branch, namespace `production`, high performance HA, Cloud Armor). |
-| **GCP** | `.\platform.ps1 up -Platform gcp -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Bitbucket Pipelines. |
-
----
-
-#### 2. ⏸️ Teardown, Pause & Cluster Purge (`down` / `stop` / `destroy`)
-
-| Command / Combination | Platform | Description & Effects |
-| :--- | :--- | :--- |
-| `.\platform.ps1 down` | Minikube | Gracefully terminates background tunnels and pauses Minikube. Preserves all container images, database data, and state. |
-| `.\platform.ps1 down -Destroy` | Minikube | Deletes the Minikube VM/container, purges persistent volumes, and cleans local Terraform state. |
-| `.\platform.ps1 destroy -Platform minikube` | Minikube | Direct alias for complete Minikube cluster and state purge. |
-| `.\platform.ps1 down -Platform aws -Environment <dev\|staging\|prod>` | AWS | Runs `terraform destroy` against the specified AWS workspace. |
-| `.\platform.ps1 destroy -Platform aws -Environment prod -AutoApprove` | AWS | Non-interactive purge of AWS production resources. |
-| `.\platform.ps1 down -Platform azure -Environment <dev\|staging\|prod>` | Azure | Runs `terraform destroy` against the specified Azure workspace. |
-| `.\platform.ps1 destroy -Platform azure -Environment prod -AutoApprove` | Azure | Non-interactive purge of Azure production resources. |
-| `.\platform.ps1 down -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Runs `terraform destroy` against the specified GCP workspace. |
-| `.\platform.ps1 destroy -Platform gcp -Environment prod -AutoApprove` | GCP | Non-interactive purge of GCP production resources. |
-
----
-
-#### 3. 📝 Terraform Infrastructure Planning & Apply (`plan` / `apply`)
-
-| Command / Combination | Platform | Description & Effects |
-| :--- | :--- | :--- |
-| `.\platform.ps1 plan -Platform minikube` | Minikube | Generates the Graphviz visual dependency diagram (`docs/terraform-graph.png`). |
-| `.\platform.ps1 plan -Platform aws -Environment <dev\|staging\|prod>` | AWS | Executes `terraform plan` for the selected AWS workspace and outputs plan file. |
-| `.\platform.ps1 plan -Platform azure -Environment <dev\|staging\|prod>` | Azure | Executes `terraform plan` for the selected Azure workspace. |
-| `.\platform.ps1 plan -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Executes `terraform plan` for the selected GCP workspace. |
-| `.\platform.ps1 apply -Platform aws -Environment staging -AutoApprove` | AWS | Provisions AWS staging infrastructure without interactive prompts. |
-| `.\platform.ps1 apply -Platform azure -Environment prod -AutoApprove` | Azure | Provisions Azure production infrastructure without interactive prompts. |
-| `.\platform.ps1 apply -Platform gcp -Environment dev -AutoApprove` | GCP | Provisions GCP dev infrastructure without interactive prompts. |
-
----
-
-#### 4. 🔄 Automated Emergency Rollbacks (`rollback`)
-
-| Command / Combination | Target | Recovery Action Performed |
-| :--- | :--- | :--- |
-| `.\platform.ps1 rollback` | Minikube | Rolls back the Helm umbrella release in namespace `dev` to the previous stable revision. |
-| `.\platform.ps1 rollback -Platform aws -Environment staging` | AWS | Initiates emergency rollback: releases S3/DynamoDB state lock and triggers ArgoCD sync fallback. |
-| `.\platform.ps1 rollback -Platform aws -Environment prod -LockId <ID>` | AWS | Forces release of a specific DynamoDB state lock (`terraform force-unlock <ID>`) and triggers rollback. |
-| `.\platform.ps1 rollback -Platform azure -Environment staging` | Azure | Releases Azure Blob Storage state lease and triggers Helm rollback on AKS. |
-| `.\platform.ps1 rollback -Platform azure -Environment prod -LockId <ID>` | Azure | Unlocks Azure Blob storage lease and executes production fallback. |
-| `.\platform.ps1 rollback -Platform gcp -Environment staging` | GCP | Releases GCS state lock and executes GKE deployment rollback to previous replica revision. |
-| `.\platform.ps1 rollback -Platform gcp -Environment prod -LockId <ID>` | GCP | Clears GCS state lock and triggers production rollback. |
-
----
-
-#### 5. 🔍 Health Diagnostics & Verification (`doctor` / `verify` / `status`)
-
-| Command / Combination | Target | Diagnostic Scope |
-| :--- | :--- | :--- |
-| `.\platform.ps1 doctor` | Minikube | Verifies pods across `dev`, `observability`, `auth`, `vault`, `data`, `argocd`, `gatekeeper-system`, active NodePorts, and runs synthetic OPA admission test. |
-| `.\platform.ps1 doctor -Platform aws -Environment staging` | AWS | Inspects AWS EKS pod status, ALB ingress controller, and IRSA bindings. |
-| `.\platform.ps1 doctor -Platform azure -Environment prod` | Azure | Inspects Azure AKS pod status, Application Gateway ingress, and Workload Identity. |
-| `.\platform.ps1 doctor -Platform gcp -Environment dev` | GCP | Inspects Google GKE pod status, Cloud Armor LB, and Workload Identity. |
-
----
-
-#### 6. 💰 FinOps Cloud Cost Breakdown & Savings (`cost` / `finops`)
-
-| Command / Combination | Environment | Analysis Performed |
-| :--- | :--- | :--- |
-| `.\platform.ps1 cost` | Minikube | Air-gapped offline cost analysis: computes local developer cost ($0/mo) and calculates monthly savings vs. AWS ($1,864/mo), Azure ($1,792/mo), and GCP ($1,680/mo). |
-| `.\platform.ps1 cost -Environment staging` | Staging | Displays medium performance tier monthly spending breakdown across compute, databases, cache, and networking. |
-| `.\platform.ps1 cost -Environment prod` | Production | Displays high performance HA tier monthly cost breakdown across multi-AZ clusters, managed databases, and enterprise services. |
-
----
-
-#### 7. 🛠️ Host CLI Audit & Automated Winget Installation (`tools`)
-
-| Command / Combination | Mode | Description |
-| :--- | :--- | :--- |
-| `.\platform.ps1 tools` | Audit Only | Fast audit (< 1s) checking presence and version of 17 essential platform tools. Excludes 9 non-essential CLIs. |
-| `.\platform.ps1 tools -Install` | Unattended Install | Automatically installs any missing tools via `winget install --id ... --silent --accept-package-agreements`. |
-
----
-
-#### 8. ⚡ Productivity, Security & Verification Utilities
-
-| Command | Action Performed |
-| :--- | :--- |
-| `.\platform.ps1 urls` | Prints interactive colorized dashboard of all active frontend, API Gateway, Keycloak IAM, Vault UI, Kiali, ArgoCD, Grafana, and Prometheus URLs with credentials. |
-| `.\platform.ps1 smoke` | Executes automated synthetic integration smoke tests against API Gateway and microservices validating health, latency, and negative security gates. |
-| `.\platform.ps1 tunnels` | Launches the resilient background port-forward supervisor daemon with automatic reconnection. |
-| `.\platform.ps1 secrets [-Environment <dev\|staging\|prod>]` | Generates high-entropy CSPRNG cryptographic secrets (JWT keys, DB passwords, Keycloak client secrets) for Kubernetes manifests or `.env`. |
-| `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
-| `.\platform.ps1 graph` | Generates a visual Terraform dependency graph PNG at `docs/terraform-graph.png` using Graphviz (`dot`). |
-| `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 12 architectural tabs in [`docs/Diagrams.drawio`](./docs/Diagrams.drawio) via Python. |
-
----
-
-## 🛠️ Winget DevSecOps & Platform CLI Tool Suite
-
-The platform standardizes **17 essential industry-standard CLI applications** managed via Windows Package Manager (`winget`):
-
-### 1. IaC & FinOps
-- **`Hashicorp.Terraform` (`terraform`)**: Multi-cloud Infrastructure as Code engine.
-- **`TerraformLinters.tflint` (`tflint`)**: Framework linter enforcing module conventions and catching provider errors.
-- **`Infracost.Infracost` (`infracost`)**: Cloud cost estimation engine for Terraform.
-- **`Graphviz.Graphviz` (`dot`)**: Dependency graph visualization utility (`terraform graph | dot -Tpng -o graph.png`).
-
-### 2. DevSecOps & Security
-- **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
-- **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
-- **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
-- **`Hashicorp.Vault` (`vault`)**: Client for HashiCorp Vault (KV-v2 secrets, PKI engine).
-
-### 3. Container & Kubernetes Orchestration
-- **`Docker.DockerDesktop` (`docker`)**: Local container engine and runtime.
-- **`Kubernetes.minikube` (`minikube`)**: Local Kubernetes cluster driver.
-- **`Kubernetes.kubectl` (`kubectl`)**: Kubernetes cluster management CLI.
-- **`Helm.Helm` (`helm`)**: Kubernetes package manager for umbrella chart deployment.
-- **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
-
-### 4. Runtimes, Build Tools & Productivity
-- **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
-- **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for Angular frontend compilation.
-- **`Git.Git` (`git`)**: Distributed version control system.
-- **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
-
-> ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
-> To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
 
 ---
 
@@ -2564,77 +2635,6 @@ Below is the complete inventory of all platform automation scripts and their ope
   - `--check abandonment`: Evaluates real-time cart abandonment PromQL calculations.
   - `--check vault`: Verifies HashiCorp Vault unsealed status and scrape health.
   - `--check promql --query "<expr>"`: Evaluates arbitrary PromQL expressions with formatted series output.
-
----
-
-## ☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)
-
-The infrastructure layer in `terraform/` provides **100% architectural parity** across Amazon Web Services, Microsoft Azure, and Google Cloud Platform for environments **`dev`**, **`staging`**, and **`prod`**:
-
-```text
-terraform/
-├── environments/
-│   ├── aws/       (locals.tf, main.tf, outputs.tf, variables.tf)
-│   ├── azure/     (locals.tf, main.tf, outputs.tf, variables.tf)
-│   └── gcp/       (locals.tf, main.tf, outputs.tf, variables.tf)
-└── modules/
-    ├── aws/       (alb, cloudfront, cloudwatch, eks, elasticache, iam_irsa, kms, msk, rds, route53_acm, s3, vpc)
-    ├── azure/     (acr, aks, app_gateway, dns_zone, eventhubs, frontdoor, keyvault, monitor, postgresql, redis, storage_account, vnet, workload_identity)
-    └── gcp/       (cloud_armor_lb, cloud_cdn, cloud_dns, cloud_monitoring, cloudsql, gar, gcs, gke, kms, managed_kafka, memorystore, vpc, workload_identity)
-```
-
-| Architectural Layer | AWS Native Module | Azure Native Module | GCP Native Module |
-| :--- | :--- | :--- | :--- |
-| **1. VPC / Networking** | `modules/aws/vpc` | `modules/azure/vnet` | `modules/gcp/vpc` |
-| **2. Kubernetes (K8s)** | `modules/aws/eks` | `modules/azure/aks` | `modules/gcp/gke` |
-| **3. Relational Database** | `modules/aws/rds` | `modules/azure/postgresql` | `modules/gcp/cloudsql` |
-| **4. Redis Cache** | `modules/aws/elasticache` | `modules/azure/redis` | `modules/gcp/memorystore` |
-| **5. Event Streaming (Kafka)** | `modules/aws/msk` | `modules/azure/eventhubs` | `modules/gcp/managed_kafka` |
-| **6. Object Storage** | `modules/aws/s3` | `modules/azure/storage_account` | `modules/gcp/gcs` |
-| **7. KMS / Key Management** | `modules/aws/kms` | `modules/azure/keyvault` | `modules/gcp/kms` |
-| **8. Workload Identity (IRSA)** | `modules/aws/iam_irsa` | `modules/azure/workload_identity` | `modules/gcp/workload_identity` |
-| **9. Application Load Balancer** | `modules/aws/alb` | `modules/azure/app_gateway` | `modules/gcp/cloud_armor_lb` |
-| **10. CDN & Edge Cache** | `modules/aws/cloudfront` | `modules/azure/frontdoor` | `modules/gcp/cloud_cdn` |
-| **11. Observability & Alarms** | `modules/aws/cloudwatch` | `modules/azure/monitor` | `modules/gcp/cloud_monitoring` |
-| **12. DNS & Certificates** | `modules/aws/route53_acm` | `modules/azure/dns_zone` | `modules/gcp/cloud_dns` |
-
----
-
-## 🔄 Multi-Cloud CI/CD & Automated Rollback Architecture
-
-The project features decoupled and single-unified CI/CD pipelines across major enterprise platforms with automated emergency rollback engines:
-
-### 1. GitHub Actions (CI) + ArgoCD (CD) - AWS & Minikube
-- **GitHub Actions (`.github/workflows/`)**: Strictly governs **Continuous Integration (CI)** (Stages 1-5: Unit tests, SAST/Gitleaks, BuildKit image build, CycloneDX SBOM, Trivy vulnerability audit, Conftest OPA policy audit), image publishing to AWS ECR, and triggers declarative GitOps synchronization. Includes automated rollback (`rollback-argocd`) on sync/cluster health failure.
-- **ArgoCD (`argocd/`)**: Strictly governs **Continuous Deployment (CD)** declaratively:
-  - **`develop` branch**: Deploys via `application-dev.yaml` to namespace **`dev`** on Minikube with `values-minikube.yaml`.
-  - **`staging` branch**: Deploys via `application-staging.yaml` to namespace **`staging`** on AWS EKS with medium-performance resources (`values-eks-staging.yaml`).
-  - **`main`/`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, ALB, and Istio Canary 90/10).
-  - **Automated Rollback**: Configured with automated prune, selfHeal, exponential retry backoff, and instant revert via `argocd app rollback`.
-- **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Provisions AWS infrastructure across `staging` and `prod` with automated state lock release (`terraform force-unlock`) on failure.
-
-### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
-- **Unified Pipeline (`azure-devops/templates/ci-cd-master-template.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
-  - Stages 1-5: Unit Tests (Maven/Angular, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
-  - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
-  - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
-  - **Promotion**: Certified image promotion to Azure Container Registry (ACR).
-  - **Production Tier (Stage 12)**: Deploys to AKS namespace **`production`** with Istio Canary progressive traffic shifting (90/10) and **`RollbackProduction`** emergency rollback on canary health check failure.
-- **Azure Terraform Pipeline (`azure-devops/azure-pipelines-terraform.yml`)**: Triggers on `develop`, `staging`, `main`, `master`, dynamically manages workspaces **`dev`**, **`staging`**, **`prod`**, provisions AKS namespaces, and automatically unlocks stranded Azure Blob Storage state leases on error.
-
-### 3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)
-- **Unified Pipeline (`bitbucket-pipelines.yml`)**: Executes **all 12+ stages** in a single pipeline across Google Cloud:
-  - **`develop` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Dev (workspace `dev`) $\rightarrow$ GKE Dev deploy (namespace `dev`) $\rightarrow$ **`rollback-gke-dev`** on error.
-  - **`staging` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Staging (workspace `staging`, medium performance) $\rightarrow$ GKE Staging deploy (namespace `staging`) $\rightarrow$ QA Validation (Newman, Cypress, k6, ZAP DAST) $\rightarrow$ GAR Push $\rightarrow$ **`rollback-gke-staging`** on test failure.
-  - **`main`/`master` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Production (workspace `prod`, high performance HA) $\rightarrow$ Pre-flight QA $\rightarrow$ GAR Push $\rightarrow$ GKE Production Canary with Istio traffic shifting (90/10) $\rightarrow$ **`rollback-gke-production`** on rollout health failure.
-
-### 4. Automated Rollback & Incident Recovery Summary
-| Disaster Scenario | Recovery Mechanism | Recovery Time Objective (RTO) |
-| :--- | :--- | :--- |
-| **Terraform State Lock** | `terraform force-unlock` in backend cleanup step | Immediate (< 10 seconds) |
-| **ArgoCD Sync/Health Failure** | `argocd app rollback` to previous Git SHA | < 1 minute |
-| **Staging Integration/DAST Failure** | Automated Helm rollback (`helm rollback microservices`) | < 30 seconds |
-| **Production Canary Degradation** | Emergency Istio route reset (100% v1) + Helm rollback | < 15 seconds |
 
 ---
 
