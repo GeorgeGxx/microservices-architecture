@@ -32,7 +32,7 @@ resource "helm_release" "gatekeeper" {
   name       = "gatekeeper"
   repository = "https://open-policy-agent.github.io/gatekeeper/charts"
   chart      = "gatekeeper"
-  version    = "3.23.1"
+  version    = "3.23.0"
   namespace  = "gatekeeper-system"
   timeout    = 600
 

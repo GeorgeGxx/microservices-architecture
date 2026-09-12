@@ -66,6 +66,15 @@ server:
   port: ${PORT:8001}
   shutdown: graceful
 
+springdoc:
+  api-docs:
+    version: openapi_3_0
+
+logging:
+  level:
+    root: info
+    "[org.springdoc.core.utils.SpringDocUtils]": error
+
 management:
   endpoints:
     web:

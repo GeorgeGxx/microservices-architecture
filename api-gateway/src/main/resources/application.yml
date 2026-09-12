@@ -119,7 +119,10 @@ server:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    urls-primary-name: 🌟 All Microservices (Unified)
     urls:
+      - name: 🌟 All Microservices (Unified)
+        url: /v3/api-docs/consolidated
       - name: 1. Products Service
         url: /v3/api-docs/products-service
       - name: 2. Orders Service

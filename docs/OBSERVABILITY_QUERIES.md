@@ -195,7 +195,7 @@ topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)
 
 ---
 
-## 📜 2. LogQL Queries (Grafana Loki & Alloy v1.18.1)
+## 📜 2. LogQL Queries (Grafana Loki & Alloy v1.19.1)
 
 LogQL (*Log Query Language*) allows searching, filtering, and calculating metrics over logs collected by Grafana Alloy from Docker containers and Kubernetes pods.
 

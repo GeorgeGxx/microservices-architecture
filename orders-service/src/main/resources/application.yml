@@ -80,6 +80,15 @@ server:
   port: ${PORT:8003}
   shutdown: graceful
 
+springdoc:
+  api-docs:
+    version: openapi_3_0
+
+logging:
+  level:
+    root: info
+    "[org.springdoc.core.utils.SpringDocUtils]": error
+
 resilience4j:
   circuitbreaker:
     configs:
