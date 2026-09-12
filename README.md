@@ -1599,6 +1599,8 @@ The architecture implements the modern **Grafana LGTM + OpenTelemetry** standard
 
 Access the interactive query interface at **[http://localhost:3000/explore](http://localhost:3000/explore)** (Login: `admin` / `admin`) to execute deep telemetry analysis:
 
+> 💡 **Handbook & Cheat Sheet:** For the complete categorized catalog of PromQL formulas, LogQL filters, and TraceQL queries with practical examples, consult [`docs/OBSERVABILITY_QUERIES.md`](./docs/OBSERVABILITY_QUERIES.md).
+
 #### 🗄️ Standardized Grafana Datasources (Explore & Dashboards)
 
 All telemetry datasources adhere to unified naming conventions across both Docker Compose and Kubernetes (Minikube):
