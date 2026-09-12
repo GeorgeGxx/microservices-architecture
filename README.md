@@ -585,8 +585,8 @@ When you are ready to enforce strict blocking in production:
 | kubectl | 1.37.0 | Kubernetes / Minikube deployment |
 | Minikube | 1.39.0 | Local Kubernetes deployment |
 | Istioctl | 1.31.0 | Service mesh install & Kiali dashboard |
-| Terraform | 1.15.8 | AWS / Azure / GCP provisioning |
-| Cloudflared CLI | 2026.8.30 | Cloudflare tunnels deployment |
+| Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
+| Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
 | Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
 

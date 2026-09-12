@@ -69,12 +69,35 @@ foreach ($t in $tools) {
     $versionStr = "Not Installed"
     if ($isInstalled) {
         $fileVer = $existing.FileVersionInfo.ProductVersion
-        if ($fileVer) {
+        if ($fileVer -and $fileVer.Trim() -ne "0.0.0.0") {
             $versionStr = $fileVer.Trim()
-        } elseif ($existing.Version) {
+        } elseif ($existing.Version -and $existing.Version.ToString() -ne "0.0.0.0") {
             $versionStr = $existing.Version.ToString()
         } else {
-            $versionStr = "Installed"
+            try {
+                $rawOut = switch ($t.Cmd) {
+                    "minikube"    { (minikube version --short 2>$null) }
+                    "kubectl"     { (kubectl version --client 2>$null | Select-String -Pattern "Client Version:\s*([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "terraform"   { (terraform version 2>$null | Select-String -Pattern "Terraform\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "tflint"      { (tflint --version 2>$null | Select-String -Pattern "TFLint\s+version\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "infracost"   { (infracost --version 2>$null | Select-String -Pattern "Infracost\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "gitleaks"    { (gitleaks version 2>$null) }
+                    "trivy"       { (trivy --version 2>$null | Select-String -Pattern "Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "vault"       { (vault --version 2>$null | Select-String -Pattern "Vault\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "helm"        { (helm version --short 2>$null) }
+                    "istioctl"    { (istioctl version --remote=false 2>$null | Select-String -Pattern "client version:\s*([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "cloudflared" { (cloudflared --version 2>$null | Select-String -Pattern "cloudflared\s+version\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    "mvn"         { (mvn -v 2>$null | Select-String -Pattern "Apache Maven\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                    default       { "" }
+                }
+                if ($rawOut -and "$rawOut".Trim()) {
+                    $versionStr = "$rawOut".Trim()
+                } else {
+                    $versionStr = "Installed"
+                }
+            } catch {
+                $versionStr = "Installed"
+            }
         }
         if ($versionStr.Length -gt 35) { $versionStr = $versionStr.Substring(0, 32) + "..." }
     }
