@@ -142,14 +142,29 @@ class SmokeTester:
         if token:
             t0 = time.time()
             order_payload = json.dumps({
-                "skuCode": "000001",
-                "price": 1299.00,
-                "quantity": 1
+                "orderItems": [
+                    {
+                        "sku": "000001",
+                        "price": 69.99,
+                        "quantity": 1
+                    }
+                ],
+                "customerName": "Smoke Test Runner",
+                "customerEmail": "smoke.runner@example.com",
+                "shippingAddress": "100 Enterprise Way",
+                "city": "Austin",
+                "postalCode": "78701",
+                "phone": "+15550001122",
+                "deliveryMethod": "STANDARD",
+                "shippingFee": 15.0,
+                "taxAmount": 10.0,
+                "totalAmount": 94.99,
+                "paymentMethod": "CARD_VISA"
             }).encode("utf-8")
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}",
-                "Idempotency-Key": str(uuid.uuid4())
+                "X-Idempotency-Key": str(uuid.uuid4())
             }
             try:
                 req = urllib.request.Request(f"{self.base_url}/api/order", data=order_payload, headers=headers, method="POST")

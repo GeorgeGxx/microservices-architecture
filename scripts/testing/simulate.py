@@ -46,10 +46,10 @@ DEFAULT_GATEWAY = "http://127.0.0.1:8080"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 CATALOG_ITEMS = [
-    {"sku": "LAPTOP-PRO", "price": 28999.99, "name": "Laptop Pro 16\""},
-    {"sku": "000001", "price": 1299.00, "name": "Wireless Gaming Mouse"},
-    {"sku": "000002", "price": 899.50, "name": "Mechanical Keyboard RGB"},
-    {"sku": "000003", "price": 5499.00, "name": "UltraWide 4K Monitor"},
+    {"sku": "LAPTOP-PRO", "price": 1499.99, "name": "Laptop Pro 16\""},
+    {"sku": "000001", "price": 69.99, "name": "Pro Mechanical Keyboard"},
+    {"sku": "000002", "price": 49.99, "name": "Pro Gaming Mouse"},
+    {"sku": "000003", "price": 299.99, "name": "USB-C Multi-Port Hub"},
 ]
 
 ATTACKER_IPS = [
@@ -156,13 +156,36 @@ class TrafficSimulator:
         # 2. Select item and place order
         item = random.choice(CATALOG_ITEMS)
         qty = random.randint(1, 3)
+        subtotal = round(item["price"] * qty, 2)
+        shipping_fee = 15.00
+        tax = round(subtotal * 0.16, 2)
+        total = round(subtotal + shipping_fee + tax, 2)
+
         order_payload = json.dumps({
-            "skuCode": item["sku"],
-            "price": item["price"],
-            "quantity": qty
+            "orderItems": [
+                {
+                    "sku": item["sku"],
+                    "price": item["price"],
+                    "quantity": qty
+                }
+            ],
+            "customerName": "Simulated Shopper",
+            "customerEmail": "shopper@example.com",
+            "shippingAddress": "742 Evergreen Terrace",
+            "city": "Springfield",
+            "postalCode": "97477",
+            "phone": "+15551234567",
+            "deliveryMethod": "STANDARD",
+            "shippingFee": shipping_fee,
+            "taxAmount": tax,
+            "totalAmount": total,
+            "paymentMethod": "CARD_VISA"
         }).encode("utf-8")
 
-        headers = {"Content-Type": "application/json"}
+        headers = {
+            "Content-Type": "application/json",
+            "X-Idempotency-Key": str(uuid.uuid4())
+        }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
@@ -174,7 +197,7 @@ class TrafficSimulator:
                     with self.lock:
                         self.orders_placed += 1
                         self.units_sold += qty
-                        self.total_revenue += item["price"] * qty
+                        self.total_revenue += subtotal
         except Exception:
             pass
         self.latencies.append(time.time() - t1)
