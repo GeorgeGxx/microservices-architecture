@@ -23,7 +23,7 @@ output "keyvault_uri" {
 }
 
 output "monitor_log_analytics_workspace_id" {
-  value = module.monitor.log_analytics_workspace_id
+  value = module.monitor.workspace_id
 }
 
 output "workload_identity_client_id" {
@@ -31,7 +31,7 @@ output "workload_identity_client_id" {
 }
 
 output "storage_account_name" {
-  value = module.storage_account.storage_account_name
+  value = module.storage_account.name
 }
 
 output "storage_primary_blob_endpoint" {
@@ -59,7 +59,7 @@ output "app_gateway_public_ip" {
 }
 
 output "frontdoor_endpoint" {
-  value = try(module.frontdoor[0].frontend_endpoint, null)
+  value = try(module.frontdoor[0].endpoint_host_name, null)
 }
 
 output "dns_zone_name_servers" {

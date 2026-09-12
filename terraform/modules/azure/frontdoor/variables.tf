@@ -16,11 +16,18 @@ variable "resource_group_name" {
 variable "origin_host_header" {
   description = "Host header sent to the origin"
   type        = string
+  default     = null
 }
 
 variable "origin_address" {
   description = "Public IP or FQDN of the backend (e.g. Application Gateway Public IP)"
   type        = string
+}
+
+variable "certificate_name_check_enabled" {
+  description = "Specifies whether certificate name check is enabled"
+  type        = bool
+  default     = false
 }
 
 variable "sku_name" {

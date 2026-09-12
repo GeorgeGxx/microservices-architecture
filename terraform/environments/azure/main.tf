@@ -111,7 +111,7 @@ module "monitor" {
   environment         = local.env
   location            = var.location
   resource_group_name = azurerm_resource_group.this.name
-  log_retention_days  = local.env == "prod" ? 90 : 30
+  retention_in_days   = local.env == "prod" ? 90 : 30
   tags                = local.tags
 }
 
@@ -186,7 +186,8 @@ module "frontdoor" {
   name                = local.name
   environment         = local.env
   resource_group_name = azurerm_resource_group.this.name
-  backend_host        = module.app_gateway[0].public_ip_address
+  origin_address      = module.app_gateway[0].public_ip_address
+  origin_host_header  = var.domain_name != "" ? var.domain_name : module.app_gateway[0].public_ip_address
   tags                = local.tags
 }
 
@@ -196,9 +197,6 @@ module "dns_zone" {
 
   domain_name         = var.domain_name
   resource_group_name = azurerm_resource_group.this.name
-  a_records = local.cfg.enable_app_gateway ? {
-    "@"   = [module.app_gateway[0].public_ip_address]
-    "api" = [module.app_gateway[0].public_ip_address]
-  } : {}
-  tags = local.tags
+  target_ip           = local.cfg.enable_app_gateway ? module.app_gateway[0].public_ip_address : null
+  tags                = local.tags
 }

@@ -10,7 +10,7 @@ output "kafka_endpoint" {
 
 output "primary_connection_string" {
   description = "Primary connection string for Kafka SASL authentication"
-  value       = azurerm_eventhub_authorization_rule.microservices.primary_connection_string
+  value       = azurerm_eventhub_namespace_authorization_rule.microservices.primary_connection_string
   sensitive   = true
 }
 

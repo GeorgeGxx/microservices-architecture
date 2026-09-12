@@ -34,12 +34,13 @@ resource "azurerm_cdn_frontdoor_origin" "this" {
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.this.id
   enabled                       = true
 
-  host_name          = var.origin_address
-  http_port          = 80
-  https_port         = 443
-  origin_host_header = var.origin_host_header
-  priority           = 1
-  weight             = 1000
+  certificate_name_check_enabled = var.certificate_name_check_enabled
+  host_name                      = var.origin_address
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = coalesce(var.origin_host_header, var.origin_address)
+  priority                       = 1
+  weight                         = 1000
 }
 
 resource "azurerm_cdn_frontdoor_route" "this" {
