@@ -134,11 +134,11 @@ docker compose ps
 To deploy the entire production-grade stack on Minikube with **Istio Service Mesh**, **OPA Gatekeeper**, and **Helm**:
 
 ```powershell
-# 1. Start Minikube and deploy the complete umbrella Helm chart:
-.\scripts\minikube\deploy-minikube.ps1
+# 1. Start Minikube, initialize Istio Service Mesh, and deploy the umbrella Helm chart:
+.\platform.ps1 up minikube
 
-# 2. Open tunnel access to all services:
-.\scripts\minikube\tunnel-services.ps1
+# 2. Supervise and open background port tunnels to all services:
+.\platform.ps1 tunnels
 ```
 
 > 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/LOCAL_DEPLOYMENT.md](./docs/LOCAL_DEPLOYMENT.md).
