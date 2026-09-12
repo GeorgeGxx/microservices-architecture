@@ -1,80 +1,87 @@
-<nav class="navbar">
-  <div class="nav-container">
-    <a routerLink="/" class="brand">
-      <div class="brand-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+<nav class="h-18 border-b border-border bg-navbar-bg/90 backdrop-blur-xl shadow-lg transition-all duration-200 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+    <!-- Brand / Logo -->
+    <a routerLink="/" class="flex items-center gap-3 group text-decoration-none">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-accent flex items-center justify-center text-white shadow-md shadow-primary/30 group-hover:scale-105 transition-transform duration-200">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
       </div>
-      <div class="brand-text">
-        <span class="brand-name">MicroStore</span>
-        <span class="brand-badge">MSA</span>
+      <div class="flex items-center gap-2">
+        <span class="text-xl font-extrabold tracking-tight bg-gradient-to-b from-white to-slate-300 bg-clip-text text-transparent">MicroStore</span>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-primary/15 text-primary border border-primary/25 tracking-wider">MSA</span>
       </div>
     </a>
 
-    <div class="nav-links">
+    <!-- Center Navigation Links -->
+    <div class="hidden md:flex items-center gap-1.5">
       @if (keycloakService.isAuthenticated()) {
         <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           <span>Catalog</span>
         </a>
 
         <a routerLink="/orders" routerLinkActive="active" class="nav-link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
           <span>My Orders</span>
         </a>
       }
 
       @if (keycloakService.isAdmin()) {
-        <a routerLink="/admin" routerLinkActive="active" class="nav-link admin-link">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        <a routerLink="/admin" routerLinkActive="active" class="nav-link admin-nav-link">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           <span>Admin Dashboard</span>
         </a>
       }
     </div>
 
-    <div class="nav-actions">
+    <!-- Action Buttons & Profile -->
+    <div class="flex items-center gap-2 sm:gap-3">
       <!-- Universal QR & Barcode Scanner Trigger Button (Admin / Cashiers Only) -->
       @if (keycloakService.isAdmin()) {
         <button 
-          class="scan-nav-btn" 
+          class="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold bg-surface-card border border-border hover:border-primary/40 text-text-primary transition-all duration-200 hover:shadow-sm" 
           (click)="openScanner()" 
           title="Universal QR & Barcode Scanner (POS Cashier)"
           aria-label="Open Scanner">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="10" x="7" y="7" rx="2"/></svg>
-          <span class="scan-btn-text">Scan QR</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="10" height="10" x="7" y="7" rx="2"/></svg>
+          <span>Scan QR</span>
         </button>
       }
 
       <!-- Theme Selector Dropdown (Light / Dark) -->
-      <div class="theme-wrapper">
+      <div class="relative">
         <button
-          class="icon-btn"
+          class="p-2.5 rounded-xl bg-surface-card border border-border hover:border-primary/40 text-text-secondary hover:text-text-primary transition-all duration-200"
           (click)="toggleThemeMenu()"
           title="Toggle Theme (Light / Dark)"
           aria-label="Change Theme"
         >
           @if (themeService.currentTheme() === 'dark') {
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
           } @else {
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           }
         </button>
 
         @if (showThemeMenu()) {
-          <div class="theme-dropdown">
+          <div class="absolute right-0 mt-2 w-48 rounded-2xl bg-surface-card/95 backdrop-blur-xl border border-border shadow-2xl p-1.5 z-50 flex flex-col gap-1">
             <button
-              class="theme-option"
-              [class.active]="themeService.currentTheme() === 'dark'"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+              [class.bg-primary/10]="themeService.currentTheme() === 'dark'"
+              [class.text-primary]="themeService.currentTheme() === 'dark'"
+              [class.text-text-secondary]="themeService.currentTheme() !== 'dark'"
               (click)="setTheme('dark')"
             >
-              <div class="theme-dot dark"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-indigo-500"></div>
               <span>Enterprise Dark</span>
             </button>
             <button
-              class="theme-option"
-              [class.active]="themeService.currentTheme() === 'light'"
+              class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-colors"
+              [class.bg-primary/10]="themeService.currentTheme() === 'light'"
+              [class.text-primary]="themeService.currentTheme() === 'light'"
+              [class.text-text-secondary]="themeService.currentTheme() !== 'light'"
               (click)="setTheme('light')"
             >
-              <div class="theme-dot light"></div>
+              <div class="w-2.5 h-2.5 rounded-full bg-amber-400"></div>
               <span>Modern Light</span>
             </button>
           </div>
@@ -83,52 +90,53 @@
 
       <!-- Notification Bell -->
       @if (keycloakService.isAuthenticated()) {
-        <div class="notification-wrapper">
+        <div class="relative">
           <button
-            class="icon-btn"
+            class="relative p-2.5 rounded-xl bg-surface-card border border-border hover:border-primary/40 text-text-secondary hover:text-text-primary transition-all duration-200"
             (click)="toggleNotifications()"
             aria-label="View notifications"
-            [class.has-unread]="notifService.unreadCount() > 0"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
             @if (notifService.unreadCount() > 0) {
-              <span class="notification-badge">{{ notifService.unreadCount() }}</span>
+              <span class="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-danger text-white text-[10px] font-bold flex items-center justify-center animate-pulse">
+                {{ notifService.unreadCount() }}
+              </span>
             }
           </button>
 
           <!-- Notifications Dropdown -->
           @if (showNotifications()) {
-            <div class="dropdown-backdrop" (click)="showNotifications.set(false)"></div>
-            <div class="notification-dropdown">
-              <div class="dropdown-header">
-                <div class="dropdown-title">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-                  <h4>System Notifications</h4>
+            <div class="fixed inset-0 z-40" (click)="showNotifications.set(false)"></div>
+            <div class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-surface-card/95 backdrop-blur-xl border border-border shadow-2xl z-50 overflow-hidden">
+              <div class="flex items-center justify-between p-3.5 border-b border-border bg-surface/50">
+                <div class="flex items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                  <h4 class="text-xs font-bold uppercase tracking-wider text-text-primary">System Notifications</h4>
                 </div>
                 @if (notifService.unreadCount() > 0) {
-                  <button class="btn-mark-read" (click)="notifService.markAllAsRead()">
-                    Mark all as read
+                  <button class="text-[11px] font-semibold text-primary hover:underline" (click)="notifService.markAllAsRead()">
+                    Mark all read
                   </button>
                 }
               </div>
 
-              <div class="dropdown-list">
+              <div class="max-h-80 overflow-y-auto divide-y divide-border/50">
                 @for (notif of notifService.notifications(); track notif.id) {
                   <div
-                    class="notification-item"
-                    [class.unread]="!notif.read"
+                    class="p-3 flex items-start gap-3 hover:bg-surface-card-hover/60 transition-colors cursor-pointer"
+                    [class.bg-primary/5]="!notif.read"
                     (click)="notifService.markAsRead(notif.id)"
                   >
-                    <div class="notif-indicator" [class]="notif.type"></div>
-                    <div class="notif-content">
-                      <span class="notif-title">{{ notif.title }}</span>
-                      <p class="notif-message">{{ notif.message }}</p>
-                      <span class="notif-time">{{ notif.timestamp | date:'shortTime' }}</span>
+                    <div class="w-2 h-2 mt-1.5 rounded-full flex-shrink-0" [class.bg-primary]="!notif.read" [class.bg-text-muted]="notif.read"></div>
+                    <div class="flex-1 min-w-0">
+                      <div class="text-xs font-semibold text-text-primary truncate">{{ notif.title }}</div>
+                      <p class="text-xs text-text-secondary line-clamp-2 mt-0.5">{{ notif.message }}</p>
+                      <span class="text-[10px] text-text-muted mt-1 block font-mono">{{ notif.timestamp | date:'shortTime' }}</span>
                     </div>
                   </div>
                 } @empty {
-                  <div class="empty-notif">
-                    <p>No recent notifications.</p>
+                  <div class="p-6 text-center text-xs text-text-muted">
+                    No recent notifications.
                   </div>
                 }
               </div>
@@ -139,39 +147,51 @@
 
       <!-- Cart Drawer Button -->
       @if (keycloakService.isAuthenticated()) {
-        <button class="cart-trigger-btn" (click)="cartStore.toggleCart(true)" aria-label="Open Shopping Cart">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
+        <button 
+          class="relative p-2.5 rounded-xl bg-surface-card border border-border hover:border-primary/40 text-text-primary transition-all duration-200 hover:shadow-md hover:shadow-primary/10" 
+          (click)="cartStore.toggleCart(true)" 
+          aria-label="Open Shopping Cart">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>
           @if (cartStore.itemCount() > 0) {
-            <span class="cart-badge">{{ cartStore.itemCount() }}</span>
+            <span class="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-primary text-white text-[11px] font-bold flex items-center justify-center shadow-md shadow-primary/40">
+              {{ cartStore.itemCount() }}
+            </span>
           }
         </button>
       }
 
       <!-- Keycloak User Authentication State -->
       @if (keycloakService.isAuthenticated()) {
-        <div class="user-profile">
-          <div class="user-avatar" [title]="keycloakService.userProfile()?.username || 'User'">
+        <div class="flex items-center gap-2 pl-1 sm:pl-2 border-l border-border/80">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-accent text-white font-bold flex items-center justify-center text-xs shadow-sm">
             {{ (keycloakService.userProfile()?.username || 'U').substring(0, 1).toUpperCase() }}
           </div>
-          <div class="user-info">
-            <span class="user-name">{{ keycloakService.userProfile()?.username }}</span>
+          <div class="hidden lg:flex flex-col">
+            <span class="text-xs font-semibold text-text-primary leading-tight">{{ keycloakService.userProfile()?.username }}</span>
             @if (keycloakService.isAdmin()) {
-              <span class="role-pill">ADMIN</span>
+              <span class="text-[9px] font-extrabold text-primary uppercase tracking-wider">ADMIN</span>
             }
           </div>
-          <button class="btn-logout" (click)="keycloakService.logout()" title="Sign Out">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <button 
+            class="p-2 rounded-xl text-text-muted hover:text-danger hover:bg-danger/10 transition-colors" 
+            (click)="keycloakService.logout()" 
+            title="Sign Out">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
           </button>
         </div>
       } @else {
-        <div class="auth-buttons-group">
-          <button class="btn-register" (click)="keycloakService.register()" title="Create an account">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-            <span>Sign Up</span>
+        <div class="flex items-center gap-2">
+          <button 
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-card border border-border hover:border-primary/40 transition-all" 
+            (click)="keycloakService.register()" 
+            title="Create an account">
+            Sign Up
           </button>
-          <button class="btn-login" (click)="keycloakService.login()" title="Sign in to your account">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            <span>Sign In</span>
+          <button 
+            class="px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-hover shadow-md shadow-primary/25 transition-all" 
+            (click)="keycloakService.login()" 
+            title="Sign in to your account">
+            Sign In
           </button>
         </div>
       }
@@ -181,7 +201,10 @@
 
 <!-- Mobile Floating Scan Button (FAB - Admin / Cashiers Only) -->
 @if (keycloakService.isAdmin()) {
-  <button class="mobile-scan-fab" (click)="openScanner()" aria-label="Quick Scan QR Code">
+  <button 
+    class="fixed bottom-6 right-6 md:hidden z-40 w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary to-accent text-white flex items-center justify-center shadow-2xl shadow-primary/50 active:scale-95 transition-transform" 
+    (click)="openScanner()" 
+    aria-label="Quick Scan QR Code">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect width="8" height="8" x="8" y="8" rx="1"/></svg>
   </button>
 }
