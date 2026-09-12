@@ -41,3 +41,9 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "public_network_access_enabled" {
+  description = "Whether public network access is allowed for this Redis Cache"
+  type        = bool
+  default     = false
+}

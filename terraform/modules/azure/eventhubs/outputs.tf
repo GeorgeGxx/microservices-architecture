@@ -18,3 +18,8 @@ output "orders_topic_name" {
   description = "Event Hub topic name"
   value       = azurerm_eventhub.orders_topic.name
 }
+
+output "identity_principal_id" {
+  description = "Principal ID of the Event Hub Namespace Managed Identity"
+  value       = try(azurerm_eventhub_namespace.this.identity[0].principal_id, null)
+}
