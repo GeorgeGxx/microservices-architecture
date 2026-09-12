@@ -289,8 +289,11 @@ pwsh scripts/istio/auto-canary-rollout.ps1 -Service products-service -StepDurati
 ### 5. 🛑 Cluster Teardown & Resource Cleanup
 Clean up all background tunnels, port-forwards, and stop the Minikube cluster:
 ```powershell
-# Stop and clean up all Minikube resources and tunnels:
-pwsh scripts/minikube/stop-minikube.ps1
+# Stop and pause the Minikube cluster and background tunnels:
+.\platform.ps1 down minikube
+
+# Or completely teardown all local DevSecOps tooling and namespaces:
+pwsh scripts/devsecops/teardown-local-devsecops.ps1
 ```
 
 ### Useful commands
