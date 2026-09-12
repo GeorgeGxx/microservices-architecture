@@ -299,11 +299,11 @@ pwsh scripts/devsecops/teardown-local-devsecops.ps1
 ### Useful commands
 
 ```powershell
-# Check running microservices in the ecommerce namespace
-kubectl get pods -n ecommerce
+# Check running microservices in the dev namespace
+kubectl get pods -n dev # Or -A for all namespaces
 
 # Check the keycloak startup
-kubectl describe pod -l app=keycloak -n ecommerce | Select-String -Pattern "Startup" -Context 2,10
+kubectl describe pod -l app=keycloak -n dev | Select-String -Pattern "Startup" -Context 2,10
 ```
 ```powershell
 # Verify that the Vault secrets were injected.
@@ -365,9 +365,6 @@ docker exec -it vault cat /vault/file/vault_audit.log
 
 
 ```
-
----
-
 
 ---
 

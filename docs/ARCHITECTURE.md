@@ -49,12 +49,14 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | **Notification Service** | `8002` | `30002` | ClusterIP | Kafka Consumer & customer alerts |
 | **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
 | **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
-| **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (`/kiali`) |
+| **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
+| **Istio Ingress Gateway** | `80` / `443` | `30080` / `30443` | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.0) |
+| **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (v2.31.0, `/kiali`) |
 | **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
 | **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
 | **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine (v3.14.0) |
 | **Grafana Loki** | `3100` | `30100` | ClusterIP | Centralized logging engine (v3.7.4) |
-| **Grafana Alloy** | `12345` | DaemonSet | DaemonSet | Telemetry & log collector (v1.18.1) |
+| **Grafana Alloy** | `3300` | DaemonSet | DaemonSet | Telemetry & log collector (v1.19.1) |
 | **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
 | **PostgreSQL Databases** | `5432` | `30432` | RDS / Flexible / Cloud SQL | Managed multi-tenant DB |
 | **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | `30092` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |

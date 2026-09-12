@@ -77,12 +77,12 @@ spec:
         - operator: Exists
       containers:
         - name: alloy
-          image: grafana/alloy:v1.18.1
+          image: grafana/alloy:v1.19.1
           args:
             - "run"
             - "/etc/alloy/config.alloy"
             - "--storage.path=/var/lib/alloy/data"
-            - "--server.http.listen-addr=0.0.0.0:12345"
+            - "--server.http.listen-addr=0.0.0.0:3300"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
