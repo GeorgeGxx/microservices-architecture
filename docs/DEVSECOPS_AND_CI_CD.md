@@ -52,14 +52,14 @@ All services and dashboards are automated via background port-forwarding and ava
 
 ### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
 
-The platform provides a master entrypoint [`platform.ps1`](file:///c:/Users/jorge/codegxx/microservices-architecture/platform.ps1) alongside **4 isolated platform orchestrators** covering **3 environments (`dev`, `staging`, `prod`)**:
+The platform provides a master entrypoint [`platform.ps1`](../platform.ps1) alongside **4 isolated platform orchestrators** covering **3 environments (`dev`, `staging`, `prod`)**:
 
 | Platform Script | Target Environment | Git Branch | Cloud & Container Runtime | CI/CD Engine |
 | :--- | :--- | :--- | :--- | :--- |
-| [`platform-minikube.ps1`](./platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 12 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
-| [`platform-aws.ps1`](./platform-aws.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | AWS EKS, ALB, RDS, ElastiCache, MSK | GitHub Actions CI + ArgoCD CD + Rollback |
-| [`platform-azure.ps1`](./platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 12+ Stages + Rollback |
-| [`platform-gcp.ps1`](./platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 12+ Stages + Rollback |
+| [`platform-minikube.ps1`](../platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 12 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
+| [`platform-aws.ps1`](../platform-aws.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | AWS EKS, ALB, RDS, ElastiCache, MSK | GitHub Actions CI + ArgoCD CD + Rollback |
+| [`platform-azure.ps1`](../platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 12+ Stages + Rollback |
+| [`platform-gcp.ps1`](../platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 12+ Stages + Rollback |
 
 #### 1. Quick Start with Master CLI (`platform.ps1`)
 
