@@ -1,121 +1,98 @@
-<div class="max-w-6xl mx-auto space-y-6">
+<div class="status-container">
   <!-- Minimalist Status Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <div class="space-y-1">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
-           [class.bg-emerald-500/15]="allUp()"
-           [class.text-emerald-400]="allUp()"
-           [class.border]="true"
-           [class.border-emerald-500/25]="allUp()"
-           [class.bg-amber-500/15]="!allUp()"
-           [class.text-amber-400]="!allUp()"
-           [class.border-amber-500/25]="!allUp()">
-        <span class="w-2 h-2 rounded-full animate-pulse"
-              [class.bg-emerald-400]="allUp()"
-              [class.bg-amber-400]="!allUp()"></span>
+  <div class="status-header">
+    <div class="header-main">
+      <div class="status-badge" [class.all-up]="allUp()" [class.has-issues]="!allUp()">
+        <span class="pulse-dot"></span>
         <span>{{ allUp() ? 'All Systems Operational' : 'Degraded Performance' }}</span>
       </div>
-      <h1 class="text-2xl sm:text-3xl font-black text-text-primary tracking-tight">System Status & Mesh Telemetry</h1>
-      <p class="text-xs sm:text-sm text-text-muted">Real-time operational health and availability of all platform microservices</p>
+      <h1 class="page-title">System Status</h1>
+      <p class="page-subtitle">Real-time operational health and availability of all platform services</p>
     </div>
 
     <button
-      class="self-start sm:self-auto py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-hover shadow-md shadow-primary/25 flex items-center gap-2 transition-all active:scale-95 disabled:opacity-50"
+      class="btn-refresh"
       [disabled]="statusService.isCheckingAll()"
       (click)="statusService.checkAllServices()"
       aria-label="Refresh Status"
     >
-      <svg [class.animate-spin]="statusService.isCheckingAll()" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+      <svg class="refresh-icon" [class.spinning]="statusService.isCheckingAll()" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
       <span>{{ statusService.isCheckingAll() ? 'Checking...' : 'Refresh Status' }}</span>
     </button>
   </div>
 
-  <!-- KPI Overview Grid -->
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <div class="p-5 rounded-3xl bg-surface-card/75 backdrop-blur-xl border border-border/80 shadow-lg space-y-1">
-      <span class="text-[10px] font-bold uppercase tracking-wider text-text-muted">Platform Availability</span>
-      <div class="text-2xl sm:text-3xl font-black font-mono text-emerald-400">{{ uptimePercent() }}%</div>
-      <span class="text-xs text-text-secondary">{{ onlineCount() }} / {{ statusService.services().length }} active services</span>
+  <!-- Subtle Overview KPI Strip -->
+  <div class="stats-overview-grid">
+    <div class="overview-card">
+      <span class="overview-label">Platform Availability</span>
+      <div class="overview-value-row">
+        <span class="overview-value text-emerald">{{ uptimePercent() }}%</span>
+        <span class="overview-subtext">{{ onlineCount() }} / {{ statusService.services().length }} active services</span>
+      </div>
     </div>
 
-    <div class="p-5 rounded-3xl bg-surface-card/75 backdrop-blur-xl border border-border/80 shadow-lg space-y-1">
-      <span class="text-[10px] font-bold uppercase tracking-wider text-text-muted">Average Latency</span>
-      <div class="text-2xl sm:text-3xl font-black font-mono text-primary">{{ avgLatency() }} ms</div>
-      <span class="text-xs text-text-secondary">Low-latency Istio mesh routing</span>
+    <div class="overview-card">
+      <span class="overview-label">Response Time</span>
+      <div class="overview-value-row">
+        <span class="overview-value text-indigo">{{ avgLatency() }} ms</span>
+        <span class="overview-subtext">Optimal</span>
+      </div>
     </div>
 
-    <div class="p-5 rounded-3xl bg-surface-card/75 backdrop-blur-xl border border-border/80 shadow-lg space-y-1">
-      <span class="text-[10px] font-bold uppercase tracking-wider text-text-muted">Services Online</span>
-      <div class="text-2xl sm:text-3xl font-black font-mono text-cyan-400">{{ onlineCount() }}</div>
-      <span class="text-xs text-text-secondary">All endpoints responding</span>
+    <div class="overview-card">
+      <span class="overview-label">Services Online</span>
+      <div class="overview-value-row">
+        <span class="overview-value text-cyan">{{ onlineCount() }}</span>
+        <span class="overview-subtext">Operational</span>
+      </div>
     </div>
   </div>
 
   <!-- Core Services Grid -->
-  <div class="space-y-3">
-    <h2 class="text-xs font-bold uppercase tracking-wider text-text-muted">Core Platform Microservices</h2>
+  <div class="section-header">
+    <h2 class="section-title">Core Platform Services</h2>
+  </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      @for (service of statusService.services(); track service.id) {
-        <div 
-          class="p-5 rounded-3xl bg-surface-card/75 backdrop-blur-xl border border-border/80 hover:border-primary/40 shadow-lg hover:shadow-xl transition-all flex flex-col justify-between gap-4"
-          [class.border-emerald-500/30]="service.status === 'UP'"
-          [class.border-danger/30]="service.status === 'DOWN'">
-          
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h3 class="text-sm font-extrabold text-text-primary tracking-tight truncate">{{ service.name }}</h3>
-              <p class="text-xs text-text-muted line-clamp-2 mt-0.5">{{ service.details }}</p>
-            </div>
-
-            <!-- Status Pill -->
-            <div class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 flex-shrink-0"
-                 [class.bg-emerald-500/15]="service.status === 'UP'"
-                 [class.text-emerald-400]="service.status === 'UP'"
-                 [class.border]="true"
-                 [class.border-emerald-500/25]="service.status === 'UP'"
-                 [class.bg-danger/15]="service.status === 'DOWN'"
-                 [class.text-danger]="service.status === 'DOWN'"
-                 [class.border-danger/25]="service.status === 'DOWN'"
-                 [class.bg-amber-500/15]="service.status === 'CHECKING'"
-                 [class.text-amber-400]="service.status === 'CHECKING'"
-                 [class.border-amber-500/25]="service.status === 'CHECKING'">
-              @if (service.status === 'CHECKING') {
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span>
-                <span>Checking...</span>
-              } @else if (service.status === 'UP') {
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>Operational</span>
-              } @else {
-                <span class="w-1.5 h-1.5 rounded-full bg-danger"></span>
-                <span>Degraded</span>
-              }
-            </div>
+  <div class="services-grid">
+    @for (service of statusService.services(); track service.id) {
+      <div class="service-card" [class.card-up]="service.status === 'UP'" [class.card-down]="service.status === 'DOWN'">
+        <div class="service-card-top">
+          <div class="service-name-group">
+            <h3 class="service-title">{{ service.name }}</h3>
+            <p class="service-description">{{ service.details }}</p>
           </div>
 
-          <div class="flex items-center justify-between pt-3 border-t border-border/50 text-xs">
-            <div class="flex items-center gap-1.5">
-              @if (service.latencyMs !== undefined) {
-                <span class="px-2 py-0.5 rounded-md font-mono text-[10px] font-bold bg-surface-card border border-border"
-                      [class.text-emerald-400]="service.latencyMs < 100"
-                      [class.text-amber-400]="service.latencyMs >= 100">
-                  ⚡ {{ service.latencyMs }} ms
-                </span>
-              } @else {
-                <span class="px-2 py-0.5 rounded-md font-mono text-[10px] text-text-muted bg-surface-card border border-border">-- ms</span>
-              }
-            </div>
-
-            <button 
-              class="py-1 px-2.5 rounded-lg text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-card border border-border hover:border-primary/40 flex items-center gap-1 transition-all" 
-              (click)="statusService.checkServiceHealth(service.id)" 
-              title="Verify service latency">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-              <span>Ping</span>
-            </button>
+          <div class="service-status-pill" [class.pill-up]="service.status === 'UP'" [class.pill-down]="service.status === 'DOWN'" [class.pill-checking]="service.status === 'CHECKING'">
+            @if (service.status === 'CHECKING') {
+              <span class="checking-spinner"></span>
+              <span>Checking...</span>
+            } @else if (service.status === 'UP') {
+              <span class="status-indicator-dot up"></span>
+              <span>Operational</span>
+            } @else {
+              <span class="status-indicator-dot down"></span>
+              <span>Degraded</span>
+            }
           </div>
         </div>
-      }
-    </div>
+
+        <div class="service-card-bottom">
+          <div class="latency-info">
+            @if (service.latencyMs !== undefined) {
+              <span class="latency-badge" [class.fast]="service.latencyMs < 100" [class.moderate]="service.latencyMs >= 100">
+                ⚡ {{ service.latencyMs }} ms
+              </span>
+            } @else {
+              <span class="latency-badge na">-- ms</span>
+            }
+          </div>
+
+          <button class="btn-check-single" (click)="statusService.checkServiceHealth(service.id)" title="Verify service latency">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Check</span>
+          </button>
+        </div>
+      </div>
+    }
   </div>
 </div>
