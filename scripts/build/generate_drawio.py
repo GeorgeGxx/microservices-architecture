@@ -214,7 +214,7 @@ def build_drawio_xml():
     add_node(r6, "k_eso_objs", "1", "<b>ExternalName Cross-Namespace Bridges:</b><br>• keycloak -> keycloak.auth<br>• kafka / redis / db-* -> data.svc", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1100, 300, 360, 80)
 
     add_node(r6, "ns_obs", "1", "<b>📊 NAMESPACE: observability (LGTM Telemetry)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1500, 110, 360, 420)
-    add_node(r6, "k_obs_pods", "1", "<b>Observability Stack:</b><br>• Prometheus v3.13 (Port 9090)<br>• Grafana 13.0 (Port 3000)<br>• Tempo 2.7 / 3.0 (Port 3200)<br>• Loki 3.7 (Port 3100)<br>• Alloy v1.18 (DaemonSet)<br>• OTel Collector (4317/4318)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1520, 160, 320, 160)
+    add_node(r6, "k_obs_pods", "1", "<b>Observability Stack:</b><br>• Prometheus v3.14 (Port 9090)<br>• Grafana 13.2 (Port 3000)<br>• Tempo 3.0 (Port 3200)<br>• Loki 3.7 (Port 3100)<br>• Alloy v1.18 (DaemonSet)<br>• OTel Collector (4317/4318)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1520, 160, 320, 160)
 
     # =========================================================================
     # PAGE 7: End-to-End Request Flow & Order Processing Sequence
