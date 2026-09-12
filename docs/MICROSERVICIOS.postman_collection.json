@@ -1,0 +1,786 @@
+{
+  "info": {
+    "_postman_id": "85f75800-f0aa-440d-becd-d0772a7fa8c2",
+    "name": "MICROSERVICIOS",
+    "description": "Comprehensive Postman collection for Enterprise Microservices Architecture with Spring Boot 4.0.8, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "13231529"
+  },
+  "item": [
+    {
+      "name": "🔑 Authentication",
+      "description": "1-Click Keycloak Authentication using Public Client (microservices_frontend). ZERO client_secret required! Click Send on either login request to automatically store the JWT in {{jwt_token}} for all requests in this collection.",
+      "item": [
+        {
+          "name": "1. Login as Admin (admin_user)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "microservices_frontend",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "admin_user",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "admin",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid email profile",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/microservices-realm/protocol/openid-connect/token",
+              "host": [
+                "{{keycloak_url}}"
+              ],
+              "path": [
+                "realms",
+                "microservices-realm",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            },
+            "description": "Obtains an Admin JWT token using Keycloak public client. The test script automatically saves the token to {{jwt_token}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.access_token) {",
+                  "    pm.collectionVariables.set(\"jwt_token\", res.access_token);",
+                  "    pm.test(\"Token received and saved to {{jwt_token}}\", () => {",
+                  "        pm.expect(res.access_token).to.be.a(\"string\");",
+                  "    });",
+                  "    console.log(\"✅ Admin JWT successfully stored in collection variable jwt_token\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "2. Login as Standard User (basic_user)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "microservices_frontend",
+                  "type": "text"
+                },
+                {
+                  "key": "username",
+                  "value": "basic_user",
+                  "type": "text"
+                },
+                {
+                  "key": "password",
+                  "value": "password",
+                  "type": "text"
+                },
+                {
+                  "key": "scope",
+                  "value": "openid email profile",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{keycloak_url}}/realms/microservices-realm/protocol/openid-connect/token",
+              "host": [
+                "{{keycloak_url}}"
+              ],
+              "path": [
+                "realms",
+                "microservices-realm",
+                "protocol",
+                "openid-connect",
+                "token"
+              ]
+            },
+            "description": "Obtains a Standard User JWT token without administrative privileges. Saves automatically to {{jwt_token}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.access_token) {",
+                  "    pm.collectionVariables.set(\"jwt_token\", res.access_token);",
+                  "    pm.test(\"Token received and saved to {{jwt_token}}\", () => {",
+                  "        pm.expect(res.access_token).to.be.a(\"string\");",
+                  "    });",
+                  "    console.log(\"✅ User JWT successfully stored in collection variable jwt_token\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/order",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Place Order (with Idempotency)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "Optional UUID v4 for distributed idempotency",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 999.99,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Order (Saga Compensation)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/1/cancel",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "1",
+                "cancel"
+              ]
+            },
+            "description": "Cancels an existing order, triggers inventory stock restoration via Saga compensation, and publishes a CANCELLED event to Kafka."
+          },
+          "response": []
+        },
+        {
+          "name": "Place Order (Automated DHL Tracking Generation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{$guid}}",
+                "description": "UUID v4 for distributed idempotency",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Jorge Garcia\",\n  \"customerEmail\": \"jorge@example.com\",\n  \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n  \"city\": \"Monterrey\",\n  \"postalCode\": \"64000\",\n  \"phone\": \"+52 81 1234 5678\",\n  \"deliveryMethod\": \"EXPRESS\",\n  \"shippingFee\": 9.99,\n  \"taxAmount\": 47.92,\n  \"totalAmount\": 656.91,\n  \"paymentMethod\": \"CREDIT_CARD\",\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 599,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order"
+              ]
+            },
+            "description": "Places order with full recipient profile and EXPRESS shipping. Automatically generates DHL carrier tracking code (e.g. DHL-A8E29C1F), computes tax and shipping fee, decrements warehouse inventory, and emits Kafka event."
+          },
+          "response": []
+        },
+        {
+          "name": "Record Funnel Event - Cart Add (Cart Abandonment Rate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CART_ADD\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"cart\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/funnel",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Asynchronously records user journey event CART_ADD into Kafka/Micrometer for calculating Cart Abandonment Rate and conversion funnel metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "Record Funnel Event - Checkout Start (Cart Abandonment Rate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CHECKOUT_START\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"shipping\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/funnel",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Records checkout initiation step to measure drop-off and funnel progression toward payment."
+          },
+          "response": []
+        },
+        {
+          "name": "Record Funnel Event - Checkout Step (Cart Abandonment Rate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CHECKOUT_STEP\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"payment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/funnel",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Tracks individual funnel checkout step (shipping, delivery, payment) for fine-grained abandonment analysis."
+          },
+          "response": []
+        },
+        {
+          "name": "Ship Order (Stage 3 Logistics - In Transit DHL)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/1/ship",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "1",
+                "ship"
+              ]
+            },
+            "description": "Transitions order status to SHIPPED, marks logistics milestone In Transit (DHL Express), persists to PostgreSQL t_orders, and publishes event to Kafka."
+          },
+          "response": []
+        },
+        {
+          "name": "Deliver Order (Stage 5 Logistics - Delivered & Signed)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/order/1/deliver",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "order",
+                "1",
+                "deliver"
+              ]
+            },
+            "description": "Transitions order status to DELIVERED, records verified customer signature timestamp, syncs Micrometer Prometheus database gauges, and finalizes digital receipt."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "Get Stock Detail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/detail/SKU-IPHONE-15",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "inventory",
+                "detail",
+                "SKU-IPHONE-15"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Check In-Stock (Boolean)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/SKU-IPHONE-15",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "inventory",
+                "SKU-IPHONE-15"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update / Add Stock (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-IPHONE-15\",\n  \"quantity\": 50\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventory",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "inventory"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Increment Stock (Compensation Rollback)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"sku\": \"SKU-IPHONE-15\",\n    \"quantity\": 2\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventory/increment",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "inventory",
+                "increment"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/product",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "product"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Product (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"sku\": \"SKU-IPHONE-15\",\n    \"name\": \"iPhone 15 Pro 128GB Titanium\",\n    \"description\": \"Apple iPhone 15 Pro with A17 Pro chip and titanium design.\",\n    \"price\": 999.99,\n    \"status\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "product"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Batch Prices (Internal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  \"SKU-IPHONE-15\"\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product/prices",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "product",
+                "prices"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save Product (HD Media & Amazon/ML Attributes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-VISION-PRO\",\n  \"name\": \"Apple Vision Pro Spatial Computer\",\n  \"description\": \"256GB Spatial audio, M2 and R1 dual-chip processor with ultra-high-resolution micro-OLED displays.\",\n  \"price\": 3499,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1592478411213-6153e4ebc07d?auto=format&fit=crop&w=800&q=80\",\n  \"rating\": 4.9,\n  \"reviewCount\": 840,\n  \"isBestSeller\": true,\n  \"category\": \"Electronics\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/product",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8080",
+              "path": [
+                "api",
+                "product"
+              ]
+            },
+            "description": "Saves high-end hardware with HD media URL, star ratings, review counts, and #1 Best Seller classification."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "{{base_url}}",
+      "type": "string"
+    },
+    {
+      "key": "keycloak_url",
+      "value": "http://localhost:8181",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

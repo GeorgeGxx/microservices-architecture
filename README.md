@@ -1591,8 +1591,13 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 
 * **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
 
-### 📦 Postman Test Suite:
-Import [`microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) to execute automated end-to-end integration tests across OAuth2 auth flows, products CRUD, inventory reservation, and Kafka order events.
+### 📦 Postman Test Suite & Interactive Collections:
+1. **Interactive Developer Collection (Zero-Config / 1-Click Token):**
+   Import [`docs/MICROSERVICIOS.postman_collection.json`](./docs/MICROSERVICIOS.postman_collection.json) into Postman.
+   * **1-Click Login:** Run `🔑 Authentication ➔ 1. Login as Admin` to automatically fetch and save the Keycloak JWT into `{{jwt_token}}` via the public client (`microservices_frontend`). **No `client_secret` required!**
+   * **E-Commerce & Telemetry Scenarios:** Includes pre-built JSON payloads for **Automated DHL Tracking Generation** (`POST /api/order`), **Cart Abandonment Rate** funnel events (`POST /api/order/funnel`), logistics milestones (`PUT /api/order/:id/ship` & `deliver`), and rich product media catalog creation.
+2. **Automated CI/CD Quality Gate (Newman):**
+   Use [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) for automated pipeline execution and regression testing.
 
 ---
 
