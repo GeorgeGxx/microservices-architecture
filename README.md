@@ -302,6 +302,8 @@ microservices-architecture/
 │   └── testing/newman/             # microservices.postman_collection.json API integration tests
 ├── docs/                           # Extended IAM & Architectural Documentation (Draw.io diagrams & guides)
 │   ├── Diagrams.drawio             # Multi-tab visual architecture (General, Vault, Rotations, Istio, K8s)
+│   ├── microservices.postman_collection.json # Interactive Postman Collection (22 requests, 1-click token, zero secrets)
+│   ├── OBSERVABILITY_QUERIES.md    # PromQL, LogQL, and TraceQL Telemetry Query Handbook
 │   └── realm-export.json           # Keycloak 26.7.3 Realm static export backup
 ├── frontend/                       # Angular 21 SPA (Nginx Distroless)
 ├── inventory-service/              # Stock verification & allocation (Port 8001)
@@ -1579,13 +1581,17 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 
 * **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
 
-### 📦 Postman Test Suite & Interactive Collections:
-1. **Interactive Developer Collection (Zero-Config / 1-Click Token):**
-   Import [`docs/microservices.postman_collection.json`](./docs/microservices.postman_collection.json) into Postman.
+### 📦 Postman Test Suite & Synchronized Collections:
+The repository maintains two synchronized files sharing the exact same 22-request test suite (Spring Boot 4.0.8, 1-Click Keycloak public authentication, DHL tracking, Cart Abandonment Rate, and dynamic order state transitions):
+
+1. **💻 Developer Interactive Collection (Postman Desktop GUI):**
+   * **Location:** [`docs/microservices.postman_collection.json`](./docs/microservices.postman_collection.json)
+   * **Purpose:** Zero-configuration local development. Import directly into the Postman application.
    * **1-Click Login:** Run `🔑 Authentication ➔ 1. Login as Admin` to automatically fetch and save the Keycloak JWT into `{{jwt_token}}` via the public client (`microservices_frontend`). **No `client_secret` required!**
-   * **E-Commerce & Telemetry Scenarios:** Includes pre-built JSON payloads for **Automated DHL Tracking Generation** (`POST /api/order`), **Cart Abandonment Rate** funnel events (`POST /api/order/funnel`), logistics milestones (`PUT /api/order/:id/ship` & `deliver`), and rich product media catalog creation.
-2. **Automated CI/CD Quality Gate (Newman):**
-   Use [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) for automated pipeline execution and regression testing.
+   * **E-Commerce Scenarios:** Includes pre-built JSON payloads for **Automated DHL Tracking Generation** (`POST /api/order`), **Cart Abandonment Rate** funnel events (`POST /api/order/funnel`), logistics milestones (`PUT /api/order/:id/ship` & `deliver`), and rich product catalog creation.
+2. **🚀 Automated CI/CD Quality Gate (Newman CLI):**
+   * **Location:** [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json)
+   * **Purpose:** Automated pipeline regression testing in cloud CI/CD (GitHub Actions, Azure DevOps, Bitbucket Pipelines) via `newman run`. Pre-configured for both `base_url` and `BASE_URL` ingress parameters.
 
 ---
 

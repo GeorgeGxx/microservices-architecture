@@ -911,6 +911,26 @@
       "key": "order_id",
       "value": "6",
       "type": "string"
+    },
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8080",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "const baseUrl = pm.variables.get(\"BASE_URL\") || pm.variables.get(\"base_url\");",
+          "if (baseUrl) {",
+          "    pm.variables.set(\"base_url\", baseUrl);",
+          "    pm.variables.set(\"BASE_URL\", baseUrl);",
+          "}"
+        ],
+        "type": "text/javascript"
+      }
     }
   ]
 }
