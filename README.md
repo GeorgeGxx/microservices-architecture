@@ -1597,6 +1597,8 @@ The architecture implements the modern **Grafana LGTM + OpenTelemetry** standard
 - **Centralized Logging (Loki 3.7.4 & Grafana Alloy v1.18.1):** Grafana Alloy collects container stdout/stderr logs and streams them to Loki.
 - **Correlated Navigation (Grafana 13.2.1):** One-click transition from Tempo spans to corresponding Loki logs and Prometheus metrics.
 
+### 1. 🔍 Interactive Telemetry Exploration (Grafana Explore Mode)
+
 Access the interactive query interface at **[http://localhost:3000/explore](http://localhost:3000/explore)** (Login: `admin` / `admin`) to execute deep telemetry analysis:
 
 > 💡 **Handbook & Cheat Sheet:** For the complete categorized catalog of PromQL formulas, LogQL filters, and TraceQL queries with practical examples, consult [`docs/OBSERVABILITY_QUERIES.md`](./docs/OBSERVABILITY_QUERIES.md).
@@ -1605,149 +1607,15 @@ Access the interactive query interface at **[http://localhost:3000/explore](http
 
 All telemetry datasources adhere to unified naming conventions across both Docker Compose and Kubernetes (Minikube):
 
-| Explore Display Name | Datasource Type | Datasource UID | Default | Target Service & Port |
-| :--- | :--- | :--- | :---: | :--- |
-| **`Prometheus`** | `prometheus` | `prometheus-ds` | ✅ Yes | Metrics & PromQL engine (`:9090`) |
-| **`Loki`** | `loki` | `loki-ds` | ❌ No | Centralized structured log streams (`:3100`) |
-| **`Tempo`** | `tempo` | `tempo-ds` | ❌ No | Distributed traces with traces-to-logs correlation (`:3200`) |
+| Explore Display Name | Datasource Type | Datasource UID | Default | Target Service & Port | Primary Query Engine |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| **`Prometheus`** | `prometheus` | `prometheus-ds` | ✅ Yes | Metrics & PromQL engine (`:9090`) | **PromQL** (RED golden signals, conversion funnels, JVM, HikariCP) |
+| **`Loki`** | `loki` | `loki-ds` | ❌ No | Centralized structured log streams (`:3100`) | **LogQL** (error hunting, trace ID correlation, Envoy access logs) |
+| **`Tempo`** | `tempo` | `tempo-ds` | ❌ No | Distributed traces with traces-to-logs correlation (`:3200`) | **TraceQL** (end-to-end spans, latency bottlenecks, Saga journeys) |
 
 ---
 
-### 1. 📈 Prometheus (Metrics & PromQL) — Datasource: `Prometheus` (UID: `prometheus-ds`)
-Select the **Prometheus** datasource from the Explore dropdown to query real-time system metrics, throughput, latency, and security counters:
-
-* **Real-time HTTP Request Rate by Status & Service:**
-  ```promql
-  sum by (status, app) (rate(http_server_requests_seconds_count[1m]))
-  ```
-* **Blocked Rate-Limit Attack Requests (HTTP 429 Spikes):**
-  ```promql
-  sum(rate(http_server_requests_seconds_count{status="429"}[1m])) or vector(0)
-  ```
-* **P95 Latency per Microservice Endpoint:**
-  ```promql
-  histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket[5m])))
-  ```
-* **Circuit Breaker Status (Resilience4j):**
-  ```promql
-  resilience4j_circuitbreaker_state
-  ```
-* **JVM Heap Memory Usage:**
-  ```promql
-  jvm_memory_used_bytes{area="heap"} / (1024 * 1024)
-  ```
-* **Kafka Event Ingestion Rate & Total Consumed (@KafkaListener):**
-  ```promql
-  spring_kafka_listener_seconds_count
-  ```
-* **Kafka Event Publishing Count (KafkaTemplate):**
-  ```promql
-  spring_kafka_template_seconds_count
-  ```
-* **Business Metric - Total Orders Placed:**
-  ```promql
-  ecommerce_orders{status="COMPLETED"}
-  ```
-* **Business Metric - Real-Time Revenue (USD):**
-  ```promql
-  ecommerce_revenue_usd
-  ```
-* **Business Metric - Physical Units Sold:**
-  ```promql
-  ecommerce_items_sold
-  ```
-* **HashiCorp Vault Seal Status (1 = Unsealed, 0 = Sealed):**
-  ```promql
-  vault_core_unsealed
-  ```
-* **HashiCorp Vault Secret Request Rate (Ops/sec):**
-  ```promql
-  sum by (code, type) (rate(vault_core_response_status_code[1m])) or (sum(up{job="vault"}) * 0)
-  ```
-* **Redis Cache Hit Ratio (%):**
-  ```promql
-  sum(rate(redis_keyspace_hits_total[1m])) / (sum(rate(redis_keyspace_hits_total[1m])) + sum(rate(redis_keyspace_misses_total[1m]))) * 100
-  ```
-* **Redis Memory Consumption (MB):**
-  ```promql
-  redis_memory_used_bytes / (1024 * 1024)
-  ```
-* **Kafka Consumer Lag by Topic & Group (Unprocessed Events):**
-  ```promql
-  sum by (topic, consumergroup) (kafka_consumergroup_lag)
-  ```
-* **Active Database Connections per Microservice (HikariCP & Micrometer 2.2.1):**
-  ```promql
-  sum by (app) (hikaricp_connections_active)
-  ```
-* **Top Blocked Malicious / Attacking IPs (Security Gateway & Resilience4j):**
-  ```promql
-  topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)
-  ```
-
----
-
-### 2. 📜 Grafana Loki (Centralized Logs & LogQL) — Datasource: `Loki` (UID: `loki-ds`)
-Select the **Loki** datasource from the Explore dropdown to stream and filter structured logs from all microservices and security components:
-
-* **Stream Logs for a Specific Microservice:**
-  ```logql
-  {service="orders-service"}
-  ```
-* **Stream HashiCorp Vault Audit & Container Logs:**
-  ```logql
-  {app="vault"}
-  ```
-* **Filter Errors and Exceptions Across All Services (Regex):**
-  ```logql
-  {service=~".+"} |~ "ERROR|Exception"
-  ```
-* **Search Logs Correlated with a Distributed Trace ID:**
-  ```logql
-  {service=~".+"} |= "<your-trace-id>"
-  ```
-* **Real-Time Error Rate (Spikes per Minute):**
-  ```logql
-  sum by (service) (rate({service=~".+"} |= "ERROR" [1m]))
-  ```
-* **Filter Warning Logs for a Specific Microservice:**
-  ```logql
-  {service="api-gateway"} |= "WARN"
-  ```
-  *(Requires a time range covering recent security/warning events, e.g., `Last 3 hours`, or running `simulate-chaos.py`)*
-* **Real-Time HTTP Traffic & Access Logs for API Gateway (Istio Proxy):**
-  ```logql
-  {container="istio-proxy", pod=~"api-gateway.+"}
-  ```
-
----
-
-### 3. 🔍 Grafana Tempo (Distributed Traces & TraceQL) — Datasource: `Tempo` (UID: `tempo-ds`)
-Select the **Tempo** datasource from the Explore dropdown to inspect end-to-end distributed traces across API Gateway, Orders, Products, Inventory, and Kafka:
-
-* **Search by Trace ID:** Paste any `traceId` (from API response headers or Loki logs) directly into the Search box.
-* **TraceQL Query for End-to-End Microservice Traces (Active Spans):**
-  ```traceql
-  { resource.service.name = "api-gateway" }
-  ```
-* **TraceQL Query for Orders Microservice Spans:**
-  ```traceql
-  { resource.service.name = "orders-service" }
-  ```
-* **TraceQL Query for Slow Requests (> 50ms):**
-  ```traceql
-  { duration > 50ms }
-  ```
-* **TraceQL Query for Failed Transactions & Chaos Injections (HTTP >= 400 / Errors):**
-  ```traceql
-  { status = error || span.http.status_code >= 400 }
-  ```
-  *(Returns results when executing `simulate-chaos.py` or sending invalid payloads)*
-* **🔗 Trace-to-Logs Live Correlation:** When viewing any trace in Tempo, click **"Logs for this span"** to automatically jump to the exact logs in Loki filtered by the span's trace ID and timestamp window.
-
----
-
-### 4. 📊 Pre-Provisioned Universal Grafana Dashboards
+### 2. 📊 Pre-Provisioned Universal Grafana Dashboards
 Navigate to **Dashboards** in Grafana ([http://localhost:3000/dashboards](http://localhost:3000/dashboards)) to access the **two clean, universal specialized dashboards** (engineered to automatically monitor both Docker Compose and Kubernetes environments seamlessly):
 
 | Dashboard Name | File | Key Features & Focus Areas |
