@@ -27,3 +27,11 @@ resource "azurerm_subnet" "db" {
     }
   }
 }
+
+resource "azurerm_subnet" "appgw" {
+  count                = var.appgw_subnet_cidr != null ? 1 : 0
+  name                 = "appgw-subnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.this.name
+  address_prefixes     = [var.appgw_subnet_cidr]
+}

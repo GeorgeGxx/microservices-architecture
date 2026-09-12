@@ -22,3 +22,15 @@ variable "db_password" {
   sensitive   = true
   default     = "secure_master_password"
 }
+
+variable "domain_name" {
+  description = "Custom domain name for Cloud DNS and SSL termination (e.g. example.com)"
+  type        = string
+  default     = ""
+}
+
+variable "alert_email" {
+  description = "Email address to receive monitoring alerts"
+  type        = string
+  default     = ""
+}

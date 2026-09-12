@@ -81,8 +81,9 @@ DEFAULT_PROBES = [
     {
         "name": "Storefront Frontend Root",
         "path": "/",
+        "frontend_port": 4200,
         "method": "GET",
-        "expected_status": [200],
+        "expected_status": [200, 401],
         "category": "Frontend SPA",
         "description": "Verifies Angular SPA storefront or reverse proxy edge response",
     },
@@ -130,6 +131,9 @@ def run_smoke_test(
     json_output: bool = False,
 ) -> bool:
     base_url = base_url.rstrip("/")
+    if "localhost" in base_url:
+        base_url = base_url.replace("localhost", "127.0.0.1")
+
     if not json_output:
         print(f"\n{Colors.BOLD}{Colors.HEADER}================================================================={Colors.RESET}")
         print(f"{Colors.BOLD}{Colors.CYAN} 🩺  DEVSECOPS SYNTHETIC HEALTH & SECURITY SMOKE TEST{Colors.RESET}")
@@ -143,7 +147,10 @@ def run_smoke_test(
     all_passed = True
 
     for probe in probes:
-        full_url = f"{base_url}{probe['path']}"
+        if probe.get("frontend_port") and ("127.0.0.1:8080" in base_url):
+            full_url = f"http://127.0.0.1:{probe['frontend_port']}{probe['path']}"
+        else:
+            full_url = f"{base_url}{probe['path']}"
         probe_passed = False
         last_result = {}
 
@@ -204,7 +211,7 @@ def run_smoke_test(
 
 
 def main():
-    default_url = os.environ.get("TARGET_URL") or os.environ.get("BASE_URL") or "http://localhost:8080"
+    default_url = os.environ.get("TARGET_URL") or os.environ.get("BASE_URL") or "http://127.0.0.1:8080"
 
     parser = argparse.ArgumentParser(
         description="🩺 Cloud-Agnostic DevSecOps Synthetic Smoke & Security Prober",

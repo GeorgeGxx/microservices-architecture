@@ -23,8 +23,16 @@ locals {
       db_tier                 = "db-custom-2-7680"
       db_high_availability    = false
       db_deletion_protection  = false
+      enable_memorystore      = false
       redis_memory_gb         = 1
       redis_high_availability = false
+      enable_kms              = true
+      enable_managed_kafka    = false
+      kafka_retention_hours   = 24
+      enable_cloud_armor_lb   = false
+      rate_limit_count        = 1000
+      enable_cloud_cdn        = false
+      gcs_storage_class       = "STANDARD"
     }
     staging = {
       subnet_cidr             = "10.35.0.0/20"
@@ -36,8 +44,16 @@ locals {
       db_tier                 = "db-custom-2-7680"
       db_high_availability    = false
       db_deletion_protection  = false
+      enable_memorystore      = true
       redis_memory_gb         = 2
       redis_high_availability = false
+      enable_kms              = true
+      enable_managed_kafka    = true
+      kafka_retention_hours   = 48
+      enable_cloud_armor_lb   = true
+      rate_limit_count        = 2000
+      enable_cloud_cdn        = true
+      gcs_storage_class       = "STANDARD"
     }
     prod = {
       subnet_cidr             = "10.40.0.0/20"
@@ -49,8 +65,16 @@ locals {
       db_tier                 = "db-custom-4-16384"
       db_high_availability    = true
       db_deletion_protection  = true
+      enable_memorystore      = true
       redis_memory_gb         = 5
       redis_high_availability = true
+      enable_kms              = true
+      enable_managed_kafka    = true
+      kafka_retention_hours   = 168
+      enable_cloud_armor_lb   = true
+      rate_limit_count        = 5000
+      enable_cloud_cdn        = true
+      gcs_storage_class       = "STANDARD"
     }
   }
 
