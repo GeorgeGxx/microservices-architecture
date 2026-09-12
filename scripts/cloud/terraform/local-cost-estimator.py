@@ -46,7 +46,7 @@ DEFAULT_PROFILES = {
         "cloud_equivalent_cost": 313.00,
         "actual_cost": 0.00,
         "items": [
-            {"component": "Kubernetes Control Plane", "detail": "Local Minikube (v1.33)", "monthly": 0.00, "cloud_equiv": 73.00},
+            {"component": "Kubernetes Control Plane", "detail": "Local Minikube (v1.39.0)", "monthly": 0.00, "cloud_equiv": 73.00},
             {"component": "Workload Compute Nodes", "detail": "AMD Ryzen 7 (12 vCPUs / 12GB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
             {"component": "Container Ingress & Mesh", "detail": "Local Istio Demo + Ingress", "monthly": 0.00, "cloud_equiv": 16.20},
             {"component": "Backing Storage & Logs", "detail": "80 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 6.40},
