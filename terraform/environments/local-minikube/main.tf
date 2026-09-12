@@ -173,6 +173,14 @@ resource "helm_release" "observability" {
     name  = "grafana.sidecar.datasources.defaultDatasourceEnabled"
     value = "false"
   }
+  set {
+    name  = "grafana.env.GF_PLUGINS_PREINSTALL_AUTO_UPDATE"
+    value = "false"
+  }
+  set {
+    name  = "grafana.env.GF_PLUGINS_PREINSTALL_DISABLED"
+    value = "true"
+  }
   # Optimized retention to save Minikube disk and RAM
   set {
     name  = "prometheus.prometheusSpec.retention"
