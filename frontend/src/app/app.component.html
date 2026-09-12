@@ -1,17 +1,22 @@
-<div class="app-layout">
-  <app-navbar></app-navbar>
+<div class="min-h-screen flex flex-col bg-bg text-text-primary antialiased selection:bg-primary/20 selection:text-primary w-full overflow-x-hidden">
+  <app-navbar class="sticky top-0 z-50 w-full block"></app-navbar>
 
-  <main class="main-content">
-    <div class="content-container">
-      <router-outlet></router-outlet>
-    </div>
+  <main class="flex-1 py-6 md:py-9 px-4 sm:px-6 lg:px-8 max-w-7xl w-full mx-auto pb-24 md:pb-9">
+    <router-outlet></router-outlet>
   </main>
 
-  <footer class="app-footer">
-    <div class="footer-container">
-      <div class="footer-brand">
-        <span class="brand-name">MicroStore</span>
-        <span class="footer-copy">Enterprise Microservices Architecture with Spring Boot 3.4, Keycloak 26 & Angular 21</span>
+  <footer class="mt-auto border-t border-border bg-surface-glass/80 backdrop-blur-md py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex flex-col gap-1 text-center sm:text-left">
+        <div class="flex items-center justify-center sm:justify-start gap-2">
+          <span class="font-bold text-base text-text-primary tracking-tight">MicroStore</span>
+          <span class="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">v2026.1</span>
+        </div>
+        <span class="text-xs text-text-muted">Enterprise Microservices Architecture with Spring Boot 3.4, Keycloak 26 & Angular 21</span>
+      </div>
+      <div class="flex items-center gap-2 text-xs font-mono text-text-secondary bg-surface-card/60 px-3 py-1.5 rounded-full border border-border">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse"></span>
+        <span>Mesh Online</span>
       </div>
     </div>
   </footer>
