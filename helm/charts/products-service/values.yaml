@@ -13,11 +13,11 @@ containerPort: 8004
 
 resources:
   requests:
-    cpu: 200m
-    memory: 384Mi
+    cpu: 300m
+    memory: 512Mi
   limits:
     cpu: 2000m
-    memory: 768Mi
+    memory: 1024Mi
 
 autoscaling:
   enabled: false
@@ -28,7 +28,7 @@ autoscaling:
 probes:
   readinessPath: /actuator/products/health/readiness
   livenessPath: /actuator/products/health/liveness
-  initialDelaySeconds: 15
+  initialDelaySeconds: 45
 
 env: {}
   # EXTRA_VAR: value
