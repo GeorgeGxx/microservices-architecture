@@ -8,12 +8,13 @@ metadata:
 spec:
   project: microservices-architecture
   source:
-    repoURL: https://github.com/georgegxx/microservices-architecture.git
+    repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
     targetRevision: main
     path: helm/microservices-umbrella
     helm:
       valueFiles:
         - values.yaml
+        - ../values/values-eks-prod.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: production
@@ -31,3 +32,14 @@ spec:
         duration: 5s
         factor: 2
         maxDuration: 3m
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: microservices-secrets
+      jsonPointers:
+        - /data
+        - /stringData
+    - group: "monitoring.coreos.com"
+      kind: ServiceMonitor
+      jsonPointers:
+        - /spec/endpoints

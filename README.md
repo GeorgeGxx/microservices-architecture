@@ -11,7 +11,7 @@ Designed for true **Multi-Cloud Portability & Multi-CI/CD Automation**:
 
 > [!TIP]
 > 📐 **Interactive Architecture Blueprints ([`docs/Diagrams.drawio`](./docs/Diagrams.drawio)):**
-> The platform includes a comprehensive 10-page Draw.io architectural blueprint viewable in VS Code (Draw.io Integration extension) or [app.diagrams.net](https://app.diagrams.net):
+> The platform includes a comprehensive 11-page Draw.io architectural blueprint viewable in VS Code (Draw.io Integration extension) or [app.diagrams.net](https://app.diagrams.net):
 > 1. **General Architecture & Microservices** (Full topology overview)
 > 2. **Event-Driven Messaging** (Kafka KRaft, DLT, Consumer Deduplication)
 > 3. **Zero-Trust Security & Istio Mesh** (Strict mTLS, Ingress Gateway, Kiali)
@@ -22,6 +22,7 @@ Designed for true **Multi-Cloud Portability & Multi-CI/CD Automation**:
 > 8. **Curated Metrics & Cardinality Engineering** (O(1) Bounded Cohorts, Business KPIs)
 > 9. **Enterprise DevSecOps Platform** (Minikube, 12-Stage CI/CD Pipeline, Gatekeeper)
 > 10. **Production Resiliency, Secrets & Canary** (HPA, PDB, ESO + Vault, Istio Canary, Alertmanager)
+> 11. **Multi-Cloud IaC & CLI Automation Suite** (12-Module Matrix: AWS • Azure • GCP, `platform.ps1` Orchestrator & Scripts Ecosystem)
 
 ## 🏛️ System Architecture
 
@@ -141,42 +142,85 @@ All services and dashboards are automated via background port-forwarding and ava
 | 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
 
-### ⚙️ Platform Operational Lifecycle Commands (Unified CLI)
+### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
 
-All ecosystem operations are unified under the single-entrypoint orchestrator [`platform.ps1`](file:///c:/Users/jorge/codegxx/microservices-architecture/platform.ps1):
+The platform provides a master entrypoint [`platform.ps1`](file:///c:/Users/jorge/codegxx/microservices-architecture/platform.ps1) alongside **4 isolated platform orchestrators** covering **3 environments (`dev`, `staging`, `prod`)**:
+
+| Platform Script | Target Environment | Git Branch | Cloud & Container Runtime | CI/CD Engine |
+| :--- | :--- | :--- | :--- | :--- |
+| [`platform-minikube.ps1`](./platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 12 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
+| [`platform-aws.ps1`](./platform-aws.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | AWS EKS, ALB, RDS, ElastiCache, MSK | GitHub Actions CI + ArgoCD CD + Rollback |
+| [`platform-azure.ps1`](./platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 12+ Stages + Rollback |
+| [`platform-gcp.ps1`](./platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `main`/`master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 12+ Stages + Rollback |
+
+#### 1. Quick Start with Master CLI (`platform.ps1`)
 
 ```powershell
-# 1. Bootstrap the entire DevSecOps ecosystem (Minikube, Terraform, ArgoCD, Vault, Apps & Tunnels)
+# 1. Audit and install Windows CLI tools via Winget (excluding 9 ignored tools)
+.\platform.ps1 tools
+.\platform.ps1 tools -Install
+
+# 2. Bootstrap full Minikube ecosystem (Istio, Vault, Keycloak, db-keycloak, Apps, Tunnels)
 .\platform.ps1 up
+.\platform.ps1 up -Build        # Compile Java & Angular Dockerfiles from source & sideload to Minikube
+.\platform.ps1 build            # Standalone image build & rolling update in Minikube
+.\platform.ps1 up -WithIstio     # With Istio mTLS and Kiali
+.\platform.ps1 up -WithoutIstio  # Pure Kubernetes native mode
+.\platform.ps1 up -DeployCanary  # With products-service v2 canary (10% traffic)
 
-# Deploy applications with Canary version v2 for zero-downtime progressive testing (e.g. 90% v1, 10% v2)
-.\platform.ps1 up -DeployCanary
+# 3. Multi-Cloud Terraform Planning & Deployment
+.\platform.ps1 plan -Platform aws -Environment staging
+.\platform.ps1 apply -Platform aws -Environment staging -AutoApprove
 
-# Bootstrap with automatic AWS S3 remote state and DynamoDB state lock preparation
-.\platform.ps1 up -WithAwsBackend
+.\platform.ps1 plan -Platform azure -Environment prod
+.\platform.ps1 apply -Platform azure -Environment prod -AutoApprove
 
-# 2. Verify platform health, pods, NodePorts, and Gatekeeper OPA policies
+.\platform.ps1 plan -Platform gcp -Environment staging
+.\platform.ps1 apply -Platform gcp -Environment staging -AutoApprove
+
+# 4. Deep Diagnostic Health Check & Smoke Tests
 .\platform.ps1 doctor
+.\platform.ps1 smoke
 
-# 3. FinOps Cloud Cost Estimation & Local Savings Breakdown (Air-Gapped / Zero SaaS)
+# 5. Air-Gapped FinOps Cost Calculator
 .\platform.ps1 cost -Environment minikube
 .\platform.ps1 cost -Environment staging
 .\platform.ps1 cost -Environment prod
 
-# 4. Display active platform URLs and access credentials table
+# 6. Interactive Endpoints Table & Tunnels
 .\platform.ps1 urls
-
-# 5. Run end-to-end HTTP smoke test across all microservices
-.\platform.ps1 smoke
-
-# 6. Launch or restart resilient background port-forward tunnels daemon
 .\platform.ps1 tunnels
 
-# 7. Gracefully pause Minikube and close tunnels (releases 12 CPUs & 12 GB RAM, preserves state)
+# 7. Gracefully Pause Minikube (preserves state) or Complete Purge
 .\platform.ps1 down
+.\platform.ps1 down -Destroy
+```
 
-# 8. Completely purge Minikube, delete storage volumes, and reset Terraform state
-.\platform.ps1 down -DeleteCluster -CleanTerraformState
+#### 2. Direct Execution of Platform-Specific Scripts
+
+```powershell
+# Minikube Direct
+.\platform-minikube.ps1 up
+.\platform-minikube.ps1 up -Build      # Build Dockerfiles & sideload to Minikube
+.\platform-minikube.ps1 build          # Rebuild and rollout restart pods in dev
+.\platform-minikube.ps1 security-scan  # Runs Gitleaks, TFLint, Trivy
+.\platform-minikube.ps1 graph          # Generates visual Graphviz PNG in docs/terraform-graph.png
+.\platform-minikube.ps1 down
+
+# AWS Cloud Direct
+.\platform-aws.ps1 plan staging
+.\platform-aws.ps1 apply staging -AutoApprove
+.\platform-aws.ps1 rollback staging    # Releases state locks and rolls back ArgoCD/EKS
+
+# Azure Cloud Direct
+.\platform-azure.ps1 plan prod
+.\platform-azure.ps1 apply prod -AutoApprove
+.\platform-azure.ps1 rollback prod     # Unlocks Azure Blob leases and rolls back AKS
+
+# GCP Cloud Direct
+.\platform-gcp.ps1 plan staging
+.\platform-gcp.ps1 apply staging -AutoApprove
+.\platform-gcp.ps1 rollback staging    # Unlocks GCS state locks and rolls back GKE
 ```
 
 ### 🛡️ DevSecOps & Governance Hub
@@ -357,7 +401,9 @@ When you are ready to enforce strict blocking in production:
     - [🗺️ Architecture Diagrams \& Vector Blueprints (`docs/Diagrams.drawio`)](#️-architecture-diagrams--vector-blueprints-docsdiagramsdrawio)
   - [🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD \& Minikube)](#️-100-local-enterprise-devsecops-platform-12-stage-cicd--minikube)
     - [🖥️ Local Platform Endpoints \& Access Matrix](#️-local-platform-endpoints--access-matrix)
-    - [⚙️ Platform Operational Lifecycle Commands (Unified CLI)](#️-platform-operational-lifecycle-commands-unified-cli)
+    - [⚙️ Platform Operational Lifecycle Commands (Unified Master CLI \& 4 Isolated Versions)](#️-platform-operational-lifecycle-commands-unified-master-cli--4-isolated-versions)
+      - [1. Quick Start with Master CLI (`platform.ps1`)](#1-quick-start-with-master-cli-platformps1)
+      - [2. Direct Execution of Platform-Specific Scripts](#2-direct-execution-of-platform-specific-scripts)
     - [🛡️ DevSecOps \& Governance Hub](#️-devsecops--governance-hub)
       - [📂 Directory Structure](#-directory-structure)
       - [⚙️ Security Operating Modes: Audit vs. Enforce](#️-security-operating-modes-audit-vs-enforce)
@@ -398,20 +444,20 @@ When you are ready to enforce strict blocking in production:
     - [5. 🛑 Cluster Teardown \& Resource Cleanup](#5--cluster-teardown--resource-cleanup)
     - [Useful commands](#useful-commands)
   - [🧪 Automated Testing, Load Simulation \& Chaos Engineering](#-automated-testing-load-simulation--chaos-engineering)
-    - [1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate-traffic.py`)](#1--legitimate-e-commerce-traffic-generator-simulate-trafficpy)
+    - [1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)](#1--legitimate-e-commerce-traffic-generator-simulatepy---scenario-traffic)
     - [2. ⚡ Resilience4j Circuit Breaker State Verification](#2--resilience4j-circuit-breaker-state-verification)
       - [Step-by-Step Test Procedure:](#step-by-step-test-procedure)
         - [🔴 Step A: Trip Circuit Breaker into OPEN (Red `#ef4444`)](#-step-a-trip-circuit-breaker-into-open-red-ef4444)
         - [🟡 Step B: Observe Transition into HALF\_OPEN (Yellow `#f59e0b`)](#-step-b-observe-transition-into-half_open-yellow-f59e0b)
         - [🟢 Step C: Restore Backend Health and Return to CLOSED (Green `#10b981`)](#-step-c-restore-backend-health-and-return-to-closed-green-10b981)
-    - [3. 💥 Chaos Engineering \& Fault Injection (`simulate-chaos.py`)](#3--chaos-engineering--fault-injection-simulate-chaospy)
-    - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate-ddos.py`)](#4-️-ddos--rate-limiting-stress-attacks-simulate-ddospy)
+    - [3. 💥 Chaos Engineering \& Fault Injection (`simulate.py --scenario chaos`)](#3--chaos-engineering--fault-injection-simulatepy---scenario-chaos)
+    - [4. 🛡️ DDoS \& Rate Limiting Stress Attacks (`simulate.py --scenario ddos`)](#4-️-ddos--rate-limiting-stress-attacks-simulatepy---scenario-ddos)
     - [5. 🔍 Automated Smoke Tests \& OpenAPI Auditing](#5--automated-smoke-tests--openapi-auditing)
     - [6. 📉 Cart Abandonment Rate KPI Verification \& Testing](#6--cart-abandonment-rate-kpi-verification--testing)
       - [Step-by-Step Testing Procedures (3 Verified Methods):](#step-by-step-testing-procedures-3-verified-methods)
         - [🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)](#-method-1-instant-cli--powershell-event-injection-simulate-mass-abandonment)
         - [🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA](#️-method-2-interactive-browser-testing-via-angular-frontend-spa)
-        - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate-traffic.py`)](#-method-3-multi-threaded-realistic-funnel-generation-simulate-trafficpy)
+        - [⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate.py --scenario traffic`)](#-method-3-multi-threaded-realistic-funnel-generation-simulatepy---scenario-traffic)
     - [📦 Postman Test Suite:](#-postman-test-suite)
   - [📊 Full-Stack Observability \& Telemetry (Grafana LGTM Stack)](#-full-stack-observability--telemetry-grafana-lgtm-stack)
       - [🗄️ Standardized Grafana Datasources (Explore \& Dashboards)](#️-standardized-grafana-datasources-explore--dashboards)
@@ -488,6 +534,38 @@ When you are ready to enforce strict blocking in production:
         - [9. 🛡️ S3 Bucket Security Policy \& OAC Hardening](#9-️-s3-bucket-security-policy--oac-hardening)
         - [10. 🧹 GKE Persistent Disk Snapshot FinOps Cleanup (GCP)](#10--gke-persistent-disk-snapshot-finops-cleanup-gcp)
   - [🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)](#️-cloud-agnostic-devsecops-cli-tooling-scriptsdevsecops)
+  - [🚀 Enterprise Platform Unified CLI (`platform.ps1`)](#-enterprise-platform-unified-cli-platformps1)
+    - [📋 Complete Combinations Reference Guide](#-complete-combinations-reference-guide)
+      - [1. 🚀 Bootstrap \& Deployment (`up` / `bootstrap`)](#1--bootstrap--deployment-up--bootstrap)
+      - [2. ⏸️ Teardown, Pause \& Cluster Purge (`down` / `stop` / `destroy`)](#2-️-teardown-pause--cluster-purge-down--stop--destroy)
+      - [3. 📝 Terraform Infrastructure Planning \& Apply (`plan` / `apply`)](#3--terraform-infrastructure-planning--apply-plan--apply)
+      - [4. 🔄 Automated Emergency Rollbacks (`rollback`)](#4--automated-emergency-rollbacks-rollback)
+      - [5. 🔍 Health Diagnostics \& Verification (`doctor` / `verify` / `status`)](#5--health-diagnostics--verification-doctor--verify--status)
+      - [6. 💰 FinOps Cloud Cost Breakdown \& Savings (`cost` / `finops`)](#6--finops-cloud-cost-breakdown--savings-cost--finops)
+      - [7. 🛠️ Host CLI Audit \& Automated Winget Installation (`tools`)](#7-️-host-cli-audit--automated-winget-installation-tools)
+      - [8. ⚡ Productivity, Security \& Verification Utilities](#8--productivity-security--verification-utilities)
+  - [🛠️ Winget DevSecOps \& Platform CLI Tool Suite](#️-winget-devsecops--platform-cli-tool-suite)
+    - [1. IaC \& FinOps](#1-iac--finops)
+    - [2. DevSecOps \& Security](#2-devsecops--security)
+    - [3. Container \& Kubernetes Orchestration](#3-container--kubernetes-orchestration)
+    - [4. Runtimes, Build Tools \& Productivity](#4-runtimes-build-tools--productivity)
+  - [📂 Comprehensive Scripts Portfolio Directory (`scripts/`)](#-comprehensive-scripts-portfolio-directory-scripts)
+    - [1. `scripts/devsecops/` (Cluster Lifecycle, Security \& Verification)](#1-scriptsdevsecops-cluster-lifecycle-security--verification)
+    - [2. `scripts/cloud/terraform/` (Terraform Orchestration \& FinOps)](#2-scriptscloudterraform-terraform-orchestration--finops)
+    - [3. `scripts/cloud/aws/` (Unified AWS Operations \& Well-Architected Governance)](#3-scriptscloudaws-unified-aws-operations--well-architected-governance)
+    - [4. `scripts/cloud/azure/` (Unified Azure Cloud Operations)](#4-scriptscloudazure-unified-azure-cloud-operations)
+    - [5. `scripts/cloud/gcp/` (Unified Google Cloud Operations)](#5-scriptscloudgcp-unified-google-cloud-operations)
+    - [6. `scripts/cloud/cloudflare/` (Zero-Trust Tunnels)](#6-scriptscloudcloudflare-zero-trust-tunnels)
+    - [7. `scripts/istio/` (Service Mesh \& Traffic Management)](#7-scriptsistio-service-mesh--traffic-management)
+    - [8. `scripts/auth/` \& `scripts/vault/` (Identity \& Secrets Provisioning)](#8-scriptsauth--scriptsvault-identity--secrets-provisioning)
+    - [9. `scripts/build/` (Build \& Release Automation)](#9-scriptsbuild-build--release-automation)
+    - [10. `scripts/testing/` (Enterprise Testing \& Simulation Super-Scripts)](#10-scriptstesting-enterprise-testing--simulation-super-scripts)
+  - [☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)](#️-multi-cloud-terraform-12-module-matrix-aws--azure--gcp)
+  - [🔄 Multi-Cloud CI/CD \& Automated Rollback Architecture](#-multi-cloud-cicd--automated-rollback-architecture)
+    - [1. GitHub Actions (CI) + ArgoCD (CD) - AWS \& Minikube](#1-github-actions-ci--argocd-cd---aws--minikube)
+    - [2. Azure DevOps - Single Unified Pipeline (Azure Cloud)](#2-azure-devops---single-unified-pipeline-azure-cloud)
+    - [3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)](#3-bitbucket-pipelines---single-unified-pipeline-google-cloud-platform)
+    - [4. Automated Rollback \& Incident Recovery Summary](#4-automated-rollback--incident-recovery-summary)
   - [📄 License](#-license)
 
 ---
@@ -756,15 +834,24 @@ The unified deployment orchestrator automates the complete lifecycle end-to-end:
 ### 1. 🚀 One-Shot Cluster Deployment
 Deploy the entire infrastructure, security, mesh, and microservices in a single command:
 ```powershell
-# Unified Enterprise CLI Orchestrator (Installs Minikube, Istio, Vault, Keycloak, DBs, Apps & Tunnels):
+# Unified Enterprise CLI Orchestrator (Installs Minikube, Istio, Vault, Keycloak + db-keycloak, DBs, Apps & Tunnels):
 .\platform.ps1 up
 
-# Options:
-# Deploy with canary version v2 enabled:
+# Options & Variations:
+# Deploy with Istio Service Mesh & Envoy sidecars (default):
+.\platform.ps1 up -WithIstio
+
+# Deploy in Native K8s Mode without Istio/Envoy overhead:
+.\platform.ps1 up -WithoutIstio
+
+# Deploy with canary version v2 enabled (90/10 traffic split):
 .\platform.ps1 up -DeployCanary
 
-# Deploy with automatic AWS S3 remote backend preparation:
-.\platform.ps1 up -WithAwsBackend
+# Fast-track bootstrap skipping security scans (Gitleaks/TFLint/Trivy):
+.\platform.ps1 up -SkipScans
+
+# Custom hardware sizing:
+.\platform.ps1 up -Cpus 12 -MemoryMb 12288 -DiskSize 80g
 ```
 
 > 💡 **Smart Image Synchronization & Adaptive Observability:**
@@ -913,18 +1000,18 @@ docker exec -it vault cat /vault/file/vault_audit.log
 
 Enterprise testing scripts located in `scripts/testing/`:
 
-### 1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate-traffic.py`)
+### 1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)
 Simulates authentic shopping journeys: authenticates with Keycloak OIDC, browses catalog items, queries stock, places distributed purchase orders with idempotency UUIDs, cancels orders to exercise Saga compensation, and updates real-time Grafana business KPIs:
 
 ```powershell
 # Run a quick batch of 15 orders with 3 worker threads:
-python scripts/testing/simulate-traffic.py
+python scripts/testing/simulate.py --scenario traffic
 
 # Place custom number of orders with specified concurrency:
-python scripts/testing/simulate-traffic.py --orders 50 --concurrency 5
+python scripts/testing/simulate.py --scenario traffic --orders 50 --concurrency 5
 
 # Run continuous background shopper simulation:
-python scripts/testing/simulate-traffic.py --continuous
+python scripts/testing/simulate.py --scenario traffic --continuous
 ```
 
 ### 2. ⚡ Resilience4j Circuit Breaker State Verification
@@ -947,7 +1034,7 @@ docker compose stop inventory-service
 kubectl scale deployment inventory-service --replicas=0 -n dev
 
 # 2. Run continuous traffic to keep the circuit in steady OPEN (Red #ef4444):
-python scripts/testing/simulate-traffic.py --continuous
+python scripts/testing/simulate.py --scenario traffic --continuous
 ```
 * **Grafana Verification:** The panel **⚡ Resilience4j Circuit Breakers Health** will display **`OPEN / TRIPPED` (🔴 Red)**.
 
@@ -976,46 +1063,49 @@ docker compose start inventory-service
 kubectl scale deployment inventory-service --replicas=1 -n dev
 
 # 2. Send 2 trial orders (sequential concurrency) to satisfy the 2-call probe:
-python scripts/testing/simulate-traffic.py --orders 2 --concurrency 1
+python scripts/testing/simulate.py --scenario traffic --orders 2 --concurrency 1
 ```
 * **Grafana Verification:** Both trial orders succeed with HTTP 201, and the panel instantly resets to **`CLOSED / HEALTHY` (🟢 Green)**.
 
 
-### 3. 💥 Chaos Engineering & Fault Injection (`simulate-chaos.py`)
+### 3. 💥 Chaos Engineering & Fault Injection (`simulate.py --scenario chaos`)
 Injects artificial network latency and downstream HTTP 500 errors to validate fault tolerance and OpenTelemetry tracing:
 ```powershell
-python scripts/testing/simulate-chaos.py
+python scripts/testing/simulate.py --scenario chaos
 ```
 
-### 4. 🛡️ DDoS & Rate Limiting Stress Attacks (`simulate-ddos.py`)
+### 4. 🛡️ DDoS & Rate Limiting Stress Attacks (`simulate.py --scenario ddos`)
 Launches high-concurrency request floods against the API Gateway to trigger Redis Token Bucket rate limiting (HTTP 429) and activate the Security Threat Level gauge:
 ```powershell
 # 1. Default: 30-second sustained flood with live terminal ticker (keeps Threat Level RED in Grafana):
-python scripts/testing/simulate-ddos.py
+python scripts/testing/simulate.py --scenario ddos
 
 # 2. Custom sustained duration (e.g. 60 seconds):
-python scripts/testing/simulate-ddos.py --duration 60
+python scripts/testing/simulate.py --scenario ddos --duration 60
 
 # 3. Continuous flood (runs indefinitely until Ctrl + C):
-python scripts/testing/simulate-ddos.py --continuous
+python scripts/testing/simulate.py --scenario ddos --continuous
 
 # 4. Instant fixed burst (300 requests):
-python scripts/testing/simulate-ddos.py --requests 300
+python scripts/testing/simulate.py --scenario ddos --duration 10
 
 # 5. Distributed botnet simulation (rotates 12 distinct attacker IP addresses):
-python scripts/testing/simulate-ddos.py --distributed
+python scripts/testing/simulate.py --scenario ddos --distributed
 
 # 6. Anonymous attack without Keycloak authentication:
-python scripts/testing/simulate-ddos.py --no-auth
+python scripts/testing/simulate.py --scenario ddos --no-auth
 ```
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
 # Run automated HTTP smoke tests against all service endpoints:
-pwsh scripts/testing/smoke-test.ps1
+python scripts/testing/smoke.py
 
 # Verify OpenAPI v3 / Swagger docs availability:
-pwsh scripts/testing/verify-swagger.ps1
+python scripts/testing/verify.py --target swagger
+
+# Verify Prometheus metrics & Grafana dashboards:
+python scripts/testing/verify.py --target all
 ```
 
 ### 6. 📉 Cart Abandonment Rate KPI Verification & Testing
@@ -1056,12 +1146,12 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 
 ---
 
-##### ⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate-traffic.py`)
+##### ⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate.py --scenario traffic`)
 Run the autonomous e-commerce load generator to exercise the complete funnel stages (`CART_ADD` $\rightarrow$ `CHECKOUT_START` $\rightarrow$ `CHECKOUT_STEP` $\rightarrow$ `PLACED` $\rightarrow$ `DELIVERED`):
 
 ```powershell
 # Simulate 20 realistic shopper journeys with 4 parallel threads:
-python scripts/testing/simulate-traffic.py --orders 20 --concurrency 4
+python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 4
 ```
 
 * **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
@@ -1376,9 +1466,9 @@ microservices-architecture/
 │   ├── auth/                       # Keycloak bootstrap (bootstrap-keycloak.ps1)
 │   ├── build/                      # Build (build-all.py), push, and Helm deployment
 │   ├── cloud/                      # Multi-Cloud deployment helpers
-│   │   ├── aws/                    # AWS ECR authentication & EKS deployment (ecr-login.ps1, deploy-eks.ps1)
-│   │   ├── azure/                  # Azure ACR authentication & AKS deployment (acr-login.ps1, deploy-aks.ps1)
-│   │   ├── gcp/                    # GCP GAR authentication & GKE deployment (gar-login.ps1, deploy-gke.ps1)
+│   │   ├── aws/                    # Unified AWS operations (manage-aws.ps1: ECR login, EKS deploy & audit-aws.py)
+│   │   ├── azure/                  # Unified Azure operations (manage-azure.ps1: ACR login, AKS credentials & Helm deploy)
+│   │   ├── gcp/                    # Unified GCP operations (manage-gcp.ps1: GAR login, GKE credentials, Helm deploy & FinOps cleanup)
 │   │   └── terraform/              # Multi-Cloud Terraform plan, apply & backend bootstrap scripts
 │   ├── istio/                      # Istio mesh, Canary weighting & Kiali scripts
 │   ├── minikube/                   # Minikube deployment, port-forward tunnels & teardown
@@ -2061,7 +2151,7 @@ The platform includes production-grade CLI tools for multi-cloud governance, dis
 
 ##### 7. 💾 Automated RDS PostgreSQL Snapshot Manager
 * **File:** [`scripts/cloud/aws/rds-snapshot-backup.py`](./scripts/cloud/aws/rds-snapshot-backup.py)
-* **Purpose:** Creates timestamped, compliance-tagged RDS snapshots before CI/CD deployments and enforces automated retention policies (purging snapshots older than $N$ days).
+* **Purpose:** Creates timestamped, compliance-tagged RDS snapshots before CI/CD migrations with automated retention purging.
 * **Usage Examples:**
   ```bash
   # Pre-deployment snapshot of production PostgreSQL:
@@ -2111,12 +2201,436 @@ The platform includes production-grade CLI tools for multi-cloud governance, dis
 
 ## 🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)
 
-The platform provides lightweight, cloud-agnostic tools for post-deployment verification and zero-trust credential bootstrapping:
+The platform provides lightweight, cloud-agnostic tools for post-deployment verification, zero-trust credential bootstrapping, automated cluster provisioning and lifecycle management:
 
 | Tool | Purpose | Key DevSecOps Gates | Runbook Command |
 | :--- | :--- | :--- | :--- |
+| **[`platform-minikube.ps1`](./platform-minikube.ps1)** | **Dedicated Minikube Orchestrator (`dev` / `develop`):** Configures Minikube, Istio, Gatekeeper OPA, Vault, Keycloak + `db-keycloak`, Prometheus, Grafana, Microservices, FinOps, and Tunnels. | • Minikube sizing (12 CPUs, 12 GB RAM)<br/>• Istio mesh injection with `-WithIstio` / `-WithoutIstio`<br/>• Shift-left security scans & Graphviz | `.\platform-minikube.ps1 up` |
+| **[`verify-platform.ps1`](./scripts/devsecops/verify-platform.ps1)** | **Deep Diagnostic Health Audit:** Validates pods, active NodePorts, Prometheus targets, and Gatekeeper admission policies. | • Pod Readiness check in all namespaces<br/>• OPA Constraint validation<br/>• Health reporting table | `.\scripts\devsecops\verify-platform.ps1` |
+| **[`install-cli-tools.ps1`](./scripts/devsecops/install-cli-tools.ps1)** | **Winget CLI Auditor & Installer:** Audits and silently installs 18 platform CLI tools for IaC, Security, Kubernetes and Productivity. | • Automated PATH detection<br/>• Idempotent non-interactive Winget installation<br/>• Formatted status & version table | `.\scripts\devsecops\install-cli-tools.ps1 -Install` |
 | **[`endpoint-smoke-test.py`](./scripts/devsecops/endpoint-smoke-test.py)** | **Synthetic Post-Deployment Smoke Prober:** Works identically across Minikube, EKS, AKS, and GKE. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• **Negative Security Auth Gate:** Asserts 401/403 on unauthenticated routes (`/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/devsecops/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
 | **[`generate-secure-secrets.py`](./scripts/devsecops/generate-secure-secrets.py)** | **Zero-Trust Credential & Secret Generator:** Replaces default passwords with high-entropy cryptographic keys (CSPRNG). | • Generates database passwords, Keycloak client secrets, and 256-bit JWT keys<br/>• Exports directly to `.env`, JSON, or Kubernetes `Secret` YAML manifests | `python scripts/devsecops/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
+| **[`supervise-tunnels.py`](./scripts/devsecops/supervise-tunnels.py)** | **Resilient Port-Forward Tunnel Supervisor:** Maintains background port-forwarding daemons with automatic reconnects. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Recovers from connection drops | `python scripts/devsecops/supervise-tunnels.py` |
+| **[`teardown-local-devsecops.ps1`](./scripts/devsecops/teardown-local-devsecops.ps1)** | **Platform Teardown & Resource Release:** Pauses Minikube or completely purges cluster, state and tunnels. | • Graceful pod drain<br/>• Reclaims 12 CPUs and 12 GB RAM<br/>• Optional `-DeleteCluster` cleans 80 GB disk | `.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster` |
+
+---
+
+## 🚀 Enterprise Platform Unified CLI (`platform.ps1`)
+
+The repository includes a single, master PowerShell orchestrator [`platform.ps1`](./platform.ps1) providing a standardized entrypoint for all platform operations across **4 target platforms** (`minikube`, `aws`, `azure`, `gcp`) and **3 environments** (`dev`, `staging`, `prod`):
+
+```powershell
+.\platform.ps1 <command> [-Platform minikube|aws|azure|gcp] [-Environment dev|staging|prod] [options]
+```
+
+### 📋 Complete Combinations Reference Guide
+
+#### 1. 🚀 Bootstrap & Deployment (`up` / `bootstrap`)
+
+| Platform | Command / Combination | Description & Effects |
+| :--- | :--- | :--- |
+| **Minikube** | `.\platform.ps1 up` | Default bootstrap: Minikube cluster, Istio Demo profile, Envoy sidecars, Gatekeeper OPA, Keycloak + `db-keycloak`, Vault, Data tier, Apps, Grafana/Prometheus, Tunnels & FinOps. |
+| **Minikube** | `.\platform.ps1 up -Platform minikube -WithIstio` | Explicitly enables Istio service mesh, STRICT mTLS and Envoy proxy injection. |
+| **Minikube** | `.\platform.ps1 up -Platform minikube -WithoutIstio` | Native Kubernetes mode without Envoy sidecars or Istio control plane overhead (saves 1.5 GB RAM). |
+| **Minikube** | `.\platform.ps1 up -DeployCanary` | Provisions base microservices plus version `v2` in Canary mode with 90/10 Istio traffic routing. |
+| **Minikube** | `.\platform.ps1 up -SkipScans` | Fast-track bootstrap: skips pre-flight Gitleaks, TFLint, Trivy, and Cosign validations. |
+| **Minikube** | `.\platform.ps1 up -Cpus 8 -MemoryMb 8192 -DiskSize 50g` | Custom hardware allocation for lower-spec developer workstations. |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment dev` | Deploys AWS Dev tier (corresponds to `develop` branch, namespace `dev`, burstable resources). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment staging` | Deploys AWS Staging tier (`staging` branch, namespace `staging`, medium performance: 2 replicas, 250m-500m CPU). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment prod` | Deploys AWS Production tier (`main`/`master` branch, namespace `production`, high performance HA: 3-10 replicas, ALB, Canary). |
+| **AWS** | `.\platform.ps1 up -Platform aws -Environment <env> -AutoApprove` | Automated, non-interactive Terraform apply for CI/CD runners. |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment dev` | Deploys Azure Dev tier (corresponds to `develop` branch, namespace `dev`, burstable B-series). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment staging` | Deploys Azure Staging tier (`staging` branch, namespace `staging`, medium performance D-series). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment prod` | Deploys Azure Production tier (`main`/`master` branch, namespace `production`, high performance HA, App Gateway). |
+| **Azure** | `.\platform.ps1 up -Platform azure -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Azure DevOps pipelines. |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment dev` | Deploys GCP Dev tier (corresponds to `develop` branch, namespace `dev`, e2-standard). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment staging` | Deploys GCP Staging tier (`staging` branch, namespace `staging`, medium performance). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment prod` | Deploys GCP Production tier (`main`/`master` branch, namespace `production`, high performance HA, Cloud Armor). |
+| **GCP** | `.\platform.ps1 up -Platform gcp -Environment <env> -AutoApprove` | Automated non-interactive Terraform apply for Bitbucket Pipelines. |
+
+---
+
+#### 2. ⏸️ Teardown, Pause & Cluster Purge (`down` / `stop` / `destroy`)
+
+| Command / Combination | Platform | Description & Effects |
+| :--- | :--- | :--- |
+| `.\platform.ps1 down` | Minikube | Gracefully terminates background tunnels and pauses Minikube. Preserves all container images, database data, and state. |
+| `.\platform.ps1 down -Destroy` | Minikube | Deletes the Minikube VM/container, purges persistent volumes, and cleans local Terraform state. |
+| `.\platform.ps1 destroy -Platform minikube` | Minikube | Direct alias for complete Minikube cluster and state purge. |
+| `.\platform.ps1 down -Platform aws -Environment <dev\|staging\|prod>` | AWS | Runs `terraform destroy` against the specified AWS workspace. |
+| `.\platform.ps1 destroy -Platform aws -Environment prod -AutoApprove` | AWS | Non-interactive purge of AWS production resources. |
+| `.\platform.ps1 down -Platform azure -Environment <dev\|staging\|prod>` | Azure | Runs `terraform destroy` against the specified Azure workspace. |
+| `.\platform.ps1 destroy -Platform azure -Environment prod -AutoApprove` | Azure | Non-interactive purge of Azure production resources. |
+| `.\platform.ps1 down -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Runs `terraform destroy` against the specified GCP workspace. |
+| `.\platform.ps1 destroy -Platform gcp -Environment prod -AutoApprove` | GCP | Non-interactive purge of GCP production resources. |
+
+---
+
+#### 3. 📝 Terraform Infrastructure Planning & Apply (`plan` / `apply`)
+
+| Command / Combination | Platform | Description & Effects |
+| :--- | :--- | :--- |
+| `.\platform.ps1 plan -Platform minikube` | Minikube | Generates the Graphviz visual dependency diagram (`docs/terraform-graph.png`). |
+| `.\platform.ps1 plan -Platform aws -Environment <dev\|staging\|prod>` | AWS | Executes `terraform plan` for the selected AWS workspace and outputs plan file. |
+| `.\platform.ps1 plan -Platform azure -Environment <dev\|staging\|prod>` | Azure | Executes `terraform plan` for the selected Azure workspace. |
+| `.\platform.ps1 plan -Platform gcp -Environment <dev\|staging\|prod>` | GCP | Executes `terraform plan` for the selected GCP workspace. |
+| `.\platform.ps1 apply -Platform aws -Environment staging -AutoApprove` | AWS | Provisions AWS staging infrastructure without interactive prompts. |
+| `.\platform.ps1 apply -Platform azure -Environment prod -AutoApprove` | Azure | Provisions Azure production infrastructure without interactive prompts. |
+| `.\platform.ps1 apply -Platform gcp -Environment dev -AutoApprove` | GCP | Provisions GCP dev infrastructure without interactive prompts. |
+
+---
+
+#### 4. 🔄 Automated Emergency Rollbacks (`rollback`)
+
+| Command / Combination | Target | Recovery Action Performed |
+| :--- | :--- | :--- |
+| `.\platform.ps1 rollback` | Minikube | Rolls back the Helm umbrella release in namespace `dev` to the previous stable revision. |
+| `.\platform.ps1 rollback -Platform aws -Environment staging` | AWS | Initiates emergency rollback: releases S3/DynamoDB state lock and triggers ArgoCD sync fallback. |
+| `.\platform.ps1 rollback -Platform aws -Environment prod -LockId <ID>` | AWS | Forces release of a specific DynamoDB state lock (`terraform force-unlock <ID>`) and triggers rollback. |
+| `.\platform.ps1 rollback -Platform azure -Environment staging` | Azure | Releases Azure Blob Storage state lease and triggers Helm rollback on AKS. |
+| `.\platform.ps1 rollback -Platform azure -Environment prod -LockId <ID>` | Azure | Unlocks Azure Blob storage lease and executes production fallback. |
+| `.\platform.ps1 rollback -Platform gcp -Environment staging` | GCP | Releases GCS state lock and executes GKE deployment rollback to previous replica revision. |
+| `.\platform.ps1 rollback -Platform gcp -Environment prod -LockId <ID>` | GCP | Clears GCS state lock and triggers production rollback. |
+
+---
+
+#### 5. 🔍 Health Diagnostics & Verification (`doctor` / `verify` / `status`)
+
+| Command / Combination | Target | Diagnostic Scope |
+| :--- | :--- | :--- |
+| `.\platform.ps1 doctor` | Minikube | Verifies pods across `dev`, `observability`, `auth`, `vault`, `data`, `argocd`, `gatekeeper-system`, active NodePorts, and runs synthetic OPA admission test. |
+| `.\platform.ps1 doctor -Platform aws -Environment staging` | AWS | Inspects AWS EKS pod status, ALB ingress controller, and IRSA bindings. |
+| `.\platform.ps1 doctor -Platform azure -Environment prod` | Azure | Inspects Azure AKS pod status, Application Gateway ingress, and Workload Identity. |
+| `.\platform.ps1 doctor -Platform gcp -Environment dev` | GCP | Inspects Google GKE pod status, Cloud Armor LB, and Workload Identity. |
+
+---
+
+#### 6. 💰 FinOps Cloud Cost Breakdown & Savings (`cost` / `finops`)
+
+| Command / Combination | Environment | Analysis Performed |
+| :--- | :--- | :--- |
+| `.\platform.ps1 cost` | Minikube | Air-gapped offline cost analysis: computes local developer cost ($0/mo) and calculates monthly savings vs. AWS ($1,864/mo), Azure ($1,792/mo), and GCP ($1,680/mo). |
+| `.\platform.ps1 cost -Environment staging` | Staging | Displays medium performance tier monthly spending breakdown across compute, databases, cache, and networking. |
+| `.\platform.ps1 cost -Environment prod` | Production | Displays high performance HA tier monthly cost breakdown across multi-AZ clusters, managed databases, and enterprise services. |
+
+---
+
+#### 7. 🛠️ Host CLI Audit & Automated Winget Installation (`tools`)
+
+| Command / Combination | Mode | Description |
+| :--- | :--- | :--- |
+| `.\platform.ps1 tools` | Audit Only | Fast audit (< 1s) checking presence and version of 17 essential platform tools. Excludes 9 non-essential CLIs. |
+| `.\platform.ps1 tools -Install` | Unattended Install | Automatically installs any missing tools via `winget install --id ... --silent --accept-package-agreements`. |
+
+---
+
+#### 8. ⚡ Productivity, Security & Verification Utilities
+
+| Command | Action Performed |
+| :--- | :--- |
+| `.\platform.ps1 urls` | Prints interactive colorized dashboard of all active frontend, API Gateway, Keycloak IAM, Vault UI, Kiali, ArgoCD, Grafana, and Prometheus URLs with credentials. |
+| `.\platform.ps1 smoke` | Executes automated synthetic integration smoke tests against API Gateway and microservices validating health, latency, and negative security gates. |
+| `.\platform.ps1 tunnels` | Launches the resilient background port-forward supervisor daemon with automatic reconnection. |
+| `.\platform.ps1 secrets [-Environment <dev\|staging\|prod>]` | Generates high-entropy CSPRNG cryptographic secrets (JWT keys, DB passwords, Keycloak client secrets) for Kubernetes manifests or `.env`. |
+| `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
+| `.\platform.ps1 graph` | Generates a visual Terraform dependency graph PNG at `docs/terraform-graph.png` using Graphviz (`dot`). |
+| `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 12 architectural tabs in [`docs/Diagrams.drawio`](./docs/Diagrams.drawio) via Python. |
+
+---
+
+## 🛠️ Winget DevSecOps & Platform CLI Tool Suite
+
+The platform standardizes **17 essential industry-standard CLI applications** managed via Windows Package Manager (`winget`):
+
+### 1. IaC & FinOps
+- **`Hashicorp.Terraform` (`terraform`)**: Multi-cloud Infrastructure as Code engine.
+- **`TerraformLinters.tflint` (`tflint`)**: Framework linter enforcing module conventions and catching provider errors.
+- **`Infracost.Infracost` (`infracost`)**: Cloud cost estimation engine for Terraform.
+- **`Graphviz.Graphviz` (`dot`)**: Dependency graph visualization utility (`terraform graph | dot -Tpng -o graph.png`).
+
+### 2. DevSecOps & Security
+- **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
+- **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
+- **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
+- **`Hashicorp.Vault` (`vault`)**: Client for HashiCorp Vault (KV-v2 secrets, PKI engine).
+
+### 3. Container & Kubernetes Orchestration
+- **`Docker.DockerDesktop` (`docker`)**: Local container engine and runtime.
+- **`Kubernetes.minikube` (`minikube`)**: Local Kubernetes cluster driver.
+- **`Kubernetes.kubectl` (`kubectl`)**: Kubernetes cluster management CLI.
+- **`Helm.Helm` (`helm`)**: Kubernetes package manager for umbrella chart deployment.
+- **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
+
+### 4. Runtimes, Build Tools & Productivity
+- **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
+- **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for Angular frontend compilation.
+- **`Git.Git` (`git`)**: Distributed version control system.
+- **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
+
+> ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
+> To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
+
+---
+
+## 📂 Comprehensive Scripts Portfolio Directory (`scripts/`)
+
+Below is the complete inventory of all platform automation scripts and their operational responsibilities:
+
+### 1. `scripts/devsecops/` (Cluster Lifecycle, Security & Verification)
+- **`verify-platform.ps1`**: Deep health diagnostic verifying pod statuses, nodeports, Prometheus metrics endpoints, and active Gatekeeper OPA constraints.
+- **`install-cli-tools.ps1`**: Audits installed platform CLI tools and automates non-interactive Winget installations.
+- **`endpoint-smoke-test.py`**: Integration smoke tester verifying HTTP status, Actuator endpoints, latency SLOs, and negative authorization boundaries.
+- **`generate-secure-secrets.py`**: Generates high-entropy cryptographic secrets (CSPRNG) for DB credentials, JWT signing, and Keycloak clients.
+- **`supervise-tunnels.py`**: Resilient background port-forward daemon maintaining connections to frontend, gateway, keycloak, vault, and grafana.
+- **`teardown-local-devsecops.ps1`**: Gracefully stops local platform processes, pauses Minikube, or executes full cluster deletion.
+
+### 2. `scripts/cloud/terraform/` (Terraform Orchestration & FinOps)
+- **`local-cost-estimator.py`**: Air-gapped FinOps engine calculating cloud cost baselines across `minikube` (savings), `staging`, and `prod`.
+- **`terraform-bootstrap-backend.ps1`**: Creates S3 state bucket and DynamoDB locking table with SSE-KMS encryption.
+- **`terraform-plan.ps1`**: Executes parameterized `terraform plan` generating environment-specific plan output files.
+- **`terraform-apply.ps1`**: Applies Terraform infrastructure changes with automatic workspace selection (`dev`, `staging`, `prod`).
+
+### 3. `scripts/cloud/aws/` (Unified AWS Operations & Well-Architected Governance)
+
+- **`manage-aws.ps1`**: Canonical, zero-redundancy Amazon Web Services operations orchestrator consolidating ECR authentication, EKS credentials, and Helm deployments:
+  - **Key Features:**
+    - **Single Source of Truth:** Replaces legacy `deploy-eks.ps1` and `ecr-login.ps1` with a unified CLI maintaining 100% architectural symmetry with Azure and GCP.
+    - **Multi-Environment Resolution:** Automatically targets EKS clusters (`msa-aws-$Environment-eks`), resolves AWS Account ID via STS caller identity, and deploys to namespaces `dev`, `staging`, or `production`.
+    - **Amazon ECR Docker Authentication:** Seamlessly fetches authorization token (`aws ecr get-login-password`) and logs in Docker with `$AccountId.dkr.ecr.$AwsRegion.amazonaws.com`.
+    - **EKS Kubeconfig Synchronization:** Auto-updates local kubeconfig (`aws eks update-kubeconfig`) ensuring immediate connectivity.
+    - **Manifest & Ingress Enforcement:** Automatically validates and applies AWS GP3 `storageclass.yaml` and AWS Load Balancer Controller `ingress.yaml` from `k8s/eks/`.
+    - **Umbrella Helm Deployment:** Executes `helm upgrade --install` with environment-specific values (`helm/values/values-eks-$Environment.yaml`).
+    - **Audit Delegation:** Directly triggers Well-Architected governance audits via `-Action audit -AuditModule <mod>`.
+    - **Cluster Diagnostics:** `-Action status` queries active EKS cluster metadata, Kubernetes version, API server endpoint, and node readiness.
+  - **Syntax & Parameters:**
+    ```powershell
+    .\scripts\cloud\aws\manage-aws.ps1 [-Action all|deploy|login|credentials|audit|status] [-Environment dev|staging|prod] [-AwsRegion <region>] [-AccountId <id>] [-ClusterName <cluster>] [-AuditModule <mod>]
+    ```
+  - **Examples:**
+    ```powershell
+    # Full deployment to AWS Staging (ECR login + EKS credentials + Helm deploy):
+    .\scripts\cloud\aws\manage-aws.ps1 -Action all -Environment staging
+
+    # Authenticate Docker CLI with Amazon ECR:
+    .\scripts\cloud\aws\manage-aws.ps1 -Action login -AwsRegion us-east-1
+
+    # Deploy microservices to EKS Production:
+    .\scripts\cloud\aws\manage-aws.ps1 -Action deploy -Environment prod
+
+    # Trigger security & governance audit for IAM and Security Groups:
+    .\scripts\cloud\aws\manage-aws.ps1 -Action audit -AuditModule security-groups
+
+    # Display EKS cluster health and node readiness:
+    .\scripts\cloud\aws\manage-aws.ps1 -Action status -Environment staging
+    ```
+
+- **`audit-aws.py`**: Enterprise AWS Well-Architected Security, Compliance & FinOps Auditor consolidating 9 specialized audit tools into a single engine:
+  - **Modules Consolidated:**
+    - `iam`: Audits IAM access keys for expiration (>90 days), unused credentials, and MFA compliance (`audit-iam-credentials.py`).
+    - `security-groups`: Scans for overly permissive `0.0.0.0/0` ingress rules exposing internal ports (`check-security-groups.py`).
+    - `orphans`: FinOps detector for unattached EBS volumes and unassociated Elastic IPs (`clean-orphan-resources.py`).
+    - `acm`: SSL/TLS certificate expiration watcher alerting on certificates expiring within 30 days (`acm-cert-expiration-watcher.py`).
+    - `cloudwatch`: Enforces strict retention policies (e.g. 30 days) on CloudWatch log groups to curb runaway costs (`enforce-cloudwatch-retention.py`).
+    - `rds`: Automates manual snapshot backups for Amazon RDS PostgreSQL instances (`rds-snapshot-backup.py`).
+    - `s3`: Enforces TLS 1.2+ bucket policies, CloudFront OAC, and S3 versioning (`s3-bucket-security-policy.py`).
+    - `inventory`: Discovers active EKS, ECR, RDS, ALB, and VPC resources (`audit-aws-resources.py`).
+    - `all`: Sequentially audits all 8 governance pillars.
+  - **Syntax & Parameters:**
+    ```powershell
+    python scripts/cloud/aws/audit-aws.py [--module all|iam|security-groups|orphans|acm|cloudwatch|s3|rds|inventory] [--region <reg>] [--dry-run] [--retention-days <days>]
+    ```
+  - **Examples:**
+    ```powershell
+    # Complete multi-pillar security and governance audit:
+    python scripts/cloud/aws/audit-aws.py --module all
+
+    # FinOps: Audit and identify unattached EBS volumes and idle Elastic IPs:
+    python scripts/cloud/aws/audit-aws.py --module orphans
+
+    # Security: Detect overly permissive Security Groups open to 0.0.0.0/0:
+    python scripts/cloud/aws/audit-aws.py --module security-groups
+
+    # CloudWatch: Enforce 30-day log retention policy (preview with --dry-run):
+    python scripts/cloud/aws/audit-aws.py --module cloudwatch --retention-days 30 --dry-run
+    ```
+
+### 4. `scripts/cloud/azure/` (Unified Azure Cloud Operations)
+
+- **`manage-azure.ps1`**: Canonical, zero-redundancy Azure operations orchestrator that consolidates ACR authentication, AKS credential synchronization, and Helm deployments across all 3 cloud tiers:
+  - **Key Features:**
+    - **Single Source of Truth:** Replaces the legacy `acr-login.ps1` and `deploy-aks.ps1` scripts with a unified, parameter-driven workflow.
+    - **Multi-Environment Resolution:** Automatically resolves resource groups (`msa-azure-$Environment-rg`), AKS clusters (`msa-azure-$Environment-aks`), ACR registries (`msaacr$Environment`), and destination namespaces (`dev`, `staging`, `production`).
+    - **Zero-Touch Kubeconfig Sync:** Runs `az aks get-credentials` with `--overwrite-existing` to guarantee seamless local or CI/CD runner connectivity.
+    - **Manifest & Ingress Enforcement:** Automatically validates and applies Azure-specific `storageclass.yaml` and Traefik `ingress.yaml` from `k8s/aks/`.
+    - **Umbrella Helm Deployment:** Upgrades/installs the `microservices-umbrella` Helm chart with environment-tailored values (`helm/values/values-aks-$Environment.yaml`).
+    - **Resilient Pipeline Fallback:** In `-Action all`, continues deployment smoothly even if direct Docker daemon access is unavailable on air-gapped or restricted runners.
+    - **Cluster Diagnostics:** `-Action status` queries provisioning state, agent pool node count, and active Kubernetes nodes.
+  - **Syntax & Parameters:**
+    ```powershell
+    .\scripts\cloud\azure\manage-azure.ps1 [-Action all|deploy|login|credentials|status] [-Environment dev|staging|prod] [-AcrName <name>] [-ResourceGroup <rg>] [-ClusterName <cluster>]
+    ```
+  - **Examples:**
+    ```powershell
+    # Full deployment to Azure Staging (ACR login + AKS credentials + Helm deploy):
+    .\scripts\cloud\azure\manage-azure.ps1 -Action all -Environment staging
+
+    # Standalone ACR Docker authentication:
+    .\scripts\cloud\azure\manage-azure.ps1 -Action login -Environment prod -AcrName "mycustomacr"
+
+    # Deploy microservices to AKS Production:
+    .\scripts\cloud\azure\manage-azure.ps1 -Action deploy -Environment prod
+
+    # Inspect AKS cluster health and node readiness:
+    .\scripts\cloud\azure\manage-azure.ps1 -Action status -Environment staging
+    ```
+
+### 5. `scripts/cloud/gcp/` (Unified Google Cloud Operations)
+
+- **`manage-gcp.ps1`**: Canonical, zero-redundancy Google Cloud Platform orchestrator consolidating Artifact Registry authentication, GKE cluster deployments, and FinOps persistent disk lifecycle management:
+  - **Key Features:**
+    - **Single Source of Truth:** Replaces legacy `deploy-gke.ps1`, `gar-login.ps1`, and `gke-disk-cleanup.py` with a single, production-grade CLI.
+    - **Multi-Environment Resolution:** Automatically resolves GKE clusters (`msa-gcp-$Environment-gke`), GCP projects (`msa-gcp-$Environment`), Artifact Registry endpoints (`$GcpRegion-docker.pkg.dev`), and namespaces (`dev`, `staging`, `production`).
+    - **Google Artifact Registry (GAR) Auth:** Configures Docker credential helper integration seamlessly via `gcloud auth configure-docker --quiet`.
+    - **Kubeconfig & GKE Credentials:** Connects to GKE Autopilot or Standard clusters via `gcloud container clusters get-credentials`.
+    - **Manifest & Ingress Application:** Enforces GCP Persistent Disk `storageclass.yaml` and Google Cloud HTTP(S) Load Balancer `ingress.yaml` from `k8s/gke/`.
+    - **Umbrella Helm Deployment:** Executes `helm upgrade --install` with environment-specific values (`helm/values/values-gke-$Environment.yaml`).
+    - **FinOps Persistent Disk Snapshot Lifecycle:** Audits and purges expired Persistent Disk snapshots generated by Kafka, PostgreSQL, and Redis workloads exceeding `-RetentionDays` (default: 30 days), preventing runaway cloud storage billing. Includes `-DryRun` preview mode.
+    - **GKE Health Diagnostics:** `-Action status` retrieves master version, node pool counts, and cluster provisioning status.
+  - **Syntax & Parameters:**
+    ```powershell
+    .\scripts\cloud\gcp\manage-gcp.ps1 [-Action all|deploy|login|credentials|disk-cleanup|status] [-Environment dev|staging|prod] [-GcpRegion <reg>] [-GcpProject <proj>] [-ClusterName <cluster>] [-RetentionDays <days>] [-DryRun]
+    ```
+  - **Examples:**
+    ```powershell
+    # Full deployment to GKE Staging (GAR login + GKE credentials + Helm deploy):
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action all -Environment staging
+
+    # Authenticate Docker CLI with Google Artifact Registry:
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action login -GcpRegion us-central1
+
+    # Deploy microservices to GKE Production:
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action deploy -Environment prod
+
+    # FinOps: Audit and purge disk snapshots older than 14 days (Preview mode):
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action disk-cleanup -Environment prod -RetentionDays 14 -DryRun
+
+    # FinOps: Execute live purge of orphaned snapshots:
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action disk-cleanup -Environment prod -RetentionDays 30
+
+    # Display GKE cluster and node status:
+    .\scripts\cloud\gcp\manage-gcp.ps1 -Action status -Environment staging
+    ```
+
+### 6. `scripts/cloud/cloudflare/` (Zero-Trust Tunnels)
+- **`start-cloudflare-tunnels.ps1`**: Launches Cloudflare Zero-Trust tunnels to expose services securely without opening inbound ports.
+
+### 7. `scripts/istio/` (Service Mesh & Traffic Management)
+- **`set-canary-weight.ps1`**: Dynamically adjusts traffic splitting weights (e.g., 90/10, 50/50, 0/100) on Istio VirtualServices.
+- **`auto-canary-rollout.ps1`**: Automated progressive canary deployment controller that promotes v2 after verifying error rates remain < 1%.
+- **`verify-mesh.ps1`**: Validates strict mTLS enforcement and sidecar proxy injection across microservices.
+
+### 8. `scripts/auth/` & `scripts/vault/` (Identity & Secrets Provisioning)
+- **`scripts/auth/bootstrap-keycloak.ps1`**: Configures Keycloak realm `microservices-realm`, OIDC clients (`angular-client`, `gateway-client`), and default `ROLE_USER`.
+- **`scripts/vault/init-vault.ps1`**: Initializes HashiCorp Vault, enables KV-v2 and Transit engines, seeds secrets, and applies least-privilege policies.
+
+### 9. `scripts/build/` (Build & Release Automation)
+- **`build-all.py`**: Concurrently builds all Java microservices (Maven clean package) and Angular frontend (npm build).
+- **`deploy-helm.ps1`**: Deploys the unified umbrella Helm chart to Kubernetes with environment-specific values.
+- **`push-all.ps1`**: Tags and pushes container images to remote registries (Docker Hub, ECR, ACR, GAR).
+- **`update_dashboards.py`**: Formats and synchronizes Grafana dashboard JSON models.
+- **`generate_drawio.py`**: Programmatically generates the 12-page architectural blueprint in [`docs/Diagrams.drawio`](./docs/Diagrams.drawio).
+
+### 10. `scripts/testing/` (Enterprise Testing & Simulation Super-Scripts)
+- **`simulate.py`**: **Unified Simulation Engine** with:
+  - `--scenario traffic`: E-commerce shopping journey, Keycloak JWT auth, cart additions, orders, and Kafka events.
+  - `--scenario ddos`: High-concurrency 12-IP botnet request flood and Redis rate-limit (HTTP 429) stress.
+  - `--scenario chaos`: Stock exhaustion, circuit breaker tripping, invalid SKUs, and fault tolerance.
+  - `--scenario all`: Full end-to-end load, DDoS, and chaos drill.
+- **`smoke.py`**: **Unified E2E Smoke Testing Engine**:
+  - Validates API Gateway and microservice `/actuator/health` probes.
+  - Queries product catalog with latency SLO assertions (< 500ms).
+  - Tests authenticated order creation with Idempotency UUIDs.
+  - Enforces negative security boundary (asserts 401/403 on unauthenticated routes).
+- **`verify.py`**: **Platform Component Verification**:
+  - `--target swagger`: Validates Swagger UI and OpenAPI 3.0 documentation across all services.
+  - `--target metrics`: Queries Prometheus label names and active e-commerce / system series.
+  - `--target grafana`: Audits Grafana dashboards (`business-operations`, `technical-security`) and panels.
+- **`check.py`**: **Diagnostic Telemetry & PromQL Evaluator**:
+  - `--check jvm`: Inspects JVM heap memory, live threads, and CPU usage.
+  - `--check abandonment`: Evaluates real-time cart abandonment PromQL calculations.
+  - `--check vault`: Verifies HashiCorp Vault unsealed status and scrape health.
+  - `--check promql --query "<expr>"`: Evaluates arbitrary PromQL expressions with formatted series output.
+
+---
+
+## ☁️ Multi-Cloud Terraform 12-Module Matrix (AWS • Azure • GCP)
+
+The infrastructure layer in `terraform/` provides **100% architectural parity** across Amazon Web Services, Microsoft Azure, and Google Cloud Platform for environments **`dev`**, **`staging`**, and **`prod`**:
+
+```text
+terraform/
+├── environments/
+│   ├── aws/       (locals.tf, main.tf, outputs.tf, variables.tf)
+│   ├── azure/     (locals.tf, main.tf, outputs.tf, variables.tf)
+│   └── gcp/       (locals.tf, main.tf, outputs.tf, variables.tf)
+└── modules/
+    ├── aws/       (alb, cloudfront, cloudwatch, eks, elasticache, iam_irsa, kms, msk, rds, route53_acm, s3, vpc)
+    ├── azure/     (acr, aks, app_gateway, dns_zone, eventhubs, frontdoor, keyvault, monitor, postgresql, redis, storage_account, vnet, workload_identity)
+    └── gcp/       (cloud_armor_lb, cloud_cdn, cloud_dns, cloud_monitoring, cloudsql, gar, gcs, gke, kms, managed_kafka, memorystore, vpc, workload_identity)
+```
+
+| Architectural Layer | AWS Native Module | Azure Native Module | GCP Native Module |
+| :--- | :--- | :--- | :--- |
+| **1. VPC / Networking** | `modules/aws/vpc` | `modules/azure/vnet` | `modules/gcp/vpc` |
+| **2. Kubernetes (K8s)** | `modules/aws/eks` | `modules/azure/aks` | `modules/gcp/gke` |
+| **3. Relational Database** | `modules/aws/rds` | `modules/azure/postgresql` | `modules/gcp/cloudsql` |
+| **4. Redis Cache** | `modules/aws/elasticache` | `modules/azure/redis` | `modules/gcp/memorystore` |
+| **5. Event Streaming (Kafka)** | `modules/aws/msk` | `modules/azure/eventhubs` | `modules/gcp/managed_kafka` |
+| **6. Object Storage** | `modules/aws/s3` | `modules/azure/storage_account` | `modules/gcp/gcs` |
+| **7. KMS / Key Management** | `modules/aws/kms` | `modules/azure/keyvault` | `modules/gcp/kms` |
+| **8. Workload Identity (IRSA)** | `modules/aws/iam_irsa` | `modules/azure/workload_identity` | `modules/gcp/workload_identity` |
+| **9. Application Load Balancer** | `modules/aws/alb` | `modules/azure/app_gateway` | `modules/gcp/cloud_armor_lb` |
+| **10. CDN & Edge Cache** | `modules/aws/cloudfront` | `modules/azure/frontdoor` | `modules/gcp/cloud_cdn` |
+| **11. Observability & Alarms** | `modules/aws/cloudwatch` | `modules/azure/monitor` | `modules/gcp/cloud_monitoring` |
+| **12. DNS & Certificates** | `modules/aws/route53_acm` | `modules/azure/dns_zone` | `modules/gcp/cloud_dns` |
+
+---
+
+## 🔄 Multi-Cloud CI/CD & Automated Rollback Architecture
+
+The project features decoupled and single-unified CI/CD pipelines across major enterprise platforms with automated emergency rollback engines:
+
+### 1. GitHub Actions (CI) + ArgoCD (CD) - AWS & Minikube
+- **GitHub Actions (`.github/workflows/`)**: Strictly governs **Continuous Integration (CI)** (Stages 1-5: Unit tests, SAST/Gitleaks, BuildKit image build, CycloneDX SBOM, Trivy vulnerability audit, Conftest OPA policy audit), image publishing to AWS ECR, and triggers declarative GitOps synchronization. Includes automated rollback (`rollback-argocd`) on sync/cluster health failure.
+- **ArgoCD (`argocd/`)**: Strictly governs **Continuous Deployment (CD)** declaratively:
+  - **`develop` branch**: Deploys via `application-dev.yaml` to namespace **`dev`** on Minikube with `values-minikube.yaml`.
+  - **`staging` branch**: Deploys via `application-staging.yaml` to namespace **`staging`** on AWS EKS with medium-performance resources (`values-eks-staging.yaml`).
+  - **`main`/`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, ALB, and Istio Canary 90/10).
+  - **Automated Rollback**: Configured with automated prune, selfHeal, exponential retry backoff, and instant revert via `argocd app rollback`.
+- **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Provisions AWS infrastructure across `staging` and `prod` with automated state lock release (`terraform force-unlock`) on failure.
+
+### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
+- **Unified Pipeline (`azure-devops/templates/ci-cd-master-template.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
+  - Stages 1-5: Unit Tests (Maven/Angular, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
+  - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
+  - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
+  - **Promotion**: Certified image promotion to Azure Container Registry (ACR).
+  - **Production Tier (Stage 12)**: Deploys to AKS namespace **`production`** with Istio Canary progressive traffic shifting (90/10) and **`RollbackProduction`** emergency rollback on canary health check failure.
+- **Azure Terraform Pipeline (`azure-devops/azure-pipelines-terraform.yml`)**: Triggers on `develop`, `staging`, `main`, `master`, dynamically manages workspaces **`dev`**, **`staging`**, **`prod`**, provisions AKS namespaces, and automatically unlocks stranded Azure Blob Storage state leases on error.
+
+### 3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)
+- **Unified Pipeline (`bitbucket-pipelines.yml`)**: Executes **all 12+ stages** in a single pipeline across Google Cloud:
+  - **`develop` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Dev (workspace `dev`) $\rightarrow$ GKE Dev deploy (namespace `dev`) $\rightarrow$ **`rollback-gke-dev`** on error.
+  - **`staging` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Staging (workspace `staging`, medium performance) $\rightarrow$ GKE Staging deploy (namespace `staging`) $\rightarrow$ QA Validation (Newman, Cypress, k6, ZAP DAST) $\rightarrow$ GAR Push $\rightarrow$ **`rollback-gke-staging`** on test failure.
+  - **`main`/`master` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Production (workspace `prod`, high performance HA) $\rightarrow$ Pre-flight QA $\rightarrow$ GAR Push $\rightarrow$ GKE Production Canary with Istio traffic shifting (90/10) $\rightarrow$ **`rollback-gke-production`** on rollout health failure.
+
+### 4. Automated Rollback & Incident Recovery Summary
+| Disaster Scenario | Recovery Mechanism | Recovery Time Objective (RTO) |
+| :--- | :--- | :--- |
+| **Terraform State Lock** | `terraform force-unlock` in backend cleanup step | Immediate (< 10 seconds) |
+| **ArgoCD Sync/Health Failure** | `argocd app rollback` to previous Git SHA | < 1 minute |
+| **Staging Integration/DAST Failure** | Automated Helm rollback (`helm rollback microservices`) | < 30 seconds |
+| **Production Canary Degradation** | Emergency Istio route reset (100% v1) + Helm rollback | < 15 seconds |
 
 ---
 

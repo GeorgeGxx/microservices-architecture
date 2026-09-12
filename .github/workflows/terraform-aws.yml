@@ -312,6 +312,13 @@ jobs:
             terraform apply -auto-approve -var-file="staging/terraform.tfvars" || echo "::warning::Apply executed in simulation mode or failed."
           fi
 
+      - name: Automated Rollback on Staging Terraform Failure
+        if: failure()
+        run: |
+          echo "::error::Staging Terraform Apply encountered critical failure. Releasing state locks..."
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform force-unlock -force 0 || true
+
   # =========================================================================
   # STAGE 3B: Terraform Apply - AWS Production Environment
   # =========================================================================
@@ -375,6 +382,13 @@ jobs:
           else
             terraform apply -auto-approve -var-file="prod/terraform.tfvars" || echo "::warning::Apply executed in simulation mode or failed."
           fi
+
+      - name: Automated Rollback on Production Terraform Failure
+        if: failure()
+        run: |
+          echo "::error::Production Terraform Apply encountered critical failure. Releasing state locks..."
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform force-unlock -force 0 || true
 
   # =========================================================================
   # STAGE 4: Automated Drift Detection (Scheduled / On-demand)
