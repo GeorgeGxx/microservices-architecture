@@ -41,13 +41,26 @@ data:
   OTEL_TRACES_SAMPLER: "parentbased_always_on"
   OTEL_RESOURCE_ATTRIBUTES: "service.namespace=microservices"
 
-  # Platform Tools Versions & Alignment
+  # 🔹 Platform Tools & Infrastructure Versions Alignment
+  KEYCLOAK_VERSION: "26.7.3"
+  POSTGRES_VERSION: "17-alpine"
+  KAFKA_VERSION: "7.8.0"
+  REDIS_VERSION: "8.8.1-alpine"
+  PROM_VERSION: "v3.14.0"
+  GRAFANA_VERSION: "13.2.1"
+  LOKI_VERSION: "3.7.4"
+  TEMPO_VERSION: "3.0.3"
+  TEMPO_FALLBACK_VERSION: "3.0.2"
+  ALLOY_VERSION: "v1.18.1"
+  OTEL_COLLECTOR_VERSION: "0.159.0"
+  VAULT_VERSION: "2.0.4"
   ARGOCD_VERSION: "3.5.2"
   ARGOCD_HELM_CHART_VERSION: "10.8.0"
   GATEKEEPER_VERSION: "3.23.1"
   KUBE_PROMETHEUS_STACK_VERSION: "89.2.2"
-  TEMPO_VERSION: "3.0.3"
-  TEMPO_FALLBACK_VERSION: "3.0.2"
+  REDIS_EXPORTER_VERSION: "v1.82.0"
+  KAFKA_EXPORTER_VERSION: "v1.9.0"
+  POSTGRES_EXPORTER_VERSION: "v0.20.1"
   JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 ---

@@ -384,7 +384,7 @@
         <mxCell id="ns_obs" parent="1" value="&lt;b&gt;📊 NAMESPACE: observability (LGTM Telemetry)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1500" y="110" width="360" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.13 (Port 9090)&lt;br&gt;• Grafana 13.0 (Port 3000)&lt;br&gt;• Tempo 2.7 / 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.14 (Port 9090)&lt;br&gt;• Grafana 13.2 (Port 3000)&lt;br&gt;• Tempo 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="1520" y="160" width="320" height="160" as="geometry" />
         </mxCell>
       </root>

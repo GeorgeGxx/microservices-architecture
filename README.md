@@ -55,7 +55,7 @@ graph TB
 
     subgraph ObservabilityLayer ["📊 Distributed Observability Suite (Grafana LGTM Stack)"]
         Prometheus["📈 Prometheus (9090)<br/>(Scraping Actuator & Micrometer 2.2.1)"]
-        Grafana["📊 Grafana 13.0.7 (3000)<br/>(Master Dashboards & Trace Viewer)"]
+        Grafana["📊 Grafana 13.2.1 (3000)<br/>(Master Dashboards & Trace Viewer)"]
         Tempo["🔍 Grafana Tempo 3.0.3 (3200)<br/>(Distributed Tracing via OTLP 4317)"]
         Loki["📝 Grafana Loki 3.7.4 (3100)<br/>(Centralized Log Aggregator)"]
         Alloy["⚡ Grafana Alloy v1.18.1<br/>(Docker & Container Telemetry Agent)"]
@@ -642,9 +642,9 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
 | **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
 | **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (`/kiali`) |
-| **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.0.7) |
+| **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
 | **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
-| **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine |
+| **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine (v3.14.0) |
 | **Grafana Loki** | `3100` | `30100` | ClusterIP | Centralized logging engine (v3.7.4) |
 | **Grafana Alloy** | `12345` | DaemonSet | DaemonSet | Telemetry & log collector (v1.18.1) |
 | **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
@@ -1171,7 +1171,7 @@ The architecture implements the modern **Grafana LGTM + OpenTelemetry** standard
 - **Metrics (Prometheus & Micrometer 2.2.1):** Actuator exposes JVM metrics, HTTP latencies, connection pools (HikariCP) and business metrics scraped every 5s by Prometheus. In-memory gauges avoid SQL queries during Prometheus scrapes.
 - **Distributed Tracing (Tempo 3.0.3, OTel Collector 0.159.0 & Native Spring OpenTelemetry):** Services utilize `spring-boot-starter-opentelemetry` exporting to OTLP. Requests passing through Spring Cloud Gateway receive W3C `traceparent` context propagated across downstream WebClients and asynchronous Kafka topics via `observation-enabled: true` on both `KafkaTemplate` and `@KafkaListener`.
 - **Centralized Logging (Loki 3.7.4 & Grafana Alloy v1.18.1):** Grafana Alloy collects container stdout/stderr logs and streams them to Loki.
-- **Correlated Navigation (Grafana 13.0.7):** One-click transition from Tempo spans to corresponding Loki logs and Prometheus metrics.
+- **Correlated Navigation (Grafana 13.2.1):** One-click transition from Tempo spans to corresponding Loki logs and Prometheus metrics.
 
 Access the interactive query interface at **[http://localhost:3000/explore](http://localhost:3000/explore)** (Login: `admin` / `admin`) to execute deep telemetry analysis:
 

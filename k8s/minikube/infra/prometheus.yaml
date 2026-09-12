@@ -202,7 +202,7 @@ spec:
       automountServiceAccountToken: true
       containers:
         - name: prometheus
-          image: prom/prometheus:v3.13.1
+          image: prom/prometheus:v3.14.0
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
           ports:
@@ -251,4 +251,3 @@ spec:
     - name: http-prom
       port: 9090
       targetPort: 9090
-
