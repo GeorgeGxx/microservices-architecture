@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
-    root_mxfile = ET.Element("mxfile", host="Electron", pages="11", type="device")
+    root_mxfile = ET.Element("mxfile", host="Electron", pages="12", type="device")
 
     # Helper function to create page
     def create_page(page_id, page_name):

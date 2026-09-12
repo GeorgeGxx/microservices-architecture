@@ -11,18 +11,19 @@ Designed for true **Multi-Cloud Portability & Multi-CI/CD Automation**:
 
 > [!TIP]
 > 📐 **Interactive Architecture Blueprints ([`docs/Diagrams.drawio`](./docs/Diagrams.drawio)):**
-> The platform includes a comprehensive 11-page Draw.io architectural blueprint viewable in VS Code (Draw.io Integration extension) or [app.diagrams.net](https://app.diagrams.net):
-> 1. **General Architecture & Microservices** (Full topology overview)
-> 2. **Event-Driven Messaging** (Kafka KRaft, DLT, Consumer Deduplication)
-> 3. **Zero-Trust Security & Istio Mesh** (Strict mTLS, Ingress Gateway, Kiali)
-> 4. **IAM & Authentication** (Keycloak 26 OIDC, PKCE, Token Relay)
-> 5. **Distributed Resilience & Saga** (Resilience4j, Fallbacks, Idempotency)
-> 6. **Distributed Observability** (Grafana LGTM Stack, Micrometer, Traces, Logs)
-> 7. **Storage & Multi-Database Isolation** (PostgreSQL x4, Redis Cache)
-> 8. **Curated Metrics & Cardinality Engineering** (O(1) Bounded Cohorts, Business KPIs)
-> 9. **Enterprise DevSecOps Platform** (Minikube, 12-Stage CI/CD Pipeline, Gatekeeper)
-> 10. **Production Resiliency, Secrets & Canary** (HPA, PDB, ESO + Vault, Istio Canary, Alertmanager)
+> The platform includes a comprehensive 12-page Draw.io architectural blueprint viewable in VS Code (Draw.io Integration extension) or [app.diagrams.net](https://app.diagrams.net):
+> 1. **General Architecture & Microservices** (Full topology: Angular 21, Gateway, Keycloak, 4 Spring Boot Microservices, DBs, Kafka KRaft, Vault, LGTM Observability)
+> 2. **HashiCorp Vault - Zero-Touch Security Architecture** (KV-v2 secrets, dynamic DB credentials, Transit encryption, audit logging)
+> 3. **Sequence - Dynamic Database Secret Rotation** (Ephemeral PostgreSQL credential generation, 1h lease revocation & pool recovery)
+> 4. **Istio Service Mesh & Zero-Trust mTLS** (STRICT mTLS, SPIFFE IDs, Ingress Gateway, Vault PKI Intermediate CA, 90/10 Canary)
+> 5. **Secret Isolation & Configuration Precedence** (Property hierarchy across `.env`, Spring Cloud Vault profile, and ESO)
+> 6. **Kubernetes & Minikube Cluster Topology** (Namespace segmentation: `dev`, `data`, `auth`, `vault`, `observability`, `istio-system`)
+> 7. **End-to-End Request Flow & Order Processing Sequence** (14-step transaction journey: PKCE ➔ Gateway ➔ Orders ➔ Saga/Kafka ➔ Notifications ➔ LGTM)
+> 8. **Mature E-Commerce Observability Architecture** (5-dimensional BI, O(1) loyalty cohorts, logistics pipeline, curated Grafana dashboards)
+> 9. **Enterprise DevSecOps Platform & 12-Stage Pipeline** (Local Minikube 12-stage CI/CD pipeline, QA/security gates, and Canary rollout)
+> 10. **Resiliency, Secrets, Canary & Alerts** (Resilience4j Circuit Breakers, Vault lease renewer, Istio traffic shifting, Alertmanager matrix)
 > 11. **Multi-Cloud IaC & CLI Automation Suite** (12-Module Matrix: AWS • Azure • GCP, `platform.ps1` Orchestrator & Scripts Ecosystem)
+> 12. **Multi-Cloud CI/CD & Automated Rollback Architecture** (GitHub Actions CI + ArgoCD CD, Azure DevOps, Bitbucket Pipelines, 4-Tier Rollback Engine)
 
 ## 🏛️ System Architecture
 
@@ -80,7 +81,7 @@ graph TB
 
 ### 🗺️ Architecture Diagrams & Vector Blueprints ([`docs/Diagrams.drawio`](./docs/Diagrams.drawio))
 
-The platform includes a comprehensive, 10-tab architectural blueprint formatted in standard vector XML (compatible with VS Code Draw.io Integration, Diagrams.net, and Draw.io Desktop):
+The platform includes a comprehensive, 12-tab architectural blueprint formatted in standard vector XML (compatible with VS Code Draw.io Integration, Diagrams.net, and Draw.io Desktop):
 
 | Tab # | Blueprint Name | Description & Focus Areas |
 | :--- | :--- | :--- |
@@ -91,8 +92,11 @@ The platform includes a comprehensive, 10-tab architectural blueprint formatted 
 | **Tab 5** | `5. Secret Isolation & Configuration Precedence` | Hierarchy of property sources explaining why zero collisions exist between `.env`, Spring Cloud Vault profile, and External Secrets Operator (ESO). |
 | **Tab 6** | `6. Kubernetes & Minikube Cluster Topology` | Dedicated namespace isolation: `dev` (Apps & Microservices), `data` (PostgreSQL, Kafka, Redis), `auth` (Keycloak), `vault`, `observability`, and `istio-system` (Mesh Control Plane & Kiali). Includes background supervisor daemon (`platform.ps1 tunnels`). |
 | **Tab 7** | `7. End-to-End Request Flow & Order Processing Sequence` | Complete 14-step transaction journey: Angular 21 SPA ➔ Keycloak PKCE (Self-Registration & JWT `sub`/`preferred_username`) ➔ Istio Ingress ➔ API Gateway (Redis Rate Limit & JWT verify) ➔ Orders Service (Multi-Tenant Order Isolation) ➔ Products & Inventory DBs ➔ Kafka Event Bus ➔ Notification Service ➔ LGTM Distributed Telemetry (Compulsive Buyer Velocity Metrics). |
-| **Tab 8** | `8. Edge Cloud Tunneling, Vercel & Mobile PWA` | Cloudflare Anycast Quick Tunnels, Vercel Serverless Edge, Keycloak PKCE, Enterprise Multi-Step Checkout, and Universal Mobile Viewports ($360\text{px}-768\text{px}$). |
+| **Tab 8** | `8. Mature E-Commerce Observability Architecture` | 5-dimensional e-commerce BI, high-cardinality prevention (O(1) discrete loyalty cohorts), conversion funnel, 5-stage logistics state machine, distributed saga resilience, curated Grafana dashboards, and full-stack Prometheus exporters. |
 | **Tab 9** | `9. Enterprise DevSecOps Platform & 12-Stage Pipeline` | Complete 12-stage enterprise CI/CD pipeline (Unit Tests, SonarQube/Gitleaks SAST, Syft SBOM, Trivy Soft-Gate, Conftest OPA, Staging Deploy, Newman QA, Cypress E2E, k6 Load Tests, OWASP ZAP DAST, Docker Hub Publish, and Canary Rollout) running 100% locally on Minikube with automated Platform Engineering scripts. |
+| **Tab 10** | `10. Resiliency, Secrets, Canary & Alerts` | Resilience4j Circuit Breakers and Retry mechanisms, HashiCorp Vault dynamic database credential lease renewal and revocation, Istio Canary 90/10 traffic shifting, and Alertmanager routing (Slack & Jira). |
+| **Tab 11** | `11. Multi-Cloud IaC & CLI Automation Suite` | 12 Core Cloud Modules Matrix across AWS, Azure, and GCP, Unified Platform CLI Orchestrator (`.\platform.ps1`), and comprehensive DevSecOps automation scripts ecosystem (`scripts/`). |
+| **Tab 12** | `12. Multi-Cloud CI/CD & Automated Rollback Architecture` | GitHub Actions (CI) + ArgoCD (CD) for AWS/Minikube, Azure DevOps unified 12+ stages for Azure AKS, Bitbucket Pipelines unified 12+ stages for GCP GKE, and 4-tier automated emergency rollback matrix (IaC state locks, GitOps, Helm atomic rollback, and Istio canary fallback). |
 
 ---
 
@@ -322,7 +326,7 @@ Terraform and bootstrap automation provision:
 * **Prometheus & Grafana** in namespace `observability` (Grafana at `http://localhost:3000`, credentials: `admin` / `admin`)
 * **Loki & Alloy** log aggregation daemonset in namespace `observability`
 * **Vault** in namespace `vault` (Web UI at `http://localhost:8200`, dev token: `root`)
-* **Keycloak IAM** in namespace `staging` (Web UI at `http://localhost:8181`, credentials: `admin` / `admin`)
+* **Keycloak IAM** in namespace `auth` (Web UI at `http://localhost:8181`, credentials: `admin` / `admin`)
 * Namespaces `staging` and `prod` with Istio sidecar injection enabled (`istio-injection=enabled`).
 
 ##### 🛡️ 4. Apply Gatekeeper Templates & Constraints
