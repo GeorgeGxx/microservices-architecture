@@ -335,6 +335,28 @@ stringData:
             kubectl apply -f $argoProject 2>$null
             Write-Host "  [OK] ArgoCD AppProject 'microservices-architecture' registered." -ForegroundColor Green
         }
+        # Auto-configure ArgoCD Git repository secret if SSH key is present
+        $sshKeyPath = Join-Path $env:USERPROFILE ".ssh\id_ed25519"
+        if (-not (Test-Path $sshKeyPath)) { $sshKeyPath = Join-Path $env:USERPROFILE ".ssh\id_rsa" }
+        if (Test-Path $sshKeyPath) {
+            $sshKeyContent = Get-Content $sshKeyPath -Raw
+            $repoSecretYaml = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-microservices-dev
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: git@github.com:GeorgeGxx/microservices-architecture.git
+  sshPrivateKey: |
+$($sshKeyContent -replace '(?m)^', '    ')
+"@
+            $repoSecretYaml | kubectl apply -f - 2>$null | Out-Null
+            Write-Host "  [OK] ArgoCD SSH Git repository credentials provisioned." -ForegroundColor Green
+        }
         $argoAppDev = Join-Path $root "argocd\application-dev.yaml"
         if (Test-Path $argoAppDev) {
             kubectl apply -f $argoAppDev 2>$null
