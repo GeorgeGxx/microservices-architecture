@@ -645,19 +645,7 @@ flowchart TD
 * **Real-Time Customer Milestones & Multi-Channel Alerts:**
   - Milestone floating toasts dispatched at every physical handover stage (e.g. *"🚚 Package in Transit with DHL Express"*).
   - Synchronous push into the **Customer Notification Center** drawer (`msa_customer_notifications` in `sessionStorage`), updating the top navigation badge counter with zero technical jargon.
-* **Automated DHL Tracking Generation:** Upon order placement, [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier:
-  ```json
-  {
-    "orderNumber": "ORD-68F4A12B",
-    "trackingNumber": "DHL-A8E29C1F",
-    "carrier": "DHL Express",
-    "deliveryMethod": "EXPRESS",
-    "shippingFee": 9.99,
-    "taxAmount": 47.92,
-    "totalAmount": 656.91,
-    "orderStatus": "PLACED"
-  }
-  ```
+* **Automated DHL Tracking Generation:** Upon order placement, [`OrdersService`](./orders-service/src/main/java/com/georgegxx/orders_service/services/OrdersService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier.
 * **Interactive Logistics Badging & Digital Receipt:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification and itemized line items.
 
 ### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
