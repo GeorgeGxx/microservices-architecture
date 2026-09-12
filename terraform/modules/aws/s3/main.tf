@@ -57,6 +57,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
     id     = "abort-incomplete-multipart-uploads"
     status = "Enabled"
 
+    filter {}
+
     abort_incomplete_multipart_upload {
       days_after_initiation = 7
     }
@@ -65,6 +67,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "this" {
   rule {
     id     = "noncurrent-version-expiration"
     status = var.enable_versioning ? "Enabled" : "Disabled"
+
+    filter {}
 
     noncurrent_version_expiration {
       noncurrent_days = 90
