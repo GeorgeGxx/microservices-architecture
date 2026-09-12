@@ -1593,7 +1593,7 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 
 ### 📦 Postman Test Suite & Interactive Collections:
 1. **Interactive Developer Collection (Zero-Config / 1-Click Token):**
-   Import [`docs/MICROSERVICIOS.postman_collection.json`](./docs/MICROSERVICIOS.postman_collection.json) into Postman.
+   Import [`docs/microservices.postman_collection.json`](./docs/microservices.postman_collection.json) into Postman.
    * **1-Click Login:** Run `🔑 Authentication ➔ 1. Login as Admin` to automatically fetch and save the Keycloak JWT into `{{jwt_token}}` via the public client (`microservices_frontend`). **No `client_secret` required!**
    * **E-Commerce & Telemetry Scenarios:** Includes pre-built JSON payloads for **Automated DHL Tracking Generation** (`POST /api/order`), **Cart Abandonment Rate** funnel events (`POST /api/order/funnel`), logistics milestones (`PUT /api/order/:id/ship` & `deliver`), and rich product media catalog creation.
 2. **Automated CI/CD Quality Gate (Newman):**

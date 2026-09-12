@@ -1,8 +1,8 @@
 {
 	"info": {
 		"_postman_id": "89541ec5-ce99-4a9c-897e-29e0a39305a6",
-		"name": "MICROSERVICIOS - Enterprise Integration Suite",
-		"description": "Comprehensive Postman/Newman collection for Microservices Architecture with Spring Boot 3.4.x, Keycloak OAuth2/OIDC, Istio Service Mesh, and Saga Compensation Pattern.",
+		"name": "microservices - Enterprise Integration Suite",
+		"description": "Comprehensive Postman/Newman collection for Microservices Architecture with Spring Boot 4.0.8, Keycloak OAuth2/OIDC, Istio Service Mesh, and Saga Compensation Pattern.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "26615757"
 	},

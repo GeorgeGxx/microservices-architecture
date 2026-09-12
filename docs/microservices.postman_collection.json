@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "85f75800-f0aa-440d-becd-d0772a7fa8c2",
-    "name": "MICROSERVICIOS",
+    "name": "microservices",
     "description": "Comprehensive Postman collection for Enterprise Microservices Architecture with Spring Boot 4.0.8, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "13231529"
