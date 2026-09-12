@@ -1,0 +1,136 @@
+global:
+  environment: production
+  cloudProvider: aws
+  storageClass: ebs-gp3-sc
+
+# AWS ECR High Performance Tier (Production)
+api-gateway:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/api-gateway"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"
+
+inventory-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/inventory-service"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
+
+notification-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/notification-service"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
+  resources:
+    requests:
+      cpu: "300m"
+      memory: "512Mi"
+    limits:
+      cpu: "600m"
+      memory: "1024Mi"
+
+orders-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/orders-service"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+    targetMemoryUtilizationPercentage: 70
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
+
+products-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/products-service"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+    targetMemoryUtilizationPercentage: 70
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
+
+frontend:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/frontend"
+    tag: "prod-latest"
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+  hosts:
+    - host: "api.microservices.prod.company.com"
+      paths:
+        - path: /api
+          pathType: Prefix
+          service: api-gateway
+          port: 8080
+        - path: /
+          pathType: Prefix
+          service: frontend
+          port: 80

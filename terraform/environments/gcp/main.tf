@@ -47,7 +47,7 @@ module "cloudsql" {
 }
 
 module "memorystore" {
-  count  = local.cfg.enable_managed_database ? 1 : 0
+  count  = local.cfg.enable_memorystore ? 1 : 0
   source = "../../modules/gcp/memorystore"
 
   name                   = local.name
@@ -57,4 +57,89 @@ module "memorystore" {
   vpc_peering_dependency = module.vpc.private_vpc_connection
   memory_size_gb         = local.cfg.redis_memory_gb
   high_availability      = local.cfg.redis_high_availability
+}
+
+module "kms" {
+  count  = local.cfg.enable_kms ? 1 : 0
+  source = "../../modules/gcp/kms"
+
+  name        = local.name
+  environment = local.env
+  location    = var.region
+  labels      = local.labels
+}
+
+module "gcs" {
+  source = "../../modules/gcp/gcs"
+
+  name          = local.name
+  environment   = local.env
+  storage_class = local.cfg.gcs_storage_class
+  kms_key_id    = local.cfg.enable_kms ? module.kms[0].crypto_key_id : null
+  labels        = local.labels
+}
+
+module "managed_kafka" {
+  count  = local.cfg.enable_managed_kafka ? 1 : 0
+  source = "../../modules/gcp/managed_kafka"
+
+  name            = local.name
+  environment     = local.env
+  retention_hours = local.cfg.kafka_retention_hours
+  kms_key_id      = local.cfg.enable_kms ? module.kms[0].crypto_key_id : null
+  labels          = local.labels
+}
+
+module "cloud_armor_lb" {
+  count  = local.cfg.enable_cloud_armor_lb ? 1 : 0
+  source = "../../modules/gcp/cloud_armor_lb"
+
+  name             = local.name
+  environment      = local.env
+  domain_name      = var.domain_name
+  rate_limit_count = local.cfg.rate_limit_count
+  labels           = local.labels
+}
+
+module "cloud_cdn" {
+  count  = local.cfg.enable_cloud_cdn ? 1 : 0
+  source = "../../modules/gcp/cloud_cdn"
+
+  name        = local.name
+  environment = local.env
+  bucket_name = module.gcs.bucket_name
+  labels      = local.labels
+}
+
+module "cloud_monitoring" {
+  source = "../../modules/gcp/cloud_monitoring"
+
+  name        = local.name
+  environment = local.env
+  alert_email = var.alert_email
+  labels      = local.labels
+}
+
+module "workload_identity" {
+  source = "../../modules/gcp/workload_identity"
+
+  name                = local.name
+  environment         = local.env
+  project_id          = var.project_id
+  k8s_namespace       = "default"
+  k8s_service_account = "backend-workload-identity"
+}
+
+module "cloud_dns" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/gcp/cloud_dns"
+
+  name        = local.name
+  environment = local.env
+  domain_name = var.domain_name
+  a_records = local.cfg.enable_cloud_armor_lb ? {
+    "@"   = [module.cloud_armor_lb[0].global_ip_address]
+    "api" = [module.cloud_armor_lb[0].global_ip_address]
+  } : {}
+  labels = local.labels
 }

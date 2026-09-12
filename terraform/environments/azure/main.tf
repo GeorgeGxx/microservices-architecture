@@ -14,6 +14,7 @@ module "vnet" {
   vnet_cidr           = local.cfg.vnet_cidr
   aks_subnet_cidr     = local.cfg.aks_subnet_cidr
   db_subnet_cidr      = local.cfg.db_subnet_cidr
+  appgw_subnet_cidr   = local.cfg.enable_app_gateway ? local.cfg.appgw_subnet_cidr : null
   tags                = local.tags
 }
 
@@ -101,4 +102,103 @@ module "keyvault" {
   tenant_id                      = data.azurerm_client_config.current.tenant_id
   aks_kubelet_identity_object_id = module.aks.kubelet_identity_object_id
   tags                           = local.tags
+}
+
+module "monitor" {
+  source = "../../modules/azure/monitor"
+
+  name                = local.name
+  environment         = local.env
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  log_retention_days  = local.env == "prod" ? 90 : 30
+  tags                = local.tags
+}
+
+module "workload_identity" {
+  source = "../../modules/azure/workload_identity"
+
+  name                      = local.name
+  environment               = local.env
+  location                  = var.location
+  resource_group_name       = azurerm_resource_group.this.name
+  aks_oidc_issuer_url       = module.aks.oidc_issuer_url
+  service_account_namespace = "default"
+  service_account_name      = "backend-workload-identity"
+  tags                      = local.tags
+}
+
+module "storage_account" {
+  source = "../../modules/azure/storage_account"
+
+  name                     = local.name
+  environment              = local.env
+  location                 = var.location
+  resource_group_name      = azurerm_resource_group.this.name
+  account_tier             = local.cfg.storage_tier
+  account_replication_type = local.cfg.storage_replication
+  tags                     = local.tags
+}
+
+module "redis" {
+  count  = local.cfg.enable_redis ? 1 : 0
+  source = "../../modules/azure/redis"
+
+  name                = local.name
+  environment         = local.env
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  sku_name            = local.cfg.redis_sku
+  family              = local.cfg.redis_family
+  capacity            = local.cfg.redis_capacity
+  tags                = local.tags
+}
+
+module "eventhubs" {
+  count  = local.cfg.enable_eventhubs ? 1 : 0
+  source = "../../modules/azure/eventhubs"
+
+  name                = local.name
+  environment         = local.env
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  sku                 = local.cfg.eventhubs_sku
+  capacity            = local.cfg.eventhubs_capacity
+  tags                = local.tags
+}
+
+module "app_gateway" {
+  count  = local.cfg.enable_app_gateway ? 1 : 0
+  source = "../../modules/azure/app_gateway"
+
+  name                = local.name
+  environment         = local.env
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  subnet_id           = module.vnet.appgw_subnet_id
+  tags                = local.tags
+}
+
+module "frontdoor" {
+  count  = local.cfg.enable_frontdoor && local.cfg.enable_app_gateway ? 1 : 0
+  source = "../../modules/azure/frontdoor"
+
+  name                = local.name
+  environment         = local.env
+  resource_group_name = azurerm_resource_group.this.name
+  backend_host        = module.app_gateway[0].public_ip_address
+  tags                = local.tags
+}
+
+module "dns_zone" {
+  count  = var.domain_name != "" ? 1 : 0
+  source = "../../modules/azure/dns_zone"
+
+  domain_name         = var.domain_name
+  resource_group_name = azurerm_resource_group.this.name
+  a_records = local.cfg.enable_app_gateway ? {
+    "@"   = [module.app_gateway[0].public_ip_address]
+    "api" = [module.app_gateway[0].public_ip_address]
+  } : {}
+  tags = local.tags
 }

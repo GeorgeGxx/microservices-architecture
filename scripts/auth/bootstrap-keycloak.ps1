@@ -61,6 +61,10 @@ while ((Get-Date) -lt $deadline) {
     } catch {
         # Waiting for port-forward or Keycloak internal startup
     }
+    if ($elapsed -ge 6 -and $KeycloakUrl -match "localhost:8181") {
+        # Auto-launch dedicated port-forward to Keycloak if no process is already forwarding 8181
+        Start-Process -FilePath "kubectl" -ArgumentList "port-forward -n auth svc/keycloak 8181:8181" -WindowStyle Hidden -ErrorAction SilentlyContinue
+    }
     Write-Host "  ... waiting for Keycloak to respond ($elapsed s elapsed)" -ForegroundColor DarkGray
     Start-Sleep -Seconds 3
     $elapsed += 3

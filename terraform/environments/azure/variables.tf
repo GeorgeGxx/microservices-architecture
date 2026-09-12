@@ -10,3 +10,9 @@ variable "administrator_password" {
   sensitive   = true
   default     = ""
 }
+
+variable "domain_name" {
+  description = "Custom domain name for Azure DNS Zone (e.g., example.com)"
+  type        = string
+  default     = ""
+}
