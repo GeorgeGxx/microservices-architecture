@@ -1,129 +1,96 @@
-<!-- Orders Header -->
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+<div class="orders-header">
   <div>
-    <h1 class="text-2xl sm:text-3xl font-black text-text-primary tracking-tight">Order History & Tracking</h1>
-    <p class="text-xs sm:text-sm text-text-muted mt-0.5">Real-time lifecycle tracking, distributed saga validation, and 1-click repurchase</p>
+    <h1 class="page-title">Order History & Tracking</h1>
+    <p class="page-subtitle">Real-time lifecycle tracking, distributed saga validation, and 1-click repurchase</p>
   </div>
-  <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-card border border-border text-xs font-mono text-text-secondary self-start sm:self-auto">
-    <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)] animate-pulse"></span>
-    <span>Live Sync Active</span>
+  <div class="live-sync-indicator" title="Real-time automatic synchronization active">
+    <span class="pulse-dot"></span>
+    <span class="live-text">Live Sync</span>
   </div>
 </div>
 
 <!-- Dynamic Lifecycle Filter Tabs -->
-<div class="flex items-center gap-1.5 p-1 rounded-2xl bg-surface-card/60 border border-border overflow-x-auto text-xs font-semibold mb-6">
-  <button 
-    class="py-2 px-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap" 
-    [class.bg-primary]="selectedTab() === 'ALL'" 
-    [class.text-white]="selectedTab() === 'ALL'"
-    [class.text-text-secondary]="selectedTab() !== 'ALL'"
-    (click)="setTab('ALL')">
-    <span>All Orders</span>
-    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" [class.bg-black/20]="selectedTab() === 'ALL'" [class.bg-surface-card]="selectedTab() !== 'ALL'">{{ allCount() }}</span>
-  </button>
-  <button 
-    class="py-2 px-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap" 
-    [class.bg-primary]="selectedTab() === 'PROCESSING'" 
-    [class.text-white]="selectedTab() === 'PROCESSING'"
-    [class.text-text-secondary]="selectedTab() !== 'PROCESSING'"
-    (click)="setTab('PROCESSING')">
-    <span>Processing</span>
-    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" [class.bg-black/20]="selectedTab() === 'PROCESSING'" [class.bg-surface-card]="selectedTab() !== 'PROCESSING'">{{ processingCount() }}</span>
-  </button>
-  <button 
-    class="py-2 px-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap" 
-    [class.bg-primary]="selectedTab() === 'SHIPPED'" 
-    [class.text-white]="selectedTab() === 'SHIPPED'"
-    [class.text-text-secondary]="selectedTab() !== 'SHIPPED'"
-    (click)="setTab('SHIPPED')">
-    <span>Shipped</span>
-    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" [class.bg-black/20]="selectedTab() === 'SHIPPED'" [class.bg-surface-card]="selectedTab() !== 'SHIPPED'">{{ shippedCount() }}</span>
-  </button>
-  <button 
-    class="py-2 px-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap" 
-    [class.bg-primary]="selectedTab() === 'DELIVERED'" 
-    [class.text-white]="selectedTab() === 'DELIVERED'"
-    [class.text-text-secondary]="selectedTab() !== 'DELIVERED'"
-    (click)="setTab('DELIVERED')">
-    <span>Delivered</span>
-    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" [class.bg-black/20]="selectedTab() === 'DELIVERED'" [class.bg-surface-card]="selectedTab() !== 'DELIVERED'">{{ deliveredCount() }}</span>
-  </button>
-  <button 
-    class="py-2 px-3 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap" 
-    [class.bg-primary]="selectedTab() === 'CANCELLED'" 
-    [class.text-white]="selectedTab() === 'CANCELLED'"
-    [class.text-text-secondary]="selectedTab() !== 'CANCELLED'"
-    (click)="setTab('CANCELLED')">
-    <span>Cancelled</span>
-    <span class="px-1.5 py-0.5 rounded-md text-[10px] font-mono" [class.bg-black/20]="selectedTab() === 'CANCELLED'" [class.bg-surface-card]="selectedTab() !== 'CANCELLED'">{{ cancelledCount() }}</span>
-  </button>
+<div class="filter-tabs-container">
+  <div class="tabs-wrapper">
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'ALL'" 
+            (click)="setTab('ALL')">
+      <span>All Orders</span>
+      <span class="badge badge-all">{{ allCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'PROCESSING'" 
+            (click)="setTab('PROCESSING')">
+      <span>Processing</span>
+      <span class="badge badge-processing">{{ processingCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'SHIPPED'" 
+            (click)="setTab('SHIPPED')">
+      <span>Shipped</span>
+      <span class="badge badge-shipped">{{ shippedCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'DELIVERED'" 
+            (click)="setTab('DELIVERED')">
+      <span>Delivered</span>
+      <span class="badge badge-delivered">{{ deliveredCount() }}</span>
+    </button>
+    <button class="tab-btn" 
+            [class.active]="selectedTab() === 'CANCELLED'" 
+            (click)="setTab('CANCELLED')">
+      <span>Cancelled</span>
+      <span class="badge badge-cancelled">{{ cancelledCount() }}</span>
+    </button>
+  </div>
 </div>
 
 @if (isLoading()) {
-  <div class="p-12 text-center text-xs text-text-muted">
-    <div class="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin mx-auto mb-3"></div>
+  <div class="loading-state">
+    <div class="spinner"></div>
     <p>Loading orders from Orders Service...</p>
   </div>
 } @else if (errorMessage()) {
-  <div class="p-6 rounded-3xl bg-danger/10 border border-danger/30 text-center flex flex-col items-center gap-3">
-    <span class="text-xs font-bold text-text-primary">{{ errorMessage() }}</span>
-    <button class="px-4 py-2 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-hover transition-all" (click)="loadOrders()">Retry</button>
+  <div class="error-banner">
+    <span>{{ errorMessage() }}</span>
+    <button class="btn-retry" (click)="loadOrders()">Retry</button>
   </div>
 } @else if (orders().length === 0) {
-  <div class="p-12 rounded-3xl bg-surface-card/40 border border-border text-center flex flex-col items-center gap-3">
-    <div class="w-16 h-16 rounded-2xl bg-surface-card flex items-center justify-center text-text-muted">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
     </div>
-    <h3 class="text-base font-bold text-text-primary">No orders placed yet.</h3>
-    <p class="text-xs text-text-muted">Completed checkouts will appear here with real-time tracking.</p>
-    <a routerLink="/" class="mt-2 py-2 px-5 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-hover transition-all">Catalog</a>
+    <h3>No orders found in this category.</h3>
+    <p>Your completed checkouts and Saga transactions will appear here.</p>
+    <a routerLink="/" class="btn-primary">Catalog</a>
   </div>
 } @else if (filteredOrders().length === 0) {
-  <div class="p-12 rounded-3xl bg-surface-card/40 border border-border text-center flex flex-col items-center gap-3">
-    <h3 class="text-base font-bold text-text-primary">No orders found in this category.</h3>
-    <p class="text-xs text-text-muted">Switch filters above to view other orders.</p>
+  <div class="empty-state">
+    <div class="empty-icon">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    </div>
+    <h3>No orders found in this category.</h3>
+    <p>Your completed checkouts and Saga transactions will appear here.</p>
   </div>
 } @else {
-  <div class="space-y-6">
+  <div class="orders-list">
     @for (order of paginatedOrders(); track order.orderNumber || order.id) {
-      <div 
-        class="p-5 sm:p-6 rounded-3xl bg-surface-card/75 backdrop-blur-xl border border-border/80 shadow-xl space-y-4"
-        [class.opacity-70]="order.orderStatus === 'CANCELLED'">
-        
-        <!-- Order Card Header -->
-        <div class="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-border/50">
-          <div class="flex items-center gap-2 flex-wrap text-xs">
-            <span class="text-text-muted">Order #</span>
-            <span class="font-bold font-mono text-text-primary text-sm">#{{ order.orderNumber }}</span>
+      <div class="order-card" [class.order-cancelled]="order.orderStatus === 'CANCELLED'">
+        <div class="order-card-header">
+          <div class="order-id-group">
+            <span class="order-label">Order #</span>
+            <span class="order-number mono">#{{ order.orderNumber }}</span>
             @if (order.customerName) {
-              <span class="text-text-secondary">• to {{ order.customerName }} ({{ order.city || 'Standard' }})</span>
+              <span class="order-customer-subtext">to {{ order.customerName }} ({{ order.city || 'Standard' }})</span>
             }
           </div>
-
-          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
-               [class.bg-emerald-500/15]="order.orderStatus === 'DELIVERED'"
-               [class.text-emerald-400]="order.orderStatus === 'DELIVERED'"
-               [class.border]="true"
-               [class.border-emerald-500/25]="order.orderStatus === 'DELIVERED'"
-               [class.bg-primary/15]="order.orderStatus === 'SHIPPED'"
-               [class.text-primary]="order.orderStatus === 'SHIPPED'"
-               [class.border-primary/25]="order.orderStatus === 'SHIPPED'"
-               [class.bg-amber-500/15]="order.orderStatus === 'PLACED'"
-               [class.text-amber-400]="order.orderStatus === 'PLACED'"
-               [class.border-amber-500/25]="order.orderStatus === 'PLACED'"
-               [class.bg-danger/15]="order.orderStatus === 'CANCELLED'"
-               [class.text-danger]="order.orderStatus === 'CANCELLED'"
-               [class.border-danger/25]="order.orderStatus === 'CANCELLED'">
-            <span class="w-1.5 h-1.5 rounded-full"
-                  [class.bg-emerald-400]="order.orderStatus === 'DELIVERED'"
-                  [class.bg-primary]="order.orderStatus === 'SHIPPED'"
-                  [class.bg-amber-400]="order.orderStatus === 'PLACED'"
-                  [class.bg-danger]="order.orderStatus === 'CANCELLED'"></span>
+          <div class="order-status-badge" [ngClass]="getStatusClass(order.orderStatus)">
+            <span class="status-dot"></span>
             <span>{{ getStatusLabel(order.orderStatus) }}</span>
           </div>
         </div>
 
-        <!-- 5-Stage Logistics Stepper -->
+        <!-- 5-Stage Animated Logistics Tracking Stepper -->
         <app-order-stepper 
           [status]="order.orderStatus"
           [trackingNumber]="order.trackingNumber"
@@ -137,84 +104,82 @@
           (stageChange)="onOrderStageUpdated($event)">
         </app-order-stepper>
 
-        <!-- Order Items Table -->
-        <div class="border border-border/60 rounded-2xl overflow-hidden bg-surface-color/40 divide-y divide-border/40">
+        <div class="order-items-table">
           @for (item of order.orderItems; track item.sku) {
-            <div class="flex items-center justify-between gap-3 p-3 text-xs">
-              <div class="flex items-center gap-2.5 min-w-0">
-                <img [src]="getItemImageUrl(item.sku)" (error)="onImageError($event, item.sku)" class="w-9 h-9 rounded-xl object-cover bg-surface-card border border-border flex-shrink-0" [alt]="getItemName(item.sku)" loading="lazy" />
-                <div class="min-w-0">
-                  <div class="font-semibold text-text-primary truncate">{{ getItemName(item.sku) }}</div>
-                  <span class="text-[10px] font-mono text-text-muted">{{ item.sku }}</span>
+            <div class="order-item-row">
+              <div class="item-main">
+                <img [src]="getItemImageUrl(item.sku)" (error)="onImageError($event, item.sku)" class="order-item-mini-thumb" [alt]="getItemName(item.sku)" loading="lazy" />
+                <div class="item-meta-wrap">
+                  <span class="item-title">{{ getItemName(item.sku) }}</span>
+                  <span class="sku-tag mono">{{ item.sku }}</span>
                 </div>
               </div>
-              <div class="flex items-center gap-3 font-mono text-xs">
-                <span class="text-text-muted">x{{ item.quantity }}</span>
-                <span class="text-text-secondary">${{ item.price | number:'1.2-2' }}</span>
-                <span class="font-bold text-text-primary">${{ (item.price * item.quantity) | number:'1.2-2' }}</span>
+              <div class="item-details-group">
+                <div class="item-qty-price">
+                  <span class="item-qty-badge">Qty: {{ item.quantity }}</span>
+                  <span class="item-mult-symbol">×</span>
+                  <span class="item-price mono">${{ item.price | number:'1.2-2' }}</span>
+                </div>
+                <div class="item-subtotal mono">${{ (item.price * item.quantity) | number:'1.2-2' }}</div>
               </div>
             </div>
           }
         </div>
 
-        <!-- Order Card Footer -->
-        <div class="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-border/60">
-          <div class="flex flex-wrap items-center gap-2">
+        <div class="order-card-footer">
+          <div class="footer-left">
             <!-- 1-Click Re-Order Button -->
-            <button 
-              class="py-2 px-3 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-card border border-border hover:border-primary/40 flex items-center gap-1.5 transition-all" 
-              (click)="reorder(order)" 
-              title="Copy all items to shopping cart">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
-              <span>Re-Order</span>
+            <button class="btn-reorder" (click)="reorder(order)" title="Copy all items to shopping cart">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+              <span>Re-Order Items</span>
             </button>
 
             <!-- Digital Invoice Button -->
-            <button 
-              class="py-2 px-3 rounded-xl text-xs font-semibold text-text-secondary hover:text-text-primary bg-surface-card border border-border hover:border-primary/40 flex items-center gap-1.5 transition-all" 
-              (click)="openReceipt(order)">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-              <span>Receipt</span>
+            <button class="btn-details" (click)="openReceipt(order)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              <span>View Receipt & QR</span>
             </button>
 
-            <!-- Admin Dispatch/Deliver -->
+            <!-- Admin Logistics Actions -->
             @if (keycloakService.isAdmin() && order.id && order.orderStatus !== 'CANCELLED') {
               @if (order.orderStatus === 'PLACED') {
-                <button 
-                  class="py-2 px-3 rounded-xl text-xs font-bold text-white bg-primary hover:bg-primary-hover shadow-sm flex items-center gap-1.5 transition-all" 
-                  (click)="shipOrder(order)">
-                  <span>Dispatch</span>
+                <button class="btn-admin-action ship" (click)="shipOrder(order)" title="Mark as SHIPPED (In Transit)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                  <span>Dispatch (Ship)</span>
                 </button>
               } @else if (order.orderStatus === 'SHIPPED') {
-                <button 
-                  class="py-2 px-3 rounded-xl text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 shadow-sm flex items-center gap-1.5 transition-all" 
-                  (click)="deliverOrder(order)">
-                  <span>Deliver</span>
+                <button class="btn-admin-action deliver" (click)="deliverOrder(order)" title="Mark as DELIVERED">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                  <span>Mark Delivered</span>
                 </button>
               }
             }
 
             @if (order.id && order.orderStatus !== 'CANCELLED') {
-              <button 
-                class="py-2 px-3 rounded-xl text-xs font-semibold text-danger hover:bg-danger/10 border border-transparent hover:border-danger/30 transition-all disabled:opacity-40" 
-                [class.opacity-40]="isCancelDisabled(order)"
-                [disabled]="isCancelDisabled(order)"
-                [title]="getCancelTooltip(order)"
-                (click)="!isCancelDisabled(order) && cancelOrder(order)">
+              <button class="btn-cancel" 
+                      [class.is-disabled]="isCancelDisabled(order)"
+                      [disabled]="isCancelDisabled(order)"
+                      [title]="getCancelTooltip(order)"
+                      (click)="!isCancelDisabled(order) && cancelOrder(order)">
                 @if (cancellingOrderId() === order.id) {
+                  <div class="mini-spinner"></div>
                   <span>Cancelling...</span>
                 } @else if (isCancelDisabled(order)) {
-                  <span>Locked</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                  </svg>
+                  <span>Cancellation Locked</span>
                 } @else {
-                  <span>Cancel</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                  <span>Cancel Order</span>
                 }
               </button>
             }
           </div>
-
-          <div class="flex items-center gap-2 text-xs">
-            <span class="text-text-muted">Total:</span>
-            <span class="text-base font-black font-mono text-text-primary" [class.line-through]="order.orderStatus === 'CANCELLED'">
+          <div class="total-group">
+            <span class="total-label">Total Amount:</span>
+            <span class="order-total mono" [class.total-cancelled]="order.orderStatus === 'CANCELLED'">
               ${{ calculateOrderTotal(order) | number:'1.2-2' }}
             </span>
           </div>
@@ -233,43 +198,34 @@
   }
 
   <!-- Pagination Toolbar -->
-  <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-border text-xs text-text-secondary">
-    <div class="flex items-center gap-3">
+  <div class="pagination-bar">
+    <div class="pagination-info">
       <span>{{ paginationInfo() }}</span>
-      <div class="flex items-center gap-1">
-        <span class="text-text-muted">Page size:</span>
-        <button class="px-2 py-0.5 rounded-lg border text-xs font-mono" [class.bg-primary]="pageSize() === 5" [class.text-white]="pageSize() === 5" [class.border-transparent]="pageSize() === 5" [class.border-border]="pageSize() !== 5" (click)="setPageSize(5)">5</button>
-        <button class="px-2 py-0.5 rounded-lg border text-xs font-mono" [class.bg-primary]="pageSize() === 10" [class.text-white]="pageSize() === 10" [class.border-transparent]="pageSize() === 10" [class.border-border]="pageSize() !== 10" (click)="setPageSize(10)">10</button>
+      <div class="page-size-selector">
+        <span class="page-size-label">Per page:</span>
+        <button class="size-btn" [class.active]="pageSize() === 5" (click)="setPageSize(5)">5</button>
+        <button class="size-btn" [class.active]="pageSize() === 10" (click)="setPageSize(10)">10</button>
       </div>
     </div>
 
     @if (totalPages() > 1) {
-      <div class="flex items-center gap-1.5">
-        <button 
-          class="px-3 py-1.5 rounded-xl bg-surface-card border border-border hover:border-primary/40 disabled:opacity-40 text-xs font-semibold text-text-primary transition-all" 
-          [disabled]="currentPage() === 1" 
-          (click)="prevPage()">
-          ‹ Prev
+      <div class="pagination-controls">
+        <button class="btn-page btn-nav" [disabled]="currentPage() === 1" (click)="prevPage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <span>‹ Prev</span>
         </button>
 
-        @for (page of getPageArray(); track page) {
-          <button 
-            class="w-8 h-8 rounded-xl text-xs font-bold transition-all" 
-            [class.bg-primary]="currentPage() === page" 
-            [class.text-white]="currentPage() === page" 
-            [class.bg-surface-card]="currentPage() !== page"
-            [class.border]="currentPage() !== page"
-            [class.border-border]="currentPage() !== page"
-            (click)="goToPage(page)">
-            {{ page }}
-          </button>
-        }
+        <div class="page-numbers">
+          @for (page of getPageArray(); track page) {
+            <button class="btn-page" [class.active]="currentPage() === page" (click)="goToPage(page)">
+              {{ page }}
+            </button>
+          }
+        </div>
 
-        <button 
-          class="px-3 py-1.5 rounded-xl bg-surface-card border border-border hover:border-primary/40 disabled:opacity-40 text-xs font-semibold text-text-primary transition-all" 
-          [disabled]="currentPage() === totalPages()" 
-          (click)="nextPage()">
-          Next ›
+        <button class="btn-page btn-nav" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
+          <span>Next ›</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
       </div>
     }
