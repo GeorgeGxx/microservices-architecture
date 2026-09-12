@@ -213,7 +213,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Admin User\",\n  \"customerEmail\": \"admin_user@example.com\",\n  \"shippingAddress\": \"100 Enterprise Boulevard, Suite 500\",\n  \"city\": \"Austin\",\n  \"postalCode\": \"78701\",\n  \"phone\": \"+1 555-019-2834\",\n  \"deliveryMethod\": \"STANDARD\",\n  \"shippingFee\": 0,\n  \"taxAmount\": 79.99,\n  \"totalAmount\": 1079.98,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 999.99,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"customerName\": \"Admin User\",\n  \"customerEmail\": \"admin_user@example.com\",\n  \"shippingAddress\": \"100 Enterprise Boulevard, Suite 500\",\n  \"city\": \"Austin\",\n  \"postalCode\": \"78701\",\n  \"phone\": \"+1 555-019-2834\",\n  \"deliveryMethod\": \"STANDARD\",\n  \"shippingFee\": 0,\n  \"taxAmount\": 5.6,\n  \"totalAmount\": 75.59,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"000001\",\n      \"price\": 69.99,\n      \"quantity\": 1\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -232,7 +232,7 @@
                 "order"
               ]
             },
-            "description": "Creates a purchase order with full customer details, payment method, tax, and itemized lines. Supports distributed idempotency via X-Idempotency-Key header."
+            "description": "Creates a purchase order using the default seeded SKU 000001 with full customer details, payment method, and itemized lines. Demonstrates distributed idempotency via X-Idempotency-Key header."
           },
           "response": []
         },
