@@ -213,7 +213,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 999.99,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"customerName\": \"Admin User\",\n  \"customerEmail\": \"admin_user@example.com\",\n  \"shippingAddress\": \"100 Enterprise Boulevard, Suite 500\",\n  \"city\": \"Austin\",\n  \"postalCode\": \"78701\",\n  \"phone\": \"+1 555-019-2834\",\n  \"deliveryMethod\": \"STANDARD\",\n  \"shippingFee\": 0,\n  \"taxAmount\": 79.99,\n  \"totalAmount\": 1079.98,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 999.99,\n      \"quantity\": 1\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -231,7 +231,8 @@
                 "api",
                 "order"
               ]
-            }
+            },
+            "description": "Creates a purchase order with full customer details, payment method, tax, and itemized lines. Supports distributed idempotency via X-Idempotency-Key header."
           },
           "response": []
         },
@@ -292,7 +293,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Jorge Garcia\",\n  \"customerEmail\": \"jorge@example.com\",\n  \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n  \"city\": \"Monterrey\",\n  \"postalCode\": \"64000\",\n  \"phone\": \"+52 81 1234 5678\",\n  \"deliveryMethod\": \"EXPRESS\",\n  \"shippingFee\": 9.99,\n  \"taxAmount\": 47.92,\n  \"totalAmount\": 656.91,\n  \"paymentMethod\": \"CREDIT_CARD\",\n  \"orderItems\": [\n    {\n      \"sku\": \"SKU-IPHONE-15\",\n      \"price\": 599,\n      \"quantity\": 1\n    }\n  ]\n}",
+              "raw": "{\n  \"customerName\": \"Jorge Garcia\",\n  \"customerEmail\": \"jorge@example.com\",\n  \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n  \"city\": \"Monterrey\",\n  \"postalCode\": \"64000\",\n  \"phone\": \"+52 81 1234 5678\",\n  \"deliveryMethod\": \"EXPRESS\",\n  \"shippingFee\": 9.99,\n  \"taxAmount\": 47.92,\n  \"totalAmount\": 656.91,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"000001\",\n      \"price\": 599,\n      \"quantity\": 1\n    }\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -598,7 +599,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "[\n  {\n    \"sku\": \"SKU-IPHONE-15\",\n    \"quantity\": 2\n  }\n]",
+              "raw": "[\n  {\n    \"id\": 1,\n    \"sku\": \"SKU-IPHONE-15\",\n    \"price\": 999.99,\n    \"quantity\": 2\n  }\n]",
               "options": {
                 "raw": {
                   "language": "json"
@@ -618,6 +619,68 @@
                 "increment"
               ]
             }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Batch Availability (in-stock)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"id\": 1,\n    \"sku\": \"000001\",\n    \"price\": 69.99,\n    \"quantity\": 1\n  },\n  {\n    \"id\": 2,\n    \"sku\": \"000002\",\n    \"price\": 49.99,\n    \"quantity\": 2\n  }\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/inventory/in-stock",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "in-stock"
+              ]
+            },
+            "description": "Evaluates multi-item stock availability in a single batch query."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Exact Stock (Admin PUT)",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/inventory/000001?quantity=150",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "000001"
+              ],
+              "query": [
+                {
+                  "key": "quantity",
+                  "value": "150",
+                  "description": "Target stock quantity"
+                }
+              ]
+            },
+            "description": "Directly sets the inventory count for a specific SKU using @RequestParam quantity."
           },
           "response": []
         }
@@ -659,7 +722,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"sku\": \"SKU-IPHONE-15\",\n    \"name\": \"iPhone 15 Pro 128GB Titanium\",\n    \"description\": \"Apple iPhone 15 Pro with A17 Pro chip and titanium design.\",\n    \"price\": 999.99,\n    \"status\": true\n}",
+              "raw": "{\n  \"sku\": \"SKU-IPHONE-15\",\n  \"name\": \"iPhone 15 Pro 128GB Titanium\",\n  \"description\": \"Apple iPhone 15 Pro with A17 Pro chip, aerospace-grade titanium design, and 48MP camera system.\",\n  \"price\": 999.99,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80\",\n  \"category\": \"Smartphones\",\n  \"rating\": 4.8,\n  \"reviewCount\": 1240,\n  \"isBestSeller\": true,\n  \"prices\": {\n    \"USD\": 999.99,\n    \"MXN\": 17999\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -677,7 +740,8 @@
                 "api",
                 "product"
               ]
-            }
+            },
+            "description": "Creates a product with comprehensive catalog fields: image URL, multi-currency map (USD/MXN), star ratings, review count, and best-seller flag."
           },
           "response": []
         },
@@ -730,7 +794,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"sku\": \"SKU-VISION-PRO\",\n  \"name\": \"Apple Vision Pro Spatial Computer\",\n  \"description\": \"256GB Spatial audio, M2 and R1 dual-chip processor with ultra-high-resolution micro-OLED displays.\",\n  \"price\": 3499,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1592478411213-6153e4ebc07d?auto=format&fit=crop&w=800&q=80\",\n  \"rating\": 4.9,\n  \"reviewCount\": 840,\n  \"isBestSeller\": true,\n  \"category\": \"Electronics\"\n}",
+              "raw": "{\n  \"sku\": \"SKU-VISION-PRO\",\n  \"name\": \"Apple Vision Pro Spatial Computer\",\n  \"description\": \"256GB Spatial audio, M2 and R1 dual-chip processor with ultra-high-resolution micro-OLED displays.\",\n  \"price\": 3499,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1592478411213-6153e4ebc07d?auto=format&fit=crop&w=800&q=80\",\n  \"category\": \"Wearables\",\n  \"rating\": 4.9,\n  \"reviewCount\": 840,\n  \"isBestSeller\": true,\n  \"prices\": {\n    \"USD\": 3499,\n    \"MXN\": 62999\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -750,6 +814,37 @@
               ]
             },
             "description": "Saves high-end hardware with HD media URL, star ratings, review counts, and #1 Best Seller classification."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Stream SSE Notifications (Live Events)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications/stream",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications",
+                "stream"
+              ]
+            },
+            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service when orders are placed, cancelled, shipped, or delivered."
           },
           "response": []
         }
