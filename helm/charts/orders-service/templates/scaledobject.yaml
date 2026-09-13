@@ -1,0 +1,40 @@
+{{- if and .Values.keda .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "orders-service.fullname" . }}-scaler
+  labels:
+    {{- include "orders-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "orders-service.fullname" . }}
+  minReplicaCount: {{ .Values.keda.minReplicaCount | default 1 }}
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 3 }}
+  {{- if and .Values.keda.minReplicaCount (eq (int .Values.keda.minReplicaCount) 0) }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod | default 300 }}
+  pollingInterval: {{ .Values.keda.pollingInterval | default 15 }}
+  {{- end }}
+  triggers:
+    {{- if and .Values.keda.prometheus .Values.keda.prometheus.enabled }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ .Values.keda.prometheus.serverAddress | default "http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090" | quote }}
+        metricName: http_requests_per_second
+        query: {{ .Values.keda.prometheus.query | default "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*',service='orders-service'}[1m]))" | quote }}
+        threshold: {{ .Values.keda.prometheus.threshold | default "80" | quote }}
+    {{- end }}
+    {{- if and .Values.keda.cpu .Values.keda.cpu.enabled }}
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ .Values.keda.cpu.targetUtilizationPercentage | default "70" | quote }}
+    {{- end }}
+    {{- if and .Values.keda.memory .Values.keda.memory.enabled }}
+    - type: memory
+      metricType: Utilization
+      metadata:
+        value: {{ .Values.keda.memory.targetUtilizationPercentage | default "80" | quote }}
+    {{- end }}
+{{- end }}

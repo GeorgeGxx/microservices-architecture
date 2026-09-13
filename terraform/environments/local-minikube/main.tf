@@ -9,6 +9,7 @@ resource "kubernetes_namespace" "namespaces" {
     "auth",
     "data",
     "vault",
+    "keda",
     "dev"
   ])
 
@@ -227,5 +228,52 @@ resource "helm_release" "observability" {
   set {
     name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
     value = "false"
+  }
+}
+
+# ==============================================================================
+# 5. KEDA (Kubernetes Event-driven Autoscaling) v2.20.1
+# ==============================================================================
+resource "helm_release" "keda" {
+  depends_on = [kubernetes_namespace.namespaces]
+
+  name       = "keda"
+  repository = "https://kedacore.github.io/charts"
+  chart      = "keda"
+  version    = "2.20.1"
+  namespace  = "keda"
+  timeout    = 600
+
+  set {
+    name  = "operator.resources.requests.cpu"
+    value = "100m"
+  }
+  set {
+    name  = "operator.resources.requests.memory"
+    value = "128Mi"
+  }
+  set {
+    name  = "operator.resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "operator.resources.limits.memory"
+    value = "256Mi"
+  }
+  set {
+    name  = "metricsServer.resources.requests.cpu"
+    value = "100m"
+  }
+  set {
+    name  = "metricsServer.resources.requests.memory"
+    value = "128Mi"
+  }
+  set {
+    name  = "metricsServer.resources.limits.cpu"
+    value = "500m"
+  }
+  set {
+    name  = "metricsServer.resources.limits.memory"
+    value = "256Mi"
   }
 }

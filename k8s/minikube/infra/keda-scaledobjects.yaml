@@ -1,0 +1,89 @@
+# ==============================================================================
+# Microservices Architecture - KEDA ScaledObjects (v2.20.1)
+# Target Namespace: dev
+#
+# Event-driven autoscalers orchestrated by KEDA:
+#  1. notification-service: Scales dynamically based on Apache Kafka Consumer Lag (orders-topic)
+#  2. api-gateway: Scales dynamically based on HTTP Requests Per Second (Prometheus query)
+#  3. orders-service: Scales dynamically based on CPU utilization and request concurrency
+# ==============================================================================
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: notification-service-scaler
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: microservices-architecture
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: notification-service
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+    # Trigger 1: Kafka Consumer Lag on orders-topic
+    - type: kafka
+      metadata:
+        bootstrapServers: kafka.data.svc.cluster.local:9092
+        consumerGroup: notification-group
+        topic: orders-topic
+        lagThreshold: "10"
+        offsetResetPolicy: latest
+    # Trigger 2: CPU Utilization (Unified under KEDA generated HPA)
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "75"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: api-gateway-scaler
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/part-of: microservices-architecture
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-gateway
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+    # Trigger 1: Prometheus Requests Per Second (RPS)
+    - type: prometheus
+      metadata:
+        serverAddress: http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090
+        metricName: gateway_http_requests_per_second
+        query: sum(rate(http_server_requests_seconds_count{uri!~".*actuator.*"}[1m]))
+        threshold: "100"
+    # Trigger 2: CPU Utilization
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "70"
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: orders-service-scaler
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: orders-service
+    app.kubernetes.io/part-of: microservices-architecture
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: orders-service
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  triggers:
+    # CPU Utilization trigger
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: "75"

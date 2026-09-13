@@ -193,11 +193,23 @@ switch ($Command) {
         }
 
         # Ensure all required namespaces exist without generating last-applied-configuration warnings
-        $namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system")
+        $namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system", "keda")
         foreach ($ns in $namespaces) {
             if (-not (kubectl get namespace $ns --no-headers 2>$null)) {
                 kubectl create namespace $ns | Out-Null
             }
+        }
+
+        # Ensure KEDA (Kubernetes Event-driven Autoscaling) v2.20.1 is installed in namespace 'keda'
+        Write-Host "  ▶ Ensuring KEDA v2.20.1 Event-driven Autoscaler is active in 'keda' namespace..." -ForegroundColor White
+        $kedaDeploy = kubectl get deployment keda-operator -n keda --no-headers 2>$null
+        if (-not $kedaDeploy) {
+            helm repo add kedacore https://kedacore.github.io/charts 2>$null | Out-Null
+            helm repo update kedacore 2>$null | Out-Null
+            helm upgrade --install keda kedacore/keda --version 2.20.1 --namespace keda --create-namespace 2>$null | Out-Null
+            Write-Host "  [OK] KEDA v2.20.1 operator and metrics-server deployed." -ForegroundColor Green
+        } else {
+            Write-Host "  [OK] KEDA v2.20.1 operator already running in namespace 'keda'." -ForegroundColor Green
         }
 
         if ($enableIstio) {
@@ -291,9 +303,25 @@ stringData:
         kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth 2>$null
         kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
 
-        # DNS Bridges for 'dev' namespace
+        # DNS Bridges for 'dev' and 'keda' namespaces
         $devBridges = Join-Path $infraDir "dev-infra-bridges.yaml"
         if (Test-Path $devBridges) { kubectl apply -f $devBridges 2>$null }
+
+        # Cross-namespace bridge for KEDA operator to reach Kafka
+        $kedaKafkaBridge = @"
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: keda
+spec:
+  type: ExternalName
+  externalName: kafka.data.svc.cluster.local
+  ports:
+    - name: tcp-kafka
+      port: 9092
+"@
+        $kedaKafkaBridge | kubectl apply -f - 2>$null | Out-Null
         Write-Host "  [OK] Data layer, db-keycloak, Keycloak and DNS bridges provisioned." -ForegroundColor Green
 
         # ----------------------------------------------------------------------
