@@ -1,0 +1,41 @@
+{{- if and .Values.keda .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "notification-service.fullname" . }}-scaler
+  labels:
+    {{- include "notification-service.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "notification-service.fullname" . }}
+  minReplicaCount: {{ .Values.keda.minReplicaCount | default 1 }}
+  maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 3 }}
+  {{- if and .Values.keda.minReplicaCount (eq (int .Values.keda.minReplicaCount) 0) }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod | default 300 }}
+  pollingInterval: {{ .Values.keda.pollingInterval | default 15 }}
+  {{- end }}
+  triggers:
+    {{- if and .Values.keda.kafka .Values.keda.kafka.enabled }}
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ .Values.keda.kafka.bootstrapServers | default "kafka.data.svc.cluster.local:9092" | quote }}
+        consumerGroup: {{ .Values.keda.kafka.consumerGroup | default "notification-group" | quote }}
+        topic: {{ .Values.keda.kafka.topic | default "orders-topic" | quote }}
+        lagThreshold: {{ .Values.keda.kafka.lagThreshold | default "10" | quote }}
+        offsetResetPolicy: {{ .Values.keda.kafka.offsetResetPolicy | default "latest" | quote }}
+    {{- end }}
+    {{- if and .Values.keda.cpu .Values.keda.cpu.enabled }}
+    - type: cpu
+      metricType: Utilization
+      metadata:
+        value: {{ .Values.keda.cpu.targetUtilizationPercentage | default "70" | quote }}
+    {{- end }}
+    {{- if and .Values.keda.memory .Values.keda.memory.enabled }}
+    - type: memory
+      metricType: Utilization
+      metadata:
+        value: {{ .Values.keda.memory.targetUtilizationPercentage | default "80" | quote }}
+    {{- end }}
+{{- end }}

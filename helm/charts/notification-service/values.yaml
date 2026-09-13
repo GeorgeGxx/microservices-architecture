@@ -25,6 +25,26 @@ autoscaling:
   maxReplicas: 4
   targetCPUUtilizationPercentage: 70
 
+keda:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 15
+  cooldownPeriod: 300
+  kafka:
+    enabled: true
+    bootstrapServers: kafka.data.svc.cluster.local:9092
+    consumerGroup: notification-group
+    topic: orders-topic
+    lagThreshold: "10"
+    offsetResetPolicy: latest
+  cpu:
+    enabled: true
+    targetUtilizationPercentage: 70
+  memory:
+    enabled: false
+    targetUtilizationPercentage: 80
+
 probes:
   readinessPath: /actuator/notification/health/readiness
   livenessPath: /actuator/notification/health/liveness

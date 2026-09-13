@@ -111,6 +111,19 @@ api-gateway:
     maxReplicas: 1
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    prometheus:
+      enabled: true
+      serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
+      metricName: "http_requests_per_second"
+      query: "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))"
+      threshold: "100"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
@@ -131,6 +144,13 @@ inventory-service:
     maxReplicas: 1
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
@@ -151,6 +171,20 @@ notification-service:
     maxReplicas: 1
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "notification-group"
+      topic: "orders-topic"
+      lagThreshold: "10"
+      offsetResetPolicy: "latest"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
@@ -171,6 +205,13 @@ orders-service:
     maxReplicas: 1
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
   podDisruptionBudget:
     enabled: true
     minAvailable: 1
@@ -191,6 +232,13 @@ products-service:
     maxReplicas: 1
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
   podDisruptionBudget:
     enabled: true
     minAvailable: 1

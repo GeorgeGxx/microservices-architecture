@@ -219,6 +219,13 @@ Deploy the entire infrastructure, security, mesh, and microservices in a single 
 # Fast-track bootstrap skipping security scans (Gitleaks/TFLint/Trivy):
 .\platform.ps1 up -SkipScans
 
+# Optional: Build all container images from Dockerfiles and deploy to the cluster (re-applies on existing cluster)
+.\platform.ps1 up -Build
+
+# Optional: Clean/destroy cluster first, then create and build everything from scratch
+.\platform.ps1 down -Destroy
+.\platform.ps1 up -Build
+
 # Custom hardware sizing:
 .\platform.ps1 up -Cpus 12 -MemoryMb 12288 -DiskSize 80g
 ```
@@ -374,42 +381,48 @@ The platform includes 5 production-grade operational capabilities configured for
 
 ```mermaid
 flowchart TD
-    subgraph Autoscaling["⚖️ Auto-Scaling & HA"]
-        HPA[Horizontal Pod Autoscaler<br/>CPU: 70% | Memory: 80%] -->|Scale Up / Down| PODS[Microservices Pods<br/>Min: 1 | Max: 2]
-        PDB[PodDisruptionBudgets<br/>minAvailable: 1] -->|Guarantees Quorum| PODS
+    subgraph EventSources["⚡ Event Sources & Telemetry"]
+        KAFKA[Apache Kafka: orders-topic<br/>Consumer Lag Monitoring]
+        PROM_METRICS[Prometheus Metrics<br/>Gateway HTTP RPS & Latency]
+        K8S_RES[K8s Resource Metrics<br/>CPU & Memory Utilization]
     end
 
-    subgraph Security["🔐 Secrets Management"]
-        VAULT[(HashiCorp Vault<br/>KV-v2 Secrets Engine)] -->|Read secret/data/*| ESO[External Secrets Operator<br/>SecretStore: vault-secret-store]
-        ESO -->|Synchronize & Merge| K8S_SEC[K8s Secret: microservices-secrets]
-        K8S_SEC -->|Inject Env Vars| PODS
+    subgraph Autoscaling["⚖️ KEDA v2.20.1 & HPA Integration"]
+        KEDA_OP[KEDA Operator v2.20.1<br/>Namespace: keda]
+        SO_NOTIF[ScaledObject: notification-service<br/>Trigger: Kafka Lag & CPU]
+        SO_GW[ScaledObject: api-gateway<br/>Trigger: Prometheus RPS & CPU]
+        HPA[Unified Kubernetes HPA<br/>Controlled by KEDA]
+        PDB[PodDisruptionBudgets<br/>minAvailable: 1]
     end
 
-    subgraph TrafficMesh["🌐 Istio Canary Traffic Splitting"]
-        GW[Istio Ingress Gateway] --> VS[VirtualService<br/>products-service-vs]
-        VS -->|Header: x-canary: true| SUB_V2[Subset v2 - Canary 100%]
-        VS -->|Weight: 90%| SUB_V1[Subset v1 - Stable]
-        VS -->|Weight: 10%| SUB_V2
-        SUB_V1 --> PODS_V1[products-service v1 Pods]
-        SUB_V2 --> PODS_V2[products-service v2 Pods]
+    subgraph Workloads["📦 Microservices Deployments"]
+        PODS[Microservices Pods<br/>Min: 1 | Max: 3 (Host Safe)]
     end
 
-    subgraph ObservabilityAlerts["🚨 Alert Routing Engine"]
-        PROM[Prometheus Operator<br/>release: kube-prometheus] -->|Evaluates Rules| PRULE[PrometheusRule<br/>microservices-staging-microservices-alerts]
-        PRULE -->|Sends Firing Alerts| AM[Alertmanager]
-        AM -->|Default Local| RECV_LOCAL[default-local-receiver]
-        AM -.->|Configurable Secret| SLACK[Slack Channel #alerts]
-        AM -.->|Configurable Webhook| JIRA[Jira Issue Automation]
-    end
+    KAFKA --> KEDA_OP
+    PROM_METRICS --> KEDA_OP
+    K8S_RES --> KEDA_OP
+    KEDA_OP --> SO_NOTIF
+    KEDA_OP --> SO_GW
+    SO_NOTIF --> HPA
+    SO_GW --> HPA
+    HPA -->|Scale Pods 1..N| PODS
+    PDB -->|Guarantees Quorum| PODS
 ```
 
-### 1. ⚖️ Horizontal Pod Autoscaling (HPA) & PodDisruptionBudgets (PDB)
-* **Dynamic Scaling:** Configured across all 5 subcharts (`api-gateway`, `inventory-service`, `notification-service`, `orders-service`, `products-service`) targeting $70\%$ CPU utilization and $80\%$ JVM Memory utilization.
-* **Controlled Limits:** Scaled between `minReplicas: 1` and `maxReplicas: 2` (locally optimized for 12 GB RAM) preventing OOM node contention while handling traffic spikes.
-* **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never cause service unavailability.
-* **Verification Command:**
+### 1. ⚖️ KEDA v2.20.1 Event-Driven Autoscaling & HPA Orchestration
+* **Architecture & Coexistence:** KEDA does not replace Kubernetes `HorizontalPodAutoscaler` (HPA); it acts as an intelligent controller that creates and continuously synchronizes native `autoscaling/v2` HPA resources. To prevent flapping and replica race conditions, subcharts conditionally decouple native static HPAs when `keda.enabled=true`.
+* **Kafka Consumer Lag Trigger (`notification-service`):** Scales pods dynamically in response to pending messages in the `orders-topic` partition queue (`lagThreshold: 10`), ensuring fast consumer drain under bulk checkout spikes.
+* **Prometheus RPS Trigger (`api-gateway`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))`) scaling before CPU threshold saturation occurs.
+* **CPU & Memory Stabilization:** ScaledObjects bundle resource utilization targets ($70\%$ CPU, $80\%$ Memory) alongside event triggers into a single unified HPA.
+* **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never compromise platform quorum.
+* **Verification Commands:**
   ```powershell
-  kubectl get hpa,pdb -n staging
+  # Inspect KEDA ScaledObjects
+  kubectl get scaledobjects -n dev
+
+  # Inspect KEDA-generated HorizontalPodAutoscalers
+  kubectl get hpa,pdb -n dev
   ```
 
 ### 2. 🔐 External Secrets Operator (ESO) & HashiCorp Vault Synchronization

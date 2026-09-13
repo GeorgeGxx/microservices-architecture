@@ -25,6 +25,25 @@ autoscaling:
   maxReplicas: 4
   targetCPUUtilizationPercentage: 70
 
+keda:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 15
+  cooldownPeriod: 300
+  prometheus:
+    enabled: false
+    serverAddress: "http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090"
+    metricName: "http_requests_per_second"
+    query: "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*',service='inventory-service'}[1m]))"
+    threshold: "80"
+  cpu:
+    enabled: true
+    targetUtilizationPercentage: 70
+  memory:
+    enabled: false
+    targetUtilizationPercentage: 80
+
 probes:
   readinessPath: /actuator/inventory/health/readiness
   livenessPath: /actuator/inventory/health/liveness
