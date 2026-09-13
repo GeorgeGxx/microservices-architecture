@@ -3,7 +3,7 @@
   width: 100%;
   min-width: 0;
   margin: 0 auto;
-  padding-bottom: 60px;
+  padding: 0 16px 60px;
   box-sizing: border-box;
 }
 .admin-header {
@@ -1208,9 +1208,17 @@ input:checked + .toggle-slider:before {
   .tab-btn {
     justify-content: center;
     padding: 10px 6px;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     border-radius: 8px;
     text-align: center;
+    min-width: 0;
+  }
+
+  .tab-btn span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .admin-card,
@@ -1341,9 +1349,10 @@ input:checked + .toggle-slider:before {
      Mobile Responsive Card Layout for All Dashboard Tables
      ========================================================================= */
   .table-wrapper {
-    overflow-x: visible;
-    width: 100%;
-    max-width: 100%;
+    overflow-x: hidden !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .admin-table,
@@ -1437,22 +1446,32 @@ input:checked + .toggle-slider:before {
   }
 
   .inventory-table .stock-btn-cluster {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr 1.2fr 1.2fr auto !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
     gap: 6px !important;
     width: 100% !important;
   }
 
   .inventory-table .btn-stock-adjust {
-    padding: 8px 4px !important;
-    font-size: 0.85rem !important;
+    flex: 1 1 calc(25% - 6px) !important;
+    min-width: 44px !important;
+    height: 36px !important;
+    padding: 0 4px !important;
+    font-size: 0.82rem !important;
     font-weight: 700 !important;
     border-radius: 8px !important;
-    text-align: center !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .inventory-table .btn-action.edit {
-    padding: 8px 12px !important;
+    flex: 0 0 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     border-radius: 8px !important;
   }
 
@@ -1466,14 +1485,35 @@ input:checked + .toggle-slider:before {
     border-radius: 14px !important;
     padding: 14px !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
   }
 
   .orders-table .order-num-cell {
     display: flex !important;
-    justify-content: space-between !important;
-    align-items: center !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
     padding-bottom: 8px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .orders-table .order-num-text {
+    word-break: break-all !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    color: #f8fafc !important;
+    max-width: 100% !important;
+  }
+
+  .orders-table .order-meta-sub {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
   }
 
   .orders-table .order-status-cell {
@@ -1488,11 +1528,25 @@ input:checked + .toggle-slider:before {
     flex-direction: column !important;
     gap: 6px !important;
     padding: 4px 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .orders-table .order-items-pills {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+    width: 100% !important;
+    max-width: 100% !important;
   }
 
   .orders-table .item-pill {
     font-size: 0.75rem !important;
-    padding: 3px 8px !important;
+    padding: 4px 8px !important;
+    max-width: 100% !important;
+    word-break: break-word !important;
+    white-space: normal !important;
   }
 
   .orders-table .order-total-cell {
@@ -1682,4 +1736,285 @@ input:checked + .toggle-slider:before {
   display: inline-flex;
   align-items: center;
   gap: 3px;
+}
+
+/* =========================================================================
+   Admin Dashboard Pagination Bar
+   ========================================================================= */
+.admin-pagination-bar {
+  margin-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.admin-pagination-bar .pagination-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.admin-pagination-bar .info-text {
+  font-weight: 500;
+}
+
+.admin-pagination-bar .page-size-selector {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-pagination-bar .page-size-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin-right: 2px;
+}
+
+.admin-pagination-bar .size-btn {
+  padding: 3px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.admin-pagination-bar .size-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+}
+
+.admin-pagination-bar .size-btn.active {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #a5b4fc;
+}
+
+.admin-pagination-bar .pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-pagination-bar .page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.admin-pagination-bar .page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 32px;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 0.95rem;
+  user-select: none;
+  letter-spacing: 2px;
+}
+
+.admin-pagination-bar .btn-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 32px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.admin-pagination-bar .btn-page:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.admin-pagination-bar .btn-page.active {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+.admin-pagination-bar .btn-page:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin-pagination-bar .nav-text {
+  font-size: 0.82rem;
+}
+
+.admin-pagination-bar .page-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 6px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-pagination-bar .jump-label {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.admin-pagination-bar .jump-input {
+  width: 50px;
+  height: 32px;
+  padding: 0 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #f8fafc;
+  font-size: 0.82rem;
+  text-align: center;
+  transition: border-color 0.15s ease;
+}
+
+.admin-pagination-bar .jump-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.admin-pagination-bar .jump-input::-webkit-outer-spin-button,
+.admin-pagination-bar .jump-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.admin-pagination-bar .jump-input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* Mobile responsive pagination rules */
+@media (max-width: 768px) {
+  .admin-pagination-bar {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    margin-top: 20px;
+    padding-top: 14px;
+  }
+
+  .admin-pagination-bar .pagination-info {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    font-size: 0.82rem;
+    text-align: center;
+  }
+
+  .admin-pagination-bar .page-size-selector {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .admin-pagination-bar .pagination-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-pagination-bar .page-numbers {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .admin-pagination-bar .btn-page {
+    min-width: 28px;
+    height: 32px;
+    padding: 0 6px;
+    font-size: 0.78rem;
+    justify-content: center;
+  }
+
+  .admin-pagination-bar .btn-nav {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+  }
+
+  .admin-pagination-bar .page-ellipsis {
+    min-width: 18px;
+    height: 32px;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+  }
+
+  .admin-pagination-bar .page-jump {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-container {
+    padding: 0 10px 40px;
+  }
+
+  .admin-pagination-bar .nav-text {
+    display: none;
+  }
+
+  .admin-pagination-bar .pagination-controls {
+    gap: 3px;
+  }
+
+  .admin-pagination-bar .btn-page {
+    min-width: 26px;
+    height: 30px;
+    padding: 0 5px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+  }
+
+  .admin-pagination-bar .btn-nav {
+    min-width: 28px;
+    height: 30px;
+    padding: 0 6px;
+  }
+
+  .admin-pagination-bar .jump-input {
+    width: 46px;
+    height: 30px;
+    font-size: 0.78rem;
+  }
 }

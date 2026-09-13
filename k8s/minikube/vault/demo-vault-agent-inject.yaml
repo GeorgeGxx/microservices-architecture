@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: products-service-vault-demo
-  namespace: staging
+  namespace: dev
   labels:
     app: products-service-vault-demo
 spec:

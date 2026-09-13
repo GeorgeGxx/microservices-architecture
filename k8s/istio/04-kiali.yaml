@@ -290,3 +290,25 @@ spec:
     - name: http-grafana
       port: 80
       targetPort: 80
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-stats
+  namespace: observability
+  labels:
+    release: kube-prometheus
+spec:
+  selector:
+    matchExpressions:
+      - key: istio-prometheus-ignore
+        operator: DoesNotExist
+  namespaceSelector:
+    matchNames:
+      - dev
+      - istio-system
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 10s
+

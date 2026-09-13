@@ -142,6 +142,12 @@ public class OrderController {
         if (throwable instanceof IllegalArgumentException ex) {
             throw ex;
         }
+        if (throwable instanceof com.georgegxx.orders_service.exceptions.InsufficientStockException ex) {
+            throw ex;
+        }
+        if (throwable instanceof IllegalStateException ex) {
+            throw ex;
+        }
         if (throwable instanceof IdempotencyConflictException ex) {
             throw ex;
         }

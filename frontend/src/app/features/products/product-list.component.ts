@@ -148,9 +148,20 @@ export class ProductListComponent implements OnInit, OnDestroy {
     return Math.max(1, Math.ceil(count / size));
   });
 
-  readonly pageNumbers = computed(() => {
+  readonly pageNumbers = computed<(number | string)[]>(() => {
     const total = this.totalPages();
-    return Array.from({ length: total }, (_, i) => i + 1);
+    const current = this.currentPage();
+
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
   });
 
   readonly paginatedProducts = computed(() => {
@@ -287,6 +298,10 @@ export class ProductListComponent implements OnInit, OnDestroy {
   closeQuickView(): void {
     this.isQuickViewOpen.set(false);
     this.quickViewProduct.set(null);
+  }
+
+  isNumber(val: number | string): val is number {
+    return typeof val === 'number';
   }
 
   goToPage(page: number): void {

@@ -73,9 +73,11 @@ def check_jvm(prom_url):
 def check_abandonment(prom_url):
     print("\n\033[96m[2/3] 🛒 CHECKING E-COMMERCE CART ABANDONMENT FORMULA\033[0m")
     queries = [
-        ("Cart Additions Total", 'sum(ecommerce_cart_additions_total)'),
-        ("Completed Orders", 'sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"})'),
-        ("Abandonment Rate %", 'clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)')
+        ("1. Cart Additions", 'sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total)'),
+        ("2. Checkout Started", 'sum(ecommerce_checkout_started) or sum(ecommerce_checkout_started_total)'),
+        ("3. Reached Payment", 'sum(ecommerce_checkout_step_reached{step="PAYMENT"}) or sum(ecommerce_checkout_step_reached_total{step="PAYMENT"})'),
+        ("4. Completed Orders", 'sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"})'),
+        ("📉 Abandonment Rate %", 'clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)')
     ]
     for label, q in queries:
         res = query_promql(prom_url, q)

@@ -828,6 +828,19 @@
   color: white;
 }
 
+.page-ellipsis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 32px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.95rem;
+  user-select: none;
+  letter-spacing: 2px;
+}
+
 /* Fly to Cart Particle */
 :global(.fly-particle) {
   position: fixed;
@@ -1010,5 +1023,35 @@
   .btn-add-cart {
     width: 100%;
     justify-content: center;
+  }
+
+  .pagination-wrapper {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+  }
+
+  .pagination-info {
+    text-align: center;
+    font-size: 0.8rem;
+  }
+
+  .pagination-controls {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .page-nav-btn,
+  .page-number-btn {
+    padding: 5px 8px;
+    font-size: 0.76rem;
+  }
+
+  .page-ellipsis {
+    min-width: 18px;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
   }
 }

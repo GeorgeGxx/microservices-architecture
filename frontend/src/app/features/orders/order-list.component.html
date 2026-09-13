@@ -200,33 +200,66 @@
   <!-- Pagination Toolbar -->
   <div class="pagination-bar">
     <div class="pagination-info">
-      <span>{{ paginationInfo() }}</span>
+      <span class="info-text">{{ paginationInfo() }}</span>
       <div class="page-size-selector">
         <span class="page-size-label">Per page:</span>
         <button class="size-btn" [class.active]="pageSize() === 5" (click)="setPageSize(5)">5</button>
         <button class="size-btn" [class.active]="pageSize() === 10" (click)="setPageSize(10)">10</button>
+        <button class="size-btn" [class.active]="pageSize() === 25" (click)="setPageSize(25)">25</button>
+        <button class="size-btn" [class.active]="pageSize() === 50" (click)="setPageSize(50)">50</button>
+        <button class="size-btn" [class.active]="pageSize() === 100" (click)="setPageSize(100)">100</button>
       </div>
     </div>
 
     @if (totalPages() > 1) {
       <div class="pagination-controls">
-        <button class="btn-page btn-nav" [disabled]="currentPage() === 1" (click)="prevPage()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-          <span>‹ Prev</span>
+        <button class="btn-page btn-nav" [disabled]="currentPage() === 1" (click)="goToFirstPage()" title="First Page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+
+        <button class="btn-page btn-nav" [disabled]="currentPage() === 1" (click)="prevPage()" title="Previous Page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          <span class="nav-text">Prev</span>
         </button>
 
         <div class="page-numbers">
-          @for (page of getPageArray(); track page) {
-            <button class="btn-page" [class.active]="currentPage() === page" (click)="goToPage(page)">
-              {{ page }}
-            </button>
+          @for (item of getPageArray(); track $index) {
+            @if (isNumber(item)) {
+              <button 
+                class="btn-page" 
+                [class.active]="currentPage() === item" 
+                (click)="goToPage(item)"
+                [attr.aria-current]="currentPage() === item ? 'page' : null"
+              >
+                {{ item }}
+              </button>
+            } @else {
+              <span class="page-ellipsis">…</span>
+            }
           }
         </div>
 
-        <button class="btn-page btn-nav" [disabled]="currentPage() === totalPages()" (click)="nextPage()">
-          <span>Next ›</span>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        <button class="btn-page btn-nav" [disabled]="currentPage() === totalPages()" (click)="nextPage()" title="Next Page">
+          <span class="nav-text">Next</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
         </button>
+
+        <button class="btn-page btn-nav" [disabled]="currentPage() === totalPages()" (click)="goToLastPage()" title="Last Page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+
+        <div class="page-jump">
+          <span class="jump-label">Go to:</span>
+          <input 
+            type="number" 
+            class="jump-input" 
+            min="1" 
+            [max]="totalPages()" 
+            [placeholder]="currentPage().toString()"
+            (keydown.enter)="onJumpPage($event)"
+            title="Type page number and press Enter"
+          />
+        </div>
       </div>
     }
   </div>
