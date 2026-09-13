@@ -326,14 +326,18 @@
           ‹ Prev
         </button>
 
-        @for (p of pageNumbers(); track p) {
-          <button
-            class="page-number-btn"
-            [class.active]="p === currentPage()"
-            (click)="goToPage(p)"
-          >
-            {{ p }}
-          </button>
+        @for (p of pageNumbers(); track $index) {
+          @if (isNumber(p)) {
+            <button
+              class="page-number-btn"
+              [class.active]="p === currentPage()"
+              (click)="goToPage(p)"
+            >
+              {{ p }}
+            </button>
+          } @else {
+            <span class="page-ellipsis">…</span>
+          }
         }
 
         <button

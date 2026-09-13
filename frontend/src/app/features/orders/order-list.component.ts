@@ -40,7 +40,7 @@ export class OrderListComponent implements OnInit, OnDestroy {
   readonly selectedTab = signal<OrderFilterTab>('ALL');
   readonly selectedOrderForModal = signal<OrderResponse | null>(null);
   readonly selectedOrderForReceipt = signal<OrderResponse | null>(null);
-  readonly pageSize = signal<number>(5);
+  readonly pageSize = signal<number>(10);
   readonly currentPage = signal<number>(1);
   readonly orderStages = signal<Record<number, number>>({});
 
@@ -92,6 +92,25 @@ export class OrderListComponent implements OnInit, OnDestroy {
   readonly totalPages = computed(() => 
     Math.max(1, Math.ceil(this.filteredOrders().length / this.pageSize()))
   );
+
+  readonly visiblePages = computed<(number | string)[]>(() => {
+    const total = this.totalPages();
+    const current = this.currentPage();
+
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  });
 
   readonly paginatedOrders = computed(() => {
     const page = this.currentPage();
@@ -154,6 +173,14 @@ export class OrderListComponent implements OnInit, OnDestroy {
     }
   }
 
+  goToFirstPage(): void {
+    this.goToPage(1);
+  }
+
+  goToLastPage(): void {
+    this.goToPage(this.totalPages());
+  }
+
   nextPage(): void {
     if (this.currentPage() < this.totalPages()) {
       this.currentPage.update(p => p + 1);
@@ -166,9 +193,23 @@ export class OrderListComponent implements OnInit, OnDestroy {
     }
   }
 
-  getPageArray(): number[] {
-    const total = this.totalPages();
-    return Array.from({ length: total }, (_, i) => i + 1);
+  onJumpPage(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const pageNum = parseInt(input.value, 10);
+    if (!isNaN(pageNum) && pageNum >= 1 && pageNum <= this.totalPages()) {
+      this.goToPage(pageNum);
+      input.value = '';
+    } else {
+      input.value = '';
+    }
+  }
+
+  isNumber(val: number | string): val is number {
+    return typeof val === 'number';
+  }
+
+  getPageArray(): (number | string)[] {
+    return this.visiblePages();
   }
 
   loadOrders(silent = false): void {

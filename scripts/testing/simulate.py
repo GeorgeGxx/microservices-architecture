@@ -153,9 +153,41 @@ class TrafficSimulator:
             pass
         self.latencies.append(time.time() - t0)
 
-        # 2. Select item and place order
+        # 2. Select item and add to cart (Conversion Funnel Step 1: CART_ADD)
         item = random.choice(CATALOG_ITEMS)
         qty = random.randint(1, 3)
+        category = "Electronics" if "00000" in item["sku"] else "Computers"
+        try:
+            cart_evt = json.dumps({"eventType": "CART_ADD", "category": category}).encode("utf-8")
+            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(f_req, timeout=3) as _:
+                pass
+        except Exception:
+            pass
+
+        # Realistic Shopper Journey: ~25% abandon cart before starting checkout
+        if random.random() < 0.25:
+            return
+
+        # 3. Start Checkout (Conversion Funnel Step 2: CHECKOUT_START)
+        try:
+            start_evt = json.dumps({"eventType": "CHECKOUT_START"}).encode("utf-8")
+            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(f_req, timeout=3) as _:
+                pass
+        except Exception:
+            pass
+
+        # 4. Reach Payment Step (Conversion Funnel Step 3: CHECKOUT_STEP)
+        try:
+            step_evt = json.dumps({"eventType": "CHECKOUT_STEP", "step": "PAYMENT"}).encode("utf-8")
+            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(f_req, timeout=3) as _:
+                pass
+        except Exception:
+            pass
+
+        # 5. Finalize Purchase (Conversion Funnel Step 4: ORDER_PLACED)
         subtotal = round(item["price"] * qty, 2)
         shipping_fee = 15.00
         tax = round(subtotal * 0.16, 2)

@@ -121,7 +121,7 @@ biz_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)",
+            "expr": "clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)",
             "legendFormat": "Abandonment"
         }]
     },
@@ -158,17 +158,17 @@ biz_panels = [
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_cart_additions_total) or vector(0)",
+                "expr": "sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0)",
                 "legendFormat": "1. Cart Additions"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_checkout_started_total) or vector(0)",
+                "expr": "sum(ecommerce_checkout_started) or sum(ecommerce_checkout_started_total) or vector(0)",
                 "legendFormat": "2. Checkout Started"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_checkout_step_reached_total{step=\"PAYMENT\"}) or vector(0)",
+                "expr": "sum(ecommerce_checkout_step_reached{step=\"PAYMENT\"}) or sum(ecommerce_checkout_step_reached_total{step=\"PAYMENT\"}) or vector(0)",
                 "legendFormat": "3. Reached Payment"
             },
             {

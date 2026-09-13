@@ -333,7 +333,7 @@
           <input
             type="text"
             [ngModel]="productFilter()"
-            (ngModelChange)="productFilter.set($event)"
+            (ngModelChange)="onProductFilterChange($event)"
             placeholder="Search products by SKU, Name or ID..."
             class="form-input search-input"
           />
@@ -353,7 +353,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (prod of filteredTableProducts(); track prod.id || prod.sku) {
+              @for (prod of paginatedProducts(); track prod.id || prod.sku) {
                 <tr class="prod-row" [class.selected-row]="editingProductId() === prod.id">
                   <td class="id-cell">#{{ prod.id }}</td>
                   <td class="table-thumb-cell">
@@ -407,6 +407,72 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Products Pagination Toolbar -->
+        @if (filteredTableProducts().length > 0) {
+          <div class="admin-pagination-bar">
+            <div class="pagination-info">
+              <span class="info-text">{{ productsPaginationInfo() }}</span>
+              <div class="page-size-selector">
+                <span class="page-size-label">Per page:</span>
+                <button type="button" class="size-btn" [class.active]="productsPageSize() === 5" (click)="setProductsPageSize(5)">5</button>
+                <button type="button" class="size-btn" [class.active]="productsPageSize() === 10" (click)="setProductsPageSize(10)">10</button>
+                <button type="button" class="size-btn" [class.active]="productsPageSize() === 25" (click)="setProductsPageSize(25)">25</button>
+                <button type="button" class="size-btn" [class.active]="productsPageSize() === 50" (click)="setProductsPageSize(50)">50</button>
+              </div>
+            </div>
+
+            @if (productsTotalPages() > 1) {
+              <div class="pagination-controls">
+                <button type="button" class="btn-page btn-nav" [disabled]="productsPage() === 1" (click)="setProductsPage(1)" title="First Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="productsPage() === 1" (click)="setProductsPage(productsPage() - 1)" title="Previous Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                  <span class="nav-text">Prev</span>
+                </button>
+
+                <div class="page-numbers">
+                  @for (item of productsVisiblePages(); track $index) {
+                    @if (isNumber(item)) {
+                      <button 
+                        type="button"
+                        class="btn-page" 
+                        [class.active]="productsPage() === item" 
+                        (click)="setProductsPage(item)"
+                      >
+                        {{ item }}
+                      </button>
+                    } @else {
+                      <span class="page-ellipsis">…</span>
+                    }
+                  }
+                </div>
+
+                <button type="button" class="btn-page btn-nav" [disabled]="productsPage() === productsTotalPages()" (click)="setProductsPage(productsPage() + 1)" title="Next Page">
+                  <span class="nav-text">Next</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="productsPage() === productsTotalPages()" (click)="setProductsPage(productsTotalPages())" title="Last Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                </button>
+
+                <div class="page-jump">
+                  <span class="jump-label">Go to:</span>
+                  <input 
+                    type="number" 
+                    class="jump-input" 
+                    min="1" 
+                    [max]="productsTotalPages()" 
+                    [placeholder]="productsPage().toString()"
+                    (keydown.enter)="onProductsJumpPage($event)"
+                    title="Type page number and press Enter"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   }
@@ -522,7 +588,7 @@
             type="text"
             placeholder="Filter by SKU or Product Name..."
             [ngModel]="inventoryFilter()"
-            (ngModelChange)="inventoryFilter.set($event)"
+            (ngModelChange)="onInventoryFilterChange($event)"
             class="table-filter-input"
           />
         </div>
@@ -538,7 +604,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (inv of filteredTableInventory(); track inv.sku) {
+              @for (inv of paginatedInventory(); track inv.sku) {
                 <tr class="inv-row">
                   <td class="inv-prod-cell">
                     <div class="inv-prod-title">{{ getProductName(inv.sku) }}</div>
@@ -610,6 +676,72 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Inventory Pagination Toolbar -->
+        @if (filteredTableInventory().length > 0) {
+          <div class="admin-pagination-bar">
+            <div class="pagination-info">
+              <span class="info-text">{{ inventoryPaginationInfo() }}</span>
+              <div class="page-size-selector">
+                <span class="page-size-label">Per page:</span>
+                <button type="button" class="size-btn" [class.active]="inventoryPageSize() === 5" (click)="setInventoryPageSize(5)">5</button>
+                <button type="button" class="size-btn" [class.active]="inventoryPageSize() === 10" (click)="setInventoryPageSize(10)">10</button>
+                <button type="button" class="size-btn" [class.active]="inventoryPageSize() === 25" (click)="setInventoryPageSize(25)">25</button>
+                <button type="button" class="size-btn" [class.active]="inventoryPageSize() === 50" (click)="setInventoryPageSize(50)">50</button>
+              </div>
+            </div>
+
+            @if (inventoryTotalPages() > 1) {
+              <div class="pagination-controls">
+                <button type="button" class="btn-page btn-nav" [disabled]="inventoryPage() === 1" (click)="setInventoryPage(1)" title="First Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="inventoryPage() === 1" (click)="setInventoryPage(inventoryPage() - 1)" title="Previous Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                  <span class="nav-text">Prev</span>
+                </button>
+
+                <div class="page-numbers">
+                  @for (item of inventoryVisiblePages(); track $index) {
+                    @if (isNumber(item)) {
+                      <button 
+                        type="button"
+                        class="btn-page" 
+                        [class.active]="inventoryPage() === item" 
+                        (click)="setInventoryPage(item)"
+                      >
+                        {{ item }}
+                      </button>
+                    } @else {
+                      <span class="page-ellipsis">…</span>
+                    }
+                  }
+                </div>
+
+                <button type="button" class="btn-page btn-nav" [disabled]="inventoryPage() === inventoryTotalPages()" (click)="setInventoryPage(inventoryPage() + 1)" title="Next Page">
+                  <span class="nav-text">Next</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="inventoryPage() === inventoryTotalPages()" (click)="setInventoryPage(inventoryTotalPages())" title="Last Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                </button>
+
+                <div class="page-jump">
+                  <span class="jump-label">Go to:</span>
+                  <input 
+                    type="number" 
+                    class="jump-input" 
+                    min="1" 
+                    [max]="inventoryTotalPages()" 
+                    [placeholder]="inventoryPage().toString()"
+                    (keydown.enter)="onInventoryJumpPage($event)"
+                    title="Type page number and press Enter"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   }
@@ -680,13 +812,13 @@
         <!-- Table Filters -->
         <div class="orders-toolbar">
           <div class="status-filter-group">
-            <button class="status-pill" [class.active]="ordersStatusFilter() === 'ALL'" (click)="ordersStatusFilter.set('ALL')">
+            <button class="status-pill" [class.active]="ordersStatusFilter() === 'ALL'" (click)="onOrdersStatusFilterChange('ALL')">
               All ({{ existingOrders().length }})
             </button>
-            <button class="status-pill placed" [class.active]="ordersStatusFilter() === 'PLACED'" (click)="ordersStatusFilter.set('PLACED')">
+            <button class="status-pill placed" [class.active]="ordersStatusFilter() === 'PLACED'" (click)="onOrdersStatusFilterChange('PLACED')">
               Active ({{ activeOrdersCount() }})
             </button>
-            <button class="status-pill cancelled" [class.active]="ordersStatusFilter() === 'CANCELLED'" (click)="ordersStatusFilter.set('CANCELLED')">
+            <button class="status-pill cancelled" [class.active]="ordersStatusFilter() === 'CANCELLED'" (click)="onOrdersStatusFilterChange('CANCELLED')">
               Cancelled ({{ cancelledOrdersCount() }})
             </button>
           </div>
@@ -694,7 +826,7 @@
             <input
               type="text"
               [ngModel]="ordersFilter()"
-              (ngModelChange)="ordersFilter.set($event)"
+              (ngModelChange)="onOrdersFilterChange($event)"
               placeholder="Filter by Order #, SKU, or ID..."
               class="table-filter-input"
             />
@@ -713,7 +845,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (ord of filteredTableOrders(); track ord.orderNumber || ord.id) {
+              @for (ord of paginatedOrders(); track ord.orderNumber || ord.id) {
                 <tr class="order-row" [class.cancelled-row]="ord.orderStatus === 'CANCELLED'">
                   <td class="order-num-cell">
                     <span class="order-num-text">{{ ord.orderNumber }}</span>
@@ -775,6 +907,73 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Orders Pagination Toolbar -->
+        @if (filteredTableOrders().length > 0) {
+          <div class="admin-pagination-bar">
+            <div class="pagination-info">
+              <span class="info-text">{{ ordersPaginationInfo() }}</span>
+              <div class="page-size-selector">
+                <span class="page-size-label">Per page:</span>
+                <button type="button" class="size-btn" [class.active]="ordersPageSize() === 5" (click)="setOrdersPageSize(5)">5</button>
+                <button type="button" class="size-btn" [class.active]="ordersPageSize() === 10" (click)="setOrdersPageSize(10)">10</button>
+                <button type="button" class="size-btn" [class.active]="ordersPageSize() === 25" (click)="setOrdersPageSize(25)">25</button>
+                <button type="button" class="size-btn" [class.active]="ordersPageSize() === 50" (click)="setOrdersPageSize(50)">50</button>
+                <button type="button" class="size-btn" [class.active]="ordersPageSize() === 100" (click)="setOrdersPageSize(100)">100</button>
+              </div>
+            </div>
+
+            @if (ordersTotalPages() > 1) {
+              <div class="pagination-controls">
+                <button type="button" class="btn-page btn-nav" [disabled]="ordersPage() === 1" (click)="setOrdersPage(1)" title="First Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="ordersPage() === 1" (click)="setOrdersPage(ordersPage() - 1)" title="Previous Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                  <span class="nav-text">Prev</span>
+                </button>
+
+                <div class="page-numbers">
+                  @for (item of ordersVisiblePages(); track $index) {
+                    @if (isNumber(item)) {
+                      <button 
+                        type="button"
+                        class="btn-page" 
+                        [class.active]="ordersPage() === item" 
+                        (click)="setOrdersPage(item)"
+                      >
+                        {{ item }}
+                      </button>
+                    } @else {
+                      <span class="page-ellipsis">…</span>
+                    }
+                  }
+                </div>
+
+                <button type="button" class="btn-page btn-nav" [disabled]="ordersPage() === ordersTotalPages()" (click)="setOrdersPage(ordersPage() + 1)" title="Next Page">
+                  <span class="nav-text">Next</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="btn-page btn-nav" [disabled]="ordersPage() === ordersTotalPages()" (click)="setOrdersPage(ordersTotalPages())" title="Last Page">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                </button>
+
+                <div class="page-jump">
+                  <span class="jump-label">Go to:</span>
+                  <input 
+                    type="number" 
+                    class="jump-input" 
+                    min="1" 
+                    [max]="ordersTotalPages()" 
+                    [placeholder]="ordersPage().toString()"
+                    (keydown.enter)="onOrdersJumpPage($event)"
+                    title="Type page number and press Enter"
+                  />
+                </div>
+              </div>
+            }
+          </div>
+        }
       </div>
     </div>
   }

@@ -32,7 +32,7 @@ def start_tunnel(t):
     cmd = [
         "kubectl", "port-forward",
         "-n", t["ns"],
-        "--address", "0.0.0.0,127.0.0.1",
+        "--address", "0.0.0.0",
         f"svc/{t['svc']}",
         f"{t['local']}:{t['remote']}"
     ]

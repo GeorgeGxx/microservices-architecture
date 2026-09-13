@@ -165,6 +165,90 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     );
   });
 
+  // Products Pagination
+  readonly productsPage = signal<number>(1);
+  readonly productsPageSize = signal<number>(10);
+
+  readonly productsTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.filteredTableProducts().length / this.productsPageSize()))
+  );
+
+  readonly paginatedProducts = computed(() => {
+    const list = this.filteredTableProducts();
+    const page = this.productsPage();
+    const size = this.productsPageSize();
+    const start = (page - 1) * size;
+    return list.slice(start, start + size);
+  });
+
+  readonly productsVisiblePages = computed<(number | string)[]>(() =>
+    this.calculateVisiblePages(this.productsPage(), this.productsTotalPages())
+  );
+
+  readonly productsPaginationInfo = computed(() => {
+    const total = this.filteredTableProducts().length;
+    if (total === 0) return 'Showing 0 products';
+    const start = (this.productsPage() - 1) * this.productsPageSize() + 1;
+    const end = Math.min(start + this.productsPageSize() - 1, total);
+    return `Showing ${start}-${end} of ${total} products`;
+  });
+
+  // Inventory Pagination
+  readonly inventoryPage = signal<number>(1);
+  readonly inventoryPageSize = signal<number>(10);
+
+  readonly inventoryTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.filteredTableInventory().length / this.inventoryPageSize()))
+  );
+
+  readonly paginatedInventory = computed(() => {
+    const list = this.filteredTableInventory();
+    const page = this.inventoryPage();
+    const size = this.inventoryPageSize();
+    const start = (page - 1) * size;
+    return list.slice(start, start + size);
+  });
+
+  readonly inventoryVisiblePages = computed<(number | string)[]>(() =>
+    this.calculateVisiblePages(this.inventoryPage(), this.inventoryTotalPages())
+  );
+
+  readonly inventoryPaginationInfo = computed(() => {
+    const total = this.filteredTableInventory().length;
+    if (total === 0) return 'Showing 0 items';
+    const start = (this.inventoryPage() - 1) * this.inventoryPageSize() + 1;
+    const end = Math.min(start + this.inventoryPageSize() - 1, total);
+    return `Showing ${start}-${end} of ${total} items`;
+  });
+
+  // Orders Pagination
+  readonly ordersPage = signal<number>(1);
+  readonly ordersPageSize = signal<number>(10);
+
+  readonly ordersTotalPages = computed(() =>
+    Math.max(1, Math.ceil(this.filteredTableOrders().length / this.ordersPageSize()))
+  );
+
+  readonly paginatedOrders = computed(() => {
+    const list = this.filteredTableOrders();
+    const page = this.ordersPage();
+    const size = this.ordersPageSize();
+    const start = (page - 1) * size;
+    return list.slice(start, start + size);
+  });
+
+  readonly ordersVisiblePages = computed<(number | string)[]>(() =>
+    this.calculateVisiblePages(this.ordersPage(), this.ordersTotalPages())
+  );
+
+  readonly ordersPaginationInfo = computed(() => {
+    const total = this.filteredTableOrders().length;
+    if (total === 0) return 'Showing 0 orders';
+    const start = (this.ordersPage() - 1) * this.ordersPageSize() + 1;
+    const end = Math.min(start + this.ordersPageSize() - 1, total);
+    return `Showing ${start}-${end} of ${total} orders`;
+  });
+
   readonly HARDWARE_PRESETS = [
     { name: 'Apple Vision Pro', sku: 'SKU-VISION-PRO', price: 3499.00, initialStock: 20, desc: 'Spatial computer blending digital media with the real world' },
     { name: 'PlayStation 5 Pro', sku: 'SKU-PS5-PRO-2TB', price: 699.99, initialStock: 45, desc: 'Enhanced 4K gaming at 60fps with advanced ray tracing' },
@@ -522,5 +606,111 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
         this.toastService.error('Inventory Save Failed', err?.error?.message || 'Unable to persist stock allocation.');
       }
     });
+  }
+
+  isNumber(val: number | string): val is number {
+    return typeof val === 'number';
+  }
+
+  private calculateVisiblePages(current: number, total: number): (number | string)[] {
+    if (total <= 7) {
+      return Array.from({ length: total }, (_, i) => i + 1);
+    }
+    if (current <= 4) {
+      return [1, 2, 3, 4, 5, '...', total];
+    }
+    if (current >= total - 3) {
+      return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+    }
+    return [1, '...', current - 1, current, current + 1, '...', total];
+  }
+
+  // Products Pagination Handlers
+  setProductsPage(page: number): void {
+    if (page >= 1 && page <= this.productsTotalPages()) {
+      this.productsPage.set(page);
+    }
+  }
+
+  setProductsPageSize(size: number): void {
+    this.productsPageSize.set(size);
+    this.productsPage.set(1);
+  }
+
+  onProductsJumpPage(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const p = parseInt(input.value, 10);
+    if (!isNaN(p) && p >= 1 && p <= this.productsTotalPages()) {
+      this.productsPage.set(p);
+      input.value = '';
+    } else {
+      input.value = '';
+    }
+  }
+
+  // Inventory Pagination Handlers
+  setInventoryPage(page: number): void {
+    if (page >= 1 && page <= this.inventoryTotalPages()) {
+      this.inventoryPage.set(page);
+    }
+  }
+
+  setInventoryPageSize(size: number): void {
+    this.inventoryPageSize.set(size);
+    this.inventoryPage.set(1);
+  }
+
+  onInventoryJumpPage(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const p = parseInt(input.value, 10);
+    if (!isNaN(p) && p >= 1 && p <= this.inventoryTotalPages()) {
+      this.inventoryPage.set(p);
+      input.value = '';
+    } else {
+      input.value = '';
+    }
+  }
+
+  // Orders Pagination Handlers
+  setOrdersPage(page: number): void {
+    if (page >= 1 && page <= this.ordersTotalPages()) {
+      this.ordersPage.set(page);
+    }
+  }
+
+  setOrdersPageSize(size: number): void {
+    this.ordersPageSize.set(size);
+    this.ordersPage.set(1);
+  }
+
+  onOrdersJumpPage(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const p = parseInt(input.value, 10);
+    if (!isNaN(p) && p >= 1 && p <= this.ordersTotalPages()) {
+      this.ordersPage.set(p);
+      input.value = '';
+    } else {
+      input.value = '';
+    }
+  }
+
+  onProductFilterChange(query: string): void {
+    this.productFilter.set(query);
+    this.productsPage.set(1);
+  }
+
+  onInventoryFilterChange(query: string): void {
+    this.inventoryFilter.set(query);
+    this.inventoryPage.set(1);
+  }
+
+  onOrdersFilterChange(query: string): void {
+    this.ordersFilter.set(query);
+    this.ordersPage.set(1);
+  }
+
+  onOrdersStatusFilterChange(status: 'ALL' | 'PLACED' | 'CANCELLED'): void {
+    this.ordersStatusFilter.set(status);
+    this.ordersPage.set(1);
   }
 }
