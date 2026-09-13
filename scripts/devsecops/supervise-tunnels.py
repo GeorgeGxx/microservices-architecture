@@ -39,6 +39,7 @@ def start_tunnel(t):
     return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 # Start all tunnels
+processes = {}
 for t in tunnels:
     proc = start_tunnel(t)
     processes[t["name"]] = (t, proc)

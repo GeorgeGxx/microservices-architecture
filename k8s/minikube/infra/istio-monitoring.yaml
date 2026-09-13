@@ -1,0 +1,25 @@
+# ==============================================================================
+# Istio Envoy Proxy Prometheus Metrics PodMonitor
+# Scrapes Envoy sidecar metrics on port 15090 (/stats/prometheus)
+# Enables Kiali dashboard Service Insights (Traffic, Error Rates & Latencies)
+# ==============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: envoy-stats
+  namespace: observability
+  labels:
+    release: kube-prometheus
+spec:
+  selector:
+    matchExpressions:
+      - key: istio-prometheus-ignore
+        operator: DoesNotExist
+  namespaceSelector:
+    matchNames:
+      - dev
+      - istio-system
+  podMetricsEndpoints:
+    - port: http-envoy-prom
+      path: /stats/prometheus
+      interval: 10s

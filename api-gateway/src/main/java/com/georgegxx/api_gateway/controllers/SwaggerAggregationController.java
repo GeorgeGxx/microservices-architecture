@@ -73,6 +73,13 @@ public class SwaggerAggregationController {
                 .doOnNext(merged -> this.cachedSpec = new CachedOpenApi(System.currentTimeMillis(), merged));
     }
 
+    @GetMapping(value = {"/swagger-ui/index.html", "/swagger-ui", "/swagger-ui/"})
+    public Mono<Void> redirectToSwaggerUi(org.springframework.web.server.ServerWebExchange exchange) {
+        exchange.getResponse().setStatusCode(org.springframework.http.HttpStatus.FOUND);
+        exchange.getResponse().getHeaders().setLocation(java.net.URI.create("/webjars/swagger-ui/index.html"));
+        return exchange.getResponse().setComplete();
+    }
+
     private Mono<FetchedSpec> fetchServiceSpec(ServiceDefinition svc) {
         String docUrl = svc.baseUri() + "/v3/api-docs";
         return webClient.get()
