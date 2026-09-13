@@ -22,7 +22,10 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       return next(authReq).pipe(
         catchError((err: HttpErrorResponse) => {
           if (err.status === 401) {
-            console.warn('[AUTH] 401 Unauthorized received. Retrying public request without stale token if applicable...');
+            console.warn('[AUTH] 401 Unauthorized received. Invalidating stale auth state...');
+            keycloakService.isAuthenticated.set(false);
+            keycloakService.userProfile.set(null);
+
             if (req.method === 'GET' && (req.url.includes('/api/product') || req.url.includes('/api/inventory'))) {
               const unauthReq = req.clone({
                 headers: req.headers.delete('Authorization')

@@ -28,6 +28,23 @@ export class KeycloakService {
         checkLoginIframe: false
       });
 
+      this.keycloakInstance.onTokenExpired = () => {
+        this.keycloakInstance?.updateToken(30).catch(() => {
+          this.isAuthenticated.set(false);
+          this.userProfile.set(null);
+        });
+      };
+
+      this.keycloakInstance.onAuthRefreshError = () => {
+        this.isAuthenticated.set(false);
+        this.userProfile.set(null);
+      };
+
+      this.keycloakInstance.onAuthLogout = () => {
+        this.isAuthenticated.set(false);
+        this.userProfile.set(null);
+      };
+
       // 3.5-second guard timeout to avoid freezing startup if Keycloak is unreachable
       const timeoutPromise = new Promise<boolean>((resolve) => {
         setTimeout(() => {
@@ -93,18 +110,33 @@ export class KeycloakService {
       this.refreshPromise ??= this.keycloakInstance.updateToken(30)
         .then(refreshed => {
           this.refreshPromise = undefined;
+          if (refreshed) {
+            this.isAuthenticated.set(true);
+          }
           return refreshed;
         })
         .catch(err => {
           this.refreshPromise = undefined;
           console.warn('Notice while refreshing token:', err);
+          this.isAuthenticated.set(false);
+          this.userProfile.set(null);
           return false;
         });
 
       await this.refreshPromise;
+      if (this.keycloakInstance.isTokenExpired()) {
+        this.isAuthenticated.set(false);
+        this.userProfile.set(null);
+        return undefined;
+      }
       return this.keycloakInstance.token;
     } catch (error) {
       console.warn('Error in getToken:', error);
+      if (this.keycloakInstance?.isTokenExpired()) {
+        this.isAuthenticated.set(false);
+        this.userProfile.set(null);
+        return undefined;
+      }
       return this.keycloakInstance.token;
     }
   }
