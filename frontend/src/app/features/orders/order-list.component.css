@@ -802,10 +802,88 @@
 .jump-input[type=number] {
   -moz-appearance: textfield;
 }
-.loading-state, .empty-state {
+.loading-state, .empty-state, .auth-required-state {
   text-align: center;
   padding: 64px 16px;
   color: #94a3b8;
+}
+.auth-required-state {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  max-width: 540px;
+  margin: 32px auto;
+  padding: 48px 24px;
+}
+.auth-lock-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+  margin-bottom: 20px;
+  box-shadow: 0 0 24px rgba(99, 102, 241, 0.2);
+}
+.auth-required-state h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 10px;
+}
+.auth-required-state p {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  max-width: 420px;
+  margin: 0 auto 28px;
+  line-height: 1.5;
+}
+.auth-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-primary-auth {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.35);
+  transition: all 0.2s ease;
+}
+.btn-primary-auth:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+.btn-secondary-catalog {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  text-decoration: none;
+  padding: 12px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+.btn-secondary-catalog:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
 .error-banner {
   display: flex;
@@ -817,6 +895,19 @@
   border-radius: 12px;
   color: #fca5a5;
   margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.error-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.error-info svg {
+  flex-shrink: 0;
+  color: #ef4444;
 }
 .btn-retry {
   background: rgba(239, 68, 68, 0.2);
@@ -826,6 +917,10 @@
   border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-retry:hover {
+  background: rgba(239, 68, 68, 0.3);
 }
 .spinner {
   width: 40px;

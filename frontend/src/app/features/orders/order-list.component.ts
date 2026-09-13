@@ -36,6 +36,7 @@ export class OrderListComponent implements OnInit, OnDestroy {
   readonly orders = signal<OrderResponse[]>([]);
   readonly isLoading = signal<boolean>(true);
   readonly errorMessage = signal<string | null>(null);
+  readonly isAuthRequired = signal<boolean>(false);
   readonly cancellingOrderId = signal<number | null>(null);
   readonly selectedTab = signal<OrderFilterTab>('ALL');
   readonly selectedOrderForModal = signal<OrderResponse | null>(null);
@@ -213,9 +214,19 @@ export class OrderListComponent implements OnInit, OnDestroy {
   }
 
   loadOrders(silent = false): void {
+    if (!this.keycloakService.isAuthenticated()) {
+      if (!silent) {
+        this.isLoading.set(false);
+        this.isAuthRequired.set(true);
+        this.errorMessage.set(null);
+      }
+      return;
+    }
+
     if (!silent) {
       this.isLoading.set(true);
       this.errorMessage.set(null);
+      this.isAuthRequired.set(false);
     }
 
     this.orderService.getOrders().subscribe({
@@ -230,15 +241,27 @@ export class OrderListComponent implements OnInit, OnDestroy {
         });
         this.orders.set(sorted);
         this.isLoading.set(false);
+        this.isAuthRequired.set(false);
       },
       error: (err) => {
         if (!silent) {
           this.isLoading.set(false);
-          this.errorMessage.set('Failed to load order history from Orders Service.');
+          if (err.status === 401 || err.status === 403) {
+            this.isAuthRequired.set(true);
+            this.keycloakService.isAuthenticated.set(false);
+            this.errorMessage.set('Your session has expired. Please sign in again to view your order history.');
+          } else {
+            this.isAuthRequired.set(false);
+            this.errorMessage.set(err?.error?.message || 'Failed to load order history from Orders Service.');
+          }
         }
         console.error(err);
       }
     });
+  }
+
+  login(): void {
+    this.keycloakService.login();
   }
 
   cancelOrder(order: OrderResponse): void {
