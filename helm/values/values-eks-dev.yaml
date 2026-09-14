@@ -46,10 +46,11 @@ products-service:
   #     {{- end -}}
 
 frontend:
+  enabled: false
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/frontend"
     tag: "1.0.0"
-  replicaCount: 1
+  replicaCount: 0
 
 # AWS Load Balancer Controller Ingress Configuration
 ingress:

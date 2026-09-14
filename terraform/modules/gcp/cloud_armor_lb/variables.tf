@@ -18,6 +18,12 @@ variable "rate_limit_count" {
   default     = 1000
 }
 
+variable "gcs_bucket_name" {
+  description = "GCS bucket name providing static Angular frontend content"
+  type        = string
+  default     = ""
+}
+
 variable "labels" {
   type    = map(string)
   default = {}

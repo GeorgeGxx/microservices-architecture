@@ -14,7 +14,6 @@ module "vnet" {
   vnet_cidr           = local.cfg.vnet_cidr
   aks_subnet_cidr     = local.cfg.aks_subnet_cidr
   db_subnet_cidr      = local.cfg.db_subnet_cidr
-  appgw_subnet_cidr   = local.cfg.enable_app_gateway ? local.cfg.appgw_subnet_cidr : null
   tags                = local.tags
 }
 
@@ -167,28 +166,29 @@ module "eventhubs" {
   tags                = local.tags
 }
 
-module "app_gateway" {
-  count  = local.cfg.enable_app_gateway ? 1 : 0
-  source = "../../modules/azure/app_gateway"
-
-  name                = local.name
-  environment         = local.env
-  location            = var.location
+# Public IP for AKS Standard Load Balancer fronting NGINX Ingress Controller (L4)
+resource "azurerm_public_ip" "aks_nginx_lb" {
+  name                = "${local.name}-${local.env}-nginx-pip"
   resource_group_name = azurerm_resource_group.this.name
-  subnet_id           = module.vnet.appgw_subnet_id
+  location            = var.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
   tags                = local.tags
 }
 
+# Azure Front Door Premium Dual-Origin (Storage Account Blob Frontend + AKS SLB API)
+# Protected by Managed Azure WAF Policy (OWASP Top 10 + Bot Protection)
 module "frontdoor" {
-  count  = local.cfg.enable_frontdoor && local.cfg.enable_app_gateway ? 1 : 0
+  count  = local.cfg.enable_frontdoor ? 1 : 0
   source = "../../modules/azure/frontdoor"
 
-  name                = local.name
-  environment         = local.env
-  resource_group_name = azurerm_resource_group.this.name
-  origin_address      = module.app_gateway[0].public_ip_address
-  origin_host_header  = var.domain_name != "" ? var.domain_name : module.app_gateway[0].public_ip_address
-  tags                = local.tags
+  name                  = local.name
+  environment           = local.env
+  resource_group_name   = azurerm_resource_group.this.name
+  storage_blob_endpoint = module.storage_account.primary_blob_endpoint
+  api_backend_address   = azurerm_public_ip.aks_nginx_lb.ip_address
+  domain_name           = var.domain_name
+  tags                  = local.tags
 }
 
 module "dns_zone" {
@@ -197,6 +197,6 @@ module "dns_zone" {
 
   domain_name         = var.domain_name
   resource_group_name = azurerm_resource_group.this.name
-  target_ip           = local.cfg.enable_app_gateway ? module.app_gateway[0].public_ip_address : null
+  target_ip           = azurerm_public_ip.aks_nginx_lb.ip_address
   tags                = local.tags
 }

@@ -40,13 +40,13 @@ resource "google_compute_security_policy" "this" {
   }
 }
 
-# Global Static IP
+# Global Static IP for External HTTPS Load Balancer
 resource "google_compute_global_address" "this" {
   name        = "${var.name}-${var.environment}-lb-ip"
-  description = "Global IP address for ${var.name} HTTPS Load Balancer"
+  description = "Global IP address for ${var.name} Dual-Origin HTTPS Load Balancer"
 }
 
-# HTTP Health Check
+# HTTP Health Check for Kong Ingress Controller
 resource "google_compute_health_check" "http" {
   name                = "${var.name}-${var.environment}-hc"
   check_interval_sec  = 15
@@ -60,8 +60,8 @@ resource "google_compute_health_check" "http" {
   }
 }
 
-# Global Backend Service
-resource "google_compute_backend_service" "this" {
+# Backend Service for Dynamic API & Keycloak (Kong Ingress L4 NLB Target)
+resource "google_compute_backend_service" "api_backend" {
   name                  = "${var.name}-${var.environment}-backend-svc"
   protocol              = "HTTP"
   port_name             = "http"
@@ -72,10 +72,46 @@ resource "google_compute_backend_service" "this" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
 }
 
-# URL Map
+# Backend Bucket for Static Angular Frontend (Google Cloud Storage) with Cloud CDN
+resource "google_compute_backend_bucket" "static_frontend" {
+  count       = var.gcs_bucket_name != "" ? 1 : 0
+  name        = "${var.name}-${var.environment}-frontend-bucket"
+  description = "GCS Backend Bucket serving Angular 21 static files"
+  bucket_name = var.gcs_bucket_name
+  enable_cdn  = true
+
+  cdn_policy {
+    cache_mode        = "CACHE_ALL_STATIC"
+    client_ttl        = 3600
+    default_ttl       = 3600
+    max_ttl           = 86400
+    negative_caching  = true
+    serve_while_stale = 86400
+  }
+}
+
+# URL Map with Dual-Origin Path Matcher:
+# - Default (/*): Points to GCS Bucket (Static Angular Frontend) with Cloud CDN
+# - /api/* & /realms/*: Points to Backend Service (Kong Ingress on GKE) with Cloud Armor WAF
 resource "google_compute_url_map" "this" {
-  name            = "${var.name}-${var.environment}-url-map"
-  default_service = google_compute_backend_service.this.id
+  name = "${var.name}-${var.environment}-url-map"
+
+  default_service = var.gcs_bucket_name != "" ? google_compute_backend_bucket.static_frontend[0].id : google_compute_backend_service.api_backend.id
+
+  host_rule {
+    hosts        = ["*"]
+    path_matcher = "allpaths"
+  }
+
+  path_matcher {
+    name            = "allpaths"
+    default_service = var.gcs_bucket_name != "" ? google_compute_backend_bucket.static_frontend[0].id : google_compute_backend_service.api_backend.id
+
+    path_rule {
+      paths   = ["/api/*", "/realms/*"]
+      service = google_compute_backend_service.api_backend.id
+    }
+  }
 }
 
 # Managed SSL Certificate (if domain is provided)
@@ -96,13 +132,13 @@ resource "google_compute_target_https_proxy" "this" {
   ssl_certificates = [google_compute_managed_ssl_certificate.this[0].id]
 }
 
-# Target HTTP Proxy (for HTTP redirect / fallback)
+# Target HTTP Proxy
 resource "google_compute_target_http_proxy" "this" {
   name    = "${var.name}-${var.environment}-http-proxy"
   url_map = google_compute_url_map.this.id
 }
 
-# Global Forwarding Rule (HTTPS if domain provided, else HTTP)
+# Global Forwarding Rules (HTTPS if domain provided, HTTP fallback)
 resource "google_compute_global_forwarding_rule" "https" {
   count                 = var.domain_name != "" ? 1 : 0
   name                  = "${var.name}-${var.environment}-https-fr"

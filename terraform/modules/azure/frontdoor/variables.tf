@@ -13,27 +13,26 @@ variable "resource_group_name" {
   type        = string
 }
 
-variable "origin_host_header" {
-  description = "Host header sent to the origin"
+variable "storage_blob_endpoint" {
+  description = "Primary blob endpoint hostname of Azure Storage Account serving static frontend"
   type        = string
-  default     = null
 }
 
-variable "origin_address" {
-  description = "Public IP or FQDN of the backend (e.g. Application Gateway Public IP)"
+variable "api_backend_address" {
+  description = "Public IP or FQDN of the AKS Standard Load Balancer fronting NGINX Ingress"
   type        = string
+}
+
+variable "domain_name" {
+  description = "Custom domain name (optional)"
+  type        = string
+  default     = ""
 }
 
 variable "certificate_name_check_enabled" {
   description = "Specifies whether certificate name check is enabled"
   type        = bool
   default     = false
-}
-
-variable "sku_name" {
-  description = "SKU for Front Door profile (Standard_AzureFrontDoor or Premium_AzureFrontDoor)"
-  type        = string
-  default     = "Standard_AzureFrontDoor"
 }
 
 variable "tags" {

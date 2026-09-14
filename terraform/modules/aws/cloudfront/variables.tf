@@ -8,15 +8,24 @@ variable "environment" {
   type        = string
 }
 
-variable "origin_domain_name" {
-  description = "Domain name of the origin (e.g. S3 bucket regional domain name or ALB DNS name)"
+variable "s3_bucket_domain_name" {
+  description = "Regional domain name of the S3 bucket serving the Angular 21 static frontend"
   type        = string
 }
 
-variable "origin_id" {
-  description = "Unique identifier for the origin"
+variable "s3_bucket_arn" {
+  description = "ARN of the S3 bucket serving static frontend assets (for CloudFront OAC policy)"
   type        = string
-  default     = "primaryOrigin"
+}
+
+variable "s3_bucket_id" {
+  description = "ID / Name of the S3 bucket serving static assets"
+  type        = string
+}
+
+variable "api_origin_domain_name" {
+  description = "Domain name of the backend API origin (AWS NLB DNS name fronting Traefik Ingress)"
+  type        = string
 }
 
 variable "aliases" {

@@ -98,6 +98,7 @@ module "cloud_armor_lb" {
   environment      = local.env
   domain_name      = var.domain_name
   rate_limit_count = local.cfg.rate_limit_count
+  gcs_bucket_name  = module.gcs.bucket_name
   labels           = local.labels
 }
 

@@ -407,101 +407,92 @@
         <mxCell id="t7" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;END-TO-END REQUEST FLOW &amp; ORDER PROCESSING SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Complete journey: Angular 21 SPA ➔ Istio Ingress ➔ API Gateway ➔ Microservices ➔ Kafka ➔ Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1300" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_fe" parent="1" value="&lt;b&gt;1. Frontend SPA&lt;br&gt;(Angular 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
-          <mxGeometry x="80" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_fe" parent="1" value="&lt;b&gt;1. Client / SPA&lt;br&gt;(Angular 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="60" y="110" width="150" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_igw" parent="1" value="&lt;b&gt;2. Istio Ingress&lt;br&gt;Gateway (80/443)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
-          <mxGeometry x="280" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_igw" parent="1" value="&lt;b&gt;2. Ingress Controller&lt;br&gt;(Kong / NGINX / Traefik)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
+          <mxGeometry x="240" y="110" width="170" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_kc" parent="1" value="&lt;b&gt;3. Keycloak IAM&lt;br&gt;(OAuth2 / PKCE)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
-          <mxGeometry x="480" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_kc" parent="1" value="&lt;b&gt;3. Keycloak IAM&lt;br&gt;(OIDC / PKCE / JWKS)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
+          <mxGeometry x="440" y="110" width="160" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_gw" parent="1" value="&lt;b&gt;4. API Gateway&lt;br&gt;(Spring Cloud)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
-          <mxGeometry x="680" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_mesh" parent="1" value="&lt;b&gt;4. Istio Envoy Mesh&lt;br&gt;(mTLS STRICT SPIFFE)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="630" y="110" width="160" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_redis" parent="1" value="&lt;b&gt;5. Redis 8.8&lt;br&gt;(Rate Limiter)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;" vertex="1">
-          <mxGeometry x="880" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_gw" parent="1" value="&lt;b&gt;5. Spring Cloud Gateway&lt;br&gt;(JWT Filter / TokenRelay)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
+          <mxGeometry x="820" y="110" width="170" height="50" as="geometry" />
         </mxCell>
         <mxCell id="e_ord" parent="1" value="&lt;b&gt;6. Orders Service&lt;br&gt;(Spring Boot 3.4)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1080" y="110" width="160" height="50" as="geometry" />
+          <mxGeometry x="1020" y="110" width="150" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_prod_inv" parent="1" value="&lt;b&gt;7. Products &amp;&lt;br&gt;Inventory (DBs)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1280" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_prod_inv" parent="1" value="&lt;b&gt;7. Products / Inventory&lt;br&gt;&amp; Kafka KRaft&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="1200" y="110" width="170" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_kafka" parent="1" value="&lt;b&gt;8. Kafka &amp;&lt;br&gt;Notification&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
-          <mxGeometry x="1480" y="110" width="160" height="50" as="geometry" />
-        </mxCell>
-        <mxCell id="e_obs" parent="1" value="&lt;b&gt;9. LGTM Telemetry&lt;br&gt;(OTel/Tempo/Loki)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
-          <mxGeometry x="1680" y="110" width="160" height="50" as="geometry" />
+        <mxCell id="e_obs" parent="1" value="&lt;b&gt;8. Kiali Dashboard &amp;&lt;br&gt;LGTM Observability&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
+          <mxGeometry x="1400" y="110" width="180" height="50" as="geometry" />
         </mxCell>
         <mxCell id="l_fe" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="160" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="135" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_igw" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="360" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="325" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_kc" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="560" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="520" y="160" width="10" height="780" as="geometry" />
+        </mxCell>
+        <mxCell id="l_mesh" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="710" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_gw" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="760" y="160" width="10" height="780" as="geometry" />
-        </mxCell>
-        <mxCell id="l_redis" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="960" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="905" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_ord" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="1160" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="1095" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_prod_inv" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="1360" y="160" width="10" height="780" as="geometry" />
-        </mxCell>
-        <mxCell id="l_kafka" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="1560" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="1285" y="160" width="10" height="780" as="geometry" />
         </mxCell>
         <mxCell id="l_obs" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
-          <mxGeometry x="1760" y="160" width="10" height="780" as="geometry" />
+          <mxGeometry x="1490" y="160" width="10" height="780" as="geometry" />
         </mxCell>
-        <mxCell id="st1" parent="1" value="1. User initiates Self-Registration or Login in Angular 21 SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="160" y="190" width="400" height="32" as="geometry" />
+        <mxCell id="st1" parent="1" value="1. User initiates OAuth2 Login / PKCE flow from Angular 21 SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="135" y="190" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st2" parent="1" value="2. Keycloak registers user, assigns default ROLE_USER, and issues signed JWT Access Token" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="160" y="240" width="400" height="32" as="geometry" />
+        <mxCell id="st2" parent="1" value="2. Ingress Controller (Kong/NGINX/Traefik) routes auth requests directly to Keycloak" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="325" y="235" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st3" parent="1" value="3. HTTP POST /api/order (Authorization: Bearer &amp;lt;JWT&amp;gt;, traceparent)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="160" y="290" width="200" height="32" as="geometry" />
+        <mxCell id="st3" parent="1" value="3. Keycloak validates credentials, issues signed JWT Access Token (JWKS, roles, 'sub')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="135" y="280" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st4" parent="1" value="4. Istio Ingress Gateway terminates edge TLS &amp; forwards via STRICT mTLS (SPIFFE ID)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="360" y="340" width="400" height="32" as="geometry" />
+        <mxCell id="st4" parent="1" value="4. HTTP POST /api/orders (Authorization: Bearer &amp;lt;JWT&amp;gt;, traceparent header)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="135" y="325" width="190" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st5" parent="1" value="5. API Gateway evaluates Redis Token Bucket Rate Limiter (20 req/s, burst 40)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="760" y="390" width="200" height="32" as="geometry" />
+        <mxCell id="st5" parent="1" value="5. Ingress Controller applies L7 security: rate-limiting (100 req/s), security headers &amp; WAF sanitization" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="325" y="370" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st6" parent="1" value="6. API Gateway verifies JWT cryptographic signature against Keycloak JWKS endpoint" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="560" y="440" width="200" height="32" as="geometry" />
+        <mxCell id="st6" parent="1" value="6. Istio Envoy Sidecar intercepts egress, applies VirtualService &amp; encrypts with STRICT mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="710" y="415" width="195" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st7" parent="1" value="7. API Gateway creates OTel span and proxies request to Orders Service over mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="760" y="490" width="400" height="32" as="geometry" />
+        <mxCell id="st7" parent="1" value="7. Spring Cloud Gateway validates JWT against Keycloak JWKS, extracts user claims &amp; TokenRelay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="520" y="460" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st8" parent="1" value="8. Orders Service calls Products Service (GET /api/product/{id}) to validate catalog &amp; price" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="540" width="200" height="32" as="geometry" />
+        <mxCell id="st8" parent="1" value="8. Spring Cloud Gateway evaluates Resilience4j Circuit Breaker &amp; forwards to orders-service:8003 over mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="905" y="505" width="190" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st9" parent="1" value="9. Orders Service calls Inventory Service (POST /api/inventory/check-and-lock) to lock stock in db-inventory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="590" width="200" height="32" as="geometry" />
+        <mxCell id="st9" parent="1" value="9. Orders Service verifies inventory with Inventory Service and creates saga transaction in PostgreSQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="1095" y="550" width="190" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st10" parent="1" value="10. Orders Service binds authenticated userId/username and persists Order in db-orders (Multi-Tenant Isolation)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="640" width="450" height="32" as="geometry" />
+        <mxCell id="st10" parent="1" value="10. Orders Service publishes order-created event to Kafka KRaft (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="1095" y="595" width="190" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st11" parent="1" value="11. Orders Service emits 'orders-topic' event to Apache Kafka cluster (Port 9094 / SASL PLAIN)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1160" y="690" width="400" height="32" as="geometry" />
+        <mxCell id="st11" parent="1" value="11. Orders Service returns HTTP 201 Created ➔ Spring Cloud Gateway ➔ Ingress ➔ Angular SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="135" y="640" width="960" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st12" parent="1" value="12. Orders Service returns HTTP 201 Created response ➔ API Gateway ➔ Frontend SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="160" y="740" width="1000" height="32" as="geometry" />
+        <mxCell id="st12" parent="1" value="12. Kiali Dashboard captures mesh topology: [Ingress] ➔ [api-gateway] ➔ [orders-service] with green 🔒 mTLS lock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;" vertex="1">
+          <mxGeometry x="710" y="690" width="780" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st13" parent="1" value="13. Notification Service asynchronously consumes Kafka event over SASL PLAIN (Port 9094) &amp; sends confirmation email" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
-          <mxGeometry x="1560" y="790" width="150" height="32" as="geometry" />
-        </mxCell>
-        <mxCell id="st14" parent="1" value="14. Continuous Observability: Prometheus tracks conversion funnels, loyalty cohorts, basket sizes, logistics pipelines, idempotency &amp; Grafana visualizes e-commerce business KPIs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;" vertex="1">
-          <mxGeometry x="760" y="840" width="1000" height="32" as="geometry" />
+        <mxCell id="st13" parent="1" value="13. Full Telemetry Collection: Prometheus scrapes RPS/latencies, Tempo correlates OTel spans, Loki indexes logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;fontSize=10;align=left;spacingLeft=8;dashed=1;" vertex="1">
+          <mxGeometry x="905" y="740" width="585" height="32" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
@@ -793,19 +784,19 @@
         <mxCell id="c_aws" parent="1" value="&lt;b&gt;☁️ AMAZON WEB SERVICES (AWS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/aws/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="60" y="90" width="570" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="aws_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; VPC (3 AZs, Private/Public)&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; EKS Cluster + Managed Nodes&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; RDS PostgreSQL 17 (Multi-AZ)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; ElastiCache Redis 7.1 Replication&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Amazon MSK (Apache Kafka 3.6)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; S3 Assets Bucket (SSE-KMS, Versioning)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; AWS KMS (CMK Key &amp; Alias)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; IAM IRSA (OIDC Trust Provider)&lt;br&gt;• &lt;b&gt;Ingress:&lt;/b&gt; Application Load Balancer (ALB)&lt;br&gt;• &lt;b&gt;CDN:&lt;/b&gt; CloudFront Distribution + OAC&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; CloudWatch Alarms &amp; Dashboards&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Route53 Zone + ACM Wildcard SSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="aws_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; VPC (3 AZs, Private/Public)&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; EKS Cluster + Managed Nodes&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; RDS PostgreSQL 17 (Multi-AZ)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; ElastiCache Redis 7.1 Replication&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Amazon MSK (Apache Kafka 3.6)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; S3 Assets Bucket (SSE-KMS, Versioning)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; AWS KMS (CMK Key &amp; Alias)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; IAM IRSA (OIDC Trust Provider)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; Traefik Ingress + Network Load Balancer (NLB L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; CloudFront + WAFv2 (S3 Static SPA + NLB Dynamic API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; CloudWatch Alarms &amp; Dashboards&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Route53 Zone + Apex Alias to CloudFront + ACM SSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="150" width="530" height="390" as="geometry" />
         </mxCell>
         <mxCell id="c_azure" parent="1" value="&lt;b&gt;☁️ MICROSOFT AZURE CLOUD&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/azure/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="660" y="90" width="570" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="azure_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; VNet + AppGW/DB Subnets&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; AKS Cluster (Managed Autoscaling)&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Azure PostgreSQL Flexible Server (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Azure Cache for Redis (TLS 1.2)&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Azure Event Hubs (Kafka Surface)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Azure Storage Account (Blob Containers)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Azure Key Vault (Soft-delete, Purge)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; Azure Workload Identity (Federated Creds)&lt;br&gt;• &lt;b&gt;Ingress:&lt;/b&gt; Application Gateway (WAF v2, Health Probe)&lt;br&gt;• &lt;b&gt;CDN:&lt;/b&gt; Azure Front Door (Profiles &amp; Routes)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Azure Monitor (Log Analytics, App Insights)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Azure DNS Zone + Custom A-Records" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="azure_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; VNet + Subnets (AKS &amp; Postgres)&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; AKS Cluster (Managed Autoscaling)&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Azure PostgreSQL Flexible Server (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Azure Cache for Redis (TLS 1.2)&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Azure Event Hubs (Kafka Surface)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Azure Storage Account (Blob Containers)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Azure Key Vault (Soft-delete, Purge)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; Azure Workload Identity (Federated Creds)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; NGINX Ingress + Azure Standard Load Balancer (L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; Front Door Premium (Storage Blob SPA + AKS SLB API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Azure Monitor (Log Analytics, App Insights)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Azure DNS Zone + Custom Apex Records to Front Door" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="680" y="150" width="530" height="390" as="geometry" />
         </mxCell>
         <mxCell id="c_gcp" parent="1" value="&lt;b&gt;☁️ GOOGLE CLOUD PLATFORM (GCP)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/gcp/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="1260" y="90" width="580" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="gcp_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; Google Cloud VPC + Cloud NAT&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; GKE Autopilot Cluster&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Cloud SQL PostgreSQL 17 (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Cloud Memorystore for Redis 7.2&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Managed Kafka / Cloud PubSub &amp; DLQ&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Google Cloud Storage (CMEK, Uniform Access)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Google Cloud KMS (KeyRing &amp; CryptoKey)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; GCP Workload Identity (GSA to KSA)&lt;br&gt;• &lt;b&gt;Ingress:&lt;/b&gt; Cloud Armor HTTPS LB (WAF, Rate Limiting)&lt;br&gt;• &lt;b&gt;CDN:&lt;/b&gt; Google Cloud CDN (Backend Bucket Caching)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Cloud Monitoring (Dashboards &amp; Alerts)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Cloud DNS Managed Zone + Google-managed SSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="gcp_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; Google Cloud VPC + Cloud NAT&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; GKE Autopilot Cluster&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Cloud SQL PostgreSQL 17 (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Cloud Memorystore for Redis 7.2&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Managed Kafka / Cloud PubSub &amp; DLQ&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Google Cloud Storage (CMEK, Uniform Access)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Google Cloud KMS (KeyRing &amp; CryptoKey)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; GCP Workload Identity (GSA to KSA)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; Kong Ingress + Passthrough Network Load Balancer (L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; Cloud Armor + Cloud CDN (GCS Bucket SPA + Kong NLB API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Cloud Monitoring (Dashboards &amp; Alerts)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Cloud DNS Managed Zone + Global A-Record to Load Balancer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="1280" y="150" width="540" height="390" as="geometry" />
         </mxCell>
         <mxCell id="c_cli" parent="1" value="&lt;b&gt;🚀 UNIFIED PLATFORM CLI ORCHESTRATOR (.\platform.ps1)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E293B;fontSize=12;dashed=1;" vertex="1">
