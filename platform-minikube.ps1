@@ -436,17 +436,17 @@ $($sshKeyContent -replace '(?m)^', '    ')
         Write-Host "`n================================================================================" -ForegroundColor Green
         Write-Host "🎉 MINIKUBE DEV ENVIRONMENT READY & OPERATIONAL ('develop' -> 'dev')" -ForegroundColor Green
         Write-Host "================================================================================" -ForegroundColor Green
-        Write-Host "  🌐 Angular Storefront:       http://localhost:4200" -ForegroundColor White
-        Write-Host "  🔌 API Gateway (Swagger UI): http://localhost:8080/swagger-ui.html" -ForegroundColor White
-        Write-Host "  🔑 Keycloak IAM Console:     http://localhost:8181 (admin / admin)" -ForegroundColor White
-        Write-Host "  🔒 HashiCorp Vault UI:       http://localhost:8200 (Token: root)" -ForegroundColor White
-        Write-Host "  🧭 Kiali Mesh Console:       http://localhost:20001/kiali/" -ForegroundColor White
-        Write-Host "  🐙 ArgoCD GitOps Console:    https://localhost:8088 (admin / admin)" -ForegroundColor White
-        Write-Host "  📊 Grafana Observability:    http://localhost:3000 (admin / admin)" -ForegroundColor White
-        Write-Host "  📈 Prometheus Web Console:   http://localhost:9090/targets" -ForegroundColor White
+        Write-Host "  🌐 Frontend:      http://localhost:4200" -ForegroundColor White
+        Write-Host "  🔌 API Gateway:   http://localhost:8080/swagger-ui.html" -ForegroundColor White
+        Write-Host "  🔑 Keycloak:      http://localhost:8181 (admin / admin)" -ForegroundColor White
+        Write-Host "  🔒 Vault:         http://localhost:8200 (root token)" -ForegroundColor White
+        Write-Host "  🧭 Kiali:         http://localhost:20001/kiali/" -ForegroundColor White
+        Write-Host "  🐙 ArgoCD:        https://localhost:8088 (admin / admin)" -ForegroundColor White
+        Write-Host "  📊 Grafana:       http://localhost:3000 (admin / admin)" -ForegroundColor White
+        Write-Host "  📈 Prometheus:    http://localhost:9090/targets" -ForegroundColor White
         Write-Host "--------------------------------------------------------------------------------" -ForegroundColor DarkGray
-        Write-Host "  ℹ️ All 10 tunnels open in background (including Tempo 3200 & Loki 3100)." -ForegroundColor DarkGray
-        Write-Host "  ℹ️ Query distributed traces & logs in Grafana Explore: http://localhost:3000/explore" -ForegroundColor DarkGray
+        Write-Host "  ℹ️ Background tunnels are active (including Tempo 3200 and Loki 3100)." -ForegroundColor DarkGray
+        Write-Host "  ℹ️ Trace/log exploration: http://localhost:3000/explore" -ForegroundColor DarkGray
         Write-Host "================================================================================" -ForegroundColor Green
     }
 

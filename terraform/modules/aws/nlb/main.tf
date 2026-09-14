@@ -1,4 +1,4 @@
-# Public AWS Network Load Balancer (NLB - Layer 4) fronting the Traefik Ingress Controller
+# Public AWS Network Load Balancer (NLB - Layer 4) fronting the Istio ingress gateway
 # Delivers ultra-low latency TCP passthrough with direct target IP registration.
 # Layer 7 WAF protection and DDoS mitigation are enforced at the Edge via CloudFront + AWS WAFv2.
 
@@ -44,9 +44,9 @@ resource "aws_lb" "this" {
   tags = var.tags
 }
 
-# TCP Target Group pointing to Traefik Ingress Controller NodePort/IP in EKS
-resource "aws_lb_target_group" "traefik_http" {
-  name        = "${var.name}-${var.environment}-tfk-tg"
+# TCP Target Group pointing to the Istio ingress gateway Service in EKS
+resource "aws_lb_target_group" "istio_gateway_http" {
+  name        = "${var.name}-${var.environment}-istio-tg"
   port        = 80
   protocol    = "TCP"
   vpc_id      = var.vpc_id
@@ -69,6 +69,6 @@ resource "aws_lb_listener" "http" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.traefik_http.arn
+    target_group_arn = aws_lb_target_group.istio_gateway_http.arn
   }
 }

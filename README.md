@@ -199,10 +199,10 @@ To deploy the entire production-grade stack on Minikube with **Istio Service Mes
 .\platform.ps1 tools
 
 # 2. Start Minikube, initialize Istio Service Mesh, and deploy the umbrella Helm chart:
-.\platform.ps1 up -WithIstio
+.\platform.ps1 up -Platform minikube -Environment dev -WithIstio
 
 # 3. Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
-.\platform.ps1 doctor
+.\platform.ps1 doctor -Platform minikube -Environment dev
 
 # 4 Check all pods running
 kubectl get pods -A

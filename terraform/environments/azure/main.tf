@@ -166,9 +166,9 @@ module "eventhubs" {
   tags                = local.tags
 }
 
-# Public IP for AKS Standard Load Balancer fronting NGINX Ingress Controller (L4)
-resource "azurerm_public_ip" "aks_nginx_lb" {
-  name                = "${local.name}-${local.env}-nginx-pip"
+# Public IP for AKS Standard Load Balancer fronting the Istio ingress gateway (L4)
+resource "azurerm_public_ip" "istio_gateway_public_ip" {
+  name                = "${local.name}-${local.env}-istio-gw-pip"
   resource_group_name = azurerm_resource_group.this.name
   location            = var.location
   allocation_method   = "Static"
@@ -176,7 +176,7 @@ resource "azurerm_public_ip" "aks_nginx_lb" {
   tags                = local.tags
 }
 
-# Azure Front Door Premium Dual-Origin (Storage Account Blob Frontend + AKS SLB API)
+# Azure Front Door Premium Dual-Origin (Storage Account Blob Frontend + AKS Istio gateway API)
 # Protected by Managed Azure WAF Policy (OWASP Top 10 + Bot Protection)
 module "frontdoor" {
   count  = local.cfg.enable_frontdoor ? 1 : 0
@@ -186,7 +186,7 @@ module "frontdoor" {
   environment           = local.env
   resource_group_name   = azurerm_resource_group.this.name
   storage_blob_endpoint = module.storage_account.primary_blob_endpoint
-  api_backend_address   = azurerm_public_ip.aks_nginx_lb.ip_address
+  api_backend_address   = azurerm_public_ip.istio_gateway_public_ip.ip_address
   domain_name           = var.domain_name
   tags                  = local.tags
 }
@@ -197,6 +197,6 @@ module "dns_zone" {
 
   domain_name         = var.domain_name
   resource_group_name = azurerm_resource_group.this.name
-  target_ip           = azurerm_public_ip.aks_nginx_lb.ip_address
+  target_ip           = azurerm_public_ip.istio_gateway_public_ip.ip_address
   tags                = local.tags
 }

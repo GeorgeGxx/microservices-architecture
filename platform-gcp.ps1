@@ -1,9 +1,9 @@
 # ==============================================================================
 # Platform GCP CLI Orchestrator (Version: Google Cloud Platform | Environments: dev, staging, prod)
 # Git Branch Correlation:
-#   - 'develop'     -> 'dev' environment (GKE Autopilot burstable, namespace: 'dev')
-#   - 'staging'     -> 'staging' environment (Medium performance, namespace: 'staging')
-#   - 'main/master' -> 'prod' environment (High performance HA, namespace: 'production')
+#   - 'develop' -> 'dev' environment (GKE Autopilot burstable, namespace: 'dev')
+#   - 'staging' -> 'staging' environment (Medium performance, namespace: 'staging')
+#   - 'master'  -> 'prod' environment (High performance HA, namespace: 'production')
 #
 # Modules Managed: vpc, gke, cloudsql, memorystore, managed_kafka, gcs, kms,
 #                  workload_identity, cloud_armor_lb, cloud_cdn, cloud_monitoring, cloud_dns
@@ -35,9 +35,14 @@ function Show-Header {
     param([string]$Title)
     Write-Host ""
     Write-Host "================================================================================" -ForegroundColor Green
-    Write-Host " ☁️  GOOGLE CLOUD PLATFORM (GCP) ORCHESTRATOR" -ForegroundColor Green
-    Write-Host " ▶ Action: $Title | Environment: [$($Environment.ToUpper())] | Region: $Region" -ForegroundColor White
+    Write-Host " ☁️  GCP CLOUD PLATFORM ORCHESTRATOR" -ForegroundColor Green
+    Write-Host " ▶ Action: $Title | Environment: [$($Environment.ToUpper())] | Region: $Region | Project: $gcpProject" -ForegroundColor White
     Write-Host "================================================================================" -ForegroundColor Green
+}
+
+function Write-TargetSummary {
+    param([string]$EnvironmentName, [string]$NamespaceName)
+    Write-Host "Target: GCP | Branch: $branchMapping | Namespace: $NamespaceName | Environment: $EnvironmentName | Cluster: $clusterName" -ForegroundColor Cyan
 }
 
 # Namespace and branch mappings
@@ -50,7 +55,7 @@ $targetNamespace = switch ($Environment) {
 $branchMapping = switch ($Environment) {
     "dev"     { "develop" }
     "staging" { "staging" }
-    "prod"    { "main / master" }
+    "prod"    { "master" }
 }
 
 $clusterName = "msa-gcp-$Environment-gke"
@@ -59,7 +64,7 @@ $gcpProject = if ($ProjectId) { $ProjectId } else { "msa-gcp-$Environment" }
 switch ($Action) {
     "plan" {
         Show-Header "Terraform Plan (12 GCP Modules)"
-        Write-Host "Correlated Branch: $branchMapping | GKE Namespace: $targetNamespace" -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $gcpTfDir
         try {
             terraform fmt -check
@@ -80,7 +85,8 @@ switch ($Action) {
 
     "apply" {
         Show-Header "Terraform Apply (Provision GCP Infrastructure)"
-        Write-Host "Provisioning GKE Autopilot, VPC, Cloud SQL, Memorystore, Cloud Armor in '$Environment'..." -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
+        Write-Host "Provisioning GKE Autopilot, VPC, Cloud SQL, Memorystore, and Cloud Armor in '$Environment'..." -ForegroundColor Cyan
         Push-Location $gcpTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -149,6 +155,7 @@ switch ($Action) {
 
     "status" {
         Show-Header "GCP Infrastructure Status"
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $gcpTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -171,16 +178,16 @@ switch ($Action) {
         Write-Host "Usage: .\platform-gcp.ps1 <Action> [Environment] [Options]" -ForegroundColor White
         Write-Host ""
         Write-Host "Actions:" -ForegroundColor Cyan
-        Write-Host "  plan          Format, validate and plan GCP Terraform infrastructure"
+        Write-Host "  plan          Validate and plan the selected GCP Terraform workspace"
         Write-Host "  apply         Provision GCP infrastructure (VPC, GKE, Cloud SQL, Memorystore, Cloud Armor, etc.)"
-        Write-Host "  rollback      Execute automated emergency rollback and GCS state unlock"
-        Write-Host "  unlock        Release stranded Terraform GCS state lock"
-        Write-Host "  status        Display active Terraform state and GKE cluster status"
-        Write-Host "  cost          Estimate cloud infrastructure costs via FinOps engine"
+        Write-Host "  rollback      Execute emergency rollback and release the GCS state lock"
+        Write-Host "  unlock        Force-release a stranded GCP Terraform state lock"
+        Write-Host "  status        Display Terraform state and GKE cluster health"
+        Write-Host "  cost          Estimate GCP infrastructure spend with the FinOps engine"
         Write-Host ""
         Write-Host "Environments:" -ForegroundColor Cyan
-        Write-Host "  dev           Burstable tier (Branch: develop, Namespace: dev)"
-        Write-Host "  staging       Medium performance tier (Branch: staging, Namespace: staging)"
-        Write-Host "  prod          High performance HA tier (Branch: main/master, Namespace: production)"
+        Write-Host "  dev           Burstable tier (Branch: develop | Namespace: dev)"
+        Write-Host "  staging       Medium performance tier (Branch: staging | Namespace: staging)"
+        Write-Host "  prod          High performance HA tier (Branch: master | Namespace: production)"
     }
 }

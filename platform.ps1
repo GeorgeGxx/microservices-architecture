@@ -5,7 +5,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "verify", "status", "finops", "cost", "tunnels", "secrets", "smoke", "tools", "graph", "security-scan", "plan", "apply", "rollback", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "cost", "tunnels", "secrets", "smoke", "tools", "graph", "security-scan", "plan", "apply", "rollback", "urls", "diagrams", "sync-diagrams", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -58,6 +58,26 @@ $smokeScript    = Join-Path $root "scripts\devsecops\endpoint-smoke-test.py"
 $verifyScript   = Join-Path $root "scripts\devsecops\verify-platform.ps1"
 $drawioScript   = Join-Path $root "scripts\build\generate_drawio.py"
 
+function Invoke-TargetValidation {
+    param(
+        [ValidateSet("minikube", "aws", "azure", "gcp")]
+        [string]$TargetPlatform,
+
+        [ValidateSet("dev", "minikube", "staging", "prod")]
+        [string]$TargetEnvironment
+    )
+
+    $normalizedEnv = if ($TargetEnvironment -in @("dev", "minikube")) { "dev" } else { $TargetEnvironment }
+
+    Write-Host "`n[VALIDATION] Running mesh validation for platform '$TargetPlatform' and environment '$normalizedEnv'..." -ForegroundColor Cyan
+
+    if ($TargetPlatform -eq "minikube") {
+        & (Join-Path $root "scripts\devsecops\verify-platform.ps1") -Mode minikube -Environment $normalizedEnv
+    } else {
+        & (Join-Path $root "scripts\devsecops\verify-platform.ps1") -Mode $TargetPlatform -Environment $normalizedEnv
+    }
+}
+
 function Show-Banner {
     param([string]$Subtitle = "Unified Platform Engineering CLI")
     Write-Host ""
@@ -77,19 +97,24 @@ switch ($Command) {
         Show-Banner "Platform Ecosystem Bootstrap"
         switch ($Platform) {
             "minikube" {
+                # Minikube local validation is already executed inside platform-minikube.ps1 to avoid duplicate mesh checks
+                # and to preserve the final local bootstrap summary output.
                 & $minikubeScript -Command up -Build:$Build -WithIstio:$WithIstio -WithoutIstio:$WithoutIstio -DeployCanary:$DeployCanary -SkipScans:$SkipScans -Cpus $Cpus -MemoryMb $MemoryMb -DiskSize $DiskSize
             }
             "aws" {
                 $targetEnv = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
                 & $awsScript -Action apply -Environment $targetEnv -AutoApprove:$AutoApprove
+                Invoke-TargetValidation -TargetPlatform aws -TargetEnvironment $targetEnv
             }
             "azure" {
                 $targetEnv = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
                 & $azureScript -Action apply -Environment $targetEnv -AutoApprove:$AutoApprove
+                Invoke-TargetValidation -TargetPlatform azure -TargetEnvironment $targetEnv
             }
             "gcp" {
                 $targetEnv = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
                 & $gcpScript -Action apply -Environment $targetEnv -AutoApprove:$AutoApprove
+                Invoke-TargetValidation -TargetPlatform gcp -TargetEnvironment $targetEnv
             }
         }
     }
@@ -174,6 +199,20 @@ switch ($Command) {
         }
     }
 
+    "doctor-minikube" {
+        Show-Banner "Minikube Istio Validation"
+        & (Join-Path $root "scripts\devsecops\verify-platform.ps1") -Mode minikube -Namespace $Environment
+    }
+
+    "doctor-cloud" {
+        Show-Banner "Multi-Cloud Istio Validation"
+        if ($Platform -eq "minikube") {
+            Write-Host "This check is for AWS / Azure / GCP. Use -Platform aws|azure|gcp with this command." -ForegroundColor Yellow
+            return
+        }
+        & (Join-Path $root "scripts\devsecops\verify-platform.ps1") -Mode $Platform -Environment $Environment
+    }
+
     { $_ -in @("finops", "cost") } {
         Show-Banner "Air-Gapped FinOps Cost Breakdown & Savings"
         $targetCostEnv = if ($Platform -eq "minikube" -or $Environment -eq "minikube") { "minikube" } else { $Environment }
@@ -244,6 +283,9 @@ switch ($Command) {
         Show-Banner "Command Usage & Multi-Platform Architecture Reference"
         Write-Host "USAGE:" -ForegroundColor Yellow
         Write-Host "  .\platform.ps1 <command> [-Platform minikube|aws|azure|gcp] [-Environment dev|staging|prod] [options]`n" -ForegroundColor White
+        Write-Host "DIAGNOSTIC COMMANDS:" -ForegroundColor Yellow
+        Write-Host "  doctor-minikube   Validate local Minikube + Istio installation and mesh readiness" -ForegroundColor White
+        Write-Host "  doctor-cloud      Validate cloud provider + Istio gateway and ingress policy" -ForegroundColor White
         Write-Host "PLATFORMS:" -ForegroundColor Yellow
         Write-Host "  minikube    Local enterprise DevSecOps platform ('dev' namespace, 'develop' branch)" -ForegroundColor White
         Write-Host "  aws         Amazon Web Services (12 native modules, EKS, GitHub Actions CI, ArgoCD CD)" -ForegroundColor White

@@ -41,18 +41,11 @@ frontend:
     tag: "1.0.0"
   replicaCount: 0
 
-# GKE Ingress Configuration
+# Edge ingress is standardized on the Istio gateway declared in k8s/istio/02-gateway.yaml.
+# Keep Helm values disabled here to avoid creating a second, conflicting ingress path.
 ingress:
-  enabled: true
-  className: "gce"
-  hosts:
-    - host: "api.gcp-sandbox.local"
-      paths:
-        - path: /api/*
-          pathType: ImplementationSpecific
-          service: api-gateway
-          port: 8080
-        - path: /*
-          pathType: ImplementationSpecific
-          service: frontend
-          port: 80
+  enabled: false
+  className: "istio"
+  annotations:
+    kubernetes.io/ingress.class: "istio"
+  hosts: []

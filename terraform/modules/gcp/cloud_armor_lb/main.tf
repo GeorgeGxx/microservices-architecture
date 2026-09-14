@@ -46,7 +46,7 @@ resource "google_compute_global_address" "this" {
   description = "Global IP address for ${var.name} Dual-Origin HTTPS Load Balancer"
 }
 
-# HTTP Health Check for Kong Ingress Controller
+# HTTP Health Check for the Istio ingress gateway
 resource "google_compute_health_check" "http" {
   name                = "${var.name}-${var.environment}-hc"
   check_interval_sec  = 15
@@ -60,7 +60,7 @@ resource "google_compute_health_check" "http" {
   }
 }
 
-# Backend Service for Dynamic API & Keycloak (Kong Ingress L4 NLB Target)
+# Backend Service for Dynamic API & Keycloak (Istio ingress gateway L4 target)
 resource "google_compute_backend_service" "api_backend" {
   name                  = "${var.name}-${var.environment}-backend-svc"
   protocol              = "HTTP"
@@ -92,7 +92,7 @@ resource "google_compute_backend_bucket" "static_frontend" {
 
 # URL Map with Dual-Origin Path Matcher:
 # - Default (/*): Points to GCS Bucket (Static Angular Frontend) with Cloud CDN
-# - /api/* & /realms/*: Points to Backend Service (Kong Ingress on GKE) with Cloud Armor WAF
+# - /api/* & /realms/*: Points to Backend Service (Istio ingress gateway on GKE) with Cloud Armor WAF
 resource "google_compute_url_map" "this" {
   name = "${var.name}-${var.environment}-url-map"
 
