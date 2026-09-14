@@ -1,9 +1,9 @@
 # ==============================================================================
 # Platform Azure CLI Orchestrator (Version: Azure Cloud | Environments: dev, staging, prod)
 # Git Branch Correlation:
-#   - 'develop'     -> 'dev' environment (Standard_D2s_v5 burstable, namespace: 'dev')
-#   - 'staging'     -> 'staging' environment (Medium performance, namespace: 'staging')
-#   - 'main/master' -> 'prod' environment (High performance HA, namespace: 'production')
+#   - 'develop' -> 'dev' environment (Standard_D2s_v5 burstable, namespace: 'dev')
+#   - 'staging' -> 'staging' environment (Medium performance, namespace: 'staging')
+#   - 'master'  -> 'prod' environment (High performance HA, namespace: 'production')
 #
 # Modules Managed: vnet, aks, postgresql, redis, eventhubs, storage_account, keyvault,
 #                  workload_identity, app_gateway, frontdoor, monitor, dns_zone
@@ -35,9 +35,14 @@ function Show-Header {
     param([string]$Title)
     Write-Host ""
     Write-Host "================================================================================" -ForegroundColor Blue
-    Write-Host " ☁️  MICROSOFT AZURE CLOUD PLATFORM ORCHESTRATOR" -ForegroundColor Blue
-    Write-Host " ▶ Action: $Title | Environment: [$($Environment.ToUpper())]" -ForegroundColor White
+    Write-Host " ☁️  AZURE CLOUD PLATFORM ORCHESTRATOR" -ForegroundColor Blue
+    Write-Host " ▶ Action: $Title | Environment: [$($Environment.ToUpper())] | Resource Group: $rgName" -ForegroundColor White
     Write-Host "================================================================================" -ForegroundColor Blue
+}
+
+function Write-TargetSummary {
+    param([string]$EnvironmentName, [string]$NamespaceName)
+    Write-Host "Target: Azure | Branch: $branchMapping | Namespace: $NamespaceName | Environment: $EnvironmentName | Cluster: $clusterName" -ForegroundColor Cyan
 }
 
 # Namespace and branch mappings
@@ -50,7 +55,7 @@ $targetNamespace = switch ($Environment) {
 $branchMapping = switch ($Environment) {
     "dev"     { "develop" }
     "staging" { "staging" }
-    "prod"    { "main / master" }
+    "prod"    { "master" }
 }
 
 $rgName = if ($ResourceGroup) { $ResourceGroup } else { "msa-azure-$Environment-rg" }
@@ -59,7 +64,7 @@ $clusterName = "msa-azure-$Environment-aks"
 switch ($Action) {
     "plan" {
         Show-Header "Terraform Plan (12 Azure Modules)"
-        Write-Host "Correlated Branch: $branchMapping | AKS Namespace: $targetNamespace" -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $azureTfDir
         try {
             terraform fmt -check
@@ -80,7 +85,8 @@ switch ($Action) {
 
     "apply" {
         Show-Header "Terraform Apply (Provision Azure Infrastructure)"
-        Write-Host "Provisioning AKS, VNet, PostgreSQL Flexible, Redis, Key Vault, AppGW in '$Environment'..." -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
+        Write-Host "Provisioning AKS, VNet, PostgreSQL Flexible, Redis, Key Vault, and App Gateway in '$Environment'..." -ForegroundColor Cyan
         Push-Location $azureTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -149,6 +155,7 @@ switch ($Action) {
 
     "status" {
         Show-Header "Azure Infrastructure Status"
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $azureTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -171,16 +178,16 @@ switch ($Action) {
         Write-Host "Usage: .\platform-azure.ps1 <Action> [Environment] [Options]" -ForegroundColor White
         Write-Host ""
         Write-Host "Actions:" -ForegroundColor Cyan
-        Write-Host "  plan          Format, validate and plan Azure Terraform infrastructure"
+        Write-Host "  plan          Validate and plan the selected Azure Terraform workspace"
         Write-Host "  apply         Provision Azure infrastructure (VNet, AKS, PostgreSQL, Redis, AppGW, etc.)"
-        Write-Host "  rollback      Execute automated emergency rollback and Azure Blob state lease unlock"
-        Write-Host "  unlock        Release stranded Terraform Azure Blob lease"
-        Write-Host "  status        Display active Terraform state and Azure resource group status"
-        Write-Host "  cost          Estimate cloud infrastructure costs via FinOps engine"
+        Write-Host "  rollback      Execute emergency rollback and release the Azure state lease"
+        Write-Host "  unlock        Force-release a stranded Azure Blob state lock"
+        Write-Host "  status        Display Terraform state and Azure resource group health"
+        Write-Host "  cost          Estimate Azure infrastructure spend with the FinOps engine"
         Write-Host ""
         Write-Host "Environments:" -ForegroundColor Cyan
-        Write-Host "  dev           Burstable tier (Branch: develop, Namespace: dev)"
-        Write-Host "  staging       Medium performance tier (Branch: staging, Namespace: staging)"
-        Write-Host "  prod          High performance HA tier (Branch: main/master, Namespace: production)"
+        Write-Host "  dev           Burstable tier (Branch: develop | Namespace: dev)"
+        Write-Host "  staging       Medium performance tier (Branch: staging | Namespace: staging)"
+        Write-Host "  prod          High performance HA tier (Branch: master | Namespace: production)"
     }
 }

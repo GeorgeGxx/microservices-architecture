@@ -54,9 +54,9 @@ output "eventhubs_kafka_endpoint" {
   value = try(module.eventhubs[0].kafka_endpoint, null)
 }
 
-output "nginx_ingress_public_ip" {
-  value       = azurerm_public_ip.aks_nginx_lb.ip_address
-  description = "Public IP address for AKS Standard Load Balancer fronting NGINX Ingress"
+output "istio_ingress_public_ip" {
+  value       = azurerm_public_ip.istio_gateway_public_ip.ip_address
+  description = "Public IP address for AKS Standard Load Balancer fronting the Istio ingress gateway"
 }
 
 output "frontdoor_endpoint" {

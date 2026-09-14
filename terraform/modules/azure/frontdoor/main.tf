@@ -106,7 +106,7 @@ resource "azurerm_cdn_frontdoor_route" "static_route" {
 }
 
 # ==============================================================================
-# ORIGIN GROUP 2: AKS Standard Load Balancer (NGINX Ingress Dynamic API)
+# ORIGIN GROUP 2: AKS Standard Load Balancer (Istio ingress gateway dynamic API)
 # ==============================================================================
 resource "azurerm_cdn_frontdoor_origin_group" "api_group" {
   name                     = "aks-api-group"
@@ -127,7 +127,7 @@ resource "azurerm_cdn_frontdoor_origin_group" "api_group" {
 }
 
 resource "azurerm_cdn_frontdoor_origin" "api_origin" {
-  name                          = "aks-nginx-origin"
+  name                          = "aks-istio-gateway-origin"
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api_group.id
   enabled                       = true
 
@@ -140,7 +140,7 @@ resource "azurerm_cdn_frontdoor_origin" "api_origin" {
   weight                         = 1000
 }
 
-# API Route (/api/*): Dispatches dynamic API calls to AKS NGINX Ingress
+# API Route (/api/*): Dispatches dynamic API calls to the AKS Istio ingress gateway
 resource "azurerm_cdn_frontdoor_route" "api_route" {
   name                          = "api-backend-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id

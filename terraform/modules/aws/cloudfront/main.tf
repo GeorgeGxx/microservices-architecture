@@ -1,7 +1,7 @@
 # AWS WAFv2 Web ACL at the CloudFront Edge (Layer 7 WAF Protection)
 resource "aws_wafv2_web_acl" "edge" {
   name        = "${var.name}-${var.environment}-edge-waf"
-  description = "CloudFront Edge WAF protecting S3 Frontend & EKS Traefik Ingress NLB"
+  description = "CloudFront Edge WAF protecting S3 Frontend & EKS Istio ingress gateway NLB"
   scope       = "CLOUDFRONT"
 
   default_action {
@@ -127,11 +127,11 @@ locals {
 
 # CloudFront Dual-Origin Distribution:
 # 1. Origin 'S3FrontendOrigin': Angular 21 static files (index.html, *.js, *.css, assets)
-# 2. Origin 'EksNlbApiOrigin': Dynamic backend (/api/* and /realms/*) -> AWS NLB -> Traefik
+# 2. Origin 'EksNlbApiOrigin': Dynamic backend (/api/* and /realms/*) -> AWS NLB -> Istio ingress gateway
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true
-  comment             = "CloudFront Dual-Origin (S3 Frontend + EKS Traefik NLB) - ${var.environment}"
+  comment             = "CloudFront Dual-Origin (S3 Frontend + EKS Istio NLB) - ${var.environment}"
   default_root_object = "index.html"
   price_class         = var.price_class
   aliases             = var.aliases

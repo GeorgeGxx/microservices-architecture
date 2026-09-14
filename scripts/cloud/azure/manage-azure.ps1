@@ -78,8 +78,8 @@ function Invoke-AksDeploy {
     # 1. Update Kubeconfig
     Invoke-AksCredentials
 
-    # 2. Apply StorageClass and Ingress
-    Write-Host "`n[+] Applying Azure StorageClass and Traefik Ingress manifests..." -ForegroundColor Yellow
+    # 2. Apply StorageClass and platform ingress prerequisites
+    Write-Host "`n[+] Applying Azure StorageClass and Istio ingress gateway prerequisites..." -ForegroundColor Yellow
     $sc = Join-Path $k8sAksDir "storageclass.yaml"
     $ing = Join-Path $k8sAksDir "ingress.yaml"
     if (Test-Path $sc) { kubectl apply -f $sc }

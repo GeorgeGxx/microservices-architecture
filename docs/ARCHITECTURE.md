@@ -124,20 +124,34 @@ The platform provides enterprise-grade secret management across 4 distinct imple
 
 | Target Cloud | Ingress Controller (L7) | Cloud Load Balancer (L4) | Edge WAF & DDoS Protection | Service Mesh & Observability | CI / CD Engine |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **AWS Cloud (EKS)** | **Traefik Ingress** (`k8s/eks/`) | **AWS Network Load Balancer (NLB)** | **AWS WAFv2** (CloudFront Edge Rulesets) | **Istio Envoy** (`mTLS STRICT`) + Kiali | GitHub Actions + ArgoCD |
-| **Azure Cloud (AKS)** | **NGINX Ingress** (`k8s/aks/`) | **Azure Standard Load Balancer (SLB)** | **Azure Front Door Premium WAF** (OWASP DRS 2.1) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Azure DevOps Unified Pipeline |
-| **Google Cloud (GCP)** | **Kong Ingress** (`k8s/gke/`) | **GCP Passthrough Network Load Balancer** | **Google Cloud Armor** (Security Policy + CDN) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Bitbucket Pipelines + ArgoCD |
+| **AWS Cloud (EKS)** | **Istio Ingress Gateway** (`istio-system/istio-ingressgateway`) | **AWS Network Load Balancer (NLB)** | **AWS WAFv2** (CloudFront Edge Rulesets) | **Istio Envoy** (`mTLS STRICT`) + Kiali | GitHub Actions + ArgoCD |
+| **Azure Cloud (AKS)** | **Istio Ingress Gateway** (`istio-system/istio-ingressgateway`) | **Azure Standard Load Balancer (SLB)** | **Azure Front Door Premium WAF** (OWASP DRS 2.1) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Azure DevOps Unified Pipeline |
+| **Google Cloud (GCP)** | **Istio Ingress Gateway** (`istio-system/istio-ingressgateway`) | **GCP Passthrough Network Load Balancer** | **Google Cloud Armor** (Security Policy + CDN) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Bitbucket Pipelines + ArgoCD |
+
+### ✅ Canonical Edge Standard (Production Rule)
+The project uses a single public ingress pattern across all environments:
+
+- Public cloud provider load balancer remains the L4 entrypoint
+- Istio ingress gateway is the sole L7 ingress controller
+- Gateway and VirtualService define routing, policies and canary behavior
+- Legacy provider-specific ingress manifests are treated as historical examples only, not as active production routing
+- Local Minikube and remote cloud clusters follow the same Istio ingress model; the difference is only the underlying provider and the operational context
+
+This avoids conflicts between NGINX, Traefik, Kong and Istio and keeps policy enforcement, traffic shaping and mTLS in one standard mesh control plane.
+
+> Branch naming and cluster naming are intentionally separated: `develop`/`staging`/`master` describe Git flow, while `dev`/`staging`/`prod` describe Kubernetes namespaces and runtime environments. They are mapped by deployment pipelines, not merged into a single naming convention.
+
 ---
 
 ## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Gateway ➔ Istio ➔ Kiali)
 
-The platform implements an enterprise defense-in-depth traffic flow combining dedicated L7 Ingress Controllers (**Traefik / NGINX / Kong**), **Keycloak IAM**, **Spring Cloud API Gateway**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
+The platform implements an enterprise defense-in-depth traffic flow combining a single standard edge layer based on the **Istio Ingress Gateway**, **Keycloak IAM**, **Spring Cloud API Gateway**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Client as 👤 Angular 21 Client
-    participant Ingress as 🚪 Ingress Controller<br/>(Kong / NGINX / Traefik + L4 NLB)
+    participant Ingress as 🚪 Istio Ingress Gateway<br/>(L4 NLB + Envoy)
     participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
     participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
     participant Gateway as ⚡ Spring Cloud Gateway<br/>(JWT Filter / TokenRelay)
@@ -167,8 +181,8 @@ sequenceDiagram
 ```
 
 ### Flow Breakdown & Separation of Concerns:
-1. **Perimeter Ingress (North-South):** **Kong** (GCP), **NGINX** (Azure), or **Traefik** (AWS) fronted by native L4 Network Load Balancers enforces ingress rate limits, CORS policies, security headers, and path dispatching.
-2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. Ingress routes `/auth/**` and `/realms/**` directly to Keycloak.
+1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
+2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/auth/**` and `/realms/**` directly to Keycloak.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
 4. **Application API Gateway:** **Spring Cloud Gateway** performs deep application-level filtering (reactive JWT claim extraction, user context propagation via `TokenRelay`, Resilience4j circuit breaking, and anti-DDoS IP rate limiting).
 5. **Core Microservices (East-West):** Gateway dispatches traffic to downstream microservices (`orders-service`, `products-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
@@ -186,7 +200,7 @@ flowchart TD
         BrowserCloud([🌐 Global Client]) --> CloudCDN["Global Edge CDN + WAF<br/>(CloudFront / Front Door / Cloud Armor)"]
         CloudCDN -->|Default '/*': Cached Static Assets| BucketStorage["Cloud Storage Bucket<br/>(AWS S3 / Azure Blob / GCP GCS)<br/>index.html, *.js, *.css (OAC Protected)"]
         CloudCDN -->|Dynamic '/api/*' & '/realms/*'| CloudNLB["L4 Network Load Balancer<br/>(AWS NLB / Azure SLB / GCP NLB)"]
-        CloudNLB --> CloudIngress["Ingress Controller<br/>(Traefik / NGINX / Kong)"]
+        CloudNLB --> CloudIngress["Istio Ingress Gateway<br/>(Envoy)"]
         CloudIngress --> CloudMesh["Istio Envoy Mesh (mTLS)"]
     end
 
@@ -200,7 +214,7 @@ flowchart TD
 | Deployment Environment | Frontend Delivery Mechanism | Backend Ingress Target | CDN & Edge Caching | Infrastructure Cost |
 | :--- | :--- | :--- | :--- | :--- |
 | **AWS EKS (`staging`/`prod`)** | **AWS S3 Assets Bucket** (`module.s3_assets`) | AWS NLB (`module.nlb`) | **CloudFront Distribution + WAFv2** (`s3Origin` + `nlbOrigin`) | Edge cached, zero pod CPU/RAM footprint |
-| **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`aks_nginx_lb`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
+| **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`istio_gateway_public_ip`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
 | **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
 | **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Spring Cloud Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
 
@@ -507,3 +521,17 @@ graph LR
 
 ---
 
+### ✅ Production-Grade Hardening Checklist
+For a production-grade rollout, I would keep this as the minimum bar before promoting the platform beyond dev/staging:
+
+- **Single ingress standard:** public L4 load balancer + Istio ingress gateway only; no active NGINX/Traefik/Kong L7 routes in production manifests
+- **Clear environment model:** Git branch names (`develop`, `staging`, `master`) stay separate from Kubernetes namespaces (`dev`, `staging`, `prod`); they are related but not the same concept
+- **Mutual TLS everywhere:** `STRICT` mTLS across the mesh, with `PeerAuthentication` and `DestinationRule` enforced for critical workloads
+- **Policy gating:** Gatekeeper + OPA constraints for privileged containers, resource limits, required labels, and restricted host networking
+- **Secrets and identity:** Vault as the default secret source, Keycloak OIDC/JWKS validation, workload identity or IRSA for cloud access
+- **Observability and SLOs:** Prometheus, Grafana, Kiali, Loki, Tempo, and SLA dashboards for latency, error budget, and mesh health
+- **Resilience controls:** HPA, PDB, circuit breakers, retries, rate limits, and rollback automation on canary failure
+- **Security scanning in pipeline:** SAST, dependency scanning, container scanning, DAST, and signed artifacts before release
+- **Infrastructure discipline:** remote state, lock files, least-privilege IAM roles, private networking, WAF/CDN on public edge, and environment segregation
+
+This is a strong production baseline, and the repository is already close to it.

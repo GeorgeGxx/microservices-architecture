@@ -1,44 +1,119 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: networking.istio.io/v1
+kind: Gateway
 metadata:
-  name: microservices-ingress-aks
+  name: microservices-gateway
   namespace: dev
-  annotations:
-    # NGINX Ingress Controller L7 Configuration for Azure AKS
-    kubernetes.io/ingress.class: nginx
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/proxy-body-size: "16m"
-    nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
-    nginx.ingress.kubernetes.io/limit-rps: "100"
-    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
-    nginx.ingress.kubernetes.io/configuration-snippet: |
-      more_set_headers "X-Frame-Options: SAMEORIGIN";
-      more_set_headers "X-Content-Type-Options: nosniff";
-      more_set_headers "X-XSS-Protection: 1; mode=block";
 spec:
-  ingressClassName: nginx
-  rules:
-    - http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /actuator
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
+  selector:
+    istio: ingressgateway # Ingress Gateway pod selector deployed in your cluster
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      tls:
+        httpsRedirect: true # Equivalen to nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        credentialName: microservices-tls-cert # Secret with TLS certificate in the Istio namespace
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: microservices-virtualservice
+  namespace: dev
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - microservices-gateway
+  http:
+    - name: api-gateway-routes
+      match:
+        - uri:
+            prefix: /api
+        - uri:
+            prefix: /actuator
+      timeout: 60s # Equivalent to nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+      headers:
+        response:
+          set:
+            X-Frame-Options: SAMEORIGIN
+            X-Content-Type-Options: nosniff
+            X-XSS-Protection: 1; mode=block
+      route:
+        - destination:
+            host: api-gateway.dev.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: frontend-routes
+      match:
+        - uri:
+            prefix: /
+      timeout: 60s
+      headers:
+        response:
+          set:
+            X-Frame-Options: SAMEORIGIN
+            X-Content-Type-Options: nosniff
+            X-XSS-Protection: 1; mode=block
+      route:
+        - destination:
+            host: frontend.dev.svc.cluster.local
+            port:
+              number: 80
+
+########################################################################
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: microservices-ingress-aks
+#   namespace: dev
+#   annotations:
+#     # NGINX Ingress Controller L7 Configuration for Azure AKS
+#     kubernetes.io/ingress.class: nginx
+#     nginx.ingress.kubernetes.io/ssl-redirect: "true"
+#     nginx.ingress.kubernetes.io/proxy-body-size: "16m"
+#     nginx.ingress.kubernetes.io/proxy-connect-timeout: "15"
+#     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+#     nginx.ingress.kubernetes.io/limit-rps: "100"
+#     nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
+#     nginx.ingress.kubernetes.io/configuration-snippet: |
+#       more_set_headers "X-Frame-Options: SAMEORIGIN";
+#       more_set_headers "X-Content-Type-Options: nosniff";
+#       more_set_headers "X-XSS-Protection: 1; mode=block";
+# spec:
+#   ingressClassName: nginx
+#   rules:
+#     - http:
+#         paths:
+#           - path: /api
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /actuator
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: frontend
+#                 port:
+#                   number: 80

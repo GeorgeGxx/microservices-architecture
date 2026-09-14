@@ -1,61 +1,190 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: networking.istio.io/v1
+kind: Gateway
 metadata:
-  name: microservices-ingress-eks
+  name: microservices-gateway-eks
   namespace: dev
+spec:
+  selector:
+    istio: ingressgateway # Ingress Gateway pod selector in your cluster
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      tls:
+        httpsRedirect: true # Automatic HTTP to HTTPS redirection
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        credentialName: microservices-tls-cert # Secret TLS in the gateway namespace (eg. istio-system)
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: microservices-virtualservice-eks
+  namespace: dev
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - microservices-gateway-eks
+  http:
+    # Example of Istio's native stripPrefix (if you need to remove the /strip prefix)
+    - name: strip-prefix-route
+      match:
+        - uri:
+            prefix: /strip
+      rewrite:
+        uri: / # Replaces the /strip prefix with / before sending it to the backend
+      route:
+        - destination:
+            host: api-gateway.dev.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: api-routes
+      match:
+        - uri:
+            prefix: /api
+        - uri:
+            prefix: /actuator
+      route:
+        - destination:
+            host: api-gateway.dev.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: frontend-routes
+      match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: frontend.dev.svc.cluster.local
+            port:
+              number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingress-local-ratelimit
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+              subFilter:
+                name: "envoy.filters.http.router"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              max_tokens: 150 # Maximum bucket capacity (average 100 + burst 50)
+              tokens_per_fill: 100 # Fill 100 requests per second
+              fill_interval: 1s
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            response_headers_to_add:
+              - append_action: OVERWRITE_IF_EXISTS_OR_ADD
+                header:
+                  key: x-local-rate-limit
+                  value: 'true'
+            status:
+              code: 429
+---
+service:
+  type: LoadBalancer
   annotations:
-    # Traefik Ingress Controller L7 Configuration for AWS EKS
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.entrypoints: web, websecure
-    traefik.ingress.kubernetes.io/router.middlewares: dev-strip-prefix@kubernetescrd, dev-rate-limit@kubernetescrd
-    # AWS Network Load Balancer (L4) Target Integration
-    service.beta.kubernetes.io/aws-load-balancer-type: "external"
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
-    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-spec:
-  ingressClassName: traefik
-  rules:
-    - http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /actuator
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
----
-# Traefik Middlewares for L7 Ingress Hardening on EKS
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: strip-prefix
-  namespace: dev
-spec:
-  stripPrefix:
-    prefixes:
-      - /strip
----
-apiVersion: traefik.io/v1alpha1
-kind: Middleware
-metadata:
-  name: rate-limit
-  namespace: dev
-spec:
-  rateLimit:
-    average: 100
-    burst: 50
+    service.beta.kubernetes.io/aws-load-balancer-type: "external" #[cite: 2]
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip" #[cite: 2]
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing" #[cite: 2]
+
+########################################################################
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: microservices-ingress-eks
+#   namespace: dev
+#   annotations:
+#     # Traefik Ingress Controller L7 Configuration for AWS EKS
+#     kubernetes.io/ingress.class: traefik
+#     traefik.ingress.kubernetes.io/router.entrypoints: web, websecure
+#     traefik.ingress.kubernetes.io/router.middlewares: dev-strip-prefix@kubernetescrd, dev-rate-limit@kubernetescrd
+#     # AWS Network Load Balancer (L4) Target Integration
+#     service.beta.kubernetes.io/aws-load-balancer-type: "external"
+#     service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+#     service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+# spec:
+#   ingressClassName: traefik
+#   rules:
+#     - http:
+#         paths:
+#           - path: /api
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /actuator
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: frontend
+#                 port:
+#                   number: 80
+# ---
+# # Traefik Middlewares for L7 Ingress Hardening on EKS
+# apiVersion: traefik.io/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: strip-prefix
+#   namespace: dev
+# spec:
+#   stripPrefix:
+#     prefixes:
+#       - /strip
+# ---
+# apiVersion: traefik.io/v1alpha1
+# kind: Middleware
+# metadata:
+#   name: rate-limit
+#   namespace: dev
+# spec:
+#   rateLimit:
+#     average: 100
+#     burst: 50

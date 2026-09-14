@@ -362,10 +362,8 @@ stages:
                         --atomic \
                         --cleanup-on-fail || echo "Staging deploy simulated in CI environment"
 
-                      # Dynamic resolution of AKS Ingress / Istio Gateway IP
-                      INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || \
-                                   kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || \
-                                   echo "")
+                      # Dynamic resolution of the Istio ingress gateway IP
+                      INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
                       if [ -n "$INGRESS_IP" ]; then
                         echo "##vso[task.setvariable variable=RESOLVED_INGRESS_URL;isOutput=true]http://${INGRESS_IP}"
                       else

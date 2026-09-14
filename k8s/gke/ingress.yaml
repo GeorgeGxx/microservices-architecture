@@ -1,62 +1,190 @@
-apiVersion: networking.k8s.io/v1
-kind: Ingress
+apiVersion: networking.istio.io/v1
+kind: Gateway
 metadata:
-  name: microservices-ingress-gke
+  name: microservices-gateway-gke
   namespace: dev
-  annotations:
-    # Kong Ingress Controller L7 Configuration for Google Cloud GKE
-    kubernetes.io/ingress.class: "kong"
-    konghq.com/strip-path: "false"
-    konghq.com/plugins: "kong-rate-limiting, kong-security-headers"
-    # GCP Passthrough Network Load Balancer (L4) annotations
-    cloud.google.com/load-balancer-type: "External"
 spec:
-  ingressClassName: kong
-  rules:
-    - http:
-        paths:
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /actuator
-            pathType: Prefix
-            backend:
-              service:
-                name: api-gateway
-                port:
-                  number: 8080
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: frontend
-                port:
-                  number: 80
+  selector:
+    istio: ingressgateway # Ingress Gateway Selector in GKE
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "*"
+      tls:
+        httpsRedirect: true # HTTP to HTTPS Redirect
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "*"
+      tls:
+        mode: SIMPLE
+        credentialName: microservices-tls-cert # Secret TLS in the gateway namespace (eg. istio-system)
 ---
-# Kong Plugins for In-Cluster L7 Hardening on GKE
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
+apiVersion: networking.istio.io/v1
+kind: VirtualService
 metadata:
-  name: kong-rate-limiting
+  name: microservices-virtualservice-gke
   namespace: dev
-plugin: rate-limiting
-config:
-  minute: 300
-  policy: local
+spec:
+  hosts:
+    - "*"
+  gateways:
+    - microservices-gateway-gke
+  http:
+    - name: api-routes
+      match:
+        - uri:
+            prefix: /api
+        - uri:
+            prefix: /actuator
+      # Equivalent to kong-security-headers plugin
+      headers:
+        response:
+          set:
+            X-Frame-Options: SAMEORIGIN
+            X-Content-Type-Options: nosniff
+            X-XSS-Protection: 1; mode=block
+      # Istio does not rewrite the URI by default (maintains strip-path: false)
+      route:
+        - destination:
+            host: api-gateway.dev.svc.cluster.local
+            port:
+              number: 8080
+
+    - name: frontend-routes
+      match:
+        - uri:
+            prefix: /
+      headers:
+        response:
+          set:
+            X-Frame-Options: SAMEORIGIN
+            X-Content-Type-Options: nosniff
+            X-XSS-Protection: 1; mode=block
+      route:
+        - destination:
+            host: frontend.dev.svc.cluster.local
+            port:
+              number: 80
 ---
-apiVersion: configuration.konghq.com/v1
-kind: KongPlugin
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
 metadata:
-  name: kong-security-headers
-  namespace: dev
-plugin: response-transformer
-config:
-  add:
-    headers:
-      - "X-Frame-Options: SAMEORIGIN"
-      - "X-Content-Type-Options: nosniff"
-      - "X-XSS-Protection: 1; mode=block"
+  name: ingress-local-ratelimit-gke
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+              subFilter:
+                name: "envoy.filters.http.router"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            token_bucket:
+              max_tokens: 300
+              tokens_per_fill: 300
+              fill_interval: 60s # Equivalent to 300 requests per minute
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            response_headers_to_add:
+              - append_action: OVERWRITE_IF_EXISTS_OR_ADD
+                header:
+                  key: x-local-rate-limit
+                  value: 'true'
+            status:
+              code: 429
+---
+service:
+  type: LoadBalancer
+  annotations:
+    cloud.google.com/load-balancer-type: "External" #[cite: 3]
+
+########################################################################
+# apiVersion: networking.k8s.io/v1
+# kind: Ingress
+# metadata:
+#   name: microservices-ingress-gke
+#   namespace: dev
+#   annotations:
+#     # Kong Ingress Controller L7 Configuration for Google Cloud GKE
+#     kubernetes.io/ingress.class: "kong"
+#     konghq.com/strip-path: "false"
+#     konghq.com/plugins: "kong-rate-limiting, kong-security-headers"
+#     # GCP Passthrough Network Load Balancer (L4) annotations
+#     cloud.google.com/load-balancer-type: "External"
+# spec:
+#   ingressClassName: kong
+#   rules:
+#     - http:
+#         paths:
+#           - path: /api
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /actuator
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: api-gateway
+#                 port:
+#                   number: 8080
+#           - path: /
+#             pathType: Prefix
+#             backend:
+#               service:
+#                 name: frontend
+#                 port:
+#                   number: 80
+# ---
+# # Kong Plugins for In-Cluster L7 Hardening on GKE
+# apiVersion: configuration.konghq.com/v1
+# kind: KongPlugin
+# metadata:
+#   name: kong-rate-limiting
+#   namespace: dev
+# plugin: rate-limiting
+# config:
+#   minute: 300
+#   policy: local
+# ---
+# apiVersion: configuration.konghq.com/v1
+# kind: KongPlugin
+# metadata:
+#   name: kong-security-headers
+#   namespace: dev
+# plugin: response-transformer
+# config:
+#   add:
+#     headers:
+#       - "X-Frame-Options: SAMEORIGIN"
+#       - "X-Content-Type-Options: nosniff"
+#       - "X-XSS-Protection: 1; mode=block"

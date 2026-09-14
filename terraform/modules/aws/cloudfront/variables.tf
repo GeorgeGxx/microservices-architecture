@@ -24,7 +24,7 @@ variable "s3_bucket_id" {
 }
 
 variable "api_origin_domain_name" {
-  description = "Domain name of the backend API origin (AWS NLB DNS name fronting Traefik Ingress)"
+  description = "Domain name of the backend API origin (AWS NLB DNS name fronting the Istio ingress gateway)"
   type        = string
 }
 

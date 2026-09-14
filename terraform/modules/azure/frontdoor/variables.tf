@@ -19,7 +19,7 @@ variable "storage_blob_endpoint" {
 }
 
 variable "api_backend_address" {
-  description = "Public IP or FQDN of the AKS Standard Load Balancer fronting NGINX Ingress"
+  description = "Public IP or FQDN of the AKS Standard Load Balancer fronting the Istio ingress gateway"
   type        = string
 }
 

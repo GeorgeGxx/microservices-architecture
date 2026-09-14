@@ -1,9 +1,9 @@
 # ==============================================================================
 # Platform AWS CLI Orchestrator (Version: AWS Cloud | Environments: dev, staging, prod)
 # Git Branch Correlation:
-#   - 'develop'     -> 'dev' environment (Burstable nodes, namespace: 'dev')
-#   - 'staging'     -> 'staging' environment (Medium performance, namespace: 'staging')
-#   - 'main/master' -> 'prod' environment (High performance HA, namespace: 'production')
+#   - 'develop' -> 'dev' environment (Burstable nodes, namespace: 'dev')
+#   - 'staging' -> 'staging' environment (Medium performance, namespace: 'staging')
+#   - 'master'  -> 'prod' environment (High performance HA, namespace: 'production')
 #
 # Modules Managed: vpc, eks, rds, elasticache, msk, s3, kms, iam_irsa, alb,
 #                  cloudfront, cloudwatch, route53_acm
@@ -40,6 +40,11 @@ function Show-Header {
     Write-Host "================================================================================" -ForegroundColor Yellow
 }
 
+function Write-TargetSummary {
+    param([string]$EnvironmentName, [string]$NamespaceName)
+    Write-Host "Target: AWS | Branch: $branchMapping | Namespace: $NamespaceName | Environment: $EnvironmentName" -ForegroundColor Cyan
+}
+
 # Namespace mapping
 $targetNamespace = switch ($Environment) {
     "dev"     { "dev" }
@@ -50,13 +55,13 @@ $targetNamespace = switch ($Environment) {
 $branchMapping = switch ($Environment) {
     "dev"     { "develop" }
     "staging" { "staging" }
-    "prod"    { "main / master" }
+    "prod"    { "master" }
 }
 
 switch ($Action) {
     "plan" {
         Show-Header "Terraform Plan (12 AWS Modules)"
-        Write-Host "Correlated Branch: $branchMapping | K8s Namespace: $targetNamespace" -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $awsTfDir
         try {
             terraform fmt -check
@@ -77,7 +82,8 @@ switch ($Action) {
 
     "apply" {
         Show-Header "Terraform Apply (Provision AWS Infrastructure)"
-        Write-Host "Provisioning EKS, VPC, RDS, ElastiCache, MSK, ALB, CloudFront in '$Environment'..." -ForegroundColor Cyan
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
+        Write-Host "Provisioning EKS, VPC, RDS, ElastiCache, MSK, ALB, and CloudFront in '$Environment'..." -ForegroundColor Cyan
         Push-Location $awsTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -165,6 +171,7 @@ switch ($Action) {
 
     "status" {
         Show-Header "AWS Infrastructure & Namespace Status"
+        Write-TargetSummary -EnvironmentName $Environment -NamespaceName $targetNamespace
         Push-Location $awsTfDir
         try {
             terraform workspace select -or-create $Environment || true
@@ -187,17 +194,17 @@ switch ($Action) {
         Write-Host "Usage: .\platform-aws.ps1 <Action> [Environment] [Options]" -ForegroundColor White
         Write-Host ""
         Write-Host "Actions:" -ForegroundColor Cyan
-        Write-Host "  plan          Format, validate and plan AWS Terraform infrastructure"
+        Write-Host "  plan          Validate and plan the selected AWS Terraform workspace"
         Write-Host "  apply         Provision AWS infrastructure (VPC, EKS, RDS, ElastiCache, MSK, ALB, etc.)"
-        Write-Host "  rollback      Execute automated emergency rollback & state unlock"
-        Write-Host "  sync-argocd   Trigger declarative ArgoCD synchronization for target environment"
-        Write-Host "  unlock        Release stranded Terraform S3/DynamoDB state lock (-LockId <id>)"
-        Write-Host "  status        Display active Terraform state and Kubernetes namespace resources"
-        Write-Host "  cost          Estimate cloud infrastructure costs via FinOps engine"
+        Write-Host "  rollback      Execute emergency rollback and release Terraform state locks"
+        Write-Host "  sync-argocd   Trigger ArgoCD sync for the target environment"
+        Write-Host "  unlock        Force-release a stranded AWS Terraform state lock (-LockId <id>)"
+        Write-Host "  status        Display Terraform state and Kubernetes namespace health"
+        Write-Host "  cost          Estimate AWS infrastructure spend with the FinOps engine"
         Write-Host ""
         Write-Host "Environments:" -ForegroundColor Cyan
-        Write-Host "  dev           Burstable tier (Branch: develop, Namespace: dev)"
-        Write-Host "  staging       Medium performance tier (Branch: staging, Namespace: staging)"
-        Write-Host "  prod          High performance HA tier (Branch: main/master, Namespace: production)"
+        Write-Host "  dev           Burstable tier (Branch: develop | Namespace: dev)"
+        Write-Host "  staging       Medium performance tier (Branch: staging | Namespace: staging)"
+        Write-Host "  prod          High performance HA tier (Branch: master | Namespace: production)"
     }
 }
