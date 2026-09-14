@@ -2,32 +2,61 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: microservices-ingress-gke
-  namespace: default
+  namespace: dev
   annotations:
-    # GKE Ingress Controller (GCE HTTP/HTTPS Load Balancer)
-    kubernetes.io/ingress.class: "gce"
+    # Kong Ingress Controller L7 Configuration for Google Cloud GKE
+    kubernetes.io/ingress.class: "kong"
+    konghq.com/strip-path: "false"
+    konghq.com/plugins: "kong-rate-limiting, kong-security-headers"
+    # GCP Passthrough Network Load Balancer (L4) annotations
+    cloud.google.com/load-balancer-type: "External"
 spec:
+  ingressClassName: kong
   rules:
     - http:
         paths:
-          - path: /api/*
-            pathType: ImplementationSpecific
+          - path: /api
+            pathType: Prefix
             backend:
               service:
                 name: api-gateway
                 port:
                   number: 8080
-          - path: /actuator/*
-            pathType: ImplementationSpecific
+          - path: /actuator
+            pathType: Prefix
             backend:
               service:
                 name: api-gateway
                 port:
                   number: 8080
-          - path: /*
-            pathType: ImplementationSpecific
+          - path: /
+            pathType: Prefix
             backend:
               service:
                 name: frontend
                 port:
                   number: 80
+---
+# Kong Plugins for In-Cluster L7 Hardening on GKE
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: kong-rate-limiting
+  namespace: dev
+plugin: rate-limiting
+config:
+  minute: 300
+  policy: local
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: kong-security-headers
+  namespace: dev
+plugin: response-transformer
+config:
+  add:
+    headers:
+      - "X-Frame-Options: SAMEORIGIN"
+      - "X-Content-Type-Options: nosniff"
+      - "X-XSS-Protection: 1; mode=block"

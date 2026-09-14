@@ -27,15 +27,27 @@ variable "subject_alternative_names" {
 }
 
 variable "target_alb_dns_name" {
-  description = "Optional ALB DNS name to create apex/subdomain alias record"
+  description = "Optional ALB/NLB DNS name to create apex/subdomain alias record"
   type        = string
   default     = null
 }
 
 variable "target_alb_zone_id" {
-  description = "Optional ALB Hosted Zone ID for alias record"
+  description = "Optional ALB/NLB Hosted Zone ID for alias record"
   type        = string
   default     = null
+}
+
+variable "target_cf_domain_name" {
+  description = "Optional CloudFront domain name to create apex alias record"
+  type        = string
+  default     = null
+}
+
+variable "target_cf_zone_id" {
+  description = "Optional CloudFront Hosted Zone ID for alias record"
+  type        = string
+  default     = "Z2FDTNDATAQYW2" # Static CloudFront Route53 Zone ID
 }
 
 variable "tags" {

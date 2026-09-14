@@ -30,11 +30,6 @@ variable "db_subnet_cidr" {
   default = "10.30.16.0/24"
 }
 
-variable "appgw_subnet_cidr" {
-  description = "Subnet CIDR block dedicated to Application Gateway"
-  type        = string
-  default     = null
-}
 
 variable "tags" {
   type    = map(string)

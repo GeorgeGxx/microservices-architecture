@@ -243,3 +243,6 @@ products-service:
     enabled: true
     minAvailable: 1
 
+frontend:
+  enabled: true
+

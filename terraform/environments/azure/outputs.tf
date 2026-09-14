@@ -54,8 +54,9 @@ output "eventhubs_kafka_endpoint" {
   value = try(module.eventhubs[0].kafka_endpoint, null)
 }
 
-output "app_gateway_public_ip" {
-  value = try(module.app_gateway[0].public_ip_address, null)
+output "nginx_ingress_public_ip" {
+  value       = azurerm_public_ip.aks_nginx_lb.ip_address
+  description = "Public IP address for AKS Standard Load Balancer fronting NGINX Ingress"
 }
 
 output "frontdoor_endpoint" {

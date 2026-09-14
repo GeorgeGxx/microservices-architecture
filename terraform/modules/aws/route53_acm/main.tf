@@ -54,7 +54,7 @@ resource "aws_acm_certificate_validation" "this" {
 }
 
 resource "aws_route53_record" "alb_alias" {
-  count   = var.target_alb_dns_name != null && var.target_alb_zone_id != null ? 1 : 0
+  count   = var.target_alb_dns_name != null && var.target_alb_zone_id != null && var.target_cf_domain_name == null ? 1 : 0
   zone_id = local.zone_id
   name    = var.domain_name
   type    = "A"
@@ -63,5 +63,19 @@ resource "aws_route53_record" "alb_alias" {
     name                   = var.target_alb_dns_name
     zone_id                = var.target_alb_zone_id
     evaluate_target_health = true
+  }
+}
+
+# Apex alias pointing to CloudFront Dual-Origin Distribution (Fronting S3 + EKS NLB)
+resource "aws_route53_record" "cf_alias" {
+  count   = var.target_cf_domain_name != null ? 1 : 0
+  zone_id = local.zone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = var.target_cf_domain_name
+    zone_id                = var.target_cf_zone_id
+    evaluate_target_health = false
   }
 }

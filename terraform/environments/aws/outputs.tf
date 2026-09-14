@@ -15,8 +15,9 @@ output "rds_postgres_endpoint" {
   sensitive = true
 }
 
-output "alb_dns_name" {
-  value = module.alb.dns_name
+output "nlb_dns_name" {
+  value       = module.nlb.dns_name
+  description = "AWS Network Load Balancer (NLB) DNS name fronting Traefik"
 }
 
 output "kms_key_arn" {

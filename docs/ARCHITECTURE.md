@@ -120,13 +120,89 @@ The platform provides enterprise-grade secret management across 4 distinct imple
 
 ---
 
-## 🗺️ Multi-Cloud & Multi-CI/CD Matrix
+## 🗺️ Multi-Cloud & Multi-CI/CD Matrix (Model 2: L4 NLB + Dedicated Ingress + Istio Mesh)
 
-| Target Cloud | CI / Build Provider | CD / Deployment Tool | Container Registry | Terraform IaC Pipeline | Environments |
-| :--- | :--- | :--- | :--- | :--- | :---: |
-| **AWS Cloud** | **GitHub Actions** | **GitHub Actions** (Helm to EKS) | Amazon ECR | `.github/workflows/terraform-aws.yml` | `dev`, `staging`, `prod` |
-| **Azure Cloud** | **Azure DevOps** | **Azure DevOps** (Helm to AKS) | Azure Container Registry (ACR) | `azure-devops/azure-pipelines-terraform.yml` | `dev`, `staging`, `prod` |
-| **Google Cloud (GCP)**| **Bitbucket Pipelines** | **ArgoCD** (GitOps Sync to GKE) | Google Artifact Registry (GAR) | Bitbucket Step `terraform-gcp-apply` | `dev`, `staging`, `prod` |
+| Target Cloud | Ingress Controller (L7) | Cloud Load Balancer (L4) | Edge WAF & DDoS Protection | Service Mesh & Observability | CI / CD Engine |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **AWS Cloud (EKS)** | **Traefik Ingress** (`k8s/eks/`) | **AWS Network Load Balancer (NLB)** | **AWS WAFv2** (CloudFront Edge Rulesets) | **Istio Envoy** (`mTLS STRICT`) + Kiali | GitHub Actions + ArgoCD |
+| **Azure Cloud (AKS)** | **NGINX Ingress** (`k8s/aks/`) | **Azure Standard Load Balancer (SLB)** | **Azure Front Door Premium WAF** (OWASP DRS 2.1) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Azure DevOps Unified Pipeline |
+| **Google Cloud (GCP)** | **Kong Ingress** (`k8s/gke/`) | **GCP Passthrough Network Load Balancer** | **Google Cloud Armor** (Security Policy + CDN) | **Istio Envoy** (`mTLS STRICT`) + Kiali | Bitbucket Pipelines + ArgoCD |
+---
+
+## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Gateway ➔ Istio ➔ Kiali)
+
+The platform implements an enterprise defense-in-depth traffic flow combining dedicated L7 Ingress Controllers (**Traefik / NGINX / Kong**), **Keycloak IAM**, **Spring Cloud API Gateway**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client as 👤 Angular 21 Client
+    participant Ingress as 🚪 Ingress Controller<br/>(Kong / NGINX / Traefik + L4 NLB)
+    participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
+    participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
+    participant Gateway as ⚡ Spring Cloud Gateway<br/>(JWT Filter / TokenRelay)
+    participant Microservice as 📦 Orders / Products Service<br/>(Spring Boot 3.4)
+    participant Kiali as 📊 Kiali Dashboard
+
+    Note over Client, Keycloak: Phase 1: Authentication & Token Issuance
+    Client->>Ingress: 1. POST /realms/microservices-realm/protocol/openid-connect/token (PKCE)
+    Ingress->>Envoy: 2. Route authentication request to Keycloak service
+    Envoy->>Keycloak: 3. Deliver request encrypted over mTLS
+    Keycloak-->>Client: 4. Returns signed JWT Access Token (roles, 'sub', RSA keys)
+
+    Note over Client, Microservice: Phase 2: Business Execution (Defense-in-Depth)
+    Client->>Ingress: 5. POST /api/orders (Authorization: Bearer <JWT>, traceparent)
+    Note over Ingress: Perimeter L7 Filtering:<br/>• Rate limiting (100 RPS)<br/>• WAF / Input sanitization<br/>• Security Headers injection
+    Ingress->>Envoy: 6. Forward egress traffic to api-gateway:8080
+    Note over Envoy: Istio Service Mesh (mTLS STRICT):<br/>• Envoy interception<br/>• VirtualService / DestinationRule validation<br/>• Cryptographic mTLS with SPIFFE X.509 certs
+    Envoy->>Gateway: 7. Deliver decrypted HTTP request to Spring Cloud Gateway
+    Note over Gateway: Application Layer Processing:<br/>• Reactive JwtAuthenticationFilter (JWKS check)<br/>• TokenRelay (propagates 'sub', user roles)<br/>• Resilience4j Circuit Breaker & Retries
+    Gateway->>Envoy: 8. Route internal request to orders-service:8003
+    Envoy->>Microservice: 9. East-West mTLS encrypted leap to backend container
+    Microservice-->>Gateway: 10. HTTP 201 Created + JSON payload
+    Gateway-->>Ingress-->>Client: 11. Response returned to Angular 21 Storefront
+
+    Note over Kiali: Real-Time Observability
+    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [api-gateway] ➔ [orders-service] with green 🔒 mTLS lock
+```
+
+### Flow Breakdown & Separation of Concerns:
+1. **Perimeter Ingress (North-South):** **Kong** (GCP), **NGINX** (Azure), or **Traefik** (AWS) fronted by native L4 Network Load Balancers enforces ingress rate limits, CORS policies, security headers, and path dispatching.
+2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. Ingress routes `/auth/**` and `/realms/**` directly to Keycloak.
+3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
+4. **Application API Gateway:** **Spring Cloud Gateway** performs deep application-level filtering (reactive JWT claim extraction, user context propagation via `TokenRelay`, Resilience4j circuit breaking, and anti-DDoS IP rate limiting).
+5. **Core Microservices (East-West):** Gateway dispatches traffic to downstream microservices (`orders-service`, `products-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
+6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `api-gateway` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
+
+---
+
+## 🌐 Dual-Origin Cloud Edge vs. Local Minikube Frontend Architecture
+
+To balance enterprise cloud scalability with zero-cost local developer ergonomics, the platform implements a hybrid frontend delivery model:
+
+```mermaid
+flowchart TD
+    subgraph CloudModel["☁️ Multi-Cloud Production (AWS • Azure • GCP)"]
+        BrowserCloud([🌐 Global Client]) --> CloudCDN["Global Edge CDN + WAF<br/>(CloudFront / Front Door / Cloud Armor)"]
+        CloudCDN -->|Default '/*': Cached Static Assets| BucketStorage["Cloud Storage Bucket<br/>(AWS S3 / Azure Blob / GCP GCS)<br/>index.html, *.js, *.css (OAC Protected)"]
+        CloudCDN -->|Dynamic '/api/*' & '/realms/*'| CloudNLB["L4 Network Load Balancer<br/>(AWS NLB / Azure SLB / GCP NLB)"]
+        CloudNLB --> CloudIngress["Ingress Controller<br/>(Traefik / NGINX / Kong)"]
+        CloudIngress --> CloudMesh["Istio Envoy Mesh (mTLS)"]
+    end
+
+    subgraph LocalModel["💻 Local Development (Minikube / Docker)"]
+        BrowserLocal([💻 Local Developer]) --> LocalIngress["Istio Ingress Gateway / NodePort"]
+        LocalIngress -->|'/'| LocalFE["Pod: frontend (NodePort 30080)<br/>(Nginx unprivileged serving /usr/share/nginx/html)"]
+        LocalIngress -->|'/api'| LocalGW["Pod: api-gateway (Port 8080)"]
+    end
+```
+
+| Deployment Environment | Frontend Delivery Mechanism | Backend Ingress Target | CDN & Edge Caching | Infrastructure Cost |
+| :--- | :--- | :--- | :--- | :--- |
+| **AWS EKS (`staging`/`prod`)** | **AWS S3 Assets Bucket** (`module.s3_assets`) | AWS NLB (`module.nlb`) | **CloudFront Distribution + WAFv2** (`s3Origin` + `nlbOrigin`) | Edge cached, zero pod CPU/RAM footprint |
+| **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`aks_nginx_lb`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
+| **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
+| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Spring Cloud Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
 
 ---
 

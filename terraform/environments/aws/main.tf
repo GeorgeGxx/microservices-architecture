@@ -50,8 +50,8 @@ module "rds_postgres" {
   tags                       = local.tags
 }
 
-module "alb" {
-  source = "../../modules/aws/alb"
+module "nlb" {
+  source = "../../modules/aws/nlb"
 
   name              = local.name
   environment       = local.env
@@ -119,24 +119,29 @@ module "msk_kafka" {
   tags                       = local.tags
 }
 
-module "route53_acm" {
-  count               = local.cfg.enable_route53_acm ? 1 : 0
-  source              = "../../modules/aws/route53_acm"
-  domain_name         = local.cfg.domain_name
-  environment         = local.env
-  target_alb_dns_name = module.alb.dns_name
-  target_alb_zone_id  = module.alb.zone_id
-  tags                = local.tags
+module "cloudfront" {
+  count                  = local.cfg.enable_cloudfront ? 1 : 0
+  source                 = "../../modules/aws/cloudfront"
+  name                   = local.name
+  environment            = local.env
+  s3_bucket_domain_name  = module.s3_assets[0].bucket_regional_domain_name
+  s3_bucket_arn          = module.s3_assets[0].bucket_arn
+  s3_bucket_id           = module.s3_assets[0].bucket_id
+  api_origin_domain_name = module.nlb.dns_name
+  acm_certificate_arn    = local.cfg.enable_route53_acm ? module.route53_acm[0].certificate_arn : null
+  tags                   = local.tags
 }
 
-module "cloudfront" {
-  count               = local.cfg.enable_cloudfront ? 1 : 0
-  source              = "../../modules/aws/cloudfront"
-  name                = local.name
-  environment         = local.env
-  origin_domain_name  = module.alb.dns_name
-  acm_certificate_arn = local.cfg.enable_route53_acm ? module.route53_acm[0].certificate_arn : null
-  tags                = local.tags
+module "route53_acm" {
+  count                 = local.cfg.enable_route53_acm ? 1 : 0
+  source                = "../../modules/aws/route53_acm"
+  domain_name           = local.cfg.domain_name
+  environment           = local.env
+  target_alb_dns_name   = module.nlb.dns_name
+  target_alb_zone_id    = module.nlb.zone_id
+  target_cf_domain_name = local.cfg.enable_cloudfront ? module.cloudfront[0].domain_name : null
+  target_cf_zone_id     = local.cfg.enable_cloudfront ? module.cloudfront[0].hosted_zone_id : null
+  tags                  = local.tags
 }
 
 module "cloudwatch" {

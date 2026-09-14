@@ -2,16 +2,18 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: microservices-ingress-eks
-  namespace: default
+  namespace: dev
   annotations:
-    # AWS Load Balancer Controller (ALB) configuration
-    kubernetes.io/ingress.class: alb
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    # Traefik Ingress Controller L7 Configuration for AWS EKS
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: web, websecure
+    traefik.ingress.kubernetes.io/router.middlewares: dev-strip-prefix@kubernetescrd, dev-rate-limit@kubernetescrd
+    # AWS Network Load Balancer (L4) Target Integration
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
 spec:
-  ingressClassName: alb
+  ingressClassName: traefik
   rules:
     - http:
         paths:
@@ -36,3 +38,24 @@ spec:
                 name: frontend
                 port:
                   number: 80
+---
+# Traefik Middlewares for L7 Ingress Hardening on EKS
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: strip-prefix
+  namespace: dev
+spec:
+  stripPrefix:
+    prefixes:
+      - /strip
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rate-limit
+  namespace: dev
+spec:
+  rateLimit:
+    average: 100
+    burst: 50
