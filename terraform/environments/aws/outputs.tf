@@ -17,7 +17,7 @@ output "rds_postgres_endpoint" {
 
 output "nlb_dns_name" {
   value       = module.nlb.dns_name
-  description = "AWS Network Load Balancer (NLB) DNS name fronting Traefik"
+  description = "AWS Network Load Balancer (NLB) DNS name fronting Istio"
 }
 
 output "kms_key_arn" {
