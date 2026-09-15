@@ -14,7 +14,7 @@ spec:
       hosts:
         - "*"
       tls:
-        httpsRedirect: true # Equivalen to nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        httpsRedirect: true # Equivalent to nginx.ingress.kubernetes.io/ssl-redirect: "true"
     - port:
         number: 443
         name: https
