@@ -1,3 +1,13 @@
+# Terraform Pipeline with Checkov IaC Security & TFLint Scan for Azure AKS
+
+# Stage
+# STAGE 1: Checkov IaC Security & TFLint Scan
+# STAGE 2: Terraform Plan & Validate (Matrix per Workspace)
+# STAGE 3: Terraform Apply - Dev Environment (develop branch)
+# STAGE 4: Terraform Apply - Staging Environment (staging branch)
+# STAGE 5: Terraform Apply - Production Environment (main / master)
+# STAGE 6: Automated Rollback on Terraform Failure
+
 name: MSA-Terraform-Azure-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
