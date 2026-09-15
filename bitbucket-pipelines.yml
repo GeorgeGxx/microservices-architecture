@@ -117,7 +117,7 @@ definitions:
           - if [ -d "devsecops/policies/conftest" ]; then conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ || echo "Conftest audit logged advisory findings."; fi
 
     # -------------------------------------------------------------------------
-    # STAGE 5.5: 🌱 Deploy to Google Kubernetes Engine (GKE) Dev
+    # STAGE 5.1: 🌱 Deploy to Google Kubernetes Engine (GKE) Dev
     # -------------------------------------------------------------------------
     - step: &deploy-gke-dev
         name: "🌱 Deploy to GKE Dev (GCP)"
@@ -143,7 +143,7 @@ definitions:
               --cleanup-on-fail || echo "GKE Dev deployment simulated"
 
     # -------------------------------------------------------------------------
-    # STAGE: 🔄 Automated Rollback for Dev Failure
+    # STAGE 5.2: 🔄 Automated Rollback for Dev Failure
     # -------------------------------------------------------------------------
     - step: &rollback-gke-dev
         name: "🔄 Rollback GKE Dev"

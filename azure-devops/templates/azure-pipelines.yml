@@ -1,21 +1,25 @@
-# 🧩 DevSecOps Pipeline with QA and Security for Azure DevOps
-
+# 🧩 DevSecOps Pipeline with QA and Security for Azure DevOps | Hardened for Dev / Staging / Production
+#
+# GATE POLICY (redesign key):
+#   - Gitleaks (secrets) is ALWAYS a blocking gate, on any branch.
+#   - Staging (and all downstream processes: Integration/E2E/Perf/DAST/PushACR) runs ONLY on release/* or main/master branches. Consequently, anything reaching Staging is already a production-ready candidate, so its gates (Trivy, Conftest, Newman, Cypress, ZAP) are ALWAYS blocking—no conditional logic is needed there.
+#   - SAST (Semgrep/Checkov/Sonar/npm audit) is blocking on protected branches (release/*, main/master) and merely informative on feature branches, so as not to slow down the rapid development loop.
+#
 # Stage | Type | Description | Tools
-
-# Stage 1: 🧪 Unit Tests & Code Coverage | QA | Validate internal logic of each module | Maven, JUnit, JaCoCo, npm
-# Stage 2: 🔍 SAST, Secret Detection & Governance | Security | Scan source code for vulnerabilities | Gitleaks, Semgrep, Checkov, SonarCloud, Dockerfile, Kubernetes, Helm 
+# Stage 1: 🧪 Unit Tests & Code Coverage | QA | Validate internal logic of each module | Maven, JUnit, JaCoCo, npm, Karma
+# Stage 2: 🔍 SAST, Secret Detection & Governance | Security | Scan source code for vulnerabilities | Gitleaks, Semgrep, Checkov, SonarCloud, npm audit
 # Stage 3: ⚙️ Build Container & SBOM | DevOps / Supply Chain | Compile the app and build the container image | Docker, CycloneDX SBOM
-# Stage 4 |   🧰 Container Vulnerability Scan | Security | Scan container image for known vulnerabilities | Trivy
-# Stage 5 |   🧾 Compliance & Policy Gate | Governance | Audit helm manifests | Conftest, OPA
-# Stage 5.1 | 🌱 Deploy to Azure AKS Dev (develop branch) | Infra | Deploy Helm Release to AKS into Development Environment | AKS, Azure Container Registry (ACR), Helm
+# Stage 4 | 🧰 Container Vulnerability Scan | Security | Scan container image for known vulnerabilities | Trivy
+# Stage 5 | 🧾 Compliance & Policy Gate | Governance | Audit helm manifests | Conftest, OPA
+# Stage 5.1 | 🌱 Deploy to Azure AKS Dev (develop branch) | Infra | Deploy Helm Release to AKS into Development Environment | AKS, ACR, Helm
 # Stage 5.2 | 🔄 Automated Rollback on Dev Failure | Infra | Execute Automated Helm Rollback on Dev | AKS, Helm
-# Stage 6 |   🚀 Deploy to Azure AKS Staging | Infra | Deploy the image to staging environment | Helm, Istio, AKS
-# Stage 7 |   🔗 Integration Tests | QA | Test service-to-service communication | Postman, Newman
-# Stage 8 |   🧭 E2E Tests | QA / Functional | Validate full user flows via UI | Cypress
-# Stage 9 |   ⚡ Performance & Load Tests | Performance / QA | Stress test the system, measure latency, throughput and scalability | Perf, k6
+# Stage 6 | 🚀 Deploy to Azure AKS Staging (release/* or main only) | Infra | Deploy the image to staging environment | Helm, Istio, AKS
+# Stage 7 | 🔗 Integration Tests | QA | Test service-to-service communication | Postman, Newman
+# Stage 8 | 🧭 E2E Tests | QA / Functional | Validate full user flows via UI | Cypress
+# Stage 9 | ⚡ Performance & Load Tests | Performance / QA | Stress test the system, measure latency, throughput and scalability | k6
 # Stage 10 | 🕵️ DAST | Security | Simulate attacks on the running app | OWASP ZAP
-# Stage 10.1 | 🔄 Automated Rollback on Staging Test Failure | Infra | Execute Automated Helm Rollback on Staging | AKS, Helm
-# Stage 11 | 📦 Push Certified Image to Azure Container Registry | Infra | Push certified image to ACR | Azure Container Registry (ACR), Docker
+# Stage 10.1 | 🔄 Automated Rollback on Staging Test/Deploy Failure | Infra | Execute Automated Helm Rollback on Staging | AKS, Helm
+# Stage 11 | 📦 Push Certified Image to Azure Container Registry | Infra | Push certified image to ACR | ACR, Docker
 # Stage 12 | 🚢 Deploy to Azure AKS Production (Canary Rollout) | Ops | Roll out final version to production | Azure DevOps, Istio, Helm
 # Stage 12.1 | 🔄 Automated Rollback on Production Failure | Infra | Execute Automated Helm Rollback on Production | AKS, Helm, Istio
 
@@ -33,6 +37,19 @@ parameters:
   - name: ingressUrl
     type: string
     default: ''
+  # MEJORA: tag semántico opcional e inmutable para releases certificadas.
+  # Si se deja vacío, solo se publican los tags con Build.SourceVersion (SHA) y latest.
+  - name: imageVersion
+    type: string
+    default: ''
+  # MEJORA: el canary de Istio ya no está hardcodeado a "products-service".
+  # Cualquier servicio puede habilitarlo pasando su propio manifiesto.
+  - name: canaryEnabled
+    type: boolean
+    default: false
+  - name: canaryVirtualServicePath
+    type: string
+    default: ''
 
 stages:
   # ==========================================================
@@ -42,7 +59,7 @@ stages:
     displayName: "🧪 1. Unit Tests - ${{ parameters.serviceName }}"
     jobs:
       - job: TestExecution
-        displayName: "Run Automated Unit Tests & JaCoCo Coverage"
+        displayName: "Run Automated Unit Tests & Coverage"
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -103,13 +120,40 @@ stages:
             inputs:
               versionSpec: '20.x'
 
+          # MEJORA: se elimina "|| npm run build" — ese fallback enmascaraba
+          # tests fallidos (el build casi siempre pasa aunque los specs fallen).
+          # Ahora el step SOLO corre tests; el build es un step aparte que
+          # únicamente se ejecuta si los tests pasaron.
           - script: |
-              echo "Installing dependencies and executing Angular Unit Tests..."
+              echo "Installing dependencies and executing Angular Unit Tests (hard gate)..."
               cd ${{ parameters.serviceDir }}
               npm ci
-              npm run test -- --watch=false --browsers=ChromeHeadless || npm run build
+              npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
             condition: eq('${{ parameters.serviceType }}', 'angular')
-            displayName: "Angular Unit Tests & Build"
+            displayName: "Angular Unit Tests (Karma/Jest)"
+
+          - task: PublishTestResults@2
+            # Requiere karma-junit-reporter (o jest-junit) apuntando a test-results/junit.xml
+            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeededOrFailed())
+            displayName: "Publish Angular Test Results"
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '${{ parameters.serviceDir }}/test-results/junit.xml'
+              mergeTestResults: true
+              failTaskOnFailedTests: true
+
+          - task: PublishCodeCoverageResults@2
+            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeededOrFailed())
+            displayName: "Publish Angular Code Coverage"
+            inputs:
+              summaryFileLocation: '${{ parameters.serviceDir }}/coverage/**/cobertura-coverage.xml'
+
+          - script: |
+              echo "Building Angular application..."
+              cd ${{ parameters.serviceDir }}
+              npm run build
+            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeeded())
+            displayName: "Angular Build"
 
   # ==========================================================
   # STAGE 2: 🔍 SAST, Secret Detection & Governance (Security)
@@ -117,49 +161,77 @@ stages:
   - stage: SASTSecurity
     displayName: "🔍 2. SAST & Secrets - ${{ parameters.serviceName }}"
     dependsOn: UnitTests
+    variables:
+      # MEJORA: gate estricto en ramas protegidas, informativo en feature branches.
+      isProtectedBranch: $[or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))]
     jobs:
       - job: SecurityScans
-        displayName: "Static Analysis, Gitleaks, Semgrep, Checkov & SonarCloud"
+        displayName: "Static Analysis, Gitleaks, Semgrep, Checkov, npm audit & SonarCloud"
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+          # MEJORA: Gitleaks ya NO tiene "|| true". Un secreto detectado
+          # bloquea el pipeline SIEMPRE, sin importar la rama.
           - script: |
-              echo "Running Gitleaks Secret Scanner with Centralized Rules..."
+              echo "Running Gitleaks Secret Scanner (hard gate — always enforced)..."
               CONFIG="devsecops/sast/gitleaks/.gitleaks.toml"
               if [ -f "$CONFIG" ]; then
-                docker run --rm -v $(Build.SourcesDirectory):/repo zricethezav/gitleaks:latest detect --source=/repo --config=/repo/$CONFIG -v --no-git || true
+                docker run --rm -v $(Build.SourcesDirectory):/repo zricethezav/gitleaks:latest detect --source=/repo --config=/repo/$CONFIG -v --no-git
               else
-                docker run --rm -v $(Build.SourcesDirectory):/repo zricethezav/gitleaks:latest detect --source=/repo -v --no-git || true
+                docker run --rm -v $(Build.SourcesDirectory):/repo zricethezav/gitleaks:latest detect --source=/repo -v --no-git
               fi
-            displayName: "Gitleaks Secret Scan"
+            displayName: "Gitleaks Secret Scan (Hard Gate)"
 
           - script: |
               echo "Running Semgrep Static Application Security Testing (SAST)..."
               python3 -m pip install semgrep || pip install semgrep
-              semgrep scan --config auto --severity ERROR --error ${{ parameters.serviceDir }} || true
+              if [ "$(isProtectedBranch)" = "True" ]; then
+                semgrep scan --config auto --severity ERROR --error ${{ parameters.serviceDir }}
+              else
+                semgrep scan --config auto --severity ERROR --error ${{ parameters.serviceDir }} || echo "Semgrep findings on feature branch — advisory only."
+              fi
             displayName: "Semgrep SAST Scan"
 
           - script: |
               echo "Running Checkov IaC & Dockerfile Scanner..."
               pip3 install checkov
-              checkov -d ${{ parameters.serviceDir }} --framework dockerfile,kubernetes,helm --soft-fail
+              if [ "$(isProtectedBranch)" = "True" ]; then
+                checkov -d ${{ parameters.serviceDir }} --framework dockerfile,kubernetes,helm --compact
+              else
+                checkov -d ${{ parameters.serviceDir }} --framework dockerfile,kubernetes,helm --soft-fail
+              fi
             displayName: "Checkov Policy & IaC Scan"
+
+          # MEJORA: gate de dependencias para el stack Angular — antes solo
+          # Java tenía un quality gate real (SonarCloud); el frontend no tenía nada equivalente.
+          - script: |
+              echo "Running npm audit (dependency vulnerability gate)..."
+              cd ${{ parameters.serviceDir }}
+              if [ "$(isProtectedBranch)" = "True" ]; then
+                npm audit --audit-level=high
+              else
+                npm audit --audit-level=high || echo "npm audit findings on feature branch — advisory only."
+              fi
+            condition: eq('${{ parameters.serviceType }}', 'angular')
+            displayName: "npm audit (Angular Dependency Security Gate)"
 
           - script: |
               echo "Executing SonarQube / SonarCloud Code Quality Analysis..."
               if [ -n "$SONAR_TOKEN" ] && [ "${{ parameters.serviceType }}" = "spring-boot" ]; then
                 cd ${{ parameters.serviceDir }}
+                QG_WAIT="false"
+                if [ "$(isProtectedBranch)" = "True" ]; then QG_WAIT="true"; fi
                 mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
                   -Dsonar.projectKey=msa-azure-${{ parameters.serviceName }} \
                   -Dsonar.projectName="MSA Azure ${{ parameters.serviceName }}" \
                   -Dsonar.host.url=${SONAR_HOST_URL:-https://sonarcloud.io} \
                   -Dsonar.token=$SONAR_TOKEN \
                   -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                  -Dsonar.qualitygate.wait=false || echo "Sonar analysis completed with advisory warnings."
+                  -Dsonar.qualitygate.wait=$QG_WAIT
               else
                 echo "SonarQube skipped (SONAR_TOKEN not set or non-Java service)."
               fi
-            displayName: "SonarQube / SonarCloud Analysis"
+            displayName: "SonarQube / SonarCloud Analysis (Quality Gate enforced on protected branches)"
 
   # ==========================================================
   # STAGE 3: ⚙️ Build Container & SBOM (DevOps / Supply Chain)
@@ -177,7 +249,7 @@ stages:
               echo "Building Docker container image with BuildKit cache..."
               export DOCKER_BUILDKIT=1
               IMAGE_LOCAL="local/${{ parameters.serviceName }}:$(Build.SourceVersion)"
-              
+
               if [ "${{ parameters.serviceType }}" = "angular" ]; then
                 docker build \
                   --build-arg BUILDKIT_INLINE_CACHE=1 \
@@ -203,7 +275,7 @@ stages:
               trivy image \
                 --format cyclonedx \
                 --output $(Build.ArtifactStagingDirectory)/sbom/${{ parameters.serviceName }}-sbom.cdx.json \
-                --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar || true
+                --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
             displayName: "Generate CycloneDX SBOM"
 
           - task: PublishPipelineArtifact@1
@@ -226,9 +298,11 @@ stages:
   - stage: ContainerScan
     displayName: "🧰 4. Container Scan - ${{ parameters.serviceName }}"
     dependsOn: BuildContainer
+    variables:
+      isProtectedBranch: $[or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))]
     jobs:
       - job: TrivyScan
-        displayName: "Aqua Security Trivy Audit (Soft-Gate)"
+        displayName: "Aqua Security Trivy Audit"
         pool:
           vmImage: 'ubuntu-latest'
         steps:
@@ -238,15 +312,20 @@ stages:
               artifactName: 'container-image-${{ parameters.serviceName }}'
               targetPath: '$(Pipeline.Workspace)/images'
 
+          # MEJORA: exit-code condicionado a la rama. En release/main una
+          # imagen con CRITICAL/HIGH sin parche NO puede seguir avanzando
+          # hacia "certified image"; en feature branches queda como advertencia.
           - script: |
               echo "Scanning container image with Trivy (CRITICAL,HIGH)..."
               curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+              EXIT_CODE=0
+              if [ "$(isProtectedBranch)" = "True" ]; then EXIT_CODE=1; fi
               trivy image \
                 --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar \
                 --severity HIGH,CRITICAL \
                 --ignore-unfixed \
-                --exit-code 0
-            displayName: "Trivy Vulnerability Audit"
+                --exit-code $EXIT_CODE
+            displayName: "Trivy Vulnerability Audit (Hard Gate on Protected Branches)"
 
   # ==========================================================
   # STAGE 5: 🧾 Compliance & Policy Gate (Governance - Conftest/OPA)
@@ -254,6 +333,8 @@ stages:
   - stage: ComplianceGate
     displayName: "🧾 5. Compliance Gate - ${{ parameters.serviceName }}"
     dependsOn: ContainerScan
+    variables:
+      isProtectedBranch: $[or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))]
     jobs:
       - job: ConftestPolicyAudit
         displayName: "Conftest Rego Policy Verification"
@@ -276,9 +357,13 @@ stages:
 
               echo "Running Conftest Policy Audit against devsecops/policies/conftest/..."
               if [ -d "devsecops/policies/conftest" ]; then
-                conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ || echo "Policy audit completed with advisory findings."
+                if [ "$(isProtectedBranch)" = "True" ]; then
+                  conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/
+                else
+                  conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ || echo "Policy audit completed with advisory findings (feature branch)."
+                fi
               else
-                echo "devsecops/policies/conftest/ directory verified."
+                echo "devsecops/policies/conftest/ directory not found — skipping."
               fi
             displayName: "Audit Helm Manifests with Conftest Rego"
 
@@ -313,6 +398,7 @@ stages:
                         --create-namespace \
                         --set ${{ parameters.serviceName }}.image.repository=$(ACR_NAME).azurecr.io/${{ parameters.serviceName }} \
                         --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) \
+                        --set ${{ parameters.serviceName }}.service.port=${{ parameters.servicePort }} \
                         --set global.environment=dev \
                         --set configMap.data.SPRING_PROFILES_ACTIVE=dev \
                         --wait --timeout 5m \
@@ -347,11 +433,16 @@ stages:
 
   # ==========================================================
   # STAGE 6: 🚀 Deploy to Azure AKS Staging (Infra / Helm)
+  # MEJORA: antes corría para CUALQUIER rama != develop (incluyendo
+  # feature branches y PRs), lo que hacía llegar código no promovido
+  # hasta "PushACR" con tag "latest". Ahora solo corre en release/* o
+  # main/master — el resto del pipeline (tests, ACR, prod) hereda esta
+  # restricción automáticamente vía dependsOn.
   # ==========================================================
   - stage: DeployStaging
     displayName: "🚀 6. Deploy to AKS Staging - ${{ parameters.serviceName }}"
     dependsOn: ComplianceGate
-    condition: and(succeeded(), ne(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
     jobs:
       - deployment: HelmDeployStaging
         displayName: "Helm Upgrade on AKS Staging Namespace"
@@ -377,11 +468,12 @@ stages:
                         --create-namespace \
                         --set ${{ parameters.serviceName }}.image.repository=$(ACR_NAME).azurecr.io/${{ parameters.serviceName }} \
                         --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) \
+                        --set ${{ parameters.serviceName }}.service.port=${{ parameters.servicePort }} \
                         --set global.environment=staging \
                         --set configMap.data.SPRING_PROFILES_ACTIVE=staging \
                         --wait --timeout 5m \
                         --atomic \
-                        --cleanup-on-fail || echo "Staging deploy simulated in CI environment"
+                        --cleanup-on-fail
 
                       # Dynamic resolution of the Istio ingress gateway IP
                       INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
@@ -394,6 +486,8 @@ stages:
 
   # ==========================================================
   # STAGE 7: 🔗 Integration Tests (QA - Postman / Newman)
+  # MEJORA: al llegar aquí, la rama ya es release/* o main/master —
+  # el gate ahora es bloqueante de verdad (ya no hay "|| echo").
   # ==========================================================
   - stage: IntegrationTests
     displayName: "🔗 7. Integration Tests - ${{ parameters.serviceName }}"
@@ -411,15 +505,15 @@ stages:
               COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
               TARGET_URL="${STAGE_INGRESS_URL:-${{ parameters.ingressUrl }}}"
               TARGET_URL="${TARGET_URL:-http://localhost:30088}"
-              
+
               echo "Executing Newman against target endpoint: $TARGET_URL"
               if [ -f "$COLLECTION" ]; then
                 newman run "$COLLECTION" \
                   --env-var "BASE_URL=${TARGET_URL}" \
                   --reporters cli,htmlextra \
-                  --reporter-htmlextra-export $(Build.ArtifactStagingDirectory)/newman-report.html || echo "Integration tests completed with warnings."
+                  --reporter-htmlextra-export $(Build.ArtifactStagingDirectory)/newman-report.html
               fi
-            displayName: "Run Newman Collection"
+            displayName: "Run Newman Collection (Hard Gate)"
 
           - task: PublishPipelineArtifact@1
             condition: always()
@@ -449,14 +543,16 @@ stages:
               echo "Executing E2E UI and API Flow Validation against $TARGET_URL..."
               if [ -f "${{ parameters.serviceDir }}/cypress.config.js" ] || [ -f "${{ parameters.serviceDir }}/cypress.config.ts" ]; then
                 cd ${{ parameters.serviceDir }}
-                CYPRESS_BASE_URL=$TARGET_URL npx cypress run || echo "Cypress tests logged advisory findings."
+                CYPRESS_BASE_URL=$TARGET_URL npx cypress run
               else
                 echo "No Cypress config found for ${{ parameters.serviceName }} — skipping stage."
               fi
-            displayName: "Run Cypress E2E Suite"
+            displayName: "Run Cypress E2E Suite (Hard Gate)"
 
   # ==========================================================
   # STAGE 9: ⚡ Performance & Load Tests (Perf / k6)
+  # NOTA: el gate depende de los thresholds definidos en el propio
+  # load-test.js de k6 (thresholds -> exit code != 0 si se incumplen SLA).
   # ==========================================================
   - stage: PerformanceTests
     displayName: "⚡ 9. Performance Tests - ${{ parameters.serviceName }}"
@@ -474,15 +570,15 @@ stages:
               TARGET_URL="${TARGET_URL:-http://localhost:30088}"
               echo "Running k6 SLA Benchmarks on target endpoint: $TARGET_URL..."
               SCRIPT="devsecops/testing/k6/load-test.js"
-              
+
               if [ -f "$SCRIPT" ]; then
                 docker run --rm -v $(Build.SourcesDirectory):/work -w /work \
                   -e TARGET_URL=$TARGET_URL \
-                  grafana/k6 run $SCRIPT || echo "k6 load test executed with advisory notice."
+                  grafana/k6 run $SCRIPT
               else
                 echo "devsecops/testing/k6/load-test.js not found, skipping k6."
               fi
-            displayName: "Execute k6 Performance Tests"
+            displayName: "Execute k6 Performance Tests (Hard Gate — fails on SLA threshold breach)"
 
   # ==========================================================
   # STAGE 10: 🕵️ DAST (Security - OWASP ZAP)
@@ -503,21 +599,21 @@ stages:
               TARGET_URL="${TARGET_URL:-http://localhost:30088}"
               echo "Executing OWASP ZAP Baseline Scan against $TARGET_URL..."
               RULES_FILE="devsecops/dast/zap/rules.tsv"
-              
+
               mkdir -p $(Build.ArtifactStagingDirectory)/zap
               if [ -f "$RULES_FILE" ]; then
                 docker run --rm -v $(Build.SourcesDirectory)/devsecops/dast/zap:/zap/rules:ro -v $(Build.ArtifactStagingDirectory)/zap:/zap/wrk/:rw \
                   ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                   -t $TARGET_URL \
                   -c /zap/rules/rules.tsv \
-                  -r zap-report.html -I || echo "ZAP scan executed with advisory findings."
+                  -r zap-report.html -I
               else
                 docker run --rm -v $(Build.ArtifactStagingDirectory)/zap:/zap/wrk/:rw \
                   ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
                   -t $TARGET_URL \
-                  -r zap-report.html -I || echo "ZAP baseline scan executed."
+                  -r zap-report.html -I
               fi
-            displayName: "Run OWASP ZAP Baseline Scan"
+            displayName: "Run OWASP ZAP Baseline Scan (Hard Gate on FAIL-level alerts)"
 
           - task: PublishPipelineArtifact@1
             condition: always()
@@ -528,16 +624,20 @@ stages:
               publishLocation: 'pipeline'
 
   # ==========================================================
-  # STAGE 10.1: 🔄 Automated Rollback on Staging Test Failure
+  # STAGE 10.1: 🔄 Automated Rollback on Staging Deploy/Test Failure
+  # MEJORA: antes dependía SOLO de los 4 stages de test posteriores —
+  # si el propio helm upgrade de staging fallaba, no había rollback
+  # automático. Ahora también depende de DeployStaging directamente.
   # ==========================================================
   - stage: RollbackStaging
     displayName: "🔄 Rollback Staging - ${{ parameters.serviceName }}"
     dependsOn:
+      - DeployStaging
       - IntegrationTests
       - E2ETests
       - PerformanceTests
       - DASTScan
-    condition: failed()
+    condition: or(failed('DeployStaging'), failed('IntegrationTests'), failed('E2ETests'), failed('PerformanceTests'), failed('DASTScan'))
     jobs:
       - job: ExecuteRollback
         displayName: "Execute Automated Helm Rollback on Staging"
@@ -551,7 +651,7 @@ stages:
               scriptType: 'bash'
               scriptLocation: 'inlineScript'
               inlineScript: |
-                echo "Post-deployment verification tests failed. Initiating automated Helm rollback on AKS staging..."
+                echo "Staging deployment or post-deployment verification failed. Initiating automated Helm rollback on AKS staging..."
                 az aks get-credentials --resource-group $(AZURE_RG) --name $(AKS_CLUSTER_NAME) --overwrite-existing 2>/dev/null || true
                 if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
                   helm rollback microservices --namespace staging --wait --timeout 5m || echo "Helm rollback finished with warnings."
@@ -561,6 +661,9 @@ stages:
 
   # ==========================================================
   # STAGE 11: 📦 Push Certified Image to Azure Container Registry (ACR)
+  # MEJORA: se quita el tag fijo "1.0.0" (rompía la inmutabilidad —
+  # se sobrescribía en cada build). Se agrega condición explícita de
+  # rama como defensa en profundidad, y un tag semántico opcional.
   # ==========================================================
   - stage: PushACR
     displayName: "📦 11. Push to ACR - ${{ parameters.serviceName }}"
@@ -569,6 +672,7 @@ stages:
       - E2ETests
       - PerformanceTests
       - DASTScan
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
     jobs:
       - job: PushCertifiedImage
         displayName: "Promote and Push Verified Image to ACR"
@@ -589,28 +693,39 @@ stages:
               scriptLocation: 'inlineScript'
               inlineScript: |
                 az acr login --name $(ACR_NAME) || echo "ACR login simulated in CI"
-                
+
                 IMAGE_LOCAL="local/${{ parameters.serviceName }}:$(Build.SourceVersion)"
                 docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
-                
+
                 ACR_TARGET="$(ACR_NAME).azurecr.io/${{ parameters.serviceName }}"
                 docker tag $IMAGE_LOCAL ${ACR_TARGET}:$(Build.SourceVersion)
                 docker tag $IMAGE_LOCAL ${ACR_TARGET}:latest
-                docker tag $IMAGE_LOCAL ${ACR_TARGET}:1.0.0
-                
-                docker push ${ACR_TARGET}:$(Build.SourceVersion) || echo "Push simulated"
-                docker push ${ACR_TARGET}:latest || echo "Push simulated"
-                docker push ${ACR_TARGET}:1.0.0 || echo "Push simulated"
-                echo "Successfully pushed certified image to ACR: ${ACR_TARGET}"
+
+                docker push ${ACR_TARGET}:$(Build.SourceVersion)
+                docker push ${ACR_TARGET}:latest
+
+                if [ -n "${{ parameters.imageVersion }}" ]; then
+                  docker tag $IMAGE_LOCAL ${ACR_TARGET}:${{ parameters.imageVersion }}
+                  docker push ${ACR_TARGET}:${{ parameters.imageVersion }}
+                fi
+
+                echo "Successfully pushed certified image to ACR: ${ACR_TARGET}:$(Build.SourceVersion)"
 
   # ==========================================================
   # STAGE 12: 🚢 Deploy to Azure AKS Production (Canary Rollout with Istio)
+  # MEJORA: el rollback inline se retira de aquí (quedaba duplicado con
+  # el stage RollbackProduction). Este stage solo detecta la falla y
+  # marca el stage como failed(); RollbackProduction es el único punto
+  # que ejecuta el rollback real. El canary ya no está hardcodeado a
+  # "products-service": se habilita por parámetro para cualquier servicio.
   # ==========================================================
   - stage: DeployProduction
     displayName: "🚢 12. Deploy to AKS Production - ${{ parameters.serviceName }}"
     dependsOn: PushACR
     condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/master')))
     jobs:
+      # RECORDATORIO: configurar un approval check manual en el Environment
+      # "production" desde el portal de Azure DevOps — eso no se declara en YAML.
       - deployment: HelmCanaryProduction
         displayName: "Production Canary Rollout with Istio Traffic Shifting"
         pool:
@@ -635,24 +750,25 @@ stages:
                         --create-namespace \
                         --set ${{ parameters.serviceName }}.image.repository=$(ACR_NAME).azurecr.io/${{ parameters.serviceName }} \
                         --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) \
+                        --set ${{ parameters.serviceName }}.service.port=${{ parameters.servicePort }} \
                         --set global.environment=production \
                         --set configMap.data.SPRING_PROFILES_ACTIVE=prod \
                         --wait --timeout 5m \
                         --atomic \
-                        --cleanup-on-fail || echo "Production deploy simulated in CI environment"
+                        --cleanup-on-fail
 
                       # Istio Canary Traffic Shifting (VirtualService & DestinationRule)
-                      if [ "${{ parameters.serviceName }}" = "products-service" ] && [ -f "k8s/istio/products-virtualservice.yaml" ]; then
-                        echo "Applying Istio DestinationRules and VirtualService for Canary Routing (90% Prod / 10% Canary)..."
+                      # Generalizado por parámetro — ya no hardcodeado a un solo servicio.
+                      if [ "${{ parameters.canaryEnabled }}" = "True" ] && [ -n "${{ parameters.canaryVirtualServicePath }}" ] && [ -f "${{ parameters.canaryVirtualServicePath }}" ]; then
+                        echo "Applying Istio DestinationRules and VirtualService for Canary Routing..."
                         kubectl apply -f k8s/istio/destination-rules.yaml -n production || true
-                        kubectl apply -f k8s/istio/products-virtualservice.yaml -n production || true
+                        kubectl apply -f "${{ parameters.canaryVirtualServicePath }}" -n production || true
                       fi
 
                       echo "Verifying production canary rollout health..."
                       if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
                         kubectl rollout status deployment/microservices-${{ parameters.serviceName }} -n production --timeout=2m || {
-                          echo "Production canary health check failed! Initiating emergency Helm rollback..."
-                          helm rollback microservices --namespace production --wait || true
+                          echo "Production canary health check failed! Marking stage as failed — RollbackProduction will execute the rollback."
                           exit 1
                         }
                         echo "Production canary stabilized successfully."
@@ -660,6 +776,7 @@ stages:
 
   # ==========================================================
   # STAGE 12.1: 🔄 Automated Rollback on Production Failure
+  # (Único punto de ejecución del rollback de producción — ver nota arriba.)
   # ==========================================================
   - stage: RollbackProduction
     displayName: "🔄 Rollback Production - ${{ parameters.serviceName }}"
