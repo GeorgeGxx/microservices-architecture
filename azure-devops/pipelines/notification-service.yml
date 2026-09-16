@@ -30,7 +30,7 @@ variables:
     value: 'msaazureprodacr'
 
 stages:
-  - template: ../templates/ci-cd-master-template.yml
+  - template: ../templates/azure-pipelines.yml
     parameters:
       serviceName: 'notification-service'
       serviceDir: 'notification-service'

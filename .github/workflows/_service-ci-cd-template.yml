@@ -106,11 +106,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ${{ inputs.service-dir }}/package-lock.json
 
-      - name: Install & Build Angular
+      - name: Install, Test & Build Angular
         if: inputs.service-type == 'angular'
         run: |
           cd ${{ inputs.service-dir }}
           npm ci
+          npm run test -- --watch=false --browsers=ChromeHeadless
           npm run build
 
   # ==========================================================
@@ -127,10 +128,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Gitleaks Secrets Detection (Centralized Config)
+      # Gitleaks Secrets Detection (Centralized Config - Hard Gate)
       - name: Run Gitleaks Secret Detector
         uses: gitleaks/gitleaks-action@v2
-        continue-on-error: true
+        continue-on-error: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml

@@ -30,9 +30,11 @@ variables:
     value: 'msaazureprodacr'
 
 stages:
-  - template: ../templates/ci-cd-master-template.yml
+  - template: ../templates/azure-pipelines.yml
     parameters:
       serviceName: 'products-service'
       serviceDir: 'products-service'
       serviceType: 'spring-boot'
       servicePort: 8004
+      canaryEnabled: true
+      canaryVirtualServicePath: 'k8s/istio/06-canary-virtual-services.yaml'

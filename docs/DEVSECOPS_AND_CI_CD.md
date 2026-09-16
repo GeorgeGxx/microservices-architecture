@@ -319,7 +319,7 @@ Located in `.github/workflows/`:
 
 ### 2. Azure DevOps Pipelines ➔ Azure Cloud
 Located in `azure-devops/`:
-- **Master Template ([`ci-cd-master-template.yml`](./azure-devops/templates/ci-cd-master-template.yml))**: Implements the same 12-stage DevSecOps cycle, adapted for Spring Boot Java 21 and Angular 21, targeting Azure Container Registry (ACR) and Azure AKS.
+- **Master Template ([`azure-pipelines.yml`](./azure-devops/templates/azure-pipelines.yml))**: Implements the hardened 12-stage DevSecOps cycle with multi-environment automated rollbacks, adapted for Spring Boot Java 21 and Angular 21, targeting Azure Container Registry (ACR) and Azure AKS.
 - **Per-Service Pipelines**: [`api-gateway.yml`](./azure-devops/pipelines/api-gateway.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
 - **Terraform Pipeline ([`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml))**: Deploys Azure AKS / VNet / PostgreSQL Flexible infrastructure.
 
@@ -345,12 +345,12 @@ The project features decoupled and single-unified CI/CD pipelines across major e
 - **ArgoCD (`argocd/`)**: Strictly governs **Continuous Deployment (CD)** declaratively:
   - **`develop` branch**: Deploys via `application-dev.yaml` to namespace **`dev`** on Minikube with `values-minikube.yaml`.
   - **`staging` branch**: Deploys via `application-staging.yaml` to namespace **`staging`** on AWS EKS with medium-performance resources (`values-eks-staging.yaml`).
-  - **`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, ALB, and Istio Canary 90/10).
+  - **`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, NLB, and Istio Canary 90/10).
   - **Automated Rollback**: Configured with automated prune, selfHeal, exponential retry backoff, and instant revert via `argocd app rollback`.
 - **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Provisions AWS infrastructure across `staging` and `prod` with automated state lock release (`terraform force-unlock`) on failure.
 
 ### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
-- **Unified Pipeline (`azure-devops/templates/ci-cd-master-template.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
+- **Unified Pipeline (`azure-devops/templates/azure-pipelines.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
   - Stages 1-5: Unit Tests (Maven/Angular, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
   - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
   - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.

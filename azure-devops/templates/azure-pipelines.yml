@@ -37,13 +37,13 @@ parameters:
   - name: ingressUrl
     type: string
     default: ''
-  # MEJORA: tag semántico opcional e inmutable para releases certificadas.
-  # Si se deja vacío, solo se publican los tags con Build.SourceVersion (SHA) y latest.
+  # IMPROVEMENT: optional and immutable semantic tag for certified releases.
+  # If left blank, only the tags with Build.SourceVersion (SHA) and `latest` are published.
   - name: imageVersion
     type: string
     default: ''
-  # MEJORA: el canary de Istio ya no está hardcodeado a "products-service".
-  # Cualquier servicio puede habilitarlo pasando su propio manifiesto.
+  # IMPROVEMENT: The Istio canary is no longer hardcoded to "products-service".
+  # Any service can enable it by passing its own manifest.
   - name: canaryEnabled
     type: boolean
     default: false
@@ -120,10 +120,10 @@ stages:
             inputs:
               versionSpec: '20.x'
 
-          # MEJORA: se elimina "|| npm run build" — ese fallback enmascaraba
-          # tests fallidos (el build casi siempre pasa aunque los specs fallen).
-          # Ahora el step SOLO corre tests; el build es un step aparte que
-          # únicamente se ejecuta si los tests pasaron.
+          # IMPROVEMENT: "|| npm run build" removed — that fallback was masking issues.
+          # failed tests (the build almost always passes even if the specs fail).
+          # Now the step ONLY runs tests; the build is a separate step that
+          # It only executes if the tests passed.
           - script: |
               echo "Installing dependencies and executing Angular Unit Tests (hard gate)..."
               cd ${{ parameters.serviceDir }}
@@ -133,7 +133,7 @@ stages:
             displayName: "Angular Unit Tests (Karma/Jest)"
 
           - task: PublishTestResults@2
-            # Requiere karma-junit-reporter (o jest-junit) apuntando a test-results/junit.xml
+            # Requires karma-junit-reporter (or jest-junit) pointing to test-results/junit.xml
             condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeededOrFailed())
             displayName: "Publish Angular Test Results"
             inputs:
@@ -162,7 +162,7 @@ stages:
     displayName: "🔍 2. SAST & Secrets - ${{ parameters.serviceName }}"
     dependsOn: UnitTests
     variables:
-      # MEJORA: gate estricto en ramas protegidas, informativo en feature branches.
+      # IMPROVEMENT: Strict gate on protected branches, informative on feature branches.
       isProtectedBranch: $[or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))]
     jobs:
       - job: SecurityScans
@@ -170,8 +170,8 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
-          # MEJORA: Gitleaks ya NO tiene "|| true". Un secreto detectado
-          # bloquea el pipeline SIEMPRE, sin importar la rama.
+          # IMPROVEMENT: Gitleaks no longer has "|| true". One secret detected.
+          # It blocks the pipeline ALWAYS, regardless of the branch.
           - script: |
               echo "Running Gitleaks Secret Scanner (hard gate — always enforced)..."
               CONFIG="devsecops/sast/gitleaks/.gitleaks.toml"
@@ -202,8 +202,8 @@ stages:
               fi
             displayName: "Checkov Policy & IaC Scan"
 
-          # MEJORA: gate de dependencias para el stack Angular — antes solo
-          # Java tenía un quality gate real (SonarCloud); el frontend no tenía nada equivalente.
+          # IMPROVEMENT: Dependency gate for the Angular stack — previously only
+          # Java had a real quality gate (SonarCloud); the frontend had nothing equivalent.
           - script: |
               echo "Running npm audit (dependency vulnerability gate)..."
               cd ${{ parameters.serviceDir }}
@@ -312,9 +312,9 @@ stages:
               artifactName: 'container-image-${{ parameters.serviceName }}'
               targetPath: '$(Pipeline.Workspace)/images'
 
-          # MEJORA: exit-code condicionado a la rama. En release/main una
-          # imagen con CRITICAL/HIGH sin parche NO puede seguir avanzando
-          # hacia "certified image"; en feature branches queda como advertencia.
+          # IMPROVEMENT: exit-code conditioned on the branch. In release/main a
+          # image with CRITICAL/HIGH vulnerabilities and no patches applied cannot proceed further.
+          # towards "certified image"; in feature branches, it remains as a warning.
           - script: |
               echo "Scanning container image with Trivy (CRITICAL,HIGH)..."
               curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
@@ -433,11 +433,11 @@ stages:
 
   # ==========================================================
   # STAGE 6: 🚀 Deploy to Azure AKS Staging (Infra / Helm)
-  # MEJORA: antes corría para CUALQUIER rama != develop (incluyendo
-  # feature branches y PRs), lo que hacía llegar código no promovido
-  # hasta "PushACR" con tag "latest". Ahora solo corre en release/* o
-  # main/master — el resto del pipeline (tests, ACR, prod) hereda esta
-  # restricción automáticamente vía dependsOn.
+  # IMPROVEMENT: Previously it ran for ANY branch != develop (including
+  # feature branches and PRs), which resulted in unpromoted code getting through
+  # up to "PushACR" with the "latest" tag. Now it only runs in release/* or
+  # main/master — the rest of the pipeline (tests, ACR, prod) inherits from this one
+  # restriction automatically via dependsOn.
   # ==========================================================
   - stage: DeployStaging
     displayName: "🚀 6. Deploy to AKS Staging - ${{ parameters.serviceName }}"
@@ -486,8 +486,8 @@ stages:
 
   # ==========================================================
   # STAGE 7: 🔗 Integration Tests (QA - Postman / Newman)
-  # MEJORA: al llegar aquí, la rama ya es release/* o main/master —
-  # el gate ahora es bloqueante de verdad (ya no hay "|| echo").
+  # IMPROVEMENT: by this point, the branch is already release/* or main/master —
+  # The gate is now truly blocking (there is no longer "|| echo").
   # ==========================================================
   - stage: IntegrationTests
     displayName: "🔗 7. Integration Tests - ${{ parameters.serviceName }}"
@@ -551,8 +551,8 @@ stages:
 
   # ==========================================================
   # STAGE 9: ⚡ Performance & Load Tests (Perf / k6)
-  # NOTA: el gate depende de los thresholds definidos en el propio
-  # load-test.js de k6 (thresholds -> exit code != 0 si se incumplen SLA).
+  # NOTE: The gate depends on the thresholds defined within the component itself.
+  # load-test.js from k6 (thresholds -> exit code != 0 if SLA is breached).
   # ==========================================================
   - stage: PerformanceTests
     displayName: "⚡ 9. Performance Tests - ${{ parameters.serviceName }}"
@@ -625,9 +625,9 @@ stages:
 
   # ==========================================================
   # STAGE 10.1: 🔄 Automated Rollback on Staging Deploy/Test Failure
-  # MEJORA: antes dependía SOLO de los 4 stages de test posteriores —
-  # si el propio helm upgrade de staging fallaba, no había rollback
-  # automático. Ahora también depende de DeployStaging directamente.
+  # IMPROVEMENT: previously, it relied SOLELY on the 4 subsequent test stages —
+  # If the staging `helm upgrade` itself failed, there was no rollback.
+  # automatic. Now it also depends directly on DeployStaging.
   # ==========================================================
   - stage: RollbackStaging
     displayName: "🔄 Rollback Staging - ${{ parameters.serviceName }}"
@@ -661,9 +661,9 @@ stages:
 
   # ==========================================================
   # STAGE 11: 📦 Push Certified Image to Azure Container Registry (ACR)
-  # MEJORA: se quita el tag fijo "1.0.0" (rompía la inmutabilidad —
-  # se sobrescribía en cada build). Se agrega condición explícita de
-  # rama como defensa en profundidad, y un tag semántico opcional.
+  # IMPROVEMENT: The fixed tag "1.0.0" has been removed (it broke immutability —
+  # (it was overwritten in each build). An explicit condition is added
+  # branch as defense-in-depth, and an optional semantic tag.
   # ==========================================================
   - stage: PushACR
     displayName: "📦 11. Push to ACR - ${{ parameters.serviceName }}"
@@ -713,19 +713,19 @@ stages:
 
   # ==========================================================
   # STAGE 12: 🚢 Deploy to Azure AKS Production (Canary Rollout with Istio)
-  # MEJORA: el rollback inline se retira de aquí (quedaba duplicado con
-  # el stage RollbackProduction). Este stage solo detecta la falla y
-  # marca el stage como failed(); RollbackProduction es el único punto
-  # que ejecuta el rollback real. El canary ya no está hardcodeado a
-  # "products-service": se habilita por parámetro para cualquier servicio.
+  # IMPROVEMENT: Inline rollback is removed from here (it was duplicated with
+  # the RollbackProduction stage). This stage only detects the fault and
+  # marks the stage as failed(); RollbackProduction is the only point
+  # which performs the actual rollback. The canary is no longer hardcoded to
+  # "products-service": enabled via parameter for any service.
   # ==========================================================
   - stage: DeployProduction
     displayName: "🚢 12. Deploy to AKS Production - ${{ parameters.serviceName }}"
     dependsOn: PushACR
     condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), eq(variables['Build.SourceBranch'], 'refs/heads/master')))
     jobs:
-      # RECORDATORIO: configurar un approval check manual en el Environment
-      # "production" desde el portal de Azure DevOps — eso no se declara en YAML.
+      # REMINDER: Configure a manual approval check in the environment.
+      # "production" from the Azure DevOps portal — that is not declared in YAML.
       - deployment: HelmCanaryProduction
         displayName: "Production Canary Rollout with Istio Traffic Shifting"
         pool:
@@ -761,7 +761,11 @@ stages:
                       # Generalizado por parámetro — ya no hardcodeado a un solo servicio.
                       if [ "${{ parameters.canaryEnabled }}" = "True" ] && [ -n "${{ parameters.canaryVirtualServicePath }}" ] && [ -f "${{ parameters.canaryVirtualServicePath }}" ]; then
                         echo "Applying Istio DestinationRules and VirtualService for Canary Routing..."
-                        kubectl apply -f k8s/istio/destination-rules.yaml -n production || true
+                        if [ -f "k8s/istio/05-destination-rules.yaml" ]; then
+                          kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true
+                        elif [ -f "k8s/istio/destination-rules.yaml" ]; then
+                          kubectl apply -f k8s/istio/destination-rules.yaml -n production || true
+                        fi
                         kubectl apply -f "${{ parameters.canaryVirtualServicePath }}" -n production || true
                       fi
 
@@ -776,7 +780,7 @@ stages:
 
   # ==========================================================
   # STAGE 12.1: 🔄 Automated Rollback on Production Failure
-  # (Único punto de ejecución del rollback de producción — ver nota arriba.)
+  # (Sole point of execution for the production rollback — see note above.)
   # ==========================================================
   - stage: RollbackProduction
     displayName: "🔄 Rollback Production - ${{ parameters.serviceName }}"
@@ -799,7 +803,9 @@ stages:
                 az aks get-credentials --resource-group $(AZURE_RG) --name $(AKS_CLUSTER_NAME) --overwrite-existing 2>/dev/null || true
                 if command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
                   helm rollback microservices --namespace production --wait --timeout 5m || true
-                  if [ -f "k8s/istio/destination-rules.yaml" ]; then
+                  if [ -f "k8s/istio/05-destination-rules.yaml" ]; then
+                    kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true
+                  elif [ -f "k8s/istio/destination-rules.yaml" ]; then
                     kubectl apply -f k8s/istio/destination-rules.yaml -n production || true
                   fi
                 fi
