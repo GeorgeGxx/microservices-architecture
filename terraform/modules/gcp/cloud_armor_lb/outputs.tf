@@ -9,7 +9,7 @@ output "security_policy_id" {
 }
 
 output "backend_service_id" {
-  value       = google_compute_backend_service.this.id
+  value       = google_compute_backend_service.api_backend.id
   description = "ID of the default backend service"
 }
 
