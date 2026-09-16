@@ -88,9 +88,11 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 | Command / Combination | Target | Diagnostic Scope |
 | :--- | :--- | :--- |
 | `.\platform.ps1 doctor` | Minikube | Verifies pods across `dev`, `observability`, `auth`, `vault`, `data`, `argocd`, `gatekeeper-system`, active NodePorts, and runs synthetic OPA admission test. |
-| `.\platform.ps1 doctor -Platform aws -Environment staging` | AWS | Inspects AWS EKS pod status, ALB ingress controller, and IRSA bindings. |
-| `.\platform.ps1 doctor -Platform azure -Environment prod` | Azure | Inspects Azure AKS pod status, Application Gateway ingress, and Workload Identity. |
-| `.\platform.ps1 doctor -Platform gcp -Environment dev` | GCP | Inspects Google GKE pod status, Cloud Armor LB, and Workload Identity. |
+| `.\platform.ps1 doctor-minikube` | Minikube | Validates local Minikube + Istio Service Mesh installation, mTLS, control plane and mesh readiness. |
+| `.\platform.ps1 doctor-cloud -Platform aws\|azure\|gcp` | Cloud | Validates multi-cloud Istio ingress gateway, mTLS policy, and microservice mesh routes. |
+| `.\platform.ps1 doctor -Platform aws -Environment staging` | AWS | Inspects AWS EKS pod status, NLB / Istio ingress gateway, and IRSA bindings. |
+| `.\platform.ps1 doctor -Platform azure -Environment prod` | Azure | Inspects Azure AKS pod status, Azure Front Door / Istio ingress gateway, and Workload Identity. |
+| `.\platform.ps1 doctor -Platform gcp -Environment dev` | GCP | Inspects Google GKE pod status, Cloud Armor / Istio ingress gateway, and Workload Identity. |
 
 ---
 

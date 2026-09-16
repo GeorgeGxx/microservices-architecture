@@ -4,6 +4,55 @@
 
 ---
 
+## 🎯 Testing Ecosystem Architecture & Technology Selection Rationale
+
+The platform follows a modern **Cloud-Native DevSecOps Testing Pyramid**, distributing test responsibilities across purpose-built tools instead of relying on legacy monolithic suites:
+
+```mermaid
+flowchart TD
+    subgraph Pyramid["Modern DevSecOps Testing Strategy"]
+        E2E["🧭 Stage 8: E2E Functional Testing<br/>(Cypress • Angular 21 SPA • Keycloak OIDC)"]
+        PERF["⚡ Stage 9: Performance & Load Testing<br/>(k6 • SLA Thresholds • Rollback Gates)"]
+        INT["🔗 Stage 7: Integration & Contract Testing<br/>(Newman / Postman • 22 API Assertions)"]
+        CHAOS["💥 Runtime Chaos & Simulation<br/>(Python simulate.py • Circuit Breakers • DDoS)"]
+        UNIT["🧪 Stage 1: Unit & Component Testing<br/>(JUnit 5 • Mockito • JaCoCo 80% Gate)"]
+    end
+    UNIT --> INT
+    INT --> E2E
+    E2E --> PERF
+    PERF --> CHAOS
+```
+
+### 1. Technology Purpose & Responsibility Matrix
+
+| Technology | Layer / Stage | Purpose & Operational Scope | Execution Environment |
+| :--- | :--- | :--- | :--- |
+| **JUnit 5 + Mockito** | **Stage 1 (Unit)** | Validates individual Java classes, business domain validation, and Saga state transitions in complete isolation with mock dependencies. | Maven Runner (`mvn test`) |
+| **JaCoCo** | **Stage 1 (Coverage)** | Enforces code quality gates requiring ≥80% line and branch coverage before code can be packaged into containers. | Maven Plugin (`jacoco:report`) |
+| **Newman (Postman CLI)** | **Stage 7 (Integration)** | Executes 22 automated API contract checks validating JSON schemas, HTTP status codes, and Keycloak JWT validation across microservices without browser overhead. | Container / CLI (`newman run`) |
+| **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
+| **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles ($p_{95} < 500\text{ms}$), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
+| **`simulate.py` / `smoke.py`** | **Runtime / Caos** | Injects runtime chaos (network latency, pod termination), generates sustained shopper traffic, and launches synthetic DDoS botnet floods to stress Redis Token Bucket rate limiting. | Platform CLI (`.\platform.ps1 smoke`) |
+
+---
+
+### 2. Architectural Decisions: Why Not Apache JMeter or Selenium?
+
+#### A. Grafana k6 vs. Apache JMeter (Load & Performance Testing)
+
+* **Lightweight Container Footprint:** JMeter requires a heavy Java Virtual Machine (JVM) and significant memory just to boot the test runner. **k6** is a single compiled Go binary (~30 MB) that executes with minimal CPU and memory overhead, ideal for ephemeral CI/CD runners.
+* **Test-as-Code vs. Monolithic XML:** JMeter tests are saved in complex, fragile XML (`.jmx`) files that are difficult to review in Pull Requests and prone to merge conflicts. **k6** scripts are written in standard JavaScript/TypeScript, enabling modularization, clean Git versioning, and shared libraries.
+* **Native LGTM Stack Integration:** k6 streams metrics natively to **Prometheus** and **Grafana**, plotting real-time virtual users, request duration percentiles ($p_{90}, p_{95}, p_{99}$), and HTTP error rates directly on the platform's SRE dashboards.
+* **Automated CI/CD Quality Gates & Rollbacks:** k6 supports declarative SLA thresholds in code (e.g. `http_req_duration: ['p(95)<500']`). If performance degrades under load, k6 exits with a non-zero code that immediately trips **Automated Rollback (Stage 10.1 / Stage 12.1)**.
+
+#### B. Cypress vs. Selenium WebDriver (E2E Functional Testing)
+
+* **Angular 21 Reactive Architecture Compatibility:** Selenium operates out-of-process, sending remote HTTP commands via WebDriver protocol (`chromedriver`), introducing network latency and frequent timing issues (*flaky tests* due to `StaleElementReferenceException`). **Cypress** runs directly inside the browser's execution loop, automatically synchronizing with Angular Signals, RxJS observables, and DOM updates without arbitrary `Thread.sleep()`.
+* **Keycloak OIDC & Network Interception:** Cypress provides native network interception (`cy.intercept()`), allowing seamless inspection of Keycloak Bearer tokens, token refresh simulation, and deterministic API stubbing without running external HTTP proxies (like BrowserMob).
+* **Developer Experience & CI/CD Artifacts:** Cypress automatically captures DOM snapshots, video recordings, and screenshots upon test failure, enabling instant root-cause analysis in CI/CD artifact tabs without configuring third-party listeners.
+
+---
+
 ## 🧪 Automated Testing, Load Simulation & Chaos Engineering
 
 Enterprise testing scripts located in `scripts/testing/`:
