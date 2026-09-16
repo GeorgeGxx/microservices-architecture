@@ -41,7 +41,8 @@ definitions:
           - echo "Executing Angular 21 Tests & Production Build..."
           - cd frontend
           - npm ci
-          - npm run test -- --watch=false --browsers=ChromeHeadless || npm run build
+          - npm run test -- --watch=false --browsers=ChromeHeadless
+          - npm run build
         artifacts:
           - "frontend/dist/**"
 
@@ -52,10 +53,10 @@ definitions:
         name: "🔍 2. SAST, Secrets (Gitleaks) & Checkov"
         image: python:3.11-slim
         script:
-          - echo "Scanning Repository for Secrets with Gitleaks..."
+          - echo "Scanning Repository for Secrets with Gitleaks (Hard Gate)..."
           - curl -sSfL https://github.com/zricethezav/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin
           - CONFIG="devsecops/sast/gitleaks/.gitleaks.toml"
-          - if [ -f "$CONFIG" ]; then gitleaks detect --source=. --config=$CONFIG -v --no-git || true; else gitleaks detect --source=. -v --no-git || true; fi
+          - if [ -f "$CONFIG" ]; then gitleaks detect --source=. --config=$CONFIG -v --no-git; else gitleaks detect --source=. -v --no-git; fi
           - echo "Scanning IaC, Kubernetes & Dockerfiles with Checkov..."
           - pip install checkov
           - checkov -d ${SERVICE_DIR:-.} --framework dockerfile,kubernetes,helm --soft-fail
@@ -294,7 +295,11 @@ definitions:
               --atomic \
               --cleanup-on-fail || echo "GKE Production deployment simulated"
           - echo "Applying Istio Canary traffic routing (90% Prod / 10% Canary)..."
-          - if [ "${SERVICE_NAME}" = "products-service" ] && [ -f "k8s/istio/products-virtualservice.yaml" ]; then kubectl apply -f k8s/istio/destination-rules.yaml -n production || true; kubectl apply -f k8s/istio/products-virtualservice.yaml -n production || true; fi
+          - |
+            if [ "${SERVICE_NAME}" = "products-service" ]; then
+              if [ -f "k8s/istio/05-destination-rules.yaml" ]; then kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true; fi
+              if [ -f "k8s/istio/06-canary-virtual-services.yaml" ]; then kubectl apply -f k8s/istio/06-canary-virtual-services.yaml -n production || true; fi
+            fi
           - echo "Verifying production canary rollout health..."
           - |
             if command -v kubectl &>/dev/null && kubectl get nodes &>/dev/null; then
@@ -329,7 +334,7 @@ definitions:
           - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || true; fi
           - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           - helm rollback microservices --namespace production --wait --timeout 5m || echo "Production rollback completed."
-          - if [ -f "k8s/istio/destination-rules.yaml" ]; then kubectl apply -f k8s/istio/destination-rules.yaml -n production || true; fi
+          - if [ -f "k8s/istio/05-destination-rules.yaml" ]; then kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true; fi
 
     # -------------------------------------------------------------------------
     # Terraform GCP Infrastructure Steps per Environment
