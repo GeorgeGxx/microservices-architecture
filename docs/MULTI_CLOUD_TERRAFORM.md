@@ -121,8 +121,8 @@ terraform/
 │   ├── azure/     (locals.tf, main.tf, outputs.tf, variables.tf)
 │   └── gcp/       (locals.tf, main.tf, outputs.tf, variables.tf)
 └── modules/
-    ├── aws/       (alb, cloudfront, cloudwatch, eks, elasticache, iam_irsa, kms, msk, rds, route53_acm, s3, vpc)
-    ├── azure/     (acr, aks, app_gateway, dns_zone, eventhubs, frontdoor, keyvault, monitor, postgresql, redis, storage_account, vnet, workload_identity)
+    ├── aws/       (cloudfront, cloudwatch, ecr, eks, elasticache, iam-irsa, kms, msk, nlb, oidc_github, rds, route53_acm, s3, s3-backend, vpc)
+    ├── azure/     (acr, aks, dns_zone, eventhubs, frontdoor, keyvault, monitor, postgresql, redis, storage_account, vnet, workload_identity)
     └── gcp/       (cloud_armor_lb, cloud_cdn, cloud_dns, cloud_monitoring, cloudsql, gar, gcs, gke, kms, managed_kafka, memorystore, vpc, workload_identity)
 ```
 
@@ -135,9 +135,9 @@ terraform/
 | **5. Event Streaming (Kafka)** | `modules/aws/msk` | `modules/azure/eventhubs` | `modules/gcp/managed_kafka` |
 | **6. Object Storage** | `modules/aws/s3` | `modules/azure/storage_account` | `modules/gcp/gcs` |
 | **7. KMS / Key Management** | `modules/aws/kms` | `modules/azure/keyvault` | `modules/gcp/kms` |
-| **8. Workload Identity (IRSA)** | `modules/aws/iam_irsa` | `modules/azure/workload_identity` | `modules/gcp/workload_identity` |
-| **9. Application Load Balancer** | `modules/aws/alb` | `modules/azure/app_gateway` | `modules/gcp/cloud_armor_lb` |
-| **10. CDN & Edge Cache** | `modules/aws/cloudfront` | `modules/azure/frontdoor` | `modules/gcp/cloud_cdn` |
+| **8. Workload Identity (IRSA)** | `modules/aws/iam-irsa` | `modules/azure/workload_identity` | `modules/gcp/workload_identity` |
+| **9. L4 Ingress / Gateway Target** | `modules/aws/nlb` | `modules/azure/vnet` (AKS SLB) | `modules/gcp/cloud_armor_lb` |
+| **10. CDN & Edge Perimeter (L7)** | `modules/aws/cloudfront` | `modules/azure/frontdoor` | `modules/gcp/cloud_cdn` |
 | **11. Observability & Alarms** | `modules/aws/cloudwatch` | `modules/azure/monitor` | `modules/gcp/cloud_monitoring` |
 | **12. DNS & Certificates** | `modules/aws/route53_acm` | `modules/azure/dns_zone` | `modules/gcp/cloud_dns` |
 
