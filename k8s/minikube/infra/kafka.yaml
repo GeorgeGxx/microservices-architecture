@@ -91,7 +91,7 @@ spec:
             - name: KAFKA_LISTENERS
               value: "PLAINTEXT://0.0.0.0:9092,SASL_PLAINTEXT://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093"
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://kafka:9092,SASL_PLAINTEXT://kafka:9094"
+              value: "PLAINTEXT://kafka.data.svc.cluster.local:9092,SASL_PLAINTEXT://kafka.data.svc.cluster.local:9094"
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: "CONTROLLER"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME

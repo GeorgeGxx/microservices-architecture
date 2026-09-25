@@ -8,7 +8,7 @@ metadata:
 spec:
   project: microservices-architecture
   source:
-    repoURL: git@github.com:GeorgeGxx/microservices-architecture.git
+    repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
     targetRevision: staging
     path: helm/microservices-umbrella
     helm:
