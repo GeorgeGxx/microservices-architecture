@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Enterprise Platform Master CLI Orchestrator (Single Unified Super-Script)
 # Multi-Platform: Minikube (Local), AWS (EKS), Azure (AKS), GCP (GKE)
 # Multi-Stage:    dev (develop), staging (staging), prod (master)
@@ -528,6 +528,8 @@ function Invoke-CloudPlatform {
 
         "sync-argocd" {
             Show-Banner "ArgoCD GitOps Sync for $($CloudProvider.ToUpper()) $Env"
+            $argoProject = Join-Path $root "argocd\appproject.yaml"
+            if (Test-Path $argoProject) { kubectl apply -f $argoProject 2>$null | Out-Null }
             $argoManifest = Join-Path $root "argocd\application-$Env.yaml"
             if (Test-Path $argoManifest) {
                 kubectl apply -f $argoManifest
@@ -712,6 +714,14 @@ stringData:
             helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev
             Write-Host "  [OK] Microservices release deployed to namespace 'dev'." -ForegroundColor Green
 
+            if (Test-Path "$argoDir\appproject.yaml") {
+                kubectl apply -f "$argoDir\appproject.yaml" 2>$null | Out-Null
+            }
+            if (Test-Path "$argoDir\application-dev.yaml") {
+                kubectl apply -f "$argoDir\application-dev.yaml" 2>$null | Out-Null
+                Write-Host "  [OK] ArgoCD GitOps project and application registered." -ForegroundColor Green
+            }
+
             if ($DeployCanaryOption) {
                 $canaryManifest = Join-Path $istioDir "canary-deployment-products-v2.yaml"
                 if (Test-Path $canaryManifest) {
@@ -891,6 +901,10 @@ switch ($Command) {
     "sync-argocd" {
         if ($Platform -eq "minikube") {
             Show-Banner "ArgoCD Hard Sync (Minikube)"
+            $argoProject = Join-Path $argoDir "appproject.yaml"
+            if (Test-Path $argoProject) { kubectl apply -f $argoProject 2>$null | Out-Null }
+            $argoManifest = Join-Path $argoDir "application-dev.yaml"
+            if (Test-Path $argoManifest) { kubectl apply -f $argoManifest 2>$null | Out-Null }
             kubectl patch application "microservices-dev" -n argocd --type merge -p '{"operation":{"sync":{"prune":true}}}' 2>$null
             Write-Host "  [OK] ArgoCD hard sync triggered." -ForegroundColor Green
         } else {
