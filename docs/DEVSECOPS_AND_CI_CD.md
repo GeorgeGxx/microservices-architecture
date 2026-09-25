@@ -55,6 +55,8 @@ All services and dashboards are automated via background port-forwarding and ava
 The platform provides a master entrypoint [`platform.ps1`](../platform.ps1) alongside **4 isolated platform orchestrators** covering **3 environments (`dev`, `staging`, `prod`)**.
 
 > The naming model is intentionally split: Git branches are `develop`, `staging`, `master`, while cluster namespaces are `dev`, `staging`, `prod`. The deployment pipeline maps branch to namespace, but the scripts keep them distinct to avoid operational ambiguity.
+>
+> 📖 **Full Git Collaboration Guide:** For complete branching policies, PR lifecycle, force-push conflict resolution, and disaster recovery playbooks, see [GIT_WORKFLOW_AND_COLLABORATION.md](./GIT_WORKFLOW_AND_COLLABORATION.md).
 
 The validation path is also unified: `verify-platform.ps1` handles both local Minikube checks and cloud provider validation through a shared Istio mesh audit, instead of maintaining redundant cloud-specific wrappers.
 
