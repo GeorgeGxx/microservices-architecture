@@ -117,8 +117,8 @@ npm start
   - 💳 **Real-Time Card Brand Detection:** Instant IIN/BIN recognition (Visa, Mastercard, AMEX) with dynamic cardholder validation, CVV security, and 256-bit SSL badges.
 - **Product Catalog Social Proof & Verified Ratings:**
   - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
-- **Admin Operations Console & Cluster Health:**
-  - Centralized `/admin` dashboard with 4-second animated `LIVE SYNC` polling and a dedicated `Cluster Health` supervision tab monitoring all 12 microservices and infrastructure components in real time.
+- **Admin Operations Console & Real-Time Health LED:**
+  - Dedicated admin gear icon in the navbar with an embedded dynamic health LED ("foquito sutil" 🟢/🟠/🔴) reflecting real-time microservices reachability, paired with a centralized `/admin` dashboard featuring 4-second animated `LIVE SYNC` inventory polling (infrastructure telemetry delegated to Grafana).
 - **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
   - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
   - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.

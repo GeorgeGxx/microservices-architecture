@@ -34,11 +34,11 @@ def build_drawio_xml():
     r1 = create_page("page_general_arch", "1. General Architecture & Microservices")
     
     # Title
-    add_node(r1, "t1", "1", "<b style='font-size:22px;color:#1E293B;'>ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW</b><br><span style='font-size:13px;color:#64748B;'>Spring Boot 3.4 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability</span>", title_style, 300, 30, 1200, 50)
+    add_node(r1, "t1", "1", "<b style='font-size:22px;color:#1E293B;'>ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW</b><br><span style='font-size:13px;color:#64748B;'>Spring Boot 4.0.8 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability</span>", title_style, 300, 30, 1200, 50)
 
     # Client Layer
     add_node(r1, "c_client", "1", "<b>🌐 CLIENT LAYER</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 110, 340, 420)
-    add_node(r1, "n_spa", "1", "<b>Angular 21 SPA</b><br>Storefront UI (Port 4200)<br>PKCE Flow & Token Storage", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;", 90, 170, 280, 70)
+    add_node(r1, "n_spa", "1", "<b>Angular 21 SPA</b><br>Storefront UI (Port 4200)<br>PKCE Flow & Token Storage<br>Dynamic Cluster Health LED", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;", 90, 170, 280, 70)
     add_node(r1, "n_traffic", "1", "<b>Traffic Simulator</b><br>simulate.py (traffic)<br>Load & E2E Purchase Flow", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;", 90, 270, 280, 70)
     add_node(r1, "n_postman", "1", "<b>Postman / API Clients</b><br>Swagger UI & OpenAPI Docs<br>/v3/api-docs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;", 90, 370, 280, 70)
 
@@ -49,7 +49,7 @@ def build_drawio_xml():
     add_node(r1, "n_db_kc", "1", "<b>PostgreSQL Keycloak</b><br>db-keycloak (Port 5434)<br>Persistent Realm Database", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;", 550, 400, 160, 70)
 
     # Microservices Backend Layer
-    add_node(r1, "c_ms", "1", "<b>📦 CORE MICROSERVICES LAYER (Spring Boot 3.4 / Java 21)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 860, 110, 520, 780)
+    add_node(r1, "c_ms", "1", "<b>📦 CORE MICROSERVICES LAYER (Spring Boot 4.0.8 / Java 21)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 860, 110, 520, 780)
     add_node(r1, "n_prod", "1", "<b>Products Service</b><br>Port 8004<br>Catalog Management • Redis Cache", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 170, 220, 80)
     add_node(r1, "n_orders", "1", "<b>Orders Service</b><br>Port 8003<br>Saga Coordinator • Resilience4j<br>Multi-Tenant User Isolation (JWT sub)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 350, 220, 80)
     add_node(r1, "n_inv", "1", "<b>Inventory Service</b><br>Port 8001<br>Stock Validation • Lock/Deduct", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 530, 220, 80)
@@ -233,7 +233,7 @@ def build_drawio_xml():
     add_node(r7, "e_kc", "1", "<b>3. Keycloak IAM<br>(OIDC / PKCE / JWKS)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 440, 110, 160, 50)
     add_node(r7, "e_mesh", "1", "<b>4. Istio Envoy Mesh<br>(mTLS STRICT SPIFFE)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 630, 110, 160, 50)
     add_node(r7, "e_gw", "1", "<b>5. Spring Cloud Gateway<br>(JWT Filter / TokenRelay)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;", 820, 110, 170, 50)
-    add_node(r7, "e_ord", "1", "<b>6. Orders Service<br>(Spring Boot 3.4)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1020, 110, 150, 50)
+    add_node(r7, "e_ord", "1", "<b>6. Orders Service<br>(Spring Boot 4.0.8)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1020, 110, 150, 50)
     add_node(r7, "e_prod_inv", "1", "<b>7. Products / Inventory<br>& Kafka KRaft</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 1200, 110, 170, 50)
     add_node(r7, "e_obs", "1", "<b>8. Kiali Dashboard &<br>LGTM Observability</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 1400, 110, 180, 50)
 
@@ -342,7 +342,7 @@ def build_drawio_xml():
     add_node(r9, "p_prom", "1", "<b>📈 Prometheus Targets</b><br>Port 9090 (TSDB /targets)<br>15s Scrape Interval<br>Actuator Metrics Ingestion", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1440, 360, 240, 90)
 
     # Applications Layer in Staging
-    add_node(r9, "app_ang", "1", "<b>🌐 Frontend Angular 21</b><br>Port 4200 (Storefront SPA)<br>Dynamic Product Catalog<br>Responsive UI", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 480, 240, 90)
+    add_node(r9, "app_ang", "1", "<b>🌐 Frontend Angular 21</b><br>Port 4200 (Storefront SPA)<br>Dynamic Product Catalog<br>Responsive UI & Health LED", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 480, 240, 90)
     add_node(r9, "app_gw", "1", "<b>🔌 Spring Cloud Gateway</b><br>Port 8080 (/api/product)<br>Swagger: /swagger-ui.html<br>Keycloak JWT & Rate Limit", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;", 360, 480, 240, 90)
     add_node(r9, "app_kc", "1", "<b>🔑 Keycloak 26 IAM</b><br>Port 8181 (admin/admin)<br>Realm: microservices-realm<br>OIDC & User Management", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 630, 480, 240, 90)
     add_node(r9, "app_istio", "1", "<b>🚪 Istio Unified Edge</b><br>Port 30080 (Ingress Gateway)<br>Routes: /, /api/*, /admin/*<br>Zero-Trust Service Mesh", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 900, 480, 240, 90)
