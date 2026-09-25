@@ -611,18 +611,20 @@ function Invoke-MinikubePlatform {
                 Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + Angular)..." -ForegroundColor Yellow
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
                 if (Test-Path $buildAllScript) { python $buildAllScript "1.0.0" }
-                $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
-                $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
-                if ($isMinikubeActive) {
-                    Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
-                    foreach ($svc in $servicesToLoad) {
-                        minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+            }
+
+            # Synchronize local Docker images into Minikube's internal containerd store
+            $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+            $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
+            if ($isMinikubeActive) {
+                Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
+                foreach ($svc in $servicesToLoad) {
+                    $hasLocal = docker images -q "georgegxx/${svc}:1.0.0" 2>$null
+                    if ($hasLocal) {
+                        minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
                     }
-                    kubectl rollout restart deployment -n dev 2>$null | Out-Null
-                    Write-Host "  [OK] Container images compiled, loaded into Minikube, and deployments restarted." -ForegroundColor Green
-                } else {
-                    Write-Host "  [OK] Container images compiled locally in Docker." -ForegroundColor Green
                 }
+                Write-Host "  [OK] Local container images synchronized into Minikube." -ForegroundColor Green
             }
 
             if (Test-Path "$umbrellaDir\Chart.yaml") {
@@ -722,7 +724,8 @@ stringData:
                 kubectl label secret microservices-secrets -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
             }
             helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev
-            Write-Host "  [OK] Microservices release deployed to namespace 'dev'." -ForegroundColor Green
+            kubectl rollout restart deployment -n dev 2>$null | Out-Null
+            Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
 
             if (Test-Path "$argoDir\appproject.yaml") {
                 kubectl apply -f "$argoDir\appproject.yaml" 2>$null | Out-Null
@@ -821,7 +824,7 @@ stringData:
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
                 foreach ($svc in $servicesToLoad) {
-                    minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+                    minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
                 }
                 Write-Host "  ▶ Reloading running deployments in 'dev' namespace..." -ForegroundColor White
                 kubectl rollout restart deployment -n dev 2>$null | Out-Null
