@@ -251,6 +251,7 @@ microservices-architecture/
 │   ├── ARCHITECTURE.md             # Tactical DDD, Sagas, Security, POS & E-Commerce
 │   ├── LOCAL_DEPLOYMENT.md         # Docker Compose, Minikube, Istio & Resiliency
 │   ├── DEVSECOPS_AND_CI_CD.md      # 12-Stage Pipeline, OPA, Trivy & Multi-CI/CD
+│   ├── GIT_WORKFLOW_AND_COLLABORATION.md # Trunk-based / Gitflow, branch drift & rollback playbooks
 │   ├── OBSERVABILITY_QUERIES.md    # PromQL, LogQL, and TraceQL Telemetry Handbook
 │   ├── TESTING_AND_CHAOS.md        # Load simulation, DDoS, Chaos & Newman tests
 │   ├── MULTI_CLOUD_TERRAFORM.md    # AWS, Azure, GCP Terraform & Rollback Guide
