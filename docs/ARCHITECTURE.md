@@ -417,9 +417,13 @@ flowchart TD
   ALTER TABLE t_products ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'Electronics';
   ```
 
-### 4. 🛡️ Admin Operations Console, Live Sync & Cluster Health
-* **Cluster Health Supervision Tab:** Direct integration of [`SystemStatusComponent`](./frontend/src/app/features/status/system-status.component.ts) into the administrative dashboard, polling `/actuator/health` across all **12 system microservices and infrastructure components** (Gateway, Keycloak, Products, Orders, Inventory, Notifications, PostgreSQL clusters, Kafka, Redis, Vault).
-* **Modern Live Sync Indicator:** Replaced legacy unstyled refresh buttons with an animated, pulsing glassmorphism `● LIVE SYNC` widget that auto-synchronizes catalog and warehouse stock every 4 seconds or on manual click.
+### 4. 🛡️ Admin Operations Console, Live Sync & Cluster Health LED
+* **Admin Navbar Gear with Dynamic Health LED ("Foquito Sutil"):** The navbar features an icon-only gear button for administrators with an integrated real-time microservices health indicator dot:
+  * 🟢 **Green (`healthy`):** All 7 core microservices (Gateway, Products, Inventory, Orders, Notification, Keycloak, Vault) are operational and responsive.
+  * 🟠 **Orange (`degraded`):** 1-2 microservices offline or degraded.
+  * 🔴 **Red (`critical`):** Multiple services or edge gateway unreachable.
+* **Modern Live Sync Indicator:** The `/admin` operations console auto-synchronizes catalog inventory, warehouse stock levels, and order states every 4 seconds or on manual click with a glassmorphism `● LIVE SYNC` widget.
+* **Separation of Concerns (Grafana Observability):** Complex infrastructure telemetry (Kubernetes cluster nodes, KRaft partition lags, and Istio Envoy service mesh mTLS traffic) is strictly delegated to Grafana LGTM dashboards (Port 3000) and Kiali (Port 20001), keeping the frontend clean, focused, and free of redundant telemetry docks.
 
 ### 5. 🔔 Customer-Centric Notification Center (Zero-Jargon)
 * **Buyer-Oriented Messaging:** Removed internal architecture jargon (such as *"Saga orchestrator"*, *"distributed compensation"*, *"Kafka stream active"*).

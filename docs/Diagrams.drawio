@@ -5,13 +5,13 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t1" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Spring Boot 3.4 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t1" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Spring Boot 4.0.8 • Angular 21 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="60" y="110" width="340" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="n_spa" parent="1" value="&lt;b&gt;Angular 21 SPA&lt;/b&gt;&lt;br&gt;Storefront UI (Port 4200)&lt;br&gt;PKCE Flow &amp; Token Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
+        <mxCell id="n_spa" parent="1" value="&lt;b&gt;Angular 21 SPA&lt;/b&gt;&lt;br&gt;Storefront UI (Port 4200)&lt;br&gt;PKCE Flow &amp; Token Storage&lt;br&gt;Dynamic Cluster Health LED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
           <mxGeometry x="90" y="170" width="280" height="70" as="geometry" />
         </mxCell>
         <mxCell id="n_traffic" parent="1" value="&lt;b&gt;Traffic Simulator&lt;/b&gt;&lt;br&gt;simulate.py (traffic)&lt;br&gt;Load &amp; E2E Purchase Flow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
@@ -32,7 +32,7 @@
         <mxCell id="n_db_kc" parent="1" value="&lt;b&gt;PostgreSQL Keycloak&lt;/b&gt;&lt;br&gt;db-keycloak (Port 5434)&lt;br&gt;Persistent Realm Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;" vertex="1">
           <mxGeometry x="550" y="400" width="160" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 3.4 / Java 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 4.0.8 / Java 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="860" y="110" width="520" height="780" as="geometry" />
         </mxCell>
         <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
@@ -422,7 +422,7 @@
         <mxCell id="e_gw" parent="1" value="&lt;b&gt;5. Spring Cloud Gateway&lt;br&gt;(JWT Filter / TokenRelay)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
           <mxGeometry x="820" y="110" width="170" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="e_ord" parent="1" value="&lt;b&gt;6. Orders Service&lt;br&gt;(Spring Boot 3.4)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="e_ord" parent="1" value="&lt;b&gt;6. Orders Service&lt;br&gt;(Spring Boot 4.0.8)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="1020" y="110" width="150" height="50" as="geometry" />
         </mxCell>
         <mxCell id="e_prod_inv" parent="1" value="&lt;b&gt;7. Products / Inventory&lt;br&gt;&amp; Kafka KRaft&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
@@ -639,7 +639,7 @@
         <mxCell id="p_prom" parent="1" value="&lt;b&gt;📈 Prometheus Targets&lt;/b&gt;&lt;br&gt;Port 9090 (TSDB /targets)&lt;br&gt;15s Scrape Interval&lt;br&gt;Actuator Metrics Ingestion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="1440" y="360" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="app_ang" parent="1" value="&lt;b&gt;🌐 Frontend Angular 21&lt;/b&gt;&lt;br&gt;Port 4200 (Storefront SPA)&lt;br&gt;Dynamic Product Catalog&lt;br&gt;Responsive UI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="app_ang" parent="1" value="&lt;b&gt;🌐 Frontend Angular 21&lt;/b&gt;&lt;br&gt;Port 4200 (Storefront SPA)&lt;br&gt;Dynamic Product Catalog&lt;br&gt;Responsive UI &amp; Health LED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="90" y="480" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="app_gw" parent="1" value="&lt;b&gt;🔌 Spring Cloud Gateway&lt;/b&gt;&lt;br&gt;Port 8080 (/api/product)&lt;br&gt;Swagger: /swagger-ui.html&lt;br&gt;Keycloak JWT &amp; Rate Limit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
