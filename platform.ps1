@@ -615,7 +615,8 @@ function Invoke-MinikubePlatform {
                     foreach ($svc in $servicesToLoad) {
                         minikube image load "georgegxx/${svc}:1.0.0" 2>$null
                     }
-                    Write-Host "  [OK] Container images compiled and loaded into Minikube." -ForegroundColor Green
+                    kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                    Write-Host "  [OK] Container images compiled, loaded into Minikube, and deployments restarted." -ForegroundColor Green
                 } else {
                     Write-Host "  [OK] Container images compiled locally in Docker." -ForegroundColor Green
                 }
@@ -819,7 +820,9 @@ stringData:
                 foreach ($svc in $servicesToLoad) {
                     minikube image load "georgegxx/${svc}:1.0.0" 2>$null
                 }
-                Write-Host "  [OK] Images compiled and loaded into Minikube." -ForegroundColor Green
+                Write-Host "  ▶ Reloading running deployments in 'dev' namespace..." -ForegroundColor White
+                kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                Write-Host "  [OK] Images compiled, loaded into Minikube, and deployments restarted." -ForegroundColor Green
             } else {
                 Write-Host "  [OK] Images compiled locally in Docker." -ForegroundColor Green
             }
