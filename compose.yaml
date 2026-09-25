@@ -83,7 +83,7 @@ services:
     networks:
       - spring
 
-  ### Frontend (Angular 19 SPA) - http://localhost:4200
+  ### Frontend (Angular 21 SPA) - http://localhost:4200
   frontend:
     hostname: frontend
     container_name: frontend
