@@ -206,11 +206,14 @@ export class CheckoutComponent implements OnInit {
         this.cartStore.clearCart();
         const shortNum = response.orderNumber ? response.orderNumber.substring(0, 8).toUpperCase() : '';
         const tracking = response.trackingNumber || 'DHL Express';
+        const title = `Order #${shortNum} Confirmed!`;
+        const message = `Your package is being prepared for dispatch via ${tracking} to ${response.city || 'your address'}.`;
         this.notifService.addNotification({
-          title: `Order #${shortNum} Confirmed!`,
-          message: `Your package is being prepared for dispatch via ${tracking} to ${response.city || 'your address'}.`,
+          title,
+          message,
           type: 'success'
         });
+        this.toastService.success(title, message);
       },
       error: (err) => {
         this.isPlacingOrder.set(false);
