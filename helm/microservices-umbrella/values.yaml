@@ -51,13 +51,13 @@ configMap:
     KAFKA_SASL_MECHANISM: "PLAIN"
     SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
     SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: "PLAIN"
-    ARGOCD_VERSION: "3.5.2"
-    ARGOCD_HELM_CHART_VERSION: "10.8.0"
+    ARGOCD_VERSION: "3.5.3"
+    ARGOCD_HELM_CHART_VERSION: "10.9.2"
     GATEKEEPER_VERSION: "3.23.0"
     KUBE_PROMETHEUS_STACK_VERSION: "89.2.2"
     TEMPO_VERSION: "3.0.3"
     TEMPO_FALLBACK_VERSION: "3.0.2"
-    JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+    JAVA_TOOL_OPTIONS: "-XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 
 secret:

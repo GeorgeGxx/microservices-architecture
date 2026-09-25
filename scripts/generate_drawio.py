@@ -56,9 +56,9 @@ def build_drawio_xml():
     add_node(r1, "n_notif", "1", "<b>Notification Service</b><br>Port 8002<br>Email Dispatcher • Event Consumer", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;", 900, 710, 220, 80)
 
     # Persistence Layer
-    add_node(r1, "n_db_prod", "1", "<b>db-products</b><br>PostgreSQL 16<br>Port 5433", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 175, 160, 70)
-    add_node(r1, "n_db_orders", "1", "<b>db-orders</b><br>PostgreSQL 16<br>Port 5432", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 355, 160, 70)
-    add_node(r1, "n_db_inv", "1", "<b>db-inventory</b><br>PostgreSQL 16<br>Port 5431", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 535, 160, 70)
+    add_node(r1, "n_db_prod", "1", "<b>db-products</b><br>PostgreSQL 18<br>Port 5433", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 175, 160, 70)
+    add_node(r1, "n_db_orders", "1", "<b>db-orders</b><br>PostgreSQL 18<br>Port 5432", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 355, 160, 70)
+    add_node(r1, "n_db_inv", "1", "<b>db-inventory</b><br>PostgreSQL 18<br>Port 5431", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1180, 535, 160, 70)
 
     # Async Event Streaming & Cache
     add_node(r1, "c_async", "1", "<b>⚡ EVENT STREAMING & CACHE</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1420, 110, 440, 340)
@@ -203,7 +203,7 @@ def build_drawio_xml():
 
     add_node(r6, "ns_auth", "1", "<b>🛡️ NAMESPACE: auth</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 360, 110, 300, 420)
     add_node(r6, "k_kc_pod", "1", "<b>Deployment: keycloak</b><br>Keycloak 26.7.3 (IdP)<br>Port 8181 (HTTP) & 9000 (Metrics)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 380, 160, 260, 70)
-    add_node(r6, "k_db_kc", "1", "<b>StatefulSet: db-keycloak</b><br>PostgreSQL 16 (Port 5432)<br>Dedicated IAM database", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;", 380, 250, 260, 70)
+    add_node(r6, "k_db_kc", "1", "<b>StatefulSet: db-keycloak</b><br>PostgreSQL 18 (Port 5432)<br>Dedicated IAM database", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;", 380, 250, 260, 70)
 
     add_node(r6, "ns_data", "1", "<b>💾 NAMESPACE: data (Stateful & Exporters)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 680, 110, 380, 420)
     add_node(r6, "k_data_pods", "1", "<b>StatefulSets:</b><br>• Kafka KRaft (9092/9094)<br>• Redis 8.8 (6379)<br>• Postgres (orders, inventory, products: 5432)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 700, 160, 340, 90)
