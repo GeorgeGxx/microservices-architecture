@@ -6,7 +6,7 @@
 
 ## 🛡️ 100% Local Enterprise DevSecOps Platform (12-Stage CI/CD & Minikube)
 
-The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (AMD Ryzen 7, 32 GB RAM, 200 GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (12 CPUs / 12 GB RAM), and **Terraform**:
+The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (8+ CPU cores, 16+ GB RAM, 100+ GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (6 CPUs / 12 GB RAM), and **Terraform**:
 
 ```mermaid
 flowchart LR
@@ -60,7 +60,7 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 
 | Platform Script | Target Environment | Git Branch | Cloud & Container Runtime | CI/CD Engine |
 | :--- | :--- | :--- | :--- | :--- |
-| [`platform-minikube.ps1`](../platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 12 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
+| [`platform-minikube.ps1`](../platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 6 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
 | [`platform-aws.ps1`](../platform-aws.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | AWS EKS, ALB, RDS, ElastiCache, MSK | GitHub Actions CI + ArgoCD CD + Rollback |
 | [`platform-azure.ps1`](../platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 12+ Stages + Rollback |
 | [`platform-gcp.ps1`](../platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 12+ Stages + Rollback |
@@ -184,17 +184,17 @@ devsecops/
 
 #### 🚀 Deployment & Operations Guide: 100% Local Enterprise DevSecOps on Minikube
 
-Deploy and operate the complete enterprise **DevSecOps** ecosystem locally on your workstation (AMD Ryzen 7, 32 GB RAM, 200 GB SSD) using **Minikube**, **Terraform**, **Docker Hub Registry (`georgegxx/*`)**, **Gatekeeper (OPA)**, **ArgoCD**, **Istio Service Mesh**, **Prometheus/Grafana/Loki/Alloy**, and **OWASP ZAP** with a **GitHub Actions Self-Hosted Runner**.
+Deploy and operate the complete enterprise **DevSecOps** ecosystem locally on your workstation (Intel/AMD, 16+ GB RAM, 100+ GB SSD) using **Minikube**, **Terraform**, **Docker Hub Registry (`georgegxx/*`)**, **Gatekeeper (OPA)**, **ArgoCD**, **Istio Service Mesh**, **Prometheus/Grafana/Loki/Alloy**, and **OWASP ZAP** with a **GitHub Actions Self-Hosted Runner**.
 
 ##### 📋 1. Resource Allocation & Minikube Startup
 
-Open PowerShell as Administrator and initialize Minikube with the allocated resource budget (12 threads, 12 GB RAM, 80 GB disk):
+Open PowerShell as Administrator and initialize Minikube with the allocated resource budget (6 CPUs, 12 GB RAM, 40 GB disk):
 
 ```powershell
 minikube start `
-  --cpus=12 `
+  --cpus=6 `
   --memory=12288 `
-  --disk-size=80g `
+  --disk-size=40g `
   --driver=docker `
   --addons=ingress,metrics-server,dashboard
 ```
@@ -271,7 +271,7 @@ In your GitHub repository:
    Get-Service -Name "actions.runner.*"   
    ```
 
-The runner leverages the 16 threads of the Ryzen 7 processor to compile and test Maven/Node modules in parallel (`-T 1C`).
+The runner leverages all available hardware threads of the Intel/AMD processor to compile and test Maven/Node modules in parallel (`-T 1C`).
 
 ##### 🔄 6. The 12-Stage Enterprise Pipeline Execution
 

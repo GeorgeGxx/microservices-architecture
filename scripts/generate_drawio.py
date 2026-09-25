@@ -297,7 +297,7 @@ def build_drawio_xml():
     # PAGE 9: 100% Local Enterprise DevSecOps Platform & 12-Stage Pipeline
     # =========================================================================
     r9 = create_page("page_devsecops_pipeline", "9. Enterprise DevSecOps Platform & 12-Stage Pipeline")
-    add_node(r9, "t9", "1", "<b style='font-size:22px;color:#1E293B;'>100% LOCAL ENTERPRISE DEVSECOPS PLATFORM & 12-STAGE CI/CD PIPELINE</b><br><span style='font-size:13px;color:#64748B;'>Hardware Budget: AMD Ryzen 7 (16 threads) • 32 GB RAM • Minikube (12 CPUs / 12 GB RAM) • Zero Cloud Cost Production Parity</span>", title_style, 300, 25, 1400, 50)
+    add_node(r9, "t9", "1", "<b style='font-size:22px;color:#1E293B;'>100% LOCAL ENTERPRISE DEVSECOPS PLATFORM & 12-STAGE CI/CD PIPELINE</b><br><span style='font-size:13px;color:#64748B;'>Hardware Budget: Intel/AMD (8+ cores) • 16+ GB RAM • Minikube (6 CPUs / 12 GB RAM / 40 GB disk) • Zero Cloud Cost Production Parity</span>", title_style, 300, 25, 1400, 50)
 
     # Section 1: CI Phase Flow
     add_node(r9, "c_ci", "1", "<b>🔨 CI PHASE: Continuous Integration & Shift-Left Security (GitHub Actions Windows Runner)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 60, 90, 750, 190)
@@ -331,7 +331,7 @@ def build_drawio_xml():
     add_edge(r9, "pe11", "1", "Quality Gates Passed", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=2;", "s11", "s12")
 
     # Section 3: Minikube In-Cluster Platform & Live Endpoints
-    add_node(r9, "c_plat", "1", "<b>☸️ MINIKUBE PLATFORM TOPOLOGY (12 CPUs • 12 GB RAM • containerd • Ingress Controller)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 310, 1780, 380)
+    add_node(r9, "c_plat", "1", "<b>☸️ MINIKUBE PLATFORM TOPOLOGY (6 CPUs • 12 GB RAM • containerd • Ingress Controller)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 310, 1780, 380)
 
     # Tool Pods
     add_node(r9, "p_loki", "1", "<b>📑 Loki & Alloy Logs</b><br>observability namespace<br>Log Aggregation Engine<br>Grafana Logs Datasource", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 90, 360, 240, 90)
@@ -349,7 +349,7 @@ def build_drawio_xml():
     add_node(r9, "app_kiali", "1", "<b>🧭 Kiali Visual Mesh</b><br>Port 20001 (/kiali)<br>Real-time Traffic Graph<br>mTLS Encryption Health", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;", 1170, 480, 240, 90)
     add_node(r9, "app_dbs", "1", "<b>💾 Persistence & Streams</b><br>PostgreSQL (Products, Orders, Inv, KC)<br>Apache Kafka 7.8 (Port 9094 SASL PLAIN)<br>Redis Cache Cluster", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 1440, 480, 240, 90)
 
-    add_node(r9, "ops_box", "1", "<b>⚙️ UNIFIED PLATFORM CLI & OPERATIONAL LIFECYCLE</b><br>• <b>Unified Orchestrator:</b> <code>.\\platform.ps1 up</code> (Minikube, Istio, ArgoCD, Prometheus, Vault, Keycloak, Apps & Tunnels).<br>• <b>Health Doctor:</b> <code>.\\platform.ps1 doctor</code> (Deep diagnostics of pods, NodePorts, and active Gatekeeper OPA policies).<br>• <b>FinOps Cost Engine:</b> <code>.\\platform.ps1 cost -Environment minikube|staging|prod</code> (Air-gapped cost & savings breakdown).<br>• <b>Endpoints Table:</b> <code>.\\platform.ps1 urls</code> (Formatted table of active services and credentials).<br>• <b>Teardown & Purge:</b> <code>.\\platform.ps1 down [-DeleteCluster]</code> (Releases 12 CPUs & 12 GB RAM, or cleans 80 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
+    add_node(r9, "ops_box", "1", "<b>⚙️ UNIFIED PLATFORM CLI & OPERATIONAL LIFECYCLE</b><br>• <b>Unified Orchestrator:</b> <code>.\\platform.ps1 up</code> (Minikube, Istio, ArgoCD, Prometheus, Vault, Keycloak, Apps & Tunnels).<br>• <b>Health Doctor:</b> <code>.\\platform.ps1 doctor</code> (Deep diagnostics of pods, NodePorts, and active Gatekeeper OPA policies).<br>• <b>FinOps Cost Engine:</b> <code>.\\platform.ps1 cost -Environment minikube|staging|prod</code> (Air-gapped cost & savings breakdown).<br>• <b>Endpoints Table:</b> <code>.\\platform.ps1 urls</code> (Formatted table of active services and credentials).<br>• <b>Teardown & Purge:</b> <code>.\\platform.ps1 down [-DeleteCluster]</code> (Releases 6 CPUs & 12 GB RAM, or cleans 40 GB disk).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 590, 1780, 85)
 
     # =========================================================================
     # PAGE 10: Production Resiliency, External Secrets, Canary & Alerting

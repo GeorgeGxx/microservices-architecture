@@ -65,13 +65,13 @@ spec:
               name: http
           resources:
             requests:
-              cpu: "300m"
-              memory: "512Mi"
-              ephemeral-storage: "512Mi"
+              cpu: "100m"
+              memory: "128Mi"
+              ephemeral-storage: "256Mi"
             limits:
-              cpu: "2000m"
-              memory: "1536Mi"
-              ephemeral-storage: "2Gi"
+              cpu: "500m"
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
           volumeMounts:
             - name: grafana-data
               mountPath: /var/lib/grafana

@@ -126,8 +126,8 @@ spec:
               memory: "512Mi"
               ephemeral-storage: "512Mi"
             limits:
-              cpu: "1500m"
-              memory: "1536Mi"
+              cpu: "1000m"
+              memory: "1024Mi"
               ephemeral-storage: "2Gi"
           livenessProbe:
             tcpSocket:

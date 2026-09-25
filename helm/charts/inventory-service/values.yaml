@@ -13,10 +13,10 @@ containerPort: 8001
 
 resources:
   requests:
-    cpu: 300m
-    memory: 512Mi
+    cpu: 200m
+    memory: 384Mi
   limits:
-    cpu: 2000m
+    cpu: 1000m
     memory: 1024Mi
 
 autoscaling:
