@@ -1,0 +1,186 @@
+<div class="topology-wrapper">
+  <!-- Interactive Visual Canvas -->
+  <div class="topology-canvas-container">
+    <div class="canvas-header-strip">
+      <div class="strip-left">
+        <span class="pulse-indicator"></span>
+        <span class="strip-title">Microservices Mesh Topology • Istio STRICT mTLS</span>
+      </div>
+      <div class="strip-right">
+        <span class="legend-dot gateway"></span> <span>Edge</span>
+        <span class="legend-dot service"></span> <span>Service</span>
+        <span class="legend-dot eda"></span> <span>Kafka EDA</span>
+        <span class="legend-dot data"></span> <span>Data</span>
+      </div>
+    </div>
+
+    <!-- Node Grid Layout -->
+    <div class="canvas-grid">
+      <!-- Tier 1: Ingress / Edge -->
+      <div class="canvas-tier tier-edge">
+        <div class="tier-label">Edge & Identity</div>
+        <div
+          class="topo-node"
+          [class.selected]="selectedNodeId() === 'keycloak'"
+          (click)="selectNode('keycloak')"
+          data-cat="iam"
+        >
+          <div class="node-icon">🔑</div>
+          <div class="node-info">
+            <div class="node-name">Keycloak IAM</div>
+            <div class="node-role">:8181 • auth</div>
+          </div>
+          <span class="node-status-badge" [attr.data-status]="getNodeStatus('keycloak')"></span>
+        </div>
+
+        <div
+          class="topo-node pulse-edge"
+          [class.selected]="selectedNodeId() === 'api-gateway'"
+          (click)="selectNode('api-gateway')"
+          data-cat="gateway"
+        >
+          <div class="node-icon">🛡️</div>
+          <div class="node-info">
+            <div class="node-name">API Gateway</div>
+            <div class="node-role">:8080 • dev</div>
+          </div>
+          <span class="node-status-badge" [attr.data-status]="getNodeStatus('api-gateway')"></span>
+        </div>
+      </div>
+
+      <!-- Connector Stream Arrows 1 -->
+      <div class="connector-stream">
+        <div class="stream-line">
+          <div class="stream-particle p1"></div>
+        </div>
+        <div class="stream-line">
+          <div class="stream-particle p2"></div>
+        </div>
+        <div class="stream-line">
+          <div class="stream-particle p3"></div>
+        </div>
+      </div>
+
+      <!-- Tier 2: Microservices Tier -->
+      <div class="canvas-tier tier-services">
+        <div class="tier-label">Core Microservices (Spring Boot 4)</div>
+        @for (svc of ['products-service', 'orders-service', 'inventory-service', 'notification-service']; track svc) {
+          @let n = nodes[($index + 2)];
+          <div
+            class="topo-node"
+            [class.selected]="selectedNodeId() === n.id"
+            (click)="selectNode(n.id)"
+            data-cat="service"
+          >
+            <div class="node-icon">
+              @if (n.id === 'products-service') { 🛍️ }
+              @else if (n.id === 'orders-service') { 📦 }
+              @else if (n.id === 'inventory-service') { 📊 }
+              @else { 🔔 }
+            </div>
+            <div class="node-info">
+              <div class="node-name">{{ n.name }}</div>
+              <div class="node-role">:{{ n.port }} • {{ n.namespace }}</div>
+            </div>
+            <span class="node-status-badge" [attr.data-status]="getNodeStatus(n.id)"></span>
+          </div>
+        }
+      </div>
+
+      <!-- Connector Stream Arrows 2 -->
+      <div class="connector-stream">
+        <div class="stream-line">
+          <div class="stream-particle p4"></div>
+        </div>
+        <div class="stream-line">
+          <div class="stream-particle p5"></div>
+        </div>
+        <div class="stream-line">
+          <div class="stream-particle p6"></div>
+        </div>
+      </div>
+
+      <!-- Tier 3: Event Backbone & Databases -->
+      <div class="canvas-tier tier-data">
+        <div class="tier-label">EDA & Data Persistence</div>
+        <div
+          class="topo-node"
+          [class.selected]="selectedNodeId() === 'redis'"
+          (click)="selectNode('redis')"
+          data-cat="data"
+        >
+          <div class="node-icon">⚡</div>
+          <div class="node-info">
+            <div class="node-name">Redis Cache</div>
+            <div class="node-role">:6379 • data</div>
+          </div>
+          <span class="node-status-badge" data-status="UP"></span>
+        </div>
+
+        <div
+          class="topo-node eda-highlight"
+          [class.selected]="selectedNodeId() === 'kafka'"
+          (click)="selectNode('kafka')"
+          data-cat="eda"
+        >
+          <div class="node-icon">📨</div>
+          <div class="node-info">
+            <div class="node-name">Apache Kafka</div>
+            <div class="node-role">:9092 • KRaft</div>
+          </div>
+          <span class="node-status-badge" data-status="UP"></span>
+        </div>
+
+        <div
+          class="topo-node"
+          [class.selected]="selectedNodeId() === 'postgres'"
+          (click)="selectNode('postgres')"
+          data-cat="data"
+        >
+          <div class="node-icon">🐘</div>
+          <div class="node-info">
+            <div class="node-name">PostgreSQL DBs</div>
+            <div class="node-role">:5432 • 3 Schemas</div>
+          </div>
+          <span class="node-status-badge" data-status="UP"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry Detail Panel for Selected Node -->
+  <div class="node-detail-panel">
+    <div class="panel-header">
+      <div class="panel-title-row">
+        <h3 class="panel-node-title">{{ activeNode().name }}</h3>
+        <span class="panel-tech-badge mono">{{ activeNode().namespace }}</span>
+      </div>
+      <p class="panel-node-role">{{ activeNode().role }}</p>
+    </div>
+
+    <div class="panel-metrics-grid">
+      <div class="metric-card">
+        <span class="m-label">Service Port</span>
+        <span class="m-value mono">:{{ activeNode().port }}</span>
+      </div>
+      <div class="metric-card">
+        <span class="m-label">Runtime / Tech</span>
+        <span class="m-value text-ellipsis" [title]="activeNode().tech">{{ activeNode().tech }}</span>
+      </div>
+      <div class="metric-card">
+        <span class="m-label">Cluster Status</span>
+        <span class="m-value status-up">
+          <span class="dot-green"></span> ACTIVE
+        </span>
+      </div>
+      <div class="metric-card">
+        <span class="m-label">Mesh Security</span>
+        <span class="m-value mono">mTLS STRICT</span>
+      </div>
+    </div>
+
+    <div class="panel-description">
+      <p>{{ activeNode().description }}</p>
+    </div>
+  </div>
+</div>

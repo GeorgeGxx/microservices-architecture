@@ -22,11 +22,6 @@ export const routes: Routes = [
     canActivate: [roleGuard('ADMIN')]
   },
   {
-    path: 'status',
-    loadComponent: () => import('./features/status/system-status.component').then(m => m.SystemStatusComponent),
-    canActivate: [roleGuard('ADMIN')]
-  },
-  {
     path: '**',
     redirectTo: ''
   }

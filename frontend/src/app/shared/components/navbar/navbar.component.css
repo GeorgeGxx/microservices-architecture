@@ -1,16 +1,20 @@
 :host {
   display: block;
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   width: 100%;
 }
 
 .navbar {
-  position: sticky;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
-  background: rgba(11, 15, 25, 0.92);
+  background: rgba(11, 15, 25, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -69,71 +73,109 @@
   border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
-/* Subtle System Health Dot */
-.nav-health-dot {
+/* Admin Gear Button with Subtle Health Foquito */
+.admin-gear-link {
+  padding: 8px 10px;
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
-  margin-left: 2px;
-  cursor: help;
+  border-radius: 8px;
 }
-.nav-health-dot .core-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  transition: all 0.3s ease;
+
+.gear-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
 }
-.nav-health-dot .pulse-ring {
+
+.gear-icon {
+  color: #94a3b8;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+}
+
+.admin-gear-link:hover .gear-icon {
+  transform: rotate(45deg);
+  color: #f8fafc;
+}
+
+.admin-gear-link.active .gear-icon {
+  color: #fbbf24;
+}
+
+/* Foquito Sutil Indicator */
+.foquito {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  top: -3px;
+  right: -3px;
+  width: 9px;
+  height: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.foquito-core {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  opacity: 0.6;
-  animation: health-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  border: 1.5px solid #0f172a;
+  transition: background-color 0.4s ease, box-shadow 0.4s ease;
 }
 
-/* 🟢 Healthy State: All UP */
-.nav-health-dot.healthy .core-dot {
+.foquito-ping {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  opacity: 0.7;
+}
+
+/* 🟢 Verde: All Services UP */
+.foquito.green .foquito-core {
   background-color: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.8);
+  box-shadow: 0 0 6px #10b981, 0 0 10px rgba(16, 185, 129, 0.5);
 }
-.nav-health-dot.healthy .pulse-ring {
-  border: 2px solid #10b981;
+.foquito.green .foquito-ping {
+  border: 1.5px solid #10b981;
+  animation: foquito-pulse 2.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* 🟠 Degraded State: At least 1 DOWN */
-.nav-health-dot.degraded .core-dot {
+/* 🟠 Naranja: Degraded (1-2 services DOWN) */
+.foquito.orange .foquito-core {
   background-color: #f59e0b;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.8);
+  box-shadow: 0 0 6px #f59e0b, 0 0 10px rgba(245, 158, 11, 0.5);
 }
-.nav-health-dot.degraded .pulse-ring {
-  border: 2px solid #f59e0b;
+.foquito.orange .foquito-ping {
+  border: 1.5px solid #f59e0b;
+  animation: foquito-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* 🔴 Critical State: All DOWN */
-.nav-health-dot.critical .core-dot {
+/* 🔴 Rojo: Critical (>2 services DOWN or Gateway down) */
+.foquito.red .foquito-core {
   background-color: #ef4444;
-  box-shadow: 0 0 10px rgba(239, 68, 68, 0.9);
+  box-shadow: 0 0 8px #ef4444, 0 0 12px rgba(239, 68, 68, 0.7);
 }
-.nav-health-dot.critical .pulse-ring {
-  border: 2px solid #ef4444;
-  animation-duration: 1s;
+.foquito.red .foquito-ping {
+  border: 1.5px solid #ef4444;
+  animation: foquito-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-@keyframes health-pulse {
+@keyframes foquito-pulse {
   0% {
-    transform: scale(0.8);
+    transform: scale(0.85);
     opacity: 0.8;
   }
   50% {
-    transform: scale(1.4);
+    transform: scale(1.6);
     opacity: 0;
   }
   100% {
-    transform: scale(0.8);
+    transform: scale(0.85);
     opacity: 0;
   }
 }
@@ -173,6 +215,61 @@
   align-items: center;
   gap: 16px;
 }
+
+.palette-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  padding: 7px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.82rem;
+}
+.palette-nav-btn:hover {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #f8fafc;
+}
+.palette-nav-btn svg {
+  color: var(--primary-color);
+}
+.palette-btn-text {
+  font-weight: 500;
+}
+.palette-kbd {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #cbd5e1;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.scan-nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  color: #34d399;
+  padding: 7px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.scan-nav-btn:hover {
+  background: #10b981;
+  color: #030712;
+}
+
 .notification-wrapper {
   position: relative;
 }
@@ -316,6 +413,46 @@
   color: #64748b;
   font-size: 0.82rem;
 }
+.wishlist-trigger-btn {
+  position: relative;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.wishlist-trigger-btn:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+.wishlist-trigger-btn.has-items svg {
+  animation: pulse 2s infinite;
+}
+.wishlist-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.5);
+}
+
 .cart-trigger-btn {
   position: relative;
   background: rgba(255, 255, 255, 0.06);

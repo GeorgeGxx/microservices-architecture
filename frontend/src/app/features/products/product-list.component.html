@@ -1,3 +1,104 @@
+<!-- Commercial E-Commerce Hero Showcase -->
+<section class="storefront-hero" aria-label="Featured Offers & Categories">
+  <div class="hero-main-card">
+    <div class="hero-content">
+      <div class="hero-pill-row">
+        <span class="hero-sale-badge">
+          <span class="flash-icon">⚡</span>
+          <span>FLASH DEALS • UP TO 40% OFF</span>
+        </span>
+        <div class="hero-countdown-pill" title="Limited time flash deals countdown">
+          <span class="pulse-dot-red"></span>
+          <span class="countdown-label">ENDS IN:</span>
+          <span class="countdown-timer mono">{{ flashTimeRemaining() }}</span>
+        </div>
+      </div>
+
+      <h1 class="hero-main-title">
+        Next-Generation <span class="gradient-text">Flagship Hardware</span>
+      </h1>
+      <p class="hero-subtitle">
+        Explore enterprise-grade laptops, immersive spatial audio, high-performance GPUs and flagship smartphones with live inventory reservation and same-day dispatch.
+      </p>
+
+      <!-- Trust & Service Highlights -->
+      <div class="hero-perks-row">
+        <div class="perk-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="16" height="13" x="1" y="6" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          <span>Free Express Shipping</span>
+        </div>
+        <div class="perk-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>2-Year Full Warranty</span>
+        </div>
+        <div class="perk-item">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+          <span>Real-time Live Stock</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Category Nav Chips Bar -->
+  <div class="category-nav-bar">
+    <div class="category-chips-scroll">
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === 'all'" 
+        (click)="setCategory('all')">
+        <span class="cat-icon">⚡</span>
+        <span>All Hardware</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === 'phones'" 
+        (click)="setCategory('phones')">
+        <span class="cat-icon">📱</span>
+        <span>Smartphones</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === 'laptops'" 
+        (click)="setCategory('laptops')">
+        <span class="cat-icon">💻</span>
+        <span>Laptops & PCs</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === 'gaming'" 
+        (click)="setCategory('gaming')">
+        <span class="cat-icon">🎮</span>
+        <span>Gaming & Consoles</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="cat-chip" 
+        [class.active]="selectedCategory() === 'audio'" 
+        (click)="setCategory('audio')">
+        <span class="cat-icon">🎧</span>
+        <span>Audio & Sound</span>
+      </button>
+
+      <button 
+        type="button" 
+        class="cat-chip chip-wishlist" 
+        [class.active]="selectedCategory() === 'wishlist'" 
+        (click)="setCategory('wishlist')">
+        <span class="cat-icon">❤️</span>
+        <span>Wishlist ({{ wishlist.count() }})</span>
+      </button>
+    </div>
+  </div>
+</section>
+
 <div class="page-header">
   <div class="header-text">
     <div class="badge-row">
@@ -240,6 +341,23 @@
             loading="lazy" 
             (error)="onImageError($event, product)"
           />
+          <button 
+            type="button"
+            class="card-wishlist-btn" 
+            [class.active]="wishlist.isFavorite(product.sku)" 
+            (click)="toggleWishlist(product, $event)" 
+            [title]="wishlist.isFavorite(product.sku) ? 'Remove from Wishlist' : 'Add to Wishlist'">
+            <svg width="17" height="17" viewBox="0 0 24 24" [attr.fill]="wishlist.isFavorite(product.sku) ? '#ef4444' : 'none'" [attr.stroke]="wishlist.isFavorite(product.sku) ? '#ef4444' : 'currentColor'" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+          </button>
+          <button 
+            type="button"
+            class="card-compare-btn" 
+            [class.active]="comparison.isSelected(product.sku)" 
+            (click)="toggleCompare(product, $event)" 
+            [title]="comparison.isSelected(product.sku) ? 'Remove from Comparison' : 'Add to Compare'">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+            <span>{{ comparison.isSelected(product.sku) ? 'Comparing' : 'Compare' }}</span>
+          </button>
           <div class="image-overlay-action">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
             <span>Quick View</span>
@@ -263,6 +381,29 @@
           </div>
 
           <p class="product-description">{{ product.description }}</p>
+
+          <!-- Interactive Stock Allocation Meter -->
+          <div class="card-stock-meter">
+            <div class="meter-bar-track">
+              <div 
+                class="meter-bar-fill" 
+                [class.critical]="(product.stockQuantity || 0) > 0 && (product.stockQuantity || 0) < 5"
+                [class.low]="(product.stockQuantity || 0) >= 5 && (product.stockQuantity || 0) <= 15"
+                [class.out]="product.stockQuantity === 0"
+                [style.width.%]="product.stockQuantity !== undefined ? Math.min(100, Math.max(8, (product.stockQuantity / 40) * 100)) : 100"
+              ></div>
+            </div>
+            <div class="meter-labels">
+              <span class="stock-qty-text mono">
+                @if (product.stockQuantity !== undefined) {
+                  {{ product.stockQuantity }} units available
+                } @else {
+                  Stock verified
+                }
+              </span>
+              <span class="stock-sla-text">Live Allocation</span>
+            </div>
+          </div>
         </div>
 
         <div class="card-actions-row">
