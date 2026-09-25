@@ -727,6 +727,30 @@ stringData:
             kubectl rollout restart deployment -n dev 2>$null | Out-Null
             Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
 
+            # Register GitHub credentials secret in ArgoCD for private repository access
+            $existingRepoSecret = kubectl get secret repo-github-microservices -n argocd --no-headers 2>$null
+            if (-not $existingRepoSecret -and (Get-Command gh -ErrorAction SilentlyContinue)) {
+                $ghToken = (gh auth token 2>$null)
+                if ($ghToken) {
+                    $ghToken = $ghToken.Trim()
+                    $repoSecretYaml = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-github-microservices
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/GeorgeGxx/microservices-architecture.git
+  username: GeorgeGxx
+  password: $ghToken
+"@
+                    $repoSecretYaml | kubectl apply -f - 2>$null | Out-Null
+                }
+            }
+
             if (Test-Path "$argoDir\appproject.yaml") {
                 kubectl apply -f "$argoDir\appproject.yaml" 2>$null | Out-Null
             }
