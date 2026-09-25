@@ -1,6 +1,7 @@
 import { Injectable, computed, signal, inject, effect } from '@angular/core';
 import { ToastService } from './toast.service';
 import { KeycloakService } from '../auth/keycloak.service';
+import { environment } from '../../../environments/environment';
 
 export interface SystemNotification {
   id: string;
@@ -66,7 +67,9 @@ export class NotificationCenterService {
     if (typeof window === 'undefined' || typeof EventSource === 'undefined') return;
 
     try {
-      const eventSource = new EventSource('/api/notifications/stream');
+      const sseBase = environment.gatewayUrl || '';
+      const sseUrl = sseBase ? `${sseBase}/api/notifications/stream` : '/api/notifications/stream';
+      const eventSource = new EventSource(sseUrl);
 
       eventSource.addEventListener('ORDER_NOTIFICATION', (event: MessageEvent) => {
         try {
@@ -101,6 +104,14 @@ export class NotificationCenterService {
           const isCancelled = data.orderStatus === 'CANCELLED';
           const shortOrder = data.orderNumber ? data.orderNumber.substring(0, 8).toUpperCase() : '';
           const tracking = data.trackingNumber || 'DHL Express';
+
+          // Deduplication: Avoid duplicate toast/notification if already registered in current state
+          const alreadyExists = this.notifications().some(n =>
+            shortOrder && n.title.includes(shortOrder) && (isCancelled ? n.title.includes('Cancelled') : n.title.includes('Confirmed'))
+          );
+          if (alreadyExists) {
+            return;
+          }
 
           const title = isCancelled ? `Order #${shortOrder} Cancelled` : `Order #${shortOrder} Confirmed!`;
           const message = isCancelled 
