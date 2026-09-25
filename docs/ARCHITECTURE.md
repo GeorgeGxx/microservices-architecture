@@ -50,7 +50,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
 | **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
-| **Istio Ingress Gateway** | `80` / `443` | `30080` / `30443` | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.0) |
+| **Istio Ingress Gateway** | `80` / `443` | `30080` / `30443` | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.1) |
 | **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (v2.31.0, `/kiali`) |
 | **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
 | **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
@@ -86,9 +86,9 @@ The platform provides enterprise-grade secret management across 4 distinct imple
 ### 1. Approach A: Local Development with Docker Compose (Zero-Touch)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Dev Token: `root`)
 - **Zero-Touch Auto-Initialization:** When running `docker compose up -d`, the ephemeral [`vault-init`](./compose.yaml) container automatically creates the KV-v2 engine, seeds database credentials, Kafka parameters, Keycloak secrets, and configures Least-Privilege access policies.
-- **Optional Manual Reset Tool:** [`scripts/vault/init-vault.ps1`](./scripts/vault/init-vault.ps1) is available if you ever need to manually re-seed secrets and policies without restarting containers:
+- **Optional Manual Re-seed Tool:** `.\platform.ps1 secrets` is available if you ever need to generate high-entropy secrets and synchronize Vault credentials:
   ```powershell
-  pwsh .\scripts\vault\init-vault.ps1
+  pwsh .\platform.ps1 secrets
   ```
 
 ### 2. Approach B: Native Java Spring Boot Integration (All 5 Services)

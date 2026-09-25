@@ -8,7 +8,7 @@ variable "environment" {
 
 variable "engine_version" {
   type    = string
-  default = "16.4"
+  default = "18.0"
 }
 
 variable "instance_class" {

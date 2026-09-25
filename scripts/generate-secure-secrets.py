@@ -71,7 +71,7 @@ def build_credentials_bundle(length: int = 32) -> Dict[str, str]:
 
 
 def format_as_env(creds: Dict[str, str]) -> str:
-    lines = ["# Automated Zero-Trust Generated Credentials", "# Generated via scripts/devsecops/generate-secure-secrets.py", ""]
+    lines = ["# Automated Zero-Trust Generated Credentials", "# Generated via scripts/generate-secure-secrets.py", ""]
     for k, v in creds.items():
         lines.append(f'{k}="{v}"')
     return "\n".join(lines)

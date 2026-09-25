@@ -43,6 +43,7 @@ services:
       POSTGRES_DB: ${KEYCLOAK_POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - keycloak-pgdata:/var/lib/postgresql/data
     ports:
@@ -134,6 +135,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - inventory-pgdata:/var/lib/postgresql/data
     ports:
@@ -205,6 +207,7 @@ services:
       POSTGRES_DB: ${ORDERS_POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - orders-pgdata:/var/lib/postgresql/data
     ports:
@@ -251,6 +254,7 @@ services:
       POSTGRES_DB: ${PRODUCTS_POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - products-pgdata:/var/lib/postgresql/data
     ports:

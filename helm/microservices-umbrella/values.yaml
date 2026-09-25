@@ -49,10 +49,8 @@ configMap:
     KAFKA_BOOTSTRAP_SERVERS: "kafka:9094"
     KAFKA_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
     KAFKA_SASL_MECHANISM: "PLAIN"
-    KAFKA_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
     SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
     SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: "PLAIN"
-    SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
     ARGOCD_VERSION: "3.5.2"
     ARGOCD_HELM_CHART_VERSION: "10.8.0"
     GATEKEEPER_VERSION: "3.23.0"
@@ -72,6 +70,8 @@ secret:
     POSTGRES_PASSWORD: "admin"
     REDIS_PASSWORD: "admin"
     KEYCLOAK_CLIENT_SECRET: "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
+    KAFKA_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
+    SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
 
 prometheusRule:
   enabled: true

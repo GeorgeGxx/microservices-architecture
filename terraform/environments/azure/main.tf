@@ -67,6 +67,22 @@ resource "azurerm_private_dns_zone_virtual_network_link" "postgres" {
   resource_group_name   = azurerm_resource_group.this.name
 }
 
+# Auto-generate administrator password if not provided
+resource "random_password" "postgres_admin" {
+  count            = local.cfg.enable_managed_db && (var.administrator_password == "" || var.administrator_password == null) ? 1 : 0
+  length           = 24
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+  min_upper        = 2
+  min_lower        = 2
+  min_numeric      = 2
+  min_special      = 2
+}
+
+locals {
+  postgres_admin_password = (var.administrator_password != "" && var.administrator_password != null) ? var.administrator_password : try(random_password.postgres_admin[0].result, "")
+}
+
 module "postgresql" {
   count  = local.cfg.enable_managed_db ? 1 : 0
   source = "../../modules/azure/postgresql"
@@ -79,9 +95,9 @@ module "postgresql" {
   private_dns_zone_id    = azurerm_private_dns_zone.postgres[0].id
   sku_name               = local.cfg.db_sku_name
   storage_mb             = local.cfg.db_storage_mb
-  postgres_version       = "17"
+  postgres_version       = "18"
   administrator_login    = "psqladmin"
-  administrator_password = var.administrator_password
+  administrator_password = local.postgres_admin_password
   high_availability      = local.cfg.db_ha
   database_names         = local.database_names
   tags                   = local.tags
