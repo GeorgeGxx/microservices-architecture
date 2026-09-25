@@ -39,41 +39,44 @@ def main():
     parser = argparse.ArgumentParser(description="Build all microservice Docker images")
     parser.add_argument("tag", nargs="?", default="1.0.0", help="Image tag (default: 1.0.0)")
     parser.add_argument("--repo-prefix", default="georgegxx", help="Docker registry prefix")
+    parser.add_argument("--no-cache", action="store_true", help="Build Docker images without cache")
     args = parser.parse_args()
 
     tag = args.tag
     prefix = args.repo_prefix
 
     print("=" * 60)
-    print(f" 🚀 BUILDING ALL CONTAINER IMAGES (TAG: {tag})")
+    print(f" 🚀 BUILDING ALL CONTAINER IMAGES ({prefix}/*:{tag})")
     print("=" * 60)
 
     # 1. Build Spring Boot Microservices
     for svc in SERVICES:
-        print(f"\n📦 Building service '{svc}:{tag}'...")
+        image_name = f"{prefix}/{svc}:{tag}"
+        print(f"\n📦 Building service '{image_name}'...")
         dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
         cmd = [
             "docker", "build",
-            "-t", f"{svc}:{tag}",
-            "-t", f"{prefix}/{svc}:{tag}",
-            "-t", f"microservices-architecture-{svc}:{tag}",
+            "-t", image_name,
             "-f", dockerfile,
             ROOT_DIR
         ]
+        if args.no_cache:
+            cmd.insert(2, "--no-cache")
         run_command(cmd, cwd=ROOT_DIR)
 
     # 2. Build Frontend SPA
-    print(f"\n🌐 Building frontend SPA 'frontend:{tag}'...")
+    frontend_image = f"{prefix}/frontend:{tag}"
+    print(f"\n🌐 Building frontend SPA '{frontend_image}'...")
     frontend_dir = os.path.join(ROOT_DIR, "frontend")
     frontend_dockerfile = os.path.join(frontend_dir, "Dockerfile")
     cmd = [
         "docker", "build",
-        "-t", f"frontend:{tag}",
-        "-t", f"{prefix}/frontend:{tag}",
-        "-t", f"microservices-architecture-frontend:{tag}",
+        "-t", frontend_image,
         "-f", frontend_dockerfile,
         frontend_dir
     ]
+    if args.no_cache:
+        cmd.insert(2, "--no-cache")
     run_command(cmd, cwd=frontend_dir)
 
     print("\n" + "=" * 60)
