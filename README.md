@@ -176,7 +176,7 @@ cp .example.env .env
 docker compose up -d --build keycloak
 
 # 4. Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\auth\bootstrap-keycloak.ps1
+pwsh -File .\scripts\bootstrap-keycloak.ps1
 
 # 5. Launch all 15 services in detached mode:
 docker compose up -d --build
@@ -266,6 +266,15 @@ microservices-architecture/
 ├── orders-service/                 # Order orchestration & Saga orchestrator (Port 8003)
 ├── products-service/               # Product catalog domain (Port 8004)
 ├── scripts/                        # Enterprise automation scripts (PowerShell & Python)
+│   ├── testing/                    # Specialized testing & load simulation (simulate, smoke, verify, check)
+│   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
+│   ├── build-all.py                # Concurrent Java & Angular container image compiler
+│   ├── endpoint-smoke-test.py      # Synthetic post-deployment health & SLO prober
+│   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
+│   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator
+│   ├── local-cost-estimator.py     # Air-gapped FinOps cloud cost & savings calculator
+│   ├── supervise-tunnels.py        # Resilient background port-forward supervisor daemon
+│   └── update_dashboards.py        # Grafana dashboard JSON generator & synchronizer
 ├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
 ├── .example.env                    # Example environment file
 ├── .gitattributes                  # Git attributes file
@@ -274,10 +283,6 @@ microservices-architecture/
 ├── .gitleaksignore                 # Gitleaks ignore file
 ├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI/CD configuration
 ├── compose.yaml                    # Local multi-service development stack (15 containers)
-├── platform-aws.ps1                # Platform automation script for AWS
-├── platform-azure.ps1              # Platform automation script for Azure
-├── platform-gcp.ps1                # Platform automation script for GCP
-├── platform-minikube.ps1           # Platform automation script for Minikube
 ├── platform.ps1                    # Enterprise Platform Master CLI Orchestrator
 ├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4.0.8)
 └── README.md                       # README file

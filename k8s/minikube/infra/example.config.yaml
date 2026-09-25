@@ -76,5 +76,5 @@ stringData:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: <password>
   REDIS_PASSWORD: <password>
-  # Automatically injected when running: python scripts/bootstrap_keycloak.py
+  # Automatically injected when running: pwsh -File .\scripts\bootstrap-keycloak.ps1
   KEYCLOAK_CLIENT_SECRET: <YOUR_KEYCLOAK_CLIENT_SECRET>

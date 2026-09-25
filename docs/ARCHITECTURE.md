@@ -494,16 +494,13 @@ graph LR
     APIGW --> Microservices
 ```
 
-### 1. 🚇 Cloudflare Quick Tunnels Automation (`start-cloudflare-tunnels.ps1`)
-* **Zero-Configuration Anonymous Tunneling:** Exposes **Spring Cloud Gateway** (`:8080`) and **Keycloak IAM** (`:8181`) with valid Cloudflare TLS certificates using [`scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1`](./scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1).
-* **Automated Frontend Environment Sync:** Running with `-UpdateFrontendEnv` automatically injects the active ephemeral HTTPS endpoints into `frontend/src/environments/environment.prod.ts` and `environment.ts`:
+### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Spring Cloud Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:4200`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
   ```powershell
-  # For Local Use / Temporary Testing
-  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1
-  # For Deployment to Vercel or Remote Production, be careful, it overwrite your environment.prod.ts and environment.ts files.
-  pwsh scripts/cloud/cloudflare/start-cloudflare-tunnels.ps1 -UpdateFrontendEnv
-  # API Gateway with Products Endpoint Example
-  https://destination-neon-ent-coral.trycloudflare.com/api/product
+  # Launch the resilient background port-forwarding supervisor daemon:
+  .\platform.ps1 tunnels
+  # Direct script execution:
+  python scripts/supervise-tunnels.py
   ```
 * **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](./compose.yaml) and [`keycloak.yaml`](./k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
 
