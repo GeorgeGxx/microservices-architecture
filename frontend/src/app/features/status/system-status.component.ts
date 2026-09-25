@@ -34,6 +34,9 @@ export class SystemStatusComponent implements OnInit {
   });
 
   ngOnInit(): void {
-    this.statusService.checkAllServices();
+    const firstService = this.statusService.services()[0];
+    if (!firstService?.lastChecked || (Date.now() - firstService.lastChecked.getTime() > 20000)) {
+      this.statusService.checkAllServices();
+    }
   }
 }

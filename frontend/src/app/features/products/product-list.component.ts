@@ -12,6 +12,11 @@ import { ProductQrModalComponent } from '../../shared/components/product-qr-moda
 import { CurrencyService } from '../../core/services/currency.service';
 import { getProductImageUrl } from '../../core/utils/product-image.helper';
 
+import { CommandPaletteService } from '../../core/services/command-palette.service';
+import { ScannerModalService } from '../../core/services/scanner-modal.service';
+import { WishlistService } from '../../core/services/wishlist.service';
+import { ComparisonService } from '../../core/services/comparison.service';
+
 export interface ProductWithStock extends ProductResponse {
   inStock?: boolean;
   stockQuantity?: number;
@@ -33,7 +38,16 @@ export class ProductListComponent implements OnInit, OnDestroy {
   private readonly toastService = inject(ToastService);
   readonly currencyService = inject(CurrencyService);
   readonly keycloakService = inject(KeycloakService);
+  readonly palette = inject(CommandPaletteService);
+  readonly scannerModal = inject(ScannerModalService);
+  readonly wishlist = inject(WishlistService);
+  readonly comparison = inject(ComparisonService);
   readonly getProductImageUrl = getProductImageUrl;
+
+  readonly selectedCategory = signal<string>('all');
+  readonly flashTimeRemaining = signal<string>('05h 22m 14s');
+  private flashTimer?: ReturnType<typeof setInterval>;
+
 
   onImageError(event: Event, product: ProductWithStock): void {
     const target = event.target as HTMLImageElement;
@@ -80,6 +94,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
   readonly hasActiveFilters = computed(() =>
     this.searchQuery().trim() !== '' ||
     this.stockFilter() !== 'all' ||
+    this.selectedCategory() !== 'all' ||
     this.selectedSort() !== 'recent' ||
     this.minPrice() !== null ||
     this.maxPrice() !== null
@@ -98,6 +113,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
     const q = this.searchQuery().toLowerCase().trim();
     const sort = this.selectedSort();
     const stock = this.stockFilter();
+    const cat = this.selectedCategory();
     const min = this.minPrice();
     const max = this.maxPrice();
     const isAdmin = this.keycloakService.isAdmin();
@@ -125,7 +141,25 @@ export class ProductListComponent implements OnInit, OnDestroy {
       let matchesMin = min === null || activePrice >= min;
       let matchesMax = max === null || activePrice <= max;
 
-      return matchesSearch && matchesStock && matchesMin && matchesMax;
+      // Category filter
+      let matchesCategory = true;
+      if (cat === 'wishlist') {
+        matchesCategory = this.wishlist.isFavorite(p.sku);
+      } else if (cat === 'phones') {
+        const text = (p.name + ' ' + (p.description || '')).toLowerCase();
+        matchesCategory = text.includes('phone') || text.includes('iphone') || text.includes('galaxy') || text.includes('pixel') || text.includes('mobile');
+      } else if (cat === 'laptops') {
+        const text = (p.name + ' ' + (p.description || '')).toLowerCase();
+        matchesCategory = text.includes('laptop') || text.includes('macbook') || text.includes('xps') || text.includes('thinkpad') || text.includes('pc') || text.includes('dell');
+      } else if (cat === 'gaming') {
+        const text = (p.name + ' ' + (p.description || '')).toLowerCase();
+        matchesCategory = text.includes('ps5') || text.includes('playstation') || text.includes('game') || text.includes('gaming') || text.includes('rtx') || text.includes('xbox') || text.includes('vision');
+      } else if (cat === 'audio') {
+        const text = (p.name + ' ' + (p.description || '')).toLowerCase();
+        matchesCategory = text.includes('headphone') || text.includes('audio') || text.includes('sound') || text.includes('bose') || text.includes('sony') || text.includes('ear');
+      }
+
+      return matchesSearch && matchesStock && matchesMin && matchesMax && matchesCategory;
     });
 
     // Sorting in active currency
@@ -178,6 +212,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
       this.searchQuery();
       this.selectedSort();
       this.stockFilter();
+      this.selectedCategory();
       this.minPrice();
       this.maxPrice();
       this.currentPage.set(1);
@@ -186,6 +221,7 @@ export class ProductListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadProducts(false);
+    this.startFlashCountdown();
 
     // Silent auto-sync every 8 seconds
     this.autoRefreshTimer = setInterval(() => {
@@ -216,6 +252,9 @@ export class ProductListComponent implements OnInit, OnDestroy {
     if (this.autoRefreshTimer) {
       clearInterval(this.autoRefreshTimer);
     }
+    if (this.flashTimer) {
+      clearInterval(this.flashTimer);
+    }
     if (this.onVisibilityChangeHandler) {
       document.removeEventListener('visibilitychange', this.onVisibilityChangeHandler);
     }
@@ -225,6 +264,45 @@ export class ProductListComponent implements OnInit, OnDestroy {
     if (this.onProductUpdatedHandler) {
       window.removeEventListener('product-updated', this.onProductUpdatedHandler);
     }
+  }
+
+  private startFlashCountdown(): void {
+    const updateCountdown = () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      const diff = Math.max(0, midnight.getTime() - now.getTime());
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      this.flashTimeRemaining.set(`${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`);
+    };
+    updateCountdown();
+    this.flashTimer = setInterval(updateCountdown, 1000);
+  }
+
+  setCategory(category: string): void {
+    this.selectedCategory.set(category);
+  }
+
+  toggleWishlist(product: ProductWithStock, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    const added = this.wishlist.toggleFavorite(product);
+    if (added) {
+      this.toastService.success('Added to Wishlist', `${product.name} saved to favorites.`);
+    } else {
+      this.toastService.info('Removed from Wishlist', `${product.name} removed.`);
+    }
+  }
+
+  toggleCompare(product: ProductWithStock, event?: MouseEvent): void {
+    if (event) event.stopPropagation();
+    if (!this.comparison.isSelected(product.sku) && !this.comparison.canAdd()) {
+      this.toastService.warning('Comparison Limit Reached', 'You can compare up to 4 products at once.');
+      return;
+    }
+    this.comparison.toggleProduct(product);
   }
 
   onSearchInput(value: string): void {

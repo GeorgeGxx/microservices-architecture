@@ -2018,3 +2018,25 @@ input:checked + .toggle-slider:before {
     font-size: 0.78rem;
   }
 }
+
+/* Topology & EDA Tab Styles */
+.topology-tab-btn {
+  color: #a5b4fc;
+}
+
+.topology-tab-btn:hover {
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+}
+
+.topology-tab-btn.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.28), rgba(168, 85, 247, 0.28));
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #ffffff;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+}
+
+.admin-topology-view {
+  animation: fadeIn 0.3s ease-out;
+}
+

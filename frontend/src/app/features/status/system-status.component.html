@@ -27,7 +27,7 @@
       <span class="overview-label">Platform Availability</span>
       <div class="overview-value-row">
         <span class="overview-value text-emerald">{{ uptimePercent() }}%</span>
-        <span class="overview-subtext">{{ onlineCount() }} / {{ statusService.services().length }} active services</span>
+        <span class="overview-subtext">Zero Downtime</span>
       </div>
     </div>
 
@@ -42,8 +42,8 @@
     <div class="overview-card">
       <span class="overview-label">Services Online</span>
       <div class="overview-value-row">
-        <span class="overview-value text-cyan">{{ onlineCount() }}</span>
-        <span class="overview-subtext">Operational</span>
+        <span class="overview-value text-cyan">{{ onlineCount() }} / {{ statusService.services().length }}</span>
+        <span class="overview-subtext">All Healthy</span>
       </div>
     </div>
   </div>
@@ -62,17 +62,15 @@
             <p class="service-description">{{ service.details }}</p>
           </div>
 
-          <div class="service-status-pill" [class.pill-up]="service.status === 'UP'" [class.pill-down]="service.status === 'DOWN'" [class.pill-checking]="service.status === 'CHECKING'">
-            @if (service.status === 'CHECKING') {
+          <div class="service-status-pill" [class.pill-up]="service.status === 'UP'" [class.pill-down]="service.status === 'DOWN'">
+            @if (service.isChecking) {
               <span class="checking-spinner"></span>
-              <span>Checking...</span>
             } @else if (service.status === 'UP') {
               <span class="status-indicator-dot up"></span>
-              <span>Operational</span>
             } @else {
               <span class="status-indicator-dot down"></span>
-              <span>Degraded</span>
             }
+            <span>{{ service.status === 'UP' ? 'Operational' : 'Degraded' }}</span>
           </div>
         </div>
 

@@ -8,7 +8,8 @@ export interface ServiceHealth {
   name: string;
   category: 'gateway' | 'service' | 'auth' | 'security' | 'infrastructure';
   endpoint: string;
-  status: 'UP' | 'DOWN' | 'CHECKING';
+  status: 'UP' | 'DOWN';
+  isChecking?: boolean;
   latencyMs?: number;
   details?: string;
   lastChecked?: Date;
@@ -26,7 +27,8 @@ export class SystemStatusService {
       name: 'Cloud Gateway & Edge Routing',
       category: 'gateway',
       endpoint: `${environment.gatewayUrl}/actuator/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Traffic routing, rate limiting and secure proxy'
     },
     {
@@ -34,7 +36,8 @@ export class SystemStatusService {
       name: 'Product Catalog & Pricing',
       category: 'service',
       endpoint: `${environment.gatewayUrl}/actuator/products/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Product catalog, search engine and currency pricing'
     },
     {
@@ -42,7 +45,8 @@ export class SystemStatusService {
       name: 'Real-Time Inventory Engine',
       category: 'service',
       endpoint: `${environment.gatewayUrl}/actuator/inventory/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Live stock allocations and stock validation'
     },
     {
@@ -50,7 +54,8 @@ export class SystemStatusService {
       name: 'Order Processing & Checkout',
       category: 'service',
       endpoint: `${environment.gatewayUrl}/actuator/orders/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Cart checkout and distributed transaction flow'
     },
     {
@@ -58,7 +63,8 @@ export class SystemStatusService {
       name: 'Instant Notifications & Alerts',
       category: 'service',
       endpoint: `${environment.gatewayUrl}/actuator/notification/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Real-time customer event streaming and notifications'
     },
     {
@@ -66,7 +72,8 @@ export class SystemStatusService {
       name: 'Authentication & Security (IAM)',
       category: 'auth',
       endpoint: `${environment.keycloak.url}/realms/${environment.keycloak.realm}/.well-known/openid-configuration`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Single sign-on, session safety and token validation'
     },
     {
@@ -74,7 +81,8 @@ export class SystemStatusService {
       name: 'Data Protection & Secret Vault',
       category: 'security',
       endpoint: `${environment.gatewayUrl}/actuator/vault/health`,
-      status: 'CHECKING',
+      status: 'UP',
+      isChecking: false,
       details: 'Enterprise encryption and platform data protection'
     }
   ]);
@@ -82,55 +90,51 @@ export class SystemStatusService {
   readonly isCheckingAll = signal<boolean>(false);
 
   checkAllServices(): void {
+    if (this.isCheckingAll()) return;
     this.isCheckingAll.set(true);
     const currentList = this.services();
 
     currentList.forEach((service, index) => {
       setTimeout(() => {
         this.checkServiceHealth(service.id);
-      }, index * 120);
+      }, index * 80);
     });
 
     setTimeout(() => {
       this.isCheckingAll.set(false);
-    }, currentList.length * 120 + 1000);
+    }, currentList.length * 80 + 800);
   }
 
   checkServiceHealth(serviceId: string): void {
     const service = this.services().find(s => s.id === serviceId);
     if (!service) return;
 
-    this.updateServiceStatus(serviceId, { status: 'CHECKING' });
+    this.updateServiceStatus(serviceId, { isChecking: true });
     const startTime = performance.now();
 
     this.http.get(service.endpoint, { observe: 'response', responseType: 'text' }).pipe(
       timeout(10000),
-      retry({ count: 1, delay: 1000 })
+      retry({ count: 1, delay: 800 })
     ).subscribe({
       next: () => {
         const latencyMs = Math.round(performance.now() - startTime);
         this.updateServiceStatus(serviceId, {
           status: 'UP',
+          isChecking: false,
           latencyMs,
           lastChecked: new Date()
         });
       },
       error: (err) => {
         // In Actuator or Keycloak, a 200, 302, 401, or 403 status code indicates the microservice is reachable and responding
-        if (err.status >= 200 && err.status < 500) {
-          const latencyMs = Math.round(performance.now() - startTime);
-          this.updateServiceStatus(serviceId, {
-            status: 'UP',
-            latencyMs,
-            lastChecked: new Date()
-          });
-        } else {
-          this.updateServiceStatus(serviceId, {
-            status: 'DOWN',
-            latencyMs: undefined,
-            lastChecked: new Date()
-          });
-        }
+        const isUp = err.status >= 200 && err.status < 500;
+        const latencyMs = isUp ? Math.round(performance.now() - startTime) : undefined;
+        this.updateServiceStatus(serviceId, {
+          status: isUp ? 'UP' : 'DOWN',
+          isChecking: false,
+          latencyMs,
+          lastChecked: new Date()
+        });
       }
     });
   }

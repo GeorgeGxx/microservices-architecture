@@ -11,13 +11,10 @@ import { InventoryResponse } from '../../core/models/inventory.model';
 import { OrderResponse } from '../../core/models/order.model';
 import { PRODUCT_IMAGE_PRESETS, ProductImagePreset, compressImageFile, getProductImageUrl } from '../../core/utils/product-image.helper';
 
-import { SystemStatusComponent } from '../status/system-status.component';
-import { SystemStatusService } from '../../core/services/system-status.service';
-
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, FormsModule, SystemStatusComponent],
+  imports: [CommonModule, ReactiveFormsModule, FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.css'
@@ -29,20 +26,11 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
   private readonly orderService = inject(OrderService);
   private readonly toastService = inject(ToastService);
   private readonly notifService = inject(NotificationCenterService);
-  readonly statusService = inject(SystemStatusService);
   private autoRefreshTimer?: ReturnType<typeof setInterval>;
 
-  readonly activeTab = signal<'products' | 'inventory' | 'orders' | 'system'>('products');
+  readonly activeTab = signal<'products' | 'inventory' | 'orders'>('products');
   readonly isRefreshingProducts = signal<boolean>(false);
   readonly isRefreshingInventory = signal<boolean>(false);
-
-  readonly onlineServicesCount = computed(() =>
-    this.statusService.services().filter(s => s.status === 'UP').length
-  );
-  readonly totalServicesCount = computed(() => this.statusService.services().length);
-  readonly isClusterHealthy = computed(() =>
-    this.totalServicesCount() > 0 && this.onlineServicesCount() === this.totalServicesCount()
-  );
 
   // Product Data & Image Handling
   readonly existingProducts = signal<ProductResponse[]>([]);
@@ -293,7 +281,6 @@ export class AdminDashboardComponent implements OnInit, OnDestroy {
     this.loadProducts();
     this.loadInventory();
     this.loadOrders();
-    this.statusService.checkAllServices();
 
     // Dynamic continuous sync in background every 4 seconds
     this.autoRefreshTimer = setInterval(() => {
