@@ -60,7 +60,7 @@ export class ArchitectureTopologyComponent {
       category: 'service',
       port: '8081',
       namespace: 'dev',
-      tech: 'Spring Boot 4.0.8 / Java 25',
+      tech: 'Spring Boot 4.0.8 / Java 21',
       description: 'Manages catalog inventory items, multi-currency conversion, and search filtering.',
       x: 48,
       y: 20
@@ -120,7 +120,7 @@ export class ArchitectureTopologyComponent {
       category: 'data',
       port: '6379',
       namespace: 'data',
-      tech: 'Redis 7.4 Alpine',
+      tech: 'Redis 8.8.1 Alpine',
       description: 'In-memory caching for products catalog, rate-limiting counters, and session states.',
       x: 82,
       y: 20
@@ -132,7 +132,7 @@ export class ArchitectureTopologyComponent {
       category: 'data',
       port: '5432',
       namespace: 'data',
-      tech: 'PostgreSQL 17.2',
+      tech: 'PostgreSQL 18 Alpine',
       description: 'Isolated schemas per bounded context (ms_products, ms_orders, ms_inventory).',
       x: 82,
       y: 80

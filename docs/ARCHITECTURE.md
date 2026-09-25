@@ -155,7 +155,7 @@ sequenceDiagram
     participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
     participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
     participant Gateway as ⚡ Spring Cloud Gateway<br/>(JWT Filter / TokenRelay)
-    participant Microservice as 📦 Orders / Products Service<br/>(Spring Boot 3.4)
+    participant Microservice as 📦 Orders / Products Service<br/>(Spring Boot 4.0.8)
     participant Kiali as 📊 Kiali Dashboard
 
     Note over Client, Keycloak: Phase 1: Authentication & Token Issuance
@@ -265,7 +265,7 @@ flowchart LR
     subgraph Backend["⚙️ Products Service :8004"]
         C -->|REST POST/PUT| H[ProductRequest DTO]
         H --> I[JPA Product Entity]
-        I -->|Column TEXT| J[(PostgreSQL 17)]
+        I -->|Column TEXT| J[(PostgreSQL 18)]
         I -->|products-cache| K[(Redis 8.8)]
     end
 
@@ -519,6 +519,33 @@ graph LR
 * **Clean Enterprise E-Commerce Standard:** Decommissioned arcade synthesizer sound effects and 3D card gimmicks, standardizing on silent, high-performance interactions matching Amazon and Mercado Libre.
 * **Resilient Network Tolerance:** Staggered health checks and automatic RxJS retry backoff (`retry({ count: 2, delay: 1000 })`) preventing false-positive connectivity drops over high-latency mobile networks.
 * **API Gateway Anti-DDoS Exclusions:** [`IpBlacklistFilter.java`](./api-gateway/src/main/java/com/georgegxx/api_gateway/filters/IpBlacklistFilter.java) excludes `/actuator/**` health probes and `OPTIONS` preflight queries from rate limit ban counters with an expanded burst threshold ($120$ requests/5s).
+
+---
+
+## ☕ Modern Java 21 & Spring Boot 4.0.8 Platform Architecture
+
+The backend microservices ecosystem leverages modern Java 21 LTS and Spring Boot 4.0.8 capabilities to deliver high throughput, sub-millisecond GC pauses, and clean domain models:
+
+### 1. 🌐 Modern HTTP Client with HTTP/2 & Virtual Threads (`JdkClientHttpRequestFactory`)
+- Replaced legacy blocking `HttpURLConnection` (`SimpleClientHttpRequestFactory`) with Java 21's native [`JdkClientHttpRequestFactory`](../orders-service/src/main/java/com/georgegxx/orders_service/config/RestClientConfig.java) powered by `java.net.http.HttpClient`.
+- **Features:** Built-in connection pooling, HTTP/2 multiplexing, native non-blocking scheduling on Project Loom Virtual Threads, and zero external HTTP client dependencies.
+- **Declarative Proxy:** Mapped directly to Spring's `@HttpExchange` interfaces (`InventoryClient`, `ProductsClient`) via `HttpServiceProxyFactory`.
+
+### 2. 🧩 Exhaustive Pattern Matching & Record Patterns (JEP 440 & 441)
+- Implemented in event listeners such as [`OrderEventListener.java`](../notification-service/src/main/java/com/georgegxx/notification_service/listeners/OrderEventListener.java):
+  - **Record Pattern Deconstruction:** Direct extraction of record components (`case OrderEvent(var orderNum, var items, var status, ...) ->`) avoiding verbose accessor boilerplate.
+  - **Exhaustive Switch on Enums:** Comprehensive pattern matching over `OrderStatus` (`PLACED`, `CANCELLED`, `SHIPPED`, `DELIVERED`, and `case null`), ensuring compile-time safety and differentiated notification dispatching.
+
+### 3. ⚡ Generational ZGC & Virtual Thread Concurrency (JEP 439)
+- **Sub-millisecond GC Pauses:** Configured across `.env`, Helm charts, and Kubernetes manifests via `JAVA_TOOL_OPTIONS`:
+  ```bash
+  JAVA_TOOL_OPTIONS="-XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -XX:MaxRAMPercentage=75.0"
+  ```
+- **Virtual Threads Integration:** Paired with `spring.threads.virtual.enabled: true`, ensuring millions of concurrent I/O operations (Kafka consumers, Tomcat servlets, Redis queries) execute without platform thread starvation or GC stop-the-world spikes.
+
+### 4. 🛡️ Resilient Distributed Fault Tolerance (Saga Compensation & Circuit Breakers)
+- **Resilience4j Integration:** Retained for critical inter-service boundaries in `OrderService` and `OrderController` (`@CircuitBreaker`).
+- **Distributed Saga Compensation:** In the event of downstream inventory decrement or validation failures, automated rollback triggers (`compensateInventoryStock`) with atomic Redis lock release.
 
 ---
 

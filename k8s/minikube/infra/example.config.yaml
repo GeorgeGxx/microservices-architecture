@@ -61,7 +61,7 @@ data:
   REDIS_EXPORTER_VERSION: "v1.82.0"
   KAFKA_EXPORTER_VERSION: "v1.9.0"
   POSTGRES_EXPORTER_VERSION: "v0.20.1"
-  JAVA_TOOL_OPTIONS: "-XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+  JAVA_TOOL_OPTIONS: "-XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1"
 
 ---
 apiVersion: v1

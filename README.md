@@ -38,15 +38,15 @@ graph TB
     end
 
     subgraph Microservices["⚙️ Core Domain Microservices (Spring Boot 4.0.8)"]
-        PROD["Products Service<br/>(:8004 • MongoDB 7)"]
-        ORD["Orders Service<br/>(:8003 • PostgreSQL 16 • Saga)"]
-        INV["Inventory Service<br/>(:8001 • PostgreSQL 16)"]
+        PROD["Products Service<br/>(:8004 • PostgreSQL 18)"]
+        ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Saga)"]
+        INV["Inventory Service<br/>(:8001 • PostgreSQL 18)"]
         NOTIF["Notification Service<br/>(:8002 • SSE Realtime Stream)"]
     end
 
     subgraph EventBus["📨 Event Streaming & Caching"]
-        KAFKA["Apache Kafka 3.9<br/>(KRaft • Port 9092)"]
-        REDIS["Redis 7.4<br/>(Cache & Token-Bucket RateLimiter)"]
+        KAFKA["Apache Kafka 7.8<br/>(KRaft • Port 9092)"]
+        REDIS["Redis 8.8.1<br/>(Cache & Token-Bucket RateLimiter)"]
     end
 
     subgraph Observability["📊 Full-Stack Observability (LGTM Stack)"]
@@ -121,7 +121,7 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | **PostgreSQL DBs** | PostgreSQL 18 (DB-per-Service) | `5431`–`5435` | `localhost:5431, 5433, 5434, 5435` | `postgres` / `postgres` |
 | **Postgres Exporter** | Prometheus Postgres Exporter 0.20 | `9187` | [http://localhost:9187/metrics](http://localhost:9187/metrics) | *(No auth required)* |
 | **HashiCorp Vault** | Vault 2.0.4 (KV-v2 / Transit) | `8200` | [http://localhost:8200](http://localhost:8200) | Root Token: `root` |
-| **OPA Gatekeeper** | Open Policy Agent Gatekeeper 3.23.1 | `8888` / `8443` | [http://localhost:8888](http://localhost:8888) | *(Admission Webhook / Metrics)* |
+| **OPA Gatekeeper** | Open Policy Agent Gatekeeper 3.23.0 | `8888` / `8443` | [http://localhost:8888](http://localhost:8888) | *(Admission Webhook / Metrics)* |
 | **OpenTelemetry Collector** | OTel Collector Contrib 0.159 | `4317` / `4318` | `localhost:4317` (gRPC) • [`:4318`](http://localhost:4318) (HTTP) | *(OTLP Ingestion)* |
 | **Grafana** | Grafana 13.2.1 | `3000` | [http://localhost:3000](http://localhost:3000) | `admin` / `admin` |
 | **Prometheus** | Prometheus TSDB 3.14.0 | `9090` | [http://localhost:9090/targets](http://localhost:9090/targets) | *(No auth required)* |
