@@ -98,10 +98,10 @@ alertmanagerConfig:
 api-gateway:
   resources:
     requests:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 200m
+      memory: 384Mi
     limits:
-      cpu: 2000m
+      cpu: 1000m
       memory: 1024Mi
   probes:
     initialDelaySeconds: 45
@@ -131,10 +131,10 @@ api-gateway:
 inventory-service:
   resources:
     requests:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 200m
+      memory: 384Mi
     limits:
-      cpu: 2000m
+      cpu: 1000m
       memory: 1024Mi
   probes:
     initialDelaySeconds: 45
@@ -158,10 +158,10 @@ inventory-service:
 notification-service:
   resources:
     requests:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 200m
+      memory: 384Mi
     limits:
-      cpu: 2000m
+      cpu: 1000m
       memory: 1024Mi
   probes:
     initialDelaySeconds: 45
@@ -192,10 +192,10 @@ notification-service:
 orders-service:
   resources:
     requests:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 200m
+      memory: 384Mi
     limits:
-      cpu: 2000m
+      cpu: 1000m
       memory: 1024Mi
   probes:
     initialDelaySeconds: 45
@@ -219,10 +219,10 @@ orders-service:
 products-service:
   resources:
     requests:
-      cpu: 300m
-      memory: 512Mi
+      cpu: 200m
+      memory: 384Mi
     limits:
-      cpu: 2000m
+      cpu: 1000m
       memory: 1024Mi
   probes:
     initialDelaySeconds: 45

@@ -89,13 +89,13 @@ spec:
             - containerPort: 9095
           resources:
             requests:
-              cpu: "150m"
-              memory: "256Mi"
-              ephemeral-storage: "512Mi"
+              cpu: "100m"
+              memory: "192Mi"
+              ephemeral-storage: "256Mi"
             limits:
-              cpu: "1000m"
-              memory: "1024Mi"
-              ephemeral-storage: "2Gi"
+              cpu: "500m"
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
           volumeMounts:
             - name: config
               mountPath: /etc/tempo

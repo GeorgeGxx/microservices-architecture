@@ -3,7 +3,7 @@
 ==============================================================================
 Local FinOps Cost Estimator (Zero External Dependencies, No Infracost.io API)
 Supports:
-  - 'minikube' (Local Ryzen 7 Hardware vs AWS Cloud Savings Calculator)
+  - 'minikube' (Local Intel/AMD Hardware vs AWS Cloud Savings Calculator)
   - 'staging' (AWS EKS Spot + Single-AZ RDS + Single NAT Gateway Profile)
   - 'prod' (AWS EKS On-Demand + Multi-AZ RDS + Multi-AZ NAT Profile)
 Can parse live 'tfplan.json' or evaluate architectural baseline profiles.
@@ -41,15 +41,15 @@ PRICING_CATALOG = {
 
 DEFAULT_PROFILES = {
     "minikube": {
-        "title": "Local Minikube Environment (AMD Ryzen 7 Hardware)",
-        "hardware": "12 vCPUs allocated | 12 GB RAM | 80 GB NVMe Disk",
-        "cloud_equivalent_cost": 313.00,
+        "title": "Local Minikube Environment (Intel/AMD Hardware)",
+        "hardware": "6 vCPUs allocated | 12 GB RAM | 40 GB NVMe Disk",
+        "cloud_equivalent_cost": 309.80,
         "actual_cost": 0.00,
         "items": [
             {"component": "Kubernetes Control Plane", "detail": "Local Minikube (v1.39.0)", "monthly": 0.00, "cloud_equiv": 73.00},
-            {"component": "Workload Compute Nodes", "detail": "AMD Ryzen 7 (12 vCPUs / 12GB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
+            {"component": "Workload Compute Nodes", "detail": "Intel/AMD (6 vCPUs / 12GB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
             {"component": "Container Ingress & Mesh", "detail": "Local Istio Demo + Ingress", "monthly": 0.00, "cloud_equiv": 16.20},
-            {"component": "Backing Storage & Logs", "detail": "80 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 6.40},
+            {"component": "Backing Storage & Logs", "detail": "40 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 3.20},
             {"component": "Network Data Transfer", "detail": "Loopback (localhost / 127.0.0.1)", "monthly": 0.00, "cloud_equiv": 35.00},
         ]
     },
@@ -168,7 +168,7 @@ def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: 
 
     if is_minikube:
         total_cloud_equiv = sum(item.get("cloud_equiv", 0.0) for item in items)
-        print(f"Local Host: AMD Ryzen 7 (16 threads) | 32 GB RAM | 80 GB NVMe Storage")
+        print(f"Local Host: Intel/AMD (8+ cores) | 16+ GB RAM | 40 GB NVMe Storage")
         print(f"Actual Cloud Billing: $0.00 USD / month (100% Free Local Execution)")
         print(f"Equivalent AWS Cloud Cost: ~${total_cloud_equiv:.2f} USD / month")
         print(f"🏆 Local Monthly Savings: ~${total_cloud_equiv:.2f} USD / month\n")

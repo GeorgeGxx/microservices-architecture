@@ -20,30 +20,30 @@
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
 | Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
 
-**Recommended local resources:** 8+ CPU cores and 16 GB+ RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+**Recommended local resources:** 8 CPU cores and 16 GB RAM (allocating up to 6 CPUs and 12 GB RAM to Minikube, leaving 2 CPUs and 4 GB RAM for Windows OS and IDE) — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 > ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
 
 ---
 
 ### ⚙️ Kubernetes Workload Right-Sizing & Production Resource Allocation
-All microservices and infrastructure pods are pre-configured with enterprise resource requests and limits to guarantee sub-millisecond execution, prevent GC pauses, and avoid `OOMKilled` eviction (optimized for Minikube clusters running with 12 CPUs and 12 GB RAM):
+All microservices and infrastructure pods are pre-configured with enterprise resource requests and limits to guarantee sub-millisecond execution, prevent GC pauses, and avoid `OOMKilled` eviction (optimized for Minikube clusters running with 6 CPUs and 12 GB RAM, reserving 2 cores and 4 GB RAM for Windows):
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Spring Cloud API Gateway** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
 | **Spring Boot Microservices (x4)** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
-| **Keycloak 26.7.3 IAM** | `500m` | `3000m` | `1024Mi` | `3072Mi` | `2Gi` | Fast bootstrap & authentication spikes |
-| **HashiCorp Vault 2.0.4** | `250m` | `1000m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
-| **Apache Kafka (KRaft Broker)** | `200m` | `1500m` | `512Mi` | `1536Mi` | `2Gi` | High-throughput event streaming |
+| **Keycloak 26.7.3 IAM** | `500m` | `1500m` | `1024Mi` | `2048Mi` | `2Gi` | Fast bootstrap & authentication spikes |
+| **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
+| **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
-| **Redis 8 Cache & Token Bucket** | `100m` | `500m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
-| **Frontend Angular 21 SPA (Nginx)** | `50m` | `250m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
-| **Prometheus 3 Metrics Server** | `200m` | `1500m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
+| **Redis 8 Cache & Token Bucket** | `100m` | `250m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
+| **Frontend Angular 21 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
+| **Prometheus 3 Metrics Server** | `200m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
 | **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
-| **Grafana Loki (Log Ingestion)** | `300m` | `2000m` | `512Mi` | `2048Mi` | `4Gi` | Centralized container log indexing |
-| **Grafana Tempo (Tracing Backend)** | `150m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | W3C distributed trace span storage |
-| **Kiali Visual Mesh Topology** | `300m` | `2000m` | `512Mi` | `1024Mi` | `1Gi` | Real-time Istio Service Mesh visualizer |
+| **Grafana Loki (Log Ingestion)** | `150m` | `800m` | `256Mi` | `1024Mi` | `2Gi` | Centralized container log indexing |
+| **Grafana Tempo (Tracing Backend)** | `100m` | `500m` | `192Mi` | `512Mi` | `1Gi` | W3C distributed trace span storage |
+| **Kiali Visual Mesh Topology** | `150m` | `600m` | `256Mi` | `512Mi` | `1Gi` | Real-time Istio Service Mesh visualizer |
 
 ---
 
@@ -227,7 +227,7 @@ Deploy the entire infrastructure, security, mesh, and microservices in a single 
 .\platform.ps1 up -Build
 
 # Custom hardware sizing:
-.\platform.ps1 up -Cpus 12 -MemoryMb 12288 -DiskSize 80g
+.\platform.ps1 up -Cpus 6 -MemoryMb 12288 -DiskSize 40g
 ```
 
 > 💡 **Smart Image Synchronization & Adaptive Observability:**

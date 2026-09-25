@@ -89,13 +89,13 @@ spec:
               name: grpc
           resources:
             requests:
-              cpu: "300m"
-              memory: "512Mi"
-              ephemeral-storage: "1Gi"
+              cpu: "150m"
+              memory: "256Mi"
+              ephemeral-storage: "512Mi"
             limits:
-              cpu: "2000m"
-              memory: "2048Mi"
-              ephemeral-storage: "4Gi"
+              cpu: "800m"
+              memory: "1024Mi"
+              ephemeral-storage: "2Gi"
           readinessProbe:
             httpGet:
               path: /ready

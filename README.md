@@ -94,7 +94,7 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | Guide | Focus & Key Contents | Target Audience |
 | :--- | :--- | :--- |
 | [🏛️ **Architecture & Domain Guide**](./docs/ARCHITECTURE.md) | Domain-Driven Design (DDD), Saga compensation flow, Keycloak 26 IAM, HashiCorp Vault secrets, Angular 21 Signal store, POS QR workflows, and Amazon/Mercado Libre e-commerce models. | Software Architects, Developers |
-| [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (12 GB RAM / 80 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
+| [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (6 CPUs / 12 GB RAM / 40 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
 | [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | 12-stage enterprise pipeline, Policy-as-Code (OPA / Gatekeeper), SAST (Semgrep, Gitleaks), Container scanning (Trivy), DAST (OWASP ZAP), and ArgoCD GitOps sync. | SecOps, Cloud Engineers |
 | [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
 | [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), automated smoke tests (`smoke.py`), DDoS botnet stress tests, stock exhaustion chaos drills, and Newman API contract testing. | QA Engineers, Developers |
@@ -187,6 +187,8 @@ docker compose ps
 # 7. Graceful shutdown & volume teardown
 docker compose down -v
 ```
+
+**Recommended local resources:** 6 CPU cores and 12 GB RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 ---
 

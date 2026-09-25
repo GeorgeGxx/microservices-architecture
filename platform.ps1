@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Enterprise Platform Master CLI Orchestrator (Single Unified Super-Script)
 # Multi-Platform: Minikube (Local), AWS (EKS), Azure (AKS), GCP (GKE)
 # Multi-Stage:    dev (develop), staging (staging), prod (master)
@@ -24,9 +24,9 @@ param(
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
     [string]$LockId = "",
-    [int]$Cpus = 12,
+    [int]$Cpus = 6,
     [int]$MemoryMb = 12288,
-    [string]$DiskSize = "80g",
+    [string]$DiskSize = "40g",
     [switch]$Destroy = $false
 )
 
@@ -139,20 +139,23 @@ function Invoke-CliToolsAudit {
             } else {
                 try {
                     $rawOut = switch ($t.Cmd) {
-                        "minikube"    { (minikube version --short 2>$null) }
-                        "kubectl"     { (kubectl version --client 2>$null | Select-String -Pattern "Client Version:\s*([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "terraform"   { (terraform version 2>$null | Select-String -Pattern "Terraform\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "tflint"      { (tflint --version 2>$null | Select-String -Pattern "TFLint\s+version\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "infracost"   { (infracost --version 2>$null | Select-String -Pattern "Infracost\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "gitleaks"    { (gitleaks version 2>$null) }
+                        "minikube"    { (minikube version --short 2>$null | Select-Object -First 1) }
+                        "kubectl"     { (kubectl version --client 2>$null | Select-String -Pattern "Client Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "terraform"   { (terraform version 2>$null | Select-String -Pattern "Terraform\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "tflint"      { (tflint --version 2>$null | Select-String -Pattern "TFLint\s+version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "infracost"   { (infracost --version 2>$null | Select-String -Pattern "Infracost\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "gitleaks"    { (gitleaks version 2>$null | Select-Object -First 1) }
                         "trivy"       { (trivy --version 2>$null | Select-String -Pattern "Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "vault"       { (vault --version 2>$null | Select-String -Pattern "Vault\s+v?([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "helm"        { (helm version --short 2>$null) }
-                        "istioctl"    { (istioctl version --short 2>$null) }
-                        "docker"      { (docker --version 2>$null | Select-String -Pattern "Docker version\s+([^\s,]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "mvn"         { (mvn --version 2>$null | Select-String -Pattern "Apache Maven\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "node"        { (node --version 2>$null) }
-                        "cloudflared" { (cloudflared --version 2>$null | Select-String -Pattern "cloudflared version\s+([^\s]+)" | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "cosign"      { (cosign version 2>$null | Select-String -Pattern "GitVersion:\s*v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "vault"       { (vault --version 2>$null | Select-String -Pattern "Vault\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "helm"        { (helm version --short 2>$null | Select-Object -First 1) }
+                        "istioctl"    { (istioctl version --remote=false 2>$null | Select-String -Pattern "client version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "docker"      { (docker --version 2>$null | Select-String -Pattern "Docker version\s+([^\s,]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "mvn"         { (mvn --version 2>$null | Select-String -Pattern "Apache Maven\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "node"        { (node --version 2>$null | Select-Object -First 1) }
+                        "git"         { (git --version 2>$null | Select-String -Pattern "git version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "cloudflared" { (cloudflared --version 2>$null | Select-String -Pattern "cloudflared version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
+                        "dot"         { (dot -V 2>&1 | Select-String -Pattern "version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
                         default       { "" }
                     }
                     if ($rawOut -and "$rawOut".Trim()) { $versionStr = "$rawOut".Trim() } else { $versionStr = "Installed" }
@@ -552,9 +555,9 @@ function Invoke-MinikubePlatform {
         [switch]$EnableIstioMesh = $true,
         [switch]$DeployCanaryOption = $false,
         [switch]$BypassScans = $false,
-        [int]$CpuCount = 12,
+        [int]$CpuCount = 6,
         [int]$RamMb = 12288,
-        [string]$DiskBudget = "80g",
+        [string]$DiskBudget = "40g",
         [switch]$PurgeAll = $false
     )
 
