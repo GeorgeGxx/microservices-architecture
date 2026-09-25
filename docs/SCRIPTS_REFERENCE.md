@@ -190,19 +190,19 @@ pwsh scripts/cloud/gcp/manage-gcp.ps1 -Action disk-cleanup -Environment prod -Re
 
 ---
 
-## 🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`scripts/devsecops/`)
+## 🛡️ Cloud-Agnostic DevSecOps CLI Tooling (`platform.ps1` & `scripts/`)
 
 The platform provides lightweight, cloud-agnostic tools for post-deployment verification, zero-trust credential bootstrapping, automated cluster provisioning and lifecycle management:
 
 | Tool | Purpose | Key DevSecOps Gates | Runbook Command |
 | :--- | :--- | :--- | :--- |
-| **[`platform-minikube.ps1`](./platform-minikube.ps1)** | **Dedicated Minikube Orchestrator (`dev` local flow):** Configures Minikube, Istio, Gatekeeper OPA, Vault, Keycloak + `db-keycloak`, Prometheus, Grafana, Microservices, FinOps, and Tunnels. | • Minikube sizing (12 CPUs, 12 GB RAM)<br/>• Istio mesh injection with `-WithIstio` / `-WithoutIstio`<br/>• Shift-left security scans & Graphviz | `.\platform-minikube.ps1 up` |
-| **[`verify-platform.ps1`](../scripts/devsecops/verify-platform.ps1)** | **Unified Mesh Verification:** Validates Minikube and cloud clusters with the same Istio checks (gateway, VirtualService, mTLS, legacy ingress conflict, and mesh readiness). | • Local Minikube validation<br/>• AWS/Azure/GCP cloud validation<br/>• Shared Istio mesh audit with no redundant cloud-specific wrapper | `.\scripts\devsecops\verify-platform.ps1 -Mode minikube -Environment dev` |
-| **[`install-cli-tools.ps1`](../scripts/devsecops/install-cli-tools.ps1)** | **Winget CLI Auditor & Installer:** Audits and silently installs 18 platform CLI tools for IaC, Security, Kubernetes and Productivity. | • Automated PATH detection<br/>• Idempotent non-interactive Winget installation<br/>• Formatted status & version table | `.\scripts\devsecops\install-cli-tools.ps1 -Install` |
-| **[`endpoint-smoke-test.py`](../scripts/devsecops/endpoint-smoke-test.py)** | **Synthetic Post-Deployment Smoke Prober:** Works identically across Minikube, EKS, AKS, and GKE. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• **Negative Security Auth Gate:** Asserts 401/403 on unauthenticated routes (`/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/devsecops/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
-| **[`generate-secure-secrets.py`](../scripts/devsecops/generate-secure-secrets.py)** | **Zero-Trust Credential & Secret Generator:** Replaces default passwords with high-entropy cryptographic keys (CSPRNG). | • Generates database passwords, Keycloak client secrets, and 256-bit JWT keys<br/>• Exports directly to `.env`, JSON, or Kubernetes `Secret` YAML manifests | `python scripts/devsecops/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
-| **[`supervise-tunnels.py`](../scripts/devsecops/supervise-tunnels.py)** | **Resilient Port-Forward Tunnel Supervisor:** Maintains background port-forwarding daemons with automatic reconnects. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Recovers from connection drops | `python scripts/devsecops/supervise-tunnels.py` |
-| **[`teardown-local-devsecops.ps1`](../scripts/devsecops/teardown-local-devsecops.ps1)** | **Platform Teardown & Resource Release:** Pauses Minikube or completely purges cluster, state and tunnels. | • Graceful pod drain<br/>• Reclaims 12 CPUs and 12 GB RAM<br/>• Optional `-DeleteCluster` cleans 80 GB disk | `.\scripts\devsecops\teardown-local-devsecops.ps1 -DeleteCluster` |
+| **`platform.ps1`** | **Dedicated Minikube Orchestrator (`dev` local flow):** Configures Minikube, Istio, Gatekeeper OPA, Vault, Keycloak + `db-keycloak`, Prometheus, Grafana, Microservices, FinOps, and Tunnels. | • Minikube sizing (12 CPUs, 12 GB RAM)<br/>• Istio mesh injection with `-WithIstio` / `-WithoutIstio`<br/>• Shift-left security scans & Graphviz | `.\platform.ps1 up` |
+| **`verify` / `doctor`** | **Unified Mesh Verification:** Validates Minikube and cloud clusters with the same Istio checks (gateway, VirtualService, mTLS, legacy ingress conflict, and mesh readiness). | • Local Minikube validation<br/>• AWS/Azure/GCP cloud validation<br/>• Shared Istio mesh audit with no redundant cloud-specific wrapper | `.\platform.ps1 doctor -Platform minikube -Environment dev` |
+| **`tools`** | **Winget CLI Auditor & Installer:** Audits and silently installs 18 platform CLI tools for IaC, Security, Kubernetes and Productivity. | • Automated PATH detection<br/>• Idempotent non-interactive Winget installation<br/>• Formatted status & version table | `.\platform.ps1 tools -Install` |
+| **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | **Synthetic Post-Deployment Smoke Prober:** Works identically across Minikube, EKS, AKS, and GKE. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• **Negative Security Auth Gate:** Asserts 401/403 on unauthenticated routes (`/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
+| **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | **Zero-Trust Credential & Secret Generator:** Replaces default passwords with high-entropy cryptographic keys (CSPRNG). | • Generates database passwords, Keycloak client secrets, and 256-bit JWT keys<br/>• Exports directly to `.env`, JSON, or Kubernetes `Secret` YAML manifests | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
+| **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | **Resilient Port-Forward Tunnel Supervisor:** Maintains background port-forwarding daemons with automatic reconnects. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Recovers from connection drops | `python scripts/supervise-tunnels.py` |
+| **`down`** | **Platform Teardown & Resource Release:** Pauses Minikube or completely purges cluster, state and tunnels. | • Graceful pod drain<br/>• Reclaims 12 CPUs and 12 GB RAM<br/>• Optional `-DeleteCluster` cleans 80 GB disk | `.\platform.ps1 down -DeleteCluster` |
 
 ---
 
@@ -210,7 +210,7 @@ The platform provides lightweight, cloud-agnostic tools for post-deployment veri
 
 Below is the complete inventory of all platform automation scripts and their operational responsibilities:
 
-### 1. `scripts/devsecops/` (Cluster Lifecycle, Security & Verification)
+### 1. DevSecOps CLI Tooling (Cluster Lifecycle, Security & Verification)
 - **`verify-platform.ps1`**: Unified mesh validator for Minikube and cloud clusters; verifies Istio control plane readiness, ingress gateway health, routing resources, legacy ingress conflicts, and provider-specific auth/access when applicable.
 - **`install-cli-tools.ps1`**: Audits installed platform CLI tools and automates non-interactive Winget installations.
 - **`endpoint-smoke-test.py`**: Integration smoke tester verifying HTTP status, Actuator endpoints, latency SLOs, and negative authorization boundaries.
@@ -358,21 +358,18 @@ Below is the complete inventory of all platform automation scripts and their ope
 ### 6. `scripts/cloud/cloudflare/` (Zero-Trust Tunnels)
 - **`start-cloudflare-tunnels.ps1`**: Launches Cloudflare Zero-Trust tunnels to expose services securely without opening inbound ports.
 
-### 7. `scripts/istio/` (Service Mesh & Traffic Management)
-- **`set-canary-weight.ps1`**: Dynamically adjusts traffic splitting weights (e.g., 90/10, 50/50, 0/100) on Istio VirtualServices.
-- **`auto-canary-rollout.ps1`**: Automated progressive canary deployment controller that promotes v2 after verifying error rates remain < 1%.
-- **`verify-mesh.ps1`**: Validates strict mTLS enforcement and sidecar proxy injection across microservices.
+### 7. Service Mesh & Traffic Management (`k8s/istio/`)
+- **`virtual-services.yaml`**: Configures Istio VirtualServices, gateway routing rules, and canary traffic splits.
+- **`peer-authentication.yaml`**: Enforces strict mutual TLS (mTLS) across all microservice namespaces.
 
-### 8. `scripts/auth/` & `scripts/vault/` (Identity & Secrets Provisioning)
-- **`scripts/auth/bootstrap-keycloak.ps1`**: Configures Keycloak realm `microservices-realm`, OIDC clients (`angular-client`, `gateway-client`), and default `ROLE_USER`.
-- **`scripts/vault/init-vault.ps1`**: Initializes HashiCorp Vault, enables KV-v2 and Transit engines, seeds secrets, and applies least-privilege policies.
+### 8. Identity & Secrets Provisioning
+- **`scripts/bootstrap-keycloak.ps1`**: Configures Keycloak realm `microservices-realm`, OIDC clients (`microservices_frontend`, `microservices_client`), and roles.
+- **`platform.ps1 secrets`**: Initializes Vault KV-v2 and Transit engines, generates high-entropy CSPRNG credentials, and configures least-privilege policies.
 
-### 9. `scripts/build/` (Build & Release Automation)
-- **`build-all.py`**: Concurrently builds all Java microservices (Maven clean package) and Angular frontend (npm build).
-- **`deploy-helm.ps1`**: Deploys the unified umbrella Helm chart to Kubernetes with environment-specific values.
-- **`push-all.ps1`**: Tags and pushes container images to remote registries (Docker Hub, ECR, ACR, GAR).
-- **`update_dashboards.py`**: Formats and synchronizes Grafana dashboard JSON models.
-- **`generate_drawio.py`**: Programmatically generates the 12-page architectural blueprint in [`docs/Diagrams.drawio`](./Diagrams.drawio).
+### 9. Build, Dashboards & Architecture Blueprint
+- **`scripts/build-all.py`**: Concurrently builds all Java microservices (Maven clean package) and Angular frontend (npm build).
+- **`scripts/update_dashboards.py`**: Formats, lints and synchronizes Grafana dashboard JSON models.
+- **`scripts/generate_drawio.py`**: Programmatically generates the 12-page architectural blueprint in [`docs/Diagrams.drawio`](./Diagrams.drawio).
 
 ### 10. `scripts/testing/` (Enterprise Testing & Simulation Super-Scripts)
 - **`simulate.py`**: **Unified Simulation Engine** with:

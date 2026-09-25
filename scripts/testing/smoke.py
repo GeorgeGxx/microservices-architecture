@@ -4,7 +4,7 @@
 Enterprise Microservices Smoke Testing Super-Script (smoke.py)
 Consolidates:
   1. smoke-test.ps1 (Level 3 E2E Integration & Keycloak Auth Prober)
-  2. scripts/devsecops/endpoint-smoke-test.py (Synthetic SLO & Actuator Health Validator)
+  2. scripts/endpoint-smoke-test.py (Synthetic SLO & Actuator Health Validator)
 ==============================================================================
 Usage:
   python scripts/testing/smoke.py

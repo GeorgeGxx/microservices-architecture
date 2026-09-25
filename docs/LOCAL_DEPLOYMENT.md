@@ -14,7 +14,7 @@
 | Node.js & npm | 22+ | Angular 21 frontend |
 | kubectl | 1.37.0 | Kubernetes / Minikube deployment |
 | Minikube | 1.39.0 | Local Kubernetes deployment |
-| Istioctl | 1.31.0 | Service mesh install & Kiali dashboard |
+| Istioctl | 1.31.1 | Service mesh install & Kiali dashboard |
 | Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
 | Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
@@ -282,25 +282,23 @@ Alternatively, access services directly via Minikube NodePort without background
 > 💡 **Production Compute Allocation:** All Kubernetes workloads and infrastructure manifests are engineered with **production-grade Right-Sizing**. Review the complete [Kubernetes Workload Right-Sizing & Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation) matrix for detailed CPU, memory, and storage limits.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
-Execute advanced traffic shaping, Canary weight adjustments, and automated SLO rollouts:
+Execute advanced traffic shaping and Canary weight adjustments using Istio VirtualServices:
 ```powershell
-# Dynamically adjust Canary traffic split weights (e.g., 90/10, 50/50, 0/100):
-pwsh scripts/istio/set-canary-weight.ps1 -Service products-service -WeightV1 90 -WeightV2 10
-pwsh scripts/istio/set-canary-weight.ps1 -Service products-service -WeightV1 50 -WeightV2 50
-pwsh scripts/istio/set-canary-weight.ps1 -Service products-service -WeightV1 0 -WeightV2 100
+# Deploy Canary V2 deployment:
+kubectl apply -f k8s/istio/canary-deployment-products-v2.yaml
 
-# Execute automated metric-driven progressive Canary rollout (SLO Analysis & Auto-Rollback):
-pwsh scripts/istio/auto-canary-rollout.ps1 -Service products-service -StepDurationSeconds 15
+# Apply Canary traffic split (90% v1 / 10% v2):
+kubectl apply -f k8s/istio/virtual-services.yaml
 ```
 
 ### 5. 🛑 Cluster Teardown & Resource Cleanup
-Clean up all background tunnels, port-forwards, and stop the Minikube cluster:
+Clean up all background tunnels, port-forwards, and stop or purge the Minikube cluster:
 ```powershell
-# Stop and pause the Minikube cluster and background tunnels:
-.\platform.ps1 down minikube
+# Stop and pause the Minikube cluster (preserves storage and state):
+.\platform.ps1 down
 
-# Or completely teardown all local DevSecOps tooling and namespaces:
-pwsh scripts/devsecops/teardown-local-devsecops.ps1
+# Or completely purge Minikube cluster and all persistent volumes:
+.\platform.ps1 down -DeleteCluster
 ```
 
 ### Useful commands

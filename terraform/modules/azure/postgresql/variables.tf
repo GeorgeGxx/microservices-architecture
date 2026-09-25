@@ -35,7 +35,7 @@ variable "storage_mb" {
 
 variable "postgres_version" {
   type    = string
-  default = "17"
+  default = "18"
 }
 
 variable "administrator_login" {
@@ -56,12 +56,9 @@ variable "high_availability" {
 variable "database_names" {
   type = list(string)
   default = [
-    "user_service_db",
-    "hotel_service_db",
-    "booking_service_db",
-    "payment_service_db",
-    "rating_service_db",
-    "notification_service_db",
+    "ms_products",
+    "ms_inventory",
+    "ms_orders",
     "keycloak_db"
   ]
 }

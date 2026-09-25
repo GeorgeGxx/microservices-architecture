@@ -2,8 +2,8 @@
 """Builds Docker images for all microservices and the frontend in the repository.
 
 Usage:
-    python scripts/build/build-all.py [tag]
-    python scripts/build/build-all.py 1.0.0
+    python scripts/build-all.py [tag]
+    python scripts/build-all.py 1.0.0
 """
 import sys
 import os

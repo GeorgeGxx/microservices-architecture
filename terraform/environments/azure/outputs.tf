@@ -42,6 +42,13 @@ output "postgresql_fqdn" {
   value = try(module.postgresql[0].server_fqdn, null)
 }
 
+output "postgresql_admin_password" {
+  value       = local.cfg.enable_managed_db ? local.postgres_admin_password : null
+  sensitive   = true
+  description = "PostgreSQL administrator password (auto-generated or configured)"
+}
+
+
 output "redis_hostname" {
   value = try(module.redis[0].hostname, null)
 }
