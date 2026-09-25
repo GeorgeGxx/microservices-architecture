@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # Enterprise Platform Master CLI Orchestrator (Single Unified Super-Script)
 # Multi-Platform: Minikube (Local), AWS (EKS), Azure (AKS), GCP (GKE)
 # Multi-Stage:    dev (develop), staging (staging), prod (master)
@@ -609,10 +609,16 @@ function Invoke-MinikubePlatform {
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
                 if (Test-Path $buildAllScript) { python $buildAllScript "1.0.0" }
                 $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
-                foreach ($svc in $servicesToLoad) {
-                    minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+                $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
+                if ($isMinikubeActive) {
+                    Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
+                    foreach ($svc in $servicesToLoad) {
+                        minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+                    }
+                    Write-Host "  [OK] Container images compiled and loaded into Minikube." -ForegroundColor Green
+                } else {
+                    Write-Host "  [OK] Container images compiled locally in Docker." -ForegroundColor Green
                 }
-                Write-Host "  [OK] Container images compiled and loaded into Minikube." -ForegroundColor Green
             }
 
             if (Test-Path "$umbrellaDir\Chart.yaml") {
@@ -807,10 +813,16 @@ stringData:
                 python $buildAllScript "1.0.0"
             }
             $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
-            foreach ($svc in $servicesToLoad) {
-                minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+            $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
+            if ($isMinikubeActive) {
+                Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
+                foreach ($svc in $servicesToLoad) {
+                    minikube image load "georgegxx/${svc}:1.0.0" 2>$null
+                }
+                Write-Host "  [OK] Images compiled and loaded into Minikube." -ForegroundColor Green
+            } else {
+                Write-Host "  [OK] Images compiled locally in Docker." -ForegroundColor Green
             }
-            Write-Host "  [OK] Images compiled and loaded into Minikube." -ForegroundColor Green
         }
     }
 }
