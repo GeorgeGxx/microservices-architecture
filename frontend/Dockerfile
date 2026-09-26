@@ -1,30 +1,26 @@
-# ---- Stage 1: Build Angular SPA ----
-FROM node:24-alpine AS build
+# ---- Stage 1: Build React 19 SPA with Vite ----
+FROM node:22-alpine AS build
 
-# Patch Alpine OS packages (fixes OpenSSL CVEs) and npm internal tools
 RUN apk update && apk upgrade --no-cache && \
     npm install -g npm@latest
 
 WORKDIR /app
 
-# Copy only the descriptors first -> cache layer that is only invalidated
-# when dependencies change, not on every code change
+# Copy package manifests first for optimal Docker layer caching
 COPY package*.json ./
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit --ignore-scripts
+RUN npm ci --prefer-offline --no-audit
 
-# Copy the rest of the code and compile.
+# Copy source and build
 COPY . .
-RUN npm run build -- --configuration production
+RUN npm run build
 
-# ---- Stage 2: Nginx no-root, minimum, for serving static content ----
+# ---- Stage 2: Nginx unprivileged minimal runtime ----
 FROM nginxinc/nginx-unprivileged:stable-alpine-slim
 
-# Copy the Angular build (owned by root so unprivileged nginx user cannot tamper with files)
-COPY --from=build --chown=root:root /app/dist/frontend/browser /usr/share/nginx/html
+# Copy the Vite production bundle
+COPY --from=build --chown=root:root /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Defense in depth: explicit, even though the base image already runs as nginx.
 USER nginx
 
 EXPOSE 80
