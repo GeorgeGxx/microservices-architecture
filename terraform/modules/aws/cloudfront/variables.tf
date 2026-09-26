@@ -9,7 +9,7 @@ variable "environment" {
 }
 
 variable "s3_bucket_domain_name" {
-  description = "Regional domain name of the S3 bucket serving the Angular 21 static frontend"
+  description = "Regional domain name of the S3 bucket serving the React 19 static frontend"
   type        = string
 }
 

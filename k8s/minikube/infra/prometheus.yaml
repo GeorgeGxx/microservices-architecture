@@ -53,18 +53,18 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: keep
-            regex: (api-gateway|products-service|inventory-service|orders-service|notification-service)
+            regex: (apollo-router|products-service|inventory-service|orders-service|notification-service)
           - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: (api-gateway|products-service|inventory-service|orders-service|notification-service)
+            regex: (apollo-router|products-service|inventory-service|orders-service|notification-service)
           - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_container_port_number]
             regex: (.+);(.+)
             replacement: $1:$2
             target_label: __address__
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
-            regex: api-gateway
-            replacement: /actuator/prometheus
+            regex: apollo-router
+            replacement: /metrics
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
             regex: inventory-service

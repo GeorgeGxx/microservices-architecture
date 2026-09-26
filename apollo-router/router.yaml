@@ -1,0 +1,42 @@
+supergraph:
+  listen: 0.0.0.0:8080
+  introspection: true
+
+homepage:
+  enabled: false
+
+sandbox:
+  enabled: true
+
+cors:
+  allow_any_origin: true
+  allow_headers:
+    - Authorization
+    - Content-Type
+    - X-Idempotency-Key
+    - apollographql-client-name
+    - apollographql-client-version
+    - x-apollo-operation-name
+    - apollo-require-preflight
+
+headers:
+  all:
+    request:
+      operations:
+        - propagate:
+            named: authorization
+        - propagate:
+            named: x-idempotency-key
+
+telemetry:
+  exporters:
+    tracing:
+      otlp:
+        enabled: true
+        endpoint: http://otel-collector:4318/v1/traces
+        protocol: http
+    metrics:
+      prometheus:
+        enabled: true
+        listen: 0.0.0.0:9090
+        path: /metrics

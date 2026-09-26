@@ -58,7 +58,7 @@ locals {
 }
 
 # ==============================================================================
-# ORIGIN GROUP 1: Static Storage Account (Angular 21 SPA assets)
+# ORIGIN GROUP 1: Static Storage Account (React 19 SPA assets)
 # ==============================================================================
 resource "azurerm_cdn_frontdoor_origin_group" "static_group" {
   name                     = "static-frontend-group"
@@ -85,7 +85,7 @@ resource "azurerm_cdn_frontdoor_origin" "static_origin" {
   weight                         = 1000
 }
 
-# Default Route (/*): Serves Angular frontend static assets from Storage Blob
+# Default Route (/*): Serves React 19 frontend static assets from Storage Blob
 resource "azurerm_cdn_frontdoor_route" "static_route" {
   name                          = "static-frontend-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
@@ -140,7 +140,7 @@ resource "azurerm_cdn_frontdoor_origin" "api_origin" {
   weight                         = 1000
 }
 
-# API Route (/api/*): Dispatches dynamic API calls to the AKS Istio ingress gateway
+# Dynamic Route (/graphql*, /api/*, /realms/*): Dispatches dynamic API and GraphQL calls to the AKS Istio ingress gateway
 resource "azurerm_cdn_frontdoor_route" "api_route" {
   name                          = "api-backend-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
@@ -148,7 +148,7 @@ resource "azurerm_cdn_frontdoor_route" "api_route" {
   cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api_origin.id]
 
   supported_protocols    = ["Http", "Https"]
-  patterns_to_match      = ["/api/*", "/realms/*"]
+  patterns_to_match      = ["/graphql*", "/api/*", "/realms/*"]
   forwarding_protocol    = "MatchRequest"
   link_to_default_domain = true
   https_redirect_enabled = true

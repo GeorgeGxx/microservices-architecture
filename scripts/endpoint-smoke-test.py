@@ -47,54 +47,45 @@ class Colors:
 
 DEFAULT_PROBES = [
     {
-        "name": "API Gateway Actuator Health",
-        "path": "/actuator/health",
-        "method": "GET",
-        "expected_status": [200],
-        "category": "Availability",
-        "description": "Validates Spring Cloud Gateway core health status",
-    },
-    {
-        "name": "Prometheus Metrics Endpoint",
-        "path": "/actuator/prometheus",
-        "method": "GET",
-        "expected_status": [200],
-        "category": "Observability",
-        "description": "Verifies Micrometer & Actuator metric scraping pipeline",
-    },
-    {
-        "name": "Public Products Catalog API",
-        "path": "/api/product",
-        "method": "GET",
-        "expected_status": [200],
-        "category": "Business Service",
-        "description": "Probes read access to Products Service via Gateway routing",
-    },
-    {
-        "name": "RBAC Security Gate (Negative Auth Test)",
-        "path": "/api/order",
+        "name": "Apollo Router Supergraph GraphQL Probe",
+        "path": "/",
         "method": "POST",
-        "expected_status": [401, 403],
-        "category": "Security Gate",
-        "description": "Ensures unauthenticated requests to Orders Service are rejected with 401/403",
+        "body": b'{"query": "{ __typename }"}',
+        "headers": {"Content-Type": "application/json"},
+        "expected_status": [200],
+        "category": "GraphQL Supergraph",
+        "description": "Validates Apollo Router v2 federated edge gateway GraphQL execution",
+    },
+    {
+        "name": "Storefront Web & API Gateway Health",
+        "path": "/actuator/health",
+        "frontend_port": 4200,
+        "method": "GET",
+        "expected_status": [200],
+        "category": "Edge Gateway",
+        "description": "Verifies Nginx reverse proxy edge health status",
     },
     {
         "name": "Storefront Frontend Root",
         "path": "/",
         "frontend_port": 4200,
         "method": "GET",
-        "expected_status": [200, 401],
+        "expected_status": [200],
         "category": "Frontend SPA",
-        "description": "Verifies Angular SPA storefront or reverse proxy edge response",
+        "description": "Verifies React 19 SPA storefront edge response",
     },
 ]
 
 
-def execute_http_request(url: str, method: str, timeout: float) -> Dict[str, Any]:
+def execute_http_request(url: str, method: str, timeout: float, body: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    req_headers = {"User-Agent": "DevSecOps-SmokeTest-Agent/2.0"}
+    if headers:
+        req_headers.update(headers)
     req = urllib.request.Request(
         url,
+        data=body,
         method=method,
-        headers={"User-Agent": "DevSecOps-SmokeTest-Agent/2.0"},
+        headers=req_headers,
     )
     start_time = time.time()
     try:
@@ -155,7 +146,13 @@ def run_smoke_test(
         last_result = {}
 
         for attempt in range(1, retries + 1):
-            last_result = execute_http_request(full_url, probe["method"], timeout)
+            last_result = execute_http_request(
+                full_url,
+                probe["method"],
+                timeout,
+                body=probe.get("body"),
+                headers=probe.get("headers")
+            )
             status = last_result["status_code"]
             latency = last_result["latency_ms"]
 

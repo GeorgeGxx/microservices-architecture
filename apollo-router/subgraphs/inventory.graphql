@@ -1,0 +1,20 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key", "@shareable"])
+
+type Product @key(fields: "sku") {
+    sku: String!
+    isInStock: Boolean!
+    quantity: Int!
+}
+
+type InventoryResponse {
+    id: ID
+    sku: String!
+    quantity: Int!
+    isInStock: Boolean!
+}
+
+type Query {
+    inventory(sku: String!): InventoryResponse
+    inventories: [InventoryResponse!]!
+}

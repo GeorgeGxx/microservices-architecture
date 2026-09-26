@@ -1,6 +1,6 @@
 dependencies:
-- name: api-gateway
-  repository: file://../charts/api-gateway
+- name: apollo-router
+  repository: file://../charts/apollo-router
   version: 1.0.0
 - name: inventory-service
   repository: file://../charts/inventory-service
@@ -14,5 +14,5 @@ dependencies:
 - name: products-service
   repository: file://../charts/products-service
   version: 1.0.0
-digest: sha256:764233550ddd8bb166c08cf6ec1c20a3139bddb8e861cf449c1f0f213750c927
-generated: "2026-09-05T10:22:46.5469662-06:00"
+digest: sha256:7cacb7728384a5a46c08763a474db37637cd58e902a791d76e2a31bda58e5572
+generated: "2026-09-26T11:46:50.824845-06:00"

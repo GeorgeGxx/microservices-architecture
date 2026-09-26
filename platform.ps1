@@ -88,7 +88,6 @@ function Initialize-LocalVault {
         kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.url=jdbc:postgresql://db-orders:5432/ms_orders" "spring.datasource.username=postgres" "spring.datasource.password=admin" "spring.kafka.bootstrap-servers=kafka:9092" 2>$null | Out-Null
         kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.url=jdbc:postgresql://db-inventory:5432/ms_inventory" "spring.datasource.username=postgres" "spring.datasource.password=admin" 2>$null | Out-Null
         kubectl exec -n vault $vaultPod -- vault kv put secret/notification-service "spring.kafka.bootstrap-servers=kafka:9092" "spring.mail.username=notification@microservices.local" "spring.mail.password=dev-mail-password" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/api-gateway "keycloak.client-secret=microservices-client-secret-key-12345" "keycloak.issuer-uri=http://keycloak:8181/realms/microservices-realm" 2>$null | Out-Null
         Write-Host "  [OK] Vault KV-v2 engine initialized and secrets seeded." -ForegroundColor Green
     }
 }
@@ -115,7 +114,7 @@ function Invoke-CliToolsAudit {
         @{ Id = "istioctl";                Cmd = "istioctl";    Category = "Kubernetes";   Desc = "Istio service mesh control plane management CLI" },
         @{ Id = "Docker.DockerDesktop";    Cmd = "docker";      Category = "Runtime";      Desc = "OCI container runtime and BuildKit engine" },
         @{ Id = "Apache.Maven";            Cmd = "mvn";         Category = "Runtime";      Desc = "Java 21 / Spring Boot build orchestrator" },
-        @{ Id = "OpenJS.NodeJS.LTS";       Cmd = "node";        Category = "Runtime";      Desc = "Angular 21 storefront runtime environment" },
+        @{ Id = "OpenJS.NodeJS.LTS";       Cmd = "node";        Category = "Runtime";      Desc = "React 19 storefront runtime environment" },
         @{ Id = "Git.Git";                 Cmd = "git";         Category = "Runtime";      Desc = "Distributed version control system" },
         @{ Id = "Cloudflare.cloudflared";  Cmd = "cloudflared"; Category = "Networking";   Desc = "Zero-trust application tunnel supervisor" }
     )
@@ -608,13 +607,13 @@ function Invoke-MinikubePlatform {
             minikube update-context 2>$null | Out-Null
 
             if ($BuildImages) {
-                Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + Angular)..." -ForegroundColor Yellow
+                Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + React)..." -ForegroundColor Yellow
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
                 if (Test-Path $buildAllScript) { python $buildAllScript "1.0.0" }
             }
 
             # Synchronize local Docker images into Minikube's internal containerd store
-            $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+            $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
@@ -717,7 +716,7 @@ stringData:
             kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
             if (Test-Path "$infraDir\dev-infra-bridges.yaml") { kubectl apply -f "$infraDir\dev-infra-bridges.yaml" 2>$null }
 
-            Write-Host "`n[8/10] 🚀 Deploying Microservices & Angular Frontend via Helm..." -ForegroundColor Yellow
+            Write-Host "`n[8/10] 🚀 Deploying Microservices & React Frontend via Helm..." -ForegroundColor Yellow
             $existingDevSecret = kubectl get secret microservices-secrets -n dev --no-headers 2>$null
             if ($existingDevSecret) {
                 kubectl annotate secret microservices-secrets -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>$null | Out-Null
@@ -774,9 +773,9 @@ stringData:
                 kubectl label configmap grafana-dashboard-technical grafana_dashboard=1 -n observability --overwrite 2>$null | Out-Null
             }
 
-            Write-Host "  ▶ Awaiting pod readiness for Keycloak, API Gateway and Frontend..." -ForegroundColor White
+            Write-Host "  ▶ Awaiting pod readiness for Keycloak, Apollo Router and Frontend..." -ForegroundColor White
             kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=150s 2>$null
-            kubectl wait --namespace dev --for=condition=ready pod -l app=api-gateway --timeout=150s 2>$null
+            kubectl wait --namespace dev --for=condition=ready pod -l app=apollo-router --timeout=150s 2>$null
             kubectl wait --namespace dev --for=condition=ready pod -l app=frontend --timeout=120s 2>$null
 
             Write-Host "`n🔌 Launching Local Port-Forward Tunnels in Background..." -ForegroundColor Yellow
@@ -843,7 +842,7 @@ stringData:
             if (Test-Path $buildAllScript) {
                 python $buildAllScript "1.0.0"
             }
-            $servicesToLoad = @("api-gateway", "products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+            $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
@@ -1039,9 +1038,11 @@ switch ($Command) {
         Show-Banner "Active Platform Web Dashboards & Management Consoles"
         Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
         Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
-        Write-Host "├──────────────────────────────┼────────────────────────────────────────────┼────────────────┤" -ForegroundColor Cyan
-        Write-Host "│ 🌐 Angular Storefront        │ http://localhost:4200                      │ Open           │" -ForegroundColor White
-        Write-Host "│ 🔌 API Gateway (Swagger UI)  │ http://localhost:8080/swagger-ui.html      │ Open           │" -ForegroundColor White
+        Write-Host "│ 🌐 React Storefront          │ http://localhost:4200                      │ Open           │" -ForegroundColor White
+        Write-Host "│ 🚀 Apollo Router (Sandbox)   │ http://localhost:8080                      │ Open           │" -ForegroundColor White
+        Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
+        Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
+        Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
         Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
         Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
         Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
@@ -1077,7 +1078,7 @@ switch ($Command) {
         Write-Host ""
         Write-Host "COMMANDS:" -ForegroundColor Cyan
         Write-Host "  up | bootstrap      Bootstrap target platform ecosystem (use -Build to compile from Dockerfiles)"
-        Write-Host "  build               Compile Java Maven & Angular Dockerfiles from source & load into Minikube"
+        Write-Host "  build               Compile Java Maven & React Dockerfiles from source & load into Minikube"
         Write-Host "  down | stop         Gracefully stop target platform or pause Minikube (preserves state)"
         Write-Host "  destroy             Completely purge resources and state (-Destroy / destroy)"
         Write-Host "  plan | apply        Run Terraform plan or apply on target platform modules"

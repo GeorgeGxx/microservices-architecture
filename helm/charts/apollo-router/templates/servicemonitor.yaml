@@ -2,21 +2,21 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "api-gateway.fullname" . }}
+  name: {{ include "apollo-router.fullname" . }}
   labels:
-    app: {{ include "api-gateway.fullname" . }}
+    app: {{ include "apollo-router.fullname" . }}
     release: prometheus
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 spec:
   selector:
     matchLabels:
-      app: {{ include "api-gateway.fullname" . }}
+      app: {{ include "apollo-router.fullname" . }}
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}
   endpoints:
-    - port: http
+    - port: metrics
       path: {{ .Values.serviceMonitor.path }}
       interval: {{ .Values.serviceMonitor.interval }}
       scrapeTimeout: 10s

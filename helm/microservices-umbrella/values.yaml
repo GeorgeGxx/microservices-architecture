@@ -26,7 +26,7 @@ configMap:
   create: true
   name: microservices-config
   data:
-    GATEWAY_SERVICE_NAME: "api-gateway"
+    GATEWAY_SERVICE_NAME: "apollo-router"
     GATEWAY_PORT: "8080"
     INVENTORY_SERVICE_NAME: "inventory-service"
     NOTIFICATION_SERVICE_NAME: "notification-service"
@@ -95,16 +95,18 @@ alertmanagerConfig:
       key: "url"
 
 # Per-subchart overrides (mirrors each chart's own values.yaml keys)
-api-gateway:
+apollo-router:
   resources:
     requests:
-      cpu: 200m
-      memory: 384Mi
+      cpu: 100m
+      memory: 128Mi
     limits:
       cpu: 1000m
-      memory: 1024Mi
+      memory: 512Mi
   probes:
-    initialDelaySeconds: 45
+    initialDelaySeconds: 5
+    readinessPath: /health
+    livenessPath: /health
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -118,8 +120,8 @@ api-gateway:
     prometheus:
       enabled: true
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-      metricName: "http_requests_per_second"
-      query: "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))"
+      metricName: "apollo_router_http_requests_per_second"
+      query: "sum(rate(apollo_router_http_requests_total[1m]))"
       threshold: "100"
     cpu:
       enabled: true

@@ -25,21 +25,37 @@ spec:
   gateways:
     - microservices-gateway
   http:
-    # 1. API & Backend requests -> Routed to Spring Cloud API Gateway
+    # 1. GraphQL Supergraph requests -> Routed to Apollo Router v2
     - match:
         - uri:
-            prefix: /api/
+            prefix: /graphql
         - uri:
-            prefix: /v3/api-docs
-        - uri:
-            prefix: /swagger-ui
-        - uri:
-            exact: /swagger-ui.html
+            exact: /health
       route:
         - destination:
-            host: api-gateway.dev.svc.cluster.local
+            host: apollo-router.dev.svc.cluster.local
             port:
               number: 8080
+
+    # 1.1 SSE Real-Time Notifications -> Routed to Notification Service
+    - match:
+        - uri:
+            prefix: /api/notifications/
+      route:
+        - destination:
+            host: notification-service.dev.svc.cluster.local
+            port:
+              number: 8002
+
+    # 1.2 Telemetry Funnel Events -> Routed to Orders Service
+    - match:
+        - uri:
+            prefix: /api/order/funnel
+      route:
+        - destination:
+            host: orders-service.dev.svc.cluster.local
+            port:
+              number: 8003
 
     # 2. Keycloak Auth requests -> Routed to Keycloak
     - match:
@@ -57,7 +73,7 @@ spec:
             port:
               number: 8181
 
-    # 3. Default / Root -> Routed to Angular 21 SPA Storefront
+    # 3. Default / Root -> Routed to React 19 SPA Storefront
     - match:
         - uri:
             prefix: /

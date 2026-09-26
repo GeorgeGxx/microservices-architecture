@@ -1,0 +1,67 @@
+extend schema
+  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key", "@shareable"])
+
+type Product @key(fields: "sku") {
+    sku: String!
+}
+
+type OrderLineItem {
+    id: ID
+    sku: String!
+    price: Float
+    quantity: Int
+    product: Product
+}
+
+type Order {
+    id: ID!
+    orderNumber: String!
+    userId: String
+    username: String
+    orderStatus: String
+    orderItems: [OrderLineItem!]!
+    customerName: String
+    customerEmail: String
+    shippingAddress: String
+    city: String
+    postalCode: String
+    phone: String
+    deliveryMethod: String
+    trackingNumber: String
+    carrier: String
+    subtotalAmount: Float
+    shippingFee: Float
+    taxAmount: Float
+    totalAmount: Float
+    paymentMethod: String
+}
+
+input OrderItemInput {
+    sku: String!
+    price: Float!
+    quantity: Int!
+}
+
+input PlaceOrderInput {
+    orderItems: [OrderItemInput!]!
+    customerName: String
+    customerEmail: String
+    shippingAddress: String
+    city: String
+    postalCode: String
+    phone: String
+    deliveryMethod: String
+    paymentMethod: String
+}
+
+type Query {
+    orders: [Order!]!
+    order(id: ID!): Order
+}
+
+type Mutation {
+    placeOrder(input: PlaceOrderInput!): Order
+    cancelOrder(id: ID!): Order
+    shipOrder(id: ID!): Order
+    deliverOrder(id: ID!): Order
+}

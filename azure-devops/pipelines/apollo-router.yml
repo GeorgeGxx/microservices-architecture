@@ -1,0 +1,61 @@
+name: MSA-Apollo-Router-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - apollo-router/**
+      - helm/**
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - apollo-router/**
+
+variables:
+  - name: AZURE_SERVICE_CONNECTION
+    value: 'azure-service-connection'
+  - name: AZURE_RG
+    value: 'msa-azure-prod-rg'
+  - name: AKS_CLUSTER_NAME
+    value: 'msa-azure-prod-aks'
+  - name: ACR_NAME
+    value: 'msaazureprodacr'
+
+stages:
+  - stage: ValidateAndLint
+    displayName: '🛡️ Validate Router Supergraph & Helm'
+    jobs:
+      - job: Validate
+        displayName: 'Validate Apollo Router Configuration'
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: Bash@3
+            displayName: 'Validate Router Configuration'
+            inputs:
+              targetType: 'inline'
+              script: |
+                docker run --rm -v "$(Build.SourcesDirectory)/apollo-router:/dist/config" \
+                  ghcr.io/apollographql/router:v2.16.3 \
+                  --config /dist/config/router.yaml \
+                  --supergraph /dist/config/supergraph.graphql \
+                  config validate
+
+          - task: HelmInstaller@1
+            displayName: 'Install Helm'
+            inputs:
+              helmVersionToInstall: 'latest'
+
+          - task: Bash@3
+            displayName: 'Lint Apollo Router Helm Chart'
+            inputs:
+              targetType: 'inline'
+              script: |
+                helm lint helm/charts/apollo-router

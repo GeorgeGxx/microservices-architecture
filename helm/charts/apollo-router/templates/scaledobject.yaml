@@ -2,14 +2,14 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ include "api-gateway.fullname" . }}-scaler
+  name: {{ include "apollo-router.fullname" . }}-scaler
   labels:
-    {{- include "api-gateway.labels" . | nindent 4 }}
+    {{- include "apollo-router.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "api-gateway.fullname" . }}
+    name: {{ include "apollo-router.fullname" . }}
   minReplicaCount: {{ .Values.keda.minReplicaCount | default 1 }}
   maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 3 }}
   {{- if and .Values.keda.minReplicaCount (eq (int .Values.keda.minReplicaCount) 0) }}
