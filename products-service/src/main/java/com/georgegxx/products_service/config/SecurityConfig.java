@@ -42,6 +42,8 @@ public class SecurityConfig {
                     .permitAll()
                     .requestMatchers("/api/product/prices")
                     .permitAll()
+                    .requestMatchers("/graphql", "/graphql/**")
+                    .permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html")
                     .permitAll()
                     .anyRequest()

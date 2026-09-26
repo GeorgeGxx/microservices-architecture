@@ -1,0 +1,19 @@
+type Product {
+    id: ID
+    sku: String!
+    name: String!
+    description: String
+    price: Float
+    status: Boolean
+    imageUrl: String
+    category: String
+    rating: Float
+    reviewCount: Int
+    isBestSeller: Boolean
+}
+
+type Query {
+    products: [Product!]!
+    productBySku(sku: String!): Product
+    product(id: ID!): Product
+}

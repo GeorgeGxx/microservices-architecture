@@ -1,0 +1,17 @@
+type Product {
+    sku: String!
+    isInStock: Boolean!
+    quantity: Int!
+}
+
+type InventoryResponse {
+    id: ID
+    sku: String!
+    quantity: Int!
+    isInStock: Boolean!
+}
+
+type Query {
+    inventory(sku: String!): InventoryResponse
+    inventories: [InventoryResponse!]!
+}

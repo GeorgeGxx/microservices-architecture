@@ -13,4 +13,9 @@ public class InventoryResponse implements Serializable {
     private Long id;
     private String sku;
     private Long quantity;
+    private Boolean isInStock;
+
+    public Boolean getIsInStock() {
+        return isInStock != null ? isInStock : (quantity != null && quantity > 0);
+    }
 }
