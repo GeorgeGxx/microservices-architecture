@@ -73,10 +73,14 @@ spec:
             - name: config
               mountPath: /dist/config
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: {{ include "apollo-router.fullname" . }}-config
+        - name: tmp
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
