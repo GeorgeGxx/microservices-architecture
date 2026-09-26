@@ -2,6 +2,11 @@ supergraph:
   listen: 0.0.0.0:8080
   introspection: true
 
+health_check:
+  listen: 0.0.0.0:8088
+  enabled: true
+  path: /health
+
 homepage:
   enabled: false
 

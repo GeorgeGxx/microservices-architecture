@@ -10,6 +10,11 @@ data:
       listen: 0.0.0.0:8080
       introspection: true
 
+    health_check:
+      listen: 0.0.0.0:8088
+      enabled: true
+      path: /health
+
     homepage:
       enabled: false
 
@@ -264,6 +269,8 @@ spec:
           ports:
             - name: http-router
               containerPort: 8080
+            - name: health
+              containerPort: 8088
             - name: metrics
               containerPort: 9090
           resources:
@@ -282,14 +289,14 @@ spec:
           readinessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 8088
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: /health
-              port: 8080
+              port: 8088
             initialDelaySeconds: 10
             periodSeconds: 15
             timeoutSeconds: 5

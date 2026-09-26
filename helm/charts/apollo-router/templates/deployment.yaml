@@ -44,6 +44,8 @@ spec:
           ports:
             - name: http-router
               containerPort: {{ .Values.containerPort }}
+            - name: health
+              containerPort: {{ .Values.healthPort | default 8088 }}
             - name: metrics
               containerPort: {{ .Values.metricsPort }}
           {{- with .Values.env }}
@@ -58,14 +60,14 @@ spec:
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readinessPath }}
-              port: {{ .Values.containerPort }}
+              port: {{ .Values.healthPort | default 8088 }}
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
-              port: {{ .Values.containerPort }}
+              port: {{ .Values.healthPort | default 8088 }}
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 5 }}
             periodSeconds: 15
             timeoutSeconds: 5
