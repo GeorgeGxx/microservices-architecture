@@ -31,9 +31,9 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Spring Cloud API Gateway** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
-| **Spring Boot Microservices (x4)** | `200m` | `1000m` | `384Mi` | `1024Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
-| **Keycloak 26.7.3 IAM** | `500m` | `1500m` | `1024Mi` | `2048Mi` | `2Gi` | Fast bootstrap & authentication spikes |
+| **Spring Cloud API Gateway** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
+| **Spring Boot Microservices (x4)** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
+| **Keycloak 26.7.3 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
 | **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
