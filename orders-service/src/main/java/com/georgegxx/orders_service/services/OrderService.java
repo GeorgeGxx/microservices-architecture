@@ -745,7 +745,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         this.kafkaTemplate.send("orders-topic", order.getOrderNumber(), payload);
     }
 
-    private OrderResponse mapOrderToOrderResponse(Order order) {
+    public OrderResponse mapOrderToOrderResponse(Order order) {
         return new OrderResponse(
                 order.getId(),
                 order.getOrderNumber(),

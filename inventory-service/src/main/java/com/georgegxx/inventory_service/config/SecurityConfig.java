@@ -38,6 +38,8 @@ public class SecurityConfig {
                         .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/inventory", "/api/inventory/**").permitAll()
                         .requestMatchers("/api/inventory/in-stock", "/api/inventory/decrement", "/api/inventory/increment", "/api/inventory/{sku}")
                         .permitAll()
+                        .requestMatchers("/graphql", "/graphql/**")
+                        .permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(
