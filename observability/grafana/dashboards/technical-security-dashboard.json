@@ -30,9 +30,9 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"}, service)",
+        "definition": "label_values(up{service=~\"apollo-router|orders-service|products-service|inventory-service|notification-service\"}, service)",
         "query": {
-          "query": "label_values(up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"}, service)",
+          "query": "label_values(up{service=~\"apollo-router|orders-service|products-service|inventory-service|notification-service\"}, service)",
           "refId": "StandardVariableQuery"
         },
         "label": "Filter Microservice",
@@ -64,7 +64,7 @@
       "id": 101,
       "type": "stat",
       "title": "🌐 Core Microservices Online",
-      "description": "Count of unique operational core business microservices active (Gateway, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
+      "description": "Count of unique operational core business microservices active (Apollo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -117,7 +117,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "count(count by (service) (up{service=~\"api-gateway|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+          "expr": "count(count by (service) (up{service=~\"apollo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
           "legendFormat": "Active Business Roles"
         }
       ]
@@ -179,7 +179,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or vector(0)",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
           "legendFormat": "P95 Latency"
         }
       ]
@@ -408,7 +408,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m]))",
+          "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, status) (rate(apollo_router_http_requests_total{service=~\"$service\"}[1m]))",
           "legendFormat": "{{service}} ({{status}})"
         }
       ]
@@ -449,7 +449,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000",
+          "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(apollo_router_http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
           "legendFormat": "{{service}} (P95)"
         }
       ]
@@ -625,7 +625,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (service) (jvm_memory_used_bytes{area=\"heap\", service=~\"$service\"}) / 1048576",
+          "expr": "sum by (service) (jvm_memory_used_bytes{area=\"heap\"}) / 1048576",
           "legendFormat": "{{service}} (Heap)"
         }
       ]
@@ -633,8 +633,8 @@
     {
       "id": 402,
       "type": "timeseries",
-      "title": "🐘 HikariCP Database Connection Pools (PostgreSQL - Active vs Total)",
-      "description": "Real-time SQL connection pools across PostgreSQL databases: Active in-flight queries vs Total allocated pool size.",
+      "title": "🐘 HikariCP Active Database Connection Pools (PostgreSQL)",
+      "description": "Active SQL query connections utilizing the HikariCP pool across databases.",
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -650,7 +650,7 @@
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
-            "fillOpacity": 15,
+            "fillOpacity": 25,
             "showPoints": "auto",
             "pointSize": 5
           },
@@ -666,16 +666,8 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (service) (hikaricp_connections_active{service=~\"$service\"})",
-          "legendFormat": "{{service}} (Active In-Flight)"
-        },
-        {
-          "datasource": {
-            "uid": "prometheus-ds",
-            "type": "prometheus"
-          },
-          "expr": "sum by (service) (hikaricp_connections{service=~\"$service\"})",
-          "legendFormat": "{{service}} (Total Pool Size)"
+          "expr": "sum by (service) (hikaricp_connections_active)",
+          "legendFormat": "{{service}} (Active DB Conns)"
         }
       ]
     },
@@ -784,7 +776,7 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "{service=~\"$service\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
+          "expr": "{service=~\".+\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
           "legendFormat": "{{service}}"
         }
       ]

@@ -26,9 +26,9 @@ services:
       KC_METRICS_ENABLED: "true"
       KC_PROXY_HEADERS: "xforwarded"
       KC_HOSTNAME_STRICT: "false"
-      KC_HOSTNAME_STRICT_HTTPS: "false"
       KC_HTTP_ENABLED: "true"
       JAVA_OPTS_APPEND: "-Xms256m -Xmx768m -XX:MaxRAMPercentage=70.0"
+      JAVA_TOOL_OPTIONS: ""
     networks:
       - spring
   ### Postgres database for Keycloak
@@ -55,35 +55,33 @@ services:
       interval: 5s
       retries: 10
 
-  ### API Gateway - http://localhost:8080/api/product
-  api-gateway:
-    hostname: api-gateway
-    container_name: api-gateway
-    image: georgegxx/api-gateway:1.0.0
-    build:
-      context: .
-      dockerfile: ./api-gateway/Dockerfile
-    env_file:
-      - .env
-    environment:
-      INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8001}
-      ORDERS_SERVICE_URI: ${ORDERS_SERVICE_URI:-http://orders-service:8003}
-      PRODUCTS_SERVICE_URI: ${PRODUCTS_SERVICE_URI:-http://products-service:8004}
-      NOTIFICATION_SERVICE_URI: ${NOTIFICATION_SERVICE_URI:-http://notification-service:8002}
-      VAULT_ADDR: ${VAULT_ADDR:-http://vault:8200}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
-      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}    
+  ### Apollo Router v2 (Federated GraphQL Gateway) - http://localhost:8080
+  apollo-router:
+    hostname: apollo-router
+    container_name: apollo-router
+    image: ghcr.io/apollographql/router:v2.16.3
     ports:
-      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+      - "${GATEWAY_PORT:-8080}:8080"
+    volumes:
+      - ./apollo-router/router.yaml:/dist/config/router.yaml:ro
+      - ./apollo-router/supergraph.graphql:/dist/config/supergraph.graphql:ro
+    command:
+      - "--config"
+      - "/dist/config/router.yaml"
+      - "--supergraph"
+      - "/dist/config/supergraph.graphql"
+      - "--anonymous-telemetry-disabled"
+      - "--dev"
     restart: unless-stopped
     depends_on:
-      - keycloak
-      - redis
+      - products-service
+      - orders-service
+      - inventory-service
       - otel-collector
     networks:
       - spring
 
-  ### Frontend (Angular 21 SPA) - http://localhost:4200
+  ### Frontend (React 19 SPA) - http://localhost:4200
   frontend:
     hostname: frontend
     container_name: frontend
@@ -95,7 +93,7 @@ services:
       - "${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
     restart: unless-stopped
     depends_on:
-      - api-gateway
+      - apollo-router
       - keycloak
     networks:
       - spring
@@ -110,6 +108,8 @@ services:
       dockerfile: ./inventory-service/Dockerfile
     env_file:
       - .env
+    ports:
+      - "8001:8001"
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
@@ -157,6 +157,8 @@ services:
       dockerfile: ./notification-service/Dockerfile
     env_file:
       - .env
+    ports:
+      - "8002:8002"
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
@@ -178,6 +180,8 @@ services:
       dockerfile: ./orders-service/Dockerfile
     env_file:
       - .env
+    ports:
+      - "8003:8003"
     environment:
       INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8001}
       PRODUCTS_SERVICE_URI: ${PRODUCTS_SERVICE_URI:-http://products-service:8004}
@@ -229,6 +233,8 @@ services:
       dockerfile: ./products-service/Dockerfile
     env_file:
       - .env
+    ports:
+      - "8004:8004"
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
@@ -295,6 +301,7 @@ services:
       KAFKA_LISTENER_NAME_SASL__PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: ${KAFKA_BROKER_SASL_JAAS_CONFIG}
       KAFKA_OPTS: ${KAFKA_OPTS}
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+      JAVA_TOOL_OPTIONS: ""
       KAFKA_LOG_DIRS: ${KAFKA_LOG_DIRS}
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: ${KAFKA_AUTO_CREATE_TOPICS_ENABLE}
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -383,7 +390,7 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      - api-gateway
+      - apollo-router
       - redis-exporter
       - kafka-exporter
       - postgres-exporter
@@ -555,7 +562,7 @@ services:
             max_ttl="24h" 2>/dev/null || true
         
         echo "🛡️ [Vault Auto-Init] Creating Least-Privilege Policies..."
-        for svc in products-service orders-service inventory-service notification-service api-gateway; do
+        for svc in products-service orders-service inventory-service notification-service; do
           echo "path \"secret/data/application\" { capabilities = [\"read\"] } path \"secret/data/$${svc}\" { capabilities = [\"read\"] }" | vault policy write "$${svc}-policy" - 2>/dev/null || true
         done
         

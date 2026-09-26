@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 13,
+  "version": 15,
   "tags": [
     "business",
     "ecommerce",
@@ -107,7 +107,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"}) or vector(0)",
+          "expr": "sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
           "legendFormat": "Net Revenue USD"
         }
       ]
@@ -162,7 +162,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
           "legendFormat": "Net Orders"
         }
       ]
@@ -217,7 +217,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"})) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"})), 1) or vector(0)",
+          "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"})), 1) or vector(0)",
           "legendFormat": "AOV"
         }
       ]
@@ -280,7 +280,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)",
+          "expr": "clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)",
           "legendFormat": "Abandonment"
         }
       ]
@@ -370,7 +370,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
           "legendFormat": "4. Order Completed"
         }
       ]
@@ -424,7 +424,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline{service=~\"$service\"})",
+          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline)",
           "legendFormat": "Stage: {{status}}"
         }
       ]
@@ -499,7 +499,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "ecommerce_inventory_sku_stock{service=~\"$service\"}",
+          "expr": "ecommerce_inventory_sku_stock",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -551,7 +551,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (sku) (ecommerce_sku_sales{service=~\"$service\"}) or sum by (sku) (ecommerce_sku_sales_total{service=~\"$service\"})",
+          "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total)",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -617,7 +617,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (cohort) (ecommerce_orders_by_cohort{service=~\"$service\"})",
+          "expr": "sum by (cohort) (ecommerce_orders_by_cohort)",
           "legendFormat": "Tier: {{cohort}}"
         }
       ]
@@ -690,7 +690,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\", service=~\"$service\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\", service=~\"$service\"}) or vector(0)",
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
           "legendFormat": "Cumulative Completed Orders"
         },
         {
@@ -698,7 +698,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_revenue_usd{service=~\"$service\"}) or sum(ecommerce_revenue_usd_total{service=~\"$service\"}) or vector(0)",
+          "expr": "sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
           "legendFormat": "Net Revenue ($ USD)"
         }
       ]

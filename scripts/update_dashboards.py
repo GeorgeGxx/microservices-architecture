@@ -376,8 +376,8 @@ tech_panels = [
     {
         "id": 101,
         "type": "stat",
-        "title": "🌐 Microservices Online",
-        "description": "Count of operational Spring Boot microservice instances actively scraped.",
+        "title": "🌐 Core Microservices Online",
+        "description": "Count of unique operational core business microservices active (Apollo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
         "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -388,8 +388,8 @@ tech_panels = [
                     "mode": "absolute",
                     "steps": [
                         {"color": "#ef4444", "value": None},
-                        {"color": "#f59e0b", "value": 3},
-                        {"color": "#10b981", "value": 4}
+                        {"color": "#f59e0b", "value": 4},
+                        {"color": "#10b981", "value": 5}
                     ]
                 }
             }
@@ -400,8 +400,8 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "count(up{job=\"spring-services\"} == 1) or count(up == 1) or vector(4)",
-            "legendFormat": "Online Services"
+            "expr": "count(count by (service) (up{service=~\"apollo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+            "legendFormat": "Active Business Roles"
         }]
     },
     {
@@ -431,7 +431,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or vector(0)",
+            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
             "legendFormat": "P95 Latency"
         }]
     },
@@ -562,7 +562,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count[1m]))",
+            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, status) (rate(apollo_router_http_requests_total{service=~\"$service\"}[1m]))",
             "legendFormat": "{{service}} ({{status}})"
         }]
     },
@@ -588,7 +588,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket[5m]))) * 1000",
+            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(apollo_router_http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
             "legendFormat": "{{service}} (P95)"
         }]
     },

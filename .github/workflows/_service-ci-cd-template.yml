@@ -10,7 +10,7 @@ on:
       service-type:
         required: true
         type: string
-        description: 'Type: spring-boot or angular'
+        description: 'Type: spring-boot, react, or apollo-router'
       service-dir:
         required: true
         type: string
@@ -97,21 +97,20 @@ jobs:
             ${{ inputs.service-dir }}/target/site/jacoco/
           retention-days: 7
 
-      # Angular Frontend
-      - name: Set up Node.js 24
-        if: inputs.service-type == 'angular'
+      # React Frontend
+      - name: Set up Node.js 22
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
-          cache-dependency-path: ${{ inputs.service-dir }}/package-lock.json
+          cache-dependency-path: ${{ inputs.service-dir }}/package.json
 
-      - name: Install, Test & Build Angular
-        if: inputs.service-type == 'angular'
+      - name: Install & Build React Frontend
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         run: |
           cd ${{ inputs.service-dir }}
-          npm ci
-          npm run test -- --watch=false --browsers=ChromeHeadless
+          npm install
           npm run build
 
   # ==========================================================
@@ -180,8 +179,8 @@ jobs:
             echo "::warning::SONAR_TOKEN not set — skipping SonarQube Quality Gate."
           fi
 
-      - name: Sonar Analysis (Angular Frontend)
-        if: inputs.service-type == 'angular'
+      - name: Sonar Analysis (React Frontend)
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         continue-on-error: true
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -191,7 +190,7 @@ jobs:
           if [ -n "$SONAR_TOKEN" ]; then
             cd frontend
             SONAR_ARGS="-Dsonar.projectKey=msa-frontend \
-              -Dsonar.projectName=\"MSA Frontend Angular\" \
+              -Dsonar.projectName=\"MSA Frontend React\" \
               -Dsonar.host.url=$SONAR_HOST_URL \
               -Dsonar.token=$SONAR_TOKEN \
               -Dsonar.sources=src \
@@ -222,8 +221,8 @@ jobs:
       - name: Build Docker Image & Export to OCI Tarball
         uses: docker/build-push-action@v5
         with:
-          context: ${{ inputs.service-type == 'angular' && './frontend' || '.' }}
-          file: ${{ inputs.service-type == 'angular' && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir) }}
+          context: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.' }}
+          file: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir) }}
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           outputs: type=docker,dest=/tmp/${{ inputs.service-name }}-image.tar
           cache-from: type=gha

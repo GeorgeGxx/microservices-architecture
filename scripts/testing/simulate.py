@@ -143,10 +143,15 @@ class TrafficSimulator:
             time.sleep(2)
 
     def _session_worker(self, session_id):
-        # 1. Browse catalog
+        # 1. Browse catalog (Federated GraphQL Query)
         t0 = time.time()
+        browse_query = json.dumps({"query": "query { products { sku name price } }"}).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
         try:
-            req = urllib.request.Request(f"{self.gateway_url}/api/product")
+            req = urllib.request.Request(f"{self.gateway_url}/", data=browse_query, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=5) as r:
                 r.read()
         except Exception:
@@ -159,20 +164,20 @@ class TrafficSimulator:
         category = "Electronics" if "00000" in item["sku"] else "Computers"
         try:
             cart_evt = json.dumps({"eventType": "CART_ADD", "category": category}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
             pass
 
-        # Realistic Shopper Journey: ~25% abandon cart before starting checkout
-        if random.random() < 0.25:
+        # Realistic Shopper Journey: ~10% abandon cart before starting checkout
+        if random.random() < 0.10:
             return
 
         # 3. Start Checkout (Conversion Funnel Step 2: CHECKOUT_START)
         try:
             start_evt = json.dumps({"eventType": "CHECKOUT_START"}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
@@ -181,55 +186,68 @@ class TrafficSimulator:
         # 4. Reach Payment Step (Conversion Funnel Step 3: CHECKOUT_STEP)
         try:
             step_evt = json.dumps({"eventType": "CHECKOUT_STEP", "step": "PAYMENT"}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.gateway_url}/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
             pass
 
-        # 5. Finalize Purchase (Conversion Funnel Step 4: ORDER_PLACED)
+        # 5. Finalize Purchase (Conversion Funnel Step 4: ORDER_PLACED via GraphQL Mutation)
         subtotal = round(item["price"] * qty, 2)
-        shipping_fee = 15.00
-        tax = round(subtotal * 0.16, 2)
-        total = round(subtotal + shipping_fee + tax, 2)
+
+        order_mutation = """
+        mutation PlaceOrder($input: PlaceOrderInput!) {
+          placeOrder(input: $input) {
+            id
+            orderNumber
+            totalAmount
+            orderStatus
+            trackingNumber
+          }
+        }
+        """
 
         order_payload = json.dumps({
-            "orderItems": [
-                {
-                    "sku": item["sku"],
-                    "price": item["price"],
-                    "quantity": qty
+            "query": order_mutation,
+            "variables": {
+                "input": {
+                    "orderItems": [
+                        {
+                            "sku": item["sku"],
+                            "price": item["price"],
+                            "quantity": qty
+                        }
+                    ],
+                    "customerName": "Simulated Shopper",
+                    "customerEmail": "shopper@example.com",
+                    "shippingAddress": "742 Evergreen Terrace",
+                    "city": "Springfield",
+                    "postalCode": "97477",
+                    "phone": "+15551234567",
+                    "deliveryMethod": "STANDARD",
+                    "paymentMethod": "CARD_VISA"
                 }
-            ],
-            "customerName": "Simulated Shopper",
-            "customerEmail": "shopper@example.com",
-            "shippingAddress": "742 Evergreen Terrace",
-            "city": "Springfield",
-            "postalCode": "97477",
-            "phone": "+15551234567",
-            "deliveryMethod": "STANDARD",
-            "shippingFee": shipping_fee,
-            "taxAmount": tax,
-            "totalAmount": total,
-            "paymentMethod": "CARD_VISA"
+            }
         }).encode("utf-8")
 
-        headers = {
+        order_headers = {
             "Content-Type": "application/json",
             "X-Idempotency-Key": str(uuid.uuid4())
         }
         if self.token:
-            headers["Authorization"] = f"Bearer {self.token}"
+            order_headers["Authorization"] = f"Bearer {self.token}"
 
         t1 = time.time()
         try:
-            req = urllib.request.Request(f"{self.gateway_url}/api/order", data=order_payload, headers=headers, method="POST")
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            req = urllib.request.Request(f"{self.gateway_url}/", data=order_payload, headers=order_headers, method="POST")
+            with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status in (200, 201):
-                    with self.lock:
-                        self.orders_placed += 1
-                        self.units_sold += qty
-                        self.total_revenue += subtotal
+                    res_json = json.loads(resp.read().decode("utf-8"))
+                    if res_json.get("data") and res_json["data"].get("placeOrder"):
+                        with self.lock:
+                            self.orders_placed += 1
+                            self.units_sold += qty
+                            self.total_revenue += subtotal
         except Exception:
             pass
         self.latencies.append(time.time() - t1)

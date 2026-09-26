@@ -33,5 +33,5 @@ stages:
     parameters:
       serviceName: 'frontend'
       serviceDir: 'frontend'
-      serviceType: 'angular'
+      serviceType: 'react'
       servicePort: 80
