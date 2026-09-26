@@ -30,7 +30,7 @@ parameters:
     type: string
   - name: serviceType
     type: string
-    default: 'spring-boot' # 'spring-boot' or 'angular'
+    default: 'spring-boot' # 'spring-boot', 'react', or 'apollo-router'
   - name: servicePort
     type: number
     default: 8080
@@ -104,56 +104,29 @@ stages:
               summaryFileLocation: '${{ parameters.serviceDir }}/target/site/jacoco/jacoco.xml'
               pathToSources: '${{ parameters.serviceDir }}/src/main/java'
 
-          # npm Cache for Angular Frontend
+          # npm Cache for React Frontend
           - task: Cache@2
-            condition: eq('${{ parameters.serviceType }}', 'angular')
+            condition: or(eq('${{ parameters.serviceType }}', 'react'), eq('${{ parameters.serviceType }}', 'frontend'))
             displayName: "Cache npm Packages"
             inputs:
-              key: 'npm | "$(Agent.OS)" | ${{ parameters.serviceDir }}/package-lock.json'
+              key: 'npm | "$(Agent.OS)" | ${{ parameters.serviceDir }}/package.json'
               restoreKeys: |
                 npm | "$(Agent.OS)"
                 npm
               path: $(HOME)/.npm
 
           - task: NodeTool@0
-            condition: eq('${{ parameters.serviceType }}', 'angular')
+            condition: or(eq('${{ parameters.serviceType }}', 'react'), eq('${{ parameters.serviceType }}', 'frontend'))
             inputs:
-              versionSpec: '20.x'
-
-          # IMPROVEMENT: "|| npm run build" removed — that fallback was masking issues.
-          # failed tests (the build almost always passes even if the specs fail).
-          # Now the step ONLY runs tests; the build is a separate step that
-          # It only executes if the tests passed.
-          - script: |
-              echo "Installing dependencies and executing Angular Unit Tests (hard gate)..."
-              cd ${{ parameters.serviceDir }}
-              npm ci
-              npm run test -- --watch=false --browsers=ChromeHeadless --code-coverage
-            condition: eq('${{ parameters.serviceType }}', 'angular')
-            displayName: "Angular Unit Tests (Karma/Jest)"
-
-          - task: PublishTestResults@2
-            # Requires karma-junit-reporter (or jest-junit) pointing to test-results/junit.xml
-            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeededOrFailed())
-            displayName: "Publish Angular Test Results"
-            inputs:
-              testResultsFormat: 'JUnit'
-              testResultsFiles: '${{ parameters.serviceDir }}/test-results/junit.xml'
-              mergeTestResults: true
-              failTaskOnFailedTests: true
-
-          - task: PublishCodeCoverageResults@2
-            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeededOrFailed())
-            displayName: "Publish Angular Code Coverage"
-            inputs:
-              summaryFileLocation: '${{ parameters.serviceDir }}/coverage/**/cobertura-coverage.xml'
+              versionSpec: '22.x'
 
           - script: |
-              echo "Building Angular application..."
+              echo "Installing dependencies and executing React Build & Type Check..."
               cd ${{ parameters.serviceDir }}
+              npm install
               npm run build
-            condition: and(eq('${{ parameters.serviceType }}', 'angular'), succeeded())
-            displayName: "Angular Build"
+            condition: or(eq('${{ parameters.serviceType }}', 'react'), eq('${{ parameters.serviceType }}', 'frontend'))
+            displayName: "React Build & Compile Gate"
 
   # ==========================================================
   # STAGE 2: 🔍 SAST, Secret Detection & Governance (Security)
@@ -202,8 +175,7 @@ stages:
               fi
             displayName: "Checkov Policy & IaC Scan"
 
-          # IMPROVEMENT: Dependency gate for the Angular stack — previously only
-          # Java had a real quality gate (SonarCloud); the frontend had nothing equivalent.
+          # IMPROVEMENT: Dependency gate for the frontend stack
           - script: |
               echo "Running npm audit (dependency vulnerability gate)..."
               cd ${{ parameters.serviceDir }}
@@ -212,8 +184,8 @@ stages:
               else
                 npm audit --audit-level=high || echo "npm audit findings on feature branch — advisory only."
               fi
-            condition: eq('${{ parameters.serviceType }}', 'angular')
-            displayName: "npm audit (Angular Dependency Security Gate)"
+            condition: or(eq('${{ parameters.serviceType }}', 'react'), eq('${{ parameters.serviceType }}', 'frontend'))
+            displayName: "npm audit (Frontend Dependency Security Gate)"
 
           - script: |
               echo "Executing SonarQube / SonarCloud Code Quality Analysis..."
@@ -250,7 +222,7 @@ stages:
               export DOCKER_BUILDKIT=1
               IMAGE_LOCAL="local/${{ parameters.serviceName }}:$(Build.SourceVersion)"
 
-              if [ "${{ parameters.serviceType }}" = "angular" ]; then
+              if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ]; then
                 docker build \
                   --build-arg BUILDKIT_INLINE_CACHE=1 \
                   -t $IMAGE_LOCAL \

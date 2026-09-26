@@ -1,4 +1,4 @@
-name: Frontend Angular CI/CD
+name: Frontend React CI/CD
 
 on:
   push:
@@ -20,6 +20,6 @@ jobs:
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: frontend
-      service-type: angular
+      service-type: react
       service-dir: frontend
     secrets: inherit

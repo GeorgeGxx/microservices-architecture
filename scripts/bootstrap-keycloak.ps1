@@ -294,15 +294,16 @@ try {
 
         # Update Kubernetes Secret if cluster is reachable
         if (Get-Command kubectl -ErrorAction SilentlyContinue) {
-            try {
-                $checkK8s = kubectl get secret microservices-secrets 2>$null
-                if ($LASTEXITCODE -eq 0) {
-                    $patchJson = '{"stringData":{"KEYCLOAK_CLIENT_SECRET":"' + $secret + '"}}'
-                    kubectl patch secret microservices-secrets --type merge -p $patchJson 2>$null
-                    kubectl rollout restart deployment api-gateway 2>$null
-                    Write-Host "  [OK] Synchronized KEYCLOAK_CLIENT_SECRET into Kubernetes secret microservices-secrets" -ForegroundColor Green
-                }
-            } catch {}
+            foreach ($ns in @("dev", "auth", "default")) {
+                try {
+                    $checkK8s = kubectl get secret microservices-secrets -n $ns 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        $patchJson = '{"stringData":{"KEYCLOAK_CLIENT_SECRET":"' + $secret + '"}}'
+                        kubectl patch secret microservices-secrets -n $ns --type merge -p $patchJson 2>$null | Out-Null
+                        Write-Host "  [OK] Synchronized KEYCLOAK_CLIENT_SECRET into Kubernetes secret microservices-secrets (namespace: $ns)" -ForegroundColor Green
+                    }
+                } catch {}
+            }
         }
     }
 } catch {

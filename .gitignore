@@ -1,3 +1,9 @@
 config.yaml
 .env
 *.bkp
+target/
+**/target/
+.idea/
+*.iml
+.vscode/
+*.log

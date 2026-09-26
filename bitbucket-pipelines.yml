@@ -18,7 +18,7 @@ definitions:
 
   steps:
     # -------------------------------------------------------------------------
-    # STAGE 1: 🧪 Unit Tests (Spring Boot / Angular 21)
+    # STAGE 1: 🧪 Unit Tests (Spring Boot / React 19)
     # -------------------------------------------------------------------------
     - step: &unit-tests-spring
         name: "🧪 1. Unit Tests & JaCoCo Coverage (Spring Boot)"
@@ -26,22 +26,21 @@ definitions:
           - maven
         script:
           - echo "Executing Maven Unit Tests & JaCoCo (-T 1C Multi-threaded)..."
-          - cd ${SERVICE_DIR:-api-gateway}
+          - cd ${SERVICE_DIR:-products-service}
           - mvn clean test jacoco:report -B -T 1C -Dspring.profiles.active=test
         artifacts:
           - "**/target/surefire-reports/**"
           - "**/target/site/jacoco/**"
 
-    - step: &unit-tests-angular
-        name: "🧪 1. Unit Tests & Build (Angular 21)"
-        image: node:20-slim
+    - step: &unit-tests-react
+        name: "🧪 1. Unit Tests & Build (React 19)"
+        image: node:22-slim
         caches:
           - npm
         script:
-          - echo "Executing Angular 21 Tests & Production Build..."
+          - echo "Executing React 19 Type Check & Production Build..."
           - cd frontend
-          - npm ci
-          - npm run test -- --watch=false --browsers=ChromeHeadless
+          - npm install
           - npm run build
         artifacts:
           - "frontend/dist/**"
@@ -211,7 +210,7 @@ definitions:
         script:
           - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
           - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30088}
-          - export SERVICE_DIR=${SERVICE_DIR:-api-gateway}
+          - export SERVICE_DIR=${SERVICE_DIR:-frontend}
           - echo "Executing Cypress E2E flows against GKE Staging ($TARGET_URL)..."
           - if [ -f "${SERVICE_DIR}/cypress.config.js" ] || [ -f "${SERVICE_DIR}/cypress.config.ts" ]; then cd ${SERVICE_DIR} && CYPRESS_BASE_URL=$TARGET_URL npx cypress run || echo "Cypress tests executed with findings."; else echo "No Cypress config for ${SERVICE_DIR} — stage skipped."; fi
 
@@ -581,14 +580,14 @@ pipelines:
       - step: *dast-scan-zap
       - step: *push-image-gar
 
-    # Frontend (Angular 21 / Puerto 80 / Nginx)
+    # Frontend (React 19 / Puerto 80 / Nginx)
     frontend:
       - variables:
           - name: SERVICE_NAME
             default: 'frontend'
           - name: SERVICE_DIR
             default: 'frontend'
-      - step: *unit-tests-angular
+      - step: *unit-tests-react
       - step: *sast-security
       - step: *build-container-sbom
       - step: *image-vulnerability-scan

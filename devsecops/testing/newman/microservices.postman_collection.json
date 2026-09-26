@@ -1,10 +1,9 @@
 {
   "info": {
     "_postman_id": "80d0f149-1d5d-4cef-a67e-10c7cee79cf9",
-    "name": "microservices",
-    "description": "Comprehensive Postman collection for Enterprise Microservices Architecture with Spring Boot 4.0.8, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "13231529"
+    "name": "microservices-apollo-router",
+    "description": "Enterprise Microservices Architecture Collection with Apollo Router v2 (GraphQL Federation 2.3), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
@@ -16,17 +15,20 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const res = pm.response.json();",
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
                   "if (res.access_token) {",
-                  "    pm.collectionVariables.set(\"jwt_token\", res.access_token);",
-                  "    pm.test(\"Token received and saved to {{jwt_token}}\", () => {",
-                  "        pm.expect(res.access_token).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set('jwt_token', res.access_token);",
+                  "    pm.test('Token received and saved to {{jwt_token}}', () => {",
+                  "        pm.expect(res.access_token).to.be.a('string');",
                   "    });",
-                  "    console.log(\"✅ User JWT successfully stored in collection variable jwt_token\");",
+                  "    console.log('✅ User JWT successfully stored in collection variable jwt_token');",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
@@ -95,17 +97,20 @@
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
                   "const res = pm.response.json();",
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
                   "if (res.access_token) {",
-                  "    pm.collectionVariables.set(\"jwt_token\", res.access_token);",
-                  "    pm.test(\"Token received and saved to {{jwt_token}}\", () => {",
-                  "        pm.expect(res.access_token).to.be.a(\"string\");",
+                  "    pm.collectionVariables.set('jwt_token', res.access_token);",
+                  "    pm.test('Admin Token received and saved to {{jwt_token}}', () => {",
+                  "        pm.expect(res.access_token).to.be.a('string');",
                   "    });",
-                  "    console.log(\"✅ Admin JWT successfully stored in collection variable jwt_token\");",
+                  "    console.log('✅ Admin JWT successfully stored in collection variable jwt_token');",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
@@ -141,7 +146,7 @@
                 },
                 {
                   "key": "password",
-                  "value": "admin",
+                  "value": "password",
                   "type": "text"
                 },
                 {
@@ -164,50 +169,75 @@
                 "token"
               ]
             },
-            "description": "Obtains an Admin JWT token using Keycloak public client. The test script automatically saves the token to {{jwt_token}}."
+            "description": "Obtains an Admin User JWT token with administrative privileges (ROLE_ADMIN). Saves automatically to {{jwt_token}}."
           },
           "response": []
         }
-      ],
-      "description": "1-Click Keycloak Authentication using Public Client (microservices_frontend). ZERO client_secret required! Click Send on either login request to automatically store the JWT in {{jwt_token}} for all requests in this collection."
+      ]
     },
     {
-      "name": "Orders",
+      "name": "🚀 Apollo Router - GraphQL Supergraph",
       "item": [
         {
-          "name": "List Orders",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8080/api/order",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Place Order (with Idempotency)",
+          "name": "1. Apollo Router Health Check",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
+                  "pm.test('Apollo Router is Healthy (HTTP 200)', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Checks Apollo Router health endpoint (:8080/health)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Federated Products Catalog with Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('GraphQL Status 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
                   "const res = pm.response.json();",
-                  "if (res && res.id) {",
-                  "    pm.collectionVariables.set(\"order_id\", res.id.toString());",
-                  "    console.log(\"✅ Dynamic order_id updated to: \" + res.id);",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Products array returned with federated stock', () => {",
+                  "    pm.expect(res.data).to.have.property('products');",
+                  "    pm.expect(res.data.products).to.be.an('array');",
+                  "    pm.expect(res.data.products.length).to.be.above(0);",
+                  "});",
+                  "if (res.data && res.data.products && res.data.products.length > 0) {",
+                  "    const firstProd = res.data.products[0];",
+                  "    pm.collectionVariables.set('product_sku', firstProd.sku);",
+                  "    pm.test('Product has stock resolved via inventory subgraph', () => {",
+                  "        pm.expect(firstProd).to.have.property('isInStock');",
+                  "        pm.expect(firstProd).to.have.property('quantity');",
+                  "    });",
                   "}"
-                ],
-                "type": "text/javascript"
+                ]
               }
             }
           ],
@@ -218,91 +248,48 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "X-Idempotency-Key",
-                "value": "{{$guid}}",
-                "description": "Optional UUID v4 for distributed idempotency",
-                "type": "text"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Admin User\",\n  \"customerEmail\": \"admin_user@example.com\",\n  \"shippingAddress\": \"100 Enterprise Boulevard, Suite 500\",\n  \"city\": \"Austin\",\n  \"postalCode\": \"78701\",\n  \"phone\": \"+1 555-019-2834\",\n  \"deliveryMethod\": \"STANDARD\",\n  \"shippingFee\": 0,\n  \"taxAmount\": 5.6,\n  \"totalAmount\": 75.59,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"000001\",\n      \"price\": 69.99,\n      \"quantity\": 1\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetProductsWithStock {\n  products {\n    id\n    sku\n    name\n    description\n    price\n    category\n    rating\n    reviewCount\n    isBestSeller\n    isInStock\n    quantity\n  }\n}",
+                "variables": "{}"
               }
             },
             "url": {
-              "raw": "http://localhost:8080/api/order",
-              "protocol": "http",
+              "raw": "{{base_url}}/graphql",
               "host": [
-                "localhost"
+                "{{base_url}}"
               ],
-              "port": "8080",
               "path": [
-                "api",
-                "order"
+                "graphql"
               ]
             },
-            "description": "Creates a purchase order using the default seeded SKU 000001 with full customer details, payment method, and itemized lines. Demonstrates distributed idempotency via X-Idempotency-Key header."
+            "description": "Fetches products catalog federating product entity with inventory stock in a single GraphQL query through Apollo Router."
           },
           "response": []
         },
         {
-          "name": "Cancel Order (Saga Compensation)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/{{order_id}}/cancel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "{{order_id}}",
-                "cancel"
-              ]
-            },
-            "description": "Cancels an existing order, triggers inventory stock restoration via Saga compensation, and publishes a CANCELLED event to Kafka."
-          },
-          "response": []
-        },
-        {
-          "name": "Place Order (Automated DHL Tracking Generation)",
+          "name": "3. Product by SKU (Federated Detail)",
           "event": [
             {
               "listen": "test",
               "script": {
+                "type": "text/javascript",
                 "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
                   "const res = pm.response.json();",
-                  "if (res && res.id) {",
-                  "    pm.collectionVariables.set(\"order_id\", res.id.toString());",
-                  "    console.log(\"✅ Dynamic order_id updated to: \" + res.id);",
-                  "}"
-                ],
-                "type": "text/javascript"
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Product by SKU matches requested SKU', () => {",
+                  "    pm.expect(res.data.productBySku).to.exist;",
+                  "    pm.expect(res.data.productBySku.sku).to.equal(pm.collectionVariables.get('product_sku'));",
+                  "});"
+                ]
               }
             }
           ],
@@ -313,711 +300,644 @@
                 "key": "Content-Type",
                 "value": "application/json",
                 "type": "text"
-              },
-              {
-                "key": "X-Idempotency-Key",
-                "value": "{{$guid}}",
-                "description": "UUID v4 for distributed idempotency",
-                "type": "text"
               }
             ],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"customerName\": \"Jorge Garcia\",\n  \"customerEmail\": \"jorge@example.com\",\n  \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n  \"city\": \"Monterrey\",\n  \"postalCode\": \"64000\",\n  \"phone\": \"+52 81 1234 5678\",\n  \"deliveryMethod\": \"EXPRESS\",\n  \"shippingFee\": 9.99,\n  \"taxAmount\": 47.92,\n  \"totalAmount\": 656.91,\n  \"paymentMethod\": \"CARD_VISA\",\n  \"orderItems\": [\n    {\n      \"sku\": \"000001\",\n      \"price\": 599,\n      \"quantity\": 1\n    }\n  ]\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetProductBySku($sku: String!) {\n  productBySku(sku: $sku) {\n    id\n    sku\n    name\n    price\n    category\n    isInStock\n    quantity\n  }\n}",
+                "variables": "{\n  \"sku\": \"{{product_sku}}\"\n}"
               }
             },
             "url": {
-              "raw": "http://localhost:8080/api/order",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order"
-              ]
-            },
-            "description": "Places order with full recipient profile and EXPRESS shipping. Automatically generates DHL carrier tracking code (e.g. DHL-A8E29C1F), computes tax and shipping fee, decrements warehouse inventory, and emits Kafka event."
-          },
-          "response": []
-        },
-        {
-          "name": "Record Funnel Event - Cart Add (Cart Abandonment Rate)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"CART_ADD\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"cart\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/funnel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "funnel"
-              ]
-            },
-            "description": "Asynchronously records user journey event CART_ADD into Kafka/Micrometer for calculating Cart Abandonment Rate and conversion funnel metrics."
-          },
-          "response": []
-        },
-        {
-          "name": "Record Funnel Event - Checkout Start (Cart Abandonment Rate)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"CHECKOUT_START\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"shipping\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/funnel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "funnel"
-              ]
-            },
-            "description": "Records checkout initiation step to measure drop-off and funnel progression toward payment."
-          },
-          "response": []
-        },
-        {
-          "name": "Record Funnel Event - Checkout Step (Cart Abandonment Rate)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"eventType\": \"CHECKOUT_STEP\",\n  \"sku\": \"SKU-IPHONE-15\",\n  \"category\": \"Electronics\",\n  \"step\": \"payment\"\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/funnel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "funnel"
-              ]
-            },
-            "description": "Tracks individual funnel checkout step (shipping, delivery, payment) for fine-grained abandonment analysis."
-          },
-          "response": []
-        },
-        {
-          "name": "Ship Order (Stage 3 Logistics - In Transit DHL)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/{{order_id}}/ship",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "{{order_id}}",
-                "ship"
-              ]
-            },
-            "description": "Transitions order status to SHIPPED, marks logistics milestone In Transit (DHL Express), persists to PostgreSQL t_orders, and publishes event to Kafka."
-          },
-          "response": []
-        },
-        {
-          "name": "Deliver Order (Stage 5 Logistics - Delivered & Signed)",
-          "request": {
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/{{order_id}}/deliver",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "{{order_id}}",
-                "deliver"
-              ]
-            },
-            "description": "Transitions order status to DELIVERED, records verified customer signature timestamp, syncs Micrometer Prometheus database gauges, and finalizes digital receipt."
-          },
-          "response": []
-        },
-        {
-          "name": "Cart Abandonment Rate",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "name": "cache-control",
-                "sortOrder": 2,
-                "infoTitle": "We recommend using this header",
-                "info": "Postman added \"Cache-Control: no-cache\" as a precautionary measure to prevent the server from returning stale response when one makes repeated requests.\n\nYou can remove this header in the app settings or enter a new one with a different value.",
-                "allowedToToggle": false,
-                "disableEdit": true,
-                "previewSettingsLink": "Go to settings",
-                "key": "Cache-Control",
-                "value": "no-cache",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "postman-token",
-                "sortOrder": 3,
-                "infoTitle": "We recommend using this header",
-                "info": "The Postman-Token header appends a random UUID to every outgoing request. Postman adds this header for API developers to better debug requests sent and to ensure separate requests appear distinct to the receiving server.\n\nYou can remove this header in the app settings.",
-                "allowedToToggle": false,
-                "disableEdit": true,
-                "previewSettingsLink": "Go to settings",
-                "key": "Postman-Token",
-                "value": "<calculated when request is sent>",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "content-type",
-                "sortOrder": 4,
-                "infoTitle": "This header was automatically added",
-                "info": "The Content-Type header is added to help the server identify the media type of the request body that is present in this request.\n\nUse the request body tab to control the value or to remove this header.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "previewSettingsLink": "Go to body",
-                "key": "Content-Type",
-                "value": "application/json",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "content-length",
-                "sortOrder": 5,
-                "infoTitle": "This header was automatically added",
-                "info": "The Content-Length header was added to indicate to the server the size of the request body that is added to this request. Server uses this value to parse the request body accurately.\n\nYou can remove the header or enter a new one with a different value.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "previewSettingsLink": "Go to body",
-                "key": "Content-Length",
-                "value": "<calculated when request is sent>",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "host",
-                "sortOrder": 6,
-                "infoTitle": "We recommend using this header",
-                "info": "The Host header is added to identify the domain name for which a request is being sent to the server. This header is implicitly sent by every HTTP client.\n\nYou can remove the header or enter a new one with a different value. It is most likely that without this header, your request will return an HTTP 400 error.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "key": "Host",
-                "value": "<calculated when request is sent>",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "user-agent",
-                "sortOrder": 7,
-                "infoTitle": "We recommend using this header",
-                "info": "The User-Agent header is added to help the server identify Postman as the HTTP requesting application or client.\n\nIt is recommended that this header be sent, but you can remove the header or enter a new one with a different value.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "key": "User-Agent",
-                "value": "PostmanRuntime/7.39.1",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "accept",
-                "sortOrder": 8,
-                "infoTitle": "We recommend using this header",
-                "info": "The \"Accept: */*\" header is added to tell the server that Postman can understand and process all forms of response content types.\n\nIt is recommended that this header be sent, but you can remove the header or enter a new one with a different value.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "key": "Accept",
-                "value": "*/*",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "accept-encoding",
-                "sortOrder": 9,
-                "infoTitle": "We recommend using this header",
-                "info": "The Accept-Encoding header is added to indicate to the server that Postman HTTP client supports a defined list of content-encoding or compression algorithms as response.\n\nYou can remove the header or enter a new one with a different value. Doing that may not accurately render the response within the app.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "key": "Accept-Encoding",
-                "value": "gzip, deflate, br",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "name": "connection",
-                "sortOrder": 10,
-                "infoTitle": "We recommend using this header",
-                "info": "Postman added the Connection header to indicate the server to keep the underlying network connection open once the current response is received. This allows Postman to reuse the same connection for faster response times in subsequent requests to the same server.\n\nYou can remove this header or enter a new one with a different value, such as `Connection: Close` to control this behaviour.",
-                "allowedToToggle": true,
-                "disableEdit": true,
-                "key": "Connection",
-                "value": "keep-alive",
-                "system": true,
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text",
-                "id": 0
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"eventType\":\"CART_ADD\",\r\n    \"category\":\"Electronics\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/order/funnel",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "order",
-                "funnel"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Inventory",
-      "item": [
-        {
-          "name": "Get Stock Detail",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8080/api/inventory/detail/SKU-IPHONE-15",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "inventory",
-                "detail",
-                "SKU-IPHONE-15"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Check In-Stock (Boolean)",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8080/api/inventory/SKU-IPHONE-15",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "inventory",
-                "SKU-IPHONE-15"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update / Add Stock (Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"sku\": \"SKU-IPHONE-15\",\n  \"quantity\": 50\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/inventory",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "inventory"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Increment Stock (Compensation Rollback)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "[\n  {\n    \"id\": 1,\n    \"sku\": \"SKU-IPHONE-15\",\n    \"price\": 999.99,\n    \"quantity\": 2\n  }\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/inventory/increment",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "inventory",
-                "increment"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Verify Batch Availability (in-stock)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "[\n  {\n    \"id\": 1,\n    \"sku\": \"000001\",\n    \"price\": 69.99,\n    \"quantity\": 1\n  },\n  {\n    \"id\": 2,\n    \"sku\": \"000002\",\n    \"price\": 49.99,\n    \"quantity\": 2\n  }\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{base_url}}/api/inventory/in-stock",
+              "raw": "{{base_url}}/graphql",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "api",
-                "inventory",
-                "in-stock"
+                "graphql"
               ]
             },
-            "description": "Evaluates multi-item stock availability in a single batch query."
+            "description": "Fetches a single product by SKU with federated stock details."
           },
           "response": []
         },
         {
-          "name": "Set Exact Stock (Admin PUT)",
-          "request": {
-            "method": "PUT",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/api/inventory/000001?quantity=150",
-              "host": [
-                "{{base_url}}"
-              ],
-              "path": [
-                "api",
-                "inventory",
-                "000001"
-              ],
-              "query": [
-                {
-                  "key": "quantity",
-                  "value": "150",
-                  "description": "Target stock quantity"
-                }
-              ]
-            },
-            "description": "Directly sets the inventory count for a specific SKU using @RequestParam quantity."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Products",
-      "item": [
-        {
-          "name": "List Products",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "http://localhost:8080/api/product",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "product"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Save Product (Admin)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"sku\": \"SKU-IPHONE-15\",\n  \"name\": \"iPhone 15 Pro 128GB Titanium\",\n  \"description\": \"Apple iPhone 15 Pro with A17 Pro chip, aerospace-grade titanium design, and 48MP camera system.\",\n  \"price\": 999.99,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80\",\n  \"category\": \"Smartphones\",\n  \"rating\": 4.8,\n  \"reviewCount\": 1240,\n  \"isBestSeller\": true,\n  \"prices\": {\n    \"USD\": 999.99,\n    \"MXN\": 17999\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/product",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "product"
-              ]
-            },
-            "description": "Creates a product with comprehensive catalog fields: image URL, multi-currency map (USD/MXN), star ratings, review count, and best-seller flag."
-          },
-          "response": []
-        },
-        {
-          "name": "Batch Prices (Internal)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "[\n  \"SKU-IPHONE-15\"\n]",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/product/prices",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "product",
-                "prices"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Save Product (HD Media & Amazon/ML Attributes)",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"sku\": \"SKU-VISION-PRO\",\n  \"name\": \"Apple Vision Pro Spatial Computer\",\n  \"description\": \"256GB Spatial audio, M2 and R1 dual-chip processor with ultra-high-resolution micro-OLED displays.\",\n  \"price\": 3499,\n  \"status\": true,\n  \"imageUrl\": \"https://images.unsplash.com/photo-1592478411213-6153e4ebc07d?auto=format&fit=crop&w=800&q=80\",\n  \"category\": \"Wearables\",\n  \"rating\": 4.9,\n  \"reviewCount\": 840,\n  \"isBestSeller\": true,\n  \"prices\": {\n    \"USD\": 3499,\n    \"MXN\": 62999\n  }\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "http://localhost:8080/api/product",
-              "protocol": "http",
-              "host": [
-                "localhost"
-              ],
-              "port": "8080",
-              "path": [
-                "api",
-                "product"
-              ]
-            },
-            "description": "Saves high-end hardware with HD media URL, star ratings, review counts, and #1 Best Seller classification."
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Notifications",
-      "item": [
-        {
-          "name": "Stream SSE Notifications (Live Events)",
+          "name": "4. Place Order (with Idempotency & DHL Tracking)",
           "event": [
             {
               "listen": "prerequest",
               "script": {
+                "type": "text/javascript",
                 "exec": [
-                  "// Prevent Newman CLI from hanging indefinitely on infinite SSE stream",
-                  "if (typeof pm.execution !== \"undefined\" && typeof pm.execution.skipRequest === \"function\") {",
-                  "    console.log(\"ℹ️ Skipping infinite SSE stream request during Newman CLI automation\");",
-                  "    pm.execution.skipRequest();",
-                  "}"
-                ],
-                "type": "text/javascript"
+                  "// Generate UUIDv4 for Idempotency Key",
+                  "const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {",
+                  "    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);",
+                  "    return v.toString(16);",
+                  "});",
+                  "pm.collectionVariables.set('idempotency_key', uuid);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Order created successfully with tracking and total', () => {",
+                  "    const order = res.data.placeOrder;",
+                  "    pm.expect(order).to.exist;",
+                  "    pm.expect(order.id).to.exist;",
+                  "    pm.collectionVariables.set('order_id', order.id);",
+                  "    if (order.trackingNumber) {",
+                  "        pm.collectionVariables.set('tracking_number', order.trackingNumber);",
+                  "        pm.expect(order.trackingNumber).to.match(/^DHL-[A-Z0-9]+$/);",
+                  "    }",
+                  "    pm.expect(order.orderStatus).to.be.oneOf(['PLACED', 'PREPARING']);",
+                  "    pm.expect(order.orderItems).to.be.an('array');",
+                  "    pm.expect(order.orderItems.length).to.be.above(0);",
+                  "    console.log('✅ Created Order #' + order.id + ' tracking: ' + order.trackingNumber);",
+                  "});"
+                ]
               }
             }
           ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{idempotency_key}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation PlaceOrder($input: PlaceOrderInput!) {\n  placeOrder(input: $input) {\n    id\n    orderNumber\n    orderStatus\n    customerName\n    customerEmail\n    deliveryMethod\n    trackingNumber\n    carrier\n    subtotalAmount\n    shippingFee\n    taxAmount\n    totalAmount\n    paymentMethod\n    orderItems {\n      id\n      sku\n      price\n      quantity\n      product {\n        sku\n        name\n      }\n    }\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"customerName\": \"Jorge Garcia\",\n    \"customerEmail\": \"jorge@example.com\",\n    \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n    \"city\": \"Monterrey\",\n    \"postalCode\": \"64000\",\n    \"phone\": \"+52 81 1234 5678\",\n    \"deliveryMethod\": \"EXPRESS\",\n    \"paymentMethod\": \"CARD_VISA\",\n    \"orderItems\": [\n      {\n        \"sku\": \"{{product_sku}}\",\n        \"price\": 999.99,\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Places a new order through Apollo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
+          },
+          "response": []
+        },
+        {
+          "name": "5. List User Orders (JWT Isolation)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Orders array returned', () => {",
+                  "    pm.expect(res.data.orders).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetOrders {\n  orders {\n    id\n    orderNumber\n    orderStatus\n    totalAmount\n    trackingNumber\n    carrier\n    orderItems {\n      sku\n      price\n      quantity\n      product {\n        sku\n        name\n      }\n    }\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Queries orders for the authenticated user based on JWT sub claim."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Order by ID (Detailed Query)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Order details match created order ID', () => {",
+                  "    pm.expect(res.data.order).to.exist;",
+                  "    pm.expect(res.data.order.id).to.equal(pm.collectionVariables.get('order_id'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetOrder($id: ID!) {\n  order(id: $id) {\n    id\n    orderNumber\n    orderStatus\n    customerName\n    customerEmail\n    totalAmount\n    trackingNumber\n    carrier\n  }\n}",
+                "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Fetches a specific order by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Ship Order (Stage 3 Logistics - In Transit DHL)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Order transitioned to SHIPPED status', () => {",
+                  "    pm.expect(res.data.shipOrder).to.exist;",
+                  "    pm.expect(res.data.shipOrder.orderStatus).to.equal('SHIPPED');",
+                  "    pm.expect(res.data.shipOrder.carrier).to.equal('DHL Express');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation ShipOrder($id: ID!) {\n  shipOrder(id: $id) {\n    id\n    orderStatus\n    trackingNumber\n    carrier\n  }\n}",
+                "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Transitions the order into SHIPPED status via Apollo Router GraphQL mutation."
+          },
+          "response": []
+        },
+        {
+          "name": "8. Deliver Order (Stage 5 Logistics - Delivered & Signed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Order transitioned to DELIVERED status', () => {",
+                  "    pm.expect(res.data.deliverOrder).to.exist;",
+                  "    pm.expect(res.data.deliverOrder.orderStatus).to.equal('DELIVERED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeliverOrder($id: ID!) {\n  deliverOrder(id: $id) {\n    id\n    orderStatus\n  }\n}",
+                "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Transitions the order into DELIVERED status via Apollo Router GraphQL mutation."
+          },
+          "response": []
+        },
+        {
+          "name": "9. Cancel Order (Saga Compensation & Stock Rollback)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Order cancelled with compensation trigger', () => {",
+                  "    pm.expect(res.data.cancelOrder).to.exist;",
+                  "    pm.expect(res.data.cancelOrder.orderStatus).to.be.oneOf(['CANCELLED', 'COMPENSATING']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CancelOrder($id: ID!) {\n  cancelOrder(id: $id) {\n    id\n    orderStatus\n  }\n}",
+                "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Triggers distributed Saga cancellation, releasing reserved inventory and dispatching Kafka order-cancelled notification."
+          },
+          "response": []
+        },
+        {
+          "name": "10. Federated Inventory Query",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Inventory stock details returned', () => {",
+                  "    pm.expect(res.data.inventory).to.exist;",
+                  "    pm.expect(res.data.inventory.sku).to.equal(pm.collectionVariables.get('product_sku'));",
+                  "    pm.expect(res.data.inventory.quantity).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetInventory($sku: String!) {\n  inventory(sku: $sku) {\n    id\n    sku\n    quantity\n    isInStock\n  }\n}",
+                "variables": "{\n  \"sku\": \"{{product_sku}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Direct GraphQL query to inventory subgraph via Apollo Router."
+          },
+          "response": []
+        },
+        {
+          "name": "11. All Inventories Batch Query",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('No GraphQL Errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "});",
+                  "pm.test('Inventories array returned', () => {",
+                  "    pm.expect(res.data.inventories).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query GetAllInventories {\n  inventories {\n    id\n    sku\n    quantity\n    isInStock\n  }\n}",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Fetches all inventory stock levels via Apollo Router."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📊 Telemetry & Funnel Events",
+      "item": [
+        {
+          "name": "1. Record Funnel Event - CART_ADD",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CART_ADD\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"cart\"\n}"
+            },
+            "url": {
+              "raw": "{{orders_service_url}}/api/order/funnel",
+              "host": [
+                "{{orders_service_url}}"
+              ],
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Records CART_ADD funnel telemetry event."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Record Funnel Event - CHECKOUT_START",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CHECKOUT_START\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"shipping\"\n}"
+            },
+            "url": {
+              "raw": "{{orders_service_url}}/api/order/funnel",
+              "host": [
+                "{{orders_service_url}}"
+              ],
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Records CHECKOUT_START funnel telemetry event."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Record Funnel Event - CHECKOUT_STEP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"CHECKOUT_STEP\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"payment\"\n}"
+            },
+            "url": {
+              "raw": "{{orders_service_url}}/api/order/funnel",
+              "host": [
+                "{{orders_service_url}}"
+              ],
+              "path": [
+                "api",
+                "order",
+                "funnel"
+              ]
+            },
+            "description": "Records CHECKOUT_STEP funnel telemetry event."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📡 Notifications (SSE)",
+      "item": [
+        {
+          "name": "1. Stream SSE Notifications",
           "request": {
             "method": "GET",
             "header": [
@@ -1038,7 +958,133 @@
                 "stream"
               ]
             },
-            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service when orders are placed, cancelled, shipped, or delivered."
+            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Direct Subservice Endpoints (Fallback & M2M)",
+      "item": [
+        {
+          "name": "1. Products Service Direct Catalog",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Products array returned', () => {",
+                  "    pm.expect(res).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{products_service_url}}/api/product",
+              "host": [
+                "{{products_service_url}}"
+              ],
+              "path": [
+                "api",
+                "product"
+              ]
+            },
+            "description": "Direct REST endpoint to Products Service (:8004/api/product)."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Inventory Service Direct In-Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Stock status array returned', () => {",
+                  "    pm.expect(res).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"sku\": \"{{product_sku}}\",\n    \"quantity\": 1\n  }\n]"
+            },
+            "url": {
+              "raw": "{{inventory_service_url}}/api/inventory/in-stock",
+              "host": [
+                "{{inventory_service_url}}"
+              ],
+              "path": [
+                "api",
+                "inventory",
+                "in-stock"
+              ]
+            },
+            "description": "Direct REST endpoint to Inventory Service (:8001/api/inventory/in-stock)."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Orders Service Direct List",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{orders_service_url}}/api/order",
+              "host": [
+                "{{orders_service_url}}"
+              ],
+              "path": [
+                "api",
+                "order"
+              ]
+            },
+            "description": "Direct REST endpoint to Orders Service (:8003/api/order)."
           },
           "response": []
         }
@@ -1059,14 +1105,14 @@
     {
       "listen": "prerequest",
       "script": {
+        "type": "text/javascript",
         "exec": [
-          "const baseUrl = pm.variables.get(\"BASE_URL\") || pm.variables.get(\"base_url\");",
+          "const baseUrl = pm.variables.get('BASE_URL') || pm.variables.get('base_url');",
           "if (baseUrl) {",
-          "    pm.variables.set(\"base_url\", baseUrl);",
-          "    pm.variables.set(\"BASE_URL\", baseUrl);",
+          "    pm.variables.set('base_url', baseUrl);",
+          "    pm.variables.set('BASE_URL', baseUrl);",
           "}"
-        ],
-        "type": "text/javascript"
+        ]
       }
     }
   ],
@@ -1077,8 +1123,33 @@
       "type": "string"
     },
     {
+      "key": "BASE_URL",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
       "key": "keycloak_url",
       "value": "http://localhost:8181",
+      "type": "string"
+    },
+    {
+      "key": "products_service_url",
+      "value": "http://localhost:8004",
+      "type": "string"
+    },
+    {
+      "key": "orders_service_url",
+      "value": "http://localhost:8003",
+      "type": "string"
+    },
+    {
+      "key": "inventory_service_url",
+      "value": "http://localhost:8001",
+      "type": "string"
+    },
+    {
+      "key": "notifications_service_url",
+      "value": "http://localhost:8002",
       "type": "string"
     },
     {
@@ -1088,12 +1159,22 @@
     },
     {
       "key": "order_id",
-      "value": "6",
+      "value": "1",
       "type": "string"
     },
     {
-      "key": "BASE_URL",
-      "value": "http://localhost:8080",
+      "key": "product_sku",
+      "value": "SKU-IPHONE-15",
+      "type": "string"
+    },
+    {
+      "key": "idempotency_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tracking_number",
+      "value": "",
       "type": "string"
     }
   ]

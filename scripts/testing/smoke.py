@@ -29,7 +29,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-DEFAULT_GATEWAY = "http://127.0.0.1:8080"
+DEFAULT_GATEWAY = "http://127.0.0.1:4200"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 def get_keycloak_secret():
