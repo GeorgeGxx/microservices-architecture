@@ -537,7 +537,7 @@ graph LR
 * **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
   * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
-  * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for Spring Cloud Gateway and machine-to-machine clients.
+  * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for CI/CD runners, automated synthetic testing (`smoke.py`, `simulate.py`, Newman), and machine-to-machine (M2M) backend clients.
 
 ### 3. 📱 Full-Stack Mobile PWA Responsiveness & Touch Optimization
 * **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
