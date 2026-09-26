@@ -62,31 +62,31 @@ spec:
               value: "service.name=products-service"
           resources:
             requests:
-              cpu: "200m"
-              memory: "384Mi"
+              cpu: "400m"
+              memory: "512Mi"
               ephemeral-storage: "512Mi"
             limits:
-              cpu: "1000m"
-              memory: "1024Mi"
+              cpu: "2000m"
+              memory: "1536Mi"
               ephemeral-storage: "1Gi"
           readinessProbe:
             httpGet:
               path: /actuator/products/health
               port: 8004
               scheme: HTTP
-            initialDelaySeconds: 15
+            initialDelaySeconds: 45
             periodSeconds: 10
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 8
           livenessProbe:
             httpGet:
               path: /actuator/products/health
               port: 8004
               scheme: HTTP
-            initialDelaySeconds: 25
+            initialDelaySeconds: 60
             periodSeconds: 15
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 8
           volumeMounts:
             - name: tmp
               mountPath: /tmp

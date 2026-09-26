@@ -114,7 +114,7 @@ api-gateway:
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 3
+    maxReplicaCount: 1
     prometheus:
       enabled: true
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
@@ -147,7 +147,7 @@ inventory-service:
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 3
+    maxReplicaCount: 1
     cpu:
       enabled: true
       targetUtilizationPercentage: 70
@@ -174,7 +174,7 @@ notification-service:
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 3
+    maxReplicaCount: 1
     kafka:
       enabled: true
       bootstrapServers: "kafka.data.svc.cluster.local:9092"
@@ -208,7 +208,7 @@ orders-service:
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 3
+    maxReplicaCount: 1
     cpu:
       enabled: true
       targetUtilizationPercentage: 70
@@ -235,7 +235,7 @@ products-service:
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 3
+    maxReplicaCount: 1
     cpu:
       enabled: true
       targetUtilizationPercentage: 70
