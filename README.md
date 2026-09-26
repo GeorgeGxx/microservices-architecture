@@ -3,7 +3,8 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk" alt="Java 21" />
   <img src="https://img.shields.io/badge/Spring%20Boot-4.0.8-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.0.8" />
-  <img src="https://img.shields.io/badge/Angular-21%20SPA-red.svg?style=for-the-badge&logo=angular" alt="Angular 21" />
+  <img src="https://img.shields.io/badge/React-19%20SPA-blue.svg?style=for-the-badge&logo=react" alt="React 19" />
+  <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS v4" />
   <img src="https://img.shields.io/badge/Keycloak-26.7.3-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
   <img src="https://img.shields.io/badge/Istio-Service%20Mesh-466BB0.svg?style=for-the-badge&logo=istio" alt="Istio" />
   <img src="https://img.shields.io/badge/HashiCorp-Vault-black.svg?style=for-the-badge&logo=vault" alt="Vault" />
@@ -13,7 +14,7 @@
   <img src="https://img.shields.io/badge/Newman%20Tests-22%2F22%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 22/22 Passing" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **Angular 21**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.20.1 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.20.1 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
 
 ---
 
@@ -22,7 +23,7 @@
 ```mermaid
 graph TB
     subgraph Clients["🌐 Client Layer"]
-        SPA["Angular 21 Reactive SPA<br/>(Signals • @defer • Port 4200)"]
+        SPA["React 19 SPA<br/>(Tailwind v4 • Vite 6 • Port 4200)"]
         CLI["Platform CLI & Newman<br/>(platform.ps1 • newman run)"]
         EXT["External Webhooks / Mobile<br/>(POS Scanner • Cloudflare)"]
     end
@@ -32,21 +33,21 @@ graph TB
         VAULT["HashiCorp Vault<br/>(KV-v2 • Transit • Port 8200)"]
     end
 
-    subgraph Gateway["🚪 Ingress & API Gateway"]
-        SCG["Spring Cloud Gateway<br/>(Port 8080 • Redis RateLimiter)"]
+    subgraph Gateway["🚪 Ingress & Federated Gateway"]
+        ROUTER["Apollo Router v2.16.3 (Rust)<br/>(Port 8080 • Supergraph Engine • Apollo Sandbox)"]
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
-    subgraph Microservices["⚙️ Core Domain Microservices (Spring Boot 4.0.8)"]
-        PROD["Products Service<br/>(:8004 • PostgreSQL 18)"]
-        ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Saga)"]
-        INV["Inventory Service<br/>(:8001 • PostgreSQL 18)"]
+    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.0.8 • Apollo Federation 2.3)"]
+        PROD["Products Service<br/>(:8004 • PostgreSQL 18 • Subgraph)"]
+        ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Subgraph)"]
+        INV["Inventory Service<br/>(:8001 • PostgreSQL 18 • Subgraph)"]
         NOTIF["Notification Service<br/>(:8002 • SSE Realtime Stream)"]
     end
 
     subgraph EventBus["📨 Event Streaming & Caching"]
         KAFKA["Apache Kafka 7.8<br/>(KRaft • Port 9092)"]
-        REDIS["Redis 8.8.1<br/>(Cache & Token-Bucket RateLimiter)"]
+        REDIS["Redis 8.8.1<br/>(Cache & Rate Limiting)"]
     end
 
     subgraph Observability["📊 Full-Stack Observability (LGTM Stack)"]
@@ -57,10 +58,15 @@ graph TB
     end
 
     SPA -->|Public OIDC Token| KC
-    SPA -->|HTTP / REST| SCG
-    CLI --> SCG
-    EXT --> SCG
-    SCG --> ISTIO
+    SPA -->|Federated GraphQL Queries| ROUTER
+    CLI --> ROUTER
+    EXT --> ROUTER
+    ROUTER --> ISTIO
+
+    ISTIO -->|Subgraph _entities / GraphQL| PROD
+    ISTIO -->|Subgraph _entities / GraphQL| ORD
+    ISTIO -->|Subgraph _entities / GraphQL| INV
+    ISTIO -->|SSE Stream| NOTIF
 
     ISTIO --> PROD
     ISTIO --> ORD
@@ -75,7 +81,7 @@ graph TB
     ORD -.->|Fetch Secrets| VAULT
     INV -.->|Fetch Secrets| VAULT
 
-    SCG -.->|Rate Limiting| REDIS
+    ROUTER -.->|Rate Limiting| REDIS
     PROD -.->|Cache Aside| REDIS
 
     Microservices -.->|Metrics| PROM
@@ -93,14 +99,14 @@ To keep this overview concise and practical, in-depth architectural specificatio
 
 | Guide | Focus & Key Contents | Target Audience |
 | :--- | :--- | :--- |
-| [🏛️ **Architecture & Domain Guide**](./docs/ARCHITECTURE.md) | Domain-Driven Design (DDD), Saga compensation flow, Keycloak 26 IAM, HashiCorp Vault secrets, Angular 21 Signal store, POS QR workflows, and Amazon/Mercado Libre e-commerce models. | Software Architects, Developers |
+| [🏛️ **Architecture & Domain Guide**](./docs/ARCHITECTURE.md) | Domain-Driven Design (DDD), Saga compensation flow, Keycloak 26 IAM, HashiCorp Vault secrets, React 19 state context, POS QR workflows, and Amazon/Mercado Libre e-commerce models. | Software Architects, Developers |
 | [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (6 CPUs / 12 GB RAM / 40 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
 | [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | 12-stage enterprise pipeline, Policy-as-Code (OPA / Gatekeeper), SAST (Semgrep, Gitleaks), Container scanning (Trivy), DAST (OWASP ZAP), and ArgoCD GitOps sync. | SecOps, Cloud Engineers |
 | [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
 | [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), automated smoke tests (`smoke.py`), DDoS botnet stress tests, stock exhaustion chaos drills, and Newman API contract testing. | QA Engineers, Developers |
 | [☁️ **Multi-Cloud Terraform & Rollbacks**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable Terraform modules, and automated 3-tier rollback mechanisms. | Cloud Architects, SRE |
 | [🛠️ **Automation Scripts Reference**](./docs/SCRIPTS_REFERENCE.md) | Complete CLI reference for `platform.ps1`, cloud helpers (`manage-aws.ps1`, `manage-azure.ps1`, `manage-gcp.ps1`), FinOps disk cleanup, and build automation. | Platform Ops, SysAdmins |
-| [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified 22-request API collection with 1-click Keycloak public token (zero secrets), DHL generation, Cart Abandonment events, and dynamic `{{order_id}}` chaining. | API Developers, QA |
+| [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Apollo Router (Federation 2.3 GraphQL queries/mutations, 1-click Keycloak OIDC, DHL tracking, and dynamic chaining). | API Developers, QA |
 
 ---
 
@@ -109,12 +115,12 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | Service | Technology | Port | Access URL | Default Credentials |
 | :--- | :--- | :---: | :--- | :--- |
 | **Keycloak IAM** | Keycloak 26.7.3 (OIDC / OAuth2) | `8181` / `9000` | [http://localhost:8181](http://localhost:8181) | `admin` / `admin` |
-| **Angular Frontend** | Angular 21 / Nginx | `4200` | [http://localhost:4200](http://localhost:4200) | `admin_user` / `admin` & `basic_user` / `password` |
-| **API Gateway** | Spring Cloud Gateway 4.0.8 (Swagger UI) | `8080` | [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html) | Bearer JWT (Keycloak) |
-| **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8080/api/product](http://localhost:8080/api/product) | Internal / Gateway Routed |
-| **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8080/api/order](http://localhost:8080/api/order) | Internal / Gateway Routed |
-| **Inventory Service** | Spring Boot 4.0.8 | `8001` | [http://localhost:8080/api/inventory](http://localhost:8080/api/inventory) | Internal / Gateway Routed |
-| **Notification Service** | Spring Boot 4.0.8 | `8002` | [http://localhost:8080/api/notifications/stream](http://localhost:8080/api/notifications/stream) | SSE Stream |
+| **React Frontend** | React 19 + Tailwind v4 / Nginx | `4200` | [http://localhost:4200](http://localhost:4200) | `admin_user` / `admin` & `basic_user` / `password` |
+| **Apollo Router Gateway** | Apollo Router v2.16.3 (Rust / Apollo Federation 2.3) | `8080` | [http://localhost:8080](http://localhost:8080) (Apollo Sandbox & `/graphql`) | Bearer JWT / Public Introspection |
+| **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8004/graphql](http://localhost:8004/graphql) & `/api/product` | Internal Subgraph & REST |
+| **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8003/graphql](http://localhost:8003/graphql) & `/api/order` | Internal Subgraph & REST |
+| **Inventory Service** | Spring Boot 4.0.8 | `8001` | [http://localhost:8001/graphql](http://localhost:8001/graphql) & `/api/inventory` | Internal Subgraph & REST |
+| **Notification Service** | Spring Boot 4.0.8 | `8002` | [http://localhost:8002/api/notifications/stream](http://localhost:8002/api/notifications/stream) | SSE Stream |
 | **Kafka Broker** | Apache Kafka (KRaft) 7.8.0 | `9092` / `9094` | `localhost:9092` / `localhost:9094` | SASL PLAIN *(Encrypted network)* |
 | **Kafka Exporter** | Prometheus Kafka Exporter 1.9 | `9308` | [http://localhost:9308/metrics](http://localhost:9308/metrics) | *(No auth required)* |
 | **Redis & Exporter** | Redis 8.8.1 / Exporter 1.82 | `6379` / `9121` | `localhost:6379` • [`:9121/metrics`](http://localhost:9121/metrics) | *(Password protected)* |
@@ -130,6 +136,18 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | **Alloy** | Grafana Alloy 1.19.1 | `3300` | `localhost:3300` | *(Via Grafana datasource)* |
 | **Istio Ingress Gateway** | Envoy Proxy (Istio 1.31.1) | `80` / `443` | [http://localhost](http://localhost) | Mesh Ingress |
 | **Kiali Dashboard** | Kiali 2.31.0 | `20001` | [http://localhost:20001](http://localhost:20001) | *(No auth required)* |
+
+### 📖 API Exploration & Interactive Documentation Matrix
+
+The platform separates **Unified Federated GraphQL Supergraph exploration** from **Microservice REST API documentation**:
+
+| Interface | Protocol / Tool | Direct Access URL | Scope & Capabilities |
+| :--- | :--- | :--- | :--- |
+| 🚀 **Apollo Sandbox** | GraphQL Federation 2.3 | [http://localhost:8080](http://localhost:8080) | Interactive supergraph explorer, schema introspection, query visualizer, and live execution across all federated subgraphs. |
+| 📖 **Products Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html) | OpenAPI v3 interactive UI for Products REST endpoints (`/api/product/**`, `/v3/api-docs`). |
+| 📖 **Orders Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html) | OpenAPI v3 interactive UI for Orders REST endpoints, funnel telemetry (`/api/order/funnel`), and idempotency headers. |
+| 📖 **Inventory Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | OpenAPI v3 interactive UI for Inventory REST endpoints (`/api/inventory/**`, `/v3/api-docs`). |
+| 📖 **Notification Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html) | OpenAPI v3 interactive UI for Notifications & SSE stream endpoint (`/api/notifications/stream`). |
 
 ---
 
@@ -217,18 +235,44 @@ kubectl get pods -n dev # observability, auth, data, ..
 > 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/LOCAL_DEPLOYMENT.md](./docs/LOCAL_DEPLOYMENT.md).
 ---
 
-## 🧪 Quick Test Run (Newman API Contract Suite)
+## 🧪 Automated Testing & Simulation Suite
 
-Validate the entire 22-request API suite against the running cluster in 3 seconds:
+The platform provides a comprehensive suite of Python and PowerShell scripts to validate health, contract integrity, load simulation, and telemetry:
 
 ```powershell
+# 1. End-to-End Smoke Testing (9/9 Synthetic Checks)
+python scripts/testing/smoke.py
+
+# 2. Legitimate E-Commerce User Traffic Simulation
+python scripts/testing/simulate.py --scenario traffic --orders 15 --concurrency 3
+
+# 3. Telemetry & PromQL Diagnostics (JVM, Abandonment Rate, Vault)
+python scripts/testing/check.py --check all
+
+# 4. Platform Ecosystem Verification (Apollo Router, Microservices, Grafana)
+python scripts/testing/verify.py
+
+# 5. DevSecOps Synthetic Health & Security Gate
+python scripts/endpoint-smoke-test.py
+
+# 6. Newman API Contract Suite (22 Requests)
 npx --yes newman run devsecops/testing/newman/microservices.postman_collection.json `
   --env-var "BASE_URL=http://localhost:8080" `
   --env-var "keycloak_url=http://localhost:8181" `
   --reporters cli
 ```
 
-**Result:** 22/22 requests passing with 0 failures (`HTTP 200`, `201`, `202`).
+---
+
+## 🛍️ Modernized Storefront Architecture (React 19 & TailwindCSS v4)
+
+The presentation layer (`http://localhost:4200`) has been re-architected following enterprise e-commerce best practices:
+
+- **Unified Real-Time Global Search:** A single, responsive search bar in the header synchronizes catalog filtering instantly across all views, eliminating redundant page search inputs while providing quick `⌘K` access to the Command Palette.
+- **Enterprise Wishlist Persistence:** Adheres to mature e-commerce identity patterns—guest users are seamlessly prompted to authenticate via Keycloak to save items, while authenticated customers have their favorites safely persisted across sessions and devices.
+- **Role-Based Telemetry & Admin Controls:** Administrative tools (QR/Barcode Scanner for inventory auditing, Admin Telemetry tab, warehouse controls) are strictly restricted to users holding the `ADMIN` role.
+- **Scoped Notification Feed:** Real-time Server-Sent Events (SSE) from `notification-service` are isolated per authenticated user profile to protect transactional privacy (order confirmation, DHL tracking, stock alerts).
+- **Responsive Pagination:** Full, responsive pagination controls with items-per-page selectors and page counters across both the public product catalog and the administrative data tables.
 
 ---
 
@@ -237,7 +281,7 @@ npx --yes newman run devsecops/testing/newman/microservices.postman_collection.j
 ```text
 microservices-architecture/
 ├── .github/workflows/              # GitHub Actions CI/CD (12-Stage Enterprise Pipelines)
-├── api-gateway/                    # Spring Cloud Gateway (Port 8080 • Rate Limiting)
+├── apollo-router/                  # Apollo Router v2 Supergraph Gateway (Port 8080 • Federation 2.3)
 ├── argocd                          # GitOps and CD Deployments
 ├── azure-devops                    # Azure DevOps Pipeline YAML files
 ├── devsecops/                      # Centralized DevSecOps Hub
@@ -258,7 +302,7 @@ microservices-architecture/
 │   ├── SCRIPTS_REFERENCE.md        # Complete platform.ps1 & automation scripts manual
 │   ├── Diagrams.drawio             # 12-Page Architectural Blueprint (Draw.io)
 │   └── realm-export.json           # Keycloak 26 Realm configuration backup
-├── frontend/                       # Angular 21 Reactive SPA (Nginx Distroless)
+├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
 ├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
 ├── inventory-service/              # Stock allocation & verification (Port 8001)
 ├── k8s/                            # Kubernetes manifests & Istio routing rules
@@ -269,7 +313,7 @@ microservices-architecture/
 ├── scripts/                        # Enterprise automation scripts (PowerShell & Python)
 │   ├── testing/                    # Specialized testing & load simulation (simulate, smoke, verify, check)
 │   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
-│   ├── build-all.py                # Concurrent Java & Angular container image compiler
+│   ├── build-all.py                # Concurrent Java & React container image compiler
 │   ├── endpoint-smoke-test.py      # Synthetic post-deployment health & SLO prober
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
 │   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator

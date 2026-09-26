@@ -40,9 +40,12 @@ All services and dashboards are automated via background port-forwarding and ava
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
-| 🌐 **Frontend Angular SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI |
-| 🔌 **API Gateway (Swagger)** | [`http://localhost:8080/swagger-ui.html`](http://localhost:8080/swagger-ui.html) | Public Docs | Interactive Swagger OpenAPI documentation |
-| 🔌 **API Gateway (`/api/product`)** | [`http://localhost:8080/api/product`](http://localhost:8080/api/product) | Bearer JWT (Keycloak) | Spring Cloud Gateway with Redis Rate Limiting |
+| 🌐 **Frontend React 19 SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
+| 🚀 **Apollo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
+| 📖 **Products Swagger UI** | [`http://localhost:8004/swagger-ui.html`](http://localhost:8004/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Products REST APIs |
+| 📖 **Orders Swagger UI** | [`http://localhost:8003/swagger-ui.html`](http://localhost:8003/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Orders REST APIs |
+| 📖 **Inventory Swagger UI** | [`http://localhost:8001/swagger-ui.html`](http://localhost:8001/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Inventory REST APIs |
+| 📖 **Notification Swagger UI** | [`http://localhost:8002/swagger-ui.html`](http://localhost:8002/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Notification REST APIs |
 | 🔑 **Keycloak IAM** | [`http://localhost:8181`](http://localhost:8181) | `admin` / `admin` | Identity Provider, OAuth2/OIDC, PKCE Realm |
 | 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
 | 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
@@ -76,7 +79,7 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 
 # 2. Bootstrap full Minikube ecosystem (Istio, Vault, Keycloak, db-keycloak, Apps, Tunnels)
 .\platform.ps1 up
-.\platform.ps1 up -Build        # Compile Java & Angular Dockerfiles from source & sideload to Minikube
+.\platform.ps1 up -Build        # Compile Java & React Dockerfiles from source & sideload to Minikube
 .\platform.ps1 build            # Standalone image build & rolling update in Minikube
 .\platform.ps1 up -WithIstio     # With Istio mTLS and Kiali
 .\platform.ps1 up -WithoutIstio  # Pure Kubernetes native mode
@@ -321,8 +324,8 @@ Located in `.github/workflows/`:
 
 ### 2. Azure DevOps Pipelines ➔ Azure Cloud
 Located in `azure-devops/`:
-- **Master Template ([`azure-pipelines.yml`](./azure-devops/templates/azure-pipelines.yml))**: Implements the hardened 12-stage DevSecOps cycle with multi-environment automated rollbacks, adapted for Spring Boot Java 21 and Angular 21, targeting Azure Container Registry (ACR) and Azure AKS.
-- **Per-Service Pipelines**: [`api-gateway.yml`](./azure-devops/pipelines/api-gateway.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
+- **Master Template ([`azure-pipelines.yml`](./azure-devops/templates/azure-pipelines.yml))**: Implements the hardened 12-stage DevSecOps cycle with multi-environment automated rollbacks, adapted for Spring Boot Java 21 and React 19, targeting Azure Container Registry (ACR) and Azure AKS.
+- **Per-Service Pipelines**: [`apollo-router.yml`](./azure-devops/pipelines/apollo-router.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
 - **Terraform Pipeline ([`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml))**: Deploys Azure AKS / VNet / PostgreSQL Flexible infrastructure.
 
 ### 3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP
@@ -353,7 +356,7 @@ The project features decoupled and single-unified CI/CD pipelines across major e
 
 ### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
 - **Unified Pipeline (`azure-devops/templates/azure-pipelines.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
-  - Stages 1-5: Unit Tests (Maven/Angular, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
+  - Stages 1-5: Unit Tests (Maven/React, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
   - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
   - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
   - **Promotion**: Certified image promotion to Azure Container Registry (ACR).

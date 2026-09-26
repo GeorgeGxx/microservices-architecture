@@ -11,7 +11,7 @@ The platform follows a modern **Cloud-Native DevSecOps Testing Pyramid**, distri
 ```mermaid
 flowchart TD
     subgraph Pyramid["Modern DevSecOps Testing Strategy"]
-        E2E["🧭 Stage 8: E2E Functional Testing<br/>(Cypress • Angular 21 SPA • Keycloak OIDC)"]
+        E2E["🧭 Stage 8: E2E Functional Testing<br/>(Cypress • React 19 SPA • Keycloak OIDC)"]
         PERF["⚡ Stage 9: Performance & Load Testing<br/>(k6 • SLA Thresholds • Rollback Gates)"]
         INT["🔗 Stage 7: Integration & Contract Testing<br/>(Newman / Postman • 22 API Assertions)"]
         CHAOS["💥 Runtime Chaos & Simulation<br/>(Python simulate.py • Circuit Breakers • DDoS)"]
@@ -47,7 +47,7 @@ flowchart TD
 
 #### B. Cypress vs. Selenium WebDriver (E2E Functional Testing)
 
-* **Angular 21 Reactive Architecture Compatibility:** Selenium operates out-of-process, sending remote HTTP commands via WebDriver protocol (`chromedriver`), introducing network latency and frequent timing issues (*flaky tests* due to `StaleElementReferenceException`). **Cypress** runs directly inside the browser's execution loop, automatically synchronizing with Angular Signals, RxJS observables, and DOM updates without arbitrary `Thread.sleep()`.
+* **React 19 Concurrent Rendering Compatibility:** Selenium operates out-of-process, sending remote HTTP commands via WebDriver protocol (`chromedriver`), introducing network latency and frequent timing issues (*flaky tests* due to `StaleElementReferenceException`). **Cypress** runs directly inside the browser's execution loop, automatically synchronizing with React 19 fiber reconciler transitions, hooks, Context state, and DOM updates without arbitrary `Thread.sleep()`.
 * **Keycloak OIDC & Network Interception:** Cypress provides native network interception (`cy.intercept()`), allowing seamless inspection of Keycloak Bearer tokens, token refresh simulation, and deterministic API stubbing without running external HTTP proxies (like BrowserMob).
 * **Developer Experience & CI/CD Artifacts:** Cypress automatically captures DOM snapshots, video recordings, and screenshots upon test failure, enabling instant root-cause analysis in CI/CD artifact tabs without configuring third-party listeners.
 
@@ -194,9 +194,9 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 
 ---
 
-##### 🖥️ Method 2: Interactive Browser Testing via Angular Frontend SPA
+##### 🖥️ Method 2: Interactive Browser Testing via React 19 Frontend SPA
 1. Open the storefront in your web browser: **[http://localhost:4200](http://localhost:4200)**.
-2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click emits a real-time `CART_ADD` telemetry event to `orders-service`).
+2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click emits a real-time `CART_ADD` telemetry event to `orders-service` via Apollo Router).
 3. Leave the session idle or close the shopping cart drawer (abandoning the purchase).
 4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the gauge needle climb upward.
 5. Next, proceed through the checkout flow and click **"Place Order & Pay"**: once the order completes with `HTTP 201 Created`, the gauge needle immediately swings back down toward the **🟢 Green** zone.
@@ -214,11 +214,15 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 * **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
 
 ### 📦 Postman & Newman Test Suite (Unified Collection):
-The repository maintains a single, comprehensive Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) containing all **22 verified requests** designed for both interactive desktop usage in Postman and headless automated CI/CD pipeline execution with Newman:
+The repository maintains a comprehensive Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) aligned with **Apollo Router (GraphQL Federation 2.3)**, designed for both interactive desktop usage in Postman and headless automated CI/CD pipeline execution with Newman:
 
 * **Zero-Config 1-Click Authentication:** Run `🔑 Authentication ➔ 1. Login as Admin` to fetch and store the JWT into `{{jwt_token}}` via Keycloak's public client (`microservices_frontend`). **No `client_secret` required!**
-* **Dynamic Chaining (`{{order_id}}`):** Creating an order automatically saves its ID into collection variables, allowing `Cancel Order`, `Ship Order`, and `Deliver Order` to run sequentially without manual edits.
-* **E-Commerce Scenarios:** Includes pre-built JSON payloads for **Automated DHL Tracking Generation** (`POST /api/order`), **Cart Abandonment Rate** funnel events (`POST /api/order/funnel`), multi-currency catalog creation (`POST /api/product`), and real-time SSE notifications stream (`GET /api/notifications/stream`).
+* **Federated GraphQL Operations:** Native queries and mutations against Apollo Router (`POST {{base_url}}/graphql`):
+  * **Supergraph Catalog:** Resolves `products` with real-time stock availability federated from the `inventory` subgraph (`isInStock`, `quantity`).
+  * **Order Placement:** Generates dynamic `idempotency_key` (UUIDv4) and automated DHL tracking number (`DHL-[A-Z0-9]+`), saving `order_id` into collection variables.
+  * **Logistics State Machine:** Progresses orders through `shipOrder` (`SHIPPED`) and `deliverOrder` (`DELIVERED`).
+  * **Saga Compensation:** Triggers `cancelOrder` to execute distributed rollbacks and release inventory.
+* **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`).
 * **CI/CD Quality Gate (Newman CLI):** Fully compatible with automated pipeline execution in GitHub Actions, Azure DevOps, and Bitbucket Pipelines (`newman run $COLLECTION --env-var "BASE_URL=${TARGET_URL}"`). Pre-request scripts automatically harmonize `base_url` and `BASE_URL`.
 
 ---

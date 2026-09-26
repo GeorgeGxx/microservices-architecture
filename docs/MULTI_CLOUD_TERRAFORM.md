@@ -155,7 +155,7 @@ This directory provides enterprise-grade reference templates for **Amazon Web Se
 * **[github-actions-eks-pipeline.yml.example](./devsecops/reference/aws-eks/github-actions-eks-pipeline.yml.example):**
   * **Dynamic S3 `.tfstate` Discovery:** Queries remote Terraform S3 state and DynamoDB lock to automatically extract EKS cluster name, ECR URLs, ALB ingress endpoints, frontend S3 bucket, and CloudFront distribution ID.
   * **Zero-Trust IAM OIDC:** Uses `aws-actions/configure-aws-credentials@v4` with web identity federation (zero static keys).
-  * **Frontend SPA Deployment (Angular 21):** S3 sync with immutable caching headers (`max-age=31536000, immutable`), `no-cache` for `index.html`, and atomic CloudFront CDN invalidation (`/*`).
+  * **Frontend SPA Deployment (React 19):** S3 sync with immutable caching headers (`max-age=31536000, immutable`), `no-cache` for `index.html`, and atomic CloudFront CDN invalidation (`/*`).
   * **Amazon ECR Hardening:** Immutable tagging with Trivy vulnerability scanning gates.
   * **Automated Rollbacks:** Dedicated `rollback-staging-eks` job and canary health check auto-rollback.
 * **[argocd-application-eks.yaml.example](./devsecops/reference/aws-eks/argocd-application-eks.yaml.example):**

@@ -89,34 +89,86 @@ sum by (cohort) (ecommerce_orders_by_cohort{service=~"$service"})
 
 ---
 
-### ⚡ Golden Signals: Traffic, Latency & Error Rates
+### ⚡ Golden Signals: Traffic, Latency & Error Rates (Unified Router & Subgraphs)
 
 #### 📈 Request Throughput (Requests Per Second - RPS)
-Calculates per-second request rate grouped by service name and HTTP response code.
+Calculates per-second request rate across both Apollo Router (GraphQL) and Spring Boot subgraphs:
 ```promql
-sum by (service, status) (rate(http_server_requests_seconds_count{service=~"$service"}[1m]))
+# Unified (Apollo Router + Spring Boot Subgraphs):
+sum by (service, status) (rate(http_server_requests_seconds_count{service=~"$service"}[1m])) 
+or 
+sum by (service, status) (rate(apollo_router_http_requests_total{service=~"$service"}[1m]))
 ```
 
 #### ⏱️ P95 Request Latency by Microservice (in milliseconds)
 Calculates 95th percentile response latency over a 5-minute rolling window:
 ```promql
+# Subgraphs (Spring Boot):
 histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"$service"}[5m]))) * 1000
+
+# Edge Gateway (Apollo Router):
+histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000
 ```
 
-#### ⏱️ P99 Critical Tail Latency (Global)
+#### ⏱️ P99 Critical Tail Latency (Global Gateway)
 ```promql
-histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000
+(histogram_quantile(0.99, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000)
+or
+(histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000)
 ```
 
 #### 🚨 HTTP 5xx Server Error Spike Rate
 ```promql
 sum by (service) (rate(http_server_requests_seconds_count{status=~"5.."}[1m]))
+or
+sum by (service) (rate(apollo_router_http_requests_total{status=~"5.."}[1m]))
 ```
 
 #### 🛑 Rate Limiter HTTP 429 Interceptions
-Identifies clients or IPs throttled by API Gateway Redis token-bucket rate limiters:
+Identifies clients or IPs throttled by Edge Ingress / Redis token-bucket rate limiters:
 ```promql
-sum(rate(http_server_requests_seconds_count{status="429"}[1m])) or vector(0)
+sum(rate(http_server_requests_seconds_count{status="429"}[1m])) 
+or 
+sum(rate(apollo_router_http_requests_total{status="429"}[1m])) 
+or vector(0)
+```
+
+---
+
+### 🚀 Apollo Router & Federation 2.3 Supergraph Telemetry (Native Rust Engine)
+
+#### 🧩 Query Planning Latency (P95 in ms)
+Measures the duration Apollo Router takes in Rust to compute the distributed query execution plan across subgraphs:
+```promql
+histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_duration_seconds_bucket[5m]))) * 1000
+```
+
+#### 📦 Subgraph Request Throughput & Decomposition
+Throughput dispatched by Apollo Router to each federated subgraph (`products`, `orders`, `inventory`):
+```promql
+sum by (subgraph) (rate(apollo_router_subgraph_requests_total[1m]))
+```
+
+#### ⏱️ Subgraph P95 Latency Breakdown
+Isolates which backend subgraph is the bottleneck in federated queries:
+```promql
+histogram_quantile(0.95, sum by (le, subgraph) (rate(apollo_router_subgraph_request_duration_seconds_bucket[5m]))) * 1000
+```
+
+#### ❌ GraphQL Operation Errors Rate
+Tracks GraphQL field-level or execution errors returned by Apollo Router:
+```promql
+sum by (code) (rate(apollo_router_graphql_error_total[1m])) or rate(apollo_router_graphql_requests_total{status="error"}[1m])
+```
+
+#### 🦀 Apollo Router Rust Memory & Sessions
+Monitors native heap allocation and active in-flight GraphQL client sessions:
+```promql
+# Active Client Sessions:
+apollo_router_session_count
+
+# Resident Memory (RSS):
+process_resident_memory_bytes{service="apollo-router"} / 1024 / 1024
 ```
 
 ---
@@ -216,7 +268,7 @@ Isolates errors originating specifically within `orders-service`:
 #### 🛡️ Security Audits & Malicious Traffic Logs
 Filters logs for automated security interception alerts, rate-limit warnings, and blocked requests:
 ```logql
-{service="api-gateway"} |~ "SECURITY-AUDIT|BLOCKED|RATE_LIMIT"
+{service="apollo-router"} |~ "SECURITY-AUDIT|BLOCKED|RATE_LIMIT"
 ```
 
 #### 🔄 Distributed Saga Compensation & Rollback Logs
@@ -257,24 +309,24 @@ Calculates per-minute frequency of errors to detect instant spikes:
 sum by (service) (rate({service=~".+"} |= "ERROR" [1m]))
 ```
 
-#### 🛑 Rate of Throttled Requests on API Gateway
+#### 🛑 Rate of Throttled Requests on Edge Router
 ```logql
-sum(rate({service="api-gateway"} |= "429 Too Many Requests" [1m]))
+sum(rate({service="apollo-router"} |= "429 Too Many Requests" [1m]))
 ```
 
 #### 🧩 Structured JSON Field Unpacking & Status Filter
 Parses structured JSON logs and filters requests where HTTP status $\ge 500$:
 ```logql
-{service="api-gateway"} | json | status_code >= 500
+{service="apollo-router"} | json | status_code >= 500
 ```
 
 ---
 
 ### 🕸️ Service Mesh & Ingress Proxy Logs (Istio Envoy)
 
-#### 🌐 Envoy Access Logs on API Gateway Pod
+#### 🌐 Envoy Access Logs on Edge Router Pod
 ```logql
-{container="istio-proxy", pod=~"api-gateway.+"}
+{container="istio-proxy", pod=~"apollo-router.+"}
 ```
 
 #### ⏱️ Slow Ingress Requests via Envoy (> 200ms)
@@ -332,15 +384,15 @@ Locates all distributed spans that resulted in an error status or HTTP client/se
 ### 🌐 Cross-Service Topology & Multi-Span Cascades
 
 #### 🔄 Multi-Hop Order Placement Journey
-Locates traces that crossed both `api-gateway` and `orders-service`:
+Locates traces that crossed both `apollo-router` and `orders-service`:
 ```traceql
-{ resource.service.name = "api-gateway" } && { resource.service.name = "orders-service" }
+{ resource.service.name = "apollo-router" } && { resource.service.name = "orders-service" }
 ```
 
-#### 📦 Full End-to-End E-Commerce Chain (Gateway ➔ Orders ➔ Inventory)
+#### 📦 Full End-to-End E-Commerce Chain (Router ➔ Orders ➔ Inventory)
 Searches for traces spanning the complete multi-service synchronous checkout pipeline:
 ```traceql
-{ resource.service.name = "api-gateway" } && { resource.service.name = "orders-service" } && { resource.service.name = "inventory-service" }
+{ resource.service.name = "apollo-router" } && { resource.service.name = "orders-service" } && { resource.service.name = "inventory-service" }
 ```
 
 #### 📨 Asynchronous Kafka Messaging Traces
@@ -349,9 +401,20 @@ Finds traces where events were published to or consumed from Kafka topics:
 { span.messaging.system = "kafka" }
 ```
 
-#### 🔍 Traces Originating from Specific URL Endpoints
+#### 🔍 Traces Originating from Specific GraphQL Operations
+Isolates end-to-end distributed traces for specific GraphQL queries or mutations:
 ```traceql
-{ span.http.route = "/api/order" && span.http.request.method = "POST" }
+# Order placement mutation journey across router and subgraphs:
+{ span.graphql.operation.name = "PlaceOrder" }
+
+# Catalog queries with federated stock:
+{ span.graphql.operation.name = "GetProductsWithStock" }
+
+# Root Apollo Router span:
+{ span.name = "router" && status = ok }
+
+# Subgraph execution spans:
+{ span.name = "subgraph" && span.graphql.subgraph.name = "orders" }
 ```
 
 ---
@@ -361,10 +424,13 @@ Finds traces where events were published to or consumed from Kafka topics:
 | Diagnostic Scenario | Recommended Tool | Query to Run |
 | :--- | :---: | :--- |
 | **High Cart Abandonment Alarm** | PromQL | `clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)` |
+| **Apollo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000` |
+| **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_duration_seconds_bucket[5m]))) * 1000` |
+| **Subgraph Latency by Backend** | PromQL | `histogram_quantile(0.95, sum by (le, subgraph) (rate(apollo_router_subgraph_request_duration_seconds_bucket[5m]))) * 1000` |
+| **Trace a Customer Order by Operation** | TraceQL | `{ span.graphql.operation.name = "PlaceOrder" && duration > 200ms }` |
 | **Circuit Breaker Tripped** | PromQL | `resilience4j_circuitbreaker_state{state="open"}` |
-| **Investigate Sudden 500 Error** | LogQL | `{service=~".+"} |~ "(?i)ERROR|Exception"` |
-| **Trace a Customer Order by ID** | TraceQL | `{ span.http.route = "/api/order" && duration > 200ms }` |
+| **Investigate Sudden 500 Error** | LogQL | `{service=~".+"} \|~ "(?i)ERROR\|Exception"` |
 | **Correlate Logs with a Trace** | LogQL | `{service=~".+"} \|= "<trace-id>"` |
 | **Detect Database Pool Exhaustion**| PromQL | `hikaricp_connections_active / hikaricp_connections_max > 0.85` |
-| **DDoS / Brute-force Attack** | PromQL | `sum(rate(http_server_requests_seconds_count{status="429"}[1m]))` |
+| **DDoS / Brute-force Attack** | PromQL | `sum(rate(apollo_router_http_requests_total{status="429"}[1m]))` |
 | **Identify Top Attacking IP** | PromQL | `topk(5, sum by (ip) (security_blocked_ip_total))` |
