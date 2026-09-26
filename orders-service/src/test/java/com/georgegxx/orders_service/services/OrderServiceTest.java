@@ -1,0 +1,153 @@
+package com.georgegxx.orders_service.services;
+
+import com.georgegxx.orders_service.clients.InventoryClient;
+import com.georgegxx.orders_service.clients.ProductsClient;
+import com.georgegxx.orders_service.model.dtos.OrderResponse;
+import com.georgegxx.orders_service.model.entities.Order;
+import com.georgegxx.orders_service.model.entities.OrderItems;
+import com.georgegxx.orders_service.model.enums.OrderStatus;
+import com.georgegxx.orders_service.repositories.OrderRepository;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+class OrderServiceTest {
+
+    @Mock
+    private OrderRepository orderRepository;
+
+    @Mock
+    private InventoryClient inventoryClient;
+
+    @Mock
+    private ProductsClient productsClient;
+
+    @Mock
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+    @Mock
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    @Mock
+    private IdempotencyManager idempotencyManager;
+
+    private MeterRegistry meterRegistry;
+    private OrderService orderService;
+
+    private Order sampleOrder;
+
+    @BeforeEach
+    void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+        lenient().when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(mock(SendResult.class)));
+
+        orderService = new OrderService(
+                orderRepository,
+                inventoryClient,
+                productsClient,
+                kafkaTemplate,
+                circuitBreakerRegistry,
+                meterRegistry,
+                idempotencyManager
+        );
+        orderService.afterPropertiesSet();
+
+        sampleOrder = Order.builder()
+                .id(1L)
+                .orderNumber("ORD-TEST-001")
+                .orderStatus(OrderStatus.PLACED)
+                .customerName("John Doe")
+                .customerEmail("john@example.com")
+                .shippingAddress("123 Test St")
+                .trackingNumber("DHL-123456789")
+                .totalAmount(199.99)
+                .userId("user-123")
+                .username("johndoe")
+                .orderItems(List.of(
+                        OrderItems.builder()
+                                .id(1L)
+                                .sku("000001")
+                                .price(199.99)
+                                .quantity(1L)
+                                .build()
+                ))
+                .build();
+    }
+
+    @Test
+    @DisplayName("shipOrder updates order status to SHIPPED and publishes event")
+    void testShipOrder() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.shipOrder(1L);
+
+        assertNotNull(response);
+        assertEquals(OrderStatus.SHIPPED, response.orderStatus());
+        verify(orderRepository).save(sampleOrder);
+        verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+    }
+
+    @Test
+    @DisplayName("deliverOrder updates order status to DELIVERED and publishes event")
+    void testDeliverOrder() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.deliverOrder(1L);
+
+        assertNotNull(response);
+        assertEquals(OrderStatus.DELIVERED, response.orderStatus());
+        verify(orderRepository).save(sampleOrder);
+        verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+    }
+
+    @Test
+    @DisplayName("cancelOrder throws AccessDeniedException when unauthorized user attempts cancellation")
+    void testCancelOrder_AccessDenied() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+
+        // Attempt cancellation with different user ID and not admin
+        assertThrows(AccessDeniedException.class, () ->
+                orderService.cancelOrder(1L, "other-user", false)
+        );
+
+        verify(orderRepository, never()).save(any(Order.class));
+    }
+
+    @Test
+    @DisplayName("cancelOrder cancels order, restores stock, and publishes cancel event for authorized user")
+    void testCancelOrder_Success() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.cancelOrder(1L, "user-123", false);
+
+        assertNotNull(response);
+        assertEquals(OrderStatus.CANCELLED, response.orderStatus());
+        verify(orderRepository).save(sampleOrder);
+        verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+    }
+}
