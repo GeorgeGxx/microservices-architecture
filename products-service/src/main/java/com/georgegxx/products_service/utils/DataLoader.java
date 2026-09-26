@@ -89,8 +89,12 @@ public class DataLoader implements CommandLineRunner {
                     .isBestSeller(false)
                     .build();
 
-            productRepository.saveAll(List.of(p1, p2, p3, p4, p5));
-            log.info("Product catalog seed data loaded successfully in USD.");
+            try {
+                productRepository.saveAll(List.of(p1, p2, p3, p4, p5));
+                log.info("Product catalog seed data loaded successfully in USD.");
+            } catch (Exception ex) {
+                log.warn("Product catalog seed data already exists or concurrent insertion skipped: {}", ex.getMessage());
+            }
         } else {
             // Ensure existing items have defaults if null
             for (Product p : existingProducts) {

@@ -598,7 +598,7 @@ function Invoke-MinikubePlatform {
             $status = minikube status --format "{{.Host}}" 2>$null
             if ($status -ne "Running") {
                 Write-Host "  ▶ Starting Minikube ($CpuCount CPUs, $($RamMb / 1024) GB RAM, Ingress, Metrics-Server)..." -ForegroundColor White
-                minikube start --cpus=$CpuCount --memory=$RamMb --disk-size=$DiskBudget --driver=docker --addons=ingress,metrics-server
+                minikube start --cpus=$CpuCount --memory=$RamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "Failed to start Minikube. Verify Docker Desktop is active."
                 }
