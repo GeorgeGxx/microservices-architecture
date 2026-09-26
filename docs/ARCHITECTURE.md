@@ -29,11 +29,11 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 | Service | Path Prefix | Key Endpoints | Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **API Gateway** | `/api/*` | `/actuator/health`, `/actuator/prometheus` | Reverse proxy, token validation, rate limiter |
-| **Products Service** | `/api/product` | `POST /api/product`, `GET /api/product` | Product catalog, pricing, Redis caching |
-| **Orders Service** | `/api/order` | `POST /api/order`, `GET /api/order`, `PUT /api/order/{id}/cancel` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry |
-| **Inventory Service** | `/api/inventory`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `PUT /api/inventory/{sku}` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction |
-| **Notification Service**| N/A | Kafka Topic `orders-topic` | Consumes `OrderPlacedEvent`, customer email simulation |
+| **Apollo Router Gateway** | `/graphql`, `/health` | `POST /graphql`, `GET /` (Apollo Sandbox) | High-performance Rust Supergraph Gateway (Federation 2.3), query planning, OTel distributed tracing, JWT validation |
+| **Products Service** | `/api/product`, `/graphql` | `POST /api/product`, `GET /api/product`, `/swagger-ui.html` | Product catalog, pricing, Redis caching, Subgraph entity resolver, OpenAPI v3 documentation |
+| **Orders Service** | `/api/order`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `/swagger-ui.html` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry, OpenAPI v3 documentation |
+| **Inventory Service** | `/api/inventory`, `/graphql`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `/swagger-ui.html` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction, OpenAPI v3 documentation |
+| **Notification Service**| `/api/notifications` | `/api/notifications/stream`, `/swagger-ui.html` | Consumes `OrderPlacedEvent`, customer email simulation, SSE real-time event streaming, OpenAPI v3 documentation |
 
 ---
 
@@ -41,8 +41,8 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 | Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
-| **Angular 21 Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern Angular SPA UI |
-| **Spring Cloud API Gateway** | `8080` | `30088` | Ingress (`/api/*`) | Edge Gateway, Token Relay, Rate Limiting |
+| **React Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
+| **Apollo Router Gateway** | `8080` | `30088` | Ingress (`/graphql`, `/api/*`) | Apollo Federation v2 Gateway, Token Relay |
 | **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
@@ -66,7 +66,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ## 🔐 Identity & Access Management (Keycloak 26.7.3)
 
-- **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in Angular 21 SPA.
+- **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in React 19 SPA.
 - **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
 - **Default Role Assignment:** Self-registered accounts automatically receive the standard `USER` role through composite assignment on `default-roles-microservices-realm`.
 - **Multi-Tenant Order Isolation & Ownership Guards:**
@@ -74,7 +74,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
   - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
   - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
   - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
-- **Token Relay:** Spring Cloud Gateway validates incoming JWT tokens against Keycloak JWKS and forwards claims downstream via `Authorization: Bearer <token>`.
+- **Federated Identity & Token Propagation:** Apollo Router v2 validates incoming JWT tokens against Keycloak JWKS and automatically propagates the authorization header and claims down to federated subgraphs.
 - **Automated Realm Import:** Configuration pre-loaded via [`docs/realm-export.json`](./docs/realm-export.json) with client `frontend-client`, roles `USER` / `ADMIN`, and default credentials.
 
 ---
@@ -91,7 +91,7 @@ The platform provides enterprise-grade secret management across 4 distinct imple
   pwsh .\platform.ps1 secrets
   ```
 
-### 2. Approach B: Native Java Spring Boot Integration (All 5 Services)
+### 2. Approach B: Native Java Spring Boot Integration (Core Subgraphs)
 - **Zero-Friction Activation:** Microservices run natively by default. To connect directly to Vault via Spring Cloud Config:
   ```powershell
   # Run any microservice with the 'vault' profile:
@@ -99,7 +99,6 @@ The platform provides enterprise-grade secret management across 4 distinct imple
   cd orders-service;       mvn spring-boot:run -Dspring-boot.run.profiles=vault
   cd inventory-service;    mvn spring-boot:run -Dspring-boot.run.profiles=vault
   cd notification-service; mvn spring-boot:run -Dspring-boot.run.profiles=vault
-  cd api-gateway;          mvn spring-boot:run -Dspring-boot.run.profiles=vault
   ```
 - **Configuration Profile:** Managed via `application-vault.yml` in each service with support for `TOKEN` (Local), `KUBERNETES` (Cluster), and `APPROLE` (CI/CD) authentication.
 
@@ -150,12 +149,12 @@ The platform implements an enterprise defense-in-depth traffic flow combining a 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Client as 👤 Angular 21 Client
+    actor Client as 👤 React 19 Client
     participant Ingress as 🚪 Istio Ingress Gateway<br/>(L4 NLB + Envoy)
     participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
     participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
-    participant Gateway as ⚡ Spring Cloud Gateway<br/>(JWT Filter / TokenRelay)
-    participant Microservice as 📦 Orders / Products Service<br/>(Spring Boot 4.0.8)
+    participant Gateway as 🚀 Apollo Router v2<br/>(Query Planner / Fed 2.3)
+    participant Microservice as 📦 Subgraphs (Orders/Products/Inv)<br/>(Spring Boot 4.0.8)
     participant Kiali as 📊 Kiali Dashboard
 
     Note over Client, Keycloak: Phase 1: Authentication & Token Issuance
@@ -165,28 +164,28 @@ sequenceDiagram
     Keycloak-->>Client: 4. Returns signed JWT Access Token (roles, 'sub', RSA keys)
 
     Note over Client, Microservice: Phase 2: Business Execution (Defense-in-Depth)
-    Client->>Ingress: 5. POST /api/orders (Authorization: Bearer <JWT>, traceparent)
+    Client->>Ingress: 5. GraphQL POST / (Authorization: Bearer <JWT>, traceparent)
     Note over Ingress: Perimeter L7 Filtering:<br/>• Rate limiting (100 RPS)<br/>• WAF / Input sanitization<br/>• Security Headers injection
-    Ingress->>Envoy: 6. Forward egress traffic to api-gateway:8080
+    Ingress->>Envoy: 6. Forward egress traffic to apollo-router:8080
     Note over Envoy: Istio Service Mesh (mTLS STRICT):<br/>• Envoy interception<br/>• VirtualService / DestinationRule validation<br/>• Cryptographic mTLS with SPIFFE X.509 certs
-    Envoy->>Gateway: 7. Deliver decrypted HTTP request to Spring Cloud Gateway
-    Note over Gateway: Application Layer Processing:<br/>• Reactive JwtAuthenticationFilter (JWKS check)<br/>• TokenRelay (propagates 'sub', user roles)<br/>• Resilience4j Circuit Breaker & Retries
-    Gateway->>Envoy: 8. Route internal request to orders-service:8003
+    Envoy->>Gateway: 7. Deliver decrypted GraphQL request to Apollo Router
+    Note over Gateway: Application Layer Processing:<br/>• Native JWT verification against Keycloak JWKS<br/>• Supergraph Federated Query Planning<br/>• Header propagation (Authorization & Idempotency)
+    Gateway->>Envoy: 8. Dispatch concurrent subgraph queries to orders-service:8003 over mTLS
     Envoy->>Microservice: 9. East-West mTLS encrypted leap to backend container
-    Microservice-->>Gateway: 10. HTTP 201 Created + JSON payload
-    Gateway-->>Ingress-->>Client: 11. Response returned to Angular 21 Storefront
+    Microservice-->>Gateway: 10. GraphQL entity data returned
+    Gateway-->>Ingress-->>Client: 11. Consolidated GraphQL response returned to React 19 Storefront
 
     Note over Kiali: Real-Time Observability
-    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [api-gateway] ➔ [orders-service] with green 🔒 mTLS lock
+    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [apollo-router] ➔ [orders-service] with green 🔒 mTLS lock
 ```
 
 ### Flow Breakdown & Separation of Concerns:
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
 2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/auth/**` and `/realms/**` directly to Keycloak.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
-4. **Application API Gateway:** **Spring Cloud Gateway** performs deep application-level filtering (reactive JWT claim extraction, user context propagation via `TokenRelay`, Resilience4j circuit breaking, and anti-DDoS IP rate limiting).
-5. **Core Microservices (East-West):** Gateway dispatches traffic to downstream microservices (`orders-service`, `products-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
-6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `api-gateway` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
+4. **Federated GraphQL Gateway:** **Apollo Router v2** performs query planning across subgraphs, native Keycloak JWT validation, header propagation, and sub-millisecond Rust routing.
+5. **Core Microservices Subgraphs (East-West):** Apollo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
+6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `apollo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
 
 ---
 
@@ -207,7 +206,7 @@ flowchart TD
     subgraph LocalModel["💻 Local Development (Minikube / Docker)"]
         BrowserLocal([💻 Local Developer]) --> LocalIngress["Istio Ingress Gateway / NodePort"]
         LocalIngress -->|'/'| LocalFE["Pod: frontend (NodePort 30080)<br/>(Nginx unprivileged serving /usr/share/nginx/html)"]
-        LocalIngress -->|'/api'| LocalGW["Pod: api-gateway (Port 8080)"]
+        LocalIngress -->|'/graphql'| LocalGW["Pod: apollo-router (Port 8080)"]
     end
 ```
 
@@ -216,35 +215,65 @@ flowchart TD
 | **AWS EKS (`staging`/`prod`)** | **AWS S3 Assets Bucket** (`module.s3_assets`) | AWS NLB (`module.nlb`) | **CloudFront Distribution + WAFv2** (`s3Origin` + `nlbOrigin`) | Edge cached, zero pod CPU/RAM footprint |
 | **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`istio_gateway_public_ip`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
 | **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
-| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Spring Cloud Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
+| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Apollo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
 
 ---
 
-## ⚡ Modern Angular 21 Reactive SPA Architecture
+## ⚡ Modern React 19 + TailwindCSS v4 SPA Architecture (Tactical DDD & Clean Architecture)
 
-The frontend storefront is engineered with **Angular 21** utilizing state-of-the-art performance and reactive patterns:
+The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and **Vite 6** following **Domain-Driven Design (DDD)** and **Clean Architecture (Hexagonal Architecture / Ports & Adapters)** principles:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 Angular 21 Reactive SPA                     │
-│                                                             │
-│   ┌──────────────────┐  ┌──────────────────┐  ┌──────────┐  │
-│   │   CartStore      │  │ ChangeDetection  │  │  @defer  │  │
-│   │ (Signal Pattern) │  │     .OnPush      │  │  Chunks  │  │
-│   └──────────────────┘  └──────────────────┘  └──────────┘  │
-│                                                             │
-│   • PreloadAllModules: 0ms background route preloading      │
-│   • Modern Signal Primitives: input<T>() / output<T>()      │
+│ 1. Presentation Layer (React 19 + TailwindCSS v4)           │
+│    • Compound Components (<ProductCard>, <ProductCard.Image>)│
+│    • Drawers (Cart, Notifications), Modals (QuickView, QR)  │
+│    • Command Palette (Ctrl+K) & Glassmorphism Design Tokens │
 └──────────────────────────────┬──────────────────────────────┘
+                               │ interacts via Facades / Hooks
+┌──────────────────────────────▼──────────────────────────────┐
+│ 2. Application Layer (Use Cases & Finite State Machines)    │
+│    • PlaceOrderUseCase (Cryptographic UUIDv4 Idempotency)   │
+│    • CheckoutStateMachine (FSM: Info ➔ Delivery ➔ Payment)  │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ orchestrates domain models
+┌──────────────────────────────▼──────────────────────────────┐
+│ 3. Domain Layer (Pure TypeScript - Zero React / Zero HTTP)  │
+│    • Aggregate: CartAggregate (Stock limits, Free shipping) │
+│    • Value Objects: Money (Multi-currency), TrackingNumber  │
+│    • Ports (Interfaces): IProductRepository, IOrderRepo     │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ implements ports via adapters
+┌──────────────────────────────▼──────────────────────────────┐
+│ 4. Infrastructure Layer (Adapters)                          │
+│    • GraphQLProductRepository & GraphQLOrderRepository      │
+│    • LocalStorageCartRepository (Session Persistence)       │
+│    • EventSource SSE Adapter (/api/notifications/subscribe) │
+│    • Keycloak 26 OIDC PKCE Adapter (JWT Bearer Token Relay) │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-1. **Signal Store Pattern (`CartStore`):** Pure immutable reactive state management using `signal()` and memoized `computed()` derivations.
-2. **`ChangeDetectionStrategy.OnPush` Everywhere:** Applied across all smart and presentation components to minimize browser CPU cycles.
-3. **Deferrable Views (`@defer` Pattern):** Heavy secondary UI components are partitioned into independent lazy `.js` chunks and loaded on demand:
-   * `@defer (when isQuickViewOpen()) { <app-quick-view-modal> }`: Modal chunk loaded only upon user click.
-   * `@defer (when isQrModalOpen()) { <app-product-qr-modal> }`: QR SVG generator loaded on demand.
-   * `@defer (when selectedOrderForReceipt()) { <app-receipt-modal> }`: Printable invoice loaded upon checkout completion.
-4. **Instant Route Transitions (`PreloadAllModules`):** Preloads `/orders`, `/checkout`, and `/admin` in the background with zero UI freeze.
+### Core Tactical DDD & Clean Architecture Highlights:
+
+1. **Immutable Value Objects:**
+   * [`Money`](../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), automated conversion between **USD**, **EUR**, and **MXN**, and localized formatting via `Intl.NumberFormat`.
+   * [`TrackingNumber`](../frontend/src/domain/value-objects/TrackingNumber.ts): Validates international shipping codes and dynamically generates live DHL Express tracking URLs.
+2. **Domain Aggregate Pattern ([`CartAggregate`](../frontend/src/domain/aggregates/CartAggregate.ts)):**
+   * Protects warehouse stock invariants (cannot exceed available units reported by `inventory-service`).
+   * Computes subtotal, tiered shipping rate ($0 if subtotal $\ge \$100$, else $\$9.99$), $8\%$ sales tax, and free shipping progress percentage.
+   * Pure and immutable: each mutation returns a new `CartAggregate` instance.
+3. **Ports & Adapters (Decoupled Infrastructure):**
+   * Domain ports ([`IProductRepository`](../frontend/src/domain/repositories/IProductRepository.ts), [`IOrderRepository`](../frontend/src/domain/repositories/IOrderRepository.ts)) define contracts independently of network frameworks.
+   * Infrastructure adapters ([`GraphQLProductRepository`](../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Apollo Router v2 Supergraph (`POST /graphql`).
+4. **Finite State Machine (FSM) Checkout ([`CheckoutFSM`](../frontend/src/application/use-cases/CheckoutFSM.ts)):**
+   * Eliminates invalid or skipped checkout states: `CUSTOMER_INFO` ➔ `DELIVERY_TIER` ➔ `PAYMENT` ➔ `PROCESSING` ➔ `CONFIRMED` / `FAILED`.
+   * Enforces domain field validations before advancing between stages.
+5. **Compound Components Pattern ([`ProductCard`](../frontend/src/components/ui/ProductCard.tsx)):**
+   * Deconstructs monolithic card UI into composable subcomponents: `<ProductCard.Image>`, `<ProductCard.Category>`, `<ProductCard.Title>`, `<ProductCard.Rating>`, `<ProductCard.StockBadge>`, `<ProductCard.Price>`, `<ProductCard.Actions>`.
+6. **Command Pattern & Idempotency Key Injection ([`PlaceOrderUseCase`](../frontend/src/application/use-cases/PlaceOrderUseCase.ts)):**
+   * Automatically generates a cryptographically secure client UUIDv4 (`X-Idempotency-Key`) per transaction, preventing duplicate charges upon multiple clicks or transient network retries.
+7. **Real-Time Event-Driven Subscriptions (SSE):**
+   * Background EventSource connection streaming live Kafka notifications from `notification-service` (`/api/notifications/subscribe`) directly to toast alerts and the slide-out drawer without HTTP polling.
 
 ---
 
@@ -254,7 +283,7 @@ The system features an enterprise, zero-dependency **Media Ingestion & Rendering
 
 ```mermaid
 flowchart LR
-    subgraph Client["🎨 Angular 21 Client"]
+    subgraph Client["🎨 React 19 Client"]
         A[📂 Local File Picker] -->|Raw File| B[⚡ HTML5 Canvas Compressor]
         B -->|Base64 Data URL 40-90 KB| C[Form Payload]
         D[🔗 Web URL Input] --> C
@@ -282,7 +311,7 @@ flowchart LR
 
 ### 1. 📂 Client-Side Canvas Compression & Base64 Data URL Engine
 * **Offline-First Local File Uploads:** Upload raw `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device without requiring third-party cloud storage (e.g. AWS S3 buckets or Cloudinary).
-* **Automated Canvas Rescaling ([`product-image.helper.ts`](./frontend/src/app/core/utils/product-image.helper.ts)):** Raw photos (5–15 MB) are scaled to a maximum dimension of $800\text{ px}$ with $82\%$ lossy quality encoding on an offscreen HTML5 Canvas element, converting large images into lightweight **Base64 Data URLs** ($40\text{--}90\text{ KB}$) in milliseconds.
+* **Automated Canvas Rescaling:** Raw photos (5–15 MB) are scaled to a maximum dimension of $800\text{ px}$ with $82\%$ lossy quality encoding on an offscreen HTML5 Canvas element, converting large images into lightweight **Base64 Data URLs** ($40\text{--}90\text{ KB}$) in milliseconds.
 * **1-Click Curated Presets:** Instant template selector for high-end hardware categories (*Apple Vision Pro, PlayStation 5 Pro, RTX 4090 OC, Dell XPS 16 OLED, Bose QC Ultra, Server Racks*).
 * **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
 
@@ -292,10 +321,10 @@ flowchart LR
 * **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through Spring Cloud Gateway.
 
 ### 3. 🎨 High-Fidelity Storefront Visual Integration
-* **Catalog Grid ([`product-list`](./frontend/src/app/features/products/)):** 16:10 responsive aspect ratio image banners (`aspect-ratio: 16 / 10; object-fit: contain;`) with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
-* **Quick View Hero Modal ([`quick-view`](./frontend/src/app/shared/components/quick-view/)):** High-resolution hero display with dynamic category labels, real-time stock indicators, 2-Year SLA guarantees, and express dispatch chips.
+* **Catalog Grid:** 16:10 responsive aspect ratio image banners with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
+* **Quick View Hero Modal:** High-resolution hero display with dynamic category labels, real-time stock indicators, 2-Year SLA guarantees, and express dispatch chips.
 * **Cart, Checkout & Order History:** Consistent square visual thumbnails ($52\times52\text{ px}$ in Cart Drawer, $46\times46\text{ px}$ in Checkout Summary, and $32\times32\text{ px}$ in Order History rows).
-* **Admin Dashboard ([`admin-dashboard`](./frontend/src/app/features/admin/)):** File picker, URL input, live image preview card, and product table thumbnail column.
+* **Admin Dashboard:** File picker, URL input, live image preview card, and product table thumbnail column.
 
 ---
 
@@ -308,9 +337,9 @@ sequenceDiagram
     autonumber
     actor Admin as 👨‍💼 Administrator
     actor POS as 🛒 POS Cashier / Customer
-    participant SPA as 💻 Angular SPA
+    participant SPA as 💻 React 19 SPA
     participant Scanner as 📷 QR / Barcode Scanner
-    participant APIGW as 🚪 API Gateway
+    participant APIGW as 🚪 Apollo Router v2
     participant OrderMS as 📦 Orders Service
     participant InvMS as 🏭 Inventory Service
 
@@ -323,12 +352,12 @@ sequenceDiagram
     POS->>SPA: Opens Scanner Modal in Navbar / Cart Drawer
     SPA->>Scanner: Activates Live Camera / USB Laser Reader
     Scanner->>SPA: Scans barcode ➔ Resolves SKU: 000001
-    SPA->>APIGW: GET /api/product (lookup price & details)
-    SPA->>SPA: Auto-adds scanned product to CartStore
+    SPA->>APIGW: POST /graphql (query product details)
+    SPA->>SPA: Auto-adds scanned product to Cart Context
 
     Note over POS, InvMS: 3. Checkout & Authenticity Verification
     POS->>SPA: Submits Checkout with Idempotency Key
-    SPA->>OrderMS: POST /api/order (X-Idempotency-Key)
+    SPA->>OrderMS: POST /graphql (placeOrder mutation)
     OrderMS->>InvMS: Atomically decrements warehouse stock
     OrderMS->>SPA: Returns Order #d8f4163d (Status: PLACED)
     SPA->>SPA: Displays Receipt with AUTH-d8f4163d-VERIFIED QR
@@ -342,7 +371,7 @@ The storefront and backend microservices are fully aligned with tier-1 enterpris
 
 ```mermaid
 flowchart TD
-    subgraph Storefront ["🛒 Angular 21 Enterprise Storefront"]
+    subgraph Storefront ["🛒 React 19 Enterprise Storefront"]
         Catalog["⭐ Product Catalog<br/>★ 4.8 Stars • 1,240 Reviews<br/>#1 Best Seller • Category Tags"]
         CheckoutStep1["📍 Step 1: Recipient Profile<br/>Address, City, Postal Code, Phone<br/>(localStorage: msa_shipping_address)"]
         CheckoutStep2["🚚 Step 2: Tiered Delivery<br/>Free Standard ($0.00) vs<br/>⚡ DHL Express Priority ($9.99)"]
@@ -443,7 +472,7 @@ flowchart TD
 The backend microservices are **100% Client-Agnostic** and fully prepared for native Android / iOS or cross-platform deployment:
 
 ### 1. 🚀 Mobile Packaging Options:
-* **Capacitor / Ionic (Recommended):** Wrap the existing Angular 21 codebase into native Android Studio and Xcode projects without rewriting business logic:
+* **Capacitor / Ionic (Recommended):** Wrap the existing React 19 codebase into native Android Studio and Xcode projects without rewriting business logic:
   ```bash
   npm install @capacitor/core @capacitor/cli @capacitor/android
   npx cap init "MicroStore" "com.georgegxx.microstore"
@@ -472,7 +501,7 @@ The platform provides an out-of-the-box hybrid integration to expose local micro
 graph LR
     subgraph PublicInternet ["☁️ Public Edge & Mobile Clients"]
         Mobile["📱 Mobile Smartphone / PWA<br/>(Android / iOS / Tablets)"]
-        Vercel["⚡ Vercel Edge Serverless<br/>(Angular 21 SPA Storefront)"]
+        Vercel["⚡ Vercel Edge Serverless<br/>(React 19 SPA Storefront)"]
     end
 
     subgraph CloudflareEdge ["🛡️ Cloudflare Anycast Quick Tunnels (*.trycloudflare.com)"]
@@ -481,13 +510,13 @@ graph LR
     end
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
-        APIGW["🚪 Spring Cloud Gateway (8080)<br/>(Anti-DDoS Whitelist / Token Relay)"]
+        APIGW["🚪 Apollo Router v2 (8080)<br/>(Supergraph Engine / Apollo Sandbox)"]
         Keycloak["🔐 Keycloak 26.7.3 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
-        Microservices["⚙️ Core Microservices (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
+        Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
 
     Mobile -->|HTTPS / WSS| Vercel
-    Mobile & Vercel -->|REST Calls| CFTunnel1
+    Mobile & Vercel -->|GraphQL Calls| CFTunnel1
     Mobile & Vercel -->|OAuth2 / PKCE Login| CFTunnel2
     CFTunnel1 -->|HTTP Proxy| APIGW
     CFTunnel2 -->|HTTP Proxy| Keycloak
@@ -495,7 +524,7 @@ graph LR
 ```
 
 ### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
-* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Spring Cloud Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:4200`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Apollo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:4200`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
   .\platform.ps1 tunnels
@@ -505,7 +534,7 @@ graph LR
 * **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](./compose.yaml) and [`keycloak.yaml`](./k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
 
 ### 2. 🚀 Vercel Monorepo Deployment & Output Directory Configuration
-* **Angular 21 Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist/frontend/browser"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
+* **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
   * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
   * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for Spring Cloud Gateway and machine-to-machine clients.
@@ -517,8 +546,7 @@ graph LR
   * **Touch-Friendly Modals:** Responsive Quick View and QR barcode labels with unified single-viewport touch momentum scrolling (`max-height: 90dvh`).
 * **Vector SVG Favicon & PWA Icons:** Crisp $512\times512\text{ px}$ vector icon ([`frontend/public/favicon.svg`](./frontend/public/favicon.svg)) integrated with Apple Touch Icons and Web App Manifest ([`frontend/public/manifest.webmanifest`](./frontend/public/manifest.webmanifest)).
 * **Clean Enterprise E-Commerce Standard:** Decommissioned arcade synthesizer sound effects and 3D card gimmicks, standardizing on silent, high-performance interactions matching Amazon and Mercado Libre.
-* **Resilient Network Tolerance:** Staggered health checks and automatic RxJS retry backoff (`retry({ count: 2, delay: 1000 })`) preventing false-positive connectivity drops over high-latency mobile networks.
-* **API Gateway Anti-DDoS Exclusions:** [`IpBlacklistFilter.java`](./api-gateway/src/main/java/com/georgegxx/api_gateway/filters/IpBlacklistFilter.java) excludes `/actuator/**` health probes and `OPTIONS` preflight queries from rate limit ban counters with an expanded burst threshold ($120$ requests/5s).
+* **Apollo Router v2 Edge Security & Traffic Control:** Apollo Router v2 acts as the single unified edge gateway, managing query validation, schema introspection restrictions, safe header propagation (`authorization`, `x-idempotency-key`), and distributed tracing via OpenTelemetry to the collector.
 
 ---
 

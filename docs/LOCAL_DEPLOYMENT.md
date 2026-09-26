@@ -11,7 +11,7 @@
 | Docker & Docker Compose | Latest | Quick Start (full stack) |
 | Java (JDK) | 21 | Building/running Spring Boot services standalone |
 | Maven | 3.9+ | Java multi-module reactor build |
-| Node.js & npm | 22+ | Angular 21 frontend |
+| Node.js & npm | 22+ | React 19 + Tailwind v4 frontend |
 | kubectl | 1.37.0 | Kubernetes / Minikube deployment |
 | Minikube | 1.39.0 | Local Kubernetes deployment |
 | Istioctl | 1.31.1 | Service mesh install & Kiali dashboard |
@@ -38,7 +38,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
 | **Redis 8 Cache & Token Bucket** | `100m` | `250m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
-| **Frontend Angular 21 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
+| **Frontend React 19 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
 | **Prometheus 3 Metrics Server** | `200m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
 | **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
 | **Grafana Loki (Log Ingestion)** | `150m` | `800m` | `256Mi` | `1024Mi` | `2Gi` | Centralized container log indexing |
@@ -72,7 +72,7 @@ The platform standardizes **17 essential industry-standard CLI applications** ma
 
 ### 4. Runtimes, Build Tools & Productivity
 - **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
-- **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for Angular frontend compilation.
+- **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for React frontend compilation.
 - **`Git.Git` (`git`)**: Distributed version control system.
 - **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
 
@@ -91,18 +91,17 @@ To develop or debug microservices individually outside Docker:
 mvn clean compile
 
 # Run specific service with dev profile
-mvn spring-boot:run -pl api-gateway
 mvn spring-boot:run -pl products-service
 mvn spring-boot:run -pl orders-service
 mvn spring-boot:run -pl inventory-service
 mvn spring-boot:run -pl notification-service
 ```
 
-### 2. Angular 21 SPA
+### 2. React 19 SPA (Vite + TailwindCSS v4)
 ```powershell
 cd frontend
 npm install
-npm start
+npm run dev
 ```
 
 **Key Frontend, Mobile PWA & Storefront Features (`http://localhost:4200`):**
@@ -185,7 +184,7 @@ docker compose ps -a
 docker compose logs -f
 
 # View logs for a specific service
-docker compose logs -f api-gateway
+docker compose logs -f apollo-router
 
 # Graceful shutdown & volume teardown
 docker compose down -v
@@ -317,7 +316,6 @@ docker exec -it vault vault kv get secret/products-service
 docker exec -it vault vault kv get secret/orders-service
 docker exec -it vault vault kv get secret/inventory-service
 docker exec -it vault vault kv get secret/notification-service
-docker exec -it vault vault kv get secret/api-gateway
 
 # Minikube
 
@@ -341,7 +339,6 @@ kubectl exec -it -n vault deploy/vault -- vault kv get secret/products-service
 kubectl exec -it -n vault deploy/vault -- vault kv get secret/orders-service
 kubectl exec -it -n vault deploy/vault -- vault kv get secret/inventory-service
 kubectl exec -it -n vault deploy/vault -- vault kv get secret/notification-service
-kubectl exec -it -n vault deploy/vault -- vault kv get secret/api-gateway
 # Or by selecting the Pod using its label
 kubectl exec -it -n vault (kubectl get pod -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}") -- vault kv get secret/products-service
 
@@ -388,7 +385,7 @@ flowchart TD
     subgraph Autoscaling["⚖️ KEDA v2.20.1 & HPA Integration"]
         KEDA_OP[KEDA Operator v2.20.1<br/>Namespace: keda]
         SO_NOTIF[ScaledObject: notification-service<br/>Trigger: Kafka Lag & CPU]
-        SO_GW[ScaledObject: api-gateway<br/>Trigger: Prometheus RPS & CPU]
+        SO_GW[ScaledObject: apollo-router<br/>Trigger: Prometheus RPS & CPU]
         HPA[Unified Kubernetes HPA<br/>Controlled by KEDA]
         PDB[PodDisruptionBudgets<br/>minAvailable: 1]
     end
@@ -411,7 +408,7 @@ flowchart TD
 ### 1. ⚖️ KEDA v2.20.1 Event-Driven Autoscaling & HPA Orchestration
 * **Architecture & Coexistence:** KEDA does not replace Kubernetes `HorizontalPodAutoscaler` (HPA); it acts as an intelligent controller that creates and continuously synchronizes native `autoscaling/v2` HPA resources. To prevent flapping and replica race conditions, subcharts conditionally decouple native static HPAs when `keda.enabled=true`.
 * **Kafka Consumer Lag Trigger (`notification-service`):** Scales pods dynamically in response to pending messages in the `orders-topic` partition queue (`lagThreshold: 10`), ensuring fast consumer drain under bulk checkout spikes.
-* **Prometheus RPS Trigger (`api-gateway`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))`) scaling before CPU threshold saturation occurs.
+* **Prometheus RPS Trigger (`apollo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(apollo_router_http_requests_total[1m]))`) scaling before CPU threshold saturation occurs.
 * **CPU & Memory Stabilization:** ScaledObjects bundle resource utilization targets ($70\%$ CPU, $80\%$ Memory) alongside event triggers into a single unified HPA.
 * **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never compromise platform quorum.
 * **Verification Commands:**
@@ -426,13 +423,12 @@ flowchart TD
 ### 2. 🔐 External Secrets Operator (ESO) & HashiCorp Vault Synchronization
 * **Operator Engine:** External Secrets Operator deployed in `external-secrets` namespace using API `external-secrets.io/v1`.
 * **SecretStore (`vault-secret-store`):** Authenticates to HashiCorp Vault using root token with `refreshInterval: 1h`.
-* **ExternalSecret (`microservices-external-secret`):** Automatically maps and pulls secrets from Vault KV paths (`secret/data/application`, `secret/data/api-gateway`, `secret/data/orders-service`) and merges them directly into the staging Kubernetes secret `microservices-secrets`.
+* **ExternalSecret (`microservices-external-secret`):** Automatically maps and pulls secrets from Vault KV paths (`secret/data/application`, `secret/data/orders-service`) and merges them directly into the staging Kubernetes secret `microservices-secrets`.
 * **Vault Seeding Script:**
   ```powershell
   # Seed secrets into Kubernetes Vault pod:
   $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}")
   kubectl exec -n vault $vaultPod -- vault kv put secret/application spring.datasource.username=postgres spring.datasource.password=admin jwt.secret=super-secure-jwt-secret-key-for-microservices-dev-environment-12345
-  kubectl exec -n vault $vaultPod -- vault kv put secret/api-gateway keycloak.client-secret=microservices-client-secret-key-12345
   ```
 * **Verification Command:**
   ```powershell

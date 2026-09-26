@@ -139,7 +139,7 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | :--- | :--- | :--- | :--- | :--- |
 | **`platform.ps1`** | Root (`./platform.ps1`) | **Master Platform Orchestrator:** Unified lifecycle manager across Minikube, AWS, Azure, and GCP. | • Hardware sizing (6 CPUs, 12 GB RAM)<br/>• Multi-cloud bootstrap, plan, apply, destroy<br/>• Automated rollbacks & state unlocking<br/>• Health diagnostic audit (`doctor`) | `.\platform.ps1 up -Platform minikube` |
 | **[`bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1)** | `scripts/` | **Keycloak 26 Realm & Client Bootstrapper:** Provisions IAM realm, roles, and clients. | • Auto-syncs client secret into `.env` and k8s<br/>• Configures `microservices_frontend` (PKCE)<br/>• Configures `microservices_client` (M2M) | `pwsh -File .\scripts\bootstrap-keycloak.ps1` |
-| **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & Angular containers. | • Parallel compilation of 5 Spring Boot services<br/>• Nginx Distroless Angular 21 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
+| **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & React containers. | • Parallel compilation of 4 Spring Boot services<br/>• Nginx Distroless React 19 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
 | **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Cloud-agnostic health and latency validator. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• Negative Security Gate (401/403 on `/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
 | **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | `scripts/` | **Zero-Trust Cryptographic Secret Generator:** CSPRNG high-entropy key generator. | • High-entropy DB passwords and JWT keys<br/>• Exports to `.env`, JSON, or K8s `Secret` YAML<br/>• Automated HashiCorp Vault token generation | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
 | **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Air-Gapped FinOps Cost & Savings Engine:** Calculates cloud costs and local savings. | • Local developer savings vs. AWS/Azure/GCP<br/>• Staging & Production tier expenditure breakdown<br/>• Offline calculations without cloud API keys | `python scripts/local-cost-estimator.py --platform minikube` |
@@ -167,7 +167,7 @@ scripts/
 │   ├── test_order.py                  # Direct end-to-end order placement test
 │   └── verify.py                      # Component verifier for Swagger OpenAPI, Prometheus, and Grafana
 ├── bootstrap-keycloak.ps1             # Native PowerShell Keycloak 26 IAM realm bootstrapper & client secret sync
-├── build-all.py                       # Concurrent multi-service container compiler (Java 21 Maven + Angular 21)
+├── build-all.py                       # Concurrent multi-service container compiler (Java 21 Maven + React 19)
 ├── endpoint-smoke-test.py             # Standalone synthetic health, metrics, and security prober
 ├── generate-secure-secrets.py         # High-entropy CSPRNG credential & JWT generator
 ├── generate_drawio.py                 # Programmatic 12-page Draw.io architectural blueprint generator
@@ -181,7 +181,7 @@ scripts/
 ## 📖 Detailed Tooling Playbooks
 
 ### 1. 🔐 Keycloak IAM Bootstrap (`bootstrap-keycloak.ps1`)
-Provisions the `microservices-realm` realm, configures PKCE public client for the Angular frontend, creates confidential client for the Spring Cloud Gateway, and automatically writes the client secret to `.env`:
+Provisions the `microservices-realm` realm, configures PKCE public client for the React frontend, creates confidential client for the Apollo Router, and automatically writes the client secret to `.env`:
 
 ```powershell
 # Execute the native PowerShell Keycloak bootstrapper:
@@ -189,7 +189,7 @@ pwsh -File .\scripts\bootstrap-keycloak.ps1
 ```
 
 ### 2. 🔨 Concurrent Container Image Compiler (`build-all.py`)
-Concurrently packages all 5 Spring Boot Java microservices (`api-gateway`, `products-service`, `orders-service`, `inventory-service`, `notification-service`) using Maven and compiles the Angular 21 frontend into optimized Distroless container images:
+Concurrently packages all 4 Spring Boot Java microservices (`products-service`, `orders-service`, `inventory-service`, `notification-service`) using Maven and compiles the React 19 frontend into optimized Distroless container images:
 
 ```powershell
 # Build all images with tag 1.0.0:
