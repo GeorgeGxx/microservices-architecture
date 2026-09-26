@@ -19,7 +19,7 @@ variable "rate_limit_count" {
 }
 
 variable "gcs_bucket_name" {
-  description = "GCS bucket name providing static Angular frontend content"
+  description = "GCS bucket name providing static React 19 frontend content"
   type        = string
   default     = ""
 }

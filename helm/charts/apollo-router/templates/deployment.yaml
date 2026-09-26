@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "api-gateway.fullname" . }}
+  name: {{ include "apollo-router.fullname" . }}
   labels:
-    {{- include "api-gateway.labels" . | nindent 4 }}
+    {{- include "apollo-router.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -12,42 +12,47 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      app: api-gateway
+      app: apollo-router
   template:
     metadata:
       labels:
-        app: api-gateway
-        version: {{ .Values.version | default "v1" }}
+        app: apollo-router
+        version: {{ .Values.version | default "2.16.3" }}
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name | default (include "api-gateway.fullname" .) }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "apollo-router.fullname" .) }}
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: api-gateway
+        - name: apollo-router
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--config"
+            - "/dist/config/router.yaml"
+            - "--supergraph"
+            - "/dist/config/supergraph.graphql"
+            - "--anonymous-telemetry-disabled"
+            - "--dev"
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
-            - containerPort: {{ .Values.containerPort }}
-          envFrom:
-            - configMapRef:
-                name: {{ .Values.envFrom.configMapRef }}
-            - secretRef:
-                name: {{ .Values.envFrom.secretRef }}
+            - name: http-router
+              containerPort: {{ .Values.containerPort }}
+            - name: metrics
+              containerPort: {{ .Values.metricsPort }}
+          {{- with .Values.env }}
           env:
-            - name: PORT
-              value: "{{ .Values.containerPort }}"
-            {{- range $key, $value := .Values.env }}
+            {{- range $key, $value := . }}
             - name: {{ $key }}
               value: "{{ $value }}"
             {{- end }}
+          {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           readinessProbe:
@@ -55,21 +60,23 @@ spec:
               path: {{ .Values.probes.readinessPath }}
               port: {{ .Values.containerPort }}
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
-            periodSeconds: 20
-            timeoutSeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
               port: {{ .Values.containerPort }}
-            initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 10 }}
-            periodSeconds: 30
-            timeoutSeconds: 10
+            initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 5 }}
+            periodSeconds: 15
+            timeoutSeconds: 5
           volumeMounts:
-            - name: tmp
-              mountPath: /tmp
+            - name: config
+              mountPath: /dist/config
+              readOnly: true
       volumes:
-        - name: tmp
-          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "apollo-router.fullname" . }}-config
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

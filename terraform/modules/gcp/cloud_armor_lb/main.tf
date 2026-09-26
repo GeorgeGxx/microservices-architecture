@@ -72,11 +72,11 @@ resource "google_compute_backend_service" "api_backend" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
 }
 
-# Backend Bucket for Static Angular Frontend (Google Cloud Storage) with Cloud CDN
+# Backend Bucket for Static React 19 Frontend (Google Cloud Storage) with Cloud CDN
 resource "google_compute_backend_bucket" "static_frontend" {
   count       = var.gcs_bucket_name != "" ? 1 : 0
   name        = "${var.name}-${var.environment}-frontend-bucket"
-  description = "GCS Backend Bucket serving Angular 21 static files"
+  description = "GCS Backend Bucket serving React 19 static files"
   bucket_name = var.gcs_bucket_name
   enable_cdn  = true
 
@@ -91,8 +91,8 @@ resource "google_compute_backend_bucket" "static_frontend" {
 }
 
 # URL Map with Dual-Origin Path Matcher:
-# - Default (/*): Points to GCS Bucket (Static Angular Frontend) with Cloud CDN
-# - /api/* & /realms/*: Points to Backend Service (Istio ingress gateway on GKE) with Cloud Armor WAF
+# - Default (/*): Points to GCS Bucket (Static React 19 Frontend) with Cloud CDN
+# - /graphql*, /api/* & /realms/*: Points to Backend Service (Istio ingress gateway on GKE) with Cloud Armor WAF
 resource "google_compute_url_map" "this" {
   name = "${var.name}-${var.environment}-url-map"
 
@@ -108,7 +108,7 @@ resource "google_compute_url_map" "this" {
     default_service = var.gcs_bucket_name != "" ? google_compute_backend_bucket.static_frontend[0].id : google_compute_backend_service.api_backend.id
 
     path_rule {
-      paths   = ["/api/*", "/realms/*"]
+      paths   = ["/graphql*", "/api/*", "/realms/*"]
       service = google_compute_backend_service.api_backend.id
     }
   }

@@ -19,7 +19,6 @@ if sys.platform == "win32":
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 SERVICES = [
-    "api-gateway",
     "inventory-service",
     "notification-service",
     "orders-service",

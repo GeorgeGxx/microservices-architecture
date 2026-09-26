@@ -1,0 +1,6 @@
+apiVersion: v2
+name: apollo-router
+description: Helm chart for Apollo Router v2 Federated GraphQL Gateway
+type: application
+version: 1.0.0
+appVersion: "2.16.3"

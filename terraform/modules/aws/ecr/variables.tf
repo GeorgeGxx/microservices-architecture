@@ -2,7 +2,7 @@ variable "repository_names" {
   description = "List of ECR repository names to create, one per microservice"
   type        = list(string)
   default = [
-    "api-gateway",
+    "apollo-router",
     "inventory-service",
     "notification-service",
     "orders-service",

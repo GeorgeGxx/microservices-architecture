@@ -99,10 +99,10 @@ spec:
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
-  name: api-gateway-dr
+  name: apollo-router-dr
   namespace: dev
 spec:
-  host: api-gateway
+  host: apollo-router
   trafficPolicy:
     loadBalancer:
       simple: LEAST_REQUEST
@@ -115,7 +115,7 @@ spec:
   subsets:
     - name: v1
       labels:
-        version: "1.0.0"
+        version: "2.16.3"
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule

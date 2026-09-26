@@ -1,0 +1,14 @@
+federation_version: =2.3.0
+subgraphs:
+  products:
+    routing_url: http://products-service:8004/graphql
+    schema:
+      file: ./subgraphs/products.graphql
+  inventory:
+    routing_url: http://inventory-service:8001/graphql
+    schema:
+      file: ./subgraphs/inventory.graphql
+  orders:
+    routing_url: http://orders-service:8003/graphql
+    schema:
+      file: ./subgraphs/orders.graphql

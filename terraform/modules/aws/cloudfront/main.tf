@@ -126,7 +126,7 @@ locals {
 }
 
 # CloudFront Dual-Origin Distribution:
-# 1. Origin 'S3FrontendOrigin': Angular 21 static files (index.html, *.js, *.css, assets)
+# 1. Origin 'S3FrontendOrigin': React 19 static files (index.html, *.js, *.css, assets)
 # 2. Origin 'EksNlbApiOrigin': Dynamic backend (/api/* and /realms/*) -> AWS NLB -> Istio ingress gateway
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
@@ -157,7 +157,7 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Default Behavior (/*): Serves Angular SPA static assets from S3 with caching
+  # Default Behavior (/*): Serves React 19 SPA static assets from S3 with caching
   default_cache_behavior {
     allowed_methods  = ["GET", "HEAD", "OPTIONS"]
     cached_methods   = ["GET", "HEAD"]
@@ -173,6 +173,28 @@ resource "aws_cloudfront_distribution" "this" {
       query_string = false
       cookies {
         forward = "none"
+      }
+    }
+  }
+
+  # Dynamic Behavior: /graphql* -> EKS NLB (Apollo Router Federated Supergraph)
+  ordered_cache_behavior {
+    path_pattern     = "/graphql*"
+    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = local.api_origin_id
+
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = 0
+    default_ttl            = 0
+    max_ttl                = 0
+    compress               = true
+
+    forwarded_values {
+      query_string = true
+      headers      = ["*"]
+      cookies {
+        forward = "all"
       }
     }
   }

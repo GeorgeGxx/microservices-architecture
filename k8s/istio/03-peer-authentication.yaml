@@ -55,16 +55,16 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: api-gateway-metrics-mtls
+  name: apollo-router-metrics-mtls
   namespace: dev
 spec:
   selector:
     matchLabels:
-      app: api-gateway
+      app: apollo-router
   mtls:
     mode: STRICT
   portLevelMtls:
-    8080:
+    9090:
       mode: PERMISSIVE
 ---
 apiVersion: security.istio.io/v1beta1

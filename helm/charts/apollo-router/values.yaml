@@ -1,23 +1,25 @@
 replicaCount: 1
 
 image:
-  repository: georgegxx/api-gateway
-  tag: "1.0.0"
+  repository: ghcr.io/apollographql/router
+  tag: "v2.16.3"
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
   port: 8080
+  metricsPort: 9090
 
 containerPort: 8080
+metricsPort: 9090
 
 resources:
   requests:
-    cpu: 200m
-    memory: 384Mi
+    cpu: 100m
+    memory: 128Mi
   limits:
     cpu: 1000m
-    memory: 1024Mi
+    memory: 512Mi
 
 autoscaling:
   enabled: false
@@ -34,8 +36,8 @@ keda:
   prometheus:
     enabled: true
     serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-    metricName: "http_requests_per_second"
-    query: "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))"
+    metricName: "apollo_router_http_requests_per_second"
+    query: "sum(rate(apollo_router_http_requests_total[1m]))"
     threshold: "100"
   cpu:
     enabled: true
@@ -45,16 +47,11 @@ keda:
     targetUtilizationPercentage: 80
 
 probes:
-  readinessPath: /actuator/health/readiness
-  livenessPath: /actuator/health/liveness
-  initialDelaySeconds: 45
+  readinessPath: /health
+  livenessPath: /health
+  initialDelaySeconds: 5
 
 env: {}
-  # EXTRA_VAR: value
-
-envFrom:
-  configMapRef: microservices-config
-  secretRef: microservices-secrets
 
 podSecurityContext:
   runAsNonRoot: true
@@ -66,7 +63,7 @@ podSecurityContext:
 
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: true
+  readOnlyRootFilesystem: false
   capabilities:
     drop:
       - ALL
@@ -75,13 +72,12 @@ serviceAccount:
   create: false
   name: ""
   annotations: {}
-  # eks.amazonaws.com/role-arn: arn:aws:iam::...:role/xxx-irsa-xxx
-  # azure.workload.identity/client-id: xxxxxxxx-xxxx
 
 serviceMonitor:
   enabled: true
   interval: 15s
-  path: /actuator/prometheus
+  path: /metrics
+  port: metrics
 
 nodeSelector: {}
 tolerations: []
@@ -89,5 +85,5 @@ affinity: {}
 
 podAnnotations:
   prometheus.io/scrape: "true"
-  prometheus.io/port: "8080"
-  prometheus.io/path: "/actuator/prometheus"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"

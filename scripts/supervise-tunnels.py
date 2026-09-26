@@ -8,7 +8,7 @@ import sys
 # - Platform tools run in 'argocd', 'observability', 'vault', and 'istio-system'
 tunnels = [
     {"name": "Frontend", "ns": "dev", "svc": "frontend", "local": 4200, "remote": 80},
-    {"name": "API-Gateway", "ns": "dev", "svc": "api-gateway", "local": 8080, "remote": 8080},
+    {"name": "Apollo-Router", "ns": "dev", "svc": "apollo-router", "local": 8080, "remote": 8080},
     {"name": "Keycloak", "ns": "auth", "svc": "keycloak", "local": 8181, "remote": 8181},
     {"name": "ArgoCD", "ns": "argocd", "svc": "argocd-server", "local": 8088, "remote": 80},
     {"name": "Grafana", "ns": "observability", "svc": "kube-prometheus-grafana", "local": 3000, "remote": 80},
