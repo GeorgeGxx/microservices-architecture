@@ -257,7 +257,7 @@ spec:
             - "--dev"
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
@@ -277,6 +277,8 @@ spec:
             - name: config
               mountPath: /dist/config
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
           readinessProbe:
             httpGet:
               path: /health
@@ -295,3 +297,5 @@ spec:
         - name: config
           configMap:
             name: apollo-router-config
+        - name: tmp
+          emptyDir: {}
