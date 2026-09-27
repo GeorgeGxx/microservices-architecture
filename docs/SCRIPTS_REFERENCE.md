@@ -138,7 +138,7 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | Tool | Location | Purpose | Key Capabilities | Runbook Command |
 | :--- | :--- | :--- | :--- | :--- |
 | **`platform.ps1`** | Root (`./platform.ps1`) | **Master Platform Orchestrator:** Unified lifecycle manager across Minikube, AWS, Azure, and GCP. | • Hardware sizing (6 CPUs, 12 GB RAM)<br/>• Multi-cloud bootstrap, plan, apply, destroy<br/>• Automated rollbacks & state unlocking<br/>• Health diagnostic audit (`doctor`) | `.\platform.ps1 up -Platform minikube` |
-| **[`bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1)** | `scripts/` | **Keycloak 26 Realm & Client Bootstrapper:** Provisions IAM realm, roles, and clients. | • Auto-syncs client secret into `.env` and k8s<br/>• Configures `microservices_frontend` (PKCE)<br/>• Configures `microservices_client` (M2M) | `pwsh -File .\scripts\bootstrap-keycloak.ps1` |
+| **[`bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1)** | `scripts/` | **Keycloak 26 Realm & Client Bootstrapper:** Provisions IAM realm, roles, users, and clients. | • Syncs confidential client secret into `.env` and K8s<br/>• Configures public `microservices_frontend` for the SPA<br/>• Configures confidential `microservices_client` for automated tests | `pwsh -File .\scripts\bootstrap-keycloak.ps1` |
 | **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & React containers. | • Parallel compilation of 4 Spring Boot services<br/>• Nginx Distroless React 19 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
 | **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Frontend and GraphQL health/latency checks. | • Apollo Router GraphQL (`/graphql`)<br/>• Frontend health (`/actuator/health`)<br/>• Frontend SPA root (`/`)<br/>• Optional latency SLO threshold | `python scripts/endpoint-smoke-test.py --base-url http://localhost:4200 --max-latency-ms 500` |
 | **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | `scripts/` | **Zero-Trust Cryptographic Secret Generator:** CSPRNG high-entropy key generator. | • High-entropy DB passwords and JWT keys<br/>• Exports to `.env`, JSON, or K8s `Secret` YAML<br/>• Automated HashiCorp Vault token generation | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
@@ -146,11 +146,11 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
 | **[`update_dashboards.py`](../scripts/update_dashboards.py)** | `scripts/` | **Grafana Dashboard JSON Synchronizer:** Programmatic dashboard model manager. | • Validates panel schemas and PromQL queries<br/>• Formats and syncs JSON dashboards<br/>• Supports business and technical security panels | `python scripts/update_dashboards.py` |
 | **[`generate_drawio.py`](../scripts/generate_drawio.py)** | `scripts/` | **Architectural Blueprint Generator:** Programmatically generates the 12-page Draw.io model. | • Generates [`docs/Diagrams.drawio`](./Diagrams.drawio)<br/>• 12 specialized architectural views<br/>• Mathematical layout without XML overlap | `python scripts/generate_drawio.py` |
-| **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Checkout & GraphQL Flood Simulator.** | • E-commerce journey over Apollo Router GraphQL<br/>• Funnel REST events through frontend Nginx<br/>• Reports observed HTTP 429 and upstream errors without assuming a limiter is installed | `python scripts/testing/simulate.py --scenario traffic` |
+| **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Checkout & GraphQL Flood Simulator.** | • Traffic/chaos use Apollo Router; DDoS uses frontend edge via `DDOS_EDGE_URL` / `--ddos-url`<br/>• Keycloak JWT required unless DDoS `--no-auth` is explicit<br/>• Rate-limit probe reports real HTTP responses; Nginx JSON logs feed Loki IP panels<br/>• Stops before sending traffic/mutations if authentication fails | `python scripts/testing/simulate.py --scenario traffic` |
 | **`smoke.py`** | `scripts/testing/` | **Frontend-to-Backend Smoke Tester:** Health, GraphQL, REST catalog/order, and security checks. | • Nginx health and Apollo GraphQL<br/>• Catalog REST route through frontend<br/>• Authenticated and unauthenticated order routes | `python scripts/testing/smoke.py --base-url http://localhost:4200` |
 | **`verify.py`** | `scripts/testing/` | **Component & Observability Verifier:** Audits Swagger, metrics, and dashboards. | • Validates Swagger UI and OpenAPI 3.0 specs<br/>• Queries Prometheus active metric series<br/>• Audits Grafana dashboards and datasource links | `python scripts/testing/verify.py --target all` |
 | **`check.py`** | `scripts/testing/` | **Diagnostic Telemetry & PromQL Evaluator:** Probes JVM, cart abandonment, and Vault. | • JVM heap memory, threads, and CPU audit<br/>• Real-time cart abandonment PromQL audit<br/>• HashiCorp Vault seal status & telemetry probe | `python scripts/testing/check.py --check all` |
-| **`test_order.py`** | `scripts/testing/` | **Direct Order Placement Integration Test:** End-to-end transaction test script. | • Places verified order with Idempotency UUID<br/>• Validates inventory reservation & Kafka event | `python scripts/testing/test_order.py` |
+| **`test_order.py`** | `scripts/testing/` | **Authenticated Order-List Check:** Read-only REST check through frontend Nginx. | • Acquires a JWT from Keycloak with `microservices_client`<br/>• Uses `KEYCLOAK_CLIENT_SECRET` from environment or `.env`<br/>• Reads `GET /api/order`; does not create an order | `python scripts/testing/test_order.py` |
 
 ---
 
@@ -164,7 +164,7 @@ scripts/
 │   ├── check.py                       # Diagnostic telemetry & PromQL evaluator (JVM, Cart abandonment, Vault)
 │   ├── simulate.py                    # GraphQL traffic, checkout, chaos, and flood scenarios
 │   ├── smoke.py                       # Frontend, GraphQL, REST, and auth smoke checks
-│   ├── test_order.py                  # Direct end-to-end order placement test
+│   ├── test_order.py                  # Keycloak-authenticated read-only order-list check
 │   └── verify.py                      # Component verifier for Swagger OpenAPI, Prometheus, and Grafana
 ├── bootstrap-keycloak.ps1             # Native PowerShell Keycloak 26 IAM realm bootstrapper & client secret sync
 ├── build-all.py                       # Concurrent multi-service container compiler (Java 21 Maven + React 19)
@@ -181,7 +181,7 @@ scripts/
 ## 📖 Detailed Tooling Playbooks
 
 ### 1. 🔐 Keycloak IAM Bootstrap (`bootstrap-keycloak.ps1`)
-Provisions the `microservices-realm` realm, configures PKCE public client for the React frontend, creates confidential client for the Apollo Router, and automatically writes the client secret to `.env`:
+Provisions `microservices-realm`, creates the public SPA client and confidential automation client, creates the local test users/roles, and writes the confidential client secret to `.env`. Run this after Keycloak is ready; Compose's `start-dev` command does not itself run this bootstrap:
 
 ```powershell
 # Execute the native PowerShell Keycloak bootstrapper:
@@ -199,7 +199,7 @@ python scripts/build-all.py 1.0.0
 ### 3. 🧪 Comprehensive Testing Suite (`scripts/testing/`)
 
 #### A. Unified Simulation Engine (`simulate.py`)
-Generates production-grade traffic, stress attacks, and chaos faults:
+Generates authenticated traffic, GraphQL load, and checkout chaos scenarios:
 
 ```powershell
 # 1. Normal E-Commerce Traffic Simulation (JWT auth, browse, cart, order):
@@ -208,8 +208,8 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 # 2. Continuous Shopping Flow:
 python scripts/testing/simulate.py --scenario traffic --continuous
 
-# 3. Concurrent GraphQL flood; pass an ingress URL to include ingress controls:
-python scripts/testing/simulate.py --scenario ddos --duration 30 --distributed
+# 3. GraphQL flood through frontend Nginx shared edge limiter:
+python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 24 --distributed
 
 # 4. GraphQL checkout validation (stock and invalid SKU responses):
 python scripts/testing/simulate.py --scenario chaos --chaos-runs 20
@@ -217,9 +217,10 @@ python scripts/testing/simulate.py --scenario chaos --chaos-runs 20
 # 5. Full Battery (Traffic + DDoS + Chaos):
 python scripts/testing/simulate.py --scenario all
 ```
+The scripts use `APOLLO_ROUTER_URL` (default `http://127.0.0.1:8080`) for traffic/chaos and `DDOS_EDGE_URL` (default `FRONTEND_URL`, or `http://127.0.0.1:4200`) for the DDoS probe. Set `KEYCLOAK_CLIENT_SECRET` in the environment or `.env`; traffic and chaos stop without a token. DDoS also requires a token unless `--no-auth` is deliberately supplied. The shared frontend edge enforces 20 requests/second per observed socket peer with a burst of 30. Synthetic `X-Forwarded-For` values cannot bypass that limit or change the client IP logged by Nginx. Alloy ships the JSON access log to Loki; the security panels use those actual 429 records. On Minikube, `scripts/supervise-tunnels.py` forwards the Router, frontend, and Keycloak ports.
 
 #### B. Unified Smoke Tester (`smoke.py`)
-Validates frontend health, GraphQL, catalog REST, order REST, and negative security boundaries:
+Validates frontend health, public GraphQL reachability, catalog REST, Keycloak token acquisition, authenticated order placement, and the negative unauthenticated order boundary:
 
 ```powershell
 # Standard smoke test through frontend Nginx (GraphQL and proxied REST):

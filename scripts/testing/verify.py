@@ -134,7 +134,7 @@ def verify_grafana(grafana_url):
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Platform Verification Super-Script")
     parser.add_argument("--target", choices=["all", "swagger", "metrics", "grafana"], default="all", help="Target component to verify")
-    parser.add_argument("--router-url", "--gateway-url", dest="router_url", default=os.getenv("APOLLO_ROUTER_URL", os.getenv("GATEWAY_URL", DEFAULT_ROUTER_URL)), help="Apollo Router base URL (legacy --gateway-url alias accepted)")
+    parser.add_argument("--router-url", default=os.getenv("APOLLO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Apollo Router base URL")
     parser.add_argument("--prometheus-url", default=os.getenv("PROMETHEUS_URL", DEFAULT_PROMETHEUS), help="Prometheus URL")
     parser.add_argument("--grafana-url", default=os.getenv("GRAFANA_URL", DEFAULT_GRAFANA), help="Grafana URL")
 

@@ -29,7 +29,7 @@ flowchart TD
 | :--- | :--- | :--- | :--- |
 | **JUnit 5 + Mockito** | **Stage 1 (Unit)** | Validates individual Java classes, business domain validation, and Saga state transitions in complete isolation with mock dependencies. | Maven Runner (`mvn test`) |
 | **JaCoCo** | **Stage 1 (Coverage)** | Enforces code quality gates requiring ≥80% line and branch coverage before code can be packaged into containers. | Maven Plugin (`jacoco:report`) |
-| **Newman (Postman CLI)** | **Stage 7 (Integration)** | Executes 22 automated API contract checks validating JSON schemas, HTTP status codes, and Keycloak JWT validation across microservices without browser overhead. | Container / CLI (`newman run`) |
+| **Newman (Postman CLI)** | **Stage 7 (Integration)** | Runs the repository collection through the frontend Nginx proxy, covering GraphQL/REST responses, Keycloak logins, and order lifecycle assertions. | Container / CLI (`newman run`) |
 | **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
 | **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles ($p_{95} < 500\text{ms}$), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
 | **`simulate.py` / `smoke.py`** | **Runtime / Caos** | Generates shopper traffic and GraphQL load, checks checkout business errors, and probes frontend, REST proxy routes, and GraphQL. It reports observed rate-limit responses without assuming a limiter implementation. | Platform CLI (`.\platform.ps1 smoke`) |
@@ -132,13 +132,13 @@ python scripts/testing/simulate.py --scenario chaos
 ```
 
 ### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`simulate.py --scenario ddos`)
-Sends concurrent GraphQL requests to Apollo Router and reports observed HTTP responses. The default local port-forward reaches Router directly and bypasses Istio ingress policies. To include ingress controls, target the ingress URL:
+Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, override `--ddos-url`:
 ```powershell
-# Direct local Apollo Router load probe:
-python scripts/testing/simulate.py --scenario ddos --duration 30
+# GraphQL flood through the shared frontend edge limiter (12 workers by default):
+python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 24
 
-# Probe the public GraphQL route through Istio ingress:
-python scripts/testing/simulate.py --scenario ddos --router-url https://graphql.example.com --duration 30
+# Probe the public frontend route through the deployed edge:
+python scripts/testing/simulate.py --scenario ddos --ddos-url https://store.example.com --duration 30
 
 # Do not rotate synthetic X-Forwarded-For headers:
 python scripts/testing/simulate.py --scenario ddos --single-source
@@ -146,6 +146,9 @@ python scripts/testing/simulate.py --scenario ddos --single-source
 # Send anonymous GraphQL requests:
 python scripts/testing/simulate.py --scenario ddos --no-auth
 ```
+
+The DDoS probe targets frontend Nginx (default `http://127.0.0.1:4200`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. `--distributed` sends synthetic `X-Forwarded-For` headers only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads real HTTP 429 events and source IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `--no-auth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
+
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
 # Run frontend, Apollo Router GraphQL, proxied catalog/order REST, and auth smoke checks:
@@ -159,13 +162,13 @@ python scripts/testing/verify.py --target all
 ```
 
 ### 6. 📉 Cart Abandonment Rate KPI Verification & Testing
-The **📉 Cart Abandonment Rate** panel in the **`🏢 Business Intelligence & Inventory Operations`** Grafana dashboard evaluates the proportion of buyer journeys where items were added to the shopping cart but never converted into finalized purchases:
+The **📉 Cart Abandonment Rate** panel in the **`🏢 Business Intelligence & Inventory Operations`** Grafana dashboard is an aggregate gauge derived from cart-addition and completed-order counters. It does not correlate individual sessions or prove that a specific cart was abandoned:
 
 $$\text{Cart Abandonment Rate (\%)} = \text{clamp}\left(\left(1 - \frac{\sum \text{Orders Completed}}{\sum \text{Cart Additions}}\right) \times 100,\, 0,\, 100\right)$$
 
-* **🟢 0% – 50% (Green):** High sales conversion efficiency (healthy e-commerce funnel).
-* **🟡 50% – 75% (Yellow):** Moderate abandonment indicating checkout friction or drop-off.
-* **🔴 75% – 100% (Red):** Critical commercial warning (high drop-off rate, uncompleted purchases).
+* **🟢 0% – 50% (Green):** Lower aggregate cart-addition to order ratio.
+* **🟡 50% – 75% (Yellow):** Intermediate aggregate ratio.
+* **🔴 75% – 100% (Red):** Higher aggregate ratio; investigate alongside application events and checkout metrics.
 
 #### Step-by-Step Testing Procedures (3 Verified Methods):
 
@@ -183,16 +186,16 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 ```
 
 * **Grafana Verification:** Open **http://localhost:3000** &rarr; Dashboards &rarr; **`🏢 Business Intelligence & Inventory Operations`**.
-* The **`📉 Cart Abandonment Rate`** gauge instantly spikes into the **🟡 Yellow** / **🔴 Red** zone (~70% – 85%), reflecting the sudden drop in conversion.
+* The **`📉 Cart Abandonment Rate`** gauge reflects the aggregate ratio after telemetry is scraped; the result depends on existing cart and order counters and is not guaranteed to land in a fixed color band.
 
 ---
 
 ##### 🖥️ Method 2: Interactive Browser Testing via React 19 Frontend SPA
 1. Open the storefront in your web browser: **[http://localhost:4200](http://localhost:4200)**.
-2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click emits a real-time `CART_ADD` telemetry event to `orders-service` via Apollo Router).
+2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click sends a public `CART_ADD` event through frontend Nginx to the Orders REST funnel endpoint).
 3. Leave the session idle or close the shopping cart drawer (abandoning the purchase).
-4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the gauge needle climb upward.
-5. Next, proceed through the checkout flow and click **"Place Order & Pay"**: once the order completes with `HTTP 201 Created`, the gauge needle immediately swings back down toward the **🟢 Green** zone.
+4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the aggregate gauge update after the next scrape.
+5. Next, proceed through the checkout flow and click **"Place Order & Pay"**: the aggregate gauge changes as the completed-order counter increases.
 
 ---
 
@@ -204,19 +207,24 @@ Run the autonomous e-commerce load generator to exercise the complete funnel sta
 python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 4
 ```
 
-* **Behavior:** The script realistically blends abandoned carts, partial checkouts, completed purchases, and Saga cancellations, dynamically balancing the abandonment metric in real time.
+* **Behavior:** The script blends cart telemetry and authenticated GraphQL order placements. The funnel gauge is an aggregate of cart events and completed orders, not a session-level attribution metric.
 
 ### 📦 Postman & Newman Test Suite (Unified Collection):
 The repository maintains a comprehensive Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](./devsecops/testing/newman/microservices.postman_collection.json) aligned with **Apollo Router (GraphQL Federation 2.3)**, designed for both interactive desktop usage in Postman and headless automated CI/CD pipeline execution with Newman:
 
-* **Zero-Config 1-Click Authentication:** Run `🔑 Authentication ➔ 1. Login as Admin` to fetch and store the JWT into `{{jwt_token}}` via Keycloak's public client (`microservices_frontend`). **No `client_secret` required!**
+* **Keycloak Login Requests:** The standard/admin requests save separate JWTs in `{{user_jwt_token}}` and `{{admin_jwt_token}}` via the public client (`microservices_frontend`). Provision the realm, enable the development test users and direct grants with `scripts/bootstrap-keycloak.ps1` before running them; the collection does not need a client secret.
 * **Federated GraphQL Operations:** Native queries and mutations against Apollo Router (`POST {{base_url}}/graphql`):
   * **Supergraph Catalog:** Resolves `products` with real-time stock availability federated from the `inventory` subgraph (`isInStock`, `quantity`).
   * **Order Placement:** Generates dynamic `idempotency_key` (UUIDv4) and automated DHL tracking number (`DHL-[A-Z0-9]+`), saving `order_id` into collection variables.
   * **Logistics State Machine:** Progresses orders through `shipOrder` (`SHIPPED`) and `deliverOrder` (`DELIVERED`).
-  * **Saga Compensation:** Triggers `cancelOrder` to execute distributed rollbacks and release inventory.
-* **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`).
+  * **Saga Compensation:** Creates a second order, then cancels it while it is still `PLACED` to verify compensation and inventory restoration.
+* **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`). Requests use the frontend Nginx reverse proxy, so they work without separate host port-forwards to each ClusterIP service. Set `BASE_URL` to the reachable frontend URL (default `http://127.0.0.1:4200`; for a manual Minikube forward, e.g. `http://127.0.0.1:18080`). The SSE stream is long-lived; run it individually rather than in the full Newman collection.
 * **CI/CD Quality Gate (Newman CLI):** Fully compatible with automated pipeline execution in GitHub Actions, Azure DevOps, and Bitbucket Pipelines (`newman run $COLLECTION --env-var "BASE_URL=${TARGET_URL}"`). Pre-request scripts automatically harmonize `base_url` and `BASE_URL`.
 
----
+### 7. 🔎 Read-Only Authenticated Order Check (`test_order.py`)
+Acquires a Keycloak token with the confidential `microservices_client` and performs `GET /api/order` through frontend Nginx. It requires `KEYCLOAK_CLIENT_SECRET` from the environment or project `.env` and does not create or mutate orders:
+```powershell
+python scripts/testing/test_order.py
+```
 
+---
