@@ -138,7 +138,9 @@ Sends concurrent GraphQL requests through frontend Nginx and reports observed HT
 python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 24
 
 # Probe the public frontend route through the deployed edge:
-python scripts/testing/simulate.py --scenario ddos --ddos-url https://store.example.com --duration 30
+python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:4200 --duration 30 --workers 1
+
+python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:4200 --duration 30 --workers 2 --no-auth
 
 # Do not rotate synthetic X-Forwarded-For headers:
 python scripts/testing/simulate.py --scenario ddos --single-source

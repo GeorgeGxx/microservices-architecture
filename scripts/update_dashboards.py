@@ -769,7 +769,7 @@ tech_panels = [
         "targets": [
             {
                 "datasource": {"uid": "loki-ds", "type": "loki"},
-                "expr": "sum(count_over_time({service=\"frontend\"} | json | status=\"429\" [15m]))",
+                "expr": "sum(count_over_time({service=\"frontend\"} | json | status=\"429\" [15m])) or vector(0)",
                 "legendFormat": "Blocked HTTP 429 (15m)",
                 "queryType": "range"
             },
