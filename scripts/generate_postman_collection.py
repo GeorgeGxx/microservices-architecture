@@ -6,6 +6,7 @@ Logistics State Machine, Saga Compensation, and SSE Notifications.
 """
 
 import json
+import copy
 import uuid
 
 def build_postman_collection():
@@ -33,11 +34,11 @@ def build_postman_collection():
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "if (res.access_token) {",
-                                        "    pm.collectionVariables.set('jwt_token', res.access_token);",
-                                        "    pm.test('Token received and saved to {{jwt_token}}', () => {",
+                                        "    pm.collectionVariables.set('user_jwt_token', res.access_token);",
+                                        "    pm.test('Token received and saved to {{user_jwt_token}}', () => {",
                                         "        pm.expect(res.access_token).to.be.a('string');",
                                         "    });",
-                                        "    console.log('✅ User JWT successfully stored in collection variable jwt_token');",
+                                        "    console.log('✅ User JWT successfully stored in collection variable user_jwt_token');",
                                         "}"
                                     ]
                                 }
@@ -64,7 +65,7 @@ def build_postman_collection():
                                 "host": ["{{keycloak_url}}"],
                                 "path": ["realms", "microservices-realm", "protocol", "openid-connect", "token"]
                             },
-                            "description": "Obtains a Standard User JWT token without administrative privileges. Saves automatically to {{jwt_token}}."
+                            "description": "Obtains a Standard User JWT token without administrative privileges. Saves automatically to {{user_jwt_token}}."
                         },
                         "response": []
                     },
@@ -81,11 +82,11 @@ def build_postman_collection():
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "if (res.access_token) {",
-                                        "    pm.collectionVariables.set('jwt_token', res.access_token);",
-                                        "    pm.test('Admin Token received and saved to {{jwt_token}}', () => {",
+                                        "    pm.collectionVariables.set('admin_jwt_token', res.access_token);",
+                                        "    pm.test('Admin Token received and saved to {{admin_jwt_token}}', () => {",
                                         "        pm.expect(res.access_token).to.be.a('string');",
                                         "    });",
-                                        "    console.log('✅ Admin JWT successfully stored in collection variable jwt_token');",
+                                        "    console.log('✅ Admin JWT successfully stored in collection variable admin_jwt_token');",
                                         "}"
                                     ]
                                 }
@@ -112,7 +113,7 @@ def build_postman_collection():
                                 "host": ["{{keycloak_url}}"],
                                 "path": ["realms", "microservices-realm", "protocol", "openid-connect", "token"]
                             },
-                            "description": "Obtains an Admin User JWT token with administrative privileges (ROLE_ADMIN). Saves automatically to {{jwt_token}}."
+                            "description": "Obtains an Admin User JWT token with administrative privileges (ROLE_ADMIN). Saves automatically to {{admin_jwt_token}}."
                         },
                         "response": []
                     }
@@ -122,29 +123,42 @@ def build_postman_collection():
                 "name": "🚀 Apollo Router - GraphQL Supergraph",
                 "item": [
                     {
-                        "name": "1. Apollo Router Health Check",
+                        "name": "1. Apollo Router GraphQL Reachability",
                         "event": [
                             {
                                 "listen": "test",
                                 "script": {
                                     "type": "text/javascript",
                                     "exec": [
-                                        "pm.test('Apollo Router is Healthy (HTTP 200)', () => {",
+                                        "pm.test('Apollo Router GraphQL endpoint responds (HTTP 200)', () => {",
                                         "    pm.response.to.have.status(200);",
+                                        "});",
+                                        "const res = pm.response.json();",
+                                        "pm.test('GraphQL root query resolves without errors', () => {",
+                                        "    pm.expect(res.errors).to.be.undefined;",
+                                        "    pm.expect(res.data.__typename).to.equal('Query');",
                                         "});"
                                     ]
                                 }
                             }
                         ],
                         "request": {
-                            "method": "GET",
+                            "auth": {"type": "noauth"},
+                            "method": "POST",
                             "header": [],
-                            "url": {
-                                "raw": "{{base_url}}/health",
-                                "host": ["{{base_url}}"],
-                                "path": ["health"]
+                            "body": {
+                                "mode": "graphql",
+                                "graphql": {
+                                    "query": "query RouterReadiness { __typename }",
+                                    "variables": "{}"
+                                }
                             },
-                            "description": "Checks Apollo Router health endpoint (:8080/health)."
+                            "url": {
+                                "raw": "{{base_url}}/graphql",
+                                "host": ["{{base_url}}"],
+                                "path": ["graphql"]
+                            },
+                            "description": "Checks the Apollo Router GraphQL listener on port 8080 without depending on the separate health listener on port 8088."
                         },
                         "response": []
                     },
@@ -296,7 +310,7 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"},
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"},
                                 {"key": "X-Idempotency-Key", "value": "{{idempotency_key}}", "type": "text"}
                             ],
                             "body": {
@@ -316,7 +330,7 @@ def build_postman_collection():
                         "response": []
                     },
                     {
-                        "name": "5. List User Orders (JWT Isolation)",
+                        "name": "5. List Orders",
                         "event": [
                             {
                                 "listen": "test",
@@ -341,7 +355,7 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
                             ],
                             "body": {
                                 "mode": "graphql",
@@ -386,7 +400,7 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
                             ],
                             "body": {
                                 "mode": "graphql",
@@ -432,7 +446,7 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{admin_jwt_token}}", "type": "text"}
                             ],
                             "body": {
                                 "mode": "graphql",
@@ -477,7 +491,7 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{admin_jwt_token}}", "type": "text"}
                             ],
                             "body": {
                                 "mode": "graphql",
@@ -496,7 +510,7 @@ def build_postman_collection():
                         "response": []
                     },
                     {
-                        "name": "9. Cancel Order (Saga Compensation & Stock Rollback)",
+                        "name": "10. Cancel Order (Saga Compensation & Stock Rollback)",
                         "event": [
                             {
                                 "listen": "test",
@@ -507,12 +521,10 @@ def build_postman_collection():
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "const res = pm.response.json();",
-                                        "pm.test('No GraphQL Errors', () => {",
-                                        "    pm.expect(res.errors).to.be.undefined;",
-                                        "});",
                                         "pm.test('Order cancelled with compensation trigger', () => {",
+                                        "    pm.expect(res.errors).to.be.undefined;",
                                         "    pm.expect(res.data.cancelOrder).to.exist;",
-                                        "    pm.expect(res.data.cancelOrder.orderStatus).to.be.oneOf(['CANCELLED', 'COMPENSATING']);",
+                                        "    pm.expect(res.data.cancelOrder.orderStatus).to.equal('CANCELLED');",
                                         "});"
                                     ]
                                 }
@@ -522,13 +534,13 @@ def build_postman_collection():
                             "method": "POST",
                             "header": [
                                 {"key": "Content-Type", "value": "application/json", "type": "text"},
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
                             ],
                             "body": {
                                 "mode": "graphql",
                                 "graphql": {
                                     "query": "mutation CancelOrder($id: ID!) {\n  cancelOrder(id: $id) {\n    id\n    orderStatus\n  }\n}",
-                                    "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+                                    "variables": "{\n  \"id\": \"{{cancel_order_id}}\"\n}"
                                 }
                             },
                             "url": {
@@ -536,7 +548,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Triggers distributed Saga cancellation, releasing reserved inventory and dispatching Kafka order-cancelled notification."
+                            "description": "Cancels a separate newly placed order to verify saga compensation and inventory restoration."
                         },
                         "response": []
                     },
@@ -641,8 +653,8 @@ def build_postman_collection():
                                 "script": {
                                     "type": "text/javascript",
                                     "exec": [
-                                        "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                                        "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                                        "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                                        "    pm.response.to.have.status(202);",
                                         "});"
                                     ]
                                 }
@@ -658,8 +670,8 @@ def build_postman_collection():
                                 "raw": "{\n  \"eventType\": \"CART_ADD\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"cart\"\n}"
                             },
                             "url": {
-                                "raw": "{{orders_service_url}}/api/order/funnel",
-                                "host": ["{{orders_service_url}}"],
+                                "raw": "{{base_url}}/api/order/funnel",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "order", "funnel"]
                             },
                             "description": "Records CART_ADD funnel telemetry event."
@@ -674,8 +686,8 @@ def build_postman_collection():
                                 "script": {
                                     "type": "text/javascript",
                                     "exec": [
-                                        "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                                        "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                                        "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                                        "    pm.response.to.have.status(202);",
                                         "});"
                                     ]
                                 }
@@ -691,8 +703,8 @@ def build_postman_collection():
                                 "raw": "{\n  \"eventType\": \"CHECKOUT_START\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"shipping\"\n}"
                             },
                             "url": {
-                                "raw": "{{orders_service_url}}/api/order/funnel",
-                                "host": ["{{orders_service_url}}"],
+                                "raw": "{{base_url}}/api/order/funnel",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "order", "funnel"]
                             },
                             "description": "Records CHECKOUT_START funnel telemetry event."
@@ -707,8 +719,8 @@ def build_postman_collection():
                                 "script": {
                                     "type": "text/javascript",
                                     "exec": [
-                                        "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                                        "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                                        "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                                        "    pm.response.to.have.status(202);",
                                         "});"
                                     ]
                                 }
@@ -724,8 +736,8 @@ def build_postman_collection():
                                 "raw": "{\n  \"eventType\": \"CHECKOUT_STEP\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"payment\"\n}"
                             },
                             "url": {
-                                "raw": "{{orders_service_url}}/api/order/funnel",
-                                "host": ["{{orders_service_url}}"],
+                                "raw": "{{base_url}}/api/order/funnel",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "order", "funnel"]
                             },
                             "description": "Records CHECKOUT_STEP funnel telemetry event."
@@ -781,8 +793,8 @@ def build_postman_collection():
                             "method": "GET",
                             "header": [],
                             "url": {
-                                "raw": "{{products_service_url}}/api/product",
-                                "host": ["{{products_service_url}}"],
+                                "raw": "{{base_url}}/api/product",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "product"]
                             },
                             "description": "Direct REST endpoint to Products Service (:8004/api/product)."
@@ -801,8 +813,10 @@ def build_postman_collection():
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "const res = pm.response.json();",
-                                        "pm.test('Stock status array returned', () => {",
-                                        "    pm.expect(res).to.be.an('array');",
+                                        "pm.test('Stock check response has the expected shape', () => {",
+                                        "    pm.expect(res).to.be.an('object');",
+                                        "    pm.expect(res).to.have.property('errorMessages');",
+                                        "    pm.expect(res.errorMessages == null || res.errorMessages.length === 0).to.be.true;",
                                         "});"
                                     ]
                                 }
@@ -818,8 +832,8 @@ def build_postman_collection():
                                 "raw": "[\n  {\n    \"sku\": \"{{product_sku}}\",\n    \"quantity\": 1\n  }\n]"
                             },
                             "url": {
-                                "raw": "{{inventory_service_url}}/api/inventory/in-stock",
-                                "host": ["{{inventory_service_url}}"],
+                                "raw": "{{base_url}}/api/inventory/in-stock",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "inventory", "in-stock"]
                             },
                             "description": "Direct REST endpoint to Inventory Service (:8001/api/inventory/in-stock)."
@@ -844,11 +858,11 @@ def build_postman_collection():
                         "request": {
                             "method": "GET",
                             "header": [
-                                {"key": "Authorization", "value": "Bearer {{jwt_token}}", "type": "text"}
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
                             ],
                             "url": {
-                                "raw": "{{orders_service_url}}/api/order",
-                                "host": ["{{orders_service_url}}"],
+                                "raw": "{{base_url}}/api/order",
+                                "host": ["{{base_url}}"],
                                 "path": ["api", "order"]
                             },
                             "description": "Direct REST endpoint to Orders Service (:8003/api/order)."
@@ -858,16 +872,6 @@ def build_postman_collection():
                 ]
             }
         ],
-        "auth": {
-            "type": "bearer",
-            "bearer": [
-                {
-                    "key": "token",
-                    "value": "{{jwt_token}}",
-                    "type": "string"
-                }
-            ]
-        },
         "event": [
             {
                 "listen": "prerequest",
@@ -886,12 +890,12 @@ def build_postman_collection():
         "variable": [
             {
                 "key": "base_url",
-                "value": "http://localhost:8080",
+                "value": "http://127.0.0.1:4200",
                 "type": "string"
             },
             {
                 "key": "BASE_URL",
-                "value": "http://localhost:8080",
+                "value": "http://127.0.0.1:4200",
                 "type": "string"
             },
             {
@@ -900,27 +904,12 @@ def build_postman_collection():
                 "type": "string"
             },
             {
-                "key": "products_service_url",
-                "value": "http://localhost:8004",
+                "key": "user_jwt_token",
+                "value": "",
                 "type": "string"
             },
             {
-                "key": "orders_service_url",
-                "value": "http://localhost:8003",
-                "type": "string"
-            },
-            {
-                "key": "inventory_service_url",
-                "value": "http://localhost:8001",
-                "type": "string"
-            },
-            {
-                "key": "notifications_service_url",
-                "value": "http://localhost:8002",
-                "type": "string"
-            },
-            {
-                "key": "jwt_token",
+                "key": "admin_jwt_token",
                 "value": "",
                 "type": "string"
             },
@@ -930,8 +919,13 @@ def build_postman_collection():
                 "type": "string"
             },
             {
+                "key": "cancel_order_id",
+                "value": "",
+                "type": "string"
+            },
+            {
                 "key": "product_sku",
-                "value": "SKU-IPHONE-15",
+                "value": "LAPTOP-PRO",
                 "type": "string"
             },
             {
@@ -947,10 +941,47 @@ def build_postman_collection():
         ]
     }
 
+    graphql_folder = next(
+        group for group in collection["item"]
+        if group["name"] == "🚀 Apollo Router - GraphQL Supergraph"
+    )
+    graphql_items = graphql_folder["item"]
+    place_order = next(item for item in graphql_items if item["name"].startswith("4. Place Order"))
+    cancel_order = next(item for item in graphql_items if item["name"].startswith("10. Cancel Order"))
+
+    cancellable_order = copy.deepcopy(place_order)
+    cancellable_order["name"] = "9. Place Order for Cancellation"
+    cancellable_order["description"] = "Creates a separate PLACED order for the cancellation and inventory compensation request that follows."
+    for event in cancellable_order.get("event", []):
+        if event.get("listen") == "test":
+            event["script"]["exec"] = [
+                line.replace("set('order_id',", "set('cancel_order_id',")
+                for line in event["script"]["exec"]
+            ]
+    graphql_items.insert(graphql_items.index(cancel_order), cancellable_order)
+
+    def mark_public_requests(items):
+        public_suffixes = (
+            "/api/order/funnel",
+            "/api/notifications/stream",
+            "/api/product",
+            "/api/inventory/in-stock",
+        )
+        for item in items:
+            if "item" in item:
+                mark_public_requests(item["item"])
+                continue
+            request = item.get("request", {})
+            raw_url = request.get("url", {}).get("raw", "")
+            if raw_url.endswith(public_suffixes):
+                request["auth"] = {"type": "noauth"}
+
+    mark_public_requests(collection["item"])
+
     target_path = "devsecops/testing/newman/microservices.postman_collection.json"
     with open(target_path, "w", encoding="utf-8") as f:
         json.dump(collection, f, indent=2, ensure_ascii=False)
-    print(f"Successfully generated {target_path} with 18 comprehensive endpoints!")
+    print(f"Successfully generated {target_path}.")
 
 if __name__ == "__main__":
     build_postman_collection()

@@ -1,6 +1,6 @@
 # 📊 Observability Query Handbook: PromQL, LogQL & TraceQL
 
-> Complete reference and cheat sheet for telemetry queries used across the **Grafana LGTM Stack (Loki, Grafana, Tempo, Mimir/Prometheus)** and **OpenTelemetry** in the Enterprise Microservices Architecture.
+> Reference for queries used with the project's actual Grafana datasources (Prometheus, Loki, and Tempo) and its telemetry collectors (Grafana Alloy and OpenTelemetry Collector).
 
 ---
 
@@ -13,6 +13,9 @@
 | **Grafana Loki** | [http://localhost:3100](http://localhost:3100) | `3100` | High-throughput centralized log indexing |
 | **Grafana Tempo** | [http://localhost:3200](http://localhost:3200) | `3200` | Distributed tracing & OTLP span store |
 | **OTel Collector** | `http://localhost:4317` (gRPC) / `4318` (HTTP) | `4317` / `4318` | OpenTelemetry telemetry ingestion pipeline |
+| **Grafana Alloy (Compose)** | `http://localhost:3300` | `3300` | Collector/agent UI and telemetry shipping; it is **not** a Grafana query datasource |
+
+Grafana queries data from Prometheus, Loki, and Tempo. Alloy collects container/pod logs and ships them to Loki; the OpenTelemetry Collector forwards traces to Tempo. For Docker Compose the datasource URLs are service DNS names (`prometheus:9090`, `loki:3100`, `tempo:3200`). In Minikube, Grafana uses the Kubernetes service URLs provisioned in `k8s/minikube/infra/grafana-datasources.yaml`.
 
 ---
 
@@ -124,13 +127,10 @@ or
 sum by (service) (rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code=~"5.."}[1m]))
 ```
 
-#### 🛑 Rate Limiter HTTP 429 Interceptions
-Counts HTTP 429 responses from the observed Spring services and Apollo Router traffic:
-```promql
-sum(rate(http_server_requests_seconds_count{status="429"}[1m])) 
-or 
-sum(rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code="429"}[1m]))
-or vector(0)
+#### 🛑 Frontend Nginx Rate-Limit HTTP 429 Interceptions
+The shared Compose/Minikube edge returns HTTP 429 after the per-peer token bucket is exceeded. Alloy ships the frontend JSON access log to Loki:
+```logql
+sum(rate({service="frontend"} | json | status="429" [1m]))
 ```
 
 ---
@@ -140,35 +140,35 @@ or vector(0)
 #### 🧩 Query Planning Latency (P95 in ms)
 Measures the duration Apollo Router takes in Rust to compute the distributed query execution plan across subgraphs:
 ```promql
-histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_duration_seconds_bucket[5m]))) * 1000
+histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_plan_duration_seconds_bucket[5m]))) * 1000
 ```
 
 #### 📦 Subgraph Request Throughput & Decomposition
-Throughput dispatched by Apollo Router to each federated subgraph (`products`, `orders`, `inventory`):
+HTTP requests dispatched by Apollo Router, grouped by the downstream address. This uses the Router's OpenTelemetry HTTP client instrument; confirm that instrument is enabled in the Router metrics exporter before relying on it:
 ```promql
-sum by (subgraph) (rate(apollo_router_subgraph_requests_total[1m]))
+sum by (server_address) (rate(http_client_request_duration_seconds_count{service="apollo-router"}[1m]))
 ```
 
-#### ⏱️ Subgraph P95 Latency Breakdown
-Isolates which backend subgraph is the bottleneck in federated queries:
+#### ⏱️ Downstream HTTP P95 Latency
+Shows downstream HTTP latency grouped by server address; the address is not guaranteed to map one-to-one to a named subgraph:
 ```promql
-histogram_quantile(0.95, sum by (le, subgraph) (rate(apollo_router_subgraph_request_duration_seconds_bucket[5m]))) * 1000
+histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_duration_seconds_bucket{service="apollo-router"}[5m]))) * 1000
 ```
 
 #### ❌ GraphQL Operation Errors Rate
 Tracks GraphQL field-level or execution errors returned by Apollo Router:
 ```promql
-sum by (code) (rate(apollo_router_graphql_error_total[1m])) or rate(apollo_router_graphql_requests_total{status="error"}[1m])
+sum by (code) (rate(apollo_router_graphql_error_total[1m]))
 ```
 
-#### 🦀 Apollo Router Rust Memory & Sessions
-Monitors native heap allocation and active in-flight GraphQL client sessions:
+#### 🦀 Apollo Router Connections & Active Requests
+Router v2 exposes open connections and active HTTP requests (the old session-count metric is deprecated):
 ```promql
-# Active Client Sessions:
-apollo_router_session_count
+# In-flight HTTP requests:
+http_server_active_requests{service="apollo-router"}
 
-# Resident Memory (RSS):
-process_resident_memory_bytes{service="apollo-router"} / 1024 / 1024
+# Open client connections:
+apollo_router_open_connections{service="apollo-router"}
 ```
 
 ---
@@ -239,10 +239,10 @@ Returns `1` if Vault is initialized and unsealed; `0` if sealed.
 vault_core_unsealed
 ```
 
-#### 🛡️ Top 5 Blocked Attacker IPs
-Identifies aggressive clients blacklisted by security rate limiters:
-```promql
-topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)
+#### 🛡️ Top 5 Blocked Peer IPs
+Ranks the socket peer addresses observed by Nginx for responses it rejected. Caller-controlled `X-Forwarded-For` is not used as the limiter key; behind another proxy, the peer may be that proxy rather than the original user:
+```logql
+topk(5, sum by (peer_ip) (count_over_time({service="frontend"} | json | status="429" [15m])))
 ```
 
 ---
@@ -425,12 +425,12 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | :--- | :---: | :--- |
 | **High Cart Abandonment Alarm** | PromQL | `clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)` |
 | **Apollo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000` |
-| **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_duration_seconds_bucket[5m]))) * 1000` |
-| **Subgraph Latency by Backend** | PromQL | `histogram_quantile(0.95, sum by (le, subgraph) (rate(apollo_router_subgraph_request_duration_seconds_bucket[5m]))) * 1000` |
+| **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_plan_duration_seconds_bucket[5m]))) * 1000` |
+| **Downstream HTTP Latency by Address** | PromQL | `histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_duration_seconds_bucket{service="apollo-router"}[5m]))) * 1000` |
 | **Trace a Customer Order by Operation** | TraceQL | `{ span.graphql.operation.name = "PlaceOrder" && duration > 200ms }` |
 | **Circuit Breaker Tripped** | PromQL | `resilience4j_circuitbreaker_state{state="open"}` |
 | **Investigate Sudden 500 Error** | LogQL | `{service=~".+"} \|~ "(?i)ERROR\|Exception"` |
 | **Correlate Logs with a Trace** | LogQL | `{service=~".+"} \|= "<trace-id>"` |
 | **Detect Database Pool Exhaustion**| PromQL | `hikaricp_connections_active / hikaricp_connections_max > 0.85` |
-| **DDoS / Brute-force Attack** | PromQL | `sum(rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code="429"}[1m]))` |
-| **Identify Top Attacking IP** | PromQL | `topk(5, sum by (ip) (security_blocked_ip_total))` |
+| **DDoS / Rate-Limit Blocks** | LogQL | `sum(rate({service="frontend"} \| json \| status="429" [1m]))` |
+| **Identify Top Blocked Peer IPs** | LogQL | `topk(5, sum by (peer_ip) (count_over_time({service="frontend"} \| json \| status="429" [15m])))` |

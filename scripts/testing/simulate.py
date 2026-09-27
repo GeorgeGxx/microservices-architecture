@@ -70,10 +70,13 @@ def get_keycloak_secret():
                         break
         except Exception:
             pass
-    return secret or "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
+    return secret
 
 def acquire_jwt(keycloak_url):
     secret = get_keycloak_secret()
+    if not secret:
+        print("[\033[91mERROR\033[0m] KEYCLOAK_CLIENT_SECRET is missing. Set it in the environment or .env (bootstrap-keycloak.ps1 provisions it).")
+        return ""
     token_url = f"{keycloak_url}/realms/microservices-realm/protocol/openid-connect/token"
     payload = urllib.parse.urlencode({
         "grant_type": "password",
@@ -123,7 +126,7 @@ class TrafficSimulator:
         if self.token:
             print("  [\033[92mOK\033[0m] Keycloak JWT Token acquired successfully.")
         else:
-            print("  [\033[93mWARN\033[0m] Proceeding without authenticated JWT token.")
+            raise SystemExit("[ERROR] Traffic scenario requires a Keycloak token; no traffic was sent.")
 
         run_num = 0
         while True:
@@ -268,12 +271,13 @@ class TrafficSimulator:
 # 2. DDoS & Rate-Limit Attacker
 # ==============================================================================
 class GraphQLFloodProbe:
-    def __init__(self, router_url, keycloak_url, duration=30, distributed=True, no_auth=False):
-        self.router_url = router_url
+    def __init__(self, edge_url, keycloak_url, duration=30, distributed=True, no_auth=False, workers=12):
+        self.edge_url = edge_url
         self.keycloak_url = keycloak_url
         self.duration = duration
         self.distributed = distributed
         self.no_auth = no_auth
+        self.workers = max(1, workers)
         self.request_count = 0
         self.status_counts = {}
         self.lock = threading.Lock()
@@ -281,12 +285,14 @@ class GraphQLFloodProbe:
     def run(self):
         print("\n\033[91m================================================================================\033[0m")
         print(" \033[91m⚡ SCENARIO: Concurrent GraphQL Flood / Edge Rate-Limit Probe\033[0m")
-        print(f" Target Apollo Router endpoint: {self.router_url.rstrip('/')}/graphql | Duration: {self.duration}s")
+        print(f" Target frontend edge endpoint: {self.edge_url.rstrip('/')}/graphql | Duration: {self.duration}s | Workers: {self.workers}")
         if self.distributed:
-            print(" Forwarded client IPs are synthetic headers; they do not create independent network sources.")
+            print(" Synthetic X-Forwarded-For values are sent for spoofing-resistance checks; the limiter keys on the real socket peer.")
         print("\033[91m================================================================================\033[0m")
 
         token = "" if self.no_auth else acquire_jwt(self.keycloak_url)
+        if not self.no_auth and not token:
+            raise SystemExit("[ERROR] DDoS scenario requires a Keycloak token unless --no-auth is explicitly set; no load was sent.")
         stop_event = threading.Event()
 
         def flood_worker(worker_id):
@@ -301,7 +307,7 @@ class GraphQLFloodProbe:
 
                 query = json.dumps({"query": "{ __typename }"}).encode("utf-8")
                 req = urllib.request.Request(
-                    f"{self.router_url.rstrip('/')}/graphql",
+                    f"{self.edge_url.rstrip('/')}/graphql",
                     data=query,
                     headers=headers,
                     method="POST",
@@ -319,7 +325,7 @@ class GraphQLFloodProbe:
                     self.status_counts[code] = self.status_counts.get(code, 0) + 1
 
         threads = []
-        for i in range(12):
+        for i in range(self.workers):
             t = threading.Thread(target=flood_worker, args=(i,))
             t.daemon = True
             threads.append(t)
@@ -337,6 +343,10 @@ class GraphQLFloodProbe:
             color = "\033[92m" if code in (200, 201) else ("\033[93m" if code == 429 else "\033[91m")
             label = "OK" if code in (200, 201) else ("RATE-LIMITED" if code == 429 else "ERROR/BLOCKED")
             print(f"    {color}[HTTP {code}]\033[0m {label}: {count} ({count * 100 / max(self.request_count, 1):.1f}%)")
+        if self.status_counts.get(429, 0):
+            print("  • Actual client IPs and per-IP blocks: query the frontend 429 access logs in Grafana/Loki.")
+        else:
+            print("  • No HTTP 429 observed. Confirm this request reaches the frontend edge limiter and inspect its Nginx logs.")
 
 
 # ==============================================================================
@@ -359,6 +369,8 @@ class ChaosTester:
         print("\033[95m================================================================================\033[0m")
 
         self.token = acquire_jwt(self.keycloak_url)
+        if not self.token:
+            raise SystemExit("[ERROR] Chaos scenario requires a Keycloak token; no mutations were sent.")
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures = [executor.submit(self._chaos_worker, i) for i in range(self.runs)]
@@ -448,13 +460,15 @@ class ChaosTester:
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Microservices Simulation Super-Script")
     parser.add_argument("--scenario", choices=["traffic", "ddos", "chaos", "all"], default="traffic", help="Simulation scenario to execute")
-    parser.add_argument("--router-url", "--gateway", dest="router_url", default=os.getenv("APOLLO_ROUTER_URL", os.getenv("GATEWAY_URL", DEFAULT_ROUTER_URL)), help="Apollo Router base URL (legacy --gateway alias accepted)")
+    parser.add_argument("--router-url", default=os.getenv("APOLLO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Apollo Router base URL")
     parser.add_argument("--frontend-url", default=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND), help="Frontend/Nginx URL for REST funnel endpoints")
+    parser.add_argument("--ddos-url", default=os.getenv("DDOS_EDGE_URL", os.getenv("FRONTEND_URL", DEFAULT_FRONTEND)), help="Frontend/Nginx edge URL for DDoS and rate-limit probes")
     parser.add_argument("--keycloak", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak URL")
     parser.add_argument("--orders", type=int, default=15, help="Number of orders to place (traffic)")
     parser.add_argument("--concurrency", type=int, default=4, help="Thread concurrency")
     parser.add_argument("--continuous", action="store_true", help="Run traffic simulation continuously")
     parser.add_argument("--duration", type=int, default=30, help="DDoS attack duration in seconds")
+    parser.add_argument("--workers", type=int, default=12, help="Concurrent workers for the DDoS probe")
     parser.add_argument("--distributed", dest="distributed", action="store_true", default=True, help="Rotate synthetic X-Forwarded-For headers (does not create separate network sources)")
     parser.add_argument("--single-source", dest="distributed", action="store_false", help="Do not rotate X-Forwarded-For headers")
     parser.add_argument("--no-auth", action="store_true", help="Disable Keycloak token authentication (ddos)")
@@ -464,13 +478,14 @@ def main():
 
     gw = args.router_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     frontend = args.frontend_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
+    ddos_edge = args.ddos_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     kc = args.keycloak.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
 
     if args.scenario in ("traffic", "all"):
         TrafficSimulator(gw, kc, frontend_url=frontend, orders=args.orders, concurrency=args.concurrency, continuous=args.continuous).run()
 
     if args.scenario in ("ddos", "all"):
-        GraphQLFloodProbe(gw, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth).run()
+        GraphQLFloodProbe(ddos_edge, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth, workers=args.workers).run()
 
     if args.scenario in ("chaos", "all"):
         ChaosTester(gw, kc, runs=args.chaos_runs, concurrency=args.concurrency).run()

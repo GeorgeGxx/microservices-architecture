@@ -22,11 +22,11 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "if (res.access_token) {",
-                  "    pm.collectionVariables.set('jwt_token', res.access_token);",
-                  "    pm.test('Token received and saved to {{jwt_token}}', () => {",
+                  "    pm.collectionVariables.set('user_jwt_token', res.access_token);",
+                  "    pm.test('Token received and saved to {{user_jwt_token}}', () => {",
                   "        pm.expect(res.access_token).to.be.a('string');",
                   "    });",
-                  "    console.log('✅ User JWT successfully stored in collection variable jwt_token');",
+                  "    console.log('✅ User JWT successfully stored in collection variable user_jwt_token');",
                   "}"
                 ]
               }
@@ -87,7 +87,7 @@
                 "token"
               ]
             },
-            "description": "Obtains a Standard User JWT token without administrative privileges. Saves automatically to {{jwt_token}}."
+            "description": "Obtains a Standard User JWT token without administrative privileges. Saves automatically to {{user_jwt_token}}."
           },
           "response": []
         },
@@ -104,11 +104,11 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "if (res.access_token) {",
-                  "    pm.collectionVariables.set('jwt_token', res.access_token);",
-                  "    pm.test('Admin Token received and saved to {{jwt_token}}', () => {",
+                  "    pm.collectionVariables.set('admin_jwt_token', res.access_token);",
+                  "    pm.test('Admin Token received and saved to {{admin_jwt_token}}', () => {",
                   "        pm.expect(res.access_token).to.be.a('string');",
                   "    });",
-                  "    console.log('✅ Admin JWT successfully stored in collection variable jwt_token');",
+                  "    console.log('✅ Admin JWT successfully stored in collection variable admin_jwt_token');",
                   "}"
                 ]
               }
@@ -169,7 +169,7 @@
                 "token"
               ]
             },
-            "description": "Obtains an Admin User JWT token with administrative privileges (ROLE_ADMIN). Saves automatically to {{jwt_token}}."
+            "description": "Obtains an Admin User JWT token with administrative privileges (ROLE_ADMIN). Saves automatically to {{admin_jwt_token}}."
           },
           "response": []
         }
@@ -179,33 +179,48 @@
       "name": "🚀 Apollo Router - GraphQL Supergraph",
       "item": [
         {
-          "name": "1. Apollo Router Health Check",
+          "name": "1. Apollo Router GraphQL Reachability",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Apollo Router is Healthy (HTTP 200)', () => {",
+                  "pm.test('Apollo Router GraphQL endpoint responds (HTTP 200)', () => {",
                   "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('GraphQL root query resolves without errors', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "    pm.expect(res.data.__typename).to.equal('Query');",
                   "});"
                 ]
               }
             }
           ],
           "request": {
-            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
             "header": [],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query RouterReadiness { __typename }",
+                "variables": "{}"
+              }
+            },
             "url": {
-              "raw": "{{base_url}}/health",
+              "raw": "{{base_url}}/graphql",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
-                "health"
+                "graphql"
               ]
             },
-            "description": "Checks Apollo Router health endpoint (:8080/health)."
+            "description": "Checks the Apollo Router GraphQL listener on port 8080 without depending on the separate health listener on port 8088."
           },
           "response": []
         },
@@ -379,7 +394,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{user_jwt_token}}",
                 "type": "text"
               },
               {
@@ -409,7 +424,7 @@
           "response": []
         },
         {
-          "name": "5. List User Orders (JWT Isolation)",
+          "name": "5. List Orders",
           "event": [
             {
               "listen": "test",
@@ -440,7 +455,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{user_jwt_token}}",
                 "type": "text"
               }
             ],
@@ -497,7 +512,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{user_jwt_token}}",
                 "type": "text"
               }
             ],
@@ -555,7 +570,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{admin_jwt_token}}",
                 "type": "text"
               }
             ],
@@ -612,7 +627,7 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{admin_jwt_token}}",
                 "type": "text"
               }
             ],
@@ -637,8 +652,22 @@
           "response": []
         },
         {
-          "name": "9. Cancel Order (Saga Compensation & Stock Rollback)",
+          "name": "9. Place Order for Cancellation",
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Generate UUIDv4 for Idempotency Key",
+                  "const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {",
+                  "    const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);",
+                  "    return v.toString(16);",
+                  "});",
+                  "pm.collectionVariables.set('idempotency_key', uuid);"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -651,9 +680,19 @@
                   "pm.test('No GraphQL Errors', () => {",
                   "    pm.expect(res.errors).to.be.undefined;",
                   "});",
-                  "pm.test('Order cancelled with compensation trigger', () => {",
-                  "    pm.expect(res.data.cancelOrder).to.exist;",
-                  "    pm.expect(res.data.cancelOrder.orderStatus).to.be.oneOf(['CANCELLED', 'COMPENSATING']);",
+                  "pm.test('Order created successfully with tracking and total', () => {",
+                  "    const order = res.data.placeOrder;",
+                  "    pm.expect(order).to.exist;",
+                  "    pm.expect(order.id).to.exist;",
+                  "    pm.collectionVariables.set('cancel_order_id', order.id);",
+                  "    if (order.trackingNumber) {",
+                  "        pm.collectionVariables.set('tracking_number', order.trackingNumber);",
+                  "        pm.expect(order.trackingNumber).to.match(/^DHL-[A-Z0-9]+$/);",
+                  "    }",
+                  "    pm.expect(order.orderStatus).to.be.oneOf(['PLACED', 'PREPARING']);",
+                  "    pm.expect(order.orderItems).to.be.an('array');",
+                  "    pm.expect(order.orderItems.length).to.be.above(0);",
+                  "    console.log('✅ Created Order #' + order.id + ' tracking: ' + order.trackingNumber);",
                   "});"
                 ]
               }
@@ -669,15 +708,20 @@
               },
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{user_jwt_token}}",
+                "type": "text"
+              },
+              {
+                "key": "X-Idempotency-Key",
+                "value": "{{idempotency_key}}",
                 "type": "text"
               }
             ],
             "body": {
               "mode": "graphql",
               "graphql": {
-                "query": "mutation CancelOrder($id: ID!) {\n  cancelOrder(id: $id) {\n    id\n    orderStatus\n  }\n}",
-                "variables": "{\n  \"id\": \"{{order_id}}\"\n}"
+                "query": "mutation PlaceOrder($input: PlaceOrderInput!) {\n  placeOrder(input: $input) {\n    id\n    orderNumber\n    orderStatus\n    customerName\n    customerEmail\n    deliveryMethod\n    trackingNumber\n    carrier\n    subtotalAmount\n    shippingFee\n    taxAmount\n    totalAmount\n    paymentMethod\n    orderItems {\n      id\n      sku\n      price\n      quantity\n      product {\n        sku\n        name\n      }\n    }\n  }\n}",
+                "variables": "{\n  \"input\": {\n    \"customerName\": \"Jorge Garcia\",\n    \"customerEmail\": \"jorge@example.com\",\n    \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n    \"city\": \"Monterrey\",\n    \"postalCode\": \"64000\",\n    \"phone\": \"+52 81 1234 5678\",\n    \"deliveryMethod\": \"EXPRESS\",\n    \"paymentMethod\": \"CARD_VISA\",\n    \"orderItems\": [\n      {\n        \"sku\": \"{{product_sku}}\",\n        \"price\": 999.99,\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
               }
             },
             "url": {
@@ -689,7 +733,63 @@
                 "graphql"
               ]
             },
-            "description": "Triggers distributed Saga cancellation, releasing reserved inventory and dispatching Kafka order-cancelled notification."
+            "description": "Places a new order through Apollo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
+          },
+          "response": [],
+          "description": "Creates a separate PLACED order for the cancellation and inventory compensation request that follows."
+        },
+        {
+          "name": "10. Cancel Order (Saga Compensation & Stock Rollback)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Order cancelled with compensation trigger', () => {",
+                  "    pm.expect(res.errors).to.be.undefined;",
+                  "    pm.expect(res.data.cancelOrder).to.exist;",
+                  "    pm.expect(res.data.cancelOrder.orderStatus).to.equal('CANCELLED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CancelOrder($id: ID!) {\n  cancelOrder(id: $id) {\n    id\n    orderStatus\n  }\n}",
+                "variables": "{\n  \"id\": \"{{cancel_order_id}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/graphql",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Cancels a separate newly placed order to verify saga compensation and inventory restoration."
           },
           "response": []
         },
@@ -810,8 +910,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                  "    pm.response.to.have.status(202);",
                   "});"
                 ]
               }
@@ -831,9 +931,9 @@
               "raw": "{\n  \"eventType\": \"CART_ADD\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"cart\"\n}"
             },
             "url": {
-              "raw": "{{orders_service_url}}/api/order/funnel",
+              "raw": "{{base_url}}/api/order/funnel",
               "host": [
-                "{{orders_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -841,7 +941,10 @@
                 "funnel"
               ]
             },
-            "description": "Records CART_ADD funnel telemetry event."
+            "description": "Records CART_ADD funnel telemetry event.",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
@@ -853,8 +956,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                  "    pm.response.to.have.status(202);",
                   "});"
                 ]
               }
@@ -874,9 +977,9 @@
               "raw": "{\n  \"eventType\": \"CHECKOUT_START\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"shipping\"\n}"
             },
             "url": {
-              "raw": "{{orders_service_url}}/api/order/funnel",
+              "raw": "{{base_url}}/api/order/funnel",
               "host": [
-                "{{orders_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -884,7 +987,10 @@
                 "funnel"
               ]
             },
-            "description": "Records CHECKOUT_START funnel telemetry event."
+            "description": "Records CHECKOUT_START funnel telemetry event.",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
@@ -896,8 +1002,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Funnel event accepted (HTTP 200 or 202)', () => {",
-                  "    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+                  "pm.test('Funnel event accepted (HTTP 202)', () => {",
+                  "    pm.response.to.have.status(202);",
                   "});"
                 ]
               }
@@ -917,9 +1023,9 @@
               "raw": "{\n  \"eventType\": \"CHECKOUT_STEP\",\n  \"sku\": \"{{product_sku}}\",\n  \"category\": \"Electronics\",\n  \"step\": \"payment\"\n}"
             },
             "url": {
-              "raw": "{{orders_service_url}}/api/order/funnel",
+              "raw": "{{base_url}}/api/order/funnel",
               "host": [
-                "{{orders_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -927,7 +1033,10 @@
                 "funnel"
               ]
             },
-            "description": "Records CHECKOUT_STEP funnel telemetry event."
+            "description": "Records CHECKOUT_STEP funnel telemetry event.",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         }
@@ -958,7 +1067,10 @@
                 "stream"
               ]
             },
-            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service."
+            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service.",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         }
@@ -990,16 +1102,19 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{products_service_url}}/api/product",
+              "raw": "{{base_url}}/api/product",
               "host": [
-                "{{products_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
                 "product"
               ]
             },
-            "description": "Direct REST endpoint to Products Service (:8004/api/product)."
+            "description": "Direct REST endpoint to Products Service (:8004/api/product).",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
@@ -1015,8 +1130,10 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "const res = pm.response.json();",
-                  "pm.test('Stock status array returned', () => {",
-                  "    pm.expect(res).to.be.an('array');",
+                  "pm.test('Stock check response has the expected shape', () => {",
+                  "    pm.expect(res).to.be.an('object');",
+                  "    pm.expect(res).to.have.property('errorMessages');",
+                  "    pm.expect(res.errorMessages == null || res.errorMessages.length === 0).to.be.true;",
                   "});"
                 ]
               }
@@ -1036,9 +1153,9 @@
               "raw": "[\n  {\n    \"sku\": \"{{product_sku}}\",\n    \"quantity\": 1\n  }\n]"
             },
             "url": {
-              "raw": "{{inventory_service_url}}/api/inventory/in-stock",
+              "raw": "{{base_url}}/api/inventory/in-stock",
               "host": [
-                "{{inventory_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1046,7 +1163,10 @@
                 "in-stock"
               ]
             },
-            "description": "Direct REST endpoint to Inventory Service (:8001/api/inventory/in-stock)."
+            "description": "Direct REST endpoint to Inventory Service (:8001/api/inventory/in-stock).",
+            "auth": {
+              "type": "noauth"
+            }
           },
           "response": []
         },
@@ -1070,14 +1190,14 @@
             "header": [
               {
                 "key": "Authorization",
-                "value": "Bearer {{jwt_token}}",
+                "value": "Bearer {{user_jwt_token}}",
                 "type": "text"
               }
             ],
             "url": {
-              "raw": "{{orders_service_url}}/api/order",
+              "raw": "{{base_url}}/api/order",
               "host": [
-                "{{orders_service_url}}"
+                "{{base_url}}"
               ],
               "path": [
                 "api",
@@ -1091,16 +1211,6 @@
       ]
     }
   ],
-  "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{jwt_token}}",
-        "type": "string"
-      }
-    ]
-  },
   "event": [
     {
       "listen": "prerequest",
@@ -1119,12 +1229,12 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "http://localhost:8080",
+      "value": "http://127.0.0.1:4200",
       "type": "string"
     },
     {
       "key": "BASE_URL",
-      "value": "http://localhost:8080",
+      "value": "http://127.0.0.1:4200",
       "type": "string"
     },
     {
@@ -1133,27 +1243,12 @@
       "type": "string"
     },
     {
-      "key": "products_service_url",
-      "value": "http://localhost:8004",
+      "key": "user_jwt_token",
+      "value": "",
       "type": "string"
     },
     {
-      "key": "orders_service_url",
-      "value": "http://localhost:8003",
-      "type": "string"
-    },
-    {
-      "key": "inventory_service_url",
-      "value": "http://localhost:8001",
-      "type": "string"
-    },
-    {
-      "key": "notifications_service_url",
-      "value": "http://localhost:8002",
-      "type": "string"
-    },
-    {
-      "key": "jwt_token",
+      "key": "admin_jwt_token",
       "value": "",
       "type": "string"
     },
@@ -1163,8 +1258,13 @@
       "type": "string"
     },
     {
+      "key": "cancel_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
       "key": "product_sku",
-      "value": "SKU-IPHONE-15",
+      "value": "LAPTOP-PRO",
       "type": "string"
     },
     {

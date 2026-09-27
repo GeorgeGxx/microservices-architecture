@@ -19,6 +19,7 @@ FROM nginxinc/nginx-unprivileged:stable-alpine-slim
 
 # Copy the Vite production bundle
 COPY --from=build --chown=root:root /app/dist /usr/share/nginx/html
+COPY rate-limit.conf /etc/nginx/conf.d/00-rate-limit.conf
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 USER nginx

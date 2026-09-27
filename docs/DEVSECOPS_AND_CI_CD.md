@@ -36,7 +36,7 @@ flowchart LR
 
 ### 🖥️ Local Platform Endpoints & Access Matrix
 
-All services and dashboards are automated via background port-forwarding and available on Windows `localhost`:
+Core platform services and dashboards are available on Windows `localhost` through managed port-forwards. Direct microservice ports below are host-published in Docker Compose; they are not forwarded by default in Minikube:
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
@@ -50,8 +50,10 @@ All services and dashboards are automated via background port-forwarding and ava
 | 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
 | 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
 | 🐙 **ArgoCD GitOps** | [`https://localhost:8088`](https://localhost:8088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
-| 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki) |
+| 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki + Tempo) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
+
+These direct service ports are for Docker Compose. In Minikube the microservices are ClusterIP endpoints; use a service-specific `kubectl port-forward` to open Swagger, or use the frontend proxy for REST routes it exposes. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
 
 ### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
 
@@ -378,4 +380,3 @@ The project features decoupled and single-unified CI/CD pipelines across major e
 | **Production Canary Degradation** | Emergency Istio route reset (100% v1) + Helm rollback | < 15 seconds |
 
 ---
-

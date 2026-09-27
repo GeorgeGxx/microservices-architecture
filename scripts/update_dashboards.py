@@ -438,10 +438,10 @@ tech_panels = [
     {
         "id": 103,
         "type": "stat",
-        "title": "🚨 Security Attack Status & Threat Level",
-        "description": "Monitors rate-limit rejections (HTTP 429) and server error spikes (Normal, Elevated, Under Attack).",
+        "title": "🚨 Edge Security Attack Status & Threat Level",
+        "description": "Classifies actual frontend Nginx HTTP 429 blocks per second: NORMAL (<1), ELEVATED (1–5), UNDER ATTACK (≥5). The signal decays after blocked traffic stops.",
         "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
-        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
             "defaults": {
                 "color": {"mode": "thresholds"},
@@ -458,16 +458,16 @@ tech_panels = [
                         "type": "range",
                         "options": {
                             "from": None,
-                            "to": 0.5,
+                            "to": 0.999,
                             "result": {"text": "NORMAL / SECURE", "color": "#10b981"}
                         }
                     },
                     {
-                        "type": "range",
-                        "options": {
-                            "from": 0.5,
-                            "to": 5,
-                            "result": {"text": "ELEVATED TRAFFIC", "color": "#f59e0b"}
+                "type": "range",
+                "options": {
+                    "from": 1,
+                    "to": 4.999,
+                    "result": {"text": "ELEVATED THREAT", "color": "#f59e0b"}
                         }
                     },
                     {
@@ -486,9 +486,10 @@ tech_panels = [
             "textMode": "value", "colorMode": "background", "graphMode": "none"
         },
         "targets": [{
-            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(rate(http_server_requests_seconds_count{status=~\"429|5..\"}[1m])) or sum(rate(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",http_response_status_code=~\"429|5..\"}[1m])) or vector(0)",
-            "legendFormat": "Threat Level"
+            "datasource": {"uid": "loki-ds", "type": "loki"},
+            "expr": "sum(rate({service=\"frontend\"} | json | status=\"429\" [1m])) or vector(0)",
+            "legendFormat": "Frontend HTTP 429 / second",
+            "queryType": "range"
         }]
     },
     {
@@ -742,10 +743,10 @@ tech_panels = [
     {
         "id": 501,
         "type": "bargauge",
-        "title": "🛑 Blocked Attacks (HTTP 429) & Captive Attacker IPs",
-        "description": "Requests rejected with HTTP 429 by the configured edge rate limits.",
+        "title": "🛑 Blocked Attacks (HTTP 429) & Observed Peer IPs",
+        "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
         "gridPos": {"h": 8, "w": 10, "x": 0, "y": 30},
-        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
             "defaults": {
                 "unit": "short",
@@ -767,14 +768,16 @@ tech_panels = [
         },
         "targets": [
             {
-                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m])) or sum(increase(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",http_response_status_code=\"429\"}[15m])) or vector(0)",
-                "legendFormat": "Blocked Attack Requests (HTTP 429)"
+                "datasource": {"uid": "loki-ds", "type": "loki"},
+                "expr": "sum(count_over_time({service=\"frontend\"} | json | status=\"429\" [15m]))",
+                "legendFormat": "Blocked HTTP 429 (15m)",
+                "queryType": "range"
             },
             {
-                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "topk(5, sum by (ip) (security_blocked_ip_total)) or vector(0)",
-                "legendFormat": "IP: {{ip}}"
+                "datasource": {"uid": "loki-ds", "type": "loki"},
+                "expr": "topk(5, sum by (peer_ip) (count_over_time({service=\"frontend\"} | json | status=\"429\" [15m])))",
+                "legendFormat": "IP {{peer_ip}}",
+                "queryType": "range"
             }
         ]
     },
@@ -795,6 +798,10 @@ tech_panels = [
             "datasource": {"uid": "loki-ds", "type": "loki"},
             "expr": "{service=~\".+\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
             "legendFormat": "{{service}}"
+        }, {
+            "datasource": {"uid": "loki-ds", "type": "loki"},
+            "expr": "{service=\"frontend\"} | json | status=\"429\"",
+            "legendFormat": "frontend rate-limit block"
         }]
     }
 ]

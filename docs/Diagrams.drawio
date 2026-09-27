@@ -11,8 +11,8 @@
         <mxCell id="c_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="60" y="110" width="340" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="n_spa" parent="1" value="&lt;b&gt;React 19 SPA Storefront&lt;/b&gt;&lt;br&gt;Nginx Gateway (Port 4200)&lt;br&gt;Unified Global Search • User Wishlist&lt;br&gt;Keycloak RBAC (Admin/User) • Real-Time SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
-          <mxGeometry x="90" y="170" width="280" height="70" as="geometry" />
+        <mxCell id="n_spa" parent="1" value="&lt;b&gt;React 19 SPA Storefront&lt;/b&gt;&lt;br&gt;Nginx Gateway (Port 4200)&lt;br&gt;20 req/s per peer • burst 30&lt;br&gt;JSON 429 access logs → Loki&lt;br&gt;Keycloak RBAC • Real-Time SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
+          <mxGeometry x="90" y="170" width="280" height="95" as="geometry" />
         </mxCell>
         <mxCell id="n_traffic" parent="1" value="&lt;b&gt;Traffic Simulator&lt;/b&gt;&lt;br&gt;simulate.py (traffic)&lt;br&gt;Load &amp; E2E Purchase Flow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
           <mxGeometry x="90" y="270" width="280" height="70" as="geometry" />
@@ -86,7 +86,7 @@
         <mxCell id="n_otel" parent="1" value="&lt;b&gt;OpenTelemetry Collector&lt;/b&gt;&lt;br&gt;OTLP Receiver (Port 4317 / 4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
           <mxGeometry x="1450" y="540" width="180" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="n_alloy" parent="1" value="&lt;b&gt;Grafana Alloy (Logs/Traces)&lt;/b&gt;&lt;br&gt;Collector &amp; Pipeline Processor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
+        <mxCell id="n_alloy" parent="1" value="&lt;b&gt;Grafana Alloy (Container/Pod Logs)&lt;/b&gt;&lt;br&gt;Log collector; ships to Loki" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
           <mxGeometry x="1650" y="540" width="180" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n_prom" parent="1" value="&lt;b&gt;Prometheus v3&lt;/b&gt;&lt;br&gt;Metrics Store (9090)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
@@ -101,10 +101,13 @@
         <mxCell id="n_grafana" parent="1" value="&lt;b&gt;Grafana Dashboard&lt;/b&gt;&lt;br&gt;Port 3000 (Unified Master UI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;" vertex="1">
           <mxGeometry x="1650" y="720" width="180" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="e1" parent="1" value="GraphQL / OIDC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="n_spa" target="n_gw">
+        <mxCell id="e1" parent="1" value="GraphQL /graphql via frontend Nginx" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="n_spa" target="n_gw">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e2" parent="1" value="JWKS Validation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EC4899;strokeWidth=2;" edge="1" source="n_gw" target="n_kc">
+        <mxCell id="e_oidc" parent="1" value="OIDC login / JWT issuance" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EC4899;strokeWidth=2;" edge="1" source="n_spa" target="n_kc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" parent="1" value="JWKS for protected service JWT validation" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#EC4899;strokeWidth=2;" edge="1" source="n_kc" target="n_orders">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e3" parent="1" value="Subgraph Query (_entities)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n_gw" target="n_prod">
@@ -384,7 +387,7 @@
         <mxCell id="ns_obs" parent="1" value="&lt;b&gt;📊 NAMESPACE: observability (LGTM Telemetry)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1500" y="110" width="360" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.14 (Port 9090)&lt;br&gt;• Grafana 13.2 (Port 3000)&lt;br&gt;• Tempo 3.0 (Port 3200)&lt;br&gt;• Loki 3.7 (Port 3100)&lt;br&gt;• Alloy v1.18 (DaemonSet)&lt;br&gt;• OTel Collector (4317/4318)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="k_obs_pods" parent="1" value="&lt;b&gt;Observability Stack:&lt;/b&gt;&lt;br&gt;• Prometheus v3.14.0 (Port 9090)&lt;br&gt;• Grafana 13.2.1 (Port 3000)&lt;br&gt;• Tempo 3.0.3 (Port 3200)&lt;br&gt;• Loki 3.7.4 (Port 3100)&lt;br&gt;• Alloy v1.19.1 (DaemonSet; log collector)&lt;br&gt;• OTel Collector (4317/4318; traces to Tempo)&lt;br&gt;• Grafana datasources: Prometheus, Loki, Tempo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="1520" y="160" width="320" height="160" as="geometry" />
         </mxCell>
         <mxCell id="ns_keda" parent="1" value="&lt;b&gt;⚖️ NAMESPACE: keda (Event-Driven Autoscaling)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -473,7 +476,7 @@
         <mxCell id="st6" parent="1" value="6. Istio Envoy Sidecar intercepts egress, applies VirtualService &amp; encrypts with STRICT mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="710" y="415" width="195" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st7" parent="1" value="7. Apollo Router v2 validates JWT against Keycloak JWKS &amp; constructs federated query plan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st7" parent="1" value="7. Apollo Router builds the federated query plan and forwards Authorization; protected Spring services validate JWTs with Keycloak JWKS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="520" y="460" width="385" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st8" parent="1" value="8. Apollo Router dispatches concurrent subgraph queries to orders-service:8003 over mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
@@ -621,7 +624,7 @@
         <mxCell id="c_plat" parent="1" value="&lt;b&gt;☸️ MINIKUBE PLATFORM TOPOLOGY (6 CPUs • 12 GB RAM • containerd • Ingress Controller)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="60" y="310" width="1780" height="380" as="geometry" />
         </mxCell>
-        <mxCell id="p_loki" parent="1" value="&lt;b&gt;📑 Loki &amp; Alloy Logs&lt;/b&gt;&lt;br&gt;observability namespace&lt;br&gt;Log Aggregation Engine&lt;br&gt;Grafana Logs Datasource" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="p_loki" parent="1" value="&lt;b&gt;📑 Loki (Logs Datasource)&lt;/b&gt;&lt;br&gt;observability namespace&lt;br&gt;Alloy ships pod/container logs here&lt;br&gt;Queried in Grafana with LogQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="90" y="360" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p_argo" parent="1" value="&lt;b&gt;🐙 ArgoCD GitOps&lt;/b&gt;&lt;br&gt;Port 8088 (Web UI)&lt;br&gt;GitOps Controller (admin/admin)&lt;br&gt;Automated Sync Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
@@ -633,7 +636,7 @@
         <mxCell id="p_gatekeeper" parent="1" value="&lt;b&gt;🛡️ OPA Gatekeeper&lt;/b&gt;&lt;br&gt;Admission Controller&lt;br&gt;Trusted Registry (georgegxx/*)&lt;br&gt;Resource Limits Guardrail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="900" y="360" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="p_grafana" parent="1" value="&lt;b&gt;📊 Grafana Observability&lt;/b&gt;&lt;br&gt;Port 3000 (admin/admin)&lt;br&gt;Technical &amp; Business Dashboards&lt;br&gt;Prometheus + Loki Integrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="p_grafana" parent="1" value="&lt;b&gt;📊 Grafana Observability&lt;/b&gt;&lt;br&gt;Port 3000&lt;br&gt;Technical &amp; Business Dashboards&lt;br&gt;Prometheus + Loki + Tempo datasources" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="1170" y="360" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p_prom" parent="1" value="&lt;b&gt;📈 Prometheus Targets&lt;/b&gt;&lt;br&gt;Port 9090 (TSDB /targets)&lt;br&gt;15s Scrape Interval&lt;br&gt;Actuator Metrics Ingestion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
@@ -648,7 +651,7 @@
         <mxCell id="app_kc" parent="1" value="&lt;b&gt;🔑 Keycloak 26 IAM&lt;/b&gt;&lt;br&gt;Port 8181 (admin/admin)&lt;br&gt;Realm: microservices-realm&lt;br&gt;OIDC &amp; User Management" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
           <mxGeometry x="630" y="480" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="app_istio" parent="1" value="&lt;b&gt;🚪 Istio Unified Edge&lt;/b&gt;&lt;br&gt;Port 30080 (Ingress Gateway)&lt;br&gt;Routes: /, /api/*, /admin/*&lt;br&gt;Zero-Trust Service Mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="app_istio" parent="1" value="&lt;b&gt;🚪 Istio Unified Edge&lt;/b&gt;&lt;br&gt;Kubernetes-assigned NodePort (Ingress Gateway)&lt;br&gt;Routes: /, /api/*, /admin/*&lt;br&gt;Zero-Trust Service Mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="900" y="480" width="240" height="90" as="geometry" />
         </mxCell>
         <mxCell id="app_kiali" parent="1" value="&lt;b&gt;🧭 Kiali Visual Mesh&lt;/b&gt;&lt;br&gt;Port 20001 (/kiali)&lt;br&gt;Real-time Traffic Graph&lt;br&gt;mTLS Encryption Health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
@@ -808,7 +811,7 @@
         <mxCell id="c_scripts" parent="1" value="&lt;b&gt;📂 AUTOMATION SCRIPTS PORTFOLIO (scripts/)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E293B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="960" y="580" width="880" height="340" as="geometry" />
         </mxCell>
-        <mxCell id="scripts_map" parent="1" value="• &lt;b&gt;Unified Master CLI:&lt;/b&gt; platform.ps1 (Multi-cloud bootstrap, plan, apply, doctor, cost, rollback)&lt;br&gt;• &lt;b&gt;scripts/bootstrap-keycloak.ps1:&lt;/b&gt; Native Keycloak 26 realm &amp; PKCE/M2M client bootstrapper&lt;br&gt;• &lt;b&gt;scripts/build-all.py:&lt;/b&gt; Concurrent Maven + React container image compiler&lt;br&gt;• &lt;b&gt;scripts/endpoint-smoke-test.py:&lt;/b&gt; Synthetic post-deployment health &amp; latency SLO validator&lt;br&gt;• &lt;b&gt;scripts/generate-secure-secrets.py:&lt;/b&gt; High-entropy CSPRNG credential &amp; JWT secret generator&lt;br&gt;• &lt;b&gt;scripts/local-cost-estimator.py:&lt;/b&gt; Air-gapped FinOps cost model and local savings calculator&lt;br&gt;• &lt;b&gt;scripts/supervise-tunnels.py:&lt;/b&gt; Resilient background port-forwarding supervisor daemon&lt;br&gt;• &lt;b&gt;scripts/update_dashboards.py:&lt;/b&gt; Programmatic Grafana dashboard JSON synchronizer&lt;br&gt;• &lt;b&gt;scripts/generate_drawio.py:&lt;/b&gt; 12-page mathematical architectural blueprint generator&lt;br&gt;• &lt;b&gt;scripts/testing/:&lt;/b&gt; simulate.py (Traffic, DDoS, Chaos), smoke.py, verify.py, check.py, test_order.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="scripts_map" parent="1" value="• &lt;b&gt;Unified Master CLI:&lt;/b&gt; platform.ps1 (Multi-cloud bootstrap, plan, apply, doctor, cost, rollback)&lt;br&gt;• &lt;b&gt;scripts/bootstrap-keycloak.ps1:&lt;/b&gt; Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync&lt;br&gt;• &lt;b&gt;scripts/build-all.py:&lt;/b&gt; Concurrent Maven + React container image compiler&lt;br&gt;• &lt;b&gt;scripts/endpoint-smoke-test.py:&lt;/b&gt; Synthetic post-deployment health &amp; latency SLO validator&lt;br&gt;• &lt;b&gt;scripts/generate-secure-secrets.py:&lt;/b&gt; High-entropy CSPRNG credential &amp; JWT secret generator&lt;br&gt;• &lt;b&gt;scripts/local-cost-estimator.py:&lt;/b&gt; Air-gapped FinOps cost model and local savings calculator&lt;br&gt;• &lt;b&gt;scripts/supervise-tunnels.py:&lt;/b&gt; Resilient background port-forwarding supervisor daemon&lt;br&gt;• &lt;b&gt;scripts/update_dashboards.py:&lt;/b&gt; Programmatic Grafana dashboard JSON synchronizer&lt;br&gt;• &lt;b&gt;scripts/generate_drawio.py:&lt;/b&gt; 12-page architectural blueprint generator&lt;br&gt;• &lt;b&gt;scripts/testing/:&lt;/b&gt; simulate.py (Apollo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, verify.py, check.py, read-only test_order.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="980" y="630" width="840" height="270" as="geometry" />
         </mxCell>
         <mxCell id="ops_box_11" parent="1" value="&lt;b&gt;🎯 ENTERPRISE PLATFORM SUMMARY&lt;/b&gt;: True cloud-agnostic architecture offering identical 12-tier functionality across AWS, Azure, and GCP, fully operational locally on Minikube with 100% cloud parity, zero cloud costs, and managed by a single unified CLI entrypoint." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">

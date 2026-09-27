@@ -7,3 +7,5 @@ target/
 *.iml
 .vscode/
 *.log
+scripts/__pycache__/
+scripts/testing/__pycache__/

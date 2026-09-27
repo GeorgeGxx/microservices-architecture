@@ -43,10 +43,12 @@ def get_keycloak_secret():
                         break
         except Exception:
             pass
-    return secret or "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
+    return secret
 
 def acquire_jwt(keycloak_url):
     secret = get_keycloak_secret()
+    if not secret:
+        return ""
     token_url = f"{keycloak_url}/realms/microservices-realm/protocol/openid-connect/token"
     payload = urllib.parse.urlencode({
         "grant_type": "password",
@@ -218,7 +220,7 @@ class SmokeTester:
 
 def main():
     parser = argparse.ArgumentParser(description="Frontend, Apollo Router, and REST API smoke checks")
-    parser.add_argument("--base-url", default=os.getenv("FRONTEND_URL", os.getenv("GATEWAY_URL", DEFAULT_FRONTEND)), help="Frontend base URL (Nginx proxies GraphQL and REST routes)")
+    parser.add_argument("--base-url", default=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND), help="Frontend base URL (Nginx proxies GraphQL and REST routes)")
     parser.add_argument("--keycloak-url", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak IAM URL")
     parser.add_argument("--max-latency-ms", type=int, default=500, help="Maximum allowed latency SLO threshold in ms")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")

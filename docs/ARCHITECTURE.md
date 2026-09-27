@@ -74,8 +74,8 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
   - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
   - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
   - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
-- **Federated Identity & Token Propagation:** Apollo Router v2 validates incoming JWT tokens against Keycloak JWKS and automatically propagates the authorization header and claims down to federated subgraphs.
-- **Automated Realm Import:** Configuration pre-loaded via [`docs/realm-export.json`](./docs/realm-export.json) with client `frontend-client`, roles `USER` / `ADMIN`, and default credentials.
+- **Federated Identity & Token Propagation:** Apollo Router v2 propagates the incoming `Authorization` header to federated subgraphs. Protected Spring services validate bearer tokens against Keycloak JWKS; public GraphQL fields and public REST routes remain accessible without a token according to each service's security configuration.
+- **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation client (`microservices_client`), realm roles, and local test users. Run it after Keycloak is available; `docs/realm-export.json` is a realm snapshot, not the source of those bootstrap-created users and clients.
 
 ---
 
@@ -205,10 +205,12 @@ flowchart TD
 
     subgraph LocalModel["💻 Local Development (Minikube / Docker)"]
         BrowserLocal([💻 Local Developer]) --> LocalIngress["Istio Ingress Gateway / NodePort"]
-        LocalIngress -->|'/'| LocalFE["Pod: frontend (NodePort 30080)<br/>(Nginx unprivileged serving /usr/share/nginx/html)"]
-        LocalIngress -->|'/graphql'| LocalGW["Pod: apollo-router (Port 8080)"]
+        LocalIngress -->|'/','/graphql','/api/*'| LocalFE["Pod: frontend (NodePort 30080)<br/>(Nginx SPA + per-peer rate limit + JSON access logs)"]
+        LocalFE -->|proxied '/graphql'| LocalGW["Pod: apollo-router (Port 8080)"]
     end
 ```
+
+In Docker Compose and Minikube, the frontend Nginx is the shared local edge for GraphQL and proxied API routes. It enforces a socket-peer token bucket of 20 requests/second with a burst of 30, returns HTTP 429 when exceeded, and writes JSON access records to stdout. Alloy forwards those records to Loki for blocked-request and observed-peer dashboards. Caller-provided `X-Forwarded-For` is not trusted for limiting or identifying the peer. Public cloud ingress controls remain environment-specific.
 
 | Deployment Environment | Frontend Delivery Mechanism | Backend Ingress Target | CDN & Edge Caching | Infrastructure Cost |
 | :--- | :--- | :--- | :--- | :--- |
@@ -537,7 +539,7 @@ graph LR
 * **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
   * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
-  * **`microservices_client` (Confidential Client):** `client_secret: ON` with dynamic Client Secret generation and sync for CI/CD runners, automated synthetic testing (`smoke.py`, `simulate.py`, Newman), and machine-to-machine (M2M) backend clients.
+  * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Python automation (`smoke.py`, `simulate.py`, `test_order.py`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
 
 ### 3. 📱 Full-Stack Mobile PWA Responsiveness & Touch Optimization
 * **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
