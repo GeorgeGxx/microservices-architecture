@@ -8,7 +8,7 @@ Consolidates:
 ==============================================================================
 Usage:
   python scripts/testing/smoke.py
-  python scripts/testing/smoke.py --base-url http://localhost:8080 --max-latency-ms 300
+  python scripts/testing/smoke.py --base-url http://localhost:4200 --max-latency-ms 300
   python scripts/testing/smoke.py --json
   python scripts/testing/smoke.py --strict
 """
@@ -29,7 +29,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-DEFAULT_GATEWAY = "http://127.0.0.1:4200"
+DEFAULT_FRONTEND = "http://127.0.0.1:4200"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 def get_keycloak_secret():
@@ -90,10 +90,10 @@ class SmokeTester:
         if not self.output_json:
             print("\n\033[96m================================================================================\033[0m")
             print(" \033[96m🔍 ENTERPRISE END-TO-END SMOKE TEST PROBER (smoke.py)\033[0m")
-            print(f" Target Gateway: {self.base_url} | Max Latency SLO: {self.max_latency_ms}ms")
+            print(f" Target Frontend: {self.base_url} | Max Latency SLO: {self.max_latency_ms}ms")
             print("\033[96m================================================================================\033[0m")
 
-        # 1. Gateway Global Actuator
+        # 1. Frontend/Nginx health endpoint
         t0 = time.time()
         try:
             req = urllib.request.Request(f"{self.base_url}/actuator/health")
@@ -101,9 +101,9 @@ class SmokeTester:
                 data = json.loads(resp.read().decode("utf-8"))
                 lat = (time.time() - t0) * 1000
                 status = data.get("status", "UNKNOWN")
-                self.log_step("API Gateway Health (/actuator/health)", status == "UP", lat, f"Status: {status}")
+                self.log_step("Frontend API Health (/actuator/health)", status == "UP", lat, f"Status: {status}")
         except Exception as e:
-            self.log_step("API Gateway Health (/actuator/health)", False, (time.time() - t0) * 1000, f"Error: {e}")
+            self.log_step("Frontend API Health (/actuator/health)", False, (time.time() - t0) * 1000, f"Error: {e}")
 
         # 2. Keycloak JWT Authentication
         t0 = time.time()
@@ -111,21 +111,25 @@ class SmokeTester:
         lat = (time.time() - t0) * 1000
         self.log_step("Keycloak OIDC JWT Token Acquisition", bool(token), lat, f"Token: {token[:12]}... (Acquired)" if token else "Auth Failed")
 
-        # 3. Microservice Actuator Probes via Gateway
-        for svc in ["products", "orders", "inventory", "notification"]:
-            t0 = time.time()
-            try:
-                req = urllib.request.Request(f"{self.base_url}/actuator/{svc}/health")
-                with urllib.request.urlopen(req, timeout=4) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
-                    lat = (time.time() - t0) * 1000
-                    status = data.get("status", "UP")
-                    self.log_step(f"Microservice Health: {svc}", status == "UP", lat, f"Status: {status}")
-            except Exception:
-                # Direct health fallback
-                self.log_step(f"Microservice Health: {svc}", True, 0, "Cluster probe active")
+        # 3. Apollo Router GraphQL through frontend Nginx
+        t0 = time.time()
+        try:
+            payload = json.dumps({"query": "{ __typename }"}).encode("utf-8")
+            req = urllib.request.Request(
+                f"{self.base_url}/graphql",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                result = json.loads(resp.read().decode("utf-8"))
+                lat = (time.time() - t0) * 1000
+                ok = resp.status == 200 and not result.get("errors") and bool(result.get("data", {}).get("__typename"))
+                self.log_step("Apollo Router GraphQL (/graphql)", ok, lat, "GraphQL response received")
+        except Exception as e:
+            self.log_step("Apollo Router GraphQL (/graphql)", False, (time.time() - t0) * 1000, f"Error: {e}")
 
-        # 4. Catalog API Endpoint & Latency SLO
+        # 4. Catalog REST endpoint proxied by Nginx to products-service
         t0 = time.time()
         try:
             req = urllib.request.Request(f"{self.base_url}/api/product")
@@ -138,7 +142,7 @@ class SmokeTester:
         except Exception as e:
             self.log_step("Product Catalog API (/api/product)", False, (time.time() - t0) * 1000, f"Error: {e}")
 
-        # 5. Authenticated Order Placement with Idempotency Key
+        # 5. Authenticated REST order placement proxied by Nginx to orders-service
         if token:
             t0 = time.time()
             order_payload = json.dumps({
@@ -174,9 +178,13 @@ class SmokeTester:
             except Exception as e:
                 self.log_step("Order Placement with Idempotency Key", False, (time.time() - t0) * 1000, f"Error: {e}")
 
-        # 6. Negative Security Gate (Assert 401/403 on Unauthenticated Route)
+        # 6. Negative Security Gate (assert 401/403 on unauthenticated order route)
         t0 = time.time()
-        unauth_payload = json.dumps({"skuCode": "000001", "price": 10.0, "quantity": 1}).encode("utf-8")
+        unauth_payload = json.dumps({
+            "orderItems": [{"sku": "000001", "price": 10.0, "quantity": 1}],
+            "customerName": "Smoke Test",
+            "customerEmail": "smoke.runner@example.com",
+        }).encode("utf-8")
         try:
             req = urllib.request.Request(f"{self.base_url}/api/order", data=unauth_payload, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(req, timeout=4) as resp:
@@ -209,8 +217,8 @@ class SmokeTester:
             sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(description="Enterprise Microservices Smoke Testing Super-Script")
-    parser.add_argument("--base-url", default=os.getenv("GATEWAY_URL", DEFAULT_GATEWAY), help="API Gateway URL")
+    parser = argparse.ArgumentParser(description="Frontend, Apollo Router, and REST API smoke checks")
+    parser.add_argument("--base-url", default=os.getenv("FRONTEND_URL", os.getenv("GATEWAY_URL", DEFAULT_FRONTEND)), help="Frontend base URL (Nginx proxies GraphQL and REST routes)")
     parser.add_argument("--keycloak-url", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak IAM URL")
     parser.add_argument("--max-latency-ms", type=int, default=500, help="Maximum allowed latency SLO threshold in ms")
     parser.add_argument("--json", action="store_true", help="Output results in JSON format")

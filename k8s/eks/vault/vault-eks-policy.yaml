@@ -28,10 +28,10 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: api-gateway
+  name: apollo-router
   namespace: prod
   annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ApiGatewayEKSRole"
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/ApolloRouterEKSRole"
 ---
 # Documentation ConfigMap for Vault EKS setup commands
 apiVersion: v1

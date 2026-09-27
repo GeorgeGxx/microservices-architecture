@@ -4,8 +4,8 @@ metadata:
   name: microservices-config
   namespace: dev
 data:
-  GATEWAY_SERVICE_NAME: "apollo-router"
-  GATEWAY_PORT: "8080"
+  APOLLO_ROUTER_SERVICE_NAME: "apollo-router"
+  APOLLO_ROUTER_PORT: "8080"
   INVENTORY_SERVICE_NAME: "inventory-service"
   NOTIFICATION_SERVICE_NAME: "notification-service"
   ORDERS_SERVICE_NAME: "orders-service"

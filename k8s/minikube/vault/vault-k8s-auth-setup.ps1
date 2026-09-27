@@ -54,7 +54,7 @@ if ($LASTEXITCODE -eq 0) {
 # 5. Create Least-Privilege Read Policies per Microservice
 Write-Host "`n[5/5] Creating Least-Privilege Policies and Kubernetes Auth Roles..." -ForegroundColor Yellow
 
-$services = @("products-service", "orders-service", "inventory-service", "notification-service", "api-gateway")
+$services = @("products-service", "orders-service", "inventory-service", "notification-service", "apollo-router")
 
 # Global shared policy
 $sharedPolicy = "path `"secret/data/application`" { capabilities = [`"read`"] }"
@@ -67,7 +67,7 @@ foreach ($svc in $services) {
     # Create dedicated role
     kubectl exec -n $Namespace $vaultPod -- vault write "auth/kubernetes/role/${svc}-role" `
         bound_service_account_names="$svc,default" `
-        bound_service_account_namespaces="ecommerce,default,microservices,staging,prod" `
+        bound_service_account_namespaces="dev,ecommerce,default,microservices,staging,prod" `
         policies="${svc}-policy" `
         ttl=24h 2>$null
 
@@ -78,8 +78,8 @@ foreach ($svc in $services) {
 $generalPolicy = "path `"secret/data/*`" { capabilities = [`"read`"] }"
 kubectl exec -i -n $Namespace $vaultPod -- /bin/sh -c "echo '$generalPolicy' | vault policy write microservices-policy -" 2>$null
 kubectl exec -n $Namespace $vaultPod -- vault write auth/kubernetes/role/microservices-role `
-    bound_service_account_names="products-service,orders-service,inventory-service,notification-service,api-gateway,default" `
-    bound_service_account_namespaces="ecommerce,default,microservices,staging,prod" `
+    bound_service_account_names="products-service,orders-service,inventory-service,notification-service,apollo-router,default" `
+    bound_service_account_namespaces="dev,ecommerce,default,microservices,staging,prod" `
     policies="microservices-policy" `
     ttl=24h 2>$null
 

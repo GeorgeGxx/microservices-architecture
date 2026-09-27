@@ -42,7 +42,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **React Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
-| **Apollo Router Gateway** | `8080` | `30088` | Ingress (`/graphql`, `/api/*`) | Apollo Federation v2 Gateway, Token Relay |
+| **Apollo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Apollo Federation v2 GraphQL router |
 | **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
@@ -50,7 +50,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
 | **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
-| **Istio Ingress Gateway** | `80` / `443` | `30080` / `30443` | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.1) |
+| **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.1) |
 | **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (v2.31.0, `/kiali`) |
 | **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
 | **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
@@ -142,9 +142,9 @@ This avoids conflicts between NGINX, Traefik, Kong and Istio and keeps policy en
 
 ---
 
-## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Gateway ➔ Istio ➔ Kiali)
+## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Apollo Router ➔ Istio)
 
-The platform implements an enterprise defense-in-depth traffic flow combining a single standard edge layer based on the **Istio Ingress Gateway**, **Keycloak IAM**, **Spring Cloud API Gateway**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
+The platform implements an enterprise defense-in-depth traffic flow combining a single standard edge layer based on the **Istio Ingress Gateway**, **Keycloak IAM**, **Apollo Router**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
 
 ```mermaid
 sequenceDiagram
@@ -318,7 +318,7 @@ flowchart LR
 ### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
 * **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to support arbitrary-length Base64 strings or HTTPS URLs up to $1\text{ GB}$ in PostgreSQL without database truncation errors.
 * **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](./products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
-* **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through Spring Cloud Gateway.
+* **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through the products service.
 
 ### 3. 🎨 High-Fidelity Storefront Visual Integration
 * **Catalog Grid:** 16:10 responsive aspect ratio image banners with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
@@ -483,7 +483,7 @@ The backend microservices are **100% Client-Agnostic** and fully prepared for na
 
 ### 2. 🔐 Mobile Security & OIDC Integration:
 * **Keycloak Deep Linking:** Register custom redirect URIs (e.g. `com.georgegxx.microstore://auth/callback`) in `microservices-realm` for seamless OAuth2 PKCE login.
-* **HTTPS/TLS Termination:** Android enforces `cleartextTrafficPermitted="false"`. The API Gateway must be fronted by a valid TLS certificate.
+* **HTTPS/TLS Termination:** Android enforces `cleartextTrafficPermitted="false"`. Public GraphQL traffic must be fronted by the Istio ingress gateway with a valid TLS certificate.
 
 ### 3. 📦 Google Play Store Publication Checklist:
 1. **Google Play Console Account:** $25 USD one-time developer registration.

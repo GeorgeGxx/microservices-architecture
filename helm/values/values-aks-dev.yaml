@@ -4,12 +4,6 @@ global:
   storageClass: managed-premium-retain
 
 # Generic Azure ACR Repository Placeholders (Replace <ACR_NAME> before deployment)
-api-gateway:
-  image:
-    repository: "<ACR_NAME>.azurecr.io/api-gateway"
-    tag: "1.0.0"
-  replicaCount: 1
-
 inventory-service:
   image:
     repository: "<ACR_NAME>.azurecr.io/inventory-service"

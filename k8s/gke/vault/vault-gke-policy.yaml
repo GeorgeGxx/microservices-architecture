@@ -20,7 +20,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: api-gateway
+  name: apollo-router
   namespace: prod
   annotations:
-    iam.gke.io/gcp-service-account: "api-gateway@msa-production-project.iam.gserviceaccount.com"
+    iam.gke.io/gcp-service-account: "apollo-router@msa-production-project.iam.gserviceaccount.com"

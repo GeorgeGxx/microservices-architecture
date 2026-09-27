@@ -8,6 +8,7 @@ data:
   router.yaml: |
     supergraph:
       listen: 0.0.0.0:8080
+      path: /graphql
       introspection: true
 
     health_check:
@@ -205,12 +206,11 @@ metadata:
   labels:
     app: apollo-router
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - name: http-router
       port: 8080
       targetPort: 8080
-      nodePort: 30088
     - name: metrics
       port: 9090
       targetPort: 9090

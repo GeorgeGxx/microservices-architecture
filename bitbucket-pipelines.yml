@@ -70,8 +70,8 @@ definitions:
         script:
           - export DOCKER_BUILDKIT=1
           - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
-          - export SERVICE_DIR=${SERVICE_DIR:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
+          - export SERVICE_DIR=${SERVICE_DIR:-products-service}
           - echo "Building OCI Image for ${SERVICE_NAME}..."
           - mkdir -p /tmp/images /tmp/sbom
           - |
@@ -96,7 +96,7 @@ definitions:
         services:
           - docker
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - echo "Scanning container image with Trivy (CRITICAL,HIGH)..."
           - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           - trivy image --input /tmp/images/${SERVICE_NAME}-image.tar --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0
@@ -107,7 +107,7 @@ definitions:
     - step: &compliance-opa-check
         name: "🧾 5. Compliance & Policy Gate (Conftest OPA)"
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - echo "Installing Helm & Conftest..."
           - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           - curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
@@ -123,7 +123,7 @@ definitions:
         name: "🌱 Deploy to GKE Dev (GCP)"
         image: google/cloud-sdk:alpine
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
           - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-dev}/msa-gar"
           - echo "Authenticating with Google Cloud Platform Dev..."
@@ -161,7 +161,7 @@ definitions:
         name: "🚀 6. Deploy to GKE Staging (GCP)"
         image: google/cloud-sdk:alpine
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
           - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
           - echo "Authenticating with Google Cloud Platform..."
@@ -180,7 +180,7 @@ definitions:
               --atomic \
               --cleanup-on-fail || echo "GKE Staging deployment simulated"
           - echo "Retrieving GKE Istio Ingress Gateway Endpoint..."
-          - export GKE_INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "localhost:30088")
+          - export GKE_INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "localhost:30080")
           - echo "GKE_INGRESS_URL=http://${GKE_INGRESS_IP}" > /tmp/gke-endpoint.env
         artifacts:
           - "/tmp/gke-endpoint.env"
@@ -193,7 +193,7 @@ definitions:
         image: node:20-slim
         script:
           - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30088}
+          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
           - 'echo "Executing API Contract Tests against: $TARGET_URL"'
           - npm install -g newman newman-reporter-htmlextra
           - COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
@@ -209,7 +209,7 @@ definitions:
         image: cypress/included:13.6.0
         script:
           - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30088}
+          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
           - export SERVICE_DIR=${SERVICE_DIR:-frontend}
           - echo "Executing Cypress E2E flows against GKE Staging ($TARGET_URL)..."
           - if [ -f "${SERVICE_DIR}/cypress.config.js" ] || [ -f "${SERVICE_DIR}/cypress.config.ts" ]; then cd ${SERVICE_DIR} && CYPRESS_BASE_URL=$TARGET_URL npx cypress run || echo "Cypress tests executed with findings."; else echo "No Cypress config for ${SERVICE_DIR} — stage skipped."; fi
@@ -222,7 +222,7 @@ definitions:
         image: grafana/k6:latest
         script:
           - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30088}
+          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
           - echo "Executing k6 Performance Validation against GKE Gateway ($TARGET_URL)..."
           - SCRIPT="devsecops/testing/k6/load-test.js"
           - if [ -f "$SCRIPT" ]; then k6 run -e TARGET_URL=$TARGET_URL $SCRIPT || echo "k6 threshold notice."; else echo "devsecops/testing/k6/load-test.js not found, skipping k6."; fi
@@ -235,7 +235,7 @@ definitions:
         image: ghcr.io/zaproxy/zaproxy:stable
         script:
           - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30088}
+          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
           - echo "Executing OWASP ZAP Baseline Scan against GKE Ingress ($TARGET_URL)..."
           - mkdir -p /tmp/zap
           - RULES="devsecops/dast/zap/rules.tsv"
@@ -252,7 +252,7 @@ definitions:
         services:
           - docker
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
           - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
           - echo "Authenticating Docker with Google Artifact Registry..."
@@ -275,7 +275,7 @@ definitions:
         name: "🚢 12. Deploy to GKE Production (Canary with Istio)"
         image: google/cloud-sdk:alpine
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-api-gateway}
+          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
           - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
           - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
           - echo "Authenticating with GKE Production Cluster..."
@@ -526,16 +526,14 @@ pipelines:
     deploy-service:
       - variables:
           - name: SERVICE_NAME
-            default: 'api-gateway'
+            default: 'products-service'
             allowed-values:
-              - 'api-gateway'
-              - 'frontend'
               - 'inventory-service'
               - 'notification-service'
               - 'orders-service'
               - 'products-service'
           - name: SERVICE_DIR
-            default: 'api-gateway'
+            default: 'products-service'
           - name: ENVIRONMENT
             default: 'staging'
             allowed-values:
@@ -562,24 +560,6 @@ pipelines:
     # -------------------------------------------------------------------------
     # 2. Dedicated Microservice Pipelines (Official Port & Service Matrix)
     # -------------------------------------------------------------------------
-    # API Gateway (Spring Boot / Puerto 8080)
-    api-gateway:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'api-gateway'
-          - name: SERVICE_DIR
-            default: 'api-gateway'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *integration-tests-newman
-      - step: *performance-tests-k6
-      - step: *dast-scan-zap
-      - step: *push-image-gar
-
     # Frontend (React 19 / Puerto 80 / Nginx)
     frontend:
       - variables:

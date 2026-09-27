@@ -119,8 +119,8 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 
 | Command | Action Performed |
 | :--- | :--- |
-| `.\platform.ps1 urls` | Prints interactive colorized dashboard of all active frontend, API Gateway, Keycloak IAM, Vault UI, Kiali, ArgoCD, Grafana, and Prometheus URLs with credentials. |
-| `.\platform.ps1 smoke` | Executes automated synthetic integration smoke tests against API Gateway and microservices validating health, latency, and negative security gates. |
+| `.\platform.ps1 urls` | Prints interactive colorized dashboard of active frontend, Apollo Router, Keycloak IAM, Vault UI, Kiali, ArgoCD, Grafana, and Prometheus URLs with credentials. |
+| `.\platform.ps1 smoke` | Executes automated synthetic integration smoke tests against the frontend, Apollo Router GraphQL endpoint, and microservices. |
 | `.\platform.ps1 tunnels` | Launches the resilient background port-forward supervisor daemon with automatic reconnection. |
 | `.\platform.ps1 secrets [-Environment <dev\|staging\|prod>]` | Generates high-entropy CSPRNG cryptographic secrets (JWT keys, DB passwords, Keycloak client secrets) for Kubernetes manifests or `.env`. |
 | `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
@@ -140,14 +140,14 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | **`platform.ps1`** | Root (`./platform.ps1`) | **Master Platform Orchestrator:** Unified lifecycle manager across Minikube, AWS, Azure, and GCP. | • Hardware sizing (6 CPUs, 12 GB RAM)<br/>• Multi-cloud bootstrap, plan, apply, destroy<br/>• Automated rollbacks & state unlocking<br/>• Health diagnostic audit (`doctor`) | `.\platform.ps1 up -Platform minikube` |
 | **[`bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1)** | `scripts/` | **Keycloak 26 Realm & Client Bootstrapper:** Provisions IAM realm, roles, and clients. | • Auto-syncs client secret into `.env` and k8s<br/>• Configures `microservices_frontend` (PKCE)<br/>• Configures `microservices_client` (M2M) | `pwsh -File .\scripts\bootstrap-keycloak.ps1` |
 | **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & React containers. | • Parallel compilation of 4 Spring Boot services<br/>• Nginx Distroless React 19 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
-| **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Cloud-agnostic health and latency validator. | • Actuator Health (`/actuator/health`)<br/>• Prometheus Metrics (`/actuator/prometheus`)<br/>• Public Catalog API (`/api/product`)<br/>• Negative Security Gate (401/403 on `/api/order`)<br/>• Latency SLO validation (< 500 ms) | `python scripts/endpoint-smoke-test.py --base-url http://localhost:8080 --max-latency-ms 500` |
+| **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Frontend and GraphQL health/latency checks. | • Apollo Router GraphQL (`/graphql`)<br/>• Frontend health (`/actuator/health`)<br/>• Frontend SPA root (`/`)<br/>• Optional latency SLO threshold | `python scripts/endpoint-smoke-test.py --base-url http://localhost:4200 --max-latency-ms 500` |
 | **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | `scripts/` | **Zero-Trust Cryptographic Secret Generator:** CSPRNG high-entropy key generator. | • High-entropy DB passwords and JWT keys<br/>• Exports to `.env`, JSON, or K8s `Secret` YAML<br/>• Automated HashiCorp Vault token generation | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
 | **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Air-Gapped FinOps Cost & Savings Engine:** Calculates cloud costs and local savings. | • Local developer savings vs. AWS/Azure/GCP<br/>• Staging & Production tier expenditure breakdown<br/>• Offline calculations without cloud API keys | `python scripts/local-cost-estimator.py --platform minikube` |
 | **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
 | **[`update_dashboards.py`](../scripts/update_dashboards.py)** | `scripts/` | **Grafana Dashboard JSON Synchronizer:** Programmatic dashboard model manager. | • Validates panel schemas and PromQL queries<br/>• Formats and syncs JSON dashboards<br/>• Supports business and technical security panels | `python scripts/update_dashboards.py` |
 | **[`generate_drawio.py`](../scripts/generate_drawio.py)** | `scripts/` | **Architectural Blueprint Generator:** Programmatically generates the 12-page Draw.io model. | • Generates [`docs/Diagrams.drawio`](./Diagrams.drawio)<br/>• 12 specialized architectural views<br/>• Mathematical layout without XML overlap | `python scripts/generate_drawio.py` |
-| **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Chaos & DDoS Simulator:** Comprehensive load generation engine. | • E-commerce shopping journey & JWT auth<br/>• Redis rate-limiting (HTTP 429) stress<br/>• Stock exhaustion & Circuit breaker tripping | `python scripts/testing/simulate.py --scenario traffic` |
-| **`smoke.py`** | `scripts/testing/` | **Unified E2E Smoke Testing Engine:** Fast health and latency SLO validator. | • Validates Actuator probes across all services<br/>• Asserts latency SLO thresholds (< 500 ms)<br/>• Enforces negative authorization boundary | `python scripts/testing/smoke.py` |
+| **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Checkout & GraphQL Flood Simulator.** | • E-commerce journey over Apollo Router GraphQL<br/>• Funnel REST events through frontend Nginx<br/>• Reports observed HTTP 429 and upstream errors without assuming a limiter is installed | `python scripts/testing/simulate.py --scenario traffic` |
+| **`smoke.py`** | `scripts/testing/` | **Frontend-to-Backend Smoke Tester:** Health, GraphQL, REST catalog/order, and security checks. | • Nginx health and Apollo GraphQL<br/>• Catalog REST route through frontend<br/>• Authenticated and unauthenticated order routes | `python scripts/testing/smoke.py --base-url http://localhost:4200` |
 | **`verify.py`** | `scripts/testing/` | **Component & Observability Verifier:** Audits Swagger, metrics, and dashboards. | • Validates Swagger UI and OpenAPI 3.0 specs<br/>• Queries Prometheus active metric series<br/>• Audits Grafana dashboards and datasource links | `python scripts/testing/verify.py --target all` |
 | **`check.py`** | `scripts/testing/` | **Diagnostic Telemetry & PromQL Evaluator:** Probes JVM, cart abandonment, and Vault. | • JVM heap memory, threads, and CPU audit<br/>• Real-time cart abandonment PromQL audit<br/>• HashiCorp Vault seal status & telemetry probe | `python scripts/testing/check.py --check all` |
 | **`test_order.py`** | `scripts/testing/` | **Direct Order Placement Integration Test:** End-to-end transaction test script. | • Places verified order with Idempotency UUID<br/>• Validates inventory reservation & Kafka event | `python scripts/testing/test_order.py` |
@@ -162,8 +162,8 @@ The repository maintains a clean, flat, and intuitive automation hierarchy:
 scripts/
 ├── testing/                           # Specialized enterprise testing and simulation suite
 │   ├── check.py                       # Diagnostic telemetry & PromQL evaluator (JVM, Cart abandonment, Vault)
-│   ├── simulate.py                    # Unified simulation engine (Traffic, Chaos, DDoS botnet flood)
-│   ├── smoke.py                       # Fast Actuator health & latency SLO verification
+│   ├── simulate.py                    # GraphQL traffic, checkout, chaos, and flood scenarios
+│   ├── smoke.py                       # Frontend, GraphQL, REST, and auth smoke checks
 │   ├── test_order.py                  # Direct end-to-end order placement test
 │   └── verify.py                      # Component verifier for Swagger OpenAPI, Prometheus, and Grafana
 ├── bootstrap-keycloak.ps1             # Native PowerShell Keycloak 26 IAM realm bootstrapper & client secret sync
@@ -208,10 +208,10 @@ python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 
 # 2. Continuous Shopping Flow:
 python scripts/testing/simulate.py --scenario traffic --continuous
 
-# 3. DDoS Stress Attack (triggers Redis rate limiting HTTP 429):
+# 3. Concurrent GraphQL flood; pass an ingress URL to include ingress controls:
 python scripts/testing/simulate.py --scenario ddos --duration 30 --distributed
 
-# 4. Chaos Engineering (stock exhaustion, invalid SKUs, circuit breaker trips):
+# 4. GraphQL checkout validation (stock and invalid SKU responses):
 python scripts/testing/simulate.py --scenario chaos --chaos-runs 20
 
 # 5. Full Battery (Traffic + DDoS + Chaos):
@@ -219,14 +219,14 @@ python scripts/testing/simulate.py --scenario all
 ```
 
 #### B. Unified Smoke Tester (`smoke.py`)
-Validates Actuator endpoints, latency SLOs, and negative security boundaries:
+Validates frontend health, GraphQL, catalog REST, order REST, and negative security boundaries:
 
 ```powershell
-# Standard smoke test against default API Gateway (http://localhost:8080):
+# Standard smoke test through frontend Nginx (GraphQL and proxied REST):
 python scripts/testing/smoke.py
 
 # Strict mode with custom latency threshold:
-python scripts/testing/smoke.py --base-url http://localhost:8080 --max-latency-ms 300 --strict
+python scripts/testing/smoke.py --base-url http://localhost:4200 --max-latency-ms 300 --strict
 ```
 
 #### C. Component & Observability Verifier (`verify.py`)
@@ -290,4 +290,3 @@ python scripts/generate_drawio.py
 ```
 
 ---
-

@@ -2,7 +2,7 @@ groups:
   - name: microservices-architecture-alerts
     rules:
       - alert: ServiceDown
-        expr: up{job="spring-services"} == 0
+        expr: up{service=~"products-service|inventory-service|orders-service|notification-service"} == 0
         for: 3m
         labels:
           severity: critical
@@ -10,10 +10,19 @@ groups:
           summary: "{{ $labels.service }} is down"
           description: "Service {{ $labels.service }} has been unreachable for more than 3 minutes."
 
+      - alert: ApolloRouterDown
+        expr: up{service="apollo-router"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Apollo Router is down"
+          description: "The Apollo Router Prometheus target has been unreachable for more than 3 minutes."
+
       - alert: HighErrorRate
         expr: |
-          sum(rate(http_server_requests_seconds_count{job="spring-services", status=~"5..", uri!~".*actuator.*"}[5m]))
-          / sum(rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[5m])) > 0.05
+          sum(rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+          / sum(rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m])) > 0.05
         for: 5m
         labels:
           severity: warning
@@ -23,13 +32,34 @@ groups:
 
       - alert: HighLatency
         expr: |
-          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{job="spring-services", uri!~".*actuator.*"}[5m]))) > 1
+          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m]))) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High Service Request Latency"
           description: "P95 request latency for Spring services exceeds 1 second over the last 5 minutes."
+
+      - alert: ApolloRouterHighErrorRate
+        expr: |
+          sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router", http_response_status_code=~"5.."}[5m]))
+          / sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Apollo Router 5xx error rate is high"
+          description: "Apollo Router has returned 5xx responses for more than 5% of requests over the last 5 minutes."
+
+      - alert: ApolloRouterHighLatency
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service="apollo-router", otel_scope_name="apollo/router"}[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Apollo Router P95 latency is high"
+          description: "Apollo Router request latency P95 has exceeded 1 second for 5 minutes."
 
       - alert: RedisExporterDown
         expr: up{job="redis"} == 0
@@ -41,8 +71,8 @@ groups:
           description: "The Redis Prometheus exporter target is down or unreachable."
 
       - alert: HighHeapUsage
-        expr: sum(jvm_memory_used_bytes{job="spring-services", area="heap"}) by (service)
-          / sum(jvm_memory_max_bytes{job="spring-services", area="heap"}) by (service) > 0.75
+        expr: sum(jvm_memory_used_bytes{service=~"products-service|inventory-service|orders-service|notification-service", area="heap"}) by (service)
+          / sum(jvm_memory_max_bytes{service=~"products-service|inventory-service|orders-service|notification-service", area="heap"}) by (service) > 0.75
         for: 10m
         labels:
           severity: warning
@@ -65,27 +95,31 @@ groups:
 
       # Security & DDoS Detection Alert Rules
       - alert: PotentialDDoSAttack
-        expr: sum(rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[1m])) > 150
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1m])) or vector(0))
+          + (sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router"}[1m])) or vector(0)) > 150
         for: 1m
         labels:
           severity: critical
           category: security
         annotations:
           summary: "Potential DDoS Attack In Progress"
-          description: "Global inbound HTTP throughput is spiking above 150 requests/sec across services."
+          description: "Observed Spring service and Apollo Router HTTP throughput is above 150 requests/sec."
 
       - alert: RateLimiterHighRejections
-        expr: sum(rate(http_server_requests_seconds_count{status="429"}[1m])) > 25
+        expr: |
+          (sum(rate(http_server_requests_seconds_count{status="429"}[1m])) or vector(0))
+          + (sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router", http_response_status_code="429"}[1m])) or vector(0)) > 25
         for: 1m
         labels:
           severity: warning
           category: security
         annotations:
           summary: "High Volume of 429 Rate Limiter Blocks"
-          description: "Redis Rate Limiter is rejecting more than 25 requests/sec. Possible flood or brute-force attack."
+          description: "Observed Spring services and Apollo Router are returning more than 25 HTTP 429 responses/sec; this rule reports the status code and does not assume a specific limiting implementation."
 
       - alert: TargetEndpointFlooding
-        expr: topk(1, sum by (uri) (rate(http_server_requests_seconds_count{job="spring-services", uri!~".*actuator.*"}[1m]))) > 80
+        expr: topk(1, sum by (uri) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1m]))) > 80
         for: 1m
         labels:
           severity: critical

@@ -114,7 +114,7 @@ spec:
               ephemeral-storage: "1Gi"
             limits:
               cpu: "1000m"
-              memory: "1024Mi"
+              memory: "1280Mi"
               ephemeral-storage: "2Gi"
           startupProbe:
             httpGet:

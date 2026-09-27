@@ -48,21 +48,21 @@ class Colors:
 DEFAULT_PROBES = [
     {
         "name": "Apollo Router Supergraph GraphQL Probe",
-        "path": "/",
+        "path": "/graphql",
         "method": "POST",
         "body": b'{"query": "{ __typename }"}',
         "headers": {"Content-Type": "application/json"},
         "expected_status": [200],
         "category": "GraphQL Supergraph",
-        "description": "Validates Apollo Router v2 federated edge gateway GraphQL execution",
+        "description": "Validates Apollo Router v2 federated GraphQL execution",
     },
     {
-        "name": "Storefront Web & API Gateway Health",
+        "name": "Storefront Nginx Health",
         "path": "/actuator/health",
         "frontend_port": 4200,
         "method": "GET",
         "expected_status": [200],
-        "category": "Edge Gateway",
+        "category": "Frontend SPA",
         "description": "Verifies Nginx reverse proxy edge health status",
     },
     {

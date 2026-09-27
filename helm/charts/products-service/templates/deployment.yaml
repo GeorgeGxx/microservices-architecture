@@ -50,6 +50,13 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.readinessPath }}
+              port: {{ .Values.containerPort }}
+            periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.probes.startupFailureThreshold | default 30 }}
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readinessPath }}

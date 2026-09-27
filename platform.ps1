@@ -722,7 +722,8 @@ stringData:
                 kubectl annotate secret microservices-secrets -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>$null | Out-Null
                 kubectl label secret microservices-secrets -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
             }
-            helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev
+            $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
+            helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev --values $minikubeValues
             kubectl rollout restart deployment -n dev 2>$null | Out-Null
             Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
 

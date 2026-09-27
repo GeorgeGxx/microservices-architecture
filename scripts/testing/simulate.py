@@ -5,8 +5,8 @@ Enterprise Microservices Simulation Super-Script (simulate.py)
 Consolidates:
   1. Traffic Simulation (simulate-traffic.py): Realistic shopping sessions,
      catalog browsing, cart additions, Keycloak-authenticated checkout, Kafka events.
-  2. DDoS & Rate-Limit Stress (simulate-ddos.py): Multi-IP botnet simulation,
-     volumetric floods, Slowloris, anonymous assault, 429 assertion.
+     2. GraphQL Load / Rate-Limit Probe: concurrent GraphQL requests and
+     observed HTTP response counts.
   3. Chaos Engineering & Resilience (simulate-chaos.py): Concurrent high-load,
      out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling.
 ==============================================================================
@@ -42,7 +42,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 # ==============================================================================
 # Helper Functions & Constants
 # ==============================================================================
-DEFAULT_GATEWAY = "http://127.0.0.1:8080"
+DEFAULT_ROUTER_URL = "http://127.0.0.1:8080"
+DEFAULT_FRONTEND = "http://127.0.0.1:4200"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 CATALOG_ITEMS = [
@@ -52,7 +53,7 @@ CATALOG_ITEMS = [
     {"sku": "000003", "price": 299.99, "name": "USB-C Multi-Port Hub"},
 ]
 
-ATTACKER_IPS = [
+FORWARDED_CLIENT_IPS = [
     '198.51.100.42', '203.0.113.88', '45.33.32.156', '185.220.101.5',
     '104.244.76.13', '91.240.118.221', '194.26.29.112', '172.67.182.99',
     '89.248.165.71', '185.156.73.45', '192.0.2.14', '198.18.0.55'
@@ -97,9 +98,10 @@ def acquire_jwt(keycloak_url):
 # 1. Traffic Simulator
 # ==============================================================================
 class TrafficSimulator:
-    def __init__(self, gateway_url, keycloak_url, orders=15, concurrency=3, continuous=False):
-        self.gateway_url = gateway_url
+    def __init__(self, router_url, keycloak_url, frontend_url=DEFAULT_FRONTEND, orders=15, concurrency=3, continuous=False):
+        self.router_url = router_url
         self.keycloak_url = keycloak_url
+        self.frontend_url = frontend_url.rstrip("/")
         self.total_orders = orders
         self.concurrency = concurrency
         self.continuous = continuous
@@ -114,7 +116,7 @@ class TrafficSimulator:
     def run(self):
         print("\n\033[96m================================================================================\033[0m")
         print(" \033[96m🛒 SCENARIO: Legitimate E-Commerce User Traffic Simulator\033[0m")
-        print(f" Target Gateway: {self.gateway_url} | Target Orders: {self.total_orders} | Concurrency: {self.concurrency}")
+        print(f" Target Gateway: {self.router_url} | Target Orders: {self.total_orders} | Concurrency: {self.concurrency}")
         print("\033[96m================================================================================\033[0m")
 
         self.token = acquire_jwt(self.keycloak_url)
@@ -151,7 +153,7 @@ class TrafficSimulator:
             headers["Authorization"] = f"Bearer {self.token}"
 
         try:
-            req = urllib.request.Request(f"{self.gateway_url}/", data=browse_query, headers=headers, method="POST")
+            req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=browse_query, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=5) as r:
                 r.read()
         except Exception:
@@ -164,7 +166,7 @@ class TrafficSimulator:
         category = "Electronics" if "00000" in item["sku"] else "Computers"
         try:
             cart_evt = json.dumps({"eventType": "CART_ADD", "category": category}).encode("utf-8")
-            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
@@ -177,7 +179,7 @@ class TrafficSimulator:
         # 3. Start Checkout (Conversion Funnel Step 2: CHECKOUT_START)
         try:
             start_evt = json.dumps({"eventType": "CHECKOUT_START"}).encode("utf-8")
-            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
@@ -186,7 +188,7 @@ class TrafficSimulator:
         # 4. Reach Payment Step (Conversion Funnel Step 3: CHECKOUT_STEP)
         try:
             step_evt = json.dumps({"eventType": "CHECKOUT_STEP", "step": "PAYMENT"}).encode("utf-8")
-            f_req = urllib.request.Request("http://127.0.0.1:4200/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
+            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
             with urllib.request.urlopen(f_req, timeout=3) as _:
                 pass
         except Exception:
@@ -239,7 +241,7 @@ class TrafficSimulator:
 
         t1 = time.time()
         try:
-            req = urllib.request.Request(f"{self.gateway_url}/", data=order_payload, headers=order_headers, method="POST")
+            req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=order_payload, headers=order_headers, method="POST")
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status in (200, 201):
                     res_json = json.loads(resp.read().decode("utf-8"))
@@ -265,9 +267,9 @@ class TrafficSimulator:
 # ==============================================================================
 # 2. DDoS & Rate-Limit Attacker
 # ==============================================================================
-class DDoSAttacker:
-    def __init__(self, gateway_url, keycloak_url, duration=30, distributed=True, no_auth=False):
-        self.gateway_url = gateway_url
+class GraphQLFloodProbe:
+    def __init__(self, router_url, keycloak_url, duration=30, distributed=True, no_auth=False):
+        self.router_url = router_url
         self.keycloak_url = keycloak_url
         self.duration = duration
         self.distributed = distributed
@@ -278,23 +280,32 @@ class DDoSAttacker:
 
     def run(self):
         print("\n\033[91m================================================================================\033[0m")
-        print(" \033[91m⚡ SCENARIO: Distributed DDoS & Rate-Limit Flood Simulator\033[0m")
-        print(f" Target Gateway: {self.gateway_url} | Duration: {self.duration}s | Distributed: {self.distributed}")
+        print(" \033[91m⚡ SCENARIO: Concurrent GraphQL Flood / Edge Rate-Limit Probe\033[0m")
+        print(f" Target Apollo Router endpoint: {self.router_url.rstrip('/')}/graphql | Duration: {self.duration}s")
+        if self.distributed:
+            print(" Forwarded client IPs are synthetic headers; they do not create independent network sources.")
         print("\033[91m================================================================================\033[0m")
 
         token = "" if self.no_auth else acquire_jwt(self.keycloak_url)
         stop_event = threading.Event()
 
         def flood_worker(worker_id):
-            ip_cycler = itertools.cycle(ATTACKER_IPS) if self.distributed else itertools.cycle(["192.0.2.1"])
+            ip_cycler = itertools.cycle(FORWARDED_CLIENT_IPS) if self.distributed else itertools.cycle(["192.0.2.1"])
             while not stop_event.is_set():
                 ip = next(ip_cycler)
-                headers = {"X-Forwarded-For": ip, "User-Agent": f"Botnet-Node-{worker_id}"}
+                headers = {"Content-Type": "application/json", "User-Agent": f"Load-Worker-{worker_id}"}
+                if self.distributed:
+                    headers["X-Forwarded-For"] = ip
                 if token:
                     headers["Authorization"] = f"Bearer {token}"
 
-                endpoint = random.choice(["/api/product", "/api/order", "/api/inventory/000001"])
-                req = urllib.request.Request(f"{self.gateway_url}{endpoint}", headers=headers)
+                query = json.dumps({"query": "{ __typename }"}).encode("utf-8")
+                req = urllib.request.Request(
+                    f"{self.router_url.rstrip('/')}/graphql",
+                    data=query,
+                    headers=headers,
+                    method="POST",
+                )
                 try:
                     with urllib.request.urlopen(req, timeout=2) as resp:
                         code = resp.status
@@ -319,7 +330,7 @@ class DDoSAttacker:
         for t in threads:
             t.join(timeout=1)
 
-        print(f"\n[\033[91mDDoS ATTACK REPORT\033[0m] Completed in {self.duration}s:")
+        print(f"\n[\033[91mGRAPHQL LOAD REPORT\033[0m] Completed in {self.duration}s:")
         print(f"  • Total Requests Dispatched: {self.request_count} ({self.request_count / max(self.duration, 1):.1f} req/s)")
         print("  • HTTP Status Breakdown:")
         for code, count in sorted(self.status_counts.items()):
@@ -332,19 +343,19 @@ class DDoSAttacker:
 # 3. Chaos Engineering & Resilience Tester
 # ==============================================================================
 class ChaosTester:
-    def __init__(self, gateway_url, keycloak_url, runs=30, concurrency=6):
-        self.gateway_url = gateway_url
+    def __init__(self, router_url, keycloak_url, runs=30, concurrency=6):
+        self.router_url = router_url
         self.keycloak_url = keycloak_url
         self.runs = runs
         self.concurrency = concurrency
         self.token = ""
-        self.results = {"success": 0, "rate_limited": 0, "circuit_tripped": 0, "bad_request": 0, "errors": 0}
+        self.results = {"success": 0, "rate_limited": 0, "upstream_unavailable": 0, "business_rejected": 0, "errors": 0}
         self.lock = threading.Lock()
 
     def run(self):
         print("\n\033[95m================================================================================\033[0m")
-        print(" \033[95m🌪️ SCENARIO: Chaos Engineering, Stock Exhaustion & Circuit Breakers\033[0m")
-        print(f" Target Gateway: {self.gateway_url} | Chaos Runs: {self.runs} | Concurrency: {self.concurrency}")
+        print(" \033[95m🌪️ SCENARIO: GraphQL Checkout Validation & Upstream Resilience\033[0m")
+        print(f" Target Gateway: {self.router_url} | Chaos Runs: {self.runs} | Concurrency: {self.concurrency}")
         print("\033[95m================================================================================\033[0m")
 
         self.token = acquire_jwt(self.keycloak_url)
@@ -360,9 +371,9 @@ class ChaosTester:
         print(f"\n[\033[95mCHAOS RESILIENCE REPORT\033[0m] Completed {self.runs} chaos iterations:")
         print(f"  • Successful Checkouts:       {self.results['success']}")
         print(f"  • Rate Limited (HTTP 429):    {self.results['rate_limited']}")
-        print(f"  • Circuit Breaker / Fallback: {self.results['circuit_tripped']}")
-        print(f"  • Out-of-Stock / Validation:  {self.results['bad_request']}")
-        print(f"  • Other Errors / Handled:     {self.results['errors']}")
+        print(f"  • HTTP 503/504 Upstream Errors: {self.results['upstream_unavailable']}")
+        print(f"  • GraphQL Business Rejections:  {self.results['business_rejected']}")
+        print(f"  • Other GraphQL / Transport Errors: {self.results['errors']}")
 
     def _chaos_worker(self, worker_id):
         # Rotate between valid, out of stock, and invalid skus
@@ -377,25 +388,53 @@ class ChaosTester:
             sku = f"NON-EXISTENT-{uuid.uuid4().hex[:6]}"
             price = 999.00
 
-        payload = json.dumps({"skuCode": sku, "price": price, "quantity": random.randint(1, 2)}).encode("utf-8")
-        headers = {"Content-Type": "application/json"}
+        payload = json.dumps({
+            "query": """
+                mutation PlaceOrder($input: PlaceOrderInput!) {
+                  placeOrder(input: $input) { id orderNumber }
+                }
+            """,
+            "variables": {
+                "input": {
+                    "orderItems": [{"sku": sku, "price": price, "quantity": random.randint(1, 2)}],
+                    "customerName": "Chaos Test Runner",
+                    "customerEmail": f"chaos-{uuid.uuid4().hex[:8]}@example.com",
+                    "shippingAddress": "1 Test Street",
+                    "city": "Test City",
+                    "postalCode": "00000",
+                    "phone": "+10000000000",
+                    "deliveryMethod": "STANDARD",
+                    "paymentMethod": "CARD_VISA",
+                }
+            },
+        }).encode("utf-8")
+        headers = {"Content-Type": "application/json", "X-Idempotency-Key": str(uuid.uuid4())}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
 
         try:
-            req = urllib.request.Request(f"{self.gateway_url}/api/order", data=payload, headers=headers, method="POST")
+            req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=payload, headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=3) as resp:
-                if resp.status in (200, 201):
+                result = json.loads(resp.read().decode("utf-8"))
+                if result.get("data", {}).get("placeOrder"):
                     with self.lock:
                         self.results["success"] += 1
+                elif result.get("errors"):
+                    messages = " ".join(error.get("message", "") for error in result["errors"]).lower()
+                    category = "business_rejected" if any(term in messages for term in ("stock", "available", "sku", "quantity", "price", "validation")) else "errors"
+                    with self.lock:
+                        self.results[category] += 1
+                else:
+                    with self.lock:
+                        self.results["errors"] += 1
         except urllib.error.HTTPError as e:
             with self.lock:
                 if e.code == 429:
                     self.results["rate_limited"] += 1
                 elif e.code in (400, 404, 422):
-                    self.results["bad_request"] += 1
+                    self.results["business_rejected"] += 1
                 elif e.code in (503, 504):
-                    self.results["circuit_tripped"] += 1
+                    self.results["upstream_unavailable"] += 1
                 else:
                     self.results["errors"] += 1
         except Exception:
@@ -409,26 +448,29 @@ class ChaosTester:
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Microservices Simulation Super-Script")
     parser.add_argument("--scenario", choices=["traffic", "ddos", "chaos", "all"], default="traffic", help="Simulation scenario to execute")
-    parser.add_argument("--gateway", default=os.getenv("GATEWAY_URL", DEFAULT_GATEWAY), help="API Gateway URL")
+    parser.add_argument("--router-url", "--gateway", dest="router_url", default=os.getenv("APOLLO_ROUTER_URL", os.getenv("GATEWAY_URL", DEFAULT_ROUTER_URL)), help="Apollo Router base URL (legacy --gateway alias accepted)")
+    parser.add_argument("--frontend-url", default=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND), help="Frontend/Nginx URL for REST funnel endpoints")
     parser.add_argument("--keycloak", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak URL")
     parser.add_argument("--orders", type=int, default=15, help="Number of orders to place (traffic)")
     parser.add_argument("--concurrency", type=int, default=4, help="Thread concurrency")
     parser.add_argument("--continuous", action="store_true", help="Run traffic simulation continuously")
     parser.add_argument("--duration", type=int, default=30, help="DDoS attack duration in seconds")
-    parser.add_argument("--distributed", action="store_true", default=True, help="Enable distributed multi-IP botnet")
+    parser.add_argument("--distributed", dest="distributed", action="store_true", default=True, help="Rotate synthetic X-Forwarded-For headers (does not create separate network sources)")
+    parser.add_argument("--single-source", dest="distributed", action="store_false", help="Do not rotate X-Forwarded-For headers")
     parser.add_argument("--no-auth", action="store_true", help="Disable Keycloak token authentication (ddos)")
     parser.add_argument("--chaos-runs", type=int, default=30, help="Number of iterations for chaos testing")
 
     args, _ = parser.parse_known_args()
 
-    gw = args.gateway.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
+    gw = args.router_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
+    frontend = args.frontend_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     kc = args.keycloak.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
 
     if args.scenario in ("traffic", "all"):
-        TrafficSimulator(gw, kc, orders=args.orders, concurrency=args.concurrency, continuous=args.continuous).run()
+        TrafficSimulator(gw, kc, frontend_url=frontend, orders=args.orders, concurrency=args.concurrency, continuous=args.continuous).run()
 
     if args.scenario in ("ddos", "all"):
-        DDoSAttacker(gw, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth).run()
+        GraphQLFloodProbe(gw, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth).run()
 
     if args.scenario in ("chaos", "all"):
         ChaosTester(gw, kc, runs=args.chaos_runs, concurrency=args.concurrency).run()

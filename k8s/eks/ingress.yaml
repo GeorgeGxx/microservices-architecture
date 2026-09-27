@@ -36,28 +36,13 @@ spec:
   gateways:
     - microservices-gateway-eks
   http:
-    # Example of Istio's native stripPrefix (if you need to remove the /strip prefix)
-    - name: strip-prefix-route
+    - name: graphql-route
       match:
         - uri:
-            prefix: /strip
-      rewrite:
-        uri: / # Replaces the /strip prefix with / before sending it to the backend
+            prefix: /graphql
       route:
         - destination:
-            host: api-gateway.dev.svc.cluster.local
-            port:
-              number: 8080
-
-    - name: api-routes
-      match:
-        - uri:
-            prefix: /api
-        - uri:
-            prefix: /actuator
-      route:
-        - destination:
-            host: api-gateway.dev.svc.cluster.local
+            host: apollo-router.dev.svc.cluster.local
             port:
               number: 8080
 

@@ -4,12 +4,6 @@ global:
   storageClass: ebs-gp3-sc
 
 # AWS ECR Repository Placeholders (Replace <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com)
-api-gateway:
-  image:
-    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/api-gateway"
-    tag: "1.0.0"
-  replicaCount: 1
-
 inventory-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/inventory-service"

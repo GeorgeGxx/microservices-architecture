@@ -24,7 +24,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: api-gateway
+  name: apollo-router
   namespace: prod
   annotations:
     azure.workload.identity/client-id: "33333333-3333-3333-3333-333333333333"
