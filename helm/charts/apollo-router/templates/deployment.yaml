@@ -18,8 +18,9 @@ spec:
       labels:
         app: apollo-router
         version: {{ .Values.version | default "2.16.3" }}
-      {{- with .Values.podAnnotations }}
       annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
     spec:

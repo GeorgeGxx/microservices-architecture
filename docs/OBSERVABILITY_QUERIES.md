@@ -97,7 +97,7 @@ Calculates per-second request rate across both Apollo Router (GraphQL) and Sprin
 # Unified (Apollo Router + Spring Boot Subgraphs):
 sum by (service, status) (rate(http_server_requests_seconds_count{service=~"$service"}[1m])) 
 or 
-sum by (service, status) (rate(apollo_router_http_requests_total{service=~"$service"}[1m]))
+sum by (service, http_response_status_code) (rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",service=~"$service"}[1m]))
 ```
 
 #### ⏱️ P95 Request Latency by Microservice (in milliseconds)
@@ -107,12 +107,12 @@ Calculates 95th percentile response latency over a 5-minute rolling window:
 histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"$service"}[5m]))) * 1000
 
 # Edge Gateway (Apollo Router):
-histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000
+histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000
 ```
 
 #### ⏱️ P99 Critical Tail Latency (Global Gateway)
 ```promql
-(histogram_quantile(0.99, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000)
+(histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000)
 or
 (histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000)
 ```
@@ -121,15 +121,15 @@ or
 ```promql
 sum by (service) (rate(http_server_requests_seconds_count{status=~"5.."}[1m]))
 or
-sum by (service) (rate(apollo_router_http_requests_total{status=~"5.."}[1m]))
+sum by (service) (rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code=~"5.."}[1m]))
 ```
 
 #### 🛑 Rate Limiter HTTP 429 Interceptions
-Identifies clients or IPs throttled by Edge Ingress / Redis token-bucket rate limiters:
+Counts HTTP 429 responses from the observed Spring services and Apollo Router traffic:
 ```promql
 sum(rate(http_server_requests_seconds_count{status="429"}[1m])) 
 or 
-sum(rate(apollo_router_http_requests_total{status="429"}[1m])) 
+sum(rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code="429"}[1m]))
 or vector(0)
 ```
 
@@ -424,7 +424,7 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | Diagnostic Scenario | Recommended Tool | Query to Run |
 | :--- | :---: | :--- |
 | **High Cart Abandonment Alarm** | PromQL | `clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)` |
-| **Apollo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000` |
+| **Apollo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000` |
 | **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_duration_seconds_bucket[5m]))) * 1000` |
 | **Subgraph Latency by Backend** | PromQL | `histogram_quantile(0.95, sum by (le, subgraph) (rate(apollo_router_subgraph_request_duration_seconds_bucket[5m]))) * 1000` |
 | **Trace a Customer Order by Operation** | TraceQL | `{ span.graphql.operation.name = "PlaceOrder" && duration > 200ms }` |
@@ -432,5 +432,5 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | **Investigate Sudden 500 Error** | LogQL | `{service=~".+"} \|~ "(?i)ERROR\|Exception"` |
 | **Correlate Logs with a Trace** | LogQL | `{service=~".+"} \|= "<trace-id>"` |
 | **Detect Database Pool Exhaustion**| PromQL | `hikaricp_connections_active / hikaricp_connections_max > 0.85` |
-| **DDoS / Brute-force Attack** | PromQL | `sum(rate(apollo_router_http_requests_total{status="429"}[1m]))` |
+| **DDoS / Brute-force Attack** | PromQL | `sum(rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code="429"}[1m]))` |
 | **Identify Top Attacking IP** | PromQL | `topk(5, sum by (ip) (security_blocked_ip_total))` |

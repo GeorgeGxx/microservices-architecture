@@ -8,6 +8,7 @@ data:
   router.yaml: |
     supergraph:
       listen: 0.0.0.0:8080
+      path: /graphql
       introspection: true
 
     health_check:

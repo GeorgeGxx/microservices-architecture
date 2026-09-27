@@ -92,6 +92,13 @@ spec:
           securityContext:
             capabilities:
               add: ["IPC_LOCK"]
+          startupProbe:
+            httpGet:
+              path: /v1/sys/health
+              port: 8200
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /v1/sys/health
@@ -139,4 +146,3 @@ spec:
           - prometheus
       interval: 15s
       scrapeTimeout: 10s
-

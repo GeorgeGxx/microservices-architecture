@@ -26,8 +26,8 @@ configMap:
   create: true
   name: microservices-config
   data:
-    GATEWAY_SERVICE_NAME: "apollo-router"
-    GATEWAY_PORT: "8080"
+    APOLLO_ROUTER_SERVICE_NAME: "apollo-router"
+    APOLLO_ROUTER_PORT: "8080"
     INVENTORY_SERVICE_NAME: "inventory-service"
     NOTIFICATION_SERVICE_NAME: "notification-service"
     ORDERS_SERVICE_NAME: "orders-service"
@@ -120,8 +120,8 @@ apollo-router:
     prometheus:
       enabled: true
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-      metricName: "apollo_router_http_requests_per_second"
-      query: "sum(rate(apollo_router_http_requests_total[1m]))"
+      metricName: "apollo_router_requests_per_second"
+      query: "sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))"
       threshold: "100"
     cpu:
       enabled: true
@@ -247,4 +247,3 @@ products-service:
 
 frontend:
   enabled: true
-

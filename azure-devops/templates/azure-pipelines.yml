@@ -476,7 +476,7 @@ stages:
               npm install -g newman newman-reporter-htmlextra
               COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
               TARGET_URL="${STAGE_INGRESS_URL:-${{ parameters.ingressUrl }}}"
-              TARGET_URL="${TARGET_URL:-http://localhost:30088}"
+              TARGET_URL="${TARGET_URL:-http://localhost:30080}"
 
               echo "Executing Newman against target endpoint: $TARGET_URL"
               if [ -f "$COLLECTION" ]; then
@@ -511,7 +511,7 @@ stages:
         steps:
           - script: |
               TARGET_URL="${STAGE_INGRESS_URL:-${{ parameters.ingressUrl }}}"
-              TARGET_URL="${TARGET_URL:-http://localhost:30088}"
+              TARGET_URL="${TARGET_URL:-http://localhost:30080}"
               echo "Executing E2E UI and API Flow Validation against $TARGET_URL..."
               if [ -f "${{ parameters.serviceDir }}/cypress.config.js" ] || [ -f "${{ parameters.serviceDir }}/cypress.config.ts" ]; then
                 cd ${{ parameters.serviceDir }}
@@ -539,7 +539,7 @@ stages:
         steps:
           - script: |
               TARGET_URL="${STAGE_INGRESS_URL:-${{ parameters.ingressUrl }}}"
-              TARGET_URL="${TARGET_URL:-http://localhost:30088}"
+              TARGET_URL="${TARGET_URL:-http://localhost:30080}"
               echo "Running k6 SLA Benchmarks on target endpoint: $TARGET_URL..."
               SCRIPT="devsecops/testing/k6/load-test.js"
 
@@ -568,7 +568,7 @@ stages:
         steps:
           - script: |
               TARGET_URL="${STAGE_INGRESS_URL:-${{ parameters.ingressUrl }}}"
-              TARGET_URL="${TARGET_URL:-http://localhost:30088}"
+              TARGET_URL="${TARGET_URL:-http://localhost:30080}"
               echo "Executing OWASP ZAP Baseline Scan against $TARGET_URL..."
               RULES_FILE="devsecops/dast/zap/rules.tsv"
 

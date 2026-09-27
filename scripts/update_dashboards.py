@@ -431,7 +431,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le) (rate(apollo_router_http_request_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
+            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name=\"apollo/router\"}[5m]))) * 1000) or vector(0)",
             "legendFormat": "P95 Latency"
         }]
     },
@@ -487,7 +487,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(rate(http_server_requests_seconds_count{status=~\"429|5..\"}[1m])) or vector(0)",
+            "expr": "sum(rate(http_server_requests_seconds_count{status=~\"429|5..\"}[1m])) or sum(rate(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",http_response_status_code=~\"429|5..\"}[1m])) or vector(0)",
             "legendFormat": "Threat Level"
         }]
     },
@@ -562,8 +562,8 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, status) (rate(apollo_router_http_requests_total{service=~\"$service\"}[1m]))",
-            "legendFormat": "{{service}} ({{status}})"
+            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_response_status_code) (rate(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",service=~\"$service\"}[1m]))",
+            "legendFormat": "{{service}} ({{status}}{{http_response_status_code}})"
         }]
     },
     {
@@ -588,7 +588,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(apollo_router_http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
+            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(http_server_request_duration_seconds_bucket{otel_scope_name=\"apollo/router\",service=~\"$service\"}[5m]))) * 1000)",
             "legendFormat": "{{service}} (P95)"
         }]
     },
@@ -743,7 +743,7 @@ tech_panels = [
         "id": 501,
         "type": "bargauge",
         "title": "🛑 Blocked Attacks (HTTP 429) & Captive Attacker IPs",
-        "description": "Total flood requests intercepted by Spring Cloud Gateway & Redis Tarpit.",
+        "description": "Requests rejected with HTTP 429 by the configured edge rate limits.",
         "gridPos": {"h": 8, "w": 10, "x": 0, "y": 30},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -768,7 +768,7 @@ tech_panels = [
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m])) or vector(0)",
+            "expr": "sum(increase(http_server_requests_seconds_count{status=\"429\"}[15m])) or sum(increase(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",http_response_status_code=\"429\"}[15m])) or vector(0)",
                 "legendFormat": "Blocked Attack Requests (HTTP 429)"
             },
             {
@@ -821,4 +821,3 @@ try:
             print(f"Pushed {path} to Grafana: {r.get('status')}")
 except Exception as e:
     print(f"Could not push to live Grafana (will load on next start): {e}")
-

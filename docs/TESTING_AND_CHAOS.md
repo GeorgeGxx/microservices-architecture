@@ -1,6 +1,6 @@
 # 🧪 Automated Testing, Load Simulation & Chaos Engineering Guide
 
-> Practical execution handbook for synthetic shopper traffic, DDoS botnet simulation, Chaos fault injection, E2E smoke tests, and the Newman API test suite.
+> Practical execution handbook for synthetic shopper traffic, GraphQL load probes, checkout validation, E2E smoke checks, and the Newman API test suite.
 
 ---
 
@@ -32,7 +32,7 @@ flowchart TD
 | **Newman (Postman CLI)** | **Stage 7 (Integration)** | Executes 22 automated API contract checks validating JSON schemas, HTTP status codes, and Keycloak JWT validation across microservices without browser overhead. | Container / CLI (`newman run`) |
 | **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
 | **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles ($p_{95} < 500\text{ms}$), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
-| **`simulate.py` / `smoke.py`** | **Runtime / Caos** | Injects runtime chaos (network latency, pod termination), generates sustained shopper traffic, and launches synthetic DDoS botnet floods to stress Redis Token Bucket rate limiting. | Platform CLI (`.\platform.ps1 smoke`) |
+| **`simulate.py` / `smoke.py`** | **Runtime / Caos** | Generates shopper traffic and GraphQL load, checks checkout business errors, and probes frontend, REST proxy routes, and GraphQL. It reports observed rate-limit responses without assuming a limiter implementation. | Platform CLI (`.\platform.ps1 smoke`) |
 
 ---
 
@@ -58,7 +58,7 @@ flowchart TD
 Enterprise testing scripts located in `scripts/testing/`:
 
 ### 1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)
-Simulates authentic shopping journeys: authenticates with Keycloak OIDC, browses catalog items, queries stock, places distributed purchase orders with idempotency UUIDs, cancels orders to exercise Saga compensation, and updates real-time Grafana business KPIs:
+Simulates shopping journeys through Apollo Router GraphQL, sends funnel events through the frontend REST proxy, and places authenticated orders.
 
 ```powershell
 # Run a quick batch of 15 orders with 3 worker threads:
@@ -125,37 +125,30 @@ python scripts/testing/simulate.py --scenario traffic --orders 2 --concurrency 1
 * **Grafana Verification:** Both trial orders succeed with HTTP 201, and the panel instantly resets to **`CLOSED / HEALTHY` (🟢 Green)**.
 
 
-### 3. 💥 Chaos Engineering & Fault Injection (`simulate.py --scenario chaos`)
-Injects artificial network latency and downstream HTTP 500 errors to validate fault tolerance and OpenTelemetry tracing:
+### 3. 🧪 GraphQL Checkout Validation (`simulate.py --scenario chaos`)
+Exercises valid, out-of-stock, and unknown SKU checkout mutations through Apollo Router and reports successful orders, business rejections, and upstream HTTP failures:
 ```powershell
 python scripts/testing/simulate.py --scenario chaos
 ```
 
-### 4. 🛡️ DDoS & Rate Limiting Stress Attacks (`simulate.py --scenario ddos`)
-Launches high-concurrency request floods against the API Gateway to trigger Redis Token Bucket rate limiting (HTTP 429) and activate the Security Threat Level gauge:
+### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`simulate.py --scenario ddos`)
+Sends concurrent GraphQL requests to Apollo Router and reports observed HTTP responses. The default local port-forward reaches Router directly and bypasses Istio ingress policies. To include ingress controls, target the ingress URL:
 ```powershell
-# 1. Default: 30-second sustained flood with live terminal ticker (keeps Threat Level RED in Grafana):
-python scripts/testing/simulate.py --scenario ddos
+# Direct local Apollo Router load probe:
+python scripts/testing/simulate.py --scenario ddos --duration 30
 
-# 2. Custom sustained duration (e.g. 60 seconds):
-python scripts/testing/simulate.py --scenario ddos --duration 60
+# Probe the public GraphQL route through Istio ingress:
+python scripts/testing/simulate.py --scenario ddos --router-url https://graphql.example.com --duration 30
 
-# 3. Continuous flood (runs indefinitely until Ctrl + C):
-python scripts/testing/simulate.py --scenario ddos --continuous
+# Do not rotate synthetic X-Forwarded-For headers:
+python scripts/testing/simulate.py --scenario ddos --single-source
 
-# 4. Instant fixed burst (300 requests):
-python scripts/testing/simulate.py --scenario ddos --duration 10
-
-# 5. Distributed botnet simulation (rotates 12 distinct attacker IP addresses):
-python scripts/testing/simulate.py --scenario ddos --distributed
-
-# 6. Anonymous attack without Keycloak authentication:
+# Send anonymous GraphQL requests:
 python scripts/testing/simulate.py --scenario ddos --no-auth
 ```
-
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
-# Run automated HTTP smoke tests against all service endpoints:
+# Run frontend, Apollo Router GraphQL, proxied catalog/order REST, and auth smoke checks:
 python scripts/testing/smoke.py
 
 # Verify OpenAPI v3 / Swagger docs availability:
@@ -182,7 +175,7 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 ```powershell
 # Inject 30 abandoned cart events via the public Orders Funnel API:
 1..30 | ForEach-Object {
-    Invoke-RestMethod -Uri "http://localhost:8080/api/order/funnel" `
+    Invoke-RestMethod -Uri "http://localhost:4200/api/order/funnel" `
       -Method POST `
       -ContentType "application/json" `
       -Body '{"eventType":"CART_ADD","category":"Electronics"}'

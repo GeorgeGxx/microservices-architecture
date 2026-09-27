@@ -36,12 +36,10 @@ spec:
   gateways:
     - microservices-gateway
   http:
-    - name: api-gateway-routes
+    - name: graphql-route
       match:
         - uri:
-            prefix: /api
-        - uri:
-            prefix: /actuator
+            prefix: /graphql
       timeout: 60s # Equivalent to nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
       headers:
         response:
@@ -51,7 +49,7 @@ spec:
             X-XSS-Protection: 1; mode=block
       route:
         - destination:
-            host: api-gateway.dev.svc.cluster.local
+            host: apollo-router.dev.svc.cluster.local
             port:
               number: 8080
 

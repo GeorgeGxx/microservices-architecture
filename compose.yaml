@@ -61,7 +61,7 @@ services:
     container_name: apollo-router
     image: ghcr.io/apollographql/router:v2.16.3
     ports:
-      - "${GATEWAY_PORT:-8080}:8080"
+      - "${APOLLO_ROUTER_PORT:-${GATEWAY_PORT:-8080}}:8080"
     volumes:
       - ./apollo-router/router.yaml:/dist/config/router.yaml:ro
       - ./apollo-router/supergraph.graphql:/dist/config/supergraph.graphql:ro
@@ -541,7 +541,7 @@ services:
         vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' 2>/dev/null || true
         vault kv put secret/inventory-service spring.datasource.url="jdbc:postgresql://db-inventory:5432/ms_inventory" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
         vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
-        vault kv put secret/api-gateway keycloak.client-secret="microservices-client-secret-key-3300" keycloak.issuer-uri="http://keycloak:8181/realms/microservices-realm" 2>/dev/null || true
+        vault kv put secret/apollo-router keycloak.client-secret="microservices-client-secret-key-3300" keycloak.issuer-uri="http://keycloak:8181/realms/microservices-realm" 2>/dev/null || true
         
         echo "🔐 [Vault Auto-Init] Enabling Transit Encryption Engine..."
         vault secrets enable transit 2>/dev/null || true

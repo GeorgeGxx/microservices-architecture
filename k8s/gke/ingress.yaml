@@ -36,23 +36,20 @@ spec:
   gateways:
     - microservices-gateway-gke
   http:
-    - name: api-routes
+    - name: graphql-route
       match:
         - uri:
-            prefix: /api
-        - uri:
-            prefix: /actuator
-      # Equivalent to kong-security-headers plugin
+            prefix: /graphql
+      # Apply the common edge security headers to GraphQL requests.
       headers:
         response:
           set:
             X-Frame-Options: SAMEORIGIN
             X-Content-Type-Options: nosniff
             X-XSS-Protection: 1; mode=block
-      # Istio does not rewrite the URI by default (maintains strip-path: false)
       route:
         - destination:
-            host: api-gateway.dev.svc.cluster.local
+            host: apollo-router.dev.svc.cluster.local
             port:
               number: 8080
 

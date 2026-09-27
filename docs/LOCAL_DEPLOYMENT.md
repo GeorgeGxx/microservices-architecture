@@ -31,7 +31,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Spring Cloud API Gateway** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Reactive reverse proxy, Token Relay & CORS |
+| **Apollo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
 | **Spring Boot Microservices (x4)** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
 | **Keycloak 26.7.3 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
@@ -243,7 +243,7 @@ Audit proxy synchronization and mutual TLS enforcement without needing browser t
 
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
 > - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
-> - **Selective Actuator Scraping:** Ports `8080` and `8001-8004` feature `portLevelMtls: PERMISSIVE` in `k8s/istio/peer-authentication-dev.yaml`, enabling Prometheus to scrape Actuator metrics without `connection reset by peer` errors while business traffic remains 100% encrypted.
+> - **Selective Metrics Scraping:** Apollo Router metrics port `9090` and Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `k8s/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
 > - **Kafka SASL Authentication (Port 9094):** Microservices produce and consume events through `kafka:9094` using SASL PLAIN (`app` credentials). In-mesh traffic benefits from **Defense-in-Depth** (Layer 7 SASL identification + Layer 4 Istio mTLS wire encryption).
 > - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
 
@@ -260,17 +260,17 @@ Expose all internal services and web consoles to `localhost`:
 
 Once tunnels are active, access local web interfaces:
 - **Frontend SPA:** [http://localhost:4200](http://localhost:4200)
-- **API Gateway:** [http://localhost:8080](http://localhost:8080)
+- **Apollo Router GraphQL:** [http://localhost:8080/graphql](http://localhost:8080/graphql)
 - **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
 - **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
 - **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
-- **ArgoCD Web UI:** [http://localhost:8080](http://localhost:8080)
+- **ArgoCD Web UI:** [https://localhost:30088](https://localhost:30088)
 
 Alternatively, access services directly via Minikube NodePort without background tunnels:
 - **Frontend SPA:** `http://$(minikube ip):30080`
-- **API Gateway:** `http://$(minikube ip):30088`
+- Apollo Router is internal (ClusterIP); access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`. Port `30088` belongs to ArgoCD in the Terraform Minikube profile.
 - **Keycloak Admin:** `http://$(minikube ip):30181`
 - **Vault Web UI:** `http://$(minikube ip):30820`
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
@@ -408,7 +408,7 @@ flowchart TD
 ### 1. ⚖️ KEDA v2.20.1 Event-Driven Autoscaling & HPA Orchestration
 * **Architecture & Coexistence:** KEDA does not replace Kubernetes `HorizontalPodAutoscaler` (HPA); it acts as an intelligent controller that creates and continuously synchronizes native `autoscaling/v2` HPA resources. To prevent flapping and replica race conditions, subcharts conditionally decouple native static HPAs when `keda.enabled=true`.
 * **Kafka Consumer Lag Trigger (`notification-service`):** Scales pods dynamically in response to pending messages in the `orders-topic` partition queue (`lagThreshold: 10`), ensuring fast consumer drain under bulk checkout spikes.
-* **Prometheus RPS Trigger (`apollo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(apollo_router_http_requests_total[1m]))`) scaling before CPU threshold saturation occurs.
+* **Prometheus RPS Trigger (`apollo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))`) scaling before CPU threshold saturation occurs.
 * **CPU & Memory Stabilization:** ScaledObjects bundle resource utilization targets ($70\%$ CPU, $80\%$ Memory) alongside event triggers into a single unified HPA.
 * **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never compromise platform quorum.
 * **Verification Commands:**
@@ -475,4 +475,3 @@ flowchart TD
   3. All `severity: critical` alerts will automatically trigger webhook payloads creating Jira issues.
 
 ---
-

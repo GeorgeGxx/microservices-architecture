@@ -28,7 +28,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-DEFAULT_GATEWAY = "http://127.0.0.1:8080"
+DEFAULT_ROUTER_URL = "http://127.0.0.1:8080"
 DEFAULT_PROMETHEUS = "http://127.0.0.1:9090"
 DEFAULT_GRAFANA = "http://127.0.0.1:3000"
 
@@ -40,21 +40,21 @@ SERVICE_ENDPOINTS = {
 }
 GRAFANA_DASHBOARDS = ["business-operations", "technical-security"]
 
-def verify_swagger(gateway_url):
+def verify_swagger(router_url):
     print("\n\033[96m[1/3] 🔌 VERIFYING APOLLO ROUTER & MICROSERVICE SWAGGER/OPENAPI SPECS\033[0m")
     
     # 1. Verify Apollo Router (GraphQL Gateway)
     try:
         req = urllib.request.Request(
-            f"{gateway_url}/",
+            f"{router_url.rstrip('/')}/graphql",
             data=b'{"query": "{ __typename }"}',
             headers={"Content-Type": "application/json"},
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
-            print(f"  [\033[92mOK\033[0m] Apollo Router Supergraph Gateway reachable at {gateway_url} (HTTP {resp.status})")
+            print(f"  [\033[92mOK\033[0m] Apollo Router Supergraph Gateway reachable at {router_url} (HTTP {resp.status})")
     except Exception as e:
-        print(f"  [\033[93mWARN\033[0m] Apollo Router Gateway at {gateway_url}: {e}")
+        print(f"  [\033[93mWARN\033[0m] Apollo Router Gateway at {router_url}: {e}")
 
     # 2. Verify individual Spring Boot Microservice Swagger UIs & OpenAPI v3 Specs
     import subprocess
@@ -134,13 +134,13 @@ def verify_grafana(grafana_url):
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Platform Verification Super-Script")
     parser.add_argument("--target", choices=["all", "swagger", "metrics", "grafana"], default="all", help="Target component to verify")
-    parser.add_argument("--gateway-url", default=os.getenv("GATEWAY_URL", DEFAULT_GATEWAY), help="API Gateway URL")
+    parser.add_argument("--router-url", "--gateway-url", dest="router_url", default=os.getenv("APOLLO_ROUTER_URL", os.getenv("GATEWAY_URL", DEFAULT_ROUTER_URL)), help="Apollo Router base URL (legacy --gateway-url alias accepted)")
     parser.add_argument("--prometheus-url", default=os.getenv("PROMETHEUS_URL", DEFAULT_PROMETHEUS), help="Prometheus URL")
     parser.add_argument("--grafana-url", default=os.getenv("GRAFANA_URL", DEFAULT_GRAFANA), help="Grafana URL")
 
     args = parser.parse_args()
 
-    gw = args.gateway_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
+    gw = args.router_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     prom = args.prometheus_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     graf = args.grafana_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
 

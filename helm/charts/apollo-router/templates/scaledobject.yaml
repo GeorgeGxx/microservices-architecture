@@ -21,8 +21,8 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: {{ .Values.keda.prometheus.serverAddress | default "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090" | quote }}
-        metricName: http_requests_per_second
-        query: {{ .Values.keda.prometheus.query | default "sum(rate(http_server_requests_seconds_count{uri!~'.*actuator.*'}[1m]))" | quote }}
+        metricName: {{ .Values.keda.prometheus.metricName | default "apollo_router_requests_per_second" | quote }}
+        query: {{ .Values.keda.prometheus.query | default "sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))" | quote }}
         threshold: {{ .Values.keda.prometheus.threshold | default "100" | quote }}
     {{- end }}
     {{- if and .Values.keda.cpu .Values.keda.cpu.enabled }}

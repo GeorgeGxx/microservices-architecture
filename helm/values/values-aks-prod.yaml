@@ -12,8 +12,8 @@ global:
   #     - name: db-password
   #       alias: DB_PASSWORD
 
-api-gateway:
-  image: { repository: "georgegxxmsaprodacr.azurecr.io/api-gateway", tag: "1.0.0" }
+apollo-router:
+  image: { repository: "ghcr.io/apollographql/router", tag: "v2.16.3" }
   replicaCount: 2
   autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
 inventory-service:
