@@ -411,7 +411,6 @@ stages:
                     acrName: ${{ parameters.acrNameDev }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
-                    helmChartPath: ${{ parameters.helmChartPath }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
 
@@ -458,7 +457,6 @@ stages:
                     acrName: ${{ parameters.acrNameStaging }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
-                    helmChartPath: ${{ parameters.helmChartPath }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
 
@@ -703,7 +701,6 @@ stages:
                     acrName: ${{ parameters.acrNameProd }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
-                    helmChartPath: ${{ parameters.helmChartPath }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
                     verifyRollout: true

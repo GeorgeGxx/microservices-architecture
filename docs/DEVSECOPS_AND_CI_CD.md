@@ -320,12 +320,13 @@ Located in `azure-devops/`:
 - **Shared application template ([`app-stages.yml`](../azure-devops/templates/app-stages.yml))**: Defines 14 numbered delivery stages plus separate rollback stages. Each application entry point supplies the component, port, Azure connection, and environment-specific ACR names. `develop` publishes to the dev ACR; release/main builds first publish to staging, and `main` copies the QA-approved immutable image into the production ACR before deployment.
 - **Application entry points**: [`inventory-service.yml`](../azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](../azure-devops/pipelines/orders-service.yml), [`products-service.yml`](../azure-devops/pipelines/products-service.yml), [`notification-service.yml`](../azure-devops/pipelines/notification-service.yml), and [`frontend.yml`](../azure-devops/pipelines/frontend.yml) use the shared template. [`cosmo-router.yml`](../azure-devops/pipelines/cosmo-router.yml) remains a separate configuration/supergraph validation pipeline because Cosmo Router has no project Dockerfile to build.
 - **Terraform validation ([`infra.yml`](../azure-devops/pipelines/infra.yml))**: Runs format/init/validate checks for local workspace selectors `dev`, `staging`, and `prod`; it does not plan or apply cloud changes until Azure remote state and Blob locking are provisioned. [`infra-stages.yml`](../azure-devops/templates/infra-stages.yml) is a saved-plan/apply helper and is not an active pipeline entry point.
-- The app pipelines use the `azure-service-connection` service connection and Terraform's environment-scoped registries (`msaazuredevacr`, `msaazurestagingacr`, `msaazureprodacr`). Configure that connection for ACR push and AKS deployment access, and set exclusive locks/approvals on the `dev`, `staging`, and `production` Azure DevOps environments. Production canary is disabled in the current service entry points until production-specific Istio manifests exist.
+- The app pipelines use the `azure-service-connection` service connection and Terraform's environment-scoped registries (`msaazuredevacr`, `msaazurestagingacr`, `msaazureprodacr`). Configure that connection for ACR push and AKS deployment access, and set exclusive locks/approvals on the `dev`, `staging`, and `production` Azure DevOps environments. Set secured, read-only `GHCR_USERNAME`/`GHCR_TOKEN` variables for chart pulls; the shared deploy step installs the exact chart version from `Chart.yaml` in GHCR. Production canary is disabled in the current service entry points until production-specific Istio manifests exist.
 
 ### 3. Bitbucket Pipelines (CI/CD) + ArgoCD (GitOps) ➔ GCP
 - **Bitbucket Pipelines ([`bitbucket-pipelines.yml`](../bitbucket-pipelines.yml))**:
   - Branch flows contain 14 numbered delivery stages: tests, security, image/SBOM, image scan, policy, Terraform validation, GAR publish, GKE deploy, API contract, storefront smoke, performance, DAST, rollout verification, and release evidence/promotion.
   - Set `SERVICE_NAME`/`SERVICE_DIR` for the service being built; the default is `products-service`. Configure secured deployment variables for GCP identity, project, region, GAR repository, cluster, ingress, frontend, and Keycloak endpoints. Missing required deploy/test values fail closed.
+  - Set secured `GHCR_USERNAME` and read-only `GHCR_TOKEN` deployment variables. The deploy step pulls the exact `Chart.yaml` version from GHCR; it does not rebuild or publish a chart.
   - Production is manually approved and deploys the same commit SHA with a rolling Helm upgrade. `--atomic` handles failures during Helm readiness; QA failures after deployment block progress but require operator-led rollback.
   - Terraform validation runs with `-backend=false`; no cloud plan/apply is performed in this pipeline. The local platform CLI permits cloud operations only after a real GCP backend config is supplied.
 - **ArgoCD GitOps ([`argocd/`](./argocd/))**:
@@ -338,6 +339,8 @@ Located in `azure-devops/`:
 ---
 
 ## 🔄 Multi-Cloud CI/CD & Automated Rollback Architecture
+
+Production umbrella charts are released as immutable, versioned GHCR OCI artifacts through [`helm-chart-release.yml`](../.github/workflows/helm-chart-release.yml); see the [Helm chart release procedure](./HELM_CHART_RELEASE.md). Azure DevOps and Bitbucket consume the exact committed chart version from GHCR; AWS, Azure, and GCP Terraform roots expose matching chart coordinates in their outputs. Service image pipelines remain separate from chart releases.
 
 The project uses provider-specific CI/CD workflows and recovery controls; rollback automation is limited to the configured deployment steps:
 

@@ -632,6 +632,28 @@ function Invoke-CloudPlatform {
     }
 }
 
+function Show-LocalPlatformUrls {
+    Show-Banner "Active Platform Web Dashboards & Management Consoles"
+    Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
+    Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
+    Write-Host "│ 🌐 React Storefront          │ http://localhost:5173                      │ Open           │" -ForegroundColor White
+    Write-Host "│ 🚀 Cosmo Router (Sandbox)    │ http://localhost:8080                      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
+    Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
+    Write-Host "│ 🐙 ArgoCD GitOps Server      │ https://localhost:8088                     │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
+    Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
+    Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
+    Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
+    Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
+}
+
 function Invoke-MinikubePlatform {
     param(
         [Parameter(Mandatory = $true)]
@@ -675,9 +697,57 @@ function Invoke-MinikubePlatform {
                 throw "Cosmo Router Federation v2 composition failed. No cluster changes were applied."
             }
             $resolvedUmbrellaDir = (Resolve-Path -LiteralPath $umbrellaDir -ErrorAction Stop).Path
-            & helm dependency update $resolvedUmbrellaDir
-            if ($LASTEXITCODE -ne 0) {
-                throw "Helm dependency build failed with exit code $LASTEXITCODE. No cluster changes were applied."
+
+            # Local subcharts are committed as packaged dependencies for GitOps.
+            # Rebuild them only when their source, lockfile, or expected archive
+            # changes; otherwise Helm can reuse the existing immutable inputs.
+            $dependencySourceFiles = @(
+                (Join-Path $resolvedUmbrellaDir "Chart.yaml"),
+                (Join-Path $resolvedUmbrellaDir "Chart.lock")
+            ) + @(Get-ChildItem -LiteralPath (Join-Path $root "helm\charts") -Recurse -File | Sort-Object FullName | ForEach-Object { $_.FullName })
+            $dependencyFingerprintInput = [System.Text.StringBuilder]::new()
+            foreach ($dependencyFile in $dependencySourceFiles) {
+                if (-not (Test-Path -LiteralPath $dependencyFile -PathType Leaf)) { continue }
+                $dependencyFileHash = (Get-FileHash -LiteralPath $dependencyFile -Algorithm SHA256).Hash
+                [void]$dependencyFingerprintInput.Append($dependencyFile).Append('|').AppendLine($dependencyFileHash)
+            }
+            $dependencyFingerprintBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($dependencyFingerprintInput.ToString())
+            )
+            $dependencyFingerprint = [BitConverter]::ToString($dependencyFingerprintBytes).Replace('-', '').ToLowerInvariant()
+
+            $expectedDependencyArchives = @()
+            foreach ($dependencyChart in Get-ChildItem -LiteralPath (Join-Path $root "helm\charts") -Directory) {
+                $dependencyMetadata = Get-Content -LiteralPath (Join-Path $dependencyChart.FullName "Chart.yaml") -Raw
+                $dependencyName = [regex]::Match($dependencyMetadata, '(?m)^name:\s*["'']?([^"''\s#]+)').Groups[1].Value
+                $dependencyVersion = [regex]::Match($dependencyMetadata, '(?m)^version:\s*["'']?([^"''\s#]+)').Groups[1].Value
+                if (-not $dependencyName -or -not $dependencyVersion) {
+                    throw "Could not read chart name/version from '$($dependencyChart.FullName)\Chart.yaml'. No cluster changes were applied."
+                }
+                $expectedDependencyArchives += Join-Path (Join-Path $resolvedUmbrellaDir "charts") "$dependencyName-$dependencyVersion.tgz"
+            }
+
+            $dependencyCacheRoot = Join-Path $env:LOCALAPPDATA "microservices-architecture\helm-dependency-cache"
+            $repositoryCacheKeyBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                [System.Text.Encoding]::UTF8.GetBytes($resolvedUmbrellaDir.ToLowerInvariant())
+            )
+            $repositoryCacheKey = [BitConverter]::ToString($repositoryCacheKeyBytes).Replace('-', '').ToLowerInvariant()
+            $dependencyCacheFile = Join-Path $dependencyCacheRoot "$repositoryCacheKey.sha256"
+            $cachedDependencyFingerprint = if (Test-Path -LiteralPath $dependencyCacheFile -PathType Leaf) {
+                (Get-Content -LiteralPath $dependencyCacheFile -Raw).Trim()
+            } else { "" }
+            $missingDependencyArchives = @($expectedDependencyArchives | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
+
+            if ($cachedDependencyFingerprint -ne $dependencyFingerprint -or $missingDependencyArchives.Count -gt 0) {
+                Write-Host "  ▶ Packaging Helm subcharts because their sources changed or an archive is missing..." -ForegroundColor White
+                & helm dependency update $resolvedUmbrellaDir
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Helm dependency packaging failed with exit code $LASTEXITCODE. No cluster changes were applied."
+                }
+                New-Item -ItemType Directory -Path $dependencyCacheRoot -Force | Out-Null
+                Set-Content -LiteralPath $dependencyCacheFile -Value $dependencyFingerprint -NoNewline
+            } else {
+                Write-Host "  [OK] Helm subcharts are unchanged; reusing the existing packages." -ForegroundColor Green
             }
 
             Write-Host "`n[1/10] 🔍 Auditing Required Windows CLI Tools..." -ForegroundColor Yellow
@@ -996,6 +1066,7 @@ stringData:
             Write-Host "`n================================================================================" -ForegroundColor Green
             Write-Host "🎉 MINIKUBE DEV ENVIRONMENT READY & OPERATIONAL ('develop' -> 'dev')" -ForegroundColor Green
             Write-Host "================================================================================" -ForegroundColor Green
+            Show-LocalPlatformUrls
         }
 
         "down" {
@@ -1303,25 +1374,7 @@ switch ($Command) {
 
     "urls" {
         if ($Platform -ne "minikube") { throw "'urls' lists local port-forward endpoints only. Select -Platform minikube or use the cloud ingress outputs." }
-        Show-Banner "Active Platform Web Dashboards & Management Consoles"
-        Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
-        Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
-        Write-Host "│ 🌐 React Storefront          │ http://localhost:5173                      │ Open           │" -ForegroundColor White
-        Write-Host "│ 🚀 Cosmo Router (Sandbox)   │ http://localhost:8080                      │ Open           │" -ForegroundColor White
-        Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
-        Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
-        Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
-        Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
-        Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
-        Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
-        Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
-        Write-Host "│ 🐙 ArgoCD GitOps Server      │ https://localhost:8088                     │ admin / admin  │" -ForegroundColor White
-        Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
-        Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
-        Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
-        Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
-        Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
-        Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
+        Show-LocalPlatformUrls
     }
 
     { $_ -in @("diagrams", "sync-diagrams") } {

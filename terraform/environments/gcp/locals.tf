@@ -90,3 +90,8 @@ locals {
 
   cfg = local.env_config[local.env]
 }
+
+locals {
+  microservices_chart            = yamldecode(file("${path.module}/../../../helm/microservices-umbrella/Chart.yaml"))
+  microservices_chart_repository = local.microservices_chart.annotations["microservices-architecture.io/helm-oci-repository"]
+}

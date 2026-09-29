@@ -125,6 +125,8 @@ definitions:
             : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
             : "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME to the Terraform output for this environment}"
             : "${GAR_REPOSITORY:?Set GAR_REPOSITORY from the matching Terraform workspace}"
+            : "${GHCR_USERNAME:?Set GHCR_USERNAME as a read-only GHCR package account}"
+            : "${GHCR_TOKEN:?Set GHCR_TOKEN as a secured variable with read:packages access}"
             SERVICE_NAME="${SERVICE_NAME:-products-service}"
             IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
             case "${BITBUCKET_DEPLOYMENT_ENVIRONMENT:?Deployment environment must be configured}" in
@@ -138,7 +140,11 @@ definitions:
             gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
             gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
             curl -fsSL https://raw.githubusercontent.com/helm/helm/v3.17.3/scripts/get-helm-3 | HELM_INSTALL_DIR=/usr/local/bin bash -s -- --version v3.17.3
-            helm dependency update helm/microservices-umbrella
+            CHART_VERSION="$(helm show chart helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
+            CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' helm/microservices-umbrella/Chart.yaml)"
+            [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            [[ "$CHART_REPOSITORY" == oci://ghcr.io/*/microservices-umbrella ]]
+            printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
             kubectl get nodes
             if helm status microservices --namespace "$NAMESPACE" >/dev/null 2>&1; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
             PREVIOUS_REVISION=""
@@ -153,7 +159,8 @@ definitions:
               exit "$result"
             }
             trap rollback_on_error ERR
-            helm upgrade --install microservices ./helm/microservices-umbrella \
+            helm upgrade --install microservices "$CHART_REPOSITORY" \
+              --version "$CHART_VERSION" \
               --namespace "$NAMESPACE" --create-namespace --reuse-values \
               --set "${SERVICE_NAME}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
               --set "${SERVICE_NAME}.image.tag=${IMAGE_TAG}" \
