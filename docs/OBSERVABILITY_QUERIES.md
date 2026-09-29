@@ -130,8 +130,12 @@ sum by (service) (rate(http_server_request_duration_seconds_count{otel_scope_nam
 #### 🛑 Frontend Nginx Rate-Limit HTTP 429 Interceptions
 The shared Compose/Minikube edge returns HTTP 429 after the per-peer token bucket is exceeded. Alloy ships the frontend JSON access log to Loki:
 ```logql
-sum(rate({service="frontend"} | json | status="429" [1m]))
+sum(rate({service="frontend"} | json | __error__="" | status=429 [1m])) or vector(0)
 ```
+The `Edge Security Attack Status & Threat Level` Stat panel uses this rate with
+value thresholds: green below 1 blocked request/sec, amber from 1/sec, and red
+from 5/sec. It intentionally relies on thresholds (without range value
+mappings) so the background color reflects the current value.
 
 ---
 
@@ -242,8 +246,14 @@ vault_core_unsealed
 #### 🛡️ Top 5 Blocked Peer IPs
 Ranks the socket peer addresses observed by Nginx for responses it rejected. Caller-controlled `X-Forwarded-For` is not used as the limiter key; behind another proxy, the peer may be that proxy rather than the original user:
 ```logql
-topk(5, sum by (peer_ip) (count_over_time({service="frontend"} | json | status="429" [15m])))
+topk(5, sum by (peer_ip) (count_over_time({service="frontend"} | json | __error__="" | status=429 | peer_ip!="" [15m]))) or on() label_replace(vector(0), "peer_ip", "No blocked peers", "__name__", ".*")
 ```
+The dashboard's blocked-request count uses the same JSON parse-error filter
+over a 15-minute window. With no matching events, the peer-IP query returns a
+`No blocked peers` series instead of an empty result. Run the authenticated
+`simulate.py --scenario ddos` against the local frontend edge to produce real
+Nginx 429 logs; synthetic `X-Forwarded-For` values do not create separate
+network peers.
 
 ---
 

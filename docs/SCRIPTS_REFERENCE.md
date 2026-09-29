@@ -1,6 +1,6 @@
 # 🛠️ Enterprise Automation Scripts & CLI Reference Manual
 
-> Exhaustive reference manual for the unified platform CLI (platform.ps1), multi-cloud lifecycle scripts (AWS, Azure, GCP), FinOps snapshot cleanup, and platform operational tooling.
+> Exhaustive reference manual for the unified platform CLI (platform.ps1), multi-cloud lifecycle scripts (AWS, Azure, GCP), OpenCost workload allocation, and platform operational tooling.
 
 ---
 
@@ -96,13 +96,12 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 
 ---
 
-#### 6. 💰 FinOps Cloud Cost Breakdown & Savings (`cost` / `finops`)
+#### 6. 💰 Live Kubernetes Costs and Offline Estimates (`cost` / `finops`)
 
 | Command / Combination | Environment | Analysis Performed |
 | :--- | :--- | :--- |
-| `.\platform.ps1 cost` | Minikube | Air-gapped offline cost analysis: computes local developer cost ($0/mo) and calculates monthly savings vs. AWS ($1,864/mo), Azure ($1,792/mo), and GCP ($1,680/mo). |
-| `.\platform.ps1 cost -Environment staging` | Staging | Displays medium performance tier monthly spending breakdown across compute, databases, cache, and networking. |
-| `.\platform.ps1 cost -Environment prod` | Production | Displays high performance HA tier monthly cost breakdown across multi-AZ clusters, managed databases, and enterprise services. |
+| `.\platform.ps1 cost` | Current Kubernetes context | Queries live namespace costs from OpenCost through Krew plugin `kubectl-cost` (`--opencost`). |
+| `.\platform.ps1 finops -Environment minikube` | Local estimate | Runs the offline architecture estimate; it is not live cluster allocation or provider billing. |
 
 ---
 
@@ -110,8 +109,11 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 
 | Command / Combination | Mode | Description |
 | :--- | :--- | :--- |
-| `.\platform.ps1 tools` | Audit Only | Fast audit (< 1s) checking presence and version of 17 essential platform tools. Excludes 9 non-essential CLIs. |
+| `.\platform.ps1 tools` | Audit Only | Fast audit checking presence and version of 18 documented project tools. |
 | `.\platform.ps1 tools -Install` | Unattended Install | Automatically installs any missing tools via `winget install --id ... --silent --accept-package-agreements`. |
+
+| `.\Install-DevTools.ps1` | Audit Only | Audits documented CLI/runtime tools; does not install packages by default. |
+| `.\Install-DevTools.ps1 -Install` | Install Missing | Installs only documented WinGet packages. `-IncludeCloudCli` and `-InstallOpenCostPlugin` opt in to cloud CLIs/OpenCost Krew. |
 
 ---
 
@@ -140,14 +142,15 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | **`platform.ps1`** | Root (`./platform.ps1`) | **Master Platform Orchestrator:** Unified lifecycle manager across Minikube, AWS, Azure, and GCP. | • Hardware sizing (6 CPUs, 12 GB RAM)<br/>• Multi-cloud bootstrap, plan, apply, destroy<br/>• Automated rollbacks & state unlocking<br/>• Health diagnostic audit (`doctor`) | `.\platform.ps1 up -Platform minikube` |
 | **[`bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1)** | `scripts/` | **Keycloak 26 Realm & Client Bootstrapper:** Provisions IAM realm, roles, users, and clients. | • Syncs confidential client secret into `.env` and K8s<br/>• Configures public `microservices_frontend` for the SPA<br/>• Configures confidential `microservices_client` for automated tests | `pwsh -File .\scripts\bootstrap-keycloak.ps1` |
 | **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & React containers. | • Parallel compilation of 4 Spring Boot services<br/>• Nginx Distroless React 19 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
-| **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Frontend and GraphQL health/latency checks. | • Apollo Router GraphQL (`/graphql`)<br/>• Frontend health (`/actuator/health`)<br/>• Frontend SPA root (`/`)<br/>• Optional latency SLO threshold | `python scripts/endpoint-smoke-test.py --base-url http://localhost:4200 --max-latency-ms 500` |
+| **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Independent gateway and frontend health/latency checks. | • Apollo Router GraphQL (`/graphql`)<br/>• Frontend Nginx health (`/healthz`)<br/>• Frontend SPA root (`/`)<br/>• Separate gateway and frontend targets | `python scripts/endpoint-smoke-test.py --base-url http://localhost:8080 --frontend-url http://localhost:5173` |
 | **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | `scripts/` | **Zero-Trust Cryptographic Secret Generator:** CSPRNG high-entropy key generator. | • High-entropy DB passwords and JWT keys<br/>• Exports to `.env`, JSON, or K8s `Secret` YAML<br/>• Automated HashiCorp Vault token generation | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
-| **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Air-Gapped FinOps Cost & Savings Engine:** Calculates cloud costs and local savings. | • Local developer savings vs. AWS/Azure/GCP<br/>• Staging & Production tier expenditure breakdown<br/>• Offline calculations without cloud API keys | `python scripts/local-cost-estimator.py --platform minikube` |
-| **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (4200), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
-| **[`update_dashboards.py`](../scripts/update_dashboards.py)** | `scripts/` | **Grafana Dashboard JSON Synchronizer:** Programmatic dashboard model manager. | • Validates panel schemas and PromQL queries<br/>• Formats and syncs JSON dashboards<br/>• Supports business and technical security panels | `python scripts/update_dashboards.py` |
+| **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Offline Architecture Estimate:** Illustrative profile totals, not live cloud cost data. | • Staging and production profile estimates<br/>• Not live provider billing<br/>• Clearly separate from OpenCost allocation | `python scripts/local-cost-estimator.py --env minikube` |
+| **[`validate-opencost.sh`](../scripts/validate-opencost.sh)** | `scripts/` | Renders pinned OpenCost and cloud Prometheus Helm charts with project values in CI. | • Validates local and cloud values<br/>• Used by GitHub Actions, Azure DevOps, and Bitbucket | `bash scripts/validate-opencost.sh` |
+| **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (5173), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
+| **[`update_dashboards.py`](../scripts/update_dashboards.py)** | `scripts/` | **Grafana Dashboard Generator:** Writes the curated business and technical dashboard JSON. | • Local file generation is the default<br/>• Live publish requires `--push` plus `GRAFANA_TOKEN` or `GRAFANA_USERNAME` / `GRAFANA_PASSWORD`<br/>• Supports business and technical security panels | `python scripts/update_dashboards.py` (publish: `python scripts/update_dashboards.py --push`) |
 | **[`generate_drawio.py`](../scripts/generate_drawio.py)** | `scripts/` | **Architectural Blueprint Generator:** Programmatically generates the 12-page Draw.io model. | • Generates [`docs/Diagrams.drawio`](./Diagrams.drawio)<br/>• 12 specialized architectural views<br/>• Mathematical layout without XML overlap | `python scripts/generate_drawio.py` |
 | **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Checkout & GraphQL Flood Simulator.** | • Traffic/chaos use Apollo Router; DDoS uses frontend edge via `DDOS_EDGE_URL` / `--ddos-url`<br/>• Keycloak JWT required unless DDoS `--no-auth` is explicit<br/>• Rate-limit probe reports real HTTP responses; Nginx JSON logs feed Loki IP panels<br/>• Stops before sending traffic/mutations if authentication fails | `python scripts/testing/simulate.py --scenario traffic` |
-| **`smoke.py`** | `scripts/testing/` | **Frontend-to-Backend Smoke Tester:** Health, GraphQL, REST catalog/order, and security checks. | • Nginx health and Apollo GraphQL<br/>• Catalog REST route through frontend<br/>• Authenticated and unauthenticated order routes | `python scripts/testing/smoke.py --base-url http://localhost:4200` |
+| **`smoke.py`** | `scripts/testing/` | **Frontend-to-Backend Smoke Tester:** Health, GraphQL, REST catalog/order, and security checks. | • Nginx health and Apollo GraphQL<br/>• Catalog REST route through frontend<br/>• Authenticated and unauthenticated order routes | `python scripts/testing/smoke.py --base-url http://localhost:5173` |
 | **`verify.py`** | `scripts/testing/` | **Component & Observability Verifier:** Audits Swagger, metrics, and dashboards. | • Validates Swagger UI and OpenAPI 3.0 specs<br/>• Queries Prometheus active metric series<br/>• Audits Grafana dashboards and datasource links | `python scripts/testing/verify.py --target all` |
 | **`check.py`** | `scripts/testing/` | **Diagnostic Telemetry & PromQL Evaluator:** Probes JVM, cart abandonment, and Vault. | • JVM heap memory, threads, and CPU audit<br/>• Real-time cart abandonment PromQL audit<br/>• HashiCorp Vault seal status & telemetry probe | `python scripts/testing/check.py --check all` |
 | **`test_order.py`** | `scripts/testing/` | **Authenticated Order-List Check:** Read-only REST check through frontend Nginx. | • Acquires a JWT from Keycloak with `microservices_client`<br/>• Uses `KEYCLOAK_CLIENT_SECRET` from environment or `.env`<br/>• Reads `GET /api/order`; does not create an order | `python scripts/testing/test_order.py` |
@@ -171,9 +174,10 @@ scripts/
 ├── endpoint-smoke-test.py             # Standalone synthetic health, metrics, and security prober
 ├── generate-secure-secrets.py         # High-entropy CSPRNG credential & JWT generator
 ├── generate_drawio.py                 # Programmatic 12-page Draw.io architectural blueprint generator
-├── local-cost-estimator.py            # Air-gapped FinOps cloud cost and local savings calculator
+├── local-cost-estimator.py            # Offline illustrative estimate (not provider billing)
+├── validate-opencost.sh               # Render pinned OpenCost and cloud Prometheus charts
 ├── supervise-tunnels.py               # Resilient background port-forward supervisor daemon
-└── update_dashboards.py               # Programmatic Grafana dashboard JSON generator & synchronizer
+└── update_dashboards.py               # Dashboard JSON generator; live Grafana publishing is opt-in
 ```
 
 ---
@@ -217,7 +221,7 @@ python scripts/testing/simulate.py --scenario chaos --chaos-runs 20
 # 5. Full Battery (Traffic + DDoS + Chaos):
 python scripts/testing/simulate.py --scenario all
 ```
-The scripts use `APOLLO_ROUTER_URL` (default `http://127.0.0.1:8080`) for traffic/chaos and `DDOS_EDGE_URL` (default `FRONTEND_URL`, or `http://127.0.0.1:4200`) for the DDoS probe. Set `KEYCLOAK_CLIENT_SECRET` in the environment or `.env`; traffic and chaos stop without a token. DDoS also requires a token unless `--no-auth` is deliberately supplied. The shared frontend edge enforces 20 requests/second per observed socket peer with a burst of 30. Synthetic `X-Forwarded-For` values cannot bypass that limit or change the client IP logged by Nginx. Alloy ships the JSON access log to Loki; the security panels use those actual 429 records. On Minikube, `scripts/supervise-tunnels.py` forwards the Router, frontend, and Keycloak ports.
+The scripts use `APOLLO_ROUTER_URL` (default `http://127.0.0.1:8080`) for traffic/chaos and `DDOS_EDGE_URL` (default `FRONTEND_URL`, or `http://127.0.0.1:5173`) for the DDoS probe. Set `KEYCLOAK_CLIENT_SECRET` in the environment or `.env`; traffic and chaos stop without a token. DDoS also requires a token unless `--no-auth` is deliberately supplied. The shared frontend edge enforces 20 requests/second per observed socket peer with a burst of 30. Use at least 32 workers to reliably exercise the limiter on a local cluster; the simulator reports whether it actually observed HTTP 429 responses. Synthetic `X-Forwarded-For` values cannot bypass that limit or change the socket peer IP logged by Nginx. Alloy ships JSON 429 access records to Loki; the security panels use those actual events. On Minikube, `scripts/supervise-tunnels.py` forwards the Router, frontend, and Keycloak ports.
 
 #### B. Unified Smoke Tester (`smoke.py`)
 Validates frontend health, public GraphQL reachability, catalog REST, Keycloak token acquisition, authenticated order placement, and the negative unauthenticated order boundary:
@@ -227,7 +231,7 @@ Validates frontend health, public GraphQL reachability, catalog REST, Keycloak t
 python scripts/testing/smoke.py
 
 # Strict mode with custom latency threshold:
-python scripts/testing/smoke.py --base-url http://localhost:4200 --max-latency-ms 300 --strict
+python scripts/testing/smoke.py --base-url http://localhost:5173 --max-latency-ms 300 --strict
 ```
 
 #### C. Component & Observability Verifier (`verify.py`)
@@ -263,18 +267,30 @@ python scripts/testing/check.py --check vault
 python scripts/testing/check.py --check promql --query "rate(http_server_requests_seconds_count[5m])"
 ```
 
-### 4. 💰 FinOps Local Cost Estimator (`local-cost-estimator.py`)
-Calculates local developer workstation infrastructure savings and provides detailed monthly cost breakdowns across AWS, Azure, and GCP:
+### 4. 💰 Offline Architecture Estimate (`local-cost-estimator.py`)
+Produces illustrative architecture profiles. It is neither live Kubernetes allocation nor actual AWS/Azure/GCP billing:
 
 ```powershell
 # Local Minikube savings calculation:
-python scripts/local-cost-estimator.py --platform minikube
+python scripts/local-cost-estimator.py --env minikube
 
 # Cloud environment cost breakdown:
-python scripts/local-cost-estimator.py --platform aws --env prod
+python scripts/local-cost-estimator.py --env prod
 ```
 
-### 5. 🚇 Background Tunnel Supervisor (`supervise-tunnels.py`)
+### 5. 💰 Live Kubernetes Workload Cost (`kubectl-cost`)
+
+Install the Krew plugin once and query OpenCost through the current kubeconfig context:
+
+```powershell
+kubectl krew install cost
+kubectl cost namespace --opencost --show-all-resources --window 1d
+kubectl cost deployment --opencost -A --window 1d
+```
+
+The Minikube UI is available at `http://localhost:7000`. Provider billing exports are not enabled by this workload-allocation phase.
+
+### 6. 🚇 Background Tunnel Supervisor (`supervise-tunnels.py`)
 Maintains resilient background port-forward connections for local development with automatic restart upon failure:
 
 ```powershell
@@ -282,7 +298,7 @@ Maintains resilient background port-forward connections for local development wi
 python scripts/supervise-tunnels.py
 ```
 
-### 6. 📐 Architectural Blueprint Generator (`generate_drawio.py`)
+### 7. 📐 Architectural Blueprint Generator (`generate_drawio.py`)
 Programmatically regenerates the 12-page architectural diagram in [`docs/Diagrams.drawio`](./Diagrams.drawio) with full mathematical coordinate calculations:
 
 ```powershell

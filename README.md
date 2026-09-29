@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Spring%20Boot-4.0.8-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.0.8" />
   <img src="https://img.shields.io/badge/React-19%20SPA-blue.svg?style=for-the-badge&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS v4" />
-  <img src="https://img.shields.io/badge/Keycloak-26.7.3-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
+  <img src="https://img.shields.io/badge/Keycloak-26.7.4-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
   <img src="https://img.shields.io/badge/Istio-Service%20Mesh-466BB0.svg?style=for-the-badge&logo=istio" alt="Istio" />
   <img src="https://img.shields.io/badge/HashiCorp-Vault-black.svg?style=for-the-badge&logo=vault" alt="Vault" />
   <img src="https://img.shields.io/badge/KEDA-v2.20.1-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.20.1" />
@@ -23,13 +23,13 @@
 ```mermaid
 graph TB
     subgraph Clients["🌐 Client Layer"]
-        SPA["React 19 SPA<br/>(Tailwind v4 • Vite 6 • Port 4200)"]
+        SPA["React 19 SPA<br/>(Tailwind v4 • Vite 6 • Port 5173)"]
         CLI["Platform CLI & Newman<br/>(platform.ps1 • newman run)"]
         EXT["External Webhooks / Mobile<br/>(POS Scanner • Cloudflare)"]
     end
 
     subgraph Security["🔐 Identity & Secrets"]
-        KC["Keycloak 26.7.3<br/>(OIDC • PKCE • Port 8181)"]
+        KC["Keycloak 26.7.4<br/>(OIDC • PKCE • Port 8181)"]
         VAULT["HashiCorp Vault<br/>(KV-v2 • Transit • Port 8200)"]
     end
 
@@ -104,6 +104,7 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | 12-stage enterprise pipeline, Policy-as-Code (OPA / Gatekeeper), SAST (Semgrep, Gitleaks), Container scanning (Trivy), DAST (OWASP ZAP), and ArgoCD GitOps sync. | SecOps, Cloud Engineers |
 | [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
 | [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), authenticated Apollo Router load/chaos scenarios, frontend/API smoke checks, and Newman API contract testing. | QA Engineers, Developers |
+| [🛡️ **Local Reliability & Delivery Gates**](./docs/LOCAL_MATURITY_GATES.md) | Bounded k6 baseline, local database restore drill, observability validation, Terraform safeguards, and offline CI checks. | Developers, Platform Engineers |
 | [☁️ **Multi-Cloud Terraform & Rollbacks**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable Terraform modules, and automated 3-tier rollback mechanisms. | Cloud Architects, SRE |
 | [🛠️ **Automation Scripts Reference**](./docs/SCRIPTS_REFERENCE.md) | Complete CLI reference for `platform.ps1`, cloud helpers (`manage-aws.ps1`, `manage-azure.ps1`, `manage-gcp.ps1`), FinOps disk cleanup, and build automation. | Platform Ops, SysAdmins |
 | [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Apollo Router (Federation 2.3 operations, Keycloak login flows, DHL tracking, and dynamic order chaining through frontend Nginx). | API Developers, QA |
@@ -116,8 +117,8 @@ The host ports below describe the Docker Compose profile. In Minikube the micros
 
 | Service | Technology | Port | Access URL | Default Credentials |
 | :--- | :--- | :---: | :--- | :--- |
-| **Keycloak IAM** | Keycloak 26.7.3 (OIDC / OAuth2) | `8181` / `9000` | [http://localhost:8181](http://localhost:8181) | `admin` / `admin` |
-| **React Frontend** | React 19 + Tailwind v4 / Nginx | `4200` | [http://localhost:4200](http://localhost:4200) | `admin_user` / `admin` & `basic_user` / `password` |
+| **Keycloak IAM** | Keycloak 26.7.4 (OIDC / OAuth2) | `8181` / `9000` | [http://localhost:8181](http://localhost:8181) | `admin` / `admin` |
+| **React Frontend** | React 19 + Tailwind v4 / Nginx | `5173` | [http://localhost:5173](http://localhost:5173) | `admin_user` / `admin` & `basic_user` / `password` |
 | **Apollo Router Gateway** | Apollo Router v2.16.3 (Rust / Apollo Federation 2.3) | `8080` | [http://localhost:8080](http://localhost:8080) (Apollo Sandbox & `/graphql`) | Bearer JWT / Public Introspection |
 | **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8004/graphql](http://localhost:8004/graphql) & `/api/product` | Internal Subgraph & REST |
 | **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8003/graphql](http://localhost:8003/graphql) & `/api/order` | Internal Subgraph & REST |
@@ -166,7 +167,7 @@ The platform separates **Unified Federated GraphQL Supergraph exploration** from
 * **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`) and thread-isolated bulkheads.
 
 ### 🛡️ Zero-Trust Security & DevSecOps
-* **1-Click Authentication:** Public Keycloak client (`microservices_frontend`) with PKCE and zero `client_secret` requirements for developer workstations and mobile apps.
+* **OIDC Authentication:** Public Keycloak SPA client (`microservices_frontend`) using PKCE without a browser-held `client_secret`; a native mobile app needs its own redirect URI configuration.
 * **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
 * **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, and mandatory labels.
 
@@ -268,9 +269,9 @@ npx --yes newman run devsecops/testing/newman/microservices.postman_collection.j
 
 ## 🛍️ Modernized Storefront Architecture (React 19 & TailwindCSS v4)
 
-The presentation layer (`http://localhost:4200`) has been re-architected following enterprise e-commerce best practices:
+The presentation layer (`http://localhost:5173`) has been re-architected following enterprise e-commerce best practices:
 
-- **Unified Real-Time Global Search:** A single, responsive search bar in the header synchronizes catalog filtering instantly across all views, eliminating redundant page search inputs while providing quick `⌘K` access to the Command Palette.
+- **Context-Aware Search:** The header search filters the product catalog and opens the quick command palette; Orders & Tracking keeps one order-history search, and Admin has filters scoped to each management table. The header search is hidden on the Orders view to avoid showing two search fields at once.
 - **Enterprise Wishlist Persistence:** Adheres to mature e-commerce identity patterns—guest users are seamlessly prompted to authenticate via Keycloak to save items, while authenticated customers have their favorites safely persisted across sessions and devices.
 - **Role-Based Telemetry & Admin Controls:** Administrative tools (QR/Barcode Scanner for inventory auditing, Admin Telemetry tab, warehouse controls) are strictly restricted to users holding the `ADMIN` role.
 - **Scoped Notification Feed:** Real-time Server-Sent Events (SSE) from `notification-service` are isolated per authenticated user profile to protect transactional privacy (order confirmation, DHL tracking, stock alerts).
@@ -319,9 +320,10 @@ microservices-architecture/
 │   ├── endpoint-smoke-test.py      # Synthetic post-deployment health & SLO prober
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
 │   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator
-│   ├── local-cost-estimator.py     # Air-gapped FinOps cloud cost & savings calculator
+│   ├── local-cost-estimator.py     # Offline illustrative estimate (not provider billing)
+│   ├── validate-opencost.sh        # Render pinned OpenCost and cloud Prometheus charts
 │   ├── supervise-tunnels.py        # Resilient background port-forward supervisor daemon
-│   └── update_dashboards.py        # Grafana dashboard JSON generator & synchronizer
+│   └── update_dashboards.py        # Dashboard JSON generator; Grafana publishing is explicit
 ├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
 ├── .example.env                    # Example environment file
 ├── .gitattributes                  # Git attributes file

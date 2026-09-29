@@ -40,7 +40,7 @@ Core platform services and dashboards are available on Windows `localhost` throu
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
-| 🌐 **Frontend React 19 SPA** | [`http://localhost:4200`](http://localhost:4200) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
+| 🌐 **Frontend React 19 SPA** | [`http://localhost:5173`](http://localhost:5173) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
 | 🚀 **Apollo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
 | 📖 **Products Swagger UI** | [`http://localhost:8004/swagger-ui.html`](http://localhost:8004/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Products REST APIs |
 | 📖 **Orders Swagger UI** | [`http://localhost:8003/swagger-ui.html`](http://localhost:8003/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Orders REST APIs |
@@ -69,8 +69,8 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 | :--- | :--- | :--- | :--- | :--- |
 | [`platform-minikube.ps1`](../platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 6 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
 | [`platform-aws.ps1`](../platform-aws.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | AWS EKS, ALB, RDS, ElastiCache, MSK | GitHub Actions CI + ArgoCD CD + Rollback |
-| [`platform-azure.ps1`](../platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 12+ Stages + Rollback |
-| [`platform-gcp.ps1`](../platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 12+ Stages + Rollback |
+| [`platform-azure.ps1`](../platform-azure.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | Azure AKS, App Gateway, Flexible PostgreSQL | Azure DevOps Unified 14+ Stages + Rollback |
+| [`platform-gcp.ps1`](../platform-gcp.ps1) | `dev`, `staging`, `prod` | `develop`, `staging`, `master` | GCP GKE Autopilot, Cloud Armor, Cloud SQL | Bitbucket Pipelines Unified 14+ Stages + Rollback |
 
 #### 1. Quick Start with Master CLI (`platform.ps1`)
 
@@ -101,10 +101,11 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 .\platform.ps1 doctor
 .\platform.ps1 smoke
 
-# 5. Air-Gapped FinOps Cost Calculator
-.\platform.ps1 cost -Environment minikube
-.\platform.ps1 cost -Environment staging
-.\platform.ps1 cost -Environment prod
+# 5. Live OpenCost allocation and offline architecture estimates
+.\platform.ps1 cost
+.\platform.ps1 finops -Environment minikube
+.\platform.ps1 finops -Environment staging
+.\platform.ps1 finops -Environment prod
 
 # 6. Interactive Endpoints Table & Tunnels
 .\platform.ps1 urls
@@ -287,6 +288,8 @@ Every push to `develop`, `staging`, or `master` automatically triggers the 12-st
 1. **🧪 Unit Tests**: Maven runs multi-threaded (`-T 1C`) and generates Surefire and JaCoCo coverage reports.
 2. **🔍 SAST & Secret Scanning**: Gitleaks and Semgrep analyze code using `devsecops/sast/`.
 3. **⚙️ Single Build & SBOM**: Docker Buildx builds the container image once and Trivy outputs a CycloneDX SBOM to `devsecops/compliance/sbom/`.
+   - The same Docker image archive is transferred through image scanning and registry publishing; the publishing step captures the registry SHA-256 digest and passes it to Helm/Argo CD as `image.digest`, so deployment resolves to the exact scanned artifact. Tag-based deployment remains the local fallback when registry credentials are absent.
+   - Trivy and Checkov references that previously tracked the mutable `master` branch now use immutable commit SHAs. Dependabot checks GitHub Actions updates weekly so pinned revisions can be reviewed and advanced deliberately.
 4. **🧰 Container Scan**: Trivy evaluates the image in **Audit Mode** (`exit-code: 0`, `--ignore-unfixed`) using `devsecops/compliance/trivy/`.
 5. **🧾 Pre-flight Compliance**: Conftest audits rendered Helm manifests against `devsecops/policies/conftest/kubernetes.rego`.
 6. **🚀 Deploy Staging**: Helm/ArgoCD synchronizes the deployment to the `staging` namespace with Istio sidecars injected.
@@ -322,18 +325,18 @@ When you are ready to enforce strict blocking in production:
 Located in `.github/workflows/`:
 - **12-Stage Master Template ([`_service-ci-cd-template.yml`](./.github/workflows/_service-ci-cd-template.yml))**:
   1. `Unit Tests` (JUnit 5 / JaCoCo) $\rightarrow$ 2. `SAST & Secrets` (SonarCloud, Semgrep, Gitleaks, Checkov) $\rightarrow$ 3. `Build & SBOM` (BuildKit, CycloneDX) $\rightarrow$ 4. `Container Scan` (Trivy) $\rightarrow$ 5. `Push to ECR` $\rightarrow$ 6. `Deploy to EKS Staging` $\rightarrow$ 7. `Integration Tests` (Postman / Newman) $\rightarrow$ 8. `E2E Tests` (Cypress) $\rightarrow$ 9. `Performance Tests` (k6) $\rightarrow$ 10. `DAST` (OWASP ZAP) $\rightarrow$ 11. `Compliance Gate` $\rightarrow$ 12. `Deploy to EKS Production` (Canary Rollout).
-- **Terraform Pipeline ([`terraform-aws.yml`](./.github/workflows/terraform-aws.yml))**: Automated IaC plan, apply, and drift detection.
+- **Terraform Pipeline ([`terraform-aws.yml`](./.github/workflows/terraform-aws.yml))**: Manually dispatched, saved-plan workflow; applies require the protected GitHub environment and state-lock recovery is operator-led.
 
 ### 2. Azure DevOps Pipelines ➔ Azure Cloud
 Located in `azure-devops/`:
 - **Master Template ([`azure-pipelines.yml`](./azure-devops/templates/azure-pipelines.yml))**: Implements the hardened 12-stage DevSecOps cycle with multi-environment automated rollbacks, adapted for Spring Boot Java 21 and React 19, targeting Azure Container Registry (ACR) and Azure AKS.
 - **Per-Service Pipelines**: [`apollo-router.yml`](./azure-devops/pipelines/apollo-router.yml), [`inventory-service.yml`](./azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](./azure-devops/pipelines/orders-service.yml), [`products-service.yml`](./azure-devops/pipelines/products-service.yml), [`notification-service.yml`](./azure-devops/pipelines/notification-service.yml), [`frontend.yml`](./azure-devops/pipelines/frontend.yml).
-- **Terraform Pipeline ([`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml))**: Deploys Azure AKS / VNet / PostgreSQL Flexible infrastructure.
+- **Terraform Pipeline ([`infra.yml`](./azure-devops/pipelines/infra.yml))**: Runs format/init/validate checks for workspaces `dev`, `staging`, and `prod`. Cloud apply is disabled until durable remote state and locking are configured. The legacy [`azure-pipelines-terraform.yml`](./azure-devops/azure-pipelines-terraform.yml) is disabled for triggers and is validation-only; it no longer applies cloud resources.
 
 ### 3. Bitbucket Pipelines (CI) + ArgoCD (GitOps CD) ➔ GCP
 - **Bitbucket Pipelines ([`bitbucket-pipelines.yml`](./bitbucket-pipelines.yml))**:
   - Builds with Maven 3.9 / Temurin 21, static scans with Checkov and Gitleaks, OCI image build with SBOM, vulnerability audit with Trivy, and authenticated push to **Google Artifact Registry (GAR)**.
-  - Runs Terraform GCP in the `terraform-gcp-apply` pipeline.
+  - Runs GCP Terraform format/validation checks only. Cloud apply stays disabled until the GCP root has durable remote state and locking configured.
 - **ArgoCD GitOps ([`argocd/`](./argocd/))**:
   - Continuous, declarative sync to **Google Kubernetes Engine (GKE)** across all 3 environments:
     - [`appproject.yaml`](./argocd/appproject.yaml)
@@ -354,27 +357,24 @@ The project features decoupled and single-unified CI/CD pipelines across major e
   - **`staging` branch**: Deploys via `application-staging.yaml` to namespace **`staging`** on AWS EKS with medium-performance resources (`values-eks-staging.yaml`).
   - **`master` branch**: Deploys via `application-prod.yaml` to namespace **`production`** on AWS EKS with high-performance resources (`values-eks-prod.yaml`: 3-10 replicas with HPA, PDB, NLB, and Istio Canary 90/10).
   - **Automated Rollback**: Configured with automated prune, selfHeal, exponential retry backoff, and instant revert via `argocd app rollback`.
-- **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Provisions AWS infrastructure across `staging` and `prod` with automated state lock release (`terraform force-unlock`) on failure.
+- **AWS Terraform Pipeline (`.github/workflows/terraform-aws.yml`)**: Cloud plans are manually dispatched and applies require the saved plan plus the protected GitHub environment. State-lock recovery is a deliberate operator action using the real lock ID.
 
 ### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
-- **Unified Pipeline (`azure-devops/templates/azure-pipelines.yml`)**: Executes **all 12+ stages** in a single end-to-end execution:
+- **Unified Pipeline (`azure-devops/templates/azure-pipelines.yml`)**: Executes **all 14+ stages** in a single end-to-end execution:
   - Stages 1-5: Unit Tests (Maven/React, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
   - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
   - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
   - **Promotion**: Certified image promotion to Azure Container Registry (ACR).
   - **Production Tier (Stage 12)**: Deploys to AKS namespace **`production`** with Istio Canary progressive traffic shifting (90/10) and **`RollbackProduction`** emergency rollback on canary health check failure.
-- **Azure Terraform Pipeline (`azure-devops/azure-pipelines-terraform.yml`)**: Triggers on `develop`, `staging`, `master`, dynamically manages workspaces **`dev`**, **`staging`**, **`prod`**, provisions AKS namespaces, and automatically unlocks stranded Azure Blob Storage state leases on error.
+- **Azure Terraform Pipeline (`azure-devops/pipelines/infra.yml`)**: Runs format/init/validate checks for workspaces **`dev`**, **`staging`**, **`prod`**. Cloud apply is disabled because this root does not yet have durable remote state and locking configured; add and review that backend before enabling environment-gated saved-plan applies. The older `azure-pipelines-terraform.yml` is trigger-disabled and validation-only.
 
-### 3. Bitbucket Pipelines - Single Unified Pipeline (Google Cloud Platform)
-- **Unified Pipeline (`bitbucket-pipelines.yml`)**: Executes **all 12+ stages** in a single pipeline across Google Cloud:
-  - **`develop` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Dev (workspace `dev`) $\rightarrow$ GKE Dev deploy (namespace `dev`) $\rightarrow$ **`rollback-gke-dev`** on error.
-  - **`staging` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Staging (workspace `staging`, medium performance) $\rightarrow$ GKE Staging deploy (namespace `staging`) $\rightarrow$ QA Validation (Newman, Cypress, k6, ZAP DAST) $\rightarrow$ GAR Push $\rightarrow$ **`rollback-gke-staging`** on test failure.
-  - **`master` branch**: CI (Stages 1-5) $\rightarrow$ GCP Terraform Production (workspace `prod`, high performance HA) $\rightarrow$ Pre-flight QA $\rightarrow$ GAR Push $\rightarrow$ GKE Production Canary with Istio traffic shifting (90/10) $\rightarrow$ **`rollback-gke-production`** on rollout health failure.
+### 3. Bitbucket Pipelines - Google Cloud Platform
+- **Unified Pipeline (`bitbucket-pipelines.yml`)**: Runs GCP Terraform format/validation checks without applying infrastructure, followed by the configured application CI/CD stages. GCP cloud apply remains disabled until durable remote state and locking are configured.
 
 ### 4. Automated Rollback & Incident Recovery Summary
 | Disaster Scenario | Recovery Mechanism | Recovery Time Objective (RTO) |
 | :--- | :--- | :--- |
-| **Terraform State Lock** | `terraform force-unlock` in backend cleanup step | Immediate (< 10 seconds) |
+| **Terraform State Lock** | Inspect the failed run, confirm no active operation, then manually unlock using the actual backend lock ID | Operator-led |
 | **ArgoCD Sync/Health Failure** | `argocd app rollback` to previous Git SHA | < 1 minute |
 | **Staging Integration/DAST Failure** | Automated Helm rollback (`helm rollback microservices`) | < 30 seconds |
 | **Production Canary Degradation** | Emergency Istio route reset (100% v1) + Helm rollback | < 15 seconds |

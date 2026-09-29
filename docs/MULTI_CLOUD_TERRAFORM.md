@@ -78,6 +78,47 @@ helm rollback microservices 3 -n production --wait --timeout 5m
 
 ## ☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)
 
+### Cluster and workspace topology
+
+The target topology is **12 Kubernetes clusters**: four for each provider. Each
+provider root keeps the same three Terraform workspaces (`dev`, `staging`,
+`prod`); the `prod` workspace provisions two independent clusters/data planes.
+This avoids treating the two production clusters as separate environments or
+duplicating shared databases, networking, and edge resources.
+
+| Provider | `dev` workspace | `staging` workspace | `prod` workspace | Total |
+| --- | --- | --- | --- | ---: |
+| AWS | `msa-aws-dev` | `msa-aws-staging` | `msa-aws-prod`, `msa-aws-dp2-prod` | 4 |
+| Azure | `msa-azure-dev-aks` | `msa-azure-staging-aks` | `msa-azure-prod-aks`, `msa-azure-dp2-prod-aks` | 4 |
+| GCP | `msa-gcp-dev-cluster` | `msa-gcp-staging-cluster` | `msa-gcp-prod-cluster`, `msa-gcp-dp2-prod-cluster` | 4 |
+
+The second production cluster has independent Kubernetes control plane and
+worker capacity. AWS shares the environment VPC/subnets; Azure receives a
+dedicated AKS subnet; GKE receives dedicated secondary Pod/Service ranges and a
+separate control-plane CIDR. Supporting databases and shared edge services
+remain provisioned once per environment workspace.
+
+Create/select the three workspaces independently in each provider root before
+planning. For example:
+
+```powershell
+foreach ($provider in @('aws', 'azure', 'gcp')) {
+  Push-Location "terraform/environments/$provider"
+  terraform workspace new dev 2>$null; terraform workspace select dev
+  terraform workspace new staging 2>$null; terraform workspace select staging
+  terraform workspace new prod 2>$null; terraform workspace select prod
+  Pop-Location
+}
+```
+
+The workspaces are defined independently in each provider root. **Remote-state
+parity is still a prerequisite**: AWS declares an S3 backend, while the Azure
+and GCP roots currently have no remote backend blocks and therefore use local
+state. Do not run cloud applies concurrently or from ephemeral CI workers for
+those roots until their remote state stores and locking are configured. The
+cluster-count changes are code-only here; review all three production plans
+and their cost estimates before applying them.
+
 ### 1. AWS Provider (Amazon EKS / RDS / VPC)
 Located in `terraform/environments/aws/` and `terraform/modules/aws/`:
 ```powershell
