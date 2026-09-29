@@ -890,12 +890,12 @@ def build_postman_collection():
         "variable": [
             {
                 "key": "base_url",
-                "value": "http://127.0.0.1:4200",
+                "value": "http://127.0.0.1:5173",
                 "type": "string"
             },
             {
                 "key": "BASE_URL",
-                "value": "http://127.0.0.1:4200",
+                "value": "http://127.0.0.1:5173",
                 "type": "string"
             },
             {

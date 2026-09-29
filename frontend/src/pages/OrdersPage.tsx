@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Package,
   Search,
@@ -8,7 +8,6 @@ import {
   XCircle,
   FileText,
   Ban,
-  RefreshCw,
   ExternalLink,
   ChevronDown,
   ChevronUp,
@@ -35,11 +34,13 @@ interface OrdersPageProps {
 
 export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigateToCatalog }) => {
   const { user, login } = useAuth();
+  const accessToken = user?.token;
+  const hasUser = Boolean(user);
   const { formatPrice } = useCurrency();
   const { showToast } = useNotifications();
 
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -51,32 +52,56 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  const loadOrders = async () => {
-    if (!user) {
+  const orderRefreshInProgress = useRef(false);
+  const loadOrders = useCallback(async (showLoading = false) => {
+    if (orderRefreshInProgress.current) return;
+    if (!hasUser) {
       setOrders([]);
+      setLoading(false);
       return;
     }
-    try {
+
+    orderRefreshInProgress.current = true;
+    if (showLoading) {
       setLoading(true);
       setError(null);
-      const data = await fetchOrders(user?.token);
+    }
+
+    try {
+      const data = await fetchOrders(accessToken);
       setOrders(data || []);
+      setError(null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error loading orders';
-      setError(message);
-      setOrders([]);
+      if (showLoading) {
+        setError(message);
+        setOrders([]);
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
+      orderRefreshInProgress.current = false;
     }
-  };
+  }, [accessToken, hasUser]);
 
   useEffect(() => {
-    if (user) {
-      loadOrders();
-    } else {
-      setOrders([]);
+    if (!hasUser) {
+      void loadOrders(true);
+      return;
     }
-  }, [user?.token]);
+
+    void loadOrders(true);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadOrders();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [hasUser, loadOrders]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -248,14 +273,6 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
           </p>
         </div>
 
-        <button
-          onClick={loadOrders}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition-colors shadow-sm disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
       </div>
 
       {/* Filter and Search Bar */}

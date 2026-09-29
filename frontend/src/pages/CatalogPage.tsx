@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../types';
-import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
@@ -38,7 +37,6 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   onOpenQuickView,
   onOpenQR,
 }) => {
-  const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
   const { wishlist, isInWishlist } = useWishlist();
   const { user, login } = useAuth();

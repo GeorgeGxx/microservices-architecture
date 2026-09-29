@@ -30,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: georgegxx/frontend:1.0.0
+          image: "{{ .Values.frontend.image.repository }}{{ if .Values.frontend.image.digest }}@{{ .Values.frontend.image.digest }}{{ else }}:{{ .Values.frontend.image.tag }}{{ end }}"
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -39,7 +39,7 @@ spec:
               drop:
                 - ALL
           ports:
-            - containerPort: 80
+            - containerPort: 8080
               name: http
           resources:
             requests:
@@ -60,13 +60,13 @@ spec:
           livenessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /
-              port: 80
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
@@ -89,7 +89,7 @@ spec:
   type: NodePort
   ports:
     - port: 80
-      targetPort: 80
+      targetPort: 8080
       nodePort: 30080
       name: http
   selector:

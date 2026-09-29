@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -16,6 +16,9 @@ import {
   ScanLine,
   X,
 } from 'lucide-react';
+import { checkStorefrontApiHealth } from '../services/storefrontHealth';
+
+type StorefrontHealth = 'checking' | 'healthy' | 'unavailable';
 
 interface NavbarProps {
   activeTab: 'catalog' | 'orders' | 'admin';
@@ -42,6 +45,50 @@ export const Navbar: React.FC<NavbarProps> = ({
   const { unreadCount, setIsDrawerOpen, showToast } = useNotifications();
   const { wishlist } = useWishlist();
   const { user, login, logout } = useAuth();
+  const [storefrontHealth, setStorefrontHealth] = useState<StorefrontHealth>('checking');
+
+  useEffect(() => {
+    let disposed = false;
+    let checking = false;
+    let controller: AbortController | undefined;
+
+    const refreshHealth = async () => {
+      if (checking) return;
+      checking = true;
+      controller = new AbortController();
+      const timeout = window.setTimeout(() => controller?.abort(), 4000);
+
+      try {
+        const healthy = await checkStorefrontApiHealth(controller.signal);
+        if (!disposed) setStorefrontHealth(healthy ? 'healthy' : 'unavailable');
+      } catch {
+        if (!disposed) setStorefrontHealth('unavailable');
+      } finally {
+        window.clearTimeout(timeout);
+        checking = false;
+      }
+    };
+
+    void refreshHealth();
+    const interval = window.setInterval(() => void refreshHealth(), 30000);
+    return () => {
+      disposed = true;
+      controller?.abort();
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const healthLabel = {
+    checking: 'Checking storefront API',
+    healthy: 'Apollo Router and Products subgraph reachable',
+    unavailable: 'Storefront API unavailable',
+  }[storefrontHealth];
+
+  const healthColor = {
+    checking: 'bg-amber-400',
+    healthy: 'bg-emerald-500',
+    unavailable: 'bg-rose-500',
+  }[storefrontHealth];
 
   const handleWishlistClick = () => {
     if (!user) {
@@ -73,9 +120,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <span className="font-extrabold text-base tracking-tight text-white flex items-center gap-1.5">
                 NOVASHOP
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span className="relative flex h-2 w-2" role="img" aria-label={healthLabel} title={healthLabel}>
+                  {storefrontHealth === 'healthy' && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${healthColor}`}></span>
                 </span>
               </span>
               <span className="text-[10px] font-mono text-indigo-400 block -mt-1 tracking-wider">
@@ -117,14 +166,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
-                Admin Telemetry
+                Admin Console
               </button>
             )}
           </nav>
         </div>
 
-        {/* Unified Real-Time Global Search Bar */}
-        <div className="flex items-center gap-2 flex-1 max-w-md justify-center">
+        {/* Product search is hidden on Orders, where OrdersPage has its own order filter. */}
+        <div className={`flex items-center gap-2 flex-1 max-w-md ${activeTab === 'orders' ? 'justify-end' : 'justify-center'}`}>
+          {activeTab !== 'orders' && (
           <div className="relative w-full">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
@@ -158,6 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           </div>
+          )}
 
           {onOpenQrScanner && user?.isAdmin && (
             <button
@@ -207,19 +258,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Cart Trigger */}
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition transform active:scale-95"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            <span className="hidden sm:inline">Cart</span>
-            {itemCount > 0 && (
-              <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-full font-mono text-[10px] font-bold">
-                {itemCount}
-              </span>
-            )}
-          </button>
+          {/* Cart is available only after signing in. */}
+          {user && (
+            <button
+              onClick={() => setIsCartOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition transform active:scale-95"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span className="hidden sm:inline">Cart</span>
+              {itemCount > 0 && (
+                <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-full font-mono text-[10px] font-bold">
+                  {itemCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* User Account / Keycloak Authentication */}
           {user ? (

@@ -1,16 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  Activity,
   AlertTriangle,
-  CheckCircle2,
   DollarSign,
   Package,
   Layers,
-  RefreshCw,
-  Server,
   ShieldCheck,
   TrendingUp,
-  Cpu,
   Search,
   Plus,
   Trash2,
@@ -23,7 +18,6 @@ import {
   Clock,
   Truck,
   XCircle,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -98,11 +92,11 @@ export const AdminDashboardPage: React.FC = () => {
   const { formatPrice } = useCurrency();
   const { showToast } = useNotifications();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'inventory' | 'orders' | 'telemetry'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'inventory' | 'orders'>('catalog');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const refreshInProgress = useRef(false);
 
   // Filters
   const [productSearch, setProductSearch] = useState('');
@@ -155,9 +149,11 @@ export const AdminDashboardPage: React.FC = () => {
   const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
+    if (refreshInProgress.current) return;
+    refreshInProgress.current = true;
+
     try {
-      setLoading(true);
       const [prodRes, ordRes, invRes] = await Promise.allSettled([
         fetchProducts(user?.token),
         fetchOrders(user?.token),
@@ -170,13 +166,24 @@ export const AdminDashboardPage: React.FC = () => {
     } catch {
       // Graceful fallback
     } finally {
-      setLoading(false);
+      refreshInProgress.current = false;
     }
-  };
+  }, [user?.token]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, [user?.token]);
+    void loadDashboardData();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadDashboardData();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [loadDashboardData]);
 
   // Check RBAC
   if (!user || !user.isAdmin) {
@@ -188,7 +195,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <h2 className="text-2xl font-black text-white">Administrator Access Required</h2>
           <p className="text-sm text-slate-400 max-w-md mx-auto">
-            The Management & Telemetry Dashboard requires the <span className="font-mono text-indigo-400">ADMIN</span> role granted by Keycloak IAM SSO.
+            The Admin Console requires the <span className="font-mono text-indigo-400">ADMIN</span> role granted by Keycloak IAM SSO.
           </p>
           <div className="pt-4">
             <button
@@ -403,16 +410,6 @@ export const AdminDashboardPage: React.FC = () => {
     ordersPage * ordersPageSize
   );
 
-  const microservicesStatus = [
-    { name: 'Apollo Router (Federation Gateway)', tech: 'Rust / Apollo Router v2.16', port: ':8080/graphql', status: 'HEALTHY', latency: '2ms' },
-    { name: 'Products Subgraph', tech: 'Spring Boot 4.0 / WebMVC GraphQL', port: ':8004/graphql', status: 'HEALTHY', latency: '8ms' },
-    { name: 'Orders Subgraph', tech: 'Spring Boot 4.0 / Spring GraphQL', port: ':8003/graphql', status: 'HEALTHY', latency: '12ms' },
-    { name: 'Inventory Subgraph', tech: 'Spring Boot 4.0 / Spring GraphQL', port: ':8001/graphql', status: 'HEALTHY', latency: '6ms' },
-    { name: 'Notification Service (SSE)', tech: 'Spring Boot 4.0 / WebFlux SSE', port: ':8002/api/notifications', status: 'HEALTHY', latency: '4ms' },
-    { name: 'Apache Kafka Broker', tech: 'Confluent / KRaft Event Bus', port: ':9092', status: 'HEALTHY', latency: '1ms' },
-    { name: 'Keycloak IAM SSO', tech: 'Keycloak 26 / OAuth2 PKCE', port: ':8181/auth', status: user?.token ? 'AUTHENTICATED' : 'READY', latency: '15ms' },
-  ];
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in">
       {/* Top Header */}
@@ -430,18 +427,10 @@ export const AdminDashboardPage: React.FC = () => {
             </span>
           </div>
           <p className="mt-1 text-sm text-slate-400">
-            Manual item uploads, stock allocations, orders management, and federated telemetry
+            Manual item uploads, stock allocations, and order management
           </p>
         </div>
 
-        <button
-          onClick={loadDashboardData}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-800 text-sm font-semibold text-slate-200 hover:bg-slate-800/60 transition shadow-sm disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Sync All Microservices
-        </button>
       </div>
 
       {/* KPI Cards */}
@@ -497,7 +486,6 @@ export const AdminDashboardPage: React.FC = () => {
           { id: 'catalog', label: `Catalog & Item Upload (${products.length})`, icon: Plus },
           { id: 'inventory', label: `Stock & Allocations (${inventories.length})`, icon: Package },
           { id: 'orders', label: `Orders Oversight (${orders.length})`, icon: Clock },
-          { id: 'telemetry', label: 'Microservices Telemetry', icon: Server },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1200,91 +1188,6 @@ export const AdminDashboardPage: React.FC = () => {
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {/* ================= TAB 4: TELEMETRY & MESH ================= */}
-      {activeTab === 'telemetry' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 glass-card rounded-2xl p-6 border border-slate-800">
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2">
-                <Server className="w-5 h-5 text-indigo-400" />
-                <h2 className="text-lg font-bold text-white">
-                  Federated Microservices Mesh Status
-                </h2>
-              </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                7/7 Operational
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-400 uppercase tracking-wider">
-                    <th className="pb-3 font-semibold">Service</th>
-                    <th className="pb-3 font-semibold">Stack</th>
-                    <th className="pb-3 font-semibold">Internal Route</th>
-                    <th className="pb-3 font-semibold text-right">Latency</th>
-                    <th className="pb-3 font-semibold text-right">Health</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 font-medium">
-                  {microservicesStatus.map((service, idx) => (
-                    <tr key={idx} className="hover:bg-slate-800/30">
-                      <td className="py-3.5 pr-2 font-bold text-slate-200">{service.name}</td>
-                      <td className="py-3.5 pr-2 text-slate-400">{service.tech}</td>
-                      <td className="py-3.5 pr-2 font-mono text-slate-300">{service.port}</td>
-                      <td className="py-3.5 pr-2 text-right font-mono text-indigo-400">
-                        {service.latency}
-                      </td>
-                      <td className="py-3.5 pl-2 text-right">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3" /> {service.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="glass-card rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Cpu className="w-5 h-5 text-indigo-400" />
-                <h3 className="text-lg font-bold text-white">System Environment Specs</h3>
-              </div>
-              <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="font-bold text-white">JVM Runtime Engine</div>
-                  <div className="text-slate-400 mt-0.5">
-                    Java 21 LTS + Generational ZGC (-XX:+UseZGC -XX:+ZGenerational)
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="font-bold text-white">Apollo Router v2 Supergraph</div>
-                  <div className="text-slate-400 mt-0.5">
-                    Declarative Subgraph federation with sub-millisecond query routing
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800">
-                  <div className="font-bold text-white">Kafka Event Bus</div>
-                  <div className="text-slate-400 mt-0.5">
-                    Event-driven saga orchestration with strict idempotency keys
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
-              <span>PostgreSQL 18 • Redis 8.8</span>
-              <span className="text-emerald-400 font-bold">100% Online</span>
-            </div>
-          </div>
         </div>
       )}
 

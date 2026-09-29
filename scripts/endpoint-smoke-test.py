@@ -12,7 +12,7 @@ Author  : GeorgeGxx/DevOps
 Version : v2.0.0
 
 Usage:
-  python endpoint-smoke-test.py --base-url http://localhost:8080
+  python endpoint-smoke-test.py --base-url http://localhost:8080 --frontend-url http://localhost:5173
   python endpoint-smoke-test.py --base-url https://api.myecommerce.com --max-latency-ms 300
   python endpoint-smoke-test.py --json
 """
@@ -58,8 +58,8 @@ DEFAULT_PROBES = [
     },
     {
         "name": "Storefront Nginx Health",
-        "path": "/actuator/health",
-        "frontend_port": 4200,
+        "path": "/healthz",
+        "target": "frontend",
         "method": "GET",
         "expected_status": [200],
         "category": "Frontend SPA",
@@ -68,7 +68,7 @@ DEFAULT_PROBES = [
     {
         "name": "Storefront Frontend Root",
         "path": "/",
-        "frontend_port": 4200,
+        "target": "frontend",
         "method": "GET",
         "expected_status": [200],
         "category": "Frontend SPA",
@@ -114,6 +114,7 @@ def execute_http_request(url: str, method: str, timeout: float, body: Optional[b
 
 def run_smoke_test(
     base_url: str,
+    frontend_url: str,
     probes: List[Dict[str, Any]],
     timeout: float = 5.0,
     max_latency_ms: float = 500.0,
@@ -122,14 +123,18 @@ def run_smoke_test(
     json_output: bool = False,
 ) -> bool:
     base_url = base_url.rstrip("/")
+    frontend_url = frontend_url.rstrip("/")
     if "localhost" in base_url:
         base_url = base_url.replace("localhost", "127.0.0.1")
+    if "localhost" in frontend_url:
+        frontend_url = frontend_url.replace("localhost", "127.0.0.1")
 
     if not json_output:
         print(f"\n{Colors.BOLD}{Colors.HEADER}================================================================={Colors.RESET}")
         print(f"{Colors.BOLD}{Colors.CYAN} 🩺  DEVSECOPS SYNTHETIC HEALTH & SECURITY SMOKE TEST{Colors.RESET}")
         print(f"{Colors.BOLD}{Colors.HEADER}================================================================={Colors.RESET}")
         print(f"Target Gateway : {Colors.YELLOW}{base_url}{Colors.RESET}")
+        print(f"Target Frontend: {Colors.YELLOW}{frontend_url}{Colors.RESET}")
         print(f"Latency SLO    : < {max_latency_ms} ms")
         print(f"HTTP Timeout   : {timeout}s | Retries: {retries}")
         print("-----------------------------------------------------------------\n")
@@ -138,10 +143,8 @@ def run_smoke_test(
     all_passed = True
 
     for probe in probes:
-        if probe.get("frontend_port") and ("127.0.0.1:8080" in base_url):
-            full_url = f"http://127.0.0.1:{probe['frontend_port']}{probe['path']}"
-        else:
-            full_url = f"{base_url}{probe['path']}"
+        probe_base_url = frontend_url if probe.get("target") == "frontend" else base_url
+        full_url = f"{probe_base_url}{probe['path']}"
         probe_passed = False
         last_result = {}
 
@@ -193,6 +196,8 @@ def run_smoke_test(
             print(f" [{icon}] {probe['name']:<38} : {status_str:<18} ({latency_color}{latency_ms:6.1f}ms{Colors.RESET})")
             if not probe_passed and error_msg:
                 print(f"        ↳ {Colors.RED}Error: {error_msg}{Colors.RESET}")
+                if probe.get("target") == "frontend" and status_code == 0:
+                    print(f"        ↳ Verify that the frontend pod is Ready and its port-forward is listening at {frontend_url}.")
 
     if json_output:
         print(json.dumps({"target": base_url, "overall_passed": all_passed, "results": results}, indent=2))
@@ -215,6 +220,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument("--base-url", default=default_url, help=f"Base URL to probe (Default: {default_url})")
+    parser.add_argument("--frontend-url", default=os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173"), help="Frontend/Nginx URL (default: http://127.0.0.1:5173)")
     parser.add_argument("--timeout", type=float, default=5.0, help="HTTP request timeout in seconds (Default: 5.0)")
     parser.add_argument("--max-latency-ms", type=float, default=500.0, help="Maximum allowed latency in ms (Default: 500)")
     parser.add_argument("--retries", type=int, default=3, help="Number of retry attempts per probe (Default: 3)")
@@ -223,6 +229,7 @@ def main():
     args = parser.parse_args()
     passed = run_smoke_test(
         base_url=args.base_url,
+        frontend_url=args.frontend_url,
         probes=DEFAULT_PROBES,
         timeout=args.timeout,
         max_latency_ms=args.max_latency_ms,

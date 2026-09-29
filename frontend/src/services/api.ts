@@ -1,4 +1,14 @@
 import { Product, InventoryItem } from '../types';
+import { getValidAccessToken } from './keycloak';
+
+async function createHeaders(token?: string, json = false): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (json) headers['Content-Type'] = 'application/json';
+
+  const accessToken = await getValidAccessToken(token);
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  return headers;
+}
 
 export interface CreateProductPayload {
   sku: string;
@@ -19,12 +29,7 @@ export interface InventoryPayload {
 }
 
 export async function createProduct(payload: CreateProductPayload, token?: string): Promise<void> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const headers = await createHeaders(token, true);
 
   const res = await fetch('/api/product', {
     method: 'POST',
@@ -44,12 +49,7 @@ export async function createProduct(payload: CreateProductPayload, token?: strin
 }
 
 export async function updateProduct(id: string | number, payload: CreateProductPayload, token?: string): Promise<void> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const headers = await createHeaders(token, true);
 
   const res = await fetch(`/api/product/${id}`, {
     method: 'PUT',
@@ -64,10 +64,7 @@ export async function updateProduct(id: string | number, payload: CreateProductP
 }
 
 export async function deleteProduct(id: string | number, token?: string): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const headers = await createHeaders(token);
 
   const res = await fetch(`/api/product/${id}`, {
     method: 'DELETE',
@@ -81,12 +78,7 @@ export async function deleteProduct(id: string | number, token?: string): Promis
 }
 
 export async function saveOrUpdateStock(payload: InventoryPayload, token?: string): Promise<void> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const headers = await createHeaders(token, true);
 
   const res = await fetch('/api/inventory', {
     method: 'POST',
@@ -106,10 +98,7 @@ export async function saveOrUpdateStock(payload: InventoryPayload, token?: strin
 }
 
 export async function updateStockQuantity(sku: string, quantity: number, token?: string): Promise<void> {
-  const headers: Record<string, string> = {};
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  const headers = await createHeaders(token);
 
   const res = await fetch(`/api/inventory/${encodeURIComponent(sku)}?quantity=${Math.max(0, quantity)}`, {
     method: 'PUT',

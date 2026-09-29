@@ -10,6 +10,7 @@ import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Controller;
 
@@ -25,13 +26,26 @@ public class OrderGraphQlController {
 
     @QueryMapping
     public List<OrderResponse> orders() {
-        return orderService.getAllOrders();
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!isUser(auth)) {
+            return List.of();
+        }
+        if (isAdmin(auth)) {
+            return orderService.getAllOrders();
+        }
+        Jwt jwt = (Jwt) auth.getPrincipal();
+        return orderService.getOrdersForUser(jwt.getSubject());
     }
 
     @QueryMapping
     public OrderResponse order(@Argument Long id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (!isUser(auth)) {
+            return null;
+        }
         return orderRepository.findByIdWithItems(id)
                 .map(orderService::mapOrderToOrderResponse)
+                .filter(order -> isAdmin(auth) || belongsToCurrentUser(order, auth))
                 .orElse(null);
     }
 
@@ -42,6 +56,9 @@ public class OrderGraphQlController {
 
     @MutationMapping
     public OrderResponse placeOrder(@Argument PlaceOrderInput input) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        requireUser(auth);
+        Jwt jwt = (Jwt) auth.getPrincipal();
         OrderRequest req = new OrderRequest();
         if (input.getOrderItems() != null) {
             req.setOrderItems(input.getOrderItems().stream().map(i -> {
@@ -61,12 +78,10 @@ public class OrderGraphQlController {
         req.setDeliveryMethod(input.getDeliveryMethod());
         req.setPaymentMethod(input.getPaymentMethod());
 
-        String userId = "anonymous";
-        String username = "anonymous";
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            userId = jwt.getSubject();
-            username = jwt.getClaimAsString("preferred_username");
+        String userId = jwt.getSubject();
+        String username = jwt.getClaimAsString("preferred_username");
+        if (username == null || username.isBlank()) {
+            username = userId;
         }
 
         String idempotencyKey = UUID.randomUUID().toString();
@@ -76,22 +91,48 @@ public class OrderGraphQlController {
     @MutationMapping
     public OrderResponse cancelOrder(@Argument Long id) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String currentUserId = null;
-        boolean isAdmin = true;
-        if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
-            currentUserId = jwt.getSubject();
-        }
-        return orderService.cancelOrder(id, currentUserId, isAdmin);
+        requireUser(auth);
+        String currentUserId = ((Jwt) auth.getPrincipal()).getSubject();
+        return orderService.cancelOrder(id, currentUserId, isAdmin(auth));
     }
 
     @MutationMapping
     public OrderResponse shipOrder(@Argument Long id) {
+        requireAdmin(SecurityContextHolder.getContext().getAuthentication());
         return orderService.shipOrder(id);
     }
 
     @MutationMapping
     public OrderResponse deliverOrder(@Argument Long id) {
+        requireAdmin(SecurityContextHolder.getContext().getAuthentication());
         return orderService.deliverOrder(id);
+    }
+
+    private boolean isUser(Authentication auth) {
+        return auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof Jwt
+                && (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_USER"))
+                || isAdmin(auth));
+    }
+
+    private boolean isAdmin(Authentication auth) {
+        return auth != null && auth.isAuthenticated()
+                && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
+    private boolean belongsToCurrentUser(OrderResponse order, Authentication auth) {
+        return auth.getPrincipal() instanceof Jwt jwt && jwt.getSubject().equals(order.userId());
+    }
+
+    private void requireUser(Authentication auth) {
+        if (!isUser(auth)) {
+            throw new AccessDeniedException("A valid USER or ADMIN role is required.");
+        }
+    }
+
+    private void requireAdmin(Authentication auth) {
+        if (!isAdmin(auth)) {
+            throw new AccessDeniedException("The ADMIN role is required.");
+        }
     }
 
     @org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler

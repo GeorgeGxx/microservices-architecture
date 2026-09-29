@@ -9,7 +9,7 @@ data:
     supergraph:
       listen: 0.0.0.0:8080
       path: /graphql
-      introspection: true
+      introspection: {{ .Values.graphql.introspection }}
 
     health_check:
       listen: 0.0.0.0:8088
@@ -20,16 +20,34 @@ data:
       enabled: false
 
     sandbox:
-      enabled: true
+      enabled: {{ .Values.graphql.sandbox }}
 
     cors:
-      allow_any_origin: true
+      allow_any_origin: {{ .Values.cors.allowAnyOrigin }}
+      {{- if .Values.cors.allowedOrigins }}
+      policies:
+        - origins:
+            {{- toYaml .Values.cors.allowedOrigins | nindent 12 }}
+      {{- end }}
       allow_headers:
         - Authorization
         - Content-Type
         - X-Idempotency-Key
         - apollographql-client-name
         - apollographql-client-version
+
+    limits:
+      router:
+        http_max_request_bytes: {{ .Values.requestLimits.maxBodyBytes }}
+        parser_max_tokens: {{ .Values.requestLimits.maxParserTokens }}
+        parser_max_recursion: {{ .Values.requestLimits.maxParserRecursion }}
+
+    traffic_shaping:
+      router:
+        timeout: {{ .Values.trafficShaping.routerTimeout | quote }}
+        concurrency_limit: {{ .Values.trafficShaping.concurrencyLimit }}
+      all:
+        timeout: {{ .Values.trafficShaping.subgraphTimeout | quote }}
 
     headers:
       all:
