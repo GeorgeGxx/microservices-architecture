@@ -1,8 +1,20 @@
 # Cloud workload allocation uses a Prometheus instance deployed in the same cluster.
 # Cloud billing ingestion is opt-in and requires provider billing exports and credentials.
-clusterName: microservices-cloud
+# The chart uses clusterName as the Kubernetes DNS suffix in generated service
+# URLs; keep it at the standard Kubernetes domain for cloud clusters too.
+clusterName: cluster.local
 
 opencost:
+  exporter:
+    replicas: 1
+    defaultClusterId: microservices-cloud
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
   prometheus:
     internal:
       enabled: true
@@ -13,15 +25,6 @@ opencost:
     enabled: false
   mcp:
     enabled: false
-  exporter:
-    replicas: 1
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: 500m
-        memory: 768Mi
   ui:
     enabled: true
     uiPort: 9090

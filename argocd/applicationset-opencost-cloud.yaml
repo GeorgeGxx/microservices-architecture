@@ -27,6 +27,8 @@ spec:
               - $values/helm/values/opencost-cloud.yaml
             parameters:
               - name: clusterName
+                value: cluster.local
+              - name: opencost.exporter.defaultClusterId
                 value: '{{ .name }}'
         - repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
           targetRevision: '{{ index .metadata.labels "git-branch" }}'
