@@ -52,8 +52,9 @@ Core platform services and dashboards are available on Windows `localhost` throu
 | 🐙 **ArgoCD GitOps** | [`https://localhost:8088`](https://localhost:8088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
 | 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki + Tempo) |
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
+| 📊 **OpenCost UI** | [`http://localhost:7000`](http://localhost:7000) | *(No auth required)* | Kubernetes workload allocation (Minikube/cloud via Helm; not installed by Compose) |
 
-These direct service ports are for Docker Compose. In Minikube the microservices are ClusterIP endpoints; use a service-specific `kubectl port-forward` to open Swagger, or use the frontend proxy for REST routes it exposes. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
+The application and observability URLs above use Docker Compose host ports or the managed Minikube tunnel, depending on the active platform. OpenCost is available only when its Kubernetes Helm release is installed. In Minikube the microservices are ClusterIP endpoints; use a service-specific `kubectl port-forward` to open Swagger, or use the frontend proxy for REST routes it exposes. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
 
 ### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
 
