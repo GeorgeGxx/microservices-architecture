@@ -538,12 +538,12 @@
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="page_devsecops_pipeline" name="9. Enterprise DevSecOps Platform &amp; 12-Stage Pipeline">
+  <diagram id="page_devsecops_pipeline" name="9. Local DevSecOps Platform &amp; GitHub Actions Delivery">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t9" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;100% LOCAL ENTERPRISE DEVSECOPS PLATFORM &amp; 12-STAGE CI/CD PIPELINE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Hardware Budget: Intel/AMD (8+ cores) • 16+ GB RAM • Minikube (6 CPUs / 12 GB RAM / 40 GB disk) • Zero Cloud Cost Production Parity&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t9" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;LOCAL DEVSECOPS PLATFORM &amp; GITHUB ACTIONS DELIVERY FLOW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;GitHub service workflow: 7 numbered job groups • Azure DevOps / Bitbucket use separate 14-stage application pipelines • Minikube local platform&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_ci" parent="1" value="&lt;b&gt;🔨 CI PHASE: Continuous Integration &amp; Shift-Left Security (GitHub Actions Windows Runner)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -552,16 +552,16 @@
         <mxCell id="s1" parent="1" value="&lt;b&gt;1. Unit Tests&lt;/b&gt;&lt;br&gt;Maven / React 19&lt;br&gt;JaCoCo Coverage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
           <mxGeometry x="80" y="130" width="125" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s2" parent="1" value="&lt;b&gt;2. SAST &amp; Secrets&lt;/b&gt;&lt;br&gt;SonarQube Scan&lt;br&gt;Gitleaks Audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
+        <mxCell id="s2" parent="1" value="&lt;b&gt;2. SAST &amp; Secrets&lt;/b&gt;&lt;br&gt;Gitleaks / Semgrep&lt;br&gt;Checkov / optional Sonar" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
           <mxGeometry x="225" y="130" width="125" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s3" parent="1" value="&lt;b&gt;3. Container Build&lt;/b&gt;&lt;br&gt;Docker Daemon&lt;br&gt;Syft SBOM Gen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
+        <mxCell id="s3" parent="1" value="&lt;b&gt;3. Image &amp; SBOM&lt;/b&gt;&lt;br&gt;BuildKit image&lt;br&gt;Trivy CycloneDX" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
           <mxGeometry x="370" y="130" width="125" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s4" parent="1" value="&lt;b&gt;4. Trivy Scan&lt;/b&gt;&lt;br&gt;Container Audit&lt;br&gt;.trivyignore allow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
+        <mxCell id="s4" parent="1" value="&lt;b&gt;4. Trivy Scan&lt;/b&gt;&lt;br&gt;Image audit&lt;br&gt;Soft gate today" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
           <mxGeometry x="515" y="130" width="125" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s5" parent="1" value="&lt;b&gt;5. Conftest (OPA)&lt;/b&gt;&lt;br&gt;Helm Pre-flight&lt;br&gt;Rego Policy Audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
+        <mxCell id="s5" parent="1" value="&lt;b&gt;5. Conftest (OPA)&lt;/b&gt;&lt;br&gt;Helm render&lt;br&gt;Rego policy gate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
           <mxGeometry x="660" y="130" width="135" height="65" as="geometry" />
         </mxCell>
         <mxCell id="pe1" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="s1" target="s2">
@@ -576,49 +576,19 @@
         <mxCell id="pe4" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="s4" target="s5">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="c_cd" parent="1" value="&lt;b&gt;🚀 CD PHASE: Staging Quality Gates, Docker Hub Promotion &amp; Production Canary&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_cd" parent="1" value="&lt;b&gt;🚀 REGISTRY &amp; GITOPS DELIVERY (separate from the Azure/Bitbucket 14-stage pipelines)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="830" y="90" width="1010" height="190" as="geometry" />
         </mxCell>
-        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Deploy Staging&lt;/b&gt;&lt;br&gt;Helm Umbrella&lt;br&gt;SPRING=staging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
-          <mxGeometry x="850" y="130" width="125" height="65" as="geometry" />
+        <mxCell id="s6" parent="1" value="&lt;b&gt;6. Publish image&lt;/b&gt;&lt;br&gt;Commit tag + SBOM&lt;br&gt;Docker Hub when configured" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="850" y="130" width="280" height="65" as="geometry" />
         </mxCell>
-        <mxCell id="s7" parent="1" value="&lt;b&gt;7. Newman QA&lt;/b&gt;&lt;br&gt;API Integration&lt;br&gt;Postman Tests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
-          <mxGeometry x="990" y="130" width="120" height="65" as="geometry" />
-        </mxCell>
-        <mxCell id="s8" parent="1" value="&lt;b&gt;8. Cypress E2E&lt;/b&gt;&lt;br&gt;UI Journey&lt;br&gt;Checkout Test" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
-          <mxGeometry x="1125" y="130" width="120" height="65" as="geometry" />
-        </mxCell>
-        <mxCell id="s9" parent="1" value="&lt;b&gt;9. k6 Load Tests&lt;/b&gt;&lt;br&gt;SLO: p95&amp;lt;500ms&lt;br&gt;Error Rate &amp;lt; 1%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
-          <mxGeometry x="1260" y="130" width="125" height="65" as="geometry" />
-        </mxCell>
-        <mxCell id="s10" parent="1" value="&lt;b&gt;10. OWASP ZAP&lt;/b&gt;&lt;br&gt;DAST Ingress Scan&lt;br&gt;Edge Attack Audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;" vertex="1">
-          <mxGeometry x="1400" y="130" width="125" height="65" as="geometry" />
-        </mxCell>
-        <mxCell id="s11" parent="1" value="&lt;b&gt;11. Push Docker Hub&lt;/b&gt;&lt;br&gt;georgegxx/*:1.0.0&lt;br&gt;Certified Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10;" vertex="1">
-          <mxGeometry x="1540" y="130" width="135" height="65" as="geometry" />
-        </mxCell>
-        <mxCell id="s12" parent="1" value="&lt;b&gt;12. Deploy Prod&lt;/b&gt;&lt;br&gt;Canary Rollout&lt;br&gt;Istio 10% ➔ 100%" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10;" vertex="1">
-          <mxGeometry x="1690" y="130" width="135" height="65" as="geometry" />
+        <mxCell id="s7" parent="1" value="&lt;b&gt;7. ArgoCD / Helm delivery&lt;/b&gt;&lt;br&gt;Sync and health wait when connected&lt;br&gt;Failure recovery is provider-specific" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
+          <mxGeometry x="1160" y="130" width="500" height="65" as="geometry" />
         </mxCell>
         <mxCell id="pe5" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="s5" target="s6">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="pe6" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="s6" target="s7">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="pe7" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="s7" target="s8">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="pe8" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="s8" target="s9">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="pe9" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;" edge="1" source="s9" target="s10">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="pe10" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="s10" target="s11">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="pe11" parent="1" value="Quality Gates Passed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="s11" target="s12">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="c_plat" parent="1" value="&lt;b&gt;☸️ MINIKUBE PLATFORM TOPOLOGY (6 CPUs • 12 GB RAM • containerd • Ingress Controller)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -814,18 +784,18 @@
         <mxCell id="scripts_map" parent="1" value="• &lt;b&gt;Unified Master CLI:&lt;/b&gt; platform.ps1 (Multi-cloud lifecycle, diagnostics, live OpenCost cost, offline finops)&lt;br&gt;• &lt;b&gt;scripts/bootstrap-keycloak.ps1:&lt;/b&gt; Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync&lt;br&gt;• &lt;b&gt;scripts/build-all.py:&lt;/b&gt; Concurrent Maven + React container image compiler&lt;br&gt;• &lt;b&gt;scripts/endpoint-smoke-test.py:&lt;/b&gt; Synthetic post-deployment health &amp; latency SLO validator&lt;br&gt;• &lt;b&gt;scripts/generate-secure-secrets.py:&lt;/b&gt; High-entropy CSPRNG credential &amp; JWT secret generator&lt;br&gt;• &lt;b&gt;scripts/local-cost-estimator.py:&lt;/b&gt; Offline illustrative architecture estimate (not provider billing)&lt;br&gt;• &lt;b&gt;scripts/validate-opencost.sh:&lt;/b&gt; Pinned OpenCost and cloud Prometheus chart rendering for CI&lt;br&gt;• &lt;b&gt;scripts/supervise-tunnels.py:&lt;/b&gt; Resilient background port-forward supervisor (includes OpenCost UI :7000)&lt;br&gt;• &lt;b&gt;scripts/update_dashboards.py:&lt;/b&gt; Dashboard generator; live Grafana publishing is opt-in and credentialed&lt;br&gt;• &lt;b&gt;scripts/generate_drawio.py:&lt;/b&gt; 12-page architectural blueprint generator&lt;br&gt;• &lt;b&gt;scripts/testing/:&lt;/b&gt; simulate.py (Apollo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, verify.py, check.py, read-only test_order.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="980" y="630" width="840" height="270" as="geometry" />
         </mxCell>
-        <mxCell id="ops_box_11" parent="1" value="&lt;b&gt;🎯 ENTERPRISE PLATFORM SUMMARY&lt;/b&gt;: True cloud-agnostic architecture offering identical 12-tier functionality across AWS, Azure, and GCP, fully operational locally on Minikube with 100% cloud parity, zero cloud costs, and managed by a single unified CLI entrypoint." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+        <mxCell id="ops_box_11" parent="1" value="&lt;b&gt;🎯 MULTI-CLOUD PLATFORM SUMMARY&lt;/b&gt;: AWS, Azure, and GCP use provider-specific modules with a consistent dev/staging/prod workspace model. Each provider plans four Kubernetes clusters (one dev, one staging, two production); Minikube is a local development platform, not full cloud parity." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="60" y="940" width="1780" height="60" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
   </diagram>
-  <diagram id="page_cicd_rollback_arch" name="12. Multi-Cloud CI/CD &amp; Automated Rollback Architecture">
+  <diagram id="page_cicd_rollback_arch" name="12. Multi-Cloud CI/CD &amp; Recovery Architecture">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t12" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MULTI-CLOUD CI/CD &amp; AUTOMATED ROLLBACK ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;GitHub Actions (CI) + ArgoCD (CD) • Azure DevOps (Unified 14+ Stages) • Bitbucket Pipelines (Unified 14+ Stages) • Emergency Rollback Engines&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t12" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MULTI-CLOUD CI/CD &amp; RECOVERY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;GitHub Actions (7 job groups) • Azure DevOps (14 numbered app stages) • Bitbucket (14 delivery stages) • Provider-specific recovery&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_gha_argo" parent="1" value="&lt;b&gt;🐙 GITHUB ACTIONS (CI) + ARGOCD (CD)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;AWS EKS &amp; Minikube Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
@@ -837,25 +807,25 @@
         <mxCell id="argo_cd_box" parent="1" value="&lt;b&gt;ArgoCD (Strictly CD - GitOps):&lt;/b&gt;&lt;br&gt;• &lt;b&gt;develop:&lt;/b&gt; &lt;code&gt;application-dev.yaml&lt;/code&gt; ➔ Minikube (&lt;code&gt;dev&lt;/code&gt; ns)&lt;br&gt;• &lt;b&gt;staging:&lt;/b&gt; &lt;code&gt;application-staging.yaml&lt;/code&gt; ➔ configured staging cluster (&lt;code&gt;staging&lt;/code&gt; ns)&lt;br&gt;• &lt;b&gt;main/master:&lt;/b&gt; &lt;code&gt;application-prod.yaml&lt;/code&gt; ➔ configured production cluster (&lt;code&gt;production&lt;/code&gt; ns)&lt;br&gt;• Automated reconciliation and rollback remain separate from Terraform state recovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="310" width="530" height="160" as="geometry" />
         </mxCell>
-        <mxCell id="argo_roll_box" parent="1" value="&lt;b&gt;🔄 Recovery Controls:&lt;/b&gt;&lt;br&gt;• ArgoCD retries reconciliation with configured backoff&lt;br&gt;• Application rollback restores a prior healthy release&lt;br&gt;• Terraform state locks are never force-released automatically; operators use the actual lock ID after investigation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="argo_roll_box" parent="1" value="&lt;b&gt;🔄 Recovery Controls:&lt;/b&gt;&lt;br&gt;• Revert desired-state Git commits for normal recovery&lt;br&gt;• Check auto-sync before using ArgoCD's emergency rollback&lt;br&gt;• Terraform state locks are recovered manually after investigation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="80" y="490" width="530" height="80" as="geometry" />
         </mxCell>
         <mxCell id="c_azdo" parent="1" value="&lt;b&gt;🔷 AZURE DEVOPS (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;Azure Cloud &amp; AKS Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="660" y="90" width="570" height="500" as="geometry" />
         </mxCell>
-        <mxCell id="azdo_stages" parent="1" value="&lt;b&gt;Single Pipeline Covering All 14+ Stages:&lt;/b&gt;&lt;br&gt;• 1. Maven / React Tests &amp; JaCoCo Coverage&lt;br&gt;• 2. SAST (Semgrep, Gitleaks, Checkov, SonarQube)&lt;br&gt;• 3. BuildKit Image Build &amp; CycloneDX SBOM&lt;br&gt;• 4. Aqua Trivy Image Vulnerability Scan&lt;br&gt;• 5. Conftest / OPA Kubernetes Manifest Verification&lt;br&gt;• &lt;b&gt;Stage 5.5:&lt;/b&gt; Deploy AKS Dev (branch &lt;code&gt;develop&lt;/code&gt;, ns &lt;code&gt;dev&lt;/code&gt;) + &lt;b&gt;RollbackDev&lt;/b&gt;&lt;br&gt;• 6. Deploy AKS Staging (branch &lt;code&gt;staging&lt;/code&gt;/PR, ns &lt;code&gt;staging&lt;/code&gt;)&lt;br&gt;• 7-10. Newman QA, Cypress E2E, k6 Latency, OWASP ZAP DAST&lt;br&gt;• &lt;b&gt;RollbackStaging:&lt;/b&gt; Automated Helm rollback on test failure&lt;br&gt;• 11. Certified Image Promotion &amp; Push to ACR&lt;br&gt;• 12. Deploy AKS Production (Istio Canary 90/10, ns &lt;code&gt;production&lt;/code&gt;)&lt;br&gt;• &lt;b&gt;RollbackProduction:&lt;/b&gt; Emergency rollback &amp; Istio route restore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="azdo_stages" parent="1" value="&lt;b&gt;Shared Azure DevOps application template (14 numbered stages + rollbacks):&lt;/b&gt;&lt;br&gt;• Per-service roots: frontend, inventory, orders, products, notification&lt;br&gt;• Apollo Router has a separate config/supergraph validation pipeline (no project Dockerfile)&lt;br&gt;• 1-5. Tests, SAST/secrets, OCI build/SBOM, Trivy, Conftest&lt;br&gt;• 6. Push immutable candidate to environment ACR&lt;br&gt;• 7. Deploy dev on &lt;code&gt;develop&lt;/code&gt; + rollback&lt;br&gt;• 8. Deploy staging on &lt;code&gt;release/*&lt;/code&gt; or &lt;code&gt;main&lt;/code&gt;; 9-12. Newman, Cypress, k6, ZAP + rollback&lt;br&gt;• 13. On &lt;code&gt;main&lt;/code&gt;, copy the QA-approved SHA from staging ACR to production ACR&lt;br&gt;• 14. Deploy production + rollback&lt;br&gt;• Production canary is disabled until a production-specific Istio manifest is supplied" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="680" y="150" width="530" height="240" as="geometry" />
         </mxCell>
-        <mxCell id="azdo_tf_box" parent="1" value="&lt;b&gt;Terraform Azure Pipeline (pipelines/infra.yml):&lt;/b&gt;&lt;br&gt;• Workspaces: &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, &lt;code&gt;prod&lt;/code&gt;&lt;br&gt;• Static fmt/init/validate checks only; cloud apply is disabled until durable remote state and locking are configured&lt;br&gt;• Then add reviewed saved-plan applies behind environment gates&lt;br&gt;• No automatic state force-unlock; legacy pipeline is trigger-disabled and validation-only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="azdo_tf_box" parent="1" value="&lt;b&gt;Terraform Azure validation (pipelines/infra.yml):&lt;/b&gt;&lt;br&gt;• Workspaces: &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, &lt;code&gt;prod&lt;/code&gt;&lt;br&gt;• fmt/init/validate only; cloud plan/apply awaits provisioning Blob state and locking&lt;br&gt;• Backend configuration is partial and stored in ignored &lt;code&gt;terraform/backend-config/azure.hcl&lt;/code&gt;&lt;br&gt;• &lt;code&gt;templates/infra-stages.yml&lt;/code&gt; remains a saved-plan/apply helper" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="680" y="410" width="530" height="160" as="geometry" />
         </mxCell>
         <mxCell id="c_bb" parent="1" value="&lt;b&gt;🪣 BITBUCKET PIPELINES (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;Google Cloud Platform &amp; GKE Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="1260" y="90" width="580" height="500" as="geometry" />
         </mxCell>
-        <mxCell id="bb_stages" parent="1" value="&lt;b&gt;Single Pipeline Covering All 14+ Stages:&lt;/b&gt;&lt;br&gt;• &lt;b&gt;develop:&lt;/b&gt; CI (1-5) ➔ GCP Terraform Dev (ws &lt;code&gt;dev&lt;/code&gt;) ➔ GKE Dev Deploy (ns &lt;code&gt;dev&lt;/code&gt;) ➔ &lt;b&gt;rollback-gke-dev&lt;/b&gt; on error&lt;br&gt;• &lt;b&gt;staging:&lt;/b&gt; CI (1-5) ➔ GCP Terraform Staging (ws &lt;code&gt;staging&lt;/code&gt;, Medium Perf) ➔ GKE Staging Deploy (ns &lt;code&gt;staging&lt;/code&gt;) ➔ QA Validation (Newman, Cypress, k6, ZAP DAST) ➔ GAR Push ➔ &lt;b&gt;rollback-gke-staging&lt;/b&gt; on test fail&lt;br&gt;• &lt;b&gt;main / master:&lt;/b&gt; CI (1-5) ➔ GCP Terraform Prod (ws &lt;code&gt;prod&lt;/code&gt;, High Perf HA) ➔ Pre-flight QA ➔ GAR Push ➔ GKE Production Canary (Istio 90/10) ➔ &lt;b&gt;rollback-gke-production&lt;/b&gt; on rollout fail" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="bb_stages" parent="1" value="&lt;b&gt;Bitbucket pipelines: 14 numbered stages per branch:&lt;/b&gt;&lt;br&gt;• &lt;b&gt;develop:&lt;/b&gt; verification and dev publish/deploy + API, storefront smoke, performance and DAST checks&lt;br&gt;• &lt;b&gt;staging:&lt;/b&gt; same gates against the staging GKE cluster and GAR repository&lt;br&gt;• &lt;b&gt;main/master:&lt;/b&gt; staging candidate and QA first; manual promotion of the same commit SHA, then rolling Helm release&lt;br&gt;• Deployment stages require secured GCP credentials, project/region, cluster, repository, and endpoint variables; missing values fail closed&lt;br&gt;• Helm uses &lt;code&gt;--atomic&lt;/code&gt;; QA failures after deploy require operator-led recovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="1280" y="150" width="540" height="240" as="geometry" />
         </mxCell>
-        <mxCell id="bb_tf_box" parent="1" value="&lt;b&gt;Terraform GCP validation (apply disabled):&lt;/b&gt;&lt;br&gt;• Environment workspaces: &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, &lt;code&gt;prod&lt;/code&gt;&lt;br&gt;• Production topology defines two independent GKE clusters with distinct control-plane and Pod/Service ranges&lt;br&gt;• Shared databases and networking stay once per environment&lt;br&gt;• CI apply remains disabled until durable remote state and locking are configured" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="bb_tf_box" parent="1" value="&lt;b&gt;Terraform GCP validation (apply disabled):&lt;/b&gt;&lt;br&gt;• Environment workspaces: &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, &lt;code&gt;prod&lt;/code&gt;&lt;br&gt;• Production topology defines two independent GKE clusters and shared per-environment modules&lt;br&gt;• Partial GCS backend; copy/fill ignored &lt;code&gt;terraform/backend-config/gcp.hcl&lt;/code&gt; after provisioning the bucket&lt;br&gt;• CI validates with &lt;code&gt;-backend=false&lt;/code&gt;; cloud apply remains disabled until state and locking are ready" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="1280" y="410" width="540" height="160" as="geometry" />
         </mxCell>
         <mxCell id="c_roll_matrix" parent="1" value="&lt;b&gt;🛡️ AUTOMATED ROLLBACK &amp; INCIDENT RECOVERY MATRIX&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E293B;fontSize=12;dashed=1;" vertex="1">
@@ -864,19 +834,19 @@
         <mxCell id="rm_1" parent="1" value="&lt;b&gt;Level 1: IaC State Lock Recovery&lt;/b&gt;&lt;br&gt;• Operator inspects failed run and confirms no active operation&lt;br&gt;• Uses the real backend lock ID for manual recovery&lt;br&gt;• No automatic unlock on apply failure" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="660" width="410" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="rm_2" parent="1" value="&lt;b&gt;Level 2: Automated GitOps Rollback&lt;/b&gt;&lt;br&gt;• ArgoCD CLI app rollback&lt;br&gt;• Reverts to previous certified Git revision&lt;br&gt;• SelfHeal restores desired cluster state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="rm_2" parent="1" value="&lt;b&gt;Level 2: GitOps Recovery&lt;/b&gt;&lt;br&gt;• Revert the desired-state commit in Git&lt;br&gt;• ArgoCD reconciles the restored revision&lt;br&gt;• Emergency CLI rollback requires checking auto-sync behavior" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="520" y="660" width="410" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="rm_3" parent="1" value="&lt;b&gt;Level 3: Helm Atomic Rollback&lt;/b&gt;&lt;br&gt;• Executes &lt;code&gt;helm rollback&lt;/code&gt; on QA failure&lt;br&gt;• Protects &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, and &lt;code&gt;production&lt;/code&gt;&lt;br&gt;• Zero residual orphaned resources" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="rm_3" parent="1" value="&lt;b&gt;Level 3: Helm Recovery&lt;/b&gt;&lt;br&gt;• &lt;code&gt;--atomic&lt;/code&gt; reverts a failed readiness/upgrade operation&lt;br&gt;• Post-deploy QA failure blocks promotion; operator assesses and rolls back if needed&lt;br&gt;• Bitbucket production uses manual rolling release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="960" y="660" width="410" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="rm_4" parent="1" value="&lt;b&gt;Level 4: Istio Canary Shift Abort&lt;/b&gt;&lt;br&gt;• Health probe failure triggers 100% v1 shift&lt;br&gt;• Re-applies baseline DestinationRule &amp; VS&lt;br&gt;• Customer-facing traffic unaffected (&amp;lt;1s)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="rm_4" parent="1" value="&lt;b&gt;Level 4: Production &amp; GitOps Recovery&lt;/b&gt;&lt;br&gt;• Provider-specific rollback and ArgoCD Git revert/rollback&lt;br&gt;• Bitbucket is not configured for production canary&lt;br&gt;• Terraform state locks are recovered manually after inspection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="1400" y="660" width="420" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="rm_banner" parent="1" value="&lt;b&gt;🎯 ZERO DOWNTIME &amp; SELF-HEALING ASSURANCE:&lt;/b&gt; Application rollback is automated at configured health gates. Terraform failures require plan review and deliberate state-lock recovery using the actual lock ID; pipelines never unlock state automatically." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="rm_banner" parent="1" value="&lt;b&gt;🎯 RECOVERY ASSURANCE:&lt;/b&gt; Helm restores the previous release for failed atomic upgrades. Post-deployment QA and production incidents follow the explicit provider/operator recovery paths above; Terraform state locks are never force-released automatically." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="790" width="1740" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="ops_box_12" parent="1" value="&lt;b&gt;🎯 MULTI-CLOUD CI/CD SUMMARY&lt;/b&gt;: GitHub Actions strictly governs CI while ArgoCD operates declarative CD. Azure DevOps and Bitbucket Pipelines execute single unified pipelines with all 14+ stages, multi-cloud Terraform provisioning across dev/staging/prod workspaces, and fully automated rollback engines." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+        <mxCell id="ops_box_12" parent="1" value="&lt;b&gt;🎯 MULTI-CLOUD CI/CD SUMMARY&lt;/b&gt;: GitHub Actions provides AWS Terraform controls; Azure DevOps runs its shared 14-stage application flow; Bitbucket uses 14 numbered GCP delivery stages with manual production release; ArgoCD handles declarative sync. Cloud apply requires provisioned remote state, environment credentials, and explicit review." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="60" y="920" width="1780" height="60" as="geometry" />
         </mxCell>
       </root>
