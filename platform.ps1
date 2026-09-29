@@ -301,7 +301,12 @@ function Invoke-UnifiedPlatformVerify {
         $coreNamespaces = @("istio-system", "gatekeeper-system", "argocd", "observability", "vault", "auth", "data", "dev")
         foreach ($ns in $coreNamespaces) {
             $nsExists = & kubectl get namespace $ns --no-headers 2>$null
-            if ($nsExists) { Add-Result "OK" "Namespace exists: $ns" } else { Add-Result "WARN" "Namespace not found: $ns" }
+            if ($nsExists) {
+                Add-Result "OK" "Namespace exists: $ns"
+            } else {
+                Add-Result "FAIL" "Required namespace not found: $ns"
+                $failures++
+            }
         }
     }
 
@@ -325,14 +330,20 @@ function Invoke-UnifiedPlatformVerify {
 
     Write-Host "`n[6/9] Checking Gateway and VirtualService presence..." -ForegroundColor Yellow
     $gateways = & kubectl get gateway -n $Namespace --no-headers 2>$null
-    if ($gateways) { Add-Result "OK" "Gateway configured in $Namespace" } else { Add-Result "FAIL" "No Gateway resources found for Istio routing" }
+    if ($gateways) {
+        Add-Result "OK" "Gateway configured in $Namespace"
+    } else {
+        Add-Result "FAIL" "No Gateway resources found for Istio routing"
+        $failures++
+    }
 
     Write-Host "`n[7/9] Checking active Pods..." -ForegroundColor Yellow
     $pods = & kubectl get pods -n $Namespace --no-headers 2>$null
     if ($pods) {
         Add-Result "OK" "Pods found in namespace '$Namespace'"
     } else {
-        Add-Result "WARN" "No pods running currently in '$Namespace'"
+        Add-Result "FAIL" "No pods found in namespace '$Namespace'"
+        $failures++
     }
 
     Write-Host "`n[8/9] Checking Gatekeeper (OPA) admission policy..." -ForegroundColor Yellow
@@ -340,7 +351,12 @@ function Invoke-UnifiedPlatformVerify {
     if ($gk) {
         Add-Result "OK" "Gatekeeper OPA constraint templates active"
     } else {
-        Add-Result "WARN" "Gatekeeper constraint templates not detected"
+        if ($Strict) {
+            Add-Result "FAIL" "Gatekeeper constraint templates not detected"
+            $failures++
+        } else {
+            Add-Result "WARN" "Gatekeeper constraint templates not detected"
+        }
     }
 
     Write-Host "`n[9/9] Checking mTLS policy..." -ForegroundColor Yellow
@@ -348,14 +364,21 @@ function Invoke-UnifiedPlatformVerify {
     if ($mtls -match "STRICT") {
         Add-Result "OK" "mTLS STRICT is active in $Namespace"
     } else {
-        Add-Result "WARN" "mTLS policy: $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+        if ($Strict) {
+            Add-Result "FAIL" "mTLS STRICT is required but current policy is $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+            $failures++
+        } else {
+            Add-Result "WARN" "mTLS policy: $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+        }
     }
 
     Write-Host "`n--------------------------------------------------------------------------------" -ForegroundColor DarkGray
     if ($failures -gt 0) {
-        Write-Host "Validation completed with $failures warning(s)/failure(s)." -ForegroundColor Yellow
+        Write-Host "Validation failed with $failures required check(s) failing." -ForegroundColor Red
+        return $false
     } else {
         Write-Host "Validation passed successfully!" -ForegroundColor Green
+        return $true
     }
 }
 
@@ -565,6 +588,23 @@ function Invoke-MinikubePlatform {
             Write-Host "Environment: dev | Git Branch: develop | Istio: $(if ($EnableIstioMesh) { 'ENABLED' } else { 'DISABLED' })" -ForegroundColor White
             Write-Host "Hardware Budget: $CpuCount CPUs | $($RamMb / 1024) GB RAM | $DiskBudget Disk" -ForegroundColor White
 
+            # Validate all critical local paths before starting Minikube or changing cluster state.
+            $terraformConfigFiles = @(Get-ChildItem -LiteralPath $tfMinikubeDir -Filter "*.tf" -File -ErrorAction SilentlyContinue)
+            if ($terraformConfigFiles.Count -eq 0) {
+                throw "Terraform configuration not found in '$tfMinikubeDir'. No platform changes were applied."
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $umbrellaDir "Chart.yaml") -PathType Leaf)) {
+                throw "Helm umbrella chart not found at '$umbrellaDir'. No platform changes were applied."
+            }
+            if (-not (Test-Path -LiteralPath (Join-Path $root "helm\values\values-minikube.yaml") -PathType Leaf)) {
+                throw "Minikube Helm values file is missing. No platform changes were applied."
+            }
+            $resolvedUmbrellaDir = (Resolve-Path -LiteralPath $umbrellaDir -ErrorAction Stop).Path
+            & helm dependency build $resolvedUmbrellaDir
+            if ($LASTEXITCODE -ne 0) {
+                throw "Helm dependency build failed with exit code $LASTEXITCODE. No cluster changes were applied."
+            }
+
             Write-Host "`n[1/10] 🔍 Auditing Required Windows CLI Tools..." -ForegroundColor Yellow
             $requiredClis = @("minikube", "docker", "terraform", "kubectl", "helm")
             foreach ($cli in $requiredClis) {
@@ -625,20 +665,19 @@ function Invoke-MinikubePlatform {
                 Write-Host "  [OK] Local container images synchronized into Minikube." -ForegroundColor Green
             }
 
-            if (Test-Path "$umbrellaDir\Chart.yaml") {
-                Write-Host "  ▶ Synchronizing Helm dependencies (microservices-umbrella)..." -ForegroundColor White
-                helm dependency build $umbrellaDir 2>$null | Out-Null
-            }
-
             Write-Host "`n[4/10] 🏗️ Applying Platform Infrastructure via Terraform..." -ForegroundColor Yellow
-            Push-Location $tfMinikubeDir
-            try {
-                terraform init 2>$null | Out-Null
-                terraform apply -auto-approve
-                Write-Host "  [OK] Platform namespaces and core helm controllers applied." -ForegroundColor Green
-            } finally {
-                Pop-Location
+            $terraformChdir = "-chdir=$tfMinikubeDir"
+            Write-Host "  Terraform working directory: $tfMinikubeDir" -ForegroundColor DarkGray
+            Write-Host "  Terraform files: $($terraformConfigFiles.Name -join ', ')" -ForegroundColor DarkGray
+            & terraform $terraformChdir init -input=false -no-color
+            if ($LASTEXITCODE -ne 0) {
+                throw "Terraform init failed with exit code $LASTEXITCODE. Infrastructure apply was not attempted."
             }
+            & terraform $terraformChdir apply -input=false -auto-approve -no-color
+            if ($LASTEXITCODE -ne 0) {
+                throw "Terraform apply failed with exit code $LASTEXITCODE. Stopping bootstrap; inspect Terraform output before retrying."
+            }
+            Write-Host "  [OK] Platform namespaces and core helm controllers applied." -ForegroundColor Green
 
             $namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system", "keda")
             foreach ($ns in $namespaces) {
@@ -722,8 +761,10 @@ stringData:
                 kubectl label secret microservices-secrets -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
             }
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
-            helm upgrade --install microservices "$umbrellaDir" --namespace dev --set global.environment=dev --values $minikubeValues
-            kubectl rollout restart deployment -n dev 2>$null | Out-Null
+            & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev --values $minikubeValues --wait --timeout 10m
+            if ($LASTEXITCODE -ne 0) {
+                throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."
+            }
             Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
 
             # Register GitHub credentials secret in ArgoCD for private repository access
@@ -778,9 +819,12 @@ stringData:
             }
 
             Write-Host "  ▶ Awaiting pod readiness for Keycloak, Apollo Router and Frontend..." -ForegroundColor White
-            kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=150s 2>$null
-            kubectl wait --namespace dev --for=condition=ready pod -l app=apollo-router --timeout=150s 2>$null
-            kubectl wait --namespace dev --for=condition=ready pod -l app=frontend --timeout=120s 2>$null
+            & kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=300s
+            if ($LASTEXITCODE -ne 0) { throw "Keycloak did not become Ready. Stopping bootstrap before smoke tests." }
+            & kubectl wait --namespace dev --for=condition=ready pod -l app=apollo-router --timeout=300s
+            if ($LASTEXITCODE -ne 0) { throw "Apollo Router did not become Ready. Stopping bootstrap before smoke tests." }
+            & kubectl wait --namespace dev --for=condition=ready pod -l app=frontend --timeout=180s
+            if ($LASTEXITCODE -ne 0) { throw "Frontend did not become Ready. Stopping bootstrap before smoke tests." }
 
             Write-Host "`n🔌 Launching Local Port-Forward Tunnels in Background..." -ForegroundColor Yellow
             $supervisorScript = Join-Path $scriptsDir "supervise-tunnels.py"
@@ -797,11 +841,13 @@ stringData:
             }
 
             Write-Host "`n[9/10] 🩺 Performing Doctor Health Audit & Smoke Verification..." -ForegroundColor Yellow
-            Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev
+            $doctorPassed = Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev
+            if (-not $doctorPassed) { throw "Platform health audit failed. The deployment is not ready; inspect the checks above." }
             $smokeScript = Join-Path $scriptsDir "endpoint-smoke-test.py"
             if (Test-Path $smokeScript) {
                 Write-Host "  ▶ Executing HTTP API Smoke Tests..." -ForegroundColor White
-                python $smokeScript --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
+                & python $smokeScript --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
+                if ($LASTEXITCODE -ne 0) { throw "HTTP API smoke tests failed with exit code $LASTEXITCODE. Platform is not declared ready." }
             }
 
             Write-Host "`n[10/10] 💰 Offline FinOps Architecture Estimate..." -ForegroundColor Yellow
@@ -969,7 +1015,7 @@ switch ($Command) {
     { $_ -in @("doctor", "verify", "status") } {
         Show-Banner "Platform Health & Diagnostic Audit"
         if ($Platform -eq "minikube") {
-            Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev
+            if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev)) { exit 1 }
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction status -Env $targetCloudEnv
         }
@@ -977,7 +1023,7 @@ switch ($Command) {
 
     "doctor-minikube" {
         Show-Banner "Minikube Istio Validation"
-        Invoke-UnifiedPlatformVerify -Mode minikube -Namespace $Environment
+        if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Namespace $Environment)) { exit 1 }
     }
 
     "doctor-cloud" {
@@ -986,7 +1032,7 @@ switch ($Command) {
             Write-Host "This check is for AWS / Azure / GCP. Use -Platform aws|azure|gcp with this command." -ForegroundColor Yellow
             return
         }
-        Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $Environment
+        if (-not (Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $Environment)) { exit 1 }
     }
 
     "cost" {
