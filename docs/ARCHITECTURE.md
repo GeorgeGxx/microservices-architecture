@@ -39,27 +39,28 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ## 🔌 Ports & Service Matrix
 
-| Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
+| Service | Local / Docker Port | Minikube Service / Access | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **React Frontend** | Vite host `5173` / Nginx container `8080` / Service `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
 | **Apollo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Apollo Federation v2 GraphQL router |
-| **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
-| **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
-| **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
-| **Notification Service** | `8002` | `30002` | ClusterIP | Kafka Consumer & customer alerts |
-| **Keycloak IAM** | `8181` | `30181` | Istio ingress (`/realms/*`, `/resources/*`, `/admin/*`, `/js/*`) | `admin` / `admin` |
-| **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
+| **Products Service** | `8004` | ClusterIP `8004`; tunnel/port-forward only | ClusterIP | Product catalog domain + PostgreSQL |
+| **Orders Service** | `8003` | ClusterIP `8003`; tunnel/port-forward only | ClusterIP | Order orchestration + Kafka Producer |
+| **Inventory Service** | `8001` | ClusterIP `8001`; tunnel/port-forward only | ClusterIP | Stock control & atomic verification |
+| **Notification Service** | `8002` | ClusterIP `8002`; tunnel/port-forward only | ClusterIP | Kafka Consumer & customer alerts |
+| **Keycloak IAM** | `8181` | NodePort `30181`; management port `9000` is also exposed through the currently auto-assigned `31827` | Istio ingress (`/realms/*`, `/resources/*`, `/admin/*`, `/js/*`) | `admin` / `admin`; avoid relying on auto-assigned NodePorts |
+| **HashiCorp Vault** | `8200` | NodePort `30820` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
 | **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.1) |
-| **Kiali Visual Mesh** | `20001` | `32001` | Ingress / NodePort | Istio Service Mesh Visualizer (v2.31.0, `/kiali`) |
-| **Grafana** | `3000` | `30300` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
-| **Grafana Tempo** | `3200` | ClusterIP | ClusterIP | Distributed tracing backend (v3.0.3) |
-| **Prometheus** | `9090` | `30090` | Prometheus Operator | Metrics scraping engine (v3.14.0) |
-| **Grafana Loki** | `3100` | `30100` | ClusterIP | Centralized logging engine (v3.7.4) |
+| **Kiali Visual Mesh** | `20001` | NodePort `32001`; metrics port `9090` has auto-assigned NodePort `31628` in the current cluster | Ingress / NodePort | Istio Service Mesh Visualizer (v2.31.0, `/kiali`) |
+| **Grafana** | `3000` | NodePort `30030`; local tunnel `3000` → Service `80` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
+| **Grafana Tempo** | `3200` | NodePort `30200` for HTTP; OTLP ports are also NodePort-exposed with cluster-assigned values | ClusterIP | Distributed tracing backend (v3.0.3); assigned OTLP NodePorts can change after recreation |
+| **Prometheus** | `9090` | ClusterIP `9090`; local tunnel `9090` → Service `9090` | Prometheus Operator | Metrics scraping engine (v3.14.0); legacy standalone manifest's `30090` is not used by the active Terraform install |
+| **OpenCost** | — (not installed by Compose) | ClusterIP exporter `9003` + UI `9090`; local tunnel `7000` → UI Service `9090` | Argo CD + Helm; cloud billing needs provider billing data | Local Kubernetes allocation; cloud cost remains unavailable on Minikube |
+| **Grafana Loki** | `3100` | ClusterIP `3100`; local tunnel `3100` → Service `3100` | ClusterIP | Centralized logging engine (v3.7.4) |
 | **Grafana Alloy** | `3300` | DaemonSet | DaemonSet | Telemetry & log collector (v1.19.1) |
-| **Redis & Exporter** | `6379` / `9121` | `30379` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
-| **PostgreSQL Databases** | `5432` | `30432` | RDS / Flexible / Cloud SQL | Managed multi-tenant DB |
-| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | `30092` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
+| **Redis & Exporter** | `6379` / `9121` | ClusterIP `6379` / `9121` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
+| **PostgreSQL Databases** | Compose host ports `5431`–`5434` → container `5432` | Four ClusterIP Services on `5432` in `data`/`auth` | RDS / Flexible / Cloud SQL | Separate DB per service; host ports are distinct in Compose |
+| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | ClusterIP `9092`, `9093`, `9094` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
 | **KEDA Operator & Metrics** | N/A (In-Cluster) | ClusterIP | Kubernetes Operator | Event-Driven Autoscaler v2.20.1 (Kafka Lag & Prometheus RPS) |
 
 ---

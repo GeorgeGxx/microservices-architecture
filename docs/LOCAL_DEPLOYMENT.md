@@ -26,20 +26,22 @@
 
 ---
 
-### ⚙️ Kubernetes Workload Right-Sizing & Production Resource Allocation
-All microservices and infrastructure pods are pre-configured with enterprise resource requests and limits to guarantee sub-millisecond execution, prevent GC pauses, and avoid `OOMKilled` eviction (optimized for Minikube clusters running with 6 CPUs and 12 GB RAM, reserving 2 cores and 4 GB RAM for Windows):
+### ⚙️ Kubernetes Workload Right-Sizing (Minikube)
+The values below describe the primary application and observability workloads in the active Minikube profile. They are resource reservations/ceilings, not latency guarantees. Add-on charts such as Argo CD, Gatekeeper, Istio, and parts of the Prometheus stack also create controller, webhook, proxy, or reloader containers; their chart defaults are not all represented in this summary. Confirm effective resources with `kubectl describe pod` after changing chart versions or overrides.
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Apollo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
-| **Spring Boot Microservices (x4)** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
+| **Spring Boot Microservices (x4)** | `250m` | `1500m` | `512Mi` | `1536Mi` | `1Gi` | Minikube overrides for Java 21 services |
 | **Keycloak 26.7.4 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
 | **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
 | **Redis 8 Cache & Token Bucket** | `100m` | `250m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
 | **Frontend React 19 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
-| **Prometheus 3 Metrics Server** | `200m` | `1000m` | `256Mi` | `1024Mi` | `2Gi` | 10s scraping & PromQL evaluation |
+| **Prometheus 3 Metrics Server** | `200m` | `1000m` | `512Mi` | `1536Mi` | `2Gi` | Active kube-prometheus-stack StatefulSet |
+| **OpenCost Exporter** | `50m` | `300m` | `192Mi` | `512Mi` | — | Allocation API/metrics on `9003`; cloud billing disabled locally |
+| **OpenCost UI** | `25m` | `150m` | `64Mi` | `192Mi` | — | UI container on `9090`, reached through host tunnel `7000` |
 | **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
 | **Grafana Loki (Log Ingestion)** | `150m` | `800m` | `256Mi` | `1024Mi` | `2Gi` | Centralized container log indexing |
 | **Grafana Tempo (Tracing Backend)** | `100m` | `500m` | `192Mi` | `512Mi` | `1Gi` | W3C distributed trace span storage |
@@ -278,19 +280,21 @@ Once tunnels are active, access local web interfaces:
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
 - **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
 - **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
-- **ArgoCD Web UI:** [https://localhost:30088](https://localhost:30088)
+- **ArgoCD Web UI:** [https://localhost:8088](https://localhost:8088)
+- **OpenCost UI:** [http://localhost:7000](http://localhost:7000)
 
-Alternatively, access services directly via Minikube NodePort without background tunnels:
+Alternatively, access services directly via their configured Minikube NodePorts (ClusterIP workloads remain internal):
 - **Frontend SPA:** `http://$(minikube ip):30080`
-- Apollo Router is internal (ClusterIP); access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`. Port `30088` belongs to ArgoCD in the Terraform Minikube profile.
+- **Apollo Router:** internal ClusterIP; access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`.
 - **Keycloak Admin:** `http://$(minikube ip):30181`
 - **Vault Web UI:** `http://$(minikube ip):30820`
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
-- **Grafana LGTM:** `http://$(minikube ip):30300`
-- **Prometheus:** `http://$(minikube ip):30090`
-- **ArgoCD Web UI:** `http://$(minikube ip):30808`
+- **Grafana:** `http://$(minikube ip):30030`
+- **Argo CD:** `https://$(minikube ip):30443` (HTTP NodePort is `30088` and redirects to TLS)
+- **Prometheus and OpenCost:** ClusterIP only; use the managed tunnels above or `kubectl port-forward`.
+- **Tempo:** HTTP NodePort `30200`; OTLP receiver NodePorts are dynamically allocated by this cluster.
 
-> 💡 **Production Compute Allocation:** All Kubernetes workloads and infrastructure manifests are engineered with **production-grade Right-Sizing**. Review the complete [Kubernetes Workload Right-Sizing & Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation) matrix for detailed CPU, memory, and storage limits.
+> 💡 Review the [Minikube workload right-sizing](#️-kubernetes-workload-right-sizing-minikube) matrix for the primary application and observability container requests and limits. Add-on chart defaults may add containers that are not listed there.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
 Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. The rollout script checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
