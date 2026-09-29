@@ -101,11 +101,11 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | :--- | :--- | :--- |
 | [🏛️ **Architecture & Domain Guide**](./docs/ARCHITECTURE.md) | Domain-Driven Design (DDD), Saga compensation flow, Keycloak 26 IAM, HashiCorp Vault secrets, React 19 state context, POS QR workflows, and Amazon/Mercado Libre e-commerce models. | Software Architects, Developers |
 | [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (6 CPUs / 12 GB RAM / 40 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
-| [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | 12-stage enterprise pipeline, Policy-as-Code (OPA / Gatekeeper), SAST (Semgrep, Gitleaks), Container scanning (Trivy), DAST (OWASP ZAP), and ArgoCD GitOps sync. | SecOps, Cloud Engineers |
+| [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | GitHub Actions service delivery flow, 14-stage Azure DevOps and Bitbucket pipelines, Policy-as-Code, SAST, Trivy, DAST, and ArgoCD GitOps. | SecOps, Cloud Engineers |
 | [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
 | [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), authenticated Apollo Router load/chaos scenarios, frontend/API smoke checks, and Newman API contract testing. | QA Engineers, Developers |
 | [🛡️ **Local Reliability & Delivery Gates**](./docs/LOCAL_MATURITY_GATES.md) | Bounded k6 baseline, local database restore drill, observability validation, Terraform safeguards, and offline CI checks. | Developers, Platform Engineers |
-| [☁️ **Multi-Cloud Terraform & Rollbacks**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable Terraform modules, and automated 3-tier rollback mechanisms. | Cloud Architects, SRE |
+| [☁️ **Multi-Cloud Terraform & Recovery**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable modules, isolated workspaces, and provider-specific recovery runbooks. | Cloud Architects, SRE |
 | [🛠️ **Automation Scripts Reference**](./docs/SCRIPTS_REFERENCE.md) | Complete CLI reference for `platform.ps1`, cloud helpers (`manage-aws.ps1`, `manage-azure.ps1`, `manage-gcp.ps1`), FinOps disk cleanup, and build automation. | Platform Ops, SysAdmins |
 | [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Apollo Router (Federation 2.3 operations, Keycloak login flows, DHL tracking, and dynamic order chaining through frontend Nginx). | API Developers, QA |
 
@@ -139,6 +139,7 @@ The host ports below describe the Docker Compose profile. In Minikube the micros
 | **Alloy** | Grafana Alloy 1.19.1 | `3300` | `localhost:3300` (Compose UI) | *(Log collector; not a Grafana datasource)* |
 | **Istio Ingress Gateway** | Envoy Proxy (Istio 1.31.1) | `80` / `443` | [http://localhost](http://localhost) | Mesh Ingress |
 | **Kiali Dashboard** | Kiali 2.31.0 | `20001` | [http://localhost:20001](http://localhost:20001) | *(No auth required)* |
+| **OpenCost Dashboard** | OpenCost 2.5.32 | `7000` | [http://localhost:7000](http://localhost:7000) | *(No auth required)* |
 
 ### 📖 API Exploration & Interactive Documentation Matrix
 
@@ -283,7 +284,7 @@ The presentation layer (`http://localhost:5173`) has been re-architected followi
 
 ```text
 microservices-architecture/
-├── .github/workflows/              # GitHub Actions CI/CD (12-Stage Enterprise Pipelines)
+├── .github/workflows/              # GitHub Actions service CI, registry, GitOps and Terraform workflows
 ├── apollo-router/                  # Apollo Router v2 Supergraph Gateway (Port 8080 • Federation 2.3)
 ├── argocd                          # GitOps and CD Deployments
 ├── azure-devops                    # Azure DevOps Pipeline YAML files
@@ -297,7 +298,7 @@ microservices-architecture/
 ├── docs/                           # 📚 Specialized Modular Documentation
 │   ├── ARCHITECTURE.md             # Tactical DDD, Sagas, Security, POS & E-Commerce
 │   ├── LOCAL_DEPLOYMENT.md         # Docker Compose, Minikube, Istio & Resiliency
-│   ├── DEVSECOPS_AND_CI_CD.md      # 12-Stage Pipeline, OPA, Trivy & Multi-CI/CD
+│   ├── DEVSECOPS_AND_CI_CD.md      # GitHub/Azure/Bitbucket CI/CD, OPA, Trivy & DAST
 │   ├── GIT_WORKFLOW_AND_COLLABORATION.md # Trunk-based / Gitflow, branch drift & rollback playbooks
 │   ├── OBSERVABILITY_QUERIES.md    # PromQL, LogQL, and TraceQL Telemetry Handbook
 │   ├── TESTING_AND_CHAOS.md        # Load simulation, DDoS, Chaos & Newman tests
