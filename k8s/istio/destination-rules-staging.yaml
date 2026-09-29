@@ -9,9 +9,6 @@ spec:
     - name: v1
       labels:
         version: v1
-    - name: v2
-      labels:
-        version: v2
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -24,9 +21,6 @@ spec:
     - name: v1
       labels:
         version: v1
-    - name: v2
-      labels:
-        version: v2
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -39,9 +33,6 @@ spec:
     - name: v1
       labels:
         version: v1
-    - name: v2
-      labels:
-        version: v2
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -54,6 +45,3 @@ spec:
     - name: v1
       labels:
         version: v1
-    - name: v2
-      labels:
-        version: v2

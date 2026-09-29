@@ -222,8 +222,10 @@ Deploy the entire infrastructure, security, mesh, and microservices in a single 
 # Deploy in Native K8s Mode without Istio/Envoy overhead:
 .\platform.ps1 up -WithoutIstio
 
-# Deploy with canary version v2 enabled (90/10 traffic split):
-.\platform.ps1 up -DeployCanary
+# Build candidate source separately; -Build preserves the deployed stable products-service image.
+# Use a unique immutable commit/build tag (initial split: 90% stable / 10% canary):
+$candidateTag = "canary-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
+.\platform.ps1 up -Build -DeployCanary -CanaryImageTag $candidateTag
 
 # Fast-track bootstrap skipping security scans (Gitleaks/TFLint/Trivy):
 .\platform.ps1 up -SkipScans
@@ -291,14 +293,32 @@ Alternatively, access services directly via Minikube NodePort without background
 > 💡 **Production Compute Allocation:** All Kubernetes workloads and infrastructure manifests are engineered with **production-grade Right-Sizing**. Review the complete [Kubernetes Workload Right-Sizing & Production Resource Allocation](#️-kubernetes-workload-right-sizing--production-resource-allocation) matrix for detailed CPU, memory, and storage limits.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
-Execute advanced traffic shaping and Canary weight adjustments using Istio VirtualServices:
+Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. The rollout script checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
 ```powershell
-# Deploy Canary V2 deployment:
-kubectl apply -f k8s/istio/canary-deployment-products-v2.yaml
+# Deploy the canary and start at 90% stable / 10% canary:
+.\platform.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
 
-# Apply Canary traffic split (90% v1 / 10% v2):
-kubectl apply -f k8s/istio/virtual-services.yaml
+# Change traffic manually; both weights must add up to 100:
+.\scripts\istio\set-canary-weight.ps1 -Namespace dev -V1Weight 75 -V2Weight 25
+
+# Promote interactively through 10%, 25%, 50%, 75%, then 100% canary:
+.\scripts\istio\auto-canary-rollout.ps1 -Namespace dev -Steps 10,25,50,75,100 -StepIntervalSeconds 30
+
+# Immediate traffic rollback to stable v1; keeps the canary deployed for investigation:
+.\scripts\istio\set-canary-weight.ps1 -Namespace dev -V1Weight 100 -V2Weight 0
 ```
+
+At 100% canary, v1 remains Ready but receives no normal traffic so it is available for a fast rollback. For final retirement, promote the exact tested image tag in `helm/values/values-minikube.yaml` and let ArgoCD sync the stable Deployment first; remove the canary only after that rollout is Ready. The `x-canary: true` header remains a 100%-to-v2 QA override at every traffic weight.
+
+After the interactive rollout accepts 100%, stage the tested canary image into the stable Minikube Helm values:
+```powershell
+.\scripts\istio\promote-canary.ps1 -Namespace dev
+```
+Review and commit/push the resulting `helm/values/values-minikube.yaml` change to the GitOps branch. Wait until ArgoCD reports Synced/Healthy and the stable `products-service` Deployment is Ready on the same image. Only then remove the canary route and workload:
+```powershell
+.\scripts\istio\promote-canary.ps1 -Namespace dev -RetireCanary
+```
+The retirement command verifies the stable image and readiness before it removes the canary VirtualService, restores the baseline Istio DestinationRules, and deletes `products-service-v2`. To roll back before retirement, set traffic to `v1=100, v2=0`; after retirement, roll back by reverting the stable image tag through GitOps.
 
 ### 5. 🛑 Cluster Teardown & Resource Cleanup
 Clean up all background tunnels, port-forwards, and stop or purge the Minikube cluster:
@@ -446,15 +466,12 @@ flowchart TD
   ```
 
 ### 3. 🌐 Progressive Canary Deployments in Istio Service Mesh
-* **Traffic Splitting:** Istio `VirtualService` (`products-service-vs`) and `DestinationRule` (`products-service-dr`) allow fine-grained traffic shifting between stable `v1` and canary `v2` pods.
+* **Traffic Splitting:** Istio `VirtualService` (`products-service-canary-vs`) and `DestinationRule` (`products-service-dr`) allow guarded traffic shifting between stable `v1` and canary `v2` pods. `set-canary-weight.ps1` validates replica readiness and a 100% total before patching weights.
 * **Instant Header Bypass:** Requests containing header `x-canary: true` route $100\%$ to the canary subset regardless of percentage weight, enabling safe QA verification before public traffic exposure.
-* **Automated Progressive Rollout Scripts:**
+* **Interactive Progressive Rollout with Rollback:**
   ```powershell
-  # Set arbitrary traffic split (e.g. 80% to v1, 20% to v2):
-  .\scripts\istio\set-canary-weight.ps1 -Service "products-service" -V1Weight 80 -V2Weight 20 -Namespace "staging"
-
-  # Run automated progressive canary promotion (10% -> 25% -> 50% -> 100%):
-  .\scripts\istio\auto-canary-rollout.ps1 -Service "products-service" -Namespace "staging" -StepIntervalSeconds 30
+  # Run the rollout gates in the namespace where the canary was deployed:
+  .\scripts\istio\auto-canary-rollout.ps1 -Service "products-service" -Namespace "dev" -StepIntervalSeconds 30
   ```
 
 ### 4. 🚨 Alertmanager Alert Routing (Local Default, Slack & Jira Ready)
