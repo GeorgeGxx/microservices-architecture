@@ -1,0 +1,37 @@
+# Cloud workload allocation uses a Prometheus instance deployed in the same cluster.
+# Cloud billing ingestion is opt-in and requires provider billing exports and credentials.
+clusterName: microservices-cloud
+
+opencost:
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: prometheus-server
+      namespaceName: observability
+      port: 80
+  cloudCost:
+    enabled: false
+  mcp:
+    enabled: false
+  exporter:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
+  ui:
+    enabled: true
+    uiPort: 9090
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+  metrics:
+    serviceMonitor:
+      enabled: false

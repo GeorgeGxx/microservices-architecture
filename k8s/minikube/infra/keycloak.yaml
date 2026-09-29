@@ -46,7 +46,7 @@ spec:
           command: ['sh', '-c', 'until nc -z -w 2 db-keycloak 5432; do echo "Waiting for PostgreSQL db-keycloak:5432..."; sleep 2; done; echo "PostgreSQL is ready!"']
       containers:
         - name: keycloak
-          image: quay.io/keycloak/keycloak:26.7.3
+          image: quay.io/keycloak/keycloak:26.7.4
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
