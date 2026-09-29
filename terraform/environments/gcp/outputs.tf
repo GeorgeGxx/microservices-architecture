@@ -2,6 +2,16 @@ output "gke_cluster_name" {
   value = module.gke.cluster_name
 }
 
+output "gcp_project_id" {
+  description = "GCP project used by the provider and kubeconfig setup."
+  value       = var.project_id
+}
+
+output "gcp_region" {
+  description = "GCP region used by the provider and kubeconfig setup."
+  value       = var.region
+}
+
 output "gke_endpoint" {
   value     = module.gke.cluster_endpoint
   sensitive = true

@@ -6,6 +6,11 @@ output "cluster_endpoint" {
   value = module.eks.cluster_endpoint
 }
 
+output "aws_region" {
+  description = "AWS region used by the provider, including kubeconfig setup."
+  value       = var.aws_region
+}
+
 output "production_dataplane_2_cluster_name" {
   description = "Second independent production EKS data-plane cluster; null outside the prod workspace."
   value       = try(module.eks_dp2[0].cluster_name, null)
