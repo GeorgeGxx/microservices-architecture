@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "apollo-router.fullname" . }}
+  name: {{ include "cosmo-router.fullname" . }}
   labels:
-    {{- include "apollo-router.labels" . | nindent 4 }}
+    {{- include "cosmo-router.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "apollo-router.fullname" . }}
+    name: {{ include "cosmo-router.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

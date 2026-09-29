@@ -442,7 +442,7 @@ export const AdminDashboardPage: React.FC = () => {
           </div>
           <div className="mt-3 text-2xl font-black text-white">{formatPrice(totalRevenue)}</div>
           <div className="mt-1 text-xs text-emerald-400 flex items-center gap-1 font-medium">
-            <TrendingUp className="w-3.5 h-3.5" /> Apollo Router Transactions
+            <TrendingUp className="w-3.5 h-3.5" /> Cosmo Router Transactions
           </div>
         </div>
 

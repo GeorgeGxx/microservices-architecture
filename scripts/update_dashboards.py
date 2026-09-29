@@ -379,7 +379,7 @@ tech_panels = [
         "id": 101,
         "type": "stat",
         "title": "🌐 Core Microservices Online",
-        "description": "Count of unique operational core business microservices active (Apollo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
+        "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
         "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -402,7 +402,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "count(count by (service) (up{service=~\"apollo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+            "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
             "legendFormat": "Active Business Roles"
         }]
     },
@@ -433,7 +433,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name=\"apollo/router\"}[5m]))) * 1000) or vector(0)",
+            "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=\"\"}[5m]))) or vector(0)",
             "legendFormat": "P95 Latency"
         }]
     },
@@ -539,8 +539,8 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_response_status_code) (rate(http_server_request_duration_seconds_count{otel_scope_name=\"apollo/router\",service=~\"$service\"}[1m]))",
-            "legendFormat": "{{service}} ({{status}}{{http_response_status_code}})"
+            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_status_code) (rate(router_http_requests_total{service=~\"$service\",wg_subgraph_name=\"\"}[1m]))",
+            "legendFormat": "{{service}} ({{status}}{{http_status_code}})"
         }]
     },
     {
@@ -565,7 +565,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(http_server_request_duration_seconds_bucket{otel_scope_name=\"apollo/router\",service=~\"$service\"}[5m]))) * 1000)",
+            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m])))",
             "legendFormat": "{{service}} (P95)"
         }]
     },

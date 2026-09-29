@@ -10,7 +10,7 @@ on:
       service-type:
         required: true
         type: string
-        description: 'Type: spring-boot, react, or apollo-router'
+        description: 'Type: spring-boot, react, or cosmo-router'
       service-dir:
         required: true
         type: string

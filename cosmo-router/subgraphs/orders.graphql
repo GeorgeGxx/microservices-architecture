@@ -1,5 +1,5 @@
 extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key", "@shareable"])
+  @link(url: "https://specs.apollo.dev/federation/v2.5", import: ["@key", "@shareable", "@authenticated"])
 
 type Product @key(fields: "sku") {
     sku: String!
@@ -55,13 +55,13 @@ input PlaceOrderInput {
 }
 
 type Query {
-    orders: [Order!]!
-    order(id: ID!): Order
+    orders: [Order!]! @authenticated
+    order(id: ID!): Order @authenticated
 }
 
 type Mutation {
-    placeOrder(input: PlaceOrderInput!): Order
-    cancelOrder(id: ID!): Order
-    shipOrder(id: ID!): Order
-    deliverOrder(id: ID!): Order
+    placeOrder(input: PlaceOrderInput!): Order @authenticated
+    cancelOrder(id: ID!): Order @authenticated
+    shipOrder(id: ID!): Order @authenticated
+    deliverOrder(id: ID!): Order @authenticated
 }

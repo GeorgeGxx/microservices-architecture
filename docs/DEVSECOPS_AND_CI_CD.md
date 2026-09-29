@@ -27,12 +27,12 @@ flowchart LR
 
 ### 🖥️ Local Platform Endpoints & Access Matrix
 
-Core platform services and dashboards are available on Windows `localhost` through managed port-forwards. Direct microservice ports below are host-published in Docker Compose; they are not forwarded by default in Minikube:
+Core platform services, Swagger UIs, and dashboards are available on Windows `localhost` through managed port-forwards in Minikube. The same microservice ports are host-published by Docker Compose:
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
 | 🌐 **Frontend React 19 SPA** | [`http://localhost:5173`](http://localhost:5173) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
-| 🚀 **Apollo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
+| 🚀 **Cosmo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
 | 📖 **Products Swagger UI** | [`http://localhost:8004/swagger-ui.html`](http://localhost:8004/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Products REST APIs |
 | 📖 **Orders Swagger UI** | [`http://localhost:8003/swagger-ui.html`](http://localhost:8003/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Orders REST APIs |
 | 📖 **Inventory Swagger UI** | [`http://localhost:8001/swagger-ui.html`](http://localhost:8001/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Inventory REST APIs |
@@ -45,7 +45,7 @@ Core platform services and dashboards are available on Windows `localhost` throu
 | 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
 | 📊 **OpenCost UI** | [`http://localhost:7000`](http://localhost:7000) | *(No auth required)* | Kubernetes workload allocation (Minikube/cloud via Helm; not installed by Compose) |
 
-The application and observability URLs above use Docker Compose host ports or the managed Minikube tunnel, depending on the active platform. OpenCost is available only when its Kubernetes Helm release is installed. In Minikube the microservices are ClusterIP endpoints; use a service-specific `kubectl port-forward` to open Swagger, or use the frontend proxy for REST routes it exposes. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
+The application and observability URLs above use Docker Compose host ports or the managed Minikube tunnels, depending on the active platform. In Minikube the microservices remain ClusterIP endpoints; the tunnel supervisor forwards ports `8001`–`8004` for the four Swagger UIs. OpenCost is available only when its Kubernetes Helm release is installed. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
 
 ### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
 
@@ -318,7 +318,7 @@ Located in `.github/workflows/`:
 ### 2. Azure DevOps Pipelines ➔ Azure Cloud
 Located in `azure-devops/`:
 - **Shared application template ([`app-stages.yml`](../azure-devops/templates/app-stages.yml))**: Defines 14 numbered delivery stages plus separate rollback stages. Each application entry point supplies the component, port, Azure connection, and environment-specific ACR names. `develop` publishes to the dev ACR; release/main builds first publish to staging, and `main` copies the QA-approved immutable image into the production ACR before deployment.
-- **Application entry points**: [`inventory-service.yml`](../azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](../azure-devops/pipelines/orders-service.yml), [`products-service.yml`](../azure-devops/pipelines/products-service.yml), [`notification-service.yml`](../azure-devops/pipelines/notification-service.yml), and [`frontend.yml`](../azure-devops/pipelines/frontend.yml) use the shared template. [`apollo-router.yml`](../azure-devops/pipelines/apollo-router.yml) remains a separate configuration/supergraph validation pipeline because Apollo Router has no project Dockerfile to build.
+- **Application entry points**: [`inventory-service.yml`](../azure-devops/pipelines/inventory-service.yml), [`orders-service.yml`](../azure-devops/pipelines/orders-service.yml), [`products-service.yml`](../azure-devops/pipelines/products-service.yml), [`notification-service.yml`](../azure-devops/pipelines/notification-service.yml), and [`frontend.yml`](../azure-devops/pipelines/frontend.yml) use the shared template. [`cosmo-router.yml`](../azure-devops/pipelines/cosmo-router.yml) remains a separate configuration/supergraph validation pipeline because Cosmo Router has no project Dockerfile to build.
 - **Terraform validation ([`infra.yml`](../azure-devops/pipelines/infra.yml))**: Runs format/init/validate checks for local workspace selectors `dev`, `staging`, and `prod`; it does not plan or apply cloud changes until Azure remote state and Blob locking are provisioned. [`infra-stages.yml`](../azure-devops/templates/infra-stages.yml) is a saved-plan/apply helper and is not an active pipeline entry point.
 - The app pipelines use the `azure-service-connection` service connection and Terraform's environment-scoped registries (`msaazuredevacr`, `msaazurestagingacr`, `msaazureprodacr`). Configure that connection for ACR push and AKS deployment access, and set exclusive locks/approvals on the `dev`, `staging`, and `production` Azure DevOps environments. Production canary is disabled in the current service entry points until production-specific Istio manifests exist.
 

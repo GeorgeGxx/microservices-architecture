@@ -460,7 +460,7 @@ class ChaosTester:
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Microservices Simulation Super-Script")
     parser.add_argument("--scenario", choices=["traffic", "ddos", "chaos", "all"], default="traffic", help="Simulation scenario to execute")
-    parser.add_argument("--router-url", default=os.getenv("APOLLO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Apollo Router base URL")
+    parser.add_argument("--router-url", default=os.getenv("COSMO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Cosmo Router base URL")
     parser.add_argument("--frontend-url", default=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND), help="Frontend/Nginx URL for REST funnel endpoints")
     parser.add_argument("--ddos-url", default=os.getenv("DDOS_EDGE_URL", os.getenv("FRONTEND_URL", DEFAULT_FRONTEND)), help="Frontend/Nginx edge URL for DDoS and rate-limit probes")
     parser.add_argument("--keycloak", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak URL")

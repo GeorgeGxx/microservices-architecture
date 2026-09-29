@@ -4,7 +4,7 @@
 #
 # Event-driven autoscalers orchestrated by KEDA:
 #  1. notification-service: Scales dynamically based on Apache Kafka Consumer Lag (orders-topic)
-#  2. apollo-router: Scales dynamically based on HTTP Requests Per Second (Prometheus query)
+#  2. cosmo-router: Scales dynamically based on HTTP Requests Per Second (Prometheus query)
 #  3. orders-service: Scales dynamically based on CPU utilization and request concurrency
 # ==============================================================================
 apiVersion: keda.sh/v1alpha1
@@ -40,16 +40,16 @@ spec:
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: apollo-router-scaler
+  name: cosmo-router-scaler
   namespace: dev
   labels:
-    app.kubernetes.io/name: apollo-router
+    app.kubernetes.io/name: cosmo-router
     app.kubernetes.io/part-of: microservices-architecture
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: apollo-router
+    name: cosmo-router
   minReplicaCount: 1
   maxReplicaCount: 3
   triggers:
@@ -57,8 +57,8 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090
-        metricName: apollo_router_requests_per_second
-        query: sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))
+        metricName: cosmo_router_requests_per_second
+        query: sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]) or vector(0))
         threshold: "100"
     # Trigger 2: CPU Utilization
     - type: cpu

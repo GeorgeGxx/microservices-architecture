@@ -12,7 +12,8 @@ export async function executeGraphQL<T>(
   query: string,
   variables: Record<string, unknown> = {},
   token?: string,
-  idempotencyKey?: string
+  idempotencyKey?: string,
+  timeoutMs?: number
 ): Promise<T> {
   const accessToken = await getValidAccessToken(token);
   const headers: Record<string, string> = {
@@ -27,28 +28,45 @@ export async function executeGraphQL<T>(
     headers['X-Idempotency-Key'] = idempotencyKey;
   }
 
-  const response = await fetch(GRAPHQL_ENDPOINT, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ query, variables }),
-  });
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timeoutId = controller && timeoutMs
+    ? window.setTimeout(() => controller.abort(), timeoutMs)
+    : undefined;
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`GraphQL HTTP error [${response.status}]: ${errorText}`);
+  try {
+    const response = await fetch(GRAPHQL_ENDPOINT, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ query, variables }),
+      signal: controller?.signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GraphQL HTTP error [${response.status}]: ${errorText}`);
+    }
+
+    const result: GraphQLResponse<T> = await response.json();
+
+    if (result.errors && result.errors.length > 0) {
+      throw new Error(result.errors.map((error) => error.message).join('; '));
+    }
+
+    if (!result.data) {
+      throw new Error('GraphQL returned no data and no errors');
+    }
+
+    return result.data;
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      throw new Error(
+        'The order request timed out. Check Order History before trying again; the order may still have completed.'
+      );
+    }
+    throw error;
+  } finally {
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
   }
-
-  const result: GraphQLResponse<T> = await response.json();
-
-  if (result.errors && result.errors.length > 0) {
-    throw new Error(result.errors.map((e) => e.message).join('; '));
-  }
-
-  if (!result.data) {
-    throw new Error('GraphQL returned no data and no errors');
-  }
-
-  return result.data;
 }
 
 // Queries
@@ -173,7 +191,12 @@ export async function fetchInventories(token?: string): Promise<InventoryItem[]>
 }
 
 export async function fetchOrders(token?: string): Promise<Order[]> {
-  const data = await executeGraphQL<{ orders: Order[] }>(ORDERS_QUERY, {}, token);
+  const accessToken = await getValidAccessToken(token);
+  if (!accessToken) {
+    throw new Error('Your sign-in session is unavailable. Sign in again to view orders.');
+  }
+
+  const data = await executeGraphQL<{ orders: Order[] }>(ORDERS_QUERY, {}, accessToken);
   return data.orders;
 }
 
@@ -186,7 +209,8 @@ export async function submitPlaceOrder(
     PLACE_ORDER_MUTATION,
     { input },
     token,
-    idempotencyKey
+    idempotencyKey,
+    45_000
   );
   return data.placeOrder;
 }

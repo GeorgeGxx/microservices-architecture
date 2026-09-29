@@ -113,7 +113,7 @@ class SmokeTester:
         lat = (time.time() - t0) * 1000
         self.log_step("Keycloak OIDC JWT Token Acquisition", bool(token), lat, f"Token: {token[:12]}... (Acquired)" if token else "Auth Failed")
 
-        # 3. Apollo Router GraphQL through frontend Nginx
+        # 3. Cosmo Router GraphQL through frontend Nginx
         t0 = time.time()
         try:
             payload = json.dumps({"query": "{ __typename }"}).encode("utf-8")
@@ -127,9 +127,9 @@ class SmokeTester:
                 result = json.loads(resp.read().decode("utf-8"))
                 lat = (time.time() - t0) * 1000
                 ok = resp.status == 200 and not result.get("errors") and bool(result.get("data", {}).get("__typename"))
-                self.log_step("Apollo Router GraphQL (/graphql)", ok, lat, "GraphQL response received")
+                self.log_step("Cosmo Router GraphQL (/graphql)", ok, lat, "GraphQL response received")
         except Exception as e:
-            self.log_step("Apollo Router GraphQL (/graphql)", False, (time.time() - t0) * 1000, f"Error: {e}")
+            self.log_step("Cosmo Router GraphQL (/graphql)", False, (time.time() - t0) * 1000, f"Error: {e}")
 
         # 4. Catalog REST endpoint proxied by Nginx to products-service
         t0 = time.time()
@@ -219,7 +219,7 @@ class SmokeTester:
             sys.exit(1)
 
 def main():
-    parser = argparse.ArgumentParser(description="Frontend, Apollo Router, and REST API smoke checks")
+    parser = argparse.ArgumentParser(description="Frontend, Cosmo Router, and REST API smoke checks")
     parser.add_argument("--base-url", default=os.getenv("FRONTEND_URL", DEFAULT_FRONTEND), help="Frontend base URL (Nginx proxies GraphQL and REST routes)")
     parser.add_argument("--keycloak-url", default=os.getenv("KEYCLOAK_URL", DEFAULT_KEYCLOAK), help="Keycloak IAM URL")
     parser.add_argument("--max-latency-ms", type=int, default=500, help="Maximum allowed latency SLO threshold in ms")

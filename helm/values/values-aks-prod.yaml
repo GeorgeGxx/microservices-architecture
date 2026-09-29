@@ -12,16 +12,17 @@ global:
   #     - name: db-password
   #       alias: DB_PASSWORD
 
-apollo-router:
-  devMode: false
+cosmo-router:
   graphql:
     introspection: false
-    sandbox: false
+    playgroundEnabled: false
   cors:
-    allowAnyOrigin: false
     # Set to the public storefront origin(s) if browser traffic is cross-origin.
     allowedOrigins: []
-  image: { repository: "ghcr.io/apollographql/router", tag: "v2.16.3" }
+  image: { repository: "ghcr.io/wundergraph/cosmo/router", tag: "0.353.0" }
+  trafficShaping:
+    circuitBreaker:
+      enabled: true
   replicaCount: 2
   autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
 inventory-service:

@@ -34,11 +34,11 @@ graph TB
     end
 
     subgraph Gateway["🚪 Ingress & Federated Gateway"]
-        ROUTER["Apollo Router v2.16.3 (Rust)<br/>(Port 8080 • Supergraph Engine • Apollo Sandbox)"]
+        ROUTER["Cosmo Router 0.353.0 (Go)<br/>(Port 8080 • Federation 2.3/2.5 • GraphQL Playground)"]
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
-    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.0.8 • Apollo Federation 2.3)"]
+    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.0.8 • Federation 2.3; Orders 2.5)"]
         PROD["Products Service<br/>(:8004 • PostgreSQL 18 • Subgraph)"]
         ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Subgraph)"]
         INV["Inventory Service<br/>(:8001 • PostgreSQL 18 • Subgraph)"]
@@ -103,11 +103,11 @@ To keep this overview concise and practical, in-depth architectural specificatio
 | [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (6 CPUs / 12 GB RAM / 40 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
 | [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | GitHub Actions service delivery flow, 14-stage Azure DevOps and Bitbucket pipelines, Policy-as-Code, SAST, Trivy, DAST, and ArgoCD GitOps. | SecOps, Cloud Engineers |
 | [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
-| [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), authenticated Apollo Router load/chaos scenarios, frontend/API smoke checks, and Newman API contract testing. | QA Engineers, Developers |
+| [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), authenticated Cosmo Router load/chaos scenarios, frontend/API smoke checks, and Newman API contract testing. | QA Engineers, Developers |
 | [🛡️ **Local Reliability & Delivery Gates**](./docs/LOCAL_MATURITY_GATES.md) | Bounded k6 baseline, local database restore drill, observability validation, Terraform safeguards, and offline CI checks. | Developers, Platform Engineers |
 | [☁️ **Multi-Cloud Terraform & Recovery**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable modules, isolated workspaces, and provider-specific recovery runbooks. | Cloud Architects, SRE |
 | [🛠️ **Automation Scripts Reference**](./docs/SCRIPTS_REFERENCE.md) | Complete CLI reference for `platform.ps1`, cloud helpers (`manage-aws.ps1`, `manage-azure.ps1`, `manage-gcp.ps1`), FinOps disk cleanup, and build automation. | Platform Ops, SysAdmins |
-| [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Apollo Router (Federation 2.3 operations, Keycloak login flows, DHL tracking, and dynamic order chaining through frontend Nginx). | API Developers, QA |
+| [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Cosmo Router (Federation v2 operations, Keycloak login flows, DHL tracking, and dynamic order chaining through frontend Nginx). | API Developers, QA |
 
 ---
 
@@ -119,7 +119,9 @@ The host ports below describe the Docker Compose profile. In Minikube the micros
 | :--- | :--- | :---: | :--- | :--- |
 | **Keycloak IAM** | Keycloak 26.7.4 (OIDC / OAuth2) | `8181` / `9000` | [http://localhost:8181](http://localhost:8181) | `admin` / `admin` |
 | **React Frontend** | React 19 + Tailwind v4 / Nginx | `5173` | [http://localhost:5173](http://localhost:5173) | `admin_user` / `admin` & `basic_user` / `password` |
-| **Apollo Router Gateway** | Apollo Router v2.16.3 (Rust / Apollo Federation 2.3) | `8080` | [http://localhost:8080](http://localhost:8080) (Apollo Sandbox & `/graphql`) | Bearer JWT / Public Introspection |
+| **Cosmo Router Gateway** | Cosmo Router 0.353.0 (Go / Federation v2; Orders subgraph v2.5 auth directives) | `8080` (`/graphql`) | [http://localhost:8080](http://localhost:8080) (GraphQL Playground in local mode) | Keycloak JWKS JWT validation, authenticated order fields, bounded query complexity, OTel/Prometheus |
+
+Cosmo Router security, complexity limits, observability, resilience settings and intentionally deferred capabilities are tracked in [docs/COSMO_ROUTER_CAPABILITIES.md](./docs/COSMO_ROUTER_CAPABILITIES.md).
 | **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8004/graphql](http://localhost:8004/graphql) & `/api/product` | Internal Subgraph & REST |
 | **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8003/graphql](http://localhost:8003/graphql) & `/api/order` | Internal Subgraph & REST |
 | **Inventory Service** | Spring Boot 4.0.8 | `8001` | [http://localhost:8001/graphql](http://localhost:8001/graphql) & `/api/inventory` | Internal Subgraph & REST |
@@ -147,7 +149,7 @@ The platform separates **Unified Federated GraphQL Supergraph exploration** from
 
 | Interface | Protocol / Tool | Direct Access URL | Scope & Capabilities |
 | :--- | :--- | :--- | :--- |
-| 🚀 **Apollo Sandbox** | GraphQL Federation 2.3 | [http://localhost:8080](http://localhost:8080) | Interactive supergraph explorer, schema introspection, query visualizer, and live execution across all federated subgraphs. |
+| 🚀 **Cosmo Router local composition** | `wgc@0.132.0` + Federation v2 (Orders v2.5) | [http://localhost:8080](http://localhost:8080) | Composes local subgraph SDL without a Cosmo Cloud account; local mode exposes the GraphQL Playground and schema introspection. |
 | 📖 **Products Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html) | OpenAPI v3 interactive UI for Products REST endpoints (`/api/product/**`, `/v3/api-docs`). |
 | 📖 **Orders Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html) | OpenAPI v3 interactive UI for Orders REST endpoints, funnel telemetry (`/api/order/funnel`), and idempotency headers. |
 | 📖 **Inventory Swagger UI** | OpenAPI 3.0 (SpringDoc) | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | OpenAPI v3 interactive UI for Inventory REST endpoints (`/api/inventory/**`, `/v3/api-docs`). |
@@ -253,7 +255,7 @@ python scripts/testing/simulate.py --scenario traffic --orders 15 --concurrency 
 # 3. Telemetry & PromQL Diagnostics (JVM, Abandonment Rate, Vault)
 python scripts/testing/check.py --check all
 
-# 4. Platform Ecosystem Verification (Apollo Router, Microservices, Grafana)
+# 4. Platform Ecosystem Verification (Cosmo Router, Microservices, Grafana)
 python scripts/testing/verify.py
 
 # 5. DevSecOps Synthetic Health & Security Gate
@@ -285,7 +287,7 @@ The presentation layer (`http://localhost:5173`) has been re-architected followi
 ```text
 microservices-architecture/
 ├── .github/workflows/              # GitHub Actions service CI, registry, GitOps and Terraform workflows
-├── apollo-router/                  # Apollo Router v2 Supergraph Gateway (Port 8080 • Federation 2.3)
+├── cosmo-router/                  # Cosmo Router 0.353.0 (Port 8080 • Federation v2)
 ├── argocd                          # GitOps and CD Deployments
 ├── azure-devops                    # Azure DevOps Pipeline YAML files
 ├── devsecops/                      # Centralized DevSecOps Hub
@@ -294,7 +296,7 @@ microservices-architecture/
 │   ├── policies/                   # OPA Rego Conftest & Gatekeeper constraints
 │   ├── reference/aws-eks/          # GHA and ArgoCDfor AWS (Lab version)
 |   ├── sast/gitleaks/              # Gitleaks and Semgrep static security configs
-│   └── testing/newman/             # microservices.postman_collection.json (22-request API suite)
+│   └── testing/newman/             # Newman JSON export (21 requests) + Postman collection tree
 ├── docs/                           # 📚 Specialized Modular Documentation
 │   ├── ARCHITECTURE.md             # Tactical DDD, Sagas, Security, POS & E-Commerce
 │   ├── LOCAL_DEPLOYMENT.md         # Docker Compose, Minikube, Istio & Resiliency

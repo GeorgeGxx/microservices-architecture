@@ -41,9 +41,9 @@ SERVICE_ENDPOINTS = {
 GRAFANA_DASHBOARDS = ["business-operations", "technical-security"]
 
 def verify_swagger(router_url):
-    print("\n\033[96m[1/3] 🔌 VERIFYING APOLLO ROUTER & MICROSERVICE SWAGGER/OPENAPI SPECS\033[0m")
+    print("\n\033[96m[1/3] 🔌 VERIFYING COSMO ROUTER & MICROSERVICE SWAGGER/OPENAPI SPECS\033[0m")
     
-    # 1. Verify Apollo Router (GraphQL Gateway)
+    # 1. Verify Cosmo Router (GraphQL Gateway)
     try:
         req = urllib.request.Request(
             f"{router_url.rstrip('/')}/graphql",
@@ -52,9 +52,9 @@ def verify_swagger(router_url):
             method="POST"
         )
         with urllib.request.urlopen(req, timeout=5) as resp:
-            print(f"  [\033[92mOK\033[0m] Apollo Router Supergraph Gateway reachable at {router_url} (HTTP {resp.status})")
+            print(f"  [\033[92mOK\033[0m] Cosmo Router Supergraph Gateway reachable at {router_url} (HTTP {resp.status})")
     except Exception as e:
-        print(f"  [\033[93mWARN\033[0m] Apollo Router Gateway at {router_url}: {e}")
+        print(f"  [\033[93mWARN\033[0m] Cosmo Router Gateway at {router_url}: {e}")
 
     # 2. Verify individual Spring Boot Microservice Swagger UIs & OpenAPI v3 Specs
     import subprocess
@@ -134,7 +134,7 @@ def verify_grafana(grafana_url):
 def main():
     parser = argparse.ArgumentParser(description="Enterprise Platform Verification Super-Script")
     parser.add_argument("--target", choices=["all", "swagger", "metrics", "grafana"], default="all", help="Target component to verify")
-    parser.add_argument("--router-url", default=os.getenv("APOLLO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Apollo Router base URL")
+    parser.add_argument("--router-url", default=os.getenv("COSMO_ROUTER_URL", DEFAULT_ROUTER_URL), help="Cosmo Router base URL")
     parser.add_argument("--prometheus-url", default=os.getenv("PROMETHEUS_URL", DEFAULT_PROMETHEUS), help="Prometheus URL")
     parser.add_argument("--grafana-url", default=os.getenv("GRAFANA_URL", DEFAULT_GRAFANA), help="Grafana URL")
 

@@ -20,5 +20,4 @@ spec:
       - "10.0."
       - "192.168."
       - "gcr.io/distroless"
-      - "ghcr.io/apollographql/"
       - "ghcr.io/"

@@ -1,0 +1,178 @@
+# Cosmo Router runtime configuration (static/local execution config).
+# Federation composition source of truth: supergraph.yaml + subgraphs/*.graphql.
+version: "1"
+
+log_level: info
+listen_addr: 0.0.0.0:8080
+graphql_path: /graphql
+playground_enabled: true
+introspection:
+  enabled: true
+health_check_path: /health
+readiness_check_path: /health/ready
+liveness_check_path: /health/live
+
+execution_config:
+  file:
+    path: /runtime/execution-config.json
+    watch: true
+    watch_interval: 5s
+
+# Re-read mounted configuration when the ConfigMap/bind-mounted files change.
+watch_config:
+  enabled: true
+  interval: 10s
+
+# Validate presented Keycloak access tokens. Keep the router globally optional
+# so catalog browsing and health checks remain public; the orders SDL protects
+# its own root fields with @authenticated.
+authentication:
+  jwt:
+    jwks:
+      - url: http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs
+        refresh_interval: 5m
+        algorithms: [RS256]
+        refresh_unknown_kid:
+          enabled: true
+          max_wait: 10s
+          interval: 30s
+          burst: 2
+    header_name: Authorization
+    header_value_prefix: Bearer
+    # Define the request token source explicitly so behavior is identical across
+    # the Compose, Helm and Minikube router configurations.
+    header_sources:
+      - type: header
+        name: Authorization
+        value_prefixes: [Bearer]
+    on_error: reject
+
+authorization:
+  require_authentication: false
+  reject_operation_if_unauthorized: true
+  enable_pre_fetch_field_authorization: true
+
+access_logs:
+  enabled: true
+  level: info
+  router:
+    ignore_query_params_list: [variables, extensions]
+    fields:
+      - key: operation_name
+        value_from:
+          context_field: operation_name
+      - key: operation_type
+        value_from:
+          context_field: operation_type
+      - key: operation_hash
+        value_from:
+          context_field: operation_hash
+  subgraphs:
+    enabled: true
+    fields:
+      - key: operation_name
+        value_from:
+          context_field: operation_name
+
+cors:
+  allow_origins:
+    - http://127.0.0.1:5173
+    - http://localhost:5173
+  allow_methods:
+    - GET
+    - POST
+    - OPTIONS
+  allow_headers:
+    - Authorization
+    - Content-Type
+    - X-Idempotency-Key
+    - X-Correlation-ID
+    - apollographql-client-name
+    - apollographql-client-version
+
+headers:
+  all:
+    request:
+      - op: propagate
+        named: Authorization
+      - op: propagate
+        named: X-Idempotency-Key
+      - op: propagate
+        named: traceparent
+      - op: propagate
+        named: tracestate
+      - op: propagate
+        named: X-Correlation-ID
+
+traffic_shaping:
+  router:
+    max_request_body_size: 1MB
+    max_header_bytes: 1MiB
+  all:
+    request_timeout: 20s
+    dial_timeout: 3s
+    response_header_timeout: 15s
+    max_conns_per_host: 64
+    max_idle_conns_per_host: 16
+    retry:
+      enabled: true
+      algorithm: backoff_jitter
+      max_attempts: 2
+      interval: 100ms
+      max_duration: 1s
+      expression: "IsRetryableStatusCode() || IsConnectionError() || IsTimeout()"
+    circuit_breaker:
+      enabled: false
+      request_threshold: 20
+      error_threshold_percentage: 50
+      sleep_window: 15s
+      half_open_attempts: 3
+      required_successful: 2
+      rolling_duration: 60s
+      num_buckets: 10
+      execution_timeout: 20s
+
+security:
+  complexity_calculation_cache:
+    enabled: true
+    size: 1024
+  complexity_limits:
+    mode: enforce
+    ignore_introspection: false
+    depth:
+      enabled: true
+      limit: 12
+    total_fields:
+      enabled: true
+      limit: 250
+    root_fields:
+      enabled: true
+      limit: 12
+    root_field_aliases:
+      enabled: true
+      limit: 5
+  parser_limits:
+    approximate_depth_limit: 40
+    total_fields_limit: 500
+  operation_name_length_limit: 128
+
+telemetry:
+  service_name: cosmo-router
+  tracing:
+    enabled: true
+    sampling_rate: 0.25
+    exporters:
+      - exporter: http
+        endpoint: http://otel-collector:4318
+        batch_timeout: 5s
+        export_timeout: 5s
+  metrics:
+    prometheus:
+      enabled: true
+      listen_addr: 0.0.0.0:9090
+      path: /metrics
+      graphql_cache: true
+      connection_stats: true
+      network:
+        enabled: true
+      circuit_breaker: true

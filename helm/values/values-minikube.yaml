@@ -22,14 +22,15 @@ global:
 #       export SPRING_DATASOURCE_PASSWORD="{{ .Data.data.spring_datasource_password }}"
 #       {{- end -}}
 
-apollo-router:
-  devMode: true
+cosmo-router:
   graphql:
     introspection: true
-    sandbox: true
+    playgroundEnabled: true
   cors:
-    allowAnyOrigin: true
-  image: { repository: ghcr.io/apollographql/router, tag: "v2.16.3" }
+    allowedOrigins:
+      - http://localhost:5173
+      - http://127.0.0.1:5173
+  image: { repository: ghcr.io/wundergraph/cosmo/router, tag: "0.353.0" }
   keda:
     prometheus:
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"

@@ -42,7 +42,7 @@ spec:
             prefix: /graphql
       route:
         - destination:
-            host: apollo-router.dev.svc.cluster.local
+            host: cosmo-router.dev.svc.cluster.local
             port:
               number: 8080
 

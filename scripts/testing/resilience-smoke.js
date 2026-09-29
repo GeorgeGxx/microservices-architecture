@@ -2,7 +2,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 
 // Deliberately small local-only baseline. Override BASE_URL to target the
-// frontend proxy; requests still pass through Nginx and Apollo Router.
+// frontend proxy; requests still pass through Nginx and Cosmo Router.
 const baseUrl = (__ENV.BASE_URL || 'http://127.0.0.1:5173').replace(/\/$/, '');
 
 export const options = {

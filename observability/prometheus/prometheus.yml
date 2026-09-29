@@ -6,12 +6,12 @@ rule_files:
   - /etc/prometheus/prometheus-rules.yml
 
 scrape_configs:
-  - job_name: 'apollo-router'
+  - job_name: 'cosmo-router'
     metrics_path: /metrics
     static_configs:
-      - targets: ['apollo-router:9090']
+      - targets: ['cosmo-router:9090']
         labels:
-          service: 'apollo-router'
+          service: 'cosmo-router'
           job: 'graphql-router'
 
   - job_name: 'products-service'

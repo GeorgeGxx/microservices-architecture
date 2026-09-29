@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "80d0f149-1d5d-4cef-a67e-10c7cee79cf9",
-    "name": "microservices-apollo-router",
-    "description": "Enterprise Microservices Architecture Collection with Apollo Router v2 (GraphQL Federation 2.3), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
+    "name": "microservices-cosmo-router",
+    "description": "Enterprise Microservices Architecture Collection with Cosmo Router 0.353.0 (GraphQL Federation v2; orders v2.5), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -176,17 +176,17 @@
       ]
     },
     {
-      "name": "🚀 Apollo Router - GraphQL Supergraph",
+      "name": "🚀 Cosmo Router - GraphQL Supergraph",
       "item": [
         {
-          "name": "1. Apollo Router GraphQL Reachability",
+          "name": "1. Cosmo Router GraphQL Reachability",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Apollo Router GraphQL endpoint responds (HTTP 200)', () => {",
+                  "pm.test('Cosmo Router GraphQL endpoint responds (HTTP 200)', () => {",
                   "    pm.response.to.have.status(200);",
                   "});",
                   "const res = pm.response.json();",
@@ -220,7 +220,7 @@
                 "graphql"
               ]
             },
-            "description": "Checks the Apollo Router GraphQL listener on port 8080 without depending on the separate health listener on port 8088."
+            "description": "Checks the Cosmo Router GraphQL listener and readiness endpoint on port 8080. Prometheus metrics are exposed on the internal port 9090."
           },
           "response": []
         },
@@ -281,7 +281,7 @@
                 "graphql"
               ]
             },
-            "description": "Fetches products catalog federating product entity with inventory stock in a single GraphQL query through Apollo Router."
+            "description": "Fetches products catalog federating product entity with inventory stock in a single GraphQL query through Cosmo Router."
           },
           "response": []
         },
@@ -419,7 +419,7 @@
                 "graphql"
               ]
             },
-            "description": "Places a new order through Apollo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
+            "description": "Places a new order through Cosmo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
           },
           "response": []
         },
@@ -590,7 +590,7 @@
                 "graphql"
               ]
             },
-            "description": "Transitions the order into SHIPPED status via Apollo Router GraphQL mutation."
+            "description": "Transitions the order into SHIPPED status via Cosmo Router GraphQL mutation."
           },
           "response": []
         },
@@ -647,7 +647,7 @@
                 "graphql"
               ]
             },
-            "description": "Transitions the order into DELIVERED status via Apollo Router GraphQL mutation."
+            "description": "Transitions the order into DELIVERED status via Cosmo Router GraphQL mutation."
           },
           "response": []
         },
@@ -733,7 +733,7 @@
                 "graphql"
               ]
             },
-            "description": "Places a new order through Apollo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
+            "description": "Places a new order through Cosmo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
           },
           "response": [],
           "description": "Creates a separate PLACED order for the cancellation and inventory compensation request that follows."
@@ -842,7 +842,7 @@
                 "graphql"
               ]
             },
-            "description": "Direct GraphQL query to inventory subgraph via Apollo Router."
+            "description": "Direct GraphQL query to inventory subgraph via Cosmo Router."
           },
           "response": []
         },
@@ -893,7 +893,7 @@
                 "graphql"
               ]
             },
-            "description": "Fetches all inventory stock levels via Apollo Router."
+            "description": "Fetches all inventory stock levels via Cosmo Router."
           },
           "response": []
         }

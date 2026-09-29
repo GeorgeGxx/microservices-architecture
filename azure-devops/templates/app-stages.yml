@@ -28,7 +28,7 @@ parameters:
     type: string
   - name: serviceDir
     type: string
-  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'apollo-router'
+  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'cosmo-router'
     type: string
     default: 'spring-boot'
   - name: servicePort

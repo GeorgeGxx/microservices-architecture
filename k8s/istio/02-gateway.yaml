@@ -25,7 +25,7 @@ spec:
   gateways:
     - microservices-gateway
   http:
-    # 1. GraphQL Supergraph requests -> Routed to Apollo Router v2
+    # 1. GraphQL Supergraph requests -> Routed to Cosmo Router v2
     - match:
         - uri:
             prefix: /graphql
@@ -33,7 +33,7 @@ spec:
             exact: /health
       route:
         - destination:
-            host: apollo-router.dev.svc.cluster.local
+            host: cosmo-router.dev.svc.cluster.local
             port:
               number: 8080
 

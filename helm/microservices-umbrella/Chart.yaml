@@ -1,13 +1,13 @@
 apiVersion: v2
 name: microservices-umbrella
-description: Umbrella chart deploying Apollo Router, the frontend, and 4 business microservices
+description: Umbrella chart deploying Cosmo Router, the frontend, and 4 business microservices
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
 dependencies:
-  - name: apollo-router
-    version: "1.0.0"
-    repository: "file://../charts/apollo-router"
+  - name: cosmo-router
+    version: "2.0.0"
+    repository: "file://../charts/cosmo-router"
   - name: inventory-service
     version: "1.0.0"
     repository: "file://../charts/inventory-service"

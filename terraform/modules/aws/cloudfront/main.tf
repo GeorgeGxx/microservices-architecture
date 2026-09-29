@@ -177,7 +177,7 @@ resource "aws_cloudfront_distribution" "this" {
     }
   }
 
-  # Dynamic Behavior: /graphql* -> EKS NLB (Apollo Router Federated Supergraph)
+  # Dynamic Behavior: /graphql* -> EKS NLB (Cosmo Router Federated Supergraph)
   ordered_cache_behavior {
     path_pattern     = "/graphql*"
     allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]

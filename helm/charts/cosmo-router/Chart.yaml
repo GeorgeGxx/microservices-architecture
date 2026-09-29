@@ -1,0 +1,6 @@
+apiVersion: v2
+name: cosmo-router
+description: Helm chart for Cosmo Router 0.353.0 Federation v2.3 Gateway
+type: application
+version: 2.0.0
+appVersion: "0.353.0"

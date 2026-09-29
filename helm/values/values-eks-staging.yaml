@@ -4,10 +4,13 @@ global:
   storageClass: ebs-gp3-sc
 
 # AWS ECR Medium Performance Tier (Staging)
-apollo-router:
+cosmo-router:
   image:
-    repository: "ghcr.io/apollographql/router"
-    tag: "v2.16.3"
+    repository: "ghcr.io/wundergraph/cosmo/router"
+    tag: "0.353.0"
+  trafficShaping:
+    circuitBreaker:
+      enabled: true
   replicaCount: 2
   resources:
     requests:

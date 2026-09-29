@@ -19,12 +19,31 @@ export const keycloak = new Keycloak(keycloakConfig);
 
 let isInitialized = false;
 let tokenRefreshInProgress: Promise<boolean> | null = null;
+const TOKEN_REFRESH_TIMEOUT_MS = 10_000;
 
 export async function getValidAccessToken(fallbackToken?: string): Promise<string | undefined> {
-  if (!keycloak.authenticated) return fallbackToken;
+  // A profile may still hold the token captured at login after Keycloak has
+  // expired or cleared its session. Never send that stale token downstream.
+  if (!keycloak.authenticated) return undefined;
 
   if (!tokenRefreshInProgress) {
-    tokenRefreshInProgress = keycloak.updateToken(30).finally(() => {
+    const refresh = keycloak.updateToken(30);
+    tokenRefreshInProgress = new Promise<boolean>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        reject(new Error('Keycloak token refresh timed out. Please check your sign-in connection and try again.'));
+      }, TOKEN_REFRESH_TIMEOUT_MS);
+
+      refresh.then(
+        (refreshed) => {
+          window.clearTimeout(timeoutId);
+          resolve(refreshed);
+        },
+        (error: unknown) => {
+          window.clearTimeout(timeoutId);
+          reject(error);
+        }
+      );
+    }).finally(() => {
       tokenRefreshInProgress = null;
     });
   }
