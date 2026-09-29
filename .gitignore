@@ -10,4 +10,5 @@ target/
 scripts/__pycache__/
 scripts/testing/__pycache__/
 backups/local-drills/
+.pnpm-store/
 notes.md
