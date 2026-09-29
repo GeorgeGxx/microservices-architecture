@@ -17,6 +17,11 @@ spec:
         releaseName: opencost
         valueFiles:
           - $values/helm/values/opencost-minikube.yaml
+        parameters:
+          - name: clusterName
+            value: cluster.local
+          - name: opencost.exporter.defaultClusterId
+            value: microservices-minikube-dev
     - repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
       targetRevision: develop
       ref: values

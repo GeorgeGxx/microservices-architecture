@@ -1,6 +1,10 @@
-clusterName: microservices-minikube-dev
+# The chart uses clusterName as the Kubernetes DNS suffix in generated service
+# URLs; it must remain the cluster domain, not the human-readable cluster ID.
+clusterName: cluster.local
 
 opencost:
+  exporter:
+    defaultClusterId: microservices-minikube-dev
   prometheus:
     internal:
       enabled: true
