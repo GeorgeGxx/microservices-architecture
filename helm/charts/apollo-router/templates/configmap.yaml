@@ -38,9 +38,9 @@ data:
 
     limits:
       router:
-        http_max_request_bytes: {{ .Values.requestLimits.maxBodyBytes }}
-        parser_max_tokens: {{ .Values.requestLimits.maxParserTokens }}
-        parser_max_recursion: {{ .Values.requestLimits.maxParserRecursion }}
+        http_max_request_bytes: {{ .Values.requestLimits.maxBodyBytes | int }}
+        parser_max_tokens: {{ .Values.requestLimits.maxParserTokens | int }}
+        parser_max_recursion: {{ .Values.requestLimits.maxParserRecursion | int }}
 
     traffic_shaping:
       router:
