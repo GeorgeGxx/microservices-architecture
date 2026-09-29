@@ -11,17 +11,17 @@
 # Stage 3: ⚙️ Build Container & SBOM | DevOps / Supply Chain | Compile the app and build the container image | Docker, CycloneDX SBOM
 # Stage 4 | 🧰 Container Vulnerability Scan | Security | Scan container image for known vulnerabilities | Trivy
 # Stage 5 | 🧾 Compliance & Policy Gate | Governance | Audit helm manifests | Conftest, OPA
-# Stage 5.1 | 🌱 Deploy to Azure AKS Dev (develop branch) | Infra | Deploy Helm Release to AKS into Development Environment | AKS, ACR, Helm
-# Stage 5.2 | 🔄 Automated Rollback on Dev Failure | Infra | Execute Automated Helm Rollback on Dev | AKS, Helm
-# Stage 6 | 🚀 Deploy to Azure AKS Staging (release/* or main only) | Infra | Deploy the image to staging environment | Helm, Istio, AKS
-# Stage 7 | 🔗 Integration Tests | QA | Test service-to-service communication | Postman, Newman
-# Stage 8 | 🧭 E2E Tests | QA / Functional | Validate full user flows via UI | Cypress
-# Stage 9 | ⚡ Performance & Load Tests | Performance / QA | Stress test the system, measure latency, throughput and scalability | k6
-# Stage 10 | 🕵️ DAST | Security | Simulate attacks on the running app | OWASP ZAP
-# Stage 10.1 | 🔄 Automated Rollback on Staging Test/Deploy Failure | Infra | Execute Automated Helm Rollback on Staging | AKS, Helm
-# Stage 11 | 📦 Push Certified Image to Azure Container Registry | Infra | Push certified image to ACR | ACR, Docker
-# Stage 12 | 🚢 Deploy to Azure AKS Production (Canary Rollout) | Ops | Roll out final version to production | Azure DevOps, Istio, Helm
-# Stage 12.1 | 🔄 Automated Rollback on Production Failure | Infra | Execute Automated Helm Rollback on Production | AKS, Helm, Istio
+# Stage 6 | 🌱 Deploy to Azure AKS Dev (develop branch) | Infra | Deploy Helm Release to AKS into Development Environment | AKS, ACR, Helm
+# Stage 6.1 | 🔄 Automated Rollback on Dev Failure | Infra | Execute Automated Helm Rollback on Dev | AKS, Helm
+# Stage 7 | 🚀 Deploy to Azure AKS Staging (release/* or main only) | Infra | Deploy the image to staging environment | Helm, Istio, AKS
+# Stage 8 | 🔗 Integration Tests | QA | Test service-to-service communication | Postman, Newman
+# Stage 9 | 🧭 E2E Tests | QA / Functional | Validate full user flows via UI | Cypress
+# Stage 10 | ⚡ Performance & Load Tests | Performance / QA | Stress test the system, measure latency, throughput and scalability | k6
+# Stage 11 | 🕵️ DAST | Security | Simulate attacks on the running app | OWASP ZAP
+# Stage 12 | 🔄 Automated Rollback on Staging Test/Deploy Failure | Infra | Execute Automated Helm Rollback on Staging | AKS, Helm
+# Stage 13 | 📦 Push Certified Image to Azure Container Registry | Infra | Push certified image to ACR | ACR, Docker
+# Stage 14 | 🚢 Deploy to Azure AKS Production (Canary Rollout) | Ops | Roll out final version to production | Azure DevOps, Istio, Helm
+# Stage 14.1 | 🔄 Automated Rollback on Production Failure | Infra | Execute Automated Helm Rollback on Production | AKS, Helm, Istio
 
 parameters:
   - name: serviceName
@@ -340,7 +340,7 @@ stages:
             displayName: "Audit Helm Manifests with Conftest Rego"
 
   # ==========================================================
-  # STAGE 5.1: 🌱 Deploy to Azure AKS Dev (develop branch)
+  # STAGE 6: 🌱 Deploy to Azure AKS Dev (develop branch)
   # ==========================================================
   - stage: DeployDev
     displayName: "🌱 5.1 Deploy to AKS Dev - ${{ parameters.serviceName }}"
@@ -378,7 +378,7 @@ stages:
                         --cleanup-on-fail || echo "Dev deploy simulated in CI environment"
 
   # ==========================================================
-  # STAGE 5.2: 🔄 Automated Rollback on Dev Failure
+  # STAGE 6.1: 🔄 Automated Rollback on Dev Failure
   # ==========================================================
   - stage: RollbackDev
     displayName: "🔄 5.2 Rollback Dev - ${{ parameters.serviceName }}"
@@ -404,7 +404,7 @@ stages:
                 fi
 
   # ==========================================================
-  # STAGE 6: 🚀 Deploy to Azure AKS Staging (Infra / Helm)
+  # STAGE 7: 🚀 Deploy to Azure AKS Staging (Infra / Helm)
   # IMPROVEMENT: Previously it ran for ANY branch != develop (including
   # feature branches and PRs), which resulted in unpromoted code getting through
   # up to "PushACR" with the "latest" tag. Now it only runs in release/* or
@@ -457,7 +457,7 @@ stages:
                   name: deployStep
 
   # ==========================================================
-  # STAGE 7: 🔗 Integration Tests (QA - Postman / Newman)
+  # STAGE 8: 🔗 Integration Tests (QA - Postman / Newman)
   # IMPROVEMENT: by this point, the branch is already release/* or main/master —
   # The gate is now truly blocking (there is no longer "|| echo").
   # ==========================================================
@@ -496,7 +496,7 @@ stages:
               publishLocation: 'pipeline'
 
   # ==========================================================
-  # STAGE 8: 🧭 E2E Tests (QA / Cypress)
+  # STAGE 9: 🧭 E2E Tests (QA / Cypress)
   # ==========================================================
   - stage: E2ETests
     displayName: "🧭 8. E2E Tests - ${{ parameters.serviceName }}"
@@ -522,7 +522,7 @@ stages:
             displayName: "Run Cypress E2E Suite (Hard Gate)"
 
   # ==========================================================
-  # STAGE 9: ⚡ Performance & Load Tests (Perf / k6)
+  # STAGE 10: ⚡ Performance & Load Tests (Perf / k6)
   # NOTE: The gate depends on the thresholds defined within the component itself.
   # load-test.js from k6 (thresholds -> exit code != 0 if SLA is breached).
   # ==========================================================
@@ -553,7 +553,7 @@ stages:
             displayName: "Execute k6 Performance Tests (Hard Gate — fails on SLA threshold breach)"
 
   # ==========================================================
-  # STAGE 10: 🕵️ DAST (Security - OWASP ZAP)
+  # STAGE 11: 🕵️ DAST (Security - OWASP ZAP)
   # ==========================================================
   - stage: DASTScan
     displayName: "🕵️ 10. DAST Scan - ${{ parameters.serviceName }}"
@@ -596,7 +596,7 @@ stages:
               publishLocation: 'pipeline'
 
   # ==========================================================
-  # STAGE 10.1: 🔄 Automated Rollback on Staging Deploy/Test Failure
+  # STAGE 12: 🔄 Automated Rollback on Staging Deploy/Test Failure
   # IMPROVEMENT: previously, it relied SOLELY on the 4 subsequent test stages —
   # If the staging `helm upgrade` itself failed, there was no rollback.
   # automatic. Now it also depends directly on DeployStaging.
@@ -632,7 +632,7 @@ stages:
                 fi
 
   # ==========================================================
-  # STAGE 11: 📦 Push Certified Image to Azure Container Registry (ACR)
+  # STAGE 13: 📦 Push Certified Image to Azure Container Registry (ACR)
   # IMPROVEMENT: The fixed tag "1.0.0" has been removed (it broke immutability —
   # (it was overwritten in each build). An explicit condition is added
   # branch as defense-in-depth, and an optional semantic tag.
@@ -684,7 +684,7 @@ stages:
                 echo "Successfully pushed certified image to ACR: ${ACR_TARGET}:$(Build.SourceVersion)"
 
   # ==========================================================
-  # STAGE 12: 🚢 Deploy to Azure AKS Production (Canary Rollout with Istio)
+  # STAGE 14: 🚢 Deploy to Azure AKS Production (Canary Rollout with Istio)
   # IMPROVEMENT: Inline rollback is removed from here (it was duplicated with
   # the RollbackProduction stage). This stage only detects the fault and
   # marks the stage as failed(); RollbackProduction is the only point
@@ -751,7 +751,7 @@ stages:
                       fi
 
   # ==========================================================
-  # STAGE 12.1: 🔄 Automated Rollback on Production Failure
+  # STAGE 14.1: 🔄 Automated Rollback on Production Failure
   # (Sole point of execution for the production rollback — see note above.)
   # ==========================================================
   - stage: RollbackProduction

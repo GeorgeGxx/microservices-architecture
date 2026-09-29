@@ -6,6 +6,16 @@ output "cluster_endpoint" {
   value = module.eks.cluster_endpoint
 }
 
+output "production_dataplane_2_cluster_name" {
+  description = "Second independent production EKS data-plane cluster; null outside the prod workspace."
+  value       = try(module.eks_dp2[0].cluster_name, null)
+}
+
+output "production_dataplane_2_cluster_endpoint" {
+  description = "API endpoint for the second production EKS data-plane cluster; null outside prod."
+  value       = try(module.eks_dp2[0].cluster_endpoint, null)
+}
+
 output "ecr_repository_urls" {
   value = module.ecr.repository_urls
 }

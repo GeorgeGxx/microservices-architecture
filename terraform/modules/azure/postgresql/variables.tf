@@ -53,6 +53,17 @@ variable "high_availability" {
   default = false
 }
 
+variable "backup_retention_days" {
+  description = "Automated backup retention in days (Azure supports 7-35 days)."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.backup_retention_days >= 7 && var.backup_retention_days <= 35
+    error_message = "Azure PostgreSQL backup retention must be between 7 and 35 days."
+  }
+}
+
 variable "database_names" {
   type = list(string)
   default = [

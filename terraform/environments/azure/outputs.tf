@@ -10,6 +10,11 @@ output "aks_cluster_name" {
   value = module.aks.cluster_name
 }
 
+output "production_dataplane_2_aks_cluster_name" {
+  description = "Second independent production AKS data-plane cluster; null outside prod."
+  value       = try(module.aks_dp2[0].cluster_name, null)
+}
+
 output "aks_oidc_issuer_url" {
   value = module.aks.oidc_issuer_url
 }

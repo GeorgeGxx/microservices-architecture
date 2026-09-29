@@ -1,6 +1,7 @@
 resource "google_container_cluster" "this" {
   name     = "${var.name}-${var.environment}-cluster"
   location = var.region
+  resource_labels = var.labels
 
   enable_autopilot = var.enable_autopilot
 
@@ -8,8 +9,8 @@ resource "google_container_cluster" "this" {
   subnetwork = var.subnetwork_name
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = "gke-pods"
-    services_secondary_range_name = "gke-services"
+    cluster_secondary_range_name  = var.pods_range_name
+    services_secondary_range_name = var.services_range_name
   }
 
   private_cluster_config {

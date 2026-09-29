@@ -30,6 +30,27 @@ resource "google_sql_database_instance" "this" {
   }
 
   deletion_protection = var.deletion_protection
+
+  lifecycle {
+    # Managed Cloud SQL is only enabled for cloud staging/prod workspaces.
+    # Keep this literal; lifecycle meta-arguments cannot be conditional.
+    prevent_destroy = true
+
+    precondition {
+      condition     = var.environment != "prod" || var.deletion_protection
+      error_message = "Production Cloud SQL requires deletion protection."
+    }
+
+    precondition {
+      condition     = var.environment != "prod" || var.high_availability
+      error_message = "Production Cloud SQL must use regional high availability."
+    }
+
+    postcondition {
+      condition     = var.environment != "prod" || (self.deletion_protection && self.settings[0].backup_configuration[0].enabled)
+      error_message = "Production Cloud SQL must retain deletion protection and automated backups."
+    }
+  }
 }
 
 resource "google_sql_database" "databases" {

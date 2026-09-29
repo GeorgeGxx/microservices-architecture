@@ -9,6 +9,7 @@ locals {
     ManagedBy          = "terraform"
     Owner              = "devops-team"
     CostCenter         = "engineering-${local.env}"
+    CostAllocation     = "opencost-workload-allocation"
     SecurityCompliance = "standard"
     DataClassification = "confidential"
   }

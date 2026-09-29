@@ -27,6 +27,26 @@ module "eks" {
   tags                = local.tags
 }
 
+# Production is split across two independent EKS data-plane clusters. Dev and
+# staging retain one cluster each. This extra cluster shares the environment
+# VPC/subnets, but has independent control plane, node group, IAM and OIDC.
+module "eks_dp2" {
+  count  = local.env == "prod" ? 1 : 0
+  source = "../../modules/aws/eks"
+
+  name                = "${local.name}-dp2"
+  environment         = local.env
+  vpc_id              = module.vpc.vpc_id
+  private_subnet_ids  = module.vpc.private_subnet_ids
+  public_subnet_ids   = module.vpc.public_subnet_ids
+  node_instance_types = local.cfg.node_instance_types
+  node_capacity_type  = local.cfg.node_capacity_type
+  node_desired_size   = local.cfg.node_desired_size
+  node_min_size       = local.cfg.node_min_size
+  node_max_size       = local.cfg.node_max_size
+  tags                = merge(local.tags, { DataPlane = "2" })
+}
+
 module "ecr" {
   source      = "../../modules/aws/ecr"
   environment = local.env

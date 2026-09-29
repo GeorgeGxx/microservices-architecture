@@ -36,3 +36,21 @@ variable "release_channel" {
   type    = string
   default = "REGULAR"
 }
+
+variable "pods_range_name" {
+  description = "Subnet secondary range assigned to this cluster's Pods."
+  type        = string
+  default     = "gke-pods"
+}
+
+variable "services_range_name" {
+  description = "Subnet secondary range assigned to this cluster's Services."
+  type        = string
+  default     = "gke-services"
+}
+
+variable "labels" {
+  description = "GCP resource labels applied to the GKE cluster for cost attribution."
+  type        = map(string)
+  default     = {}
+}

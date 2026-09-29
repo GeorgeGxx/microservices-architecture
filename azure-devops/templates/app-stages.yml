@@ -1,0 +1,725 @@
+# =============================================================================
+# templates/app-stages.yml  —  DevSecOps CI/CD for ONE microservice on AKS
+#
+# Flow:
+#  1 UnitTests (+Sonar) -> 2 SASTSecurity -> 3 BuildContainer(+SBOM) -> 4 ContainerScan
+#  -> 5 ComplianceGate -> 6 PushCandidate (SHA tag to ACR)
+#       |-> DeployDev (develop)                   -> RollbackDev
+#       |-> DeployStaging (release/* | main)  -> Integration | E2E | Perf | DAST
+#                                                  -> RollbackStaging (on any failure)
+#                                                  -> PromoteImage (semver/latest tags)
+#                                                      -> DeployProduction (main) -> RollbackProduction
+#
+# GATE POLICY: Gitleaks always blocks; SAST/Trivy/Conftest block on protected
+# branches (release/*, main, master) and are advisory elsewhere (gates.yml).
+# Everything reaching staging is already a production candidate, so staging
+# test gates are always blocking.
+#
+# Branch model: develop -> dev | release/* -> staging | main/master -> staging + prod
+# Environments (ADO): dev, staging, production. Cluster/RG per env come from
+# <namePrefix>-<env>-aks / -rg, i.e. the ones created by infra-stages.yml.
+#
+# Requires (variable group / pipeline vars): SONAR_TOKEN (secret, optional).
+# =============================================================================
+parameters:
+  - name: serviceName
+    type: string
+  - name: serviceDir
+    type: string
+  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'apollo-router'
+    type: string
+    default: 'spring-boot'
+  - name: servicePort
+    type: number
+    default: 8080
+  - name: ingressUrl           # fallback when the Istio ingress IP cannot be resolved
+    type: string
+    default: ''
+  - name: imageVersion         # optional immutable semantic tag added on promotion
+    type: string
+    default: ''
+  - name: tagLatest            # mutable 'latest' tag on promotion (off by default)
+    type: boolean
+    default: false
+  - name: canaryEnabled
+    type: boolean
+    default: false
+  - name: canaryVirtualServicePath
+    type: string
+    default: ''
+  # ---- environment wiring (previously undeclared pipeline variables) ----
+  - name: serviceConnection    # app-deploy connection: AcrPush + AKS RBAC only (NOT the infra one)
+    type: string
+  - name: acrName
+    type: string
+  - name: namePrefix
+    type: string
+    default: 'msa-azure'
+  - name: helmChartPath
+    type: string
+    default: './helm/microservices-umbrella'
+  - name: helmRelease
+    type: string
+    default: 'microservices'
+  - name: sonarHostUrl
+    type: string
+    default: 'https://sonarcloud.io'
+  # ---- pinned tool versions (example values: bump to current ones) ----
+  - name: helmVersion
+    type: string
+    default: '3.16.4'
+  - name: gitleaksVersion
+    type: string
+    default: 'v8.21.2'
+  - name: trivyVersion
+    type: string
+    default: 'v0.58.1'
+  - name: conftestVersion
+    type: string
+    default: '0.56.0'
+  - name: k6Version
+    type: string
+    default: '0.55.0'
+
+stages:
+  # ==========================================================
+  # STAGE 1: Unit tests, coverage and Sonar
+  # Sonar runs HERE (same workspace as the build) because it needs the
+  # compiled classes and the JaCoCo report in target/.
+  # ==========================================================
+  - stage: UnitTests
+    displayName: "🧪 1. Unit Tests - ${{ parameters.serviceName }}"
+    jobs:
+      - job: TestExecution
+        displayName: "Unit Tests, Coverage & Quality Gate"
+        variables:
+          MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
+          npm_config_cache: $(Pipeline.Workspace)/.npm
+        steps:
+          - script: echo "Service ${{ parameters.serviceName }} (${{ parameters.serviceType }})"
+            displayName: "Service info"
+
+          - ${{ if eq(parameters.serviceType, 'spring-boot') }}:
+            - task: Cache@2
+              displayName: "Cache Maven Repository"
+              inputs:
+                key: 'maven | "$(Agent.OS)" | ${{ parameters.serviceDir }}/pom.xml'
+                restoreKeys: |
+                  maven | "$(Agent.OS)"
+                  maven
+                path: $(MAVEN_CACHE_FOLDER)
+
+            - task: JavaToolInstaller@0
+              inputs:
+                versionSpec: '21'
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+
+            - script: |
+                cd ${{ parameters.serviceDir }}
+                mvn clean test jacoco:report -B -T 1C -Dspring.profiles.active=test -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)
+              displayName: "Maven Test & JaCoCo"
+
+            - task: PublishTestResults@2
+              condition: succeededOrFailed()
+              displayName: "Publish Surefire Test Results"
+              inputs:
+                testResultsFormat: 'JUnit'
+                testResultsFiles: '${{ parameters.serviceDir }}/target/surefire-reports/TEST-*.xml'
+                mergeTestResults: true
+                failTaskOnFailedTests: true
+
+            - task: PublishCodeCoverageResults@2
+              condition: succeededOrFailed()
+              displayName: "Publish JaCoCo Code Coverage"
+              inputs:
+                summaryFileLocation: '${{ parameters.serviceDir }}/target/site/jacoco/jacoco.xml'
+                pathToSources: '${{ parameters.serviceDir }}/src/main/java'
+
+            # Secret variables are NOT auto-mapped to env vars: SONAR_TOKEN is mapped in env: below.
+            # The step is skipped (visible in the UI) when SONAR_TOKEN is not defined.
+            - script: |
+                set -euo pipefail
+                QG_WAIT=false
+                if [ "$(isProtectedBranch)" = "True" ]; then QG_WAIT=true; fi
+                cd ${{ parameters.serviceDir }}
+                mvn -B -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER) \
+                  org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+                  -Dsonar.projectKey=msa-azure-${{ parameters.serviceName }} \
+                  -Dsonar.projectName="MSA Azure ${{ parameters.serviceName }}" \
+                  -Dsonar.host.url=${{ parameters.sonarHostUrl }} \
+                  -Dsonar.token="$SONAR_TOKEN" \
+                  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                  -Dsonar.qualitygate.wait=$QG_WAIT
+              displayName: "SonarQube / SonarCloud (Quality Gate enforced on protected branches)"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              env:
+                SONAR_TOKEN: $(SONAR_TOKEN)
+
+          - ${{ if or(eq(parameters.serviceType, 'react'), eq(parameters.serviceType, 'frontend')) }}:
+            - task: Cache@2
+              displayName: "Cache npm Packages"
+              inputs:
+                key: 'npm | "$(Agent.OS)" | ${{ parameters.serviceDir }}/package-lock.json'
+                restoreKeys: |
+                  npm | "$(Agent.OS)"
+                  npm
+                path: $(npm_config_cache)
+
+            - task: NodeTool@0
+              inputs:
+                versionSpec: '22.x'
+
+            - script: |
+                cd ${{ parameters.serviceDir }}
+                npm ci
+                npm run build
+              displayName: "React Build & Compile Gate"
+
+  # ==========================================================
+  # STAGE 2: SAST, secrets & governance
+  # ==========================================================
+  - stage: SASTSecurity
+    displayName: "🔍 2. SAST & Secrets - ${{ parameters.serviceName }}"
+    dependsOn: UnitTests
+    jobs:
+      - job: SecurityScans
+        displayName: "Gitleaks, Semgrep, Checkov, npm audit"
+        steps:
+          # Hard gate on EVERY branch.
+          - script: |
+              set -euo pipefail
+              CONFIG="devsecops/sast/gitleaks/.gitleaks.toml"
+              IMG=zricethezav/gitleaks:${{ parameters.gitleaksVersion }}
+              if [ -f "$CONFIG" ]; then
+                docker run --rm -v $(Build.SourcesDirectory):/repo $IMG detect --source=/repo --config=/repo/$CONFIG -v --no-git
+              else
+                docker run --rm -v $(Build.SourcesDirectory):/repo $IMG detect --source=/repo -v --no-git
+              fi
+            displayName: "Gitleaks Secret Scan (Hard Gate)"
+
+          - script: |
+              set -euo pipefail
+              gate() {
+                if "$@"; then return 0; fi
+                if [ "$(isProtectedBranch)" = "True" ]; then return 1; fi
+                echo "##vso[task.logissue type=warning]Advisory only (non-protected branch): $*"
+              }
+              python3 -m pip install semgrep
+              gate semgrep scan --config auto --severity ERROR --error ${{ parameters.serviceDir }}
+            displayName: "Semgrep SAST Scan"
+
+          - script: |
+              set -euo pipefail
+              gate() {
+                if "$@"; then return 0; fi
+                if [ "$(isProtectedBranch)" = "True" ]; then return 1; fi
+                echo "##vso[task.logissue type=warning]Advisory only (non-protected branch): $*"
+              }
+              pip3 install checkov
+              gate checkov -d ${{ parameters.serviceDir }} --framework dockerfile,kubernetes,helm --compact
+            displayName: "Checkov Policy & IaC Scan"
+
+          - ${{ if or(eq(parameters.serviceType, 'react'), eq(parameters.serviceType, 'frontend')) }}:
+            - script: |
+                cd ${{ parameters.serviceDir }}
+                if [ "$(isProtectedBranch)" = "True" ]; then
+                  npm audit --audit-level=high
+                else
+                  npm audit --audit-level=high || echo "##vso[task.logissue type=warning]npm audit findings (advisory on non-protected branches)"
+                fi
+              displayName: "npm audit (Frontend Dependency Gate)"
+
+  # ==========================================================
+  # STAGE 3: Build container & SBOM
+  # ==========================================================
+  - stage: BuildContainer
+    displayName: "⚙️ 3. Build & SBOM - ${{ parameters.serviceName }}"
+    dependsOn: SASTSecurity
+    jobs:
+      - job: DockerBuild
+        displayName: "Build OCI image & CycloneDX SBOM"
+        steps:
+          - script: |
+              set -euo pipefail
+              export DOCKER_BUILDKIT=1
+              IMAGE_LOCAL="local/${{ parameters.serviceName }}:$(Build.SourceVersion)"
+              # Frontends build with their own dir as context; backends use the repo root (multi-module).
+              if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ]; then
+                docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t $IMAGE_LOCAL -f ${{ parameters.serviceDir }}/Dockerfile ${{ parameters.serviceDir }}
+              else
+                docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t $IMAGE_LOCAL -f ${{ parameters.serviceDir }}/Dockerfile .
+              fi
+              mkdir -p $(Pipeline.Workspace)/images
+              docker save $IMAGE_LOCAL -o $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
+            displayName: "Build OCI Image (BuildKit)"
+
+          - script: |
+              set -euo pipefail
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/${{ parameters.trivyVersion }}/contrib/install.sh \
+                | sh -s -- -b /usr/local/bin ${{ parameters.trivyVersion }}
+              mkdir -p $(Build.ArtifactStagingDirectory)/sbom
+              trivy image --format cyclonedx \
+                --output $(Build.ArtifactStagingDirectory)/sbom/${{ parameters.serviceName }}-sbom.cdx.json \
+                --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
+            displayName: "Generate CycloneDX SBOM"
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish Image Tarball"
+            inputs:
+              targetPath: '$(Pipeline.Workspace)/images'
+              artifact: 'container-image-${{ parameters.serviceName }}'
+              publishLocation: 'pipeline'
+
+          - task: PublishPipelineArtifact@1
+            displayName: "Publish CycloneDX SBOM"
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/sbom'
+              artifact: 'sbom-${{ parameters.serviceName }}'
+              publishLocation: 'pipeline'
+
+  # ==========================================================
+  # STAGE 4: Container vulnerability scan (Trivy)
+  # ==========================================================
+  - stage: ContainerScan
+    displayName: "🧰 4. Container Scan - ${{ parameters.serviceName }}"
+    dependsOn: BuildContainer
+    jobs:
+      - job: TrivyScan
+        displayName: "Trivy audit (CRITICAL,HIGH)"
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'container-image-${{ parameters.serviceName }}'
+              targetPath: '$(Pipeline.Workspace)/images'
+
+          - script: |
+              set -euo pipefail
+              curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/${{ parameters.trivyVersion }}/contrib/install.sh \
+                | sh -s -- -b /usr/local/bin ${{ parameters.trivyVersion }}
+              EXIT_CODE=0
+              if [ "$(isProtectedBranch)" = "True" ]; then EXIT_CODE=1; fi
+              trivy image \
+                --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar \
+                --severity HIGH,CRITICAL --ignore-unfixed --exit-code $EXIT_CODE
+            displayName: "Trivy Vulnerability Audit (Hard Gate on Protected Branches)"
+
+  # ==========================================================
+  # STAGE 5: Compliance gate (Conftest / OPA)
+  # ==========================================================
+  - stage: ComplianceGate
+    displayName: "🧾 5. Compliance Gate - ${{ parameters.serviceName }}"
+    dependsOn: ContainerScan
+    jobs:
+      - job: ConftestPolicyAudit
+        displayName: "Conftest Rego policy verification"
+        steps:
+          - task: HelmInstaller@1
+            displayName: "Install Helm ${{ parameters.helmVersion }}"
+            inputs:
+              helmVersionToInstall: ${{ parameters.helmVersion }}
+
+          - script: |
+              set -euo pipefail
+              helm template ${{ parameters.helmRelease }} ${{ parameters.helmChartPath }} \
+                --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) > rendered-manifests.yaml
+
+              curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v${{ parameters.conftestVersion }}/conftest_${{ parameters.conftestVersion }}_Linux_x86_64.tar.gz -o conftest.tar.gz
+              tar xzf conftest.tar.gz conftest
+              sudo mv conftest /usr/local/bin/
+
+              if [ ! -d devsecops/policies/conftest ]; then
+                echo "##vso[task.logissue type=warning]devsecops/policies/conftest/ not found - policy audit skipped."
+                exit 0
+              fi
+              if [ "$(isProtectedBranch)" = "True" ]; then
+                conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/
+              else
+                conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ \
+                  || echo "##vso[task.logissue type=warning]Policy findings (advisory on non-protected branches)"
+              fi
+            displayName: "Audit Helm manifests with Conftest"
+
+  # ==========================================================
+  # STAGE 6: Push the CANDIDATE image (immutable SHA tag) to ACR
+  # Dev and Staging pull <acr>/<svc>:<sha>, so the image must exist in ACR
+  # BEFORE the first deploy. Extra tags are added later, in PromoteImage.
+  # ==========================================================
+  - stage: PushCandidate
+    displayName: "📦 6. Push Candidate to ACR - ${{ parameters.serviceName }}"
+    dependsOn: ComplianceGate
+    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    jobs:
+      - job: PushSha
+        displayName: "Push <sha> tag to ACR"
+        steps:
+          - task: DownloadPipelineArtifact@2
+            inputs:
+              buildType: 'current'
+              artifactName: 'container-image-${{ parameters.serviceName }}'
+              targetPath: '$(Pipeline.Workspace)/images'
+
+          - task: AzureCLI@2
+            displayName: "Login to ACR and push candidate"
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name ${{ parameters.acrName }}
+                docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
+                TARGET=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}
+                docker tag local/${{ parameters.serviceName }}:$(Build.SourceVersion) $TARGET:$(Build.SourceVersion)
+                docker push $TARGET:$(Build.SourceVersion)
+
+  # ==========================================================
+  # DEV (develop branch)
+  # ==========================================================
+  - stage: DeployDev
+    displayName: "🌱 7. Deploy to AKS Dev - ${{ parameters.serviceName }}"
+    dependsOn: PushCandidate
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/develop'))
+    jobs:
+      - deployment: HelmDeployDev
+        displayName: "Helm upgrade on AKS Dev"
+        environment: 'dev'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: steps/helm-deploy.yml
+                  parameters:
+                    serviceConnection: ${{ parameters.serviceConnection }}
+                    resourceGroup: ${{ parameters.namePrefix }}-dev-rg
+                    cluster: ${{ parameters.namePrefix }}-dev-aks
+                    namespace: dev
+                    envName: dev
+                    springProfile: dev
+                    acrName: ${{ parameters.acrName }}
+                    serviceName: ${{ parameters.serviceName }}
+                    servicePort: ${{ parameters.servicePort }}
+                    helmChartPath: ${{ parameters.helmChartPath }}
+                    helmRelease: ${{ parameters.helmRelease }}
+                    helmVersion: ${{ parameters.helmVersion }}
+
+  - stage: RollbackDev
+    displayName: "🔄 Rollback Dev - ${{ parameters.serviceName }}"
+    dependsOn: DeployDev
+    condition: failed()
+    jobs:
+      - job: ExecuteDevRollback
+        displayName: "Helm rollback on Dev"
+        steps:
+          - template: steps/helm-rollback.yml
+            parameters:
+              serviceConnection: ${{ parameters.serviceConnection }}
+              resourceGroup: ${{ parameters.namePrefix }}-dev-rg
+              cluster: ${{ parameters.namePrefix }}-dev-aks
+              namespace: dev
+              helmRelease: ${{ parameters.helmRelease }}
+              helmVersion: ${{ parameters.helmVersion }}
+
+  # ==========================================================
+  # STAGING (release/* or main/master only)
+  # ==========================================================
+  - stage: DeployStaging
+    displayName: "🚀 8. Deploy to AKS Staging - ${{ parameters.serviceName }}"
+    dependsOn: PushCandidate
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    jobs:
+      - deployment: HelmDeployStaging
+        displayName: "Helm upgrade on AKS Staging"
+        environment: 'staging'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: steps/helm-deploy.yml
+                  parameters:
+                    serviceConnection: ${{ parameters.serviceConnection }}
+                    resourceGroup: ${{ parameters.namePrefix }}-staging-rg
+                    cluster: ${{ parameters.namePrefix }}-staging-aks
+                    namespace: staging
+                    envName: staging
+                    springProfile: staging
+                    acrName: ${{ parameters.acrName }}
+                    serviceName: ${{ parameters.serviceName }}
+                    servicePort: ${{ parameters.servicePort }}
+                    helmChartPath: ${{ parameters.helmChartPath }}
+                    helmRelease: ${{ parameters.helmRelease }}
+                    helmVersion: ${{ parameters.helmVersion }}
+
+      # Output variables of DEPLOYMENT jobs need a different (and fragile) path across
+      # stages. A regular job right after the deployment exposes it with the documented syntax:
+      #   stageDependencies.<stage>.<job>.outputs['<step>.<var>']
+      - job: ResolveIngress
+        displayName: "Resolve staging ingress URL"
+        dependsOn: HelmDeployStaging
+        steps:
+          - checkout: none
+          - task: AzureCLI@2
+            name: resolve
+            displayName: "Resolve Istio ingress gateway"
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az aks get-credentials \
+                  --resource-group ${{ parameters.namePrefix }}-staging-rg \
+                  --name ${{ parameters.namePrefix }}-staging-aks --overwrite-existing
+                if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
+
+                IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)
+                if [ -n "$IP" ]; then
+                  URL="http://$IP"
+                else
+                  URL="${{ parameters.ingressUrl }}"
+                fi
+                if [ -z "$URL" ]; then
+                  echo "##vso[task.logissue type=error]Could not resolve the staging ingress and no ingressUrl parameter was given."
+                  exit 1
+                fi
+                echo "Staging ingress: $URL"
+                echo "##vso[task.setvariable variable=RESOLVED_INGRESS_URL;isOutput=true]$URL"
+
+  # ---- Post-deploy tests: parallel, all BLOCKING (staging = production candidate) ----
+  - stage: IntegrationTests
+    displayName: "🔗 9. Integration Tests - ${{ parameters.serviceName }}"
+    dependsOn: DeployStaging
+    variables:
+      STAGE_INGRESS_URL: $[ stageDependencies.DeployStaging.ResolveIngress.outputs['resolve.RESOLVED_INGRESS_URL'] ]
+    jobs:
+      - job: NewmanExecution
+        displayName: "Postman Newman API contract suite"
+        steps:
+          - script: |
+              set -euo pipefail
+              TARGET_URL="$(STAGE_INGRESS_URL)"
+              [ -n "$TARGET_URL" ] || { echo "##vso[task.logissue type=error]Empty STAGE_INGRESS_URL"; exit 1; }
+              COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
+              if [ ! -f "$COLLECTION" ]; then
+                echo "##vso[task.logissue type=warning]$COLLECTION not found - Newman skipped."
+                exit 0
+              fi
+              npm install -g newman newman-reporter-htmlextra
+              newman run "$COLLECTION" --env-var "BASE_URL=${TARGET_URL}" \
+                --reporters cli,htmlextra \
+                --reporter-htmlextra-export $(Build.ArtifactStagingDirectory)/newman-report.html
+            displayName: "Run Newman Collection (Hard Gate)"
+
+          - task: PublishPipelineArtifact@1
+            condition: always()
+            displayName: "Publish Newman HTML Report"
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)'
+              artifact: 'newman-report-${{ parameters.serviceName }}'
+              publishLocation: 'pipeline'
+
+  - stage: E2ETests
+    displayName: "🧭 10. E2E Tests - ${{ parameters.serviceName }}"
+    dependsOn: DeployStaging
+    variables:
+      STAGE_INGRESS_URL: $[ stageDependencies.DeployStaging.ResolveIngress.outputs['resolve.RESOLVED_INGRESS_URL'] ]
+    jobs:
+      - job: CypressExecution
+        displayName: "End-to-end user journeys"
+        steps:
+          - script: |
+              set -euo pipefail
+              TARGET_URL="$(STAGE_INGRESS_URL)"
+              [ -n "$TARGET_URL" ] || { echo "##vso[task.logissue type=error]Empty STAGE_INGRESS_URL"; exit 1; }
+              cd ${{ parameters.serviceDir }}
+              if [ -f cypress.config.js ] || [ -f cypress.config.ts ]; then
+                CYPRESS_BASE_URL=$TARGET_URL npx cypress run
+              else
+                echo "##vso[task.logissue type=warning]No Cypress config for ${{ parameters.serviceName }} - skipped."
+              fi
+            displayName: "Run Cypress E2E Suite (Hard Gate)"
+
+  - stage: PerformanceTests
+    displayName: "⚡ 11. Performance Tests - ${{ parameters.serviceName }}"
+    dependsOn: DeployStaging
+    variables:
+      STAGE_INGRESS_URL: $[ stageDependencies.DeployStaging.ResolveIngress.outputs['resolve.RESOLVED_INGRESS_URL'] ]
+    jobs:
+      - job: K6LoadTest
+        displayName: "k6 latency (P95) & throughput"
+        steps:
+          - script: |
+              set -euo pipefail
+              TARGET_URL="$(STAGE_INGRESS_URL)"
+              [ -n "$TARGET_URL" ] || { echo "##vso[task.logissue type=error]Empty STAGE_INGRESS_URL"; exit 1; }
+              SCRIPT="devsecops/testing/k6/load-test.js"
+              if [ ! -f "$SCRIPT" ]; then
+                echo "##vso[task.logissue type=warning]$SCRIPT not found - k6 skipped."
+                exit 0
+              fi
+              # The gate is the thresholds defined inside load-test.js (exit code != 0 on SLA breach).
+              docker run --rm -v $(Build.SourcesDirectory):/work -w /work \
+                -e TARGET_URL=$TARGET_URL grafana/k6:${{ parameters.k6Version }} run $SCRIPT
+            displayName: "Execute k6 (Hard Gate on SLA thresholds)"
+
+  - stage: DASTScan
+    displayName: "🕵️ 12. DAST Scan - ${{ parameters.serviceName }}"
+    dependsOn: DeployStaging
+    variables:
+      STAGE_INGRESS_URL: $[ stageDependencies.DeployStaging.ResolveIngress.outputs['resolve.RESOLVED_INGRESS_URL'] ]
+    jobs:
+      - job: OWASPZAP
+        displayName: "OWASP ZAP baseline"
+        steps:
+          - script: |
+              set -euo pipefail
+              TARGET_URL="$(STAGE_INGRESS_URL)"
+              [ -n "$TARGET_URL" ] || { echo "##vso[task.logissue type=error]Empty STAGE_INGRESS_URL"; exit 1; }
+              mkdir -p $(Build.ArtifactStagingDirectory)/zap
+              chmod 777 $(Build.ArtifactStagingDirectory)/zap    # the ZAP container runs as a non-root user
+              RULES_FILE="devsecops/dast/zap/rules.tsv"
+              # Pin the ZAP image by tag/digest if you need reproducible scans.
+              if [ -f "$RULES_FILE" ]; then
+                docker run --rm \
+                  -v $(Build.SourcesDirectory)/devsecops/dast/zap:/zap/rules:ro \
+                  -v $(Build.ArtifactStagingDirectory)/zap:/zap/wrk/:rw \
+                  ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t $TARGET_URL -c /zap/rules/rules.tsv -r zap-report.html -I
+              else
+                docker run --rm -v $(Build.ArtifactStagingDirectory)/zap:/zap/wrk/:rw \
+                  ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t $TARGET_URL -r zap-report.html -I
+              fi
+            displayName: "Run OWASP ZAP Baseline (Hard Gate on FAIL-level alerts)"
+
+          - task: PublishPipelineArtifact@1
+            condition: always()
+            displayName: "Publish ZAP Report"
+            inputs:
+              targetPath: '$(Build.ArtifactStagingDirectory)/zap'
+              artifact: 'zap-report-${{ parameters.serviceName }}'
+              publishLocation: 'pipeline'
+
+  # Fires when the staging deploy OR any post-deploy test failed (failed() = any direct dependency failed).
+  - stage: RollbackStaging
+    displayName: "🔄 Rollback Staging - ${{ parameters.serviceName }}"
+    dependsOn:
+      - DeployStaging
+      - IntegrationTests
+      - E2ETests
+      - PerformanceTests
+      - DASTScan
+    condition: failed()
+    jobs:
+      - job: ExecuteRollback
+        displayName: "Helm rollback on Staging"
+        steps:
+          - template: steps/helm-rollback.yml
+            parameters:
+              serviceConnection: ${{ parameters.serviceConnection }}
+              resourceGroup: ${{ parameters.namePrefix }}-staging-rg
+              cluster: ${{ parameters.namePrefix }}-staging-aks
+              namespace: staging
+              helmRelease: ${{ parameters.helmRelease }}
+              helmVersion: ${{ parameters.helmVersion }}
+
+  # ==========================================================
+  # PROMOTE: add semantic / latest tags to the image that PASSED staging
+  # ==========================================================
+  - stage: PromoteImage
+    displayName: "🏷️ 13. Promote Certified Image - ${{ parameters.serviceName }}"
+    dependsOn:
+      - IntegrationTests
+      - E2ETests
+      - PerformanceTests
+      - DASTScan
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    jobs:
+      - job: PromoteTags
+        displayName: "Tag certified image in ACR"
+        steps:
+          - checkout: none
+          - task: AzureCLI@2
+            displayName: "Add release tags"
+            inputs:
+              azureSubscription: ${{ parameters.serviceConnection }}
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                set -euo pipefail
+                az acr login --name ${{ parameters.acrName }}
+                TARGET=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}
+                SRC=$TARGET:$(Build.SourceVersion)
+                docker pull $SRC
+                if [ -n "${{ parameters.imageVersion }}" ]; then
+                  docker tag $SRC $TARGET:${{ parameters.imageVersion }}
+                  docker push $TARGET:${{ parameters.imageVersion }}
+                fi
+                if [ "${{ parameters.tagLatest }}" = "True" ]; then
+                  docker tag $SRC $TARGET:latest
+                  docker push $TARGET:latest
+                fi
+                echo "Certified image: $SRC"
+
+  # ==========================================================
+  # PRODUCTION (main/master only) — approval check lives on the 'production'
+  # environment in the ADO portal (it cannot be declared in YAML).
+  # ==========================================================
+  - stage: DeployProduction
+    displayName: "🚢 14. Deploy to AKS Production - ${{ parameters.serviceName }}"
+    dependsOn: PromoteImage
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+    jobs:
+      - deployment: HelmCanaryProduction
+        displayName: "Production rollout"
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: steps/helm-deploy.yml
+                  parameters:
+                    serviceConnection: ${{ parameters.serviceConnection }}
+                    resourceGroup: ${{ parameters.namePrefix }}-prod-rg
+                    cluster: ${{ parameters.namePrefix }}-prod-aks
+                    namespace: production
+                    envName: production
+                    springProfile: prod
+                    acrName: ${{ parameters.acrName }}
+                    serviceName: ${{ parameters.serviceName }}
+                    servicePort: ${{ parameters.servicePort }}
+                    helmChartPath: ${{ parameters.helmChartPath }}
+                    helmRelease: ${{ parameters.helmRelease }}
+                    helmVersion: ${{ parameters.helmVersion }}
+                    verifyRollout: true
+
+                - ${{ if and(eq(parameters.canaryEnabled, true), ne(parameters.canaryVirtualServicePath, '')) }}:
+                  - task: AzureCLI@2
+                    displayName: "Istio canary traffic shifting"
+                    inputs:
+                      azureSubscription: ${{ parameters.serviceConnection }}
+                      scriptType: bash
+                      scriptLocation: inlineScript
+                      inlineScript: |
+                        set -euo pipefail
+                        for f in k8s/istio/05-destination-rules.yaml k8s/istio/destination-rules.yaml; do
+                          if [ -f "$f" ]; then kubectl apply -f "$f" -n production; break; fi
+                        done
+                        kubectl apply -f "${{ parameters.canaryVirtualServicePath }}" -n production
+
+  - stage: RollbackProduction
+    displayName: "🔄 Rollback Production - ${{ parameters.serviceName }}"
+    dependsOn: DeployProduction
+    condition: failed()
+    jobs:
+      - job: ExecuteProdRollback
+        displayName: "Helm rollback on Production"
+        steps:
+          - template: steps/helm-rollback.yml
+            parameters:
+              serviceConnection: ${{ parameters.serviceConnection }}
+              resourceGroup: ${{ parameters.namePrefix }}-prod-rg
+              cluster: ${{ parameters.namePrefix }}-prod-aks
+              namespace: production
+              helmRelease: ${{ parameters.helmRelease }}
+              helmVersion: ${{ parameters.helmVersion }}
+              restoreManifests: 'k8s/istio/05-destination-rules.yaml k8s/istio/destination-rules.yaml'
