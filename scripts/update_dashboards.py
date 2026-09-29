@@ -1,4 +1,6 @@
 import json
+import argparse
+import os
 import sys
 
 sys.stdout.reconfigure(encoding='utf-8')
@@ -439,7 +441,7 @@ tech_panels = [
         "id": 103,
         "type": "stat",
         "title": "🚨 Edge Security Attack Status & Threat Level",
-        "description": "Classifies actual frontend Nginx HTTP 429 blocks per second: NORMAL (<1), ELEVATED (1–5), UNDER ATTACK (≥5). The signal decays after blocked traffic stops.",
+        "description": "Counts frontend Nginx HTTP 429 blocks per second from JSON access logs. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec. The signal decays after blocked traffic stops.",
         "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
         "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
@@ -453,32 +455,6 @@ tech_panels = [
                         {"color": "#ef4444", "value": 5}
                     ]
                 },
-                "mappings": [
-                    {
-                        "type": "range",
-                        "options": {
-                            "from": None,
-                            "to": 0.999,
-                            "result": {"text": "NORMAL / SECURE", "color": "#10b981"}
-                        }
-                    },
-                    {
-                "type": "range",
-                "options": {
-                    "from": 1,
-                    "to": 4.999,
-                    "result": {"text": "ELEVATED THREAT", "color": "#f59e0b"}
-                        }
-                    },
-                    {
-                        "type": "range",
-                        "options": {
-                            "from": 5,
-                            "to": None,
-                            "result": {"text": "UNDER ATTACK / DDOS", "color": "#ef4444"}
-                        }
-                    }
-                ]
             }
         },
         "options": {
@@ -487,7 +463,7 @@ tech_panels = [
         },
         "targets": [{
             "datasource": {"uid": "loki-ds", "type": "loki"},
-            "expr": "sum(rate({service=\"frontend\"} | json | status=\"429\" [1m])) or vector(0)",
+          "expr": "sum(rate({service=\"frontend\"} | json | __error__=\"\" | status=429 [1m])) or vector(0)",
             "legendFormat": "Frontend HTTP 429 / second",
             "queryType": "range"
         }]
@@ -744,7 +720,7 @@ tech_panels = [
         "id": 501,
         "type": "bargauge",
         "title": "🛑 Blocked Attacks (HTTP 429) & Observed Peer IPs",
-        "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
+        "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. With no 429 events, the IP target displays 'No blocked peers'. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
         "gridPos": {"h": 8, "w": 10, "x": 0, "y": 30},
         "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
@@ -769,13 +745,13 @@ tech_panels = [
         "targets": [
             {
                 "datasource": {"uid": "loki-ds", "type": "loki"},
-                "expr": "sum(count_over_time({service=\"frontend\"} | json | status=\"429\" [15m])) or vector(0)",
+                "expr": "sum(count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=429 [15m])) or vector(0)",
                 "legendFormat": "Blocked HTTP 429 (15m)",
                 "queryType": "range"
             },
             {
                 "datasource": {"uid": "loki-ds", "type": "loki"},
-                "expr": "topk(5, sum by (peer_ip) (count_over_time({service=\"frontend\"} | json | status=\"429\" [15m])))",
+                "expr": "topk(5, sum by (peer_ip) (count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=429 | peer_ip!=\"\" [15m]))) or on() label_replace(vector(0), \"peer_ip\", \"No blocked peers\", \"__name__\", \".*\")",
                 "legendFormat": "IP {{peer_ip}}",
                 "queryType": "range"
             }
@@ -800,31 +776,46 @@ tech_panels = [
             "legendFormat": "{{service}}"
         }, {
             "datasource": {"uid": "loki-ds", "type": "loki"},
-            "expr": "{service=\"frontend\"} | json | status=\"429\"",
+            "expr": "{service=\"frontend\"} | json | __error__=\"\" | status=429",
             "legendFormat": "frontend rate-limit block"
         }]
     }
 ]
 
 tech['panels'] = tech_panels
+tech['version'] = tech.get('version', 1) + 1
 with open(tech_path, 'w', encoding='utf-8') as f:
     json.dump(tech, f, indent=2, ensure_ascii=False)
 
 print("Technical dashboard successfully curated (12 essential panels, 5 SRE rows)!")
 
-# Automatically push to live Grafana API if reachable
+# Live Grafana updates are explicit and require user-provided credentials.
 import urllib.request
 import base64
 
-try:
-    auth = base64.b64encode(b'admin:admin').decode('ascii')
-    headers = {'Content-Type': 'application/json', 'Authorization': f'Basic {auth}'}
+parser = argparse.ArgumentParser(description="Generate Grafana dashboards; live publishing is opt-in.")
+parser.add_argument("--push", action="store_true", help="Publish generated dashboards to GRAFANA_URL using a token or credentials from environment variables.")
+args = parser.parse_args()
+
+if args.push:
+    grafana_url = os.getenv("GRAFANA_URL", "http://localhost:3000").rstrip("/")
+    token = os.getenv("GRAFANA_TOKEN")
+    username = os.getenv("GRAFANA_USERNAME")
+    password = os.getenv("GRAFANA_PASSWORD")
+    if token:
+        authorization = f"Bearer {token}"
+    elif username and password:
+        encoded = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+        authorization = f"Basic {encoded}"
+    else:
+        raise SystemExit("--push requires GRAFANA_TOKEN or both GRAFANA_USERNAME and GRAFANA_PASSWORD.")
+
+    headers = {"Content-Type": "application/json", "Authorization": authorization}
     for path in [biz_path, tech_path]:
-        d = json.load(open(path, 'r', encoding='utf-8'))
-        payload = json.dumps({'dashboard': d, 'overwrite': True}).encode('utf-8')
-        req = urllib.request.Request('http://localhost:3000/api/dashboards/db', data=payload, headers=headers)
-        with urllib.request.urlopen(req, timeout=3) as resp:
-            r = json.loads(resp.read().decode())
-            print(f"Pushed {path} to Grafana: {r.get('status')}")
-except Exception as e:
-    print(f"Could not push to live Grafana (will load on next start): {e}")
+        with open(path, "r", encoding="utf-8") as dashboard_file:
+            dashboard = json.load(dashboard_file)
+        payload = json.dumps({"dashboard": dashboard, "overwrite": True}).encode("utf-8")
+        req = urllib.request.Request(f"{grafana_url}/api/dashboards/db", data=payload, headers=headers)
+        with urllib.request.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode("utf-8"))
+            print(f"Pushed {path} to Grafana: {result.get('status')}")
