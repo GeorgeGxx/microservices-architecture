@@ -1,33 +1,32 @@
-# ☁️ Multi-Cloud Terraform Infrastructure & Automated Rollback Guide
+# ☁️ Multi-Cloud Terraform Infrastructure & Recovery Guide
 
-> Architecture specification for AWS (EKS / RDS / VPC), Azure (AKS / PostgreSQL / KeyVault), and GCP (GKE / CloudSQL / Memorystore) with multi-cloud Terraform modules and automated rollback strategies.
+> Architecture specification for AWS (EKS / RDS / VPC), Azure (AKS / PostgreSQL / KeyVault), and GCP (GKE / CloudSQL / Memorystore), including environment-isolated Terraform state and application recovery procedures.
 
 ---
 
 ## 🔄 Automated & Manual Rollback Operations Guide (Multi-Cloud & Multi-CI/CD)
 
-The platform implements an enterprise **4-Tier Automated Rollback Engine** across all CI/CD platforms (**GitHub Actions**, **Azure DevOps**, **Bitbucket Pipelines**) and GitOps (**ArgoCD**), ensuring zero downtime and immediate recovery from faulty deployments or degraded canary releases:
+Recovery behavior depends on the deployment path. Helm atomic upgrades restore the prior release when deployment readiness fails; later QA failures block promotion and require an operator to redeploy/rollback. ArgoCD recovery is performed by reverting Git or using its rollback controls. Do not assume every CI provider executes the same rollback hooks or that a production canary is enabled:
 
 ```mermaid
 flowchart TD
-    A[🚀 Trigger Deployment] --> B[Stage 6: Helm Upgrade]
-    B -->|Pods Crash / Timeout > 5m| C[Tier 1: Helm --atomic Rollback]
-    B -->|Pods Ready 100%| D[Stages 7-10: Automated QA Suite]
-    D -->|Newman / Cypress / k6 Fail| E[Tier 2: CI/CD Automated Staging Rollback]
-    D -->|All QA Gates Pass| F[Stage 12: Production Canary 10%]
-    F -->|Rollout Timeout / Probe Failure| G[Tier 3: Emergency Canary Rollback]
-    F -->|Stabilized & Verified| H[Production Live 100%]
-    H -->|Production Outage / CVE| I[Tier 4: GitOps Rollback via ArgoCD]
+    A[🚀 Trigger Deployment] --> B[Helm upgrade --atomic]
+    B -->|Readiness or rollout fails| C[Helm restores previous release]
+    B -->|Deployment succeeds| D[Post-deploy QA gates]
+    D -->|QA fails| E[Promotion blocked; operator investigates/rolls back]
+    D -->|QA passes| F[Manual production approval where configured]
+    F --> G[Provider-specific production rollout]
+    G -->|Production incident| H[Git revert / ArgoCD or Helm recovery]
 ```
 
-### 1. 🛡️ The 4-Tier Automated Rollback Engine
+### 1. 🛡️ Deployment and recovery behavior
 
 | Tier | Layer | Trigger Condition | Automated Action |
 | :--- | :--- | :--- | :--- |
-| **Tier 1** | **Helm Deploy Engine** | Pod enters `CrashLoopBackOff`, fails `readinessProbe`, or exceeds 5 min timeout. | `--atomic` and `--cleanup-on-fail` automatically abort the upgrade, clean up orphaned resources, and revert Kubernetes pods to the previous healthy revision. |
-| **Tier 2** | **Post-Deploy QA Failure** | Pods start, but Newman API contract, Cypress E2E, or k6 performance tests fail. | **GitHub Actions:** Job `rollback-staging` runs `if: failure()`.<br/>**Azure DevOps:** Stage `RollbackStaging` runs `condition: failed()`.<br/>**Bitbucket:** Step `&rollback-gke-staging` executes `helm rollback`. |
-| **Tier 3** | **Production Canary Health** | Canary rollout fails to stabilize within 2 minutes (`kubectl rollout status`). | CI/CD immediately executes `helm rollback microservices --namespace production --wait`, aborting traffic shift and protecting 100% of live users. |
-| **Tier 4** | **GitOps & Self-Healing** | Declarative configuration drift or post-release production issue. | **ArgoCD:** Configured with `PruneLast=true` (ensures new pods are healthy before destroying old pods) and exponential backoff `retry` policy (5 retries up to 3m). |
+| **Helm deployment** | Readiness/rollout failure during upgrade | `--atomic` waits and rolls back the failed release. Bitbucket also attempts `helm rollback` for deployment-step errors when a prior release exists. |
+| **Post-deploy QA** | Newman, storefront smoke, k6, or ZAP gate fails after deploy | Pipeline blocks further promotion. These current Bitbucket gates do not run an automatic rollback after deployment; inspect the release and use the manual Helm runbook below if rollback is warranted. |
+| **Production** | Production release fails or causes an incident | Use the provider's configured rollout and recovery process. Bitbucket production is a manually approved rolling Helm release, not an Istio canary. |
+| **GitOps** | Declarative configuration drift or release issue | Revert the Git commit and allow ArgoCD to reconcile, or use the documented emergency ArgoCD rollback procedure. |
 
 ---
 
@@ -71,8 +70,9 @@ helm rollback microservices 3 -n production --wait --timeout 5m
 * To redeploy a previous build: Open **Pipelines** ➔ Select a previous successful build run ➔ Click **Run new** or **Redeploy stage**.
 
 #### E. Bitbucket Pipelines:
-* The step `&rollback-gke-staging` can be triggered or called via `after-script` with `$BITBUCKET_EXIT_CODE`.
-* To deploy a known stable version: Navigate to **Pipelines** ➔ **Run pipeline** ➔ Select branch and run custom `deploy-service` with `IMAGE_TAG=<previous-sha>`.
+* A failed Helm upgrade uses `--atomic`; deployment-step errors also attempt rollback when an earlier release exists.
+* Later API, storefront, performance, or DAST gate failures stop the pipeline but do not automatically revert the already deployed staging revision. Inspect the failure, then use `helm history microservices -n <namespace>` and `helm rollback microservices <revision> -n <namespace> --wait` when appropriate.
+* Production promotion/deployment is an explicit manual stage and uses the immutable commit SHA; it is a rolling Helm release, not an Istio canary.
 
 ---
 
@@ -111,13 +111,25 @@ foreach ($provider in @('aws', 'azure', 'gcp')) {
 }
 ```
 
-The workspaces are defined independently in each provider root. **Remote-state
-parity is still a prerequisite**: AWS declares an S3 backend, while the Azure
-and GCP roots currently have no remote backend blocks and therefore use local
-state. Do not run cloud applies concurrently or from ephemeral CI workers for
-those roots until their remote state stores and locking are configured. The
-cluster-count changes are code-only here; review all three production plans
-and their cost estimates before applying them.
+Each provider root uses the same workspace names: `dev`, `staging`, and `prod`.
+AWS uses one S3 bucket and DynamoDB lock table across those workspaces; the
+GitHub workflow and `platform.ps1` must use the same bucket/table pair. Azure
+uses one Blob container with lease locking, and GCP uses one GCS bucket with
+native state locking. Before running Azure/GCP cloud commands, provision their
+state stores and copy/fill the ignored partial-backend files:
+
+```powershell
+Copy-Item terraform/backend-config/azure.hcl.example terraform/backend-config/azure.hcl
+Copy-Item terraform/backend-config/gcp.hcl.example terraform/backend-config/gcp.hcl
+```
+
+The example files contain placeholders and are not ready for use until you
+replace them with real storage identifiers. Do not commit the filled files.
+The new backend declarations do not migrate existing local state. If you have
+state already in use, back it up and plan a deliberate `terraform init
+-migrate-state` for each provider/workspace before any cloud plan or apply.
+Terraform initialization and plans were not run against cloud credentials as
+part of this code change. Review all production plans and costs before apply.
 
 ### 1. AWS Provider (Amazon EKS / RDS / VPC)
 Located in `terraform/environments/aws/` and `terraform/modules/aws/`:
@@ -133,7 +145,7 @@ terraform apply -var-file=staging/terraform.tfvars
 Located in `terraform/environments/azure/` and `terraform/modules/azure/`:
 ```powershell
 cd terraform/environments/azure
-terraform init
+terraform init -backend-config=../../backend-config/azure.hcl
 terraform workspace select staging || terraform workspace new staging
 terraform plan -var-file=staging/terraform.tfvars
 terraform apply -var-file=staging/terraform.tfvars
@@ -143,7 +155,7 @@ terraform apply -var-file=staging/terraform.tfvars
 Located in `terraform/environments/gcp/` and `terraform/modules/gcp/`:
 ```powershell
 cd terraform/environments/gcp
-terraform init
+terraform init -backend-config=../../backend-config/gcp.hcl
 terraform workspace select staging || terraform workspace new staging
 terraform plan -var-file=staging/terraform.tfvars
 terraform apply -var-file=staging/terraform.tfvars

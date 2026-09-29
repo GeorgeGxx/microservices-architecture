@@ -1,6 +1,10 @@
 terraform {
   required_version = ">= 1.8.0"
 
+  # Partial backend configuration is supplied from the operator's ignored
+  # terraform/backend-config/gcp.hcl file. GCS provides state locking.
+  backend "gcs" {}
+
   required_providers {
     google = {
       source  = "hashicorp/google"

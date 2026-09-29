@@ -1,6 +1,10 @@
 terraform {
   required_version = ">= 1.8.0"
 
+  # Partial backend configuration is supplied from the operator's ignored
+  # terraform/backend-config/azure.hcl file. Blob leases provide state locking.
+  backend "azurerm" {}
+
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"

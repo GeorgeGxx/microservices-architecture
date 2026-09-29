@@ -12,11 +12,8 @@ terraform {
     }
   }
 
-  # AWS Well-Architected Security Pillar & Principle of Least Privilege (PoLP):
-  # Remote state is isolated per environment (staging vs prod).
-  # Backends and workspaces are managed via .\platform.ps1
-  # Dynamic backend configuration can be supplied during `terraform init`:
-  #   terraform init -backend-config="bucket=georgegxx-msa-tfstate-${ENV}" -backend-config="dynamodb_table=georgegxx-msa-tflock-${ENV}"
+  # Shared provider backend with isolated dev/staging/prod workspaces.
+  # platform.ps1 and GitHub Actions must use this same bucket/table pair.
   backend "s3" {
     bucket         = "georgegxx-msa-tfstate-prod"
     key            = "aws/microservices.tfstate"
