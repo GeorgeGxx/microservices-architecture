@@ -4,6 +4,9 @@ description: Umbrella chart deploying Cosmo Router, the frontend, and 4 business
 type: application
 version: 1.0.0
 appVersion: "1.0.0"
+annotations:
+  org.opencontainers.image.source: "https://github.com/GeorgeGxx/microservices-architecture"
+  microservices-architecture.io/helm-oci-repository: "oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella"
 dependencies:
   - name: cosmo-router
     version: "2.0.0"

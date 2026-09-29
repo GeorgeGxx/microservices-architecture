@@ -25,8 +25,6 @@ parameters:
     type: string
   - name: servicePort
     type: number
-  - name: helmChartPath
-    type: string
   - name: helmRelease
     type: string
   - name: helmVersion
@@ -46,6 +44,9 @@ steps:
 
   - task: AzureCLI@2
     displayName: "Helm upgrade -> ${{ parameters.envName }} (${{ parameters.cluster }} / ${{ parameters.namespace }})"
+    env:
+      GHCR_USERNAME: $(GHCR_USERNAME)
+      GHCR_TOKEN: $(GHCR_TOKEN)
     inputs:
       azureSubscription: ${{ parameters.serviceConnection }}
       scriptType: bash
@@ -58,7 +59,16 @@ steps:
           --overwrite-existing
         if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
 
-        helm upgrade --install ${{ parameters.helmRelease }} ${{ parameters.helmChartPath }} \
+        : "${GHCR_USERNAME:?Set GHCR_USERNAME as a read-only GHCR package account}"
+        : "${GHCR_TOKEN:?Set GHCR_TOKEN as a secret with read:packages access}"
+        CHART_VERSION="$(helm show chart ./helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
+        CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' helm/microservices-umbrella/Chart.yaml)"
+        [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid umbrella chart version: $CHART_VERSION"; exit 1; }
+        [[ "$CHART_REPOSITORY" == oci://ghcr.io/*/microservices-umbrella ]] || { echo "Invalid umbrella chart OCI repository: $CHART_REPOSITORY"; exit 1; }
+        printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+
+        helm upgrade --install ${{ parameters.helmRelease }} "$CHART_REPOSITORY" \
+          --version "$CHART_VERSION" \
           --reuse-values \
           --namespace ${{ parameters.namespace }} \
           --create-namespace \

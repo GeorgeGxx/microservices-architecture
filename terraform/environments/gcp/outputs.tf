@@ -2,6 +2,21 @@ output "gke_cluster_name" {
   value = module.gke.cluster_name
 }
 
+output "microservices_chart_repository" {
+  description = "Immutable GHCR OCI repository consumed by application deployment pipelines."
+  value       = local.microservices_chart_repository
+}
+
+output "microservices_chart_version" {
+  description = "Pinned umbrella chart version from helm/microservices-umbrella/Chart.yaml."
+  value       = local.microservices_chart.version
+}
+
+output "microservices_chart_reference" {
+  description = "Version-pinned GHCR chart reference; Terraform provisions infrastructure, CI/GitOps deploys this artifact."
+  value       = "${local.microservices_chart_repository}:${local.microservices_chart.version}"
+}
+
 output "gcp_project_id" {
   description = "GCP project used by the provider and kubeconfig setup."
   value       = var.project_id
