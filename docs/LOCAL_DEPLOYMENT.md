@@ -33,7 +33,7 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
 | **Apollo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
 | **Spring Boot Microservices (x4)** | `400m` | `2000m` | `512Mi` | `1536Mi` | `1Gi` | Java 21 Virtual Threads concurrency |
-| **Keycloak 26.7.3 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
+| **Keycloak 26.7.4 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
 | **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
@@ -49,12 +49,12 @@ All microservices and infrastructure pods are pre-configured with enterprise res
 
 ## 🛠️ Winget DevSecOps & Platform CLI Tool Suite
 
-The platform standardizes **17 essential industry-standard CLI applications** managed via Windows Package Manager (`winget`):
+The platform audits **18 essential project CLI/runtime tools** managed via Windows Package Manager (`winget`); the optional cloud-provider CLIs and `kubectl-cost` Krew plugin are installed separately:
 
 ### 1. IaC & FinOps
 - **`Hashicorp.Terraform` (`terraform`)**: Multi-cloud Infrastructure as Code engine.
 - **`TerraformLinters.tflint` (`tflint`)**: Framework linter enforcing module conventions and catching provider errors.
-- **`Infracost.Infracost` (`infracost`)**: Cloud cost estimation engine for Terraform.
+- **Krew `cost` plugin (`kubectl-cost`)**: Live Kubernetes workload-cost queries through OpenCost (`kubectl cost ... --opencost`). It is a kubectl plugin, not a separate OpenCost CLI binary.
 - **`Graphviz.Graphviz` (`dot`)**: Dependency graph visualization utility (`terraform graph | dot -Tpng -o graph.png`).
 
 ### 2. DevSecOps & Security
@@ -68,13 +68,23 @@ The platform standardizes **17 essential industry-standard CLI applications** ma
 - **`Kubernetes.minikube` (`minikube`)**: Local Kubernetes cluster driver.
 - **`Kubernetes.kubectl` (`kubectl`)**: Kubernetes cluster management CLI.
 - **`Helm.Helm` (`helm`)**: Kubernetes package manager for umbrella chart deployment.
+
+OpenCost is reconciled by ArgoCD on Minikube and cloud clusters. Minikube reuses the existing kube-prometheus-stack; cloud clusters receive a resource-sized Prometheus chart through `argocd/applicationset-prometheus-cloud.yaml`. The OpenCost UI is available locally at [http://localhost:7000](http://localhost:7000) through the tunnel supervisor. Install the optional CLI plugin with `kubectl krew install cost`, then query the active context with `kubectl cost namespace --opencost --show-all-resources --window 1d`.
+
+Cloud cluster entries managed by the cloud ApplicationSets must carry these Argo CD cluster-secret labels: `finops.opencost.io/enabled=true`, `finops.opencost.io/provider=aws|azure|gcp`, `environment=dev|staging|prod`, `data-plane=primary|dp1|dp2`, and `git-branch=develop|staging|main`. Use `primary` for dev/staging and `dp1`/`dp2` for the two production data planes. The Terraform tags/labels aid cloud-side cost allocation; OpenCost cloud-billing ingestion stays disabled until provider billing exports and credentials are configured.
+
+Docker Compose does not install OpenCost: it can run the application containers but does not provide Kubernetes workload allocation data.
 - **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
 
 ### 4. Runtimes, Build Tools & Productivity
 - **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
+- **`BellSoft.LibericaJDK.21` (`java`)**: Java 21 runtime required by the Spring Boot services.
 - **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for React frontend compilation.
+- **`Python.Python.3.12` (`python`)**: Runtime for the documented project automation and test scripts.
 - **`Git.Git` (`git`)**: Distributed version control system.
 - **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
+
+`Install-DevTools.ps1` audits by default. Use `-Install` to install only this documented inventory; use `-IncludeCloudCli` only when configuring AWS/Azure/GCP credentials and `-InstallOpenCostPlugin` for the optional OpenCost Krew plugin. It does not install Spark, Transmission, alternate IaC CLIs, or unrelated Kubernetes utilities, and it does not change machine-wide environment variables.
 
 > ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
 > To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
@@ -104,7 +114,7 @@ npm install
 npm run dev
 ```
 
-**Key Frontend, Mobile PWA & Storefront Features (`http://localhost:4200`):**
+**Key Frontend, Responsive Web & Storefront Features (`http://localhost:5173`):**
 - **Hardware-Agnostic Universal QR & Barcode Engine:**
   - 📷 **Live Camera Stream (WebRTC):** Lens switching (front/rear), flashlight/torch toggle, and real-time laser animation.
   - 📁 **Image File Upload:** Drag-and-drop or file picker decoding of QR codes and barcodes.
@@ -113,21 +123,21 @@ npm run dev
 - **Enterprise Multi-Step Checkout & Logistics (Amazon & Mercado Libre):**
   - 📍 **Persistent Recipient Profile:** Automatic `localStorage` persistence (`msa_shipping_address`) enabling 1-click address recall for repeat buyers.
   - 🚚 **Tiered Delivery & DHL Tracking:** Real-time choice between Free Standard Shipping (3-5 days) and ⚡ DHL Express Priority ($9.99, 24-48h) with automated `DHL-XXXXXXXX` tracking generation.
-  - 💳 **Real-Time Card Brand Detection:** Instant IIN/BIN recognition (Visa, Mastercard, AMEX) with dynamic cardholder validation, CVV security, and 256-bit SSL badges.
+  - 💳 **Local Payment Simulation:** Choose a demo-approved or demo-declined outcome. No payment card data is requested or stored; no payment provider or real charge is involved. A declined outcome does not create an order or decrement inventory.
 - **Product Catalog Social Proof & Verified Ratings:**
   - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
-- **Admin Operations Console & Real-Time Health LED:**
-  - Dedicated admin gear icon in the navbar with an embedded dynamic health LED ("foquito sutil" 🟢/🟠/🔴) reflecting real-time microservices reachability, paired with a centralized `/admin` dashboard featuring 4-second animated `LIVE SYNC` inventory polling (infrastructure telemetry delegated to Grafana).
+- **Admin Operations Console & Storefront API Health LED:**
+  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Apollo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. It does not represent all microservices or cluster health; use Grafana for platform telemetry. The `/admin` dashboard is available to users with the Keycloak `ADMIN` role.
 - **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
   - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
   - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.
   - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier clearly pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
   - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order` ensuring 100% button visibility on smartphones without overflowing.
   - 📄 **Non-Clipping Mobile Pagination:** Ergonomic pagination controls with responsive button wrapping preventing `Next` button clipping.
-- **Progressive Web App (PWA) & Responsive Mobile UX:**
+- **Responsive Web UX:**
   - 🔔 **Viewport-Bounded Notifications Drawer:** Fixed position mobile dropdown (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for long codes.
-  - 📱 **Mobile Storefront PWA:** Standalone installation (`manifest.webmanifest`), floating scan FAB button, camera WebRTC barcode scanner, and haptic vibration (`navigator.vibrate`).
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.3 with automatic JWT token management and route guards.
+  - 📱 **Mobile Web Storefront:** A web manifest is present along with a floating scan button, browser camera barcode scanner, and optional haptic feedback. A service worker/offline mode and a React Native app are not part of the current frontend.
+- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.4 with automatic JWT token management and route guards.
 
 ---
 
@@ -259,7 +269,7 @@ Expose all internal services and web consoles to `localhost`:
 ```
 
 Once tunnels are active, access local web interfaces:
-- **Frontend SPA:** [http://localhost:4200](http://localhost:4200)
+- **Frontend SPA:** [http://localhost:5173](http://localhost:5173)
 - **Apollo Router GraphQL:** [http://localhost:8080/graphql](http://localhost:8080/graphql)
 - **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
@@ -354,7 +364,7 @@ docker exec -it vault vault read database/creds/products-db-role
 
 # 2. Transit Encryption as a Service (Encrypt & Decrypt on-the-fly):
 # Encrypt:
-docker exec -it vault vault write transit/encrypt/microservices-data-key plaintext=$(echo -n "CreditCard-4111222233334444" | base64)
+docker exec -it vault vault write transit/encrypt/microservices-data-key plaintext=$(echo -n "local-demo-secret" | base64)
 # Decrypt:
 docker exec -it vault vault write transit/decrypt/microservices-data-key ciphertext="<ciphertext_value>"
 

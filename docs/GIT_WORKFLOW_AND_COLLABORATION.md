@@ -14,12 +14,12 @@ gitGraph
     branch develop
     checkout develop
     commit id: "Initial-Dev"
-    branch feature/foquito
-    checkout feature/foquito
+    branch feature/led
+    checkout feature/led
     commit id: "feat: add LED status"
     commit id: "test: verify navbar"
     checkout develop
-    merge feature/foquito id: "PR #42: Squash & Merge"
+    merge feature/led id: "PR #42: Squash & Merge"
     branch staging
     checkout staging
     merge develop id: "Promote to Staging"

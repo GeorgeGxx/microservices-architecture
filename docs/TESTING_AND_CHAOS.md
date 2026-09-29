@@ -55,6 +55,11 @@ flowchart TD
 
 ## 🧪 Automated Testing, Load Simulation & Chaos Engineering
 
+For a bounded two-VU GraphQL latency/error baseline and a non-destructive local
+PostgreSQL backup/restore drill, see [Local Maturity Gates](./LOCAL_MATURITY_GATES.md).
+The k6 baseline runs through the frontend proxy; it does not generate attack
+traffic or replace an explicitly planned capacity test.
+
 Enterprise testing scripts located in `scripts/testing/`:
 
 ### 1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)
@@ -134,13 +139,11 @@ python scripts/testing/simulate.py --scenario chaos
 ### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`simulate.py --scenario ddos`)
 Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, override `--ddos-url`:
 ```powershell
-# GraphQL flood through the shared frontend edge limiter (12 workers by default):
-python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 24
+# Generate observable HTTP 429 responses through the shared frontend edge limiter:
+python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 32
 
-# Probe the public frontend route through the deployed edge:
-python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:4200 --duration 30 --workers 1
-
-python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:4200 --duration 30 --workers 2 --no-auth
+# Probe a separately exposed frontend edge (the script still requires a Keycloak token):
+python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:5173 --duration 30 --workers 32
 
 # Do not rotate synthetic X-Forwarded-For headers:
 python scripts/testing/simulate.py --scenario ddos --single-source
@@ -149,7 +152,7 @@ python scripts/testing/simulate.py --scenario ddos --single-source
 python scripts/testing/simulate.py --scenario ddos --no-auth
 ```
 
-The DDoS probe targets frontend Nginx (default `http://127.0.0.1:4200`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. `--distributed` sends synthetic `X-Forwarded-For` headers only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads real HTTP 429 events and source IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `--no-auth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
+The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. A single worker or a short low-volume check will not cross that limit and therefore will not create 429 log records. The dashboard threat LED averages 429 events over one minute: it turns amber above 1 blocked request/second and red at 5/second; expect a short ingestion/refresh delay and up to one minute of decay after the load stops. `--distributed` sends synthetic `X-Forwarded-For` headers only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads actual HTTP 429 JSON records and peer IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `--no-auth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
@@ -180,7 +183,7 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 ```powershell
 # Inject 30 abandoned cart events via the public Orders Funnel API:
 1..30 | ForEach-Object {
-    Invoke-RestMethod -Uri "http://localhost:4200/api/order/funnel" `
+    Invoke-RestMethod -Uri "http://localhost:5173/api/order/funnel" `
       -Method POST `
       -ContentType "application/json" `
       -Body '{"eventType":"CART_ADD","category":"Electronics"}'
@@ -193,7 +196,7 @@ Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) w
 ---
 
 ##### 🖥️ Method 2: Interactive Browser Testing via React 19 Frontend SPA
-1. Open the storefront in your web browser: **[http://localhost:4200](http://localhost:4200)**.
+1. Open the storefront in your web browser: **[http://localhost:5173](http://localhost:5173)**.
 2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click sends a public `CART_ADD` event through frontend Nginx to the Orders REST funnel endpoint).
 3. Leave the session idle or close the shopping cart drawer (abandoning the purchase).
 4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the aggregate gauge update after the next scrape.
@@ -220,7 +223,7 @@ The repository maintains a comprehensive Postman collection in [`devsecops/testi
   * **Order Placement:** Generates dynamic `idempotency_key` (UUIDv4) and automated DHL tracking number (`DHL-[A-Z0-9]+`), saving `order_id` into collection variables.
   * **Logistics State Machine:** Progresses orders through `shipOrder` (`SHIPPED`) and `deliverOrder` (`DELIVERED`).
   * **Saga Compensation:** Creates a second order, then cancels it while it is still `PLACED` to verify compensation and inventory restoration.
-* **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`). Requests use the frontend Nginx reverse proxy, so they work without separate host port-forwards to each ClusterIP service. Set `BASE_URL` to the reachable frontend URL (default `http://127.0.0.1:4200`; for a manual Minikube forward, e.g. `http://127.0.0.1:18080`). The SSE stream is long-lived; run it individually rather than in the full Newman collection.
+* **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`). Requests use the frontend Nginx reverse proxy, so they work without separate host port-forwards to each ClusterIP service. Set `BASE_URL` to the reachable frontend URL (default `http://127.0.0.1:5173`, also used by the Minikube tunnel supervisor). The SSE stream is long-lived; run it individually rather than in the full Newman collection.
 * **CI/CD Quality Gate (Newman CLI):** Fully compatible with automated pipeline execution in GitHub Actions, Azure DevOps, and Bitbucket Pipelines (`newman run $COLLECTION --env-var "BASE_URL=${TARGET_URL}"`). Pre-request scripts automatically harmonize `base_url` and `BASE_URL`.
 
 ### 7. 🔎 Read-Only Authenticated Order Check (`test_order.py`)

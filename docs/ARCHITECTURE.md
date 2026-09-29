@@ -41,13 +41,13 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 | Service | Local / Docker Port | Minikube Port | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
-| **React Frontend** | `4200` / `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
+| **React Frontend** | Vite host `5173` / Nginx container `8080` / Service `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
 | **Apollo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Apollo Federation v2 GraphQL router |
 | **Products Service** | `8004` | `30004` | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | `30003` | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | `30001` | ClusterIP | Stock control & atomic verification |
 | **Notification Service** | `8002` | `30002` | ClusterIP | Kafka Consumer & customer alerts |
-| **Keycloak IAM** | `8181` | `30181` | Ingress (`/auth/*`) | `admin` / `admin` |
+| **Keycloak IAM** | `8181` | `30181` | Istio ingress (`/realms/*`, `/resources/*`, `/admin/*`, `/js/*`) | `admin` / `admin` |
 | **HashiCorp Vault** | `8200` | `30200` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
 | **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.1) |
@@ -64,7 +64,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ---
 
-## 🔐 Identity & Access Management (Keycloak 26.7.3)
+## 🔐 Identity & Access Management (Keycloak 26.7.4)
 
 - **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in React 19 SPA.
 - **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
@@ -134,6 +134,17 @@ The project uses a single public ingress pattern across all environments:
 - Istio ingress gateway is the sole L7 ingress controller
 - Gateway and VirtualService define routing, policies and canary behavior
 - Legacy provider-specific ingress manifests are treated as historical examples only, not as active production routing
+
+### Kubernetes cluster topology
+
+Terraform defines **12 cloud clusters**, four per cloud provider. Each provider
+root uses the `dev`, `staging`, and `prod` workspaces: dev and staging each
+provision one cluster, while prod provisions two independent production data
+planes. Shared networking and managed data services remain single resources
+per environment. The second production Azure cluster has a dedicated subnet;
+the second production GKE cluster has dedicated Pod/Service secondary ranges
+and a separate control-plane CIDR. See the [multi-cloud Terraform guide](./MULTI_CLOUD_TERRAFORM.md)
+for names, workspace setup, and plan-before-apply guidance.
 - Local Minikube and remote cloud clusters follow the same Istio ingress model; the difference is only the underlying provider and the operational context
 
 This avoids conflicts between NGINX, Traefik, Kong and Istio and keeps policy enforcement, traffic shaping and mTLS in one standard mesh control plane.
@@ -181,7 +192,7 @@ sequenceDiagram
 
 ### Flow Breakdown & Separation of Concerns:
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
-2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/auth/**` and `/realms/**` directly to Keycloak.
+2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/realms/**`, `/resources/**`, `/admin/**`, and `/js/**` directly to Keycloak. The React client uses the local forwarded Keycloak port on loopback and the shared Istio origin in ingress deployments.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
 4. **Federated GraphQL Gateway:** **Apollo Router v2** performs query planning across subgraphs, native Keycloak JWT validation, header propagation, and sub-millisecond Rust routing.
 5. **Core Microservices Subgraphs (East-West):** Apollo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
@@ -377,7 +388,7 @@ flowchart TD
         Catalog["⭐ Product Catalog<br/>★ 4.8 Stars • 1,240 Reviews<br/>#1 Best Seller • Category Tags"]
         CheckoutStep1["📍 Step 1: Recipient Profile<br/>Address, City, Postal Code, Phone<br/>(localStorage: msa_shipping_address)"]
         CheckoutStep2["🚚 Step 2: Tiered Delivery<br/>Free Standard ($0.00) vs<br/>⚡ DHL Express Priority ($9.99)"]
-        CheckoutStep3["💳 Step 3: Secure Payment<br/>Real-Time Brand (Visa/MC/AMEX)<br/>PCI-DSS & 256-bit SSL Badges"]
+        CheckoutStep3["💳 Step 3: Local Payment Demo<br/>Approved / Declined Simulation<br/>No card data or real charge"]
         StickySummary["📊 Sticky Order Summary<br/>Subtotal + Shipping + 8% Tax = Total"]
         LogisticsStepper["📦 Consumer Logistics Stepper<br/>Placed ➔ Preparing in Hub ➔<br/>In Transit (DHL) ➔ Out for Delivery ➔ Delivered"]
     end
@@ -408,10 +419,10 @@ flowchart TD
 ```
 
 ### 1. 📦 Multi-Step Checkout & Persistent Recipient Profile
-* **3-Step Frictionless Funnel:** Replaces monolithic forms with a structured, guided sequence:
+* **3-Step Guided Funnel:** Uses a structured, guided sequence:
   1. **Shipping Destination & Contact:** Full Name, Email, Mobile Phone, Street Address, City, Postal Code, and Country.
   2. **Delivery Speed Tiering:** Instant choice between **Free Standard Shipping** ($0.00, 3–5 business days) and **⚡ DHL Express Priority** ($9.99, 24–48 hours) with dynamic delivery date estimates.
-  3. **Payment Method & Card Brand Recognition:** Real-time IIN/BIN regex detection identifying **Visa**, **Mastercard**, and **American Express**, coupled with expiration date masking (`MM/YY`), CVV security, and PCI-DSS / 256-bit SSL compliance badges.
+  3. **Local Payment Simulation:** Choose a demo-approved or demo-declined outcome. No card number, expiry, or CVV is requested or stored, and no payment provider or real charge is involved. A declined outcome stops before order creation and inventory decrement.
 * **1-Click LocalStorage Persistence (`msa_shipping_address`):** Frequently returning customers have their shipping coordinates stored securely on their local device, enabling instant auto-fill upon subsequent visits.
 * **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
 
@@ -448,11 +459,8 @@ flowchart TD
   ALTER TABLE t_products ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'Electronics';
   ```
 
-### 4. 🛡️ Admin Operations Console, Live Sync & Cluster Health LED
-* **Admin Navbar Gear with Dynamic Health LED ("Foquito Sutil"):** The navbar features an icon-only gear button for administrators with an integrated real-time microservices health indicator dot:
-  * 🟢 **Green (`healthy`):** All 7 core microservices (Gateway, Products, Inventory, Orders, Notification, Keycloak, Vault) are operational and responsive.
-  * 🟠 **Orange (`degraded`):** 1-2 microservices offline or degraded.
-  * 🔴 **Red (`critical`):** Multiple services or edge gateway unreachable.
+### 4. 🛡️ Admin Operations Console, Live Sync & Storefront API LED
+* **Dynamic Storefront API LED:** The brand indicator in the navbar checks a lightweight `products { sku }` GraphQL query every 30 seconds. 🟢 means the browser → frontend Nginx → Apollo Router → Products subgraph path is responding; 🟠 means the check is in progress; 🔴 means that path is unavailable. This indicator does not claim to represent every service or the Kubernetes cluster; use Grafana and Kubernetes health probes for platform-wide status.
 * **Modern Live Sync Indicator:** The `/admin` operations console auto-synchronizes catalog inventory, warehouse stock levels, and order states every 4 seconds or on manual click with a glassmorphism `● LIVE SYNC` widget.
 * **Separation of Concerns (Grafana Observability):** Complex infrastructure telemetry (Kubernetes cluster nodes, KRaft partition lags, and Istio Envoy service mesh mTLS traffic) is strictly delegated to Grafana LGTM dashboards (Port 3000) and Kiali (Port 20001), keeping the frontend clean, focused, and free of redundant telemetry docks.
 
@@ -461,7 +469,7 @@ flowchart TD
 * **Clear Commercial Notifications:** Buyers receive clean status updates directly in the notification drawer:
   * 📦 *"Order #d8f4163d Confirmed! We are preparing your shipment via DHL Express to Monterrey."*
   * 🚚 *"Tracking Number Assigned: DHL-A8E29C1F — Estimated delivery in 24-48h."*
-  * 💳 *"Payment Verified — Secure 256-bit SSL transaction complete."*
+  * 💳 *"Demo payment approved — no real charge was made."*
 
 ### 6. 📱 Responsive Media & Aspect-Ratio Scaling
 * **Dynamic Aspect-Ratio Optimization (`16 / 10`):** Replaced hardcoded heights (`height: 165px`) on product cards with fluid aspect ratios and `object-fit: contain;`, guaranteeing that laptops, keyboards, and accessories are 100% visible without clipping on mobile screens.
@@ -469,19 +477,14 @@ flowchart TD
 
 ---
 
-## 📱 Mobile Application & Google Play Store Architecture Guide
+## 📱 Native Mobile Client & Google Play Store Architecture Guide
 
 The backend microservices are **100% Client-Agnostic** and fully prepared for native Android / iOS or cross-platform deployment:
 
-### 1. 🚀 Mobile Packaging Options:
-* **Capacitor / Ionic (Recommended):** Wrap the existing React 19 codebase into native Android Studio and Xcode projects without rewriting business logic:
-  ```bash
-  npm install @capacitor/core @capacitor/cli @capacitor/android
-  npx cap init "MicroStore" "com.georgegxx.microstore"
-  npx cap add android
-  npm run build && npx cap sync
-  ```
-* **Hardware Camera Integration:** Access native 60 fps barcode scanning with flashlight/autofocus using `@capacitor-community/barcode-scanner`.
+### 1. 🚀 React Native Application Boundary:
+* The current `frontend/` is a React 19 + Vite web application. Responsive CSS and a web manifest do not make it a React Native application.
+* Build a separate React Native client (Expo is a suitable starting point) and share only platform-independent TypeScript domain/use-case code through a dedicated workspace package. Keep web UI, browser storage, DOM APIs, camera access, and navigation adapters platform-specific.
+* Treat mobile camera and barcode access as native capabilities with a React Native-compatible library; do not reuse browser WebRTC or `navigator.vibrate` code directly.
 
 ### 2. 🔐 Mobile Security & OIDC Integration:
 * **Keycloak Deep Linking:** Register custom redirect URIs (e.g. `com.georgegxx.microstore://auth/callback`) in `microservices-realm` for seamless OAuth2 PKCE login.
@@ -502,7 +505,7 @@ The platform provides an out-of-the-box hybrid integration to expose local micro
 ```mermaid
 graph LR
     subgraph PublicInternet ["☁️ Public Edge & Mobile Clients"]
-        Mobile["📱 Mobile Smartphone / PWA<br/>(Android / iOS / Tablets)"]
+        Mobile["📱 Mobile Browser<br/>(Responsive Web • iOS / Android / Tablets)"]
         Vercel["⚡ Vercel Edge Serverless<br/>(React 19 SPA Storefront)"]
     end
 
@@ -513,7 +516,7 @@ graph LR
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
         APIGW["🚪 Apollo Router v2 (8080)<br/>(Supergraph Engine / Apollo Sandbox)"]
-        Keycloak["🔐 Keycloak 26.7.3 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
+        Keycloak["🔐 Keycloak 26.7.4 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
 
@@ -526,7 +529,7 @@ graph LR
 ```
 
 ### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
-* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Apollo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:4200`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Apollo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
   .\platform.ps1 tunnels
@@ -538,17 +541,17 @@ graph LR
 ### 2. 🚀 Vercel Monorepo Deployment & Output Directory Configuration
 * **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
-  * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications and mobile devices with wildcard web origins (`*`, `+`).
+  * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications. The standard Authorization Code + PKCE flow redirects the browser to Keycloak's hosted sign-in page; use a branded Keycloak theme if that page needs to match the storefront. Do not collect Keycloak passwords in the SPA or use Direct Access Grants to hide the identity provider.
   * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Python automation (`smoke.py`, `simulate.py`, `test_order.py`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
 
-### 3. 📱 Full-Stack Mobile PWA Responsiveness & Touch Optimization
+### 3. 📱 Responsive Web Storefront
 * **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
   * **Floating Action Button (FAB):** Ergonomic bottom-right quick scanner trigger on mobile devices.
   * **Touch Momentum Scrolling:** Horizontal smooth scrolling for order status filter tabs without page clipping.
   * **Touch-Friendly Modals:** Responsive Quick View and QR barcode labels with unified single-viewport touch momentum scrolling (`max-height: 90dvh`).
-* **Vector SVG Favicon & PWA Icons:** Crisp $512\times512\text{ px}$ vector icon ([`frontend/public/favicon.svg`](./frontend/public/favicon.svg)) integrated with Apple Touch Icons and Web App Manifest ([`frontend/public/manifest.webmanifest`](./frontend/public/manifest.webmanifest)).
-* **Clean Enterprise E-Commerce Standard:** Decommissioned arcade synthesizer sound effects and 3D card gimmicks, standardizing on silent, high-performance interactions matching Amazon and Mercado Libre.
-* **Apollo Router v2 Edge Security & Traffic Control:** Apollo Router v2 acts as the single unified edge gateway, managing query validation, schema introspection restrictions, safe header propagation (`authorization`, `x-idempotency-key`), and distributed tracing via OpenTelemetry to the collector.
+* **Web Manifest:** The app includes a manifest and SVG favicon. A service worker and offline cache are not currently implemented; treat this as a responsive web app until those pieces are added and verified.
+
+The current React web SPA is not a React Native app. For a native mobile client, create a separate React Native/Expo app and share platform-independent domain/use-case modules through a dedicated package; keep browser UI, storage, camera, and OIDC adapters separate.
 
 ---
 
