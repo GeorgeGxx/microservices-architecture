@@ -92,6 +92,28 @@ function Assert-CloudRemoteBackend {
     if (-not $backend) {
         throw "Cloud Terraform action blocked for '$CloudProvider': no durable remote backend is configured. Configure state storage and locking before plan/apply/destroy/unlock."
     }
+    if ($CloudProvider -in @("azure", "gcp")) {
+        $backendConfig = Join-Path $root "terraform\backend-config\$CloudProvider.hcl"
+        if (-not (Test-Path -LiteralPath $backendConfig -PathType Leaf)) {
+            throw "Cloud Terraform action blocked for '$CloudProvider': copy terraform/backend-config/$CloudProvider.hcl.example to terraform/backend-config/$CloudProvider.hcl, provision the state store first, and fill its values. No cloud action was run."
+        }
+    }
+}
+
+function Initialize-CloudTerraformBackend {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("aws", "azure", "gcp")]
+        [string]$CloudProvider
+    )
+
+    $initArgs = @("init", "-input=false")
+    if ($CloudProvider -in @("azure", "gcp")) {
+        $backendConfig = Join-Path $root "terraform\backend-config\$CloudProvider.hcl"
+        $initArgs += "-backend-config=$backendConfig"
+    }
+    & terraform @initArgs
+    if ($LASTEXITCODE -ne 0) { throw "Terraform backend initialization failed for '$CloudProvider'; no plan/apply/destroy was run." }
 }
 
 function Get-TerraformOutputValue {
@@ -459,8 +481,7 @@ function Invoke-CloudPlatform {
             try {
                 & terraform fmt -check
                 if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'." }
-                & terraform init -input=false
-                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; plan was not run." }
+                Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 Set-TerraformWorkspace $Env
                 & terraform validate
                 if ($LASTEXITCODE -ne 0) { throw "Terraform validation failed for '$CloudProvider'; plan was not run." }
@@ -479,8 +500,7 @@ function Invoke-CloudPlatform {
             Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                & terraform init -input=false
-                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; apply was not run." }
+                Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 & terraform fmt -check
                 if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'; apply was not run." }
                 Set-TerraformWorkspace $Env
@@ -534,8 +554,7 @@ function Invoke-CloudPlatform {
             }
             Push-Location $cloudTfDir
             try {
-                & terraform init -input=false
-                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; destroy was not run." }
+                Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 Set-TerraformWorkspace $Env
                 $varFile = "${Env}/terraform.tfvars"
                 $destroyArgs = @("destroy")
@@ -570,8 +589,7 @@ function Invoke-CloudPlatform {
             Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                & terraform init -input=false
-                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed; state was not unlocked." }
+                Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 & terraform force-unlock -force $StateLockId
                 if ($LASTEXITCODE -ne 0) { throw "Terraform force-unlock failed for the supplied lock ID." }
             } finally {
@@ -584,8 +602,7 @@ function Invoke-CloudPlatform {
             Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                & terraform init -input=false
-                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed; status cannot be read safely." }
+                Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 Set-TerraformWorkspace $Env
                 & terraform show -no-color | Select-Object -First 30
             } finally {

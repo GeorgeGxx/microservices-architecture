@@ -1,0 +1,8 @@
+# Copy to terraform/backend-config/azure.hcl and fill in your pre-provisioned
+# state storage. Keep this file out of Git. One backend is shared by the three
+# Terraform workspaces: dev, staging, and prod. Azure Blob leases lock state.
+resource_group_name  = "<state-resource-group>"
+storage_account_name = "<globally-unique-storage-account>"
+container_name       = "tfstate"
+key                  = "microservices-architecture/azure.tfstate"
+use_azuread_auth     = true
