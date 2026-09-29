@@ -21,6 +21,8 @@ param(
     [switch]$WithIstio = $true,
     [switch]$WithoutIstio = $false,
     [switch]$DeployCanary = $false,
+    [ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')]
+    [string]$CanaryImageTag = "canary",
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
     [string]$LockId = "",
@@ -66,12 +68,39 @@ $enableIstio = if ($WithoutIstio) { $false } else { $WithIstio }
 
 function Set-TerraformWorkspace {
     param([string]$EnvName)
-    $wsList = terraform workspace list 2>$null
-    if ($wsList -match "\b$EnvName\b") {
-        terraform workspace select $EnvName 2>$null | Out-Null
-    } else {
-        terraform workspace new $EnvName 2>$null | Out-Null
+    & terraform workspace select $EnvName 2>$null | Out-Null
+    $selectExitCode = $LASTEXITCODE
+    if ($selectExitCode -ne 0) {
+        & terraform workspace new $EnvName
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not create Terraform workspace '$EnvName'."
+        }
     }
+}
+
+function Assert-CloudRemoteBackend {
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("aws", "azure", "gcp")]
+        [string]$CloudProvider
+    )
+
+    $cloudTfDir = Join-Path $root "terraform\environments\$CloudProvider"
+    $backend = Get-ChildItem -LiteralPath $cloudTfDir -Filter "*.tf" -File -ErrorAction Stop |
+        Select-String -Pattern 'backend\s+"(s3|azurerm|gcs)"' |
+        Select-Object -First 1
+    if (-not $backend) {
+        throw "Cloud Terraform action blocked for '$CloudProvider': no durable remote backend is configured. Configure state storage and locking before plan/apply/destroy/unlock."
+    }
+}
+
+function Get-TerraformOutputValue {
+    param([Parameter(Mandatory = $true)][string]$Name)
+    $value = & terraform output -raw $Name 2>$null
+    if ($LASTEXITCODE -ne 0) { throw "Terraform output '$Name' is unavailable." }
+    $value = ([string]$value).Trim()
+    if (-not $value) { throw "Terraform output '$Name' is empty." }
+    return $value
 }
 
 function Initialize-LocalVault {
@@ -223,7 +252,8 @@ function Invoke-UnifiedPlatformVerify {
 
         [string]$Namespace = "",
         [string]$IstioNamespace = "istio-system",
-        [switch]$Strict = $true
+        [switch]$Strict = $true,
+        [switch]$CheckIstio = $true
     )
 
     $ErrorActionPreference = "SilentlyContinue"
@@ -267,7 +297,8 @@ function Invoke-UnifiedPlatformVerify {
     Write-Host "================================================================================" -ForegroundColor Cyan
     Write-Host "Mode: $Mode | Environment: $Environment | Namespace: $Namespace | Istio namespace: $IstioNamespace" -ForegroundColor Gray
 
-    $requiredTools = @("kubectl", "helm", "istioctl")
+    $requiredTools = @("kubectl", "helm")
+    if ($CheckIstio) { $requiredTools += "istioctl" }
     if (-not $isCloud) { $requiredTools = @("minikube") + $requiredTools }
     foreach ($tool in $requiredTools) {
         if (-not (Test-Tool $tool)) { $failures++ }
@@ -298,7 +329,8 @@ function Invoke-UnifiedPlatformVerify {
         }
 
         Write-Host "`n[3/9] Verifying core namespaces..." -ForegroundColor Yellow
-        $coreNamespaces = @("istio-system", "gatekeeper-system", "argocd", "observability", "vault", "auth", "data", "dev")
+        $coreNamespaces = @("gatekeeper-system", "argocd", "observability", "vault", "auth", "data", "dev")
+        if ($CheckIstio) { $coreNamespaces += "istio-system" }
         foreach ($ns in $coreNamespaces) {
             $nsExists = & kubectl get namespace $ns --no-headers 2>$null
             if ($nsExists) {
@@ -310,31 +342,35 @@ function Invoke-UnifiedPlatformVerify {
         }
     }
 
-    Write-Host "`n[4/9] Checking Istio control plane and ingress gateway..." -ForegroundColor Yellow
-    $istiod = & kubectl get deployment istiod -n $IstioNamespace -o jsonpath="{.status.readyReplicas}" 2>$null
-    if ($istiod -and [int]$istiod -ge 1) {
-        Add-Result "OK" "istiod is ready in $IstioNamespace ($istiod replica(s))"
-    } else {
-        Add-Result "FAIL" "istiod is not ready in $IstioNamespace"
-        $failures++
-    }
+    if ($CheckIstio) {
+        Write-Host "`n[4/9] Checking Istio control plane and ingress gateway..." -ForegroundColor Yellow
+        $istiod = & kubectl get deployment istiod -n $IstioNamespace -o jsonpath="{.status.readyReplicas}" 2>$null
+        if ($istiod -and [int]$istiod -ge 1) {
+            Add-Result "OK" "istiod is ready in $IstioNamespace ($istiod replica(s))"
+        } else {
+            Add-Result "FAIL" "istiod is not ready in $IstioNamespace"
+            $failures++
+        }
 
-    Write-Host "`n[5/9] Checking the ingress service external endpoint..." -ForegroundColor Yellow
-    $ingressSvc = & kubectl get svc istio-ingressgateway -n $IstioNamespace --no-headers 2>$null
-    if ($ingressSvc) {
-        Add-Result "OK" "Ingress gateway service detected: $ingressSvc"
-    } else {
-        Add-Result "FAIL" "Service istio-ingressgateway not found in $IstioNamespace"
-        $failures++
-    }
+        Write-Host "`n[5/9] Checking the ingress service external endpoint..." -ForegroundColor Yellow
+        $ingressSvc = & kubectl get svc istio-ingressgateway -n $IstioNamespace --no-headers 2>$null
+        if ($ingressSvc) {
+            Add-Result "OK" "Ingress gateway service detected: $ingressSvc"
+        } else {
+            Add-Result "FAIL" "Service istio-ingressgateway not found in $IstioNamespace"
+            $failures++
+        }
 
-    Write-Host "`n[6/9] Checking Gateway and VirtualService presence..." -ForegroundColor Yellow
-    $gateways = & kubectl get gateway -n $Namespace --no-headers 2>$null
-    if ($gateways) {
-        Add-Result "OK" "Gateway configured in $Namespace"
+        Write-Host "`n[6/9] Checking Gateway and VirtualService presence..." -ForegroundColor Yellow
+        $gateways = & kubectl get gateway -n $Namespace --no-headers 2>$null
+        if ($gateways) {
+            Add-Result "OK" "Gateway configured in $Namespace"
+        } else {
+            Add-Result "FAIL" "No Gateway resources found for Istio routing"
+            $failures++
+        }
     } else {
-        Add-Result "FAIL" "No Gateway resources found for Istio routing"
-        $failures++
+        Add-Result "INFO" "Istio validation skipped because -WithoutIstio was requested."
     }
 
     Write-Host "`n[7/9] Checking active Pods..." -ForegroundColor Yellow
@@ -359,16 +395,18 @@ function Invoke-UnifiedPlatformVerify {
         }
     }
 
-    Write-Host "`n[9/9] Checking mTLS policy..." -ForegroundColor Yellow
-    $mtls = & kubectl get peerauthentication -n $Namespace -o jsonpath="{.items[*].spec.mtls.mode}" 2>$null
-    if ($mtls -match "STRICT") {
-        Add-Result "OK" "mTLS STRICT is active in $Namespace"
-    } else {
-        if ($Strict) {
-            Add-Result "FAIL" "mTLS STRICT is required but current policy is $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
-            $failures++
+    if ($CheckIstio) {
+        Write-Host "`n[9/9] Checking mTLS policy..." -ForegroundColor Yellow
+        $mtls = & kubectl get peerauthentication -n $Namespace -o jsonpath="{.items[*].spec.mtls.mode}" 2>$null
+        if ($mtls -match "STRICT") {
+            Add-Result "OK" "mTLS STRICT is active in $Namespace"
         } else {
-            Add-Result "WARN" "mTLS policy: $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+            if ($Strict) {
+                Add-Result "FAIL" "mTLS STRICT is required but current policy is $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+                $failures++
+            } else {
+                Add-Result "WARN" "mTLS policy: $(if ($mtls) { $mtls } else { 'PERMISSIVE / Default' })"
+            }
         }
     }
 
@@ -405,29 +443,32 @@ function Invoke-CloudPlatform {
         "staging" { "staging" }
         "prod"    { "production" }
     }
-    $clusterName = switch ($CloudProvider) {
-        "azure" { "msa-azure-$Env-aks" }
-        "aws"   { "msa-aws-$Env-eks" }
-        "gcp"   { "msa-gcp-$Env-gke" }
+    $clusterOutputName = switch ($CloudProvider) {
+        "azure" { "aks_cluster_name" }
+        "aws"   { "cluster_name" }
+        "gcp"   { "gke_cluster_name" }
     }
-    $rgName = "msa-azure-$Env-rg"
+    $clusterName = ""
+    $rgName = ""
 
     switch ($CloudAction) {
         "plan" {
             Show-Banner "Terraform Plan ($($CloudProvider.ToUpper()) Cloud - $Env)"
+            Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                terraform fmt -check 2>$null | Out-Null
-                terraform init -backend=false
+                & terraform fmt -check
+                if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'." }
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; plan was not run." }
                 Set-TerraformWorkspace $Env
-                terraform validate
+                & terraform validate
+                if ($LASTEXITCODE -ne 0) { throw "Terraform validation failed for '$CloudProvider'; plan was not run." }
                 $varFile = "${Env}/terraform.tfvars"
-                if (Test-Path $varFile) {
-                    Write-Host "Executing Terraform Plan with -var-file=$varFile..." -ForegroundColor Green
-                    terraform plan -var-file=$varFile -no-color
-                } else {
-                    terraform plan -no-color
-                }
+                $planArgs = @("plan", "-no-color")
+                if (Test-Path $varFile) { $planArgs += "-var-file=$varFile" }
+                & terraform @planArgs
+                if ($LASTEXITCODE -ne 0) { throw "Terraform plan failed for '$CloudProvider' environment '$Env'." }
             } finally {
                 Pop-Location
             }
@@ -435,31 +476,42 @@ function Invoke-CloudPlatform {
 
         "apply" {
             Show-Banner "Terraform Apply ($($CloudProvider.ToUpper()) Cloud - $Env)"
+            Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; apply was not run." }
+                & terraform fmt -check
+                if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'; apply was not run." }
                 Set-TerraformWorkspace $Env
+                & terraform validate
+                if ($LASTEXITCODE -ne 0) { throw "Terraform validation failed for '$CloudProvider'; apply was not run." }
                 $varFile = "${Env}/terraform.tfvars"
-                $approveArg = if ($AutoApproveSwitch) { "-auto-approve" } else { "" }
-                if (Test-Path $varFile) {
-                    terraform apply -var-file=$varFile $approveArg
-                } else {
-                    terraform apply $approveArg
-                }
+                $applyArgs = @("apply")
+                if (Test-Path $varFile) { $applyArgs += "-var-file=$varFile" }
+                if ($AutoApproveSwitch) { $applyArgs += "-auto-approve" }
+                & terraform @applyArgs
 
                 if ($LASTEXITCODE -eq 0) {
                     Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure provisioned successfully." -ForegroundColor Green
+                    $clusterName = Get-TerraformOutputValue -Name $clusterOutputName
                     Write-Host "Configuring Kubernetes context and ensuring namespace '$targetNamespace' exists..." -ForegroundColor Cyan
                     switch ($CloudProvider) {
                         "azure" {
-                            az aks get-credentials --resource-group $rgName --name $clusterName --overwrite-existing 2>$null | Out-Null
+                            $rgName = Get-TerraformOutputValue -Name "resource_group_name"
+                            & az aks get-credentials --resource-group $rgName --name $clusterName --overwrite-existing
                         }
                         "aws" {
-                            aws eks update-kubeconfig --name $clusterName --region "us-east-1" 2>$null | Out-Null
+                            $cloudRegion = Get-TerraformOutputValue -Name "aws_region"
+                            & aws eks update-kubeconfig --name $clusterName --region $cloudRegion
                         }
                         "gcp" {
-                            gcloud container clusters get-credentials $clusterName --region "us-central1" --project "msa-gcp-$Env" 2>$null | Out-Null
+                            $cloudRegion = Get-TerraformOutputValue -Name "gcp_region"
+                            $cloudProject = Get-TerraformOutputValue -Name "gcp_project_id"
+                            & gcloud container clusters get-credentials $clusterName --region $cloudRegion --project $cloudProject
                         }
                     }
+                    if ($LASTEXITCODE -ne 0) { throw "Failed to configure the '$CloudProvider' Kubernetes context after Terraform apply." }
                     kubectl create namespace $targetNamespace --dry-run=client -o yaml | kubectl apply -f - 2>$null | Out-Null
                 } else {
                     Write-Error "Terraform Apply failed for $($CloudProvider.ToUpper()) environment: $Env"
@@ -471,6 +523,7 @@ function Invoke-CloudPlatform {
 
         "destroy" {
             Show-Banner "Terraform Destroy ($($CloudProvider.ToUpper()) Cloud - $Env)"
+            Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Write-Host "WARNING: You are about to DESTROY $($CloudProvider.ToUpper()) infrastructure in '$Env'!" -ForegroundColor Red
             if (-not $AutoApproveSwitch) {
                 $confirm = Read-Host "Are you sure you want to proceed? Type 'yes' to confirm"
@@ -481,14 +534,14 @@ function Invoke-CloudPlatform {
             }
             Push-Location $cloudTfDir
             try {
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for '$CloudProvider'; destroy was not run." }
                 Set-TerraformWorkspace $Env
                 $varFile = "${Env}/terraform.tfvars"
-                $approveArg = if ($AutoApproveSwitch) { "-auto-approve" } else { "" }
-                if (Test-Path $varFile) {
-                    terraform destroy -var-file=$varFile $approveArg
-                } else {
-                    terraform destroy $approveArg
-                }
+                $destroyArgs = @("destroy")
+                if (Test-Path $varFile) { $destroyArgs += "-var-file=$varFile" }
+                if ($AutoApproveSwitch) { $destroyArgs += "-auto-approve" }
+                & terraform @destroyArgs
 
                 if ($LASTEXITCODE -eq 0) {
                     Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure destroyed successfully." -ForegroundColor Green
@@ -502,32 +555,25 @@ function Invoke-CloudPlatform {
 
         "rollback" {
             Show-Banner "Emergency Rollback ($($CloudProvider.ToUpper()) Cloud - $Env)"
-            Push-Location $cloudTfDir
-            try {
-                Write-Host "Releasing $($CloudProvider.ToUpper()) backend state lock..." -ForegroundColor Yellow
-                if ($StateLockId) {
-                    terraform force-unlock -force $StateLockId
-                } else {
-                    try { terraform force-unlock -force 0 2>$null | Out-Null } catch {}
-                }
-            } finally {
-                Pop-Location
-            }
             Write-Host "`nExecuting Helm rollback on namespace '$targetNamespace'..." -ForegroundColor Yellow
-            if (Get-Command "helm" -ErrorAction SilentlyContinue) {
-                helm rollback microservices --namespace $targetNamespace --wait --timeout 5m 2>$null
-            }
+            if (-not (Get-Command "helm" -ErrorAction SilentlyContinue)) { throw "Helm is required for application rollback." }
+            & helm rollback microservices --namespace $targetNamespace --wait --timeout 5m
+            if ($LASTEXITCODE -ne 0) { throw "Helm rollback failed for namespace '$targetNamespace'." }
+            Write-Host "[OK] Application rollback completed. Terraform state locks are managed only by the explicit unlock command." -ForegroundColor Green
         }
 
         "unlock" {
             Show-Banner "Force Unlock $($CloudProvider.ToUpper()) State"
             if (-not $StateLockId) {
-                Write-Error "Please provide -LockId <ID> to unlock state."
-                return
+                throw "Please provide the actual -LockId <ID> after verifying there is no active Terraform operation."
             }
+            Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                terraform force-unlock -force $StateLockId
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed; state was not unlocked." }
+                & terraform force-unlock -force $StateLockId
+                if ($LASTEXITCODE -ne 0) { throw "Terraform force-unlock failed for the supplied lock ID." }
             } finally {
                 Pop-Location
             }
@@ -535,10 +581,13 @@ function Invoke-CloudPlatform {
 
         "status" {
             Show-Banner "Infrastructure Status ($($CloudProvider.ToUpper()) - $Env)"
+            Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed; status cannot be read safely." }
                 Set-TerraformWorkspace $Env
-                terraform show -no-color | Select-Object -First 30
+                & terraform show -no-color | Select-Object -First 30
             } finally {
                 Pop-Location
             }
@@ -575,6 +624,7 @@ function Invoke-MinikubePlatform {
         [switch]$BuildImages = $false,
         [switch]$EnableIstioMesh = $true,
         [switch]$DeployCanaryOption = $false,
+        [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
         [int]$CpuCount = 6,
         [int]$RamMb = 12288,
@@ -645,14 +695,41 @@ function Invoke-MinikubePlatform {
             }
             minikube update-context 2>$null | Out-Null
 
+            # `--addons=metrics-server` is only passed when Minikube starts.
+            # Existing clusters therefore need an explicit, idempotent enable;
+            # KEDA CPU triggers and Kubernetes HPAs otherwise remain unhealthy.
+            Write-Host "  ▶ Ensuring Minikube metrics-server is enabled for HPA/KEDA CPU metrics..." -ForegroundColor White
+            minikube addons enable metrics-server
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not enable Minikube metrics-server. KEDA CPU scalers cannot become healthy without the resource metrics API."
+            }
+            kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=120s
+            if ($LASTEXITCODE -ne 0) {
+                throw "Minikube metrics-server did not publish v1beta1.metrics.k8s.io within 120 seconds. Check `kubectl get pods -n kube-system` before retrying Helm."
+            }
+
             if ($BuildImages) {
                 Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + React)..." -ForegroundColor Yellow
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
-                if (Test-Path $buildAllScript) { python $buildAllScript "1.0.0" }
+                if (Test-Path $buildAllScript) {
+                    if ($DeployCanaryOption) {
+                        Write-Host "  ▶ Preserving the currently deployed products-service stable image; building the other platform images first." -ForegroundColor White
+                        & python $buildAllScript "1.0.0" --exclude-service products-service
+                    } else {
+                        & python $buildAllScript "1.0.0"
+                    }
+                    if ($LASTEXITCODE -ne 0) { throw "Container image build failed; platform deployment was not attempted." }
+                }
+                if ($DeployCanaryOption) {
+                    Write-Host "  ▶ Building isolated products-service canary image '$CanaryImageTag' from the current source tree..." -ForegroundColor White
+                    docker build -t "georgegxx/products-service:$CanaryImageTag" -f (Join-Path $root "products-service\Dockerfile") $root
+                    if ($LASTEXITCODE -ne 0) { throw "Canary image build failed; the v2 workload was not deployed." }
+                }
             }
 
             # Synchronize local Docker images into Minikube's internal containerd store
             $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+            if ($DeployCanaryOption) { $servicesToLoad = @("orders-service", "inventory-service", "notification-service", "frontend") }
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
@@ -660,6 +737,14 @@ function Invoke-MinikubePlatform {
                     $hasLocal = docker images -q "georgegxx/${svc}:1.0.0" 2>$null
                     if ($hasLocal) {
                         minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
+                    }
+                }
+                if ($DeployCanaryOption) {
+                    $canaryImage = "georgegxx/products-service:$CanaryImageTag"
+                    $hasCanaryImage = docker images -q $canaryImage 2>$null
+                    if ($hasCanaryImage) {
+                        minikube image load $canaryImage --overwrite
+                        if ($LASTEXITCODE -ne 0) { throw "Could not load canary image '$canaryImage' into Minikube." }
                     }
                 }
                 Write-Host "  [OK] Local container images synchronized into Minikube." -ForegroundColor Green
@@ -803,11 +888,27 @@ stringData:
                 Write-Host "  [OK] ArgoCD GitOps project and application registered." -ForegroundColor Green
             }
 
-            if ($DeployCanaryOption) {
-                $canaryManifest = Join-Path $istioDir "canary-deployment-products-v2.yaml"
-                if (Test-Path $canaryManifest) {
-                    Write-Host "  ▶ Deploying Canary products-service v2 (10% traffic)..." -ForegroundColor White
-                    kubectl apply -f $canaryManifest -n dev 2>$null
+            if ($EnableIstioMesh) {
+                $canaryDeployment = Join-Path $istioDir "canary-deployment-products-v2.yaml"
+                $canaryTraffic = Join-Path $istioDir "canary-products-traffic.yaml"
+                if ($DeployCanaryOption -and (Test-Path $canaryDeployment)) {
+                    Write-Host "  ▶ Deploying products-service v2 canary image '$CanaryImageTag'..." -ForegroundColor White
+                    $canaryManifestText = (Get-Content -LiteralPath $canaryDeployment -Raw).Replace("georgegxx/products-service:canary", "georgegxx/products-service:$CanaryImageTag")
+                    $canaryManifestText | kubectl apply -f - -n dev
+                    if ($LASTEXITCODE -ne 0) { throw "Could not apply the products-service v2 canary deployment." }
+                }
+
+                $canaryWorkload = kubectl get deployment products-service-v2 -n dev --ignore-not-found 2>$null
+                if ($canaryWorkload) {
+                    Write-Host "  ▶ Waiting for products-service v2 before enabling its initial 90/10 Istio route..." -ForegroundColor White
+                    kubectl rollout status deployment/products-service-v2 -n dev --timeout=300s
+                    if ($LASTEXITCODE -ne 0) { throw "products-service v2 canary is not Ready; its Istio v2 subset was not enabled." }
+                    kubectl apply -f $canaryTraffic -n dev
+                    if ($LASTEXITCODE -ne 0) { throw "Could not apply the products-service canary DestinationRule/VirtualService." }
+                    & (Join-Path $scriptsDir "istio\set-canary-weight.ps1") -Namespace dev -V1Weight 90 -V2Weight 10
+                    if ($LASTEXITCODE -ne 0) { throw "Could not set the initial products-service canary traffic weights." }
+                } else {
+                    kubectl delete virtualservice products-service-canary-vs -n dev --ignore-not-found 2>$null | Out-Null
                 }
             }
 
@@ -841,7 +942,7 @@ stringData:
             }
 
             Write-Host "`n[9/10] 🩺 Performing Doctor Health Audit & Smoke Verification..." -ForegroundColor Yellow
-            $doctorPassed = Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev
+            $doctorPassed = Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev -CheckIstio:$EnableIstioMesh
             if (-not $doctorPassed) { throw "Platform health audit failed. The deployment is not ready; inspect the checks above." }
             $smokeScript = Join-Path $scriptsDir "endpoint-smoke-test.py"
             if (Test-Path $smokeScript) {
@@ -926,17 +1027,60 @@ function Show-Banner {
 
 $targetCostEnv = if ($Platform -eq "minikube" -or $Environment -eq "minikube") { "minikube" } else { $Environment }
 $targetCloudEnv = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
+$targetNamespace = switch ($Environment) {
+    { $_ -in @("dev", "minikube") } { "dev" }
+    "staging" { "staging" }
+    "prod" { "production" }
+}
+
+if ($Platform -ne "minikube" -and $Environment -eq "minikube") {
+    throw "'-Environment minikube' is local-only. Choose dev, staging, or prod for cloud platforms."
+}
+if ($Platform -eq "minikube" -and $Command -in @("up", "bootstrap", "apply") -and $Environment -notin @("dev", "minikube")) {
+    throw "Minikube bootstrap deploys the dev environment only; use -Environment dev or minikube."
+}
+if ($Platform -ne "minikube" -and $Command -in @("down", "stop")) {
+    throw "'$Command' is not a cloud teardown command. No resources were changed; use 'destroy' explicitly if you intend to remove cloud infrastructure."
+}
+if ($Platform -ne "minikube" -and $Command -eq "build") {
+    throw "'build' compiles and loads local Minikube images. For cloud environments, use the configured CI image build and deployment pipeline."
+}
+if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Install -or $AutoApprove -or $Destroy -or $LockId)) {
+    throw "'build' accepts no deployment flags. Run 'up -Platform minikube' for deployment options."
+}
+if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
+    throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
+}
+if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 6 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
+    throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
+}
+if ($Destroy -and $Command -ne "down") {
+    throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
+}
+if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 6 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
+    throw "One or more local-only options were supplied for cloud platform '$Platform'. Remove -Build/-DeployCanary/-CanaryImageTag/-SkipScans/-WithoutIstio/-Cpus/-MemoryMb/-DiskSize or select -Platform minikube."
+}
+if ($CanaryImageTag -ne "canary" -and -not $DeployCanary) { throw "-CanaryImageTag is valid only with -DeployCanary." }
+if ($DeployCanary -and $CanaryImageTag -in @("canary", "latest")) { throw "-DeployCanary requires an immutable -CanaryImageTag (for example a commit SHA or unique build ID); mutable tags cannot safely support rollback." }
+if ($DeployCanary -and -not $enableIstio) { throw "-DeployCanary requires Istio traffic management. Remove -WithoutIstio or omit -DeployCanary." }
+if ($Install -and $Command -ne "tools") {
+    throw "-Install is valid only with 'tools'."
+}
+if ($LockId -and ($Command -ne "unlock" -or $Platform -eq "minikube")) {
+    throw "-LockId is valid only for 'unlock' on a cloud platform; application rollback never releases Terraform locks."
+}
 
 switch ($Command) {
     { $_ -in @("up", "bootstrap") } {
         if ($Platform -eq "minikube") {
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove
         }
     }
 
     "build" {
+        if ($Platform -ne "minikube") { throw "'build' is supported only for -Platform minikube." }
         Invoke-MinikubePlatform -SubCommand build
     }
 
@@ -944,7 +1088,7 @@ switch ($Command) {
         if ($Platform -eq "minikube") {
             Invoke-MinikubePlatform -SubCommand down -PurgeAll:$Destroy
         } else {
-            Invoke-CloudPlatform -CloudProvider $Platform -CloudAction destroy -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove
+            throw "'$Command' cannot stop or pause cloud infrastructure through this script. No resources were changed; use 'destroy' explicitly to remove it."
         }
     }
 
@@ -977,7 +1121,8 @@ switch ($Command) {
     "rollback" {
         if ($Platform -eq "minikube") {
             Show-Banner "Automated Emergency Rollback (Minikube)"
-            helm rollback microservices --namespace dev --wait --timeout 5m 2>$null
+            & helm rollback microservices --namespace dev --wait --timeout 5m
+            if ($LASTEXITCODE -ne 0) { throw "Helm rollback failed for namespace 'dev'." }
             Write-Host "  [OK] Helm rollback completed on namespace 'dev'." -ForegroundColor Green
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction rollback -Env $targetCloudEnv -StateLockId $LockId
@@ -1015,7 +1160,7 @@ switch ($Command) {
     { $_ -in @("doctor", "verify", "status") } {
         Show-Banner "Platform Health & Diagnostic Audit"
         if ($Platform -eq "minikube") {
-            if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev)) { exit 1 }
+            if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Environment $targetCloudEnv -Namespace $targetNamespace -CheckIstio:$enableIstio)) { exit 1 }
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction status -Env $targetCloudEnv
         }
@@ -1023,7 +1168,7 @@ switch ($Command) {
 
     "doctor-minikube" {
         Show-Banner "Minikube Istio Validation"
-        if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Namespace $Environment)) { exit 1 }
+        if (-not (Invoke-UnifiedPlatformVerify -Mode minikube -Environment $targetCloudEnv -Namespace $targetNamespace -CheckIstio:$enableIstio)) { exit 1 }
     }
 
     "doctor-cloud" {
@@ -1032,7 +1177,7 @@ switch ($Command) {
             Write-Host "This check is for AWS / Azure / GCP. Use -Platform aws|azure|gcp with this command." -ForegroundColor Yellow
             return
         }
-        if (-not (Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $Environment)) { exit 1 }
+        if (-not (Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $targetCloudEnv)) { exit 1 }
     }
 
     "cost" {
@@ -1065,12 +1210,16 @@ switch ($Command) {
     }
 
     "smoke" {
+        if ($Platform -ne "minikube") { throw "'smoke' currently targets local Minikube URLs only. For cloud, run scripts/endpoint-smoke-test.py with the environment's ingress URLs." }
         Show-Banner "Microservice API Integration Smoke Tests"
         python (Join-Path $scriptsDir "endpoint-smoke-test.py") --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
     }
 
     "tunnels" {
         Show-Banner "Background Port-Forward Tunnel Supervisor"
+        $tunnelContext = & kubectl config current-context 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $tunnelContext) { throw "kubectl has no active context; tunnels were not started." }
+        Write-Host "Port-forwarding services from current Kubernetes context: $tunnelContext" -ForegroundColor Cyan
         python (Join-Path $scriptsDir "supervise-tunnels.py")
     }
 
@@ -1082,11 +1231,12 @@ switch ($Command) {
 
     "security-scan" {
         Show-Banner "Security Scans (Gitleaks, TFLint, Trivy, Cosign)"
+        $scanTfDir = if ($Platform -eq "minikube") { $tfMinikubeDir } else { Join-Path $root "terraform\environments\$Platform" }
         Write-Host "▶ Running Gitleaks..." -ForegroundColor Yellow
         if (Get-Command "gitleaks" -ErrorAction SilentlyContinue) { & gitleaks detect --source=$root --no-git }
-        Write-Host "`n▶ Running TFLint on Minikube..." -ForegroundColor Yellow
+        Write-Host "`n▶ Running TFLint on $Platform..." -ForegroundColor Yellow
         if (Get-Command "tflint" -ErrorAction SilentlyContinue) {
-            Push-Location $tfMinikubeDir; try { tflint 2>$null } finally { Pop-Location }
+            Push-Location $scanTfDir; try { tflint 2>$null } finally { Pop-Location }
         }
         Write-Host "`n▶ Running Aqua Trivy Scan..." -ForegroundColor Yellow
         if (Get-Command "trivy" -ErrorAction SilentlyContinue) {
@@ -1097,11 +1247,15 @@ switch ($Command) {
     "graph" {
         Show-Banner "Visual Dependency Graph (Graphviz)"
         if (Get-Command "dot" -ErrorAction SilentlyContinue) {
-            Push-Location $tfMinikubeDir
+            $graphTfDir = if ($Platform -eq "minikube") { $tfMinikubeDir } else { Join-Path $root "terraform\environments\$Platform" }
+            if ($Platform -ne "minikube") { Assert-CloudRemoteBackend -CloudProvider $Platform }
+            Push-Location $graphTfDir
             try {
-                terraform init -backend=false 2>$null | Out-Null
+                & terraform init -input=false
+                if ($LASTEXITCODE -ne 0) { throw "Terraform init failed for dependency graph generation." }
                 $outPath = Join-Path $root "docs\terraform-graph.png"
                 terraform graph | dot -Tpng -o $outPath
+                if ($LASTEXITCODE -ne 0) { throw "Terraform graph rendering failed." }
                 Write-Host "Generated visual graph at: $outPath" -ForegroundColor Green
             } finally { Pop-Location }
         } else {
@@ -1110,6 +1264,7 @@ switch ($Command) {
     }
 
     "urls" {
+        if ($Platform -ne "minikube") { throw "'urls' lists local port-forward endpoints only. Select -Platform minikube or use the cloud ingress outputs." }
         Show-Banner "Active Platform Web Dashboards & Management Consoles"
         Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
         Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
