@@ -76,10 +76,10 @@ def build_drawio_xml():
     add_node(r1, "c_obs", "1", "<b>📊 FULL-STACK OBSERVABILITY & TELEMETRY</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1420, 480, 440, 410)
     add_node(r1, "n_otel", "1", "<b>OpenTelemetry Collector</b><br>OTLP Receiver (Port 4317 / 4318)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1450, 540, 180, 60)
     add_node(r1, "n_alloy", "1", "<b>Grafana Alloy (Container/Pod Logs)</b><br>Log collector; ships to Loki", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1650, 540, 180, 60)
-    add_node(r1, "n_prom", "1", "<b>Prometheus v3</b><br>Metrics Store (9090)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1450, 630, 180, 60)
+    add_node(r1, "n_prom", "1", "<b>Prometheus v3</b><br>Metrics Store (9090)<br>OpenCost API (9003) • UI (9090)<br>OpenCost host tunnel: 7000", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=10;", 1450, 630, 180, 70)
     add_node(r1, "n_loki", "1", "<b>Grafana Loki</b><br>Log Aggregation (3100)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1650, 630, 180, 60)
-    add_node(r1, "n_tempo", "1", "<b>Grafana Tempo</b><br>Distributed Tracing (3200)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1450, 720, 180, 60)
-    add_node(r1, "n_grafana", "1", "<b>Grafana Dashboard</b><br>Port 3000 (Unified Master UI)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;", 1650, 720, 180, 60)
+    add_node(r1, "n_tempo", "1", "<b>Grafana Tempo</b><br>Distributed Tracing (3200)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1450, 740, 180, 60)
+    add_node(r1, "n_grafana", "1", "<b>Grafana Dashboard</b><br>Port 3000 (Unified Master UI)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;", 1650, 740, 180, 60)
 
     # Connections
     add_edge(r1, "e1", "1", "GraphQL /graphql via frontend Nginx", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;", "n_spa", "n_gw")
@@ -194,7 +194,7 @@ def build_drawio_xml():
     # PAGE 6: Kubernetes & Minikube Cluster Topology
     # =========================================================================
     r6 = create_page("page_k8s_topo", "6. Kubernetes & Minikube Cluster Topology")
-    add_node(r6, "t6", "1", "<b style='font-size:22px;color:#1E293B;'>KUBERNETES & MINIKUBE CLUSTER TOPOLOGY</b><br><span style='font-size:13px;color:#64748B;'>Pure Separation of Concerns (SoC): staging, auth, data, observability, vault, and istio-system</span>", title_style, 300, 30, 1200, 50)
+    add_node(r6, "t6", "1", "<b style='font-size:22px;color:#1E293B;'>KUBERNETES & MINIKUBE CLUSTER TOPOLOGY</b><br><span style='font-size:13px;color:#64748B;'>Namespaces include dev, opencost, auth, data, observability, vault, and istio-system</span>", title_style, 300, 30, 1200, 50)
 
     # Namespaces
     add_node(r6, "ns_vault", "1", "<b>🔒 NAMESPACE: vault</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 110, 280, 420)
@@ -210,12 +210,12 @@ def build_drawio_xml():
     add_node(r6, "k_data_pods", "1", "<b>StatefulSets:</b><br>• Kafka KRaft (9092/9094)<br>• Redis 8.8 (6379)<br>• Postgres (orders, inventory, products: 5432)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 700, 160, 340, 90)
     add_node(r6, "k_data_exp", "1", "<b>Infrastructure Exporters:</b><br>• kafka-exporter v1.9.0 (Port 9308)<br>• postgres-exporter v0.20.1 (Port 9187)<br>• redis-exporter (Port 9121)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;", 700, 270, 340, 90)
 
-    add_node(r6, "ns_staging", "1", "<b>📦 NAMESPACE: staging (Core Microservices)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1080, 110, 400, 420)
+    add_node(r6, "ns_staging", "1", "<b>📦 NAMESPACE: dev (Core Microservices)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1080, 110, 400, 420)
     add_node(r6, "k_apps_pods", "1", "<b>Deployments (Istio Sidecars Injected):</b><br>• apollo-router (8080)<br>• products-service (8004)<br>• orders-service (8003)<br>• inventory-service (8001)<br>• notification-service (8002)<br>• frontend React 19 SPA (80)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1100, 160, 360, 120)
     add_node(r6, "k_eso_objs", "1", "<b>ExternalName Cross-Namespace Bridges:</b><br>• keycloak -> keycloak.auth<br>• kafka / redis / db-* -> data.svc", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1100, 300, 360, 80)
 
     add_node(r6, "ns_obs", "1", "<b>📊 NAMESPACE: observability (LGTM Telemetry)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1500, 110, 360, 420)
-    add_node(r6, "k_obs_pods", "1", "<b>Observability Stack:</b><br>• Prometheus v3.14.0 (Port 9090)<br>• Grafana 13.2.1 (Port 3000)<br>• Tempo 3.0.3 (Port 3200)<br>• Loki 3.7.4 (Port 3100)<br>• Alloy v1.19.1 (DaemonSet; log collector)<br>• OTel Collector (4317/4318; traces to Tempo)<br>• Grafana datasources: Prometheus, Loki, Tempo", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 1520, 160, 320, 160)
+    add_node(r6, "k_obs_pods", "1", "<b>Observability & FinOps Stack:</b><br>• Prometheus v3.14.0 (9090; ClusterIP)<br>• OpenCost namespace (API 9003, UI 9090; host tunnel 7000)<br>• Grafana 13.2.1 (NodePort 30030; tunnel 3000)<br>• Tempo 3.0.3 (HTTP NodePort 30200; OTLP NodePorts dynamically assigned)<br>• Loki 3.7.4 (3100; ClusterIP)<br>• Alloy v1.19.1 (DaemonSet; log collector)<br>• OTel Collector (4317/4318; traces to Tempo)<br>• Grafana datasources: Prometheus, Loki, Tempo", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10;", 1520, 160, 320, 250)
 
     # Namespace KEDA
     add_node(r6, "ns_keda", "1", "<b>⚖️ NAMESPACE: keda (Event-Driven Autoscaling)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 60, 560, 580, 200)
