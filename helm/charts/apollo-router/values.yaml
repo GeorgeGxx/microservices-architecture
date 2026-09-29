@@ -3,6 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/apollographql/router
   tag: "v2.16.3"
+  digest: ""
   pullPolicy: IfNotPresent
 
 service:
@@ -13,6 +14,24 @@ service:
 containerPort: 8080
 healthPort: 8088
 metricsPort: 9090
+
+# Production-safe defaults. Local Compose and raw Minikube manifests keep their
+# separate developer configuration; only opt into dev mode for a local Helm install.
+devMode: false
+graphql:
+  introspection: false
+  sandbox: false
+cors:
+  allowAnyOrigin: false
+  allowedOrigins: []
+requestLimits:
+  maxBodyBytes: 1048576
+  maxParserTokens: 10000
+  maxParserRecursion: 100
+trafficShaping:
+  routerTimeout: 30s
+  subgraphTimeout: 20s
+  concurrencyLimit: 100
 
 resources:
   requests:

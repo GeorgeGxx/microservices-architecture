@@ -1,4 +1,5 @@
 import { Product, Order, InventoryItem, PlaceOrderInput } from '../types';
+import { getValidAccessToken } from './keycloak';
 
 const GRAPHQL_ENDPOINT = '/graphql';
 
@@ -13,12 +14,13 @@ export async function executeGraphQL<T>(
   token?: string,
   idempotencyKey?: string
 ): Promise<T> {
+  const accessToken = await getValidAccessToken(token);
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
   }
 
   if (idempotencyKey) {
@@ -147,7 +149,7 @@ export async function fetchProducts(token?: string): Promise<Product[]> {
   try {
     const [productsData, inventoriesData] = await Promise.all([
       executeGraphQL<{ products: Product[] }>(PRODUCTS_QUERY, {}, token),
-      executeGraphQL<{ inventories: InventoryItem[] }>(INVENTORIES_QUERY, {}, token).catch(() => ({ inventories: [] })),
+      executeGraphQL<{ inventories: InventoryItem[] }>(INVENTORIES_QUERY, {}, token),
     ]);
 
     const invMap = new Map((inventoriesData.inventories || []).map((i) => [i.sku, i]));
@@ -155,8 +157,8 @@ export async function fetchProducts(token?: string): Promise<Product[]> {
       const inv = invMap.get(p.sku);
       return {
         ...p,
-        quantity: inv ? inv.quantity : 10,
-        isInStock: inv ? inv.isInStock : true,
+        quantity: inv?.quantity ?? 0,
+        isInStock: inv?.isInStock ?? false,
       };
     });
   } catch (err) {

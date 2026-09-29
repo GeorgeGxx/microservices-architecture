@@ -43,7 +43,7 @@ if hasattr(sys.stdout, 'reconfigure'):
 # Helper Functions & Constants
 # ==============================================================================
 DEFAULT_ROUTER_URL = "http://127.0.0.1:8080"
-DEFAULT_FRONTEND = "http://127.0.0.1:4200"
+DEFAULT_FRONTEND = "http://127.0.0.1:5173"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 CATALOG_ITEMS = [
@@ -468,7 +468,7 @@ def main():
     parser.add_argument("--concurrency", type=int, default=4, help="Thread concurrency")
     parser.add_argument("--continuous", action="store_true", help="Run traffic simulation continuously")
     parser.add_argument("--duration", type=int, default=30, help="DDoS attack duration in seconds")
-    parser.add_argument("--workers", type=int, default=12, help="Concurrent workers for the DDoS probe")
+    parser.add_argument("--workers", type=int, default=32, help="Concurrent workers for the DDoS probe (sized to exceed the frontend's 20 req/s limiter on a local cluster)")
     parser.add_argument("--distributed", dest="distributed", action="store_true", default=True, help="Rotate synthetic X-Forwarded-For headers (does not create separate network sources)")
     parser.add_argument("--single-source", dest="distributed", action="store_false", help="Do not rotate X-Forwarded-For headers")
     parser.add_argument("--no-auth", action="store_true", help="Disable Keycloak token authentication (ddos)")

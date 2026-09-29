@@ -46,10 +46,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     postalCode: '97477',
     phone: '+1 555 123 4567',
     deliveryMethod: 'DHL Express Delivery (Priority 24h)',
-    paymentMethod: 'Credit Card',
-    cardNumber: '4111 2222 3333 4444',
-    cardExpiry: '12/28',
-    cardCvv: '888',
+    paymentMethod: 'SIMULATED_APPROVED',
   });
 
   if (!isOpen) return null;
@@ -78,6 +75,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     setStepError(null);
 
     try {
+      fsm.transition('PROCESSING', formData);
+      setCurrentStep(fsm.step);
+
+      if (formData.paymentMethod === 'SIMULATED_DECLINED') {
+        const declineMessage = 'Pago rechazado en la simulación local. No se creó el pedido ni se modificó el inventario.';
+        fsm.forceFail(declineMessage);
+        fsm.retry();
+        setCurrentStep(fsm.step);
+        setStepError(declineMessage);
+        return;
+      }
+
       // Execute Domain Use Case with Idempotency Key injection
       const newOrder = await placeOrderUseCase.execute(
         {
@@ -119,6 +128,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error processing order';
       fsm.forceFail(msg);
+      fsm.retry();
+      setCurrentStep(fsm.step);
       setStepError(msg);
       showToast('Checkout Error', msg, 'stock');
     } finally {
@@ -363,53 +374,34 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
           )}
 
           {/* STEP 3: Payment */}
+          {currentStep === 'PROCESSING' && (
+            <div className="py-12 flex flex-col items-center text-center gap-4" role="status" aria-live="polite">
+              <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+              <div>
+                <p className="font-bold text-slate-900 dark:text-white">Procesando pago de demostración</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">No se está realizando ningún cargo real.</p>
+              </div>
+            </div>
+          )}
+
           {currentStep === 'PAYMENT' && (
             <div className="space-y-4 animate-in fade-in">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Card Number (PCI-DSS Tokenized)
+                  Resultado del pago de prueba
                 </label>
-                <div className="relative">
-                  <CreditCard className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    required
-                    value={formData.cardNumber}
-                    onChange={(e) => setFormData({ ...formData, cardNumber: e.target.value })}
-                    placeholder="4111 2222 3333 4444"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:border-indigo-500 focus:outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Expiration (MM/YY)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.cardExpiry}
-                    onChange={(e) => setFormData({ ...formData, cardExpiry: e.target.value })}
-                    placeholder="12/28"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:border-indigo-500 focus:outline-none transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Security CVV
-                  </label>
-                  <input
-                    type="password"
-                    maxLength={4}
-                    required
-                    value={formData.cardCvv}
-                    onChange={(e) => setFormData({ ...formData, cardCvv: e.target.value })}
-                    placeholder="888"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm font-mono focus:border-indigo-500 focus:outline-none transition"
-                  />
-                </div>
+                <select
+                  required
+                  value={formData.paymentMethod}
+                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-indigo-500 focus:outline-none transition"
+                >
+                  <option value="SIMULATED_APPROVED">Pago aprobado (demo local)</option>
+                  <option value="SIMULATED_DECLINED">Pago rechazado (demo local)</option>
+                </select>
+                <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                  Simulación local: no hay pasarela ni cargos reales. No ingreses datos de tarjeta; el rechazo demo no crea el pedido ni descuenta inventario.
+                </p>
               </div>
 
               {/* Order Summary Line */}

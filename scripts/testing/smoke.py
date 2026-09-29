@@ -8,7 +8,7 @@ Consolidates:
 ==============================================================================
 Usage:
   python scripts/testing/smoke.py
-  python scripts/testing/smoke.py --base-url http://localhost:4200 --max-latency-ms 300
+  python scripts/testing/smoke.py --base-url http://localhost:5173 --max-latency-ms 300
   python scripts/testing/smoke.py --json
   python scripts/testing/smoke.py --strict
 """
@@ -29,7 +29,7 @@ if hasattr(sys.stdout, 'reconfigure'):
     except Exception:
         pass
 
-DEFAULT_FRONTEND = "http://127.0.0.1:4200"
+DEFAULT_FRONTEND = "http://127.0.0.1:5173"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 
 def get_keycloak_secret():
@@ -98,14 +98,14 @@ class SmokeTester:
         # 1. Frontend/Nginx health endpoint
         t0 = time.time()
         try:
-            req = urllib.request.Request(f"{self.base_url}/actuator/health")
+            req = urllib.request.Request(f"{self.base_url}/healthz")
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 lat = (time.time() - t0) * 1000
                 status = data.get("status", "UNKNOWN")
-                self.log_step("Frontend API Health (/actuator/health)", status == "UP", lat, f"Status: {status}")
+                self.log_step("Frontend Nginx Health (/healthz)", status == "OK", lat, f"Status: {status}")
         except Exception as e:
-            self.log_step("Frontend API Health (/actuator/health)", False, (time.time() - t0) * 1000, f"Error: {e}")
+            self.log_step("Frontend Nginx Health (/healthz)", False, (time.time() - t0) * 1000, f"Error: {e}")
 
         # 2. Keycloak JWT Authentication
         t0 = time.time()

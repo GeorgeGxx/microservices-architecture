@@ -27,7 +27,7 @@ def env_value(name, default):
 
 
 keycloak_url = env_value("KEYCLOAK_URL", "http://127.0.0.1:8181").rstrip("/")
-frontend_url = env_value("FRONTEND_URL", "http://127.0.0.1:4200").rstrip("/")
+frontend_url = env_value("FRONTEND_URL", "http://127.0.0.1:5173").rstrip("/")
 client_secret = env_value("KEYCLOAK_CLIENT_SECRET", "")
 if not client_secret:
     raise SystemExit("KEYCLOAK_CLIENT_SECRET is missing; run scripts/bootstrap-keycloak.ps1 first.")

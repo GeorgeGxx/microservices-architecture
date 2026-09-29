@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
 import { ToastContainer } from './components/ToastContainer';
 import { CartDrawer } from './components/CartDrawer';
 import { NotificationDrawer } from './components/NotificationDrawer';
@@ -19,79 +18,6 @@ import { Product, Order } from './types';
 import { fetchProducts } from './services/graphql';
 import { useAuth } from './context/AuthContext';
 
-const DEFAULT_MOCK_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    sku: 'LAPTOP-PRO',
-    name: 'Laptop Pro 16',
-    description: 'High-end developer laptop 16-inch 32GB RAM and 1TB SSD.',
-    price: 1499.99,
-    category: 'Computers',
-    imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?auto=format&fit=crop&w=800&q=80',
-    rating: 4.9,
-    reviewCount: 2450,
-    isBestSeller: true,
-    isInStock: true,
-    quantity: 9,
-  },
-  {
-    id: '2',
-    sku: '000001',
-    name: 'Pro Mechanical Keyboard',
-    description: 'Custom RGB Mechanical Keyboard with Blue Switches.',
-    price: 69.99,
-    category: 'Peripherals',
-    imageUrl: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=800&q=80',
-    rating: 4.7,
-    reviewCount: 890,
-    isBestSeller: false,
-    isInStock: true,
-    quantity: 10,
-  },
-  {
-    id: '3',
-    sku: '000002',
-    name: 'Pro Gaming Mouse',
-    description: 'Ergonomic Wireless Gaming Mouse 16000 DPI.',
-    price: 49.99,
-    category: 'Peripherals',
-    imageUrl: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=800&q=80',
-    rating: 4.8,
-    reviewCount: 1420,
-    isBestSeller: true,
-    isInStock: true,
-    quantity: 20,
-  },
-  {
-    id: '4',
-    sku: '000003',
-    name: '27-inch UltraWide Monitor',
-    description: '27-inch Curved Gaming Monitor 144Hz IPS HDR.',
-    price: 299.99,
-    category: 'Displays',
-    imageUrl: 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?auto=format&fit=crop&w=800&q=80',
-    rating: 4.6,
-    reviewCount: 640,
-    isBestSeller: false,
-    isInStock: true,
-    quantity: 30,
-  },
-  {
-    id: '5',
-    sku: '000004',
-    name: 'Studio Wireless Headphones HD',
-    description: 'Active Noise Cancelling Wireless Headphones BT 5.3.',
-    price: 119.99,
-    category: 'Audio',
-    imageUrl: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80',
-    rating: 4.8,
-    reviewCount: 1180,
-    isBestSeller: false,
-    isInStock: false,
-    quantity: 0,
-  },
-];
-
 export const App: React.FC = () => {
   const { user } = useAuth();
 
@@ -105,6 +31,7 @@ export const App: React.FC = () => {
   // Products state for Catalog & Command Palette
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const productRefreshInProgress = useRef(false);
 
   // Modals state
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
@@ -113,32 +40,45 @@ export const App: React.FC = () => {
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isQrScannerOpen, setIsQrScannerOpen] = useState(false);
+  const currentQuickViewProduct = quickViewProduct
+    ? products.find((product) => product.sku === quickViewProduct.sku) ?? quickViewProduct
+    : null;
 
   // Load products from Apollo Router Federation
-  useEffect(() => {
-    let isMounted = true;
-    const loadProducts = async () => {
-      try {
-        setIsLoadingProducts(true);
-        const data = await fetchProducts(user?.token);
-        if (isMounted) {
-          setProducts(data && data.length > 0 ? data : DEFAULT_MOCK_PRODUCTS);
-        }
-      } catch {
-        if (isMounted) {
-          setProducts(DEFAULT_MOCK_PRODUCTS);
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoadingProducts(false);
-        }
-      }
-    };
-    loadProducts();
-    return () => {
-      isMounted = false;
-    };
+  const loadProducts = useCallback(async (showLoading = false) => {
+    if (productRefreshInProgress.current) return;
+    productRefreshInProgress.current = true;
+    if (showLoading) setIsLoadingProducts(true);
+
+    try {
+      const data = await fetchProducts(user?.token);
+      setProducts(data);
+    } catch {
+      // Keep the last known catalog when a background refresh fails.
+    } finally {
+      if (showLoading) setIsLoadingProducts(false);
+      productRefreshInProgress.current = false;
+    }
   }, [user?.token]);
+
+  useEffect(() => {
+    void loadProducts(true);
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadProducts();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [loadProducts]);
+
+  useEffect(() => {
+    if (activeTab === 'catalog') void loadProducts();
+  }, [activeTab, loadProducts]);
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -202,16 +142,13 @@ export const App: React.FC = () => {
         {activeTab === 'admin' && <AdminDashboardPage />}
       </main>
 
-      {/* Global Footer */}
-      <Footer />
-
       {/* Sliding Drawers */}
-      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
+      {user && <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />}
       <NotificationDrawer />
 
       {/* Modals */}
       <QuickViewModal
-        product={quickViewProduct}
+        product={currentQuickViewProduct}
         onClose={() => setQuickViewProduct(null)}
         onOpenQR={(p) => setQrProduct(p)}
       />
@@ -222,7 +159,7 @@ export const App: React.FC = () => {
       />
 
       <CheckoutModal
-        isOpen={isCheckoutOpen}
+        isOpen={isCheckoutOpen && !!user}
         onClose={() => setIsCheckoutOpen(false)}
         onOrderSuccess={handleOrderPlaced}
       />

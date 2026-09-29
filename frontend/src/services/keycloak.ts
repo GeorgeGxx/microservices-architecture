@@ -1,8 +1,16 @@
 import Keycloak from 'keycloak-js';
 import { UserProfile } from '../types';
 
+const localFrontendHosts = new Set(['localhost', '127.0.0.1']);
+const isLocalFrontend = localFrontendHosts.has(window.location.hostname);
+
 const keycloakConfig = {
-  url: window.location.hostname === 'localhost' ? 'http://localhost:8181' : `${window.location.origin}/auth`,
+  // Local Compose/Minikube uses the dedicated forwarded Keycloak port. Behind
+  // the shared Istio host, /realms, /resources, /admin, and /js are routed to
+  // Keycloak at the origin root; there is no /auth context path.
+  url: isLocalFrontend
+    ? `${window.location.protocol}//${window.location.hostname}:8181`
+    : window.location.origin,
   realm: 'microservices-realm',
   clientId: 'microservices_frontend',
 };
@@ -10,6 +18,20 @@ const keycloakConfig = {
 export const keycloak = new Keycloak(keycloakConfig);
 
 let isInitialized = false;
+let tokenRefreshInProgress: Promise<boolean> | null = null;
+
+export async function getValidAccessToken(fallbackToken?: string): Promise<string | undefined> {
+  if (!keycloak.authenticated) return fallbackToken;
+
+  if (!tokenRefreshInProgress) {
+    tokenRefreshInProgress = keycloak.updateToken(30).finally(() => {
+      tokenRefreshInProgress = null;
+    });
+  }
+
+  await tokenRefreshInProgress;
+  return keycloak.token || fallbackToken;
+}
 
 export async function initKeycloak(): Promise<boolean> {
   if (isInitialized) return keycloak.authenticated || false;

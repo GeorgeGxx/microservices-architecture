@@ -15,9 +15,6 @@ export interface CheckoutContextData {
   phone: string;
   deliveryMethod: string;
   paymentMethod: string;
-  cardNumber: string;
-  cardExpiry: string;
-  cardCvv: string;
 }
 
 export class CheckoutStateMachine {
@@ -55,7 +52,7 @@ export class CheckoutStateMachine {
 
       case 'PROCESSING':
         if (this.currentStep === 'PAYMENT') {
-          return data.cardNumber.replace(/\s/g, '').length >= 15 && data.cardCvv.length >= 3;
+          return data.paymentMethod === 'SIMULATED_APPROVED' || data.paymentMethod === 'SIMULATED_DECLINED';
         }
         return false;
 

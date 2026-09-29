@@ -81,7 +81,7 @@ services:
     networks:
       - spring
 
-  ### Frontend (React 19 SPA) - http://localhost:4200
+  ### Frontend (React 19 SPA) - http://localhost:5173
   frontend:
     hostname: frontend
     container_name: frontend
