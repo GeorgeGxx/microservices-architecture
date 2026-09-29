@@ -13,6 +13,14 @@ global:
   #       alias: DB_PASSWORD
 
 apollo-router:
+  devMode: false
+  graphql:
+    introspection: false
+    sandbox: false
+  cors:
+    allowAnyOrigin: false
+    # Set to the public storefront origin(s) if browser traffic is cross-origin.
+    allowedOrigins: []
   image: { repository: "ghcr.io/apollographql/router", tag: "v2.16.3" }
   replicaCount: 2
   autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }

@@ -9,3 +9,5 @@ target/
 *.log
 scripts/__pycache__/
 scripts/testing/__pycache__/
+backups/local-drills/
+notes.md

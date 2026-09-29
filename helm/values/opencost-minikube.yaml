@@ -1,0 +1,37 @@
+clusterName: microservices-minikube-dev
+
+opencost:
+  prometheus:
+    internal:
+      enabled: true
+      serviceName: kube-prometheus-kube-prome-prometheus
+      namespaceName: observability
+      port: 9090
+  cloudCost:
+    enabled: false
+  mcp:
+    enabled: false
+  exporter:
+    replicas: 1
+    resources:
+      requests:
+        cpu: 50m
+        memory: 192Mi
+      limits:
+        cpu: 300m
+        memory: 512Mi
+  ui:
+    enabled: true
+    uiPort: 9090
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 150m
+        memory: 192Mi
+  metrics:
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: opencost-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: microservices-architecture
+  sources:
+    - repoURL: https://opencost.github.io/opencost-helm-chart
+      chart: opencost
+      targetRevision: 2.5.32
+      helm:
+        releaseName: opencost
+        valueFiles:
+          - $values/helm/values/opencost-minikube.yaml
+    - repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
+      targetRevision: develop
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: opencost
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true

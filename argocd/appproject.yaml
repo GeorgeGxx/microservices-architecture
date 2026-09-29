@@ -18,6 +18,10 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: production
       server: https://kubernetes.default.svc
+    - namespace: opencost
+      server: "*"
+    - namespace: observability
+      server: "*"
   clusterResourceWhitelist:
     - group: '*'
       kind: '*'

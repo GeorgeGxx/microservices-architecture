@@ -6,6 +6,7 @@ resource "kubernetes_namespace" "namespaces" {
     "gatekeeper-system",
     "argocd",
     "observability",
+    "opencost",
     "auth",
     "data",
     "vault",

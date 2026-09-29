@@ -102,7 +102,6 @@ function Invoke-CliToolsAudit {
     $tools = @(
         @{ Id = "Hashicorp.Terraform";     Cmd = "terraform";   Category = "IaC";          Desc = "Multi-Cloud Infrastructure-as-Code Engine" },
         @{ Id = "TerraformLinters.tflint"; Cmd = "tflint";      Category = "IaC";          Desc = "Linter for Terraform modules and provider configurations" },
-        @{ Id = "Infracost.Infracost";     Cmd = "infracost";   Category = "IaC";          Desc = "Cloud FinOps cost breakdown before applying IaC" },
         @{ Id = "Graphviz.Graphviz";       Cmd = "dot";         Category = "IaC";          Desc = "Visual dependency graph generator (terraform graph | dot)" },
         @{ Id = "Gitleaks.Gitleaks";       Cmd = "gitleaks";    Category = "Security";     Desc = "Hardcoded secret and credential scanner for git repository" },
         @{ Id = "AquaSecurity.Trivy";      Cmd = "trivy";       Category = "Security";     Desc = "Vulnerability, SBOM, and misconfiguration container/Helm scanner" },
@@ -111,10 +110,12 @@ function Invoke-CliToolsAudit {
         @{ Id = "Kubernetes.minikube";     Cmd = "minikube";    Category = "Kubernetes";   Desc = "Local enterprise Kubernetes cluster runtime" },
         @{ Id = "Kubernetes.kubectl";      Cmd = "kubectl";     Category = "Kubernetes";   Desc = "Kubernetes cluster control CLI" },
         @{ Id = "Helm.Helm";               Cmd = "helm";        Category = "Kubernetes";   Desc = "Package manager for Kubernetes umbrella charts and dependencies" },
-        @{ Id = "istioctl";                Cmd = "istioctl";    Category = "Kubernetes";   Desc = "Istio service mesh control plane management CLI" },
+        @{ Id = "Istio.Istio";             Cmd = "istioctl";    Category = "Kubernetes";   Desc = "Istio service mesh control plane management CLI" },
         @{ Id = "Docker.DockerDesktop";    Cmd = "docker";      Category = "Runtime";      Desc = "OCI container runtime and BuildKit engine" },
         @{ Id = "Apache.Maven";            Cmd = "mvn";         Category = "Runtime";      Desc = "Java 21 / Spring Boot build orchestrator" },
+        @{ Id = "BellSoft.LibericaJDK.21"; Cmd = "java";        Category = "Runtime";      Desc = "Java 21 runtime for Spring Boot services" },
         @{ Id = "OpenJS.NodeJS.LTS";       Cmd = "node";        Category = "Runtime";      Desc = "React 19 storefront runtime environment" },
+        @{ Id = "Python.Python.3.12";     Cmd = "python";      Category = "Runtime";      Desc = "Python automation and test scripts" },
         @{ Id = "Git.Git";                 Cmd = "git";         Category = "Runtime";      Desc = "Distributed version control system" },
         @{ Id = "Cloudflare.cloudflared";  Cmd = "cloudflared"; Category = "Networking";   Desc = "Zero-trust application tunnel supervisor" }
     )
@@ -142,7 +143,6 @@ function Invoke-CliToolsAudit {
                         "kubectl"     { (kubectl version --client 2>$null | Select-String -Pattern "Client Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
                         "terraform"   { (terraform version 2>$null | Select-String -Pattern "Terraform\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
                         "tflint"      { (tflint --version 2>$null | Select-String -Pattern "TFLint\s+version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "infracost"   { (infracost --version 2>$null | Select-String -Pattern "Infracost\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
                         "gitleaks"    { (gitleaks version 2>$null | Select-Object -First 1) }
                         "trivy"       { (trivy --version 2>$null | Select-String -Pattern "Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
                         "cosign"      { (cosign version 2>$null | Select-String -Pattern "GitVersion:\s*v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
@@ -366,7 +366,7 @@ function Invoke-CloudPlatform {
         [string]$CloudProvider,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet("plan", "apply", "destroy", "rollback", "unlock", "status", "cost", "sync-argocd")]
+        [ValidateSet("plan", "apply", "destroy", "rollback", "unlock", "status", "sync-argocd")]
         [string]$CloudAction,
 
         [ValidateSet("dev", "staging", "prod")]
@@ -523,15 +523,14 @@ function Invoke-CloudPlatform {
             kubectl get pods -n $targetNamespace 2>$null
         }
 
-        "cost" {
-            Show-Banner "FinOps Cost Estimation for $($CloudProvider.ToUpper()) $Env"
-            python (Join-Path $scriptsDir "local-cost-estimator.py") --env $Env
-        }
-
         "sync-argocd" {
             Show-Banner "ArgoCD GitOps Sync for $($CloudProvider.ToUpper()) $Env"
             $argoProject = Join-Path $root "argocd\appproject.yaml"
             if (Test-Path $argoProject) { kubectl apply -f $argoProject 2>$null | Out-Null }
+            foreach ($applicationSet in @("applicationset-prometheus-cloud.yaml", "applicationset-opencost-cloud.yaml")) {
+                $applicationSetPath = Join-Path $root "argocd\$applicationSet"
+                if (Test-Path $applicationSetPath) { kubectl apply -f $applicationSetPath 2>$null | Out-Null }
+            }
             $argoManifest = Join-Path $root "argocd\application-$Env.yaml"
             if (Test-Path $argoManifest) {
                 kubectl apply -f $argoManifest
@@ -754,6 +753,10 @@ stringData:
             if (Test-Path "$argoDir\appproject.yaml") {
                 kubectl apply -f "$argoDir\appproject.yaml" 2>$null | Out-Null
             }
+            if (Test-Path "$argoDir\application-opencost-dev.yaml") {
+                kubectl apply -f "$argoDir\application-opencost-dev.yaml" 2>$null | Out-Null
+                Write-Host "  [OK] OpenCost GitOps application registered (using the existing kube-prometheus-stack)." -ForegroundColor Green
+            }
             if (Test-Path "$argoDir\application-dev.yaml") {
                 kubectl apply -f "$argoDir\application-dev.yaml" 2>$null | Out-Null
                 Write-Host "  [OK] ArgoCD GitOps project and application registered." -ForegroundColor Green
@@ -798,10 +801,10 @@ stringData:
             $smokeScript = Join-Path $scriptsDir "endpoint-smoke-test.py"
             if (Test-Path $smokeScript) {
                 Write-Host "  ▶ Executing HTTP API Smoke Tests..." -ForegroundColor White
-                python $smokeScript --base-url http://127.0.0.1:8080
+                python $smokeScript --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
             }
 
-            Write-Host "`n[10/10] 💰 Air-Gapped FinOps Cost Breakdown..." -ForegroundColor Yellow
+            Write-Host "`n[10/10] 💰 Offline FinOps Architecture Estimate..." -ForegroundColor Yellow
             $costEstimator = Join-Path $scriptsDir "local-cost-estimator.py"
             if (Test-Path $costEstimator) { python $costEstimator --env minikube }
 
@@ -948,6 +951,12 @@ switch ($Command) {
             Show-Banner "ArgoCD Hard Sync (Minikube)"
             $argoProject = Join-Path $argoDir "appproject.yaml"
             if (Test-Path $argoProject) { kubectl apply -f $argoProject 2>$null | Out-Null }
+            foreach ($applicationSet in @("applicationset-prometheus-cloud.yaml", "applicationset-opencost-cloud.yaml")) {
+                $applicationSetPath = Join-Path $argoDir $applicationSet
+                if (Test-Path $applicationSetPath) { kubectl apply -f $applicationSetPath 2>$null | Out-Null }
+            }
+            $opencostManifest = Join-Path $argoDir "application-opencost-dev.yaml"
+            if (Test-Path $opencostManifest) { kubectl apply -f $opencostManifest 2>$null | Out-Null }
             $argoManifest = Join-Path $argoDir "application-dev.yaml"
             if (Test-Path $argoManifest) { kubectl apply -f $argoManifest 2>$null | Out-Null }
             kubectl patch application "microservices-dev" -n argocd --type merge -p '{"operation":{"sync":{"prune":true}}}' 2>$null
@@ -980,8 +989,27 @@ switch ($Command) {
         Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $Environment
     }
 
-    { $_ -in @("finops", "cost") } {
-        Show-Banner "Air-Gapped FinOps Cost Breakdown & Savings"
+    "cost" {
+        Show-Banner "Live Kubernetes Workload Costs (OpenCost)"
+        if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+            Write-Host "kubectl is not available in PATH." -ForegroundColor Red
+            exit 1
+        }
+        $kubectlCost = kubectl krew list 2>$null | Select-String -Pattern "^\s*cost(?:\s|$)"
+        if (-not $kubectlCost) {
+            Write-Host "Install the Krew plugin first: kubectl krew install cost" -ForegroundColor Yellow
+            Write-Host "The plugin is kubectl-cost; use --opencost to target OpenCost." -ForegroundColor DarkGray
+            exit 1
+        }
+        kubectl cost namespace --opencost --show-all-resources --window 1d
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "OpenCost API is unavailable. Check the current Kubernetes context and the OpenCost/Prometheus pods." -ForegroundColor Red
+            exit $LASTEXITCODE
+        }
+    }
+
+    "finops" {
+        Show-Banner "Offline FinOps Architecture Estimate (not live billing)"
         python (Join-Path $scriptsDir "local-cost-estimator.py") --env $targetCostEnv
     }
 
@@ -992,7 +1020,7 @@ switch ($Command) {
 
     "smoke" {
         Show-Banner "Microservice API Integration Smoke Tests"
-        python (Join-Path $scriptsDir "endpoint-smoke-test.py") --base-url http://127.0.0.1:8080
+        python (Join-Path $scriptsDir "endpoint-smoke-test.py") --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
     }
 
     "tunnels" {
@@ -1039,7 +1067,7 @@ switch ($Command) {
         Show-Banner "Active Platform Web Dashboards & Management Consoles"
         Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
         Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
-        Write-Host "│ 🌐 React Storefront          │ http://localhost:4200                      │ Open           │" -ForegroundColor White
+        Write-Host "│ 🌐 React Storefront          │ http://localhost:5173                      │ Open           │" -ForegroundColor White
         Write-Host "│ 🚀 Apollo Router (Sandbox)   │ http://localhost:8080                      │ Open           │" -ForegroundColor White
         Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
         Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
@@ -1050,8 +1078,9 @@ switch ($Command) {
         Write-Host "│ 🐙 ArgoCD GitOps Server      │ https://localhost:8088                     │ admin / admin  │" -ForegroundColor White
         Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
         Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
+        Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
         Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
-        Write-Host '  [INFO] All 10 communication tunnels remain open in background (including Tempo 3200 and Loki 3100).' -ForegroundColor DarkGray
+        Write-Host '  [INFO] Background tunnels include OpenCost UI (7000), Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
         Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
     }
 
@@ -1085,7 +1114,8 @@ switch ($Command) {
         Write-Host "  plan | apply        Run Terraform plan or apply on target platform modules"
         Write-Host "  rollback            Execute emergency automated rollback & state unlock"
         Write-Host "  doctor | verify     Deep health diagnostics on pods, NodePorts, and policies"
-        Write-Host "  finops | cost       Air-gapped FinOps cost breakdown and savings calculator"
+        Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
+        Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
         Write-Host "  tools [-Install]    Audit and install CLI tools via Winget (excluding 9 ignored tools)"
         Write-Host "  smoke               Run automated HTTP smoke tests against microservices"
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"

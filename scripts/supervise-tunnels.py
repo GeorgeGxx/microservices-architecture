@@ -7,12 +7,13 @@ import sys
 # - Authentication / IAM runs in 'auth' namespace
 # - Platform tools run in 'argocd', 'observability', 'vault', and 'istio-system'
 tunnels = [
-    {"name": "Frontend", "ns": "dev", "svc": "frontend", "local": 4200, "remote": 80},
+    {"name": "Frontend", "ns": "dev", "svc": "frontend", "local": 5173, "remote": 80},
     {"name": "Apollo-Router", "ns": "dev", "svc": "apollo-router", "local": 8080, "remote": 8080},
     {"name": "Keycloak", "ns": "auth", "svc": "keycloak", "local": 8181, "remote": 8181},
     {"name": "ArgoCD", "ns": "argocd", "svc": "argocd-server", "local": 8088, "remote": 80},
     {"name": "Grafana", "ns": "observability", "svc": "kube-prometheus-grafana", "local": 3000, "remote": 80},
     {"name": "Prometheus", "ns": "observability", "svc": "kube-prometheus-kube-prome-prometheus", "local": 9090, "remote": 9090},
+    {"name": "OpenCost UI", "ns": "opencost", "svc": "opencost", "local": 7000, "remote": 9090},
     {"name": "Vault", "ns": "vault", "svc": "vault", "local": 8200, "remote": 8200},
     {"name": "Tempo", "ns": "observability", "svc": "tempo", "local": 3200, "remote": 3200},
     {"name": "Loki", "ns": "observability", "svc": "loki", "local": 3100, "remote": 3100},

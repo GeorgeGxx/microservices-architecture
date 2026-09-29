@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: prometheus-cloud
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions:
+    - missingkey=error
+  generators:
+    - clusters:
+        selector:
+          matchLabels:
+            finops.opencost.io/enabled: "true"
+  template:
+    metadata:
+      name: prometheus-{{ .name }}
+    spec:
+      project: microservices-architecture
+      sources:
+        - repoURL: https://prometheus-community.github.io/helm-charts
+          chart: prometheus
+          targetRevision: 29.35.0
+          helm:
+            releaseName: prometheus
+            valueFiles:
+              - $values/helm/values/prometheus-cloud.yaml
+        - repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
+          targetRevision: '{{ index .metadata.labels "git-branch" }}'
+          ref: values
+      destination:
+        server: '{{ .server }}'
+        namespace: observability
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+          - ApplyOutOfSyncOnly=true
+          - PruneLast=true
