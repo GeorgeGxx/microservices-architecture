@@ -287,7 +287,7 @@
         <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="540" y="350" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - 10%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Canary Release (set-canary-weight.ps1)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - staged traffic)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Distinct immutable candidate image&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="960" y="350" width="340" height="90" as="geometry" />
         </mxCell>
         <mxCell id="pod_orders" parent="1" value="&lt;b&gt;Pod: orders-service&lt;/b&gt;&lt;br&gt;App Container (8003)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Resilience4j Circuit Breaker &amp; Outlier Detection&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
@@ -722,25 +722,25 @@
         <mxCell id="c_canary" parent="1" value="&lt;b&gt;🌐 ISTIO CANARY TRAFFIC MANAGEMENT&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="960" y="90" width="420" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="n_vs" parent="1" value="&lt;b&gt;VirtualService: products-service-vs&lt;/b&gt;&lt;br&gt;• Header Match: x-canary: true ➔ 100% v2&lt;br&gt;• Weight Split: 90% Subset v1 / 10% Subset v2&lt;br&gt;• Retries: 2 attempts (5xx, connect-failure)&lt;br&gt;• Timeout: 5s per try" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="n_vs" parent="1" value="&lt;b&gt;VirtualService: products-service-canary-vs&lt;/b&gt;&lt;br&gt;• Initial split: 90% stable / 10% canary&lt;br&gt;• Guarded stages: 10 → 25 → 50 → 75 → 100% v2&lt;br&gt;• x-canary: true routes 100% to v2&lt;br&gt;• Declined/failed gate restores last accepted split" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="980" y="140" width="380" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_dr" parent="1" value="&lt;b&gt;DestinationRule: products-service-dr&lt;/b&gt;&lt;br&gt;• Host: products-service.staging.svc&lt;br&gt;• Subset v1 (version=v1)&lt;br&gt;• Subset v2 (version=v2)&lt;br&gt;• TrafficPolicy: ISTIO_MUTUAL (mTLS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="980" y="240" width="380" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="n_v1" parent="1" value="&lt;b&gt;products-service v1 Pod (90%)&lt;/b&gt;&lt;br&gt;Stable Release • image: products-service:1.0.0&lt;br&gt;Labels: app=products-service, version=v1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="n_v1" parent="1" value="&lt;b&gt;products-service stable v1&lt;/b&gt;&lt;br&gt;Traffic decreases to 0% as v2 passes gates&lt;br&gt;Kept Ready for immediate rollback until promotion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="980" y="340" width="380" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_v2" parent="1" value="&lt;b&gt;products-service v2 Pod (10% + Header)&lt;/b&gt;&lt;br&gt;Canary Release • image: products-service:1.0.0&lt;br&gt;Labels: app=products-service, version=v2&lt;br&gt;Safe validation before full promotion" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+        <mxCell id="n_v2" parent="1" value="&lt;b&gt;products-service candidate v2&lt;/b&gt;&lt;br&gt;Distinct immutable image tag&lt;br&gt;After 100% approval, promote same tag through GitOps; retire canary after stable rollout is Ready" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="980" y="430" width="380" height="90" as="geometry" />
         </mxCell>
         <mxCell id="e_vs_dr" parent="1" value="Routes to" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n_vs" target="n_dr">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_dr_v1" parent="1" value="90% Weight" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v1">
+        <mxCell id="e_dr_v1" parent="1" value="Decreases to 0%" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e_dr_v2" parent="1" value="10% Weight / Header" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v2">
+        <mxCell id="e_dr_v2" parent="1" value="Increases to 100%" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_dr" target="n_v2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="c_alerts" parent="1" value="&lt;b&gt;🚨 ALERTING &amp; INCIDENT ROUTING&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">

@@ -1,0 +1,42 @@
+apiVersion: networking.istio.io/v1
+kind: DestinationRule
+metadata:
+  name: products-service-dr
+  namespace: dev
+spec:
+  host: products-service
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+    - name: v2
+      labels:
+        version: v2
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: products-service-canary-vs
+  namespace: dev
+spec:
+  hosts:
+    - products-service
+  http:
+    - match:
+        - headers:
+            x-canary:
+              exact: "true"
+      route:
+        - destination:
+            host: products-service
+            subset: v2
+          weight: 100
+    - route:
+        - destination:
+            host: products-service
+            subset: v1
+          weight: 90
+        - destination:
+            host: products-service
+            subset: v2
+          weight: 10

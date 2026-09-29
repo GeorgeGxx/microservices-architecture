@@ -21,7 +21,7 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 | **Minikube** | `.\platform.ps1 up` | Default bootstrap: Minikube cluster, Istio Demo profile, Envoy sidecars, Gatekeeper OPA, Keycloak + `db-keycloak`, Vault, Data tier, Apps, Grafana/Prometheus, Tunnels & FinOps. |
 | **Minikube** | `.\platform.ps1 up -Platform minikube -WithIstio` | Explicitly enables Istio service mesh, STRICT mTLS and Envoy proxy injection. |
 | **Minikube** | `.\platform.ps1 up -Platform minikube -WithoutIstio` | Native Kubernetes mode without Envoy sidecars or Istio control plane overhead (saves 1.5 GB RAM). |
-| **Minikube** | `.\platform.ps1 up -DeployCanary` | Provisions base microservices plus version `v2` in Canary mode with 90/10 Istio traffic routing. |
+| **Minikube** | `.\platform.ps1 up -DeployCanary -CanaryImageTag <immutable-tag>` | Deploys a distinct products-service v2 image and starts at 90/10 stable/canary traffic. |
 | **Minikube** | `.\platform.ps1 up -SkipScans` | Fast-track bootstrap: skips pre-flight Gitleaks, TFLint, Trivy, and Cosign validations. |
 | **Minikube** | `.\platform.ps1 up -Cpus 8 -MemoryMb 8192 -DiskSize 50g` | Custom hardware allocation for lower-spec developer workstations. |
 | **AWS** | `.\platform.ps1 up -Platform aws -Environment dev` | Deploys AWS Dev tier (corresponds to `develop` branch, namespace `dev`, burstable resources). |
@@ -307,3 +307,12 @@ python scripts/generate_drawio.py
 ```
 
 ---
+
+### Progressive products-service canary lifecycle
+
+- `scripts/istio/set-canary-weight.ps1` changes the v1/v2 split after checking Ready replicas and a 100% total.
+- `scripts/istio/auto-canary-rollout.ps1` advances through interactive observation gates and restores the last accepted split on a declined/failed step.
+- `scripts/istio/promote-canary.ps1 -Namespace dev` copies the 100%-validated canary image tag into Minikube Helm values. Review and push that change so ArgoCD deploys the stable workload.
+- `scripts/istio/promote-canary.ps1 -Namespace dev -RetireCanary` verifies the stable Deployment runs that same Ready image, then removes the canary routing and workload.
+
+Do not retire the canary until the GitOps promotion has synced and the stable Deployment is Ready. The tag must be immutable and the candidate must be the build that passed validation. When using `platform.ps1 up -Build -DeployCanary`, the existing products-service stable image is excluded from the local rebuild and image reload; the candidate is built under the unique supplied tag.

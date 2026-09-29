@@ -85,7 +85,11 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 .\platform.ps1 build            # Standalone image build & rolling update in Minikube
 .\platform.ps1 up -WithIstio     # With Istio mTLS and Kiali
 .\platform.ps1 up -WithoutIstio  # Pure Kubernetes native mode
-.\platform.ps1 up -DeployCanary  # With products-service v2 canary (10% traffic)
+.\platform.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"  # Start at 10% canary traffic
+.\scripts\istio\auto-canary-rollout.ps1 -Namespace dev -Steps 10,25,50,75,100
+.\scripts\istio\promote-canary.ps1 -Namespace dev  # stage tested tag into stable values after reaching 100% v2
+# Commit/push the values change, wait for ArgoCD + stable Deployment Ready, then retire:
+.\scripts\istio\promote-canary.ps1 -Namespace dev -RetireCanary
 
 # 3. Multi-Cloud Terraform Planning & Deployment
 .\platform.ps1 plan -Platform aws -Environment staging

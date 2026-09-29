@@ -38,6 +38,7 @@ def main():
     parser = argparse.ArgumentParser(description="Build all microservice Docker images")
     parser.add_argument("tag", nargs="?", default="1.0.0", help="Image tag (default: 1.0.0)")
     parser.add_argument("--repo-prefix", default="georgegxx", help="Docker registry prefix")
+    parser.add_argument("--exclude-service", action="append", choices=SERVICES, default=[], help="Skip building a microservice image (may be passed more than once)")
     parser.add_argument("--no-cache", action="store_true", help="Build Docker images without cache")
     args = parser.parse_args()
 
@@ -49,7 +50,8 @@ def main():
     print("=" * 60)
 
     # 1. Build Spring Boot Microservices
-    for svc in SERVICES:
+    services_to_build = [svc for svc in SERVICES if svc not in args.exclude_service]
+    for svc in services_to_build:
         image_name = f"{prefix}/{svc}:{tag}"
         print(f"\n📦 Building service '{image_name}'...")
         dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
@@ -79,7 +81,7 @@ def main():
     run_command(cmd, cwd=frontend_dir)
 
     print("\n" + "=" * 60)
-    print(" ✨ ALL CONTAINER IMAGES BUILT SUCCESSFULLY!")
+    print(" ✨ REQUESTED CONTAINER IMAGES BUILT SUCCESSFULLY!")
     print("=" * 60)
 
 
