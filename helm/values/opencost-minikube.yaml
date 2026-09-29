@@ -4,6 +4,7 @@ clusterName: cluster.local
 
 opencost:
   exporter:
+    replicas: 1
     defaultClusterId: microservices-minikube-dev
   prometheus:
     internal:
@@ -15,8 +16,6 @@ opencost:
     enabled: false
   mcp:
     enabled: false
-  exporter:
-    replicas: 1
     resources:
       requests:
         cpu: 50m

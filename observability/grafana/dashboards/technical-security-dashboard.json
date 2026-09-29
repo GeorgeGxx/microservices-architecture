@@ -188,7 +188,7 @@
       "id": 103,
       "type": "stat",
       "title": "🚨 Edge Security Attack Status & Threat Level",
-      "description": "Counts frontend Nginx HTTP 429 blocks per second from JSON access logs. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec. The signal decays after blocked traffic stops.",
+      "description": "Count of actual HTTP 429 responses logged by frontend Nginx. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec. The value is a rolling one-minute rate and returns to green after traffic stops.",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -240,7 +240,7 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "sum(rate({service=\"frontend\"} | json | __error__=\"\" | status=429 [1m])) or vector(0)",
+          "expr": "sum(rate({service=\"frontend\"} | json | __error__=\"\" | status=\"429\" [1m])) or vector(0)",
           "legendFormat": "Frontend HTTP 429 / second",
           "queryType": "range"
         }
@@ -600,7 +600,7 @@
       "id": 402,
       "type": "timeseries",
       "title": "🐘 HikariCP Active Database Connection Pools (PostgreSQL)",
-      "description": "Active SQL query connections utilizing the HikariCP pool across databases.",
+      "description": "Active, idle, and queued connections per HikariCP pool. Active can correctly remain at zero while the application is idle; compare it with idle and pending connections before diagnosing a scrape issue.",
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -632,8 +632,24 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (service) (hikaricp_connections_active)",
-          "legendFormat": "{{service}} (Active DB Conns)"
+          "expr": "sum by (service, pool) (hikaricp_connections_active)",
+          "legendFormat": "{{service}} / {{pool}} active"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (service, pool) (hikaricp_connections_idle)",
+          "legendFormat": "{{service}} / {{pool}} idle"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (service, pool) (hikaricp_connections_pending)",
+          "legendFormat": "{{service}} / {{pool}} pending"
         }
       ]
     },
@@ -653,7 +669,7 @@
       "id": 501,
       "type": "bargauge",
       "title": "🛑 Blocked Attacks (HTTP 429) & Observed Peer IPs",
-      "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. With no 429 events, the IP target displays 'No blocked peers'. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
+      "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. No rows means no blocked request in the selected time range. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
       "gridPos": {
         "h": 8,
         "w": 10,
@@ -702,7 +718,7 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "sum(count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=429 [15m])) or vector(0)",
+          "expr": "sum(count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=\"429\" [15m])) or vector(0)",
           "legendFormat": "Blocked HTTP 429 (15m)",
           "queryType": "range"
         },
@@ -711,7 +727,7 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "topk(5, sum by (peer_ip) (count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=429 | peer_ip!=\"\" [15m]))) or on() label_replace(vector(0), \"peer_ip\", \"No blocked peers\", \"__name__\", \".*\")",
+          "expr": "topk(5, sum by (peer_ip) (count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=\"429\" | peer_ip!=\"\" [15m])))",
           "legendFormat": "IP {{peer_ip}}",
           "queryType": "range"
         }
@@ -752,7 +768,7 @@
             "uid": "loki-ds",
             "type": "loki"
           },
-          "expr": "{service=\"frontend\"} | json | __error__=\"\" | status=429",
+          "expr": "{service=\"frontend\"} | json | __error__=\"\" | status=\"429\"",
           "legendFormat": "frontend rate-limit block"
         }
       ]
