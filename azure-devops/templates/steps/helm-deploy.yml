@@ -59,6 +59,7 @@ steps:
         if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
 
         helm upgrade --install ${{ parameters.helmRelease }} ${{ parameters.helmChartPath }} \
+          --reuse-values \
           --namespace ${{ parameters.namespace }} \
           --create-namespace \
           --set ${{ parameters.serviceName }}.image.repository=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }} \

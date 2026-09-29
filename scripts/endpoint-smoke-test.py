@@ -6,7 +6,8 @@ Cloud-Agnostic DevSecOps Post-Deployment Smoke & Synthetic Health Prober.
 Validates service availability, security filter enforcement (401 on unauthenticated routes),
 and latency SLOs against any Kubernetes or cloud environment (Minikube, EKS, AKS, GKE).
 
-Exits with code 0 on all gates passing, or code 1 on failure to trigger automated rollbacks.
+Exits with code 0 when every gate passes, or code 1 when an operator/pipeline must
+inspect the failed deployment. This probe does not roll back infrastructure.
 
 Author  : GeorgeGxx/DevOps
 Version : v2.0.0
@@ -207,7 +208,7 @@ def run_smoke_test(
             print(f"{Colors.BOLD}{Colors.GREEN}🎉 ALL DEVSECOPS GATES PASSED — Environment is healthy & secure.{Colors.RESET}\n")
         else:
             print(f"{Colors.BOLD}{Colors.RED}🚨 CRITICAL HEALTH OR SECURITY GATE FAILED!{Colors.RESET}")
-            print(f"{Colors.YELLOW}Recommendation: Trigger automated Helm rollback or inspect pod logs.{Colors.RESET}\n")
+            print(f"{Colors.YELLOW}Recommendation: Inspect pod events/logs and the release revision; roll back only after confirming the failed deployment.{Colors.RESET}\n")
 
     return all_passed
 

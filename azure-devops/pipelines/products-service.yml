@@ -2,39 +2,43 @@ name: MSA-Products-Service-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include:
-      - main
-      - develop
+    include: [develop, release/*, main, master]
   paths:
     include:
       - products-service/**
       - helm/**
-      - pom.xml
+      - devsecops/**
+      - azure-devops/pipelines/products-service.yml
+      - azure-devops/templates/**
 
 pr:
   branches:
-    include:
-      - main
+    include: [develop, release/*, main, master]
   paths:
     include:
       - products-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/products-service.yml
+      - azure-devops/templates/**
 
 variables:
-  - name: AZURE_SERVICE_CONNECTION
-    value: 'azure-service-connection'
-  - name: AZURE_RG
-    value: 'msa-azure-prod-rg'
-  - name: AKS_CLUSTER_NAME
-    value: 'msa-azure-prod-aks'
-  - name: ACR_NAME
-    value: 'msaazureprodacr'
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
 
 stages:
-  - template: ../templates/azure-pipelines.yml
+  - template: ../templates/app-stages.yml
     parameters:
-      serviceName: 'products-service'
-      serviceDir: 'products-service'
-      serviceType: 'spring-boot'
+      serviceName: products-service
+      serviceDir: products-service
+      serviceType: spring-boot
       servicePort: 8004
-      canaryEnabled: true
-      canaryVirtualServicePath: 'k8s/istio/06-canary-virtual-services.yaml'
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure
+      canaryEnabled: false
+      canaryVirtualServicePath: ''

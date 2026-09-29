@@ -1,37 +1,42 @@
-name: MSA-Frontend-SPA-$(Date:yyyyMMdd)$(Rev:.r)
+name: MSA-Frontend-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include:
-      - main
-      - develop
+    include: [develop, release/*, main, master]
   paths:
     include:
       - frontend/**
       - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/frontend.yml
+      - azure-devops/templates/**
 
 pr:
   branches:
-    include:
-      - main
+    include: [develop, release/*, main, master]
   paths:
     include:
       - frontend/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/frontend.yml
+      - azure-devops/templates/**
 
 variables:
-  - name: AZURE_SERVICE_CONNECTION
-    value: 'azure-service-connection'
-  - name: AZURE_RG
-    value: 'msa-azure-prod-rg'
-  - name: AKS_CLUSTER_NAME
-    value: 'msa-azure-prod-aks'
-  - name: ACR_NAME
-    value: 'msaazureprodacr'
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
 
 stages:
-  - template: ../templates/azure-pipelines.yml
+  - template: ../templates/app-stages.yml
     parameters:
-      serviceName: 'frontend'
-      serviceDir: 'frontend'
-      serviceType: 'react'
+      serviceName: frontend
+      serviceDir: frontend
+      serviceType: react
       servicePort: 80
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure

@@ -1,5 +1,5 @@
-# Azure cloud infrastructure checks only. The Azure root currently has no
-# durable remote state backend, so this pipeline must not plan/apply cloud state.
+# Azure cloud infrastructure checks only. The root has a partial remote backend;
+# cloud planning/apply remains disabled until the state store and locking exist.
 name: MSA-Terraform-Azure-Validation-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
@@ -37,9 +37,12 @@ stages:
               cd terraform/environments/azure
               terraform fmt -check -recursive
               terraform init -backend=false -input=false
-              terraform validate -no-color
+              for environment in dev staging prod; do
+                terraform workspace select "$environment" 2>/dev/null || terraform workspace new "$environment"
+                terraform validate -no-color
+              done
             displayName: Format and validate Azure Terraform
           - script: |
-              echo "Cloud plan/apply is intentionally disabled until Azure remote state and state locking are configured."
+              echo "Cloud plan/apply is intentionally disabled until the Azure state store and Blob locking are provisioned."
               echo "No Terraform state, cloud resource or Kubernetes cluster was changed by this pipeline."
             displayName: State-backend prerequisite

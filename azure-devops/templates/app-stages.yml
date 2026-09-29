@@ -16,6 +16,8 @@
 # test gates are always blocking.
 #
 # Branch model: develop -> dev | release/* -> staging | main/master -> staging + prod
+# Registries are environment-scoped by the matching Terraform workspace. A main
+# build is pushed to staging first, then copied to production only after QA.
 # Environments (ADO): dev, staging, production. Cluster/RG per env come from
 # <namePrefix>-<env>-aks / -rg, i.e. the ones created by infra-stages.yml.
 #
@@ -50,7 +52,11 @@ parameters:
   # ---- environment wiring (previously undeclared pipeline variables) ----
   - name: serviceConnection    # app-deploy connection: AcrPush + AKS RBAC only (NOT the infra one)
     type: string
-  - name: acrName
+  - name: acrNameDev
+    type: string
+  - name: acrNameStaging
+    type: string
+  - name: acrNameProd
     type: string
   - name: namePrefix
     type: string
@@ -368,9 +374,14 @@ stages:
               scriptLocation: inlineScript
               inlineScript: |
                 set -euo pipefail
-                az acr login --name ${{ parameters.acrName }}
+                case "$(Build.SourceBranch)" in
+                  refs/heads/develop) ACR_NAME='${{ parameters.acrNameDev }}' ;;
+                  refs/heads/release/*|refs/heads/main|refs/heads/master) ACR_NAME='${{ parameters.acrNameStaging }}' ;;
+                  *) echo "##vso[task.logissue type=error]No ACR mapping for $(Build.SourceBranch)"; exit 1 ;;
+                esac
+                az acr login --name "$ACR_NAME"
                 docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
-                TARGET=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}
+                TARGET="$ACR_NAME.azurecr.io/${{ parameters.serviceName }}"
                 docker tag local/${{ parameters.serviceName }}:$(Build.SourceVersion) $TARGET:$(Build.SourceVersion)
                 docker push $TARGET:$(Build.SourceVersion)
 
@@ -397,7 +408,7 @@ stages:
                     namespace: dev
                     envName: dev
                     springProfile: dev
-                    acrName: ${{ parameters.acrName }}
+                    acrName: ${{ parameters.acrNameDev }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
                     helmChartPath: ${{ parameters.helmChartPath }}
@@ -444,7 +455,7 @@ stages:
                     namespace: staging
                     envName: staging
                     springProfile: staging
-                    acrName: ${{ parameters.acrName }}
+                    acrName: ${{ parameters.acrNameStaging }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
                     helmChartPath: ${{ parameters.helmChartPath }}
@@ -632,7 +643,7 @@ stages:
       - E2ETests
       - PerformanceTests
       - DASTScan
-    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
     jobs:
       - job: PromoteTags
         displayName: "Tag certified image in ACR"
@@ -646,19 +657,24 @@ stages:
               scriptLocation: inlineScript
               inlineScript: |
                 set -euo pipefail
-                az acr login --name ${{ parameters.acrName }}
-                TARGET=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}
-                SRC=$TARGET:$(Build.SourceVersion)
-                docker pull $SRC
+                SOURCE_ACR='${{ parameters.acrNameStaging }}'
+                TARGET_ACR='${{ parameters.acrNameProd }}'
+                SOURCE_IMAGE="$SOURCE_ACR.azurecr.io/${{ parameters.serviceName }}:$(Build.SourceVersion)"
+                TARGET="$TARGET_ACR.azurecr.io/${{ parameters.serviceName }}"
+                az acr login --name "$SOURCE_ACR"
+                az acr login --name "$TARGET_ACR"
+                docker pull "$SOURCE_IMAGE"
+                docker tag "$SOURCE_IMAGE" "$TARGET:$(Build.SourceVersion)"
+                docker push "$TARGET:$(Build.SourceVersion)"
                 if [ -n "${{ parameters.imageVersion }}" ]; then
-                  docker tag $SRC $TARGET:${{ parameters.imageVersion }}
-                  docker push $TARGET:${{ parameters.imageVersion }}
+                  docker tag "$TARGET:$(Build.SourceVersion)" "$TARGET:${{ parameters.imageVersion }}"
+                  docker push "$TARGET:${{ parameters.imageVersion }}"
                 fi
                 if [ "${{ parameters.tagLatest }}" = "True" ]; then
-                  docker tag $SRC $TARGET:latest
-                  docker push $TARGET:latest
+                  docker tag "$TARGET:$(Build.SourceVersion)" "$TARGET:latest"
+                  docker push "$TARGET:latest"
                 fi
-                echo "Certified image: $SRC"
+                echo "Certified image copied from $SOURCE_IMAGE to $TARGET:$(Build.SourceVersion)"
 
   # ==========================================================
   # PRODUCTION (main/master only) — approval check lives on the 'production'
@@ -684,7 +700,7 @@ stages:
                     namespace: production
                     envName: production
                     springProfile: prod
-                    acrName: ${{ parameters.acrName }}
+                    acrName: ${{ parameters.acrNameProd }}
                     serviceName: ${{ parameters.serviceName }}
                     servicePort: ${{ parameters.servicePort }}
                     helmChartPath: ${{ parameters.helmChartPath }}
@@ -701,10 +717,14 @@ stages:
                       scriptLocation: inlineScript
                       inlineScript: |
                         set -euo pipefail
-                        for f in k8s/istio/05-destination-rules.yaml k8s/istio/destination-rules.yaml; do
-                          if [ -f "$f" ]; then kubectl apply -f "$f" -n production; break; fi
-                        done
-                        kubectl apply -f "${{ parameters.canaryVirtualServicePath }}" -n production
+                        MANIFEST='${{ parameters.canaryVirtualServicePath }}'
+                        if [ ! -f "$MANIFEST" ]; then
+                          echo "##vso[task.logissue type=error]Production canary manifest not found: $MANIFEST"
+                          exit 1
+                        fi
+                        # The manifest must declare production namespace and include its
+                        # production DestinationRule/VirtualService; never apply dev files here.
+                        kubectl apply -f "$MANIFEST"
 
   - stage: RollbackProduction
     displayName: "🔄 Rollback Production - ${{ parameters.serviceName }}"
@@ -722,4 +742,3 @@ stages:
               namespace: production
               helmRelease: ${{ parameters.helmRelease }}
               helmVersion: ${{ parameters.helmVersion }}
-              restoreManifests: 'k8s/istio/05-destination-rules.yaml k8s/istio/destination-rules.yaml'

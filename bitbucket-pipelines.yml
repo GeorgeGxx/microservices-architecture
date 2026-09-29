@@ -1,643 +1,385 @@
-image: maven:3.9.6-eclipse-temurin-21
+image: maven:3.9.9-eclipse-temurin-21
+
+options:
+  max-time: 45
+  size: 2x
 
 definitions:
   services:
     docker:
-      memory: 3072
-
+      memory: 4096
   caches:
     maven: ~/.m2/repository
     npm: ~/.npm
-
-  # Reusable scripts and common environment variables
-  # GCP Environment Defaults:
-  # GCP_REGION (e.g. us-central1)
-  # GCP_PROJECT_ID (e.g. msa-gcp-prod)
-  # GKE_CLUSTER_NAME (e.g. msa-gcp-prod-gke)
-  # GCP_SA_KEY (base64 encoded service account key)
-
   steps:
-    # -------------------------------------------------------------------------
-    # STAGE 1: 🧪 Unit Tests (Spring Boot / React 19)
-    # -------------------------------------------------------------------------
-    - step: &unit-tests-spring
-        name: "🧪 1. Unit Tests & JaCoCo Coverage (Spring Boot)"
-        caches:
-          - maven
+    - step: &unit-tests
+        name: '1. Unit tests and coverage'
+        caches: [maven, npm]
         script:
-          - echo "Executing Maven Unit Tests & JaCoCo (-T 1C Multi-threaded)..."
-          - cd ${SERVICE_DIR:-products-service}
-          - mvn clean test jacoco:report -B -T 1C -Dspring.profiles.active=test
-        artifacts:
-          - "**/target/surefire-reports/**"
-          - "**/target/site/jacoco/**"
-
-    - step: &unit-tests-react
-        name: "🧪 1. Unit Tests & Build (React 19)"
-        image: node:22-slim
-        caches:
-          - npm
-        script:
-          - echo "Executing React 19 Type Check & Production Build..."
-          - cd frontend
-          - npm install
-          - npm run build
-        artifacts:
-          - "frontend/dist/**"
-
-    # -------------------------------------------------------------------------
-    # STAGE 2: 🔍 SAST, Secret Scanning & Checkov (Security)
-    # -------------------------------------------------------------------------
-    - step: &sast-security
-        name: "🔍 2. SAST, Secrets (Gitleaks) & Checkov"
-        image: python:3.11-slim
-        script:
-          - echo "Scanning Repository for Secrets with Gitleaks (Hard Gate)..."
-          - curl -sSfL https://github.com/zricethezav/gitleaks/releases/download/v8.18.2/gitleaks_8.18.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin
-          - CONFIG="devsecops/sast/gitleaks/.gitleaks.toml"
-          - if [ -f "$CONFIG" ]; then gitleaks detect --source=. --config=$CONFIG -v --no-git; else gitleaks detect --source=. -v --no-git; fi
-          - echo "Scanning IaC, Kubernetes & Dockerfiles with Checkov..."
-          - pip install checkov
-          - checkov -d ${SERVICE_DIR:-.} --framework dockerfile,kubernetes,helm --soft-fail
-
-    # -------------------------------------------------------------------------
-    # STAGE 3: ⚙️ Build Container with BuildKit & CycloneDX SBOM
-    # -------------------------------------------------------------------------
-    - step: &build-container-sbom
-        name: "⚙️ 3. Build Container & SBOM (BuildKit)"
-        services:
-          - docker
-        script:
-          - export DOCKER_BUILDKIT=1
-          - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - export SERVICE_DIR=${SERVICE_DIR:-products-service}
-          - echo "Building OCI Image for ${SERVICE_NAME}..."
-          - mkdir -p /tmp/images /tmp/sbom
           - |
-            if [ "${SERVICE_NAME}" = "frontend" ]; then
-              docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t local/${SERVICE_NAME}:${IMAGE_TAG} -t local/${SERVICE_NAME}:latest -f frontend/Dockerfile ./frontend
+            set -euo pipefail
+            SERVICE_NAME="${SERVICE_NAME:-products-service}"
+            if [ "$SERVICE_NAME" = "frontend" ]; then
+              cd frontend
+              npm ci --no-audit
+              npm run build
             else
-              docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t local/${SERVICE_NAME}:${IMAGE_TAG} -t local/${SERVICE_NAME}:latest -f ${SERVICE_DIR}/Dockerfile .
+              SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
+              test -f "$SERVICE_DIR/pom.xml" || { echo "Unknown Spring service: $SERVICE_DIR"; exit 1; }
+              cd "$SERVICE_DIR"
+              mvn -B -T 1C clean verify jacoco:report -Dspring.profiles.active=test
             fi
-          - docker save local/${SERVICE_NAME}:${IMAGE_TAG} -o /tmp/images/${SERVICE_NAME}-image.tar
-          - echo "Generating CycloneDX SBOM with Trivy..."
-          - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          - trivy image --input /tmp/images/${SERVICE_NAME}-image.tar --format cyclonedx --output /tmp/sbom/${SERVICE_NAME}-sbom.cdx.json || true
+    - step: &sast
+        name: '2. SAST, secrets and IaC scan'
+        image: python:3.12-slim
+        script:
+          - apt-get update && apt-get install -y --no-install-recommends curl tar && rm -rf /var/lib/apt/lists/*
+          - curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
+          - gitleaks detect --source . --config devsecops/sast/gitleaks/.gitleaks.toml --no-git
+          - pip install --no-cache-dir checkov==3.2.495
+          - checkov -d "${SERVICE_DIR:-${SERVICE_NAME:-products-service}}" --framework dockerfile,kubernetes,helm
+    - step: &build-sbom
+        name: '3. Build immutable image and CycloneDX SBOM'
+        services: [docker]
+        script:
+          - |
+            set -euo pipefail
+            SERVICE_NAME="${SERVICE_NAME:-products-service}"
+            SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
+            IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
+            mkdir -p artifacts/images artifacts/sbom
+            if [ "$SERVICE_NAME" = "frontend" ]; then
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f frontend/Dockerfile frontend
+            else
+              test -f "$SERVICE_DIR/Dockerfile" || { echo "Missing Dockerfile: $SERVICE_DIR"; exit 1; }
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f "$SERVICE_DIR/Dockerfile" .
+            fi
+            docker save "local/${SERVICE_NAME}:${IMAGE_TAG}" -o "artifacts/images/${SERVICE_NAME}.tar"
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.59.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.59.1
+            trivy image --input "artifacts/images/${SERVICE_NAME}.tar" --format cyclonedx --output "artifacts/sbom/${SERVICE_NAME}.cdx.json"
         artifacts:
-          - "/tmp/images/**"
-          - "/tmp/sbom/**"
-
-    # -------------------------------------------------------------------------
-    # STAGE 4: 🧰 Container Image Scan (Trivy Audit)
-    # -------------------------------------------------------------------------
-    - step: &image-vulnerability-scan
-        name: "🧰 4. Container Vulnerability Scan (Trivy)"
-        services:
-          - docker
+          - artifacts/images/**
+          - artifacts/sbom/**
+    - step: &container-scan
+        name: '4. Container vulnerability scan'
+        image: aquasec/trivy:0.59.1
+        services: [docker]
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - echo "Scanning container image with Trivy (CRITICAL,HIGH)..."
-          - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-          - trivy image --input /tmp/images/${SERVICE_NAME}-image.tar --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0
-
-    # -------------------------------------------------------------------------
-    # STAGE 5: 🧾 Compliance & Policy Gate (Helm + Conftest OPA)
-    # -------------------------------------------------------------------------
-    - step: &compliance-opa-check
-        name: "🧾 5. Compliance & Policy Gate (Conftest OPA)"
+          - set -euo pipefail
+          - test -s "artifacts/images/${SERVICE_NAME:-products-service}.tar"
+          - trivy image --input "artifacts/images/${SERVICE_NAME:-products-service}.tar" --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+    - step: &policy-gate
+        name: '5. Helm, OpenCost and OPA policy gate'
+        image: alpine/helm:3.17.3
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - echo "Installing Helm & Conftest..."
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
-          - echo "Rendering pinned OpenCost and Prometheus charts..."
+          - apk add --no-cache bash curl tar
           - bash scripts/validate-opencost.sh
-          - echo "Rendering Helm manifests for policy evaluation..."
-          - helm template microservices ./helm/microservices-umbrella --set ${SERVICE_NAME}.image.tag=${BITBUCKET_COMMIT:0:7} > rendered-manifests.yaml
-          - echo "Validating against devsecops/policies/conftest/..."
-          - if [ -d "devsecops/policies/conftest" ]; then conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ || echo "Conftest audit logged advisory findings."; fi
-
-    # -------------------------------------------------------------------------
-    # STAGE 6: 🌱 Deploy to Google Kubernetes Engine (GKE) Dev
-    # -------------------------------------------------------------------------
-    - step: &deploy-gke-dev
-        name: "🌱 Deploy to GKE Dev (GCP)"
-        image: google/cloud-sdk:alpine
+          - curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin conftest
+          - helm template microservices ./helm/microservices-umbrella --set "${SERVICE_NAME:-products-service}.image.tag=${BITBUCKET_COMMIT:0:12}" > /tmp/rendered.yaml
+          - conftest test /tmp/rendered.yaml --policy devsecops/policies/conftest/
+    - step: &terraform-validate
+        name: '6. GCP Terraform format and validation (no backend/apply)'
+        image: hashicorp/terraform:1.8.5
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-dev}/msa-gar"
-          - echo "Authenticating with Google Cloud Platform Dev..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-dev-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-dev} || echo "GKE auth simulated in CI"; else echo "GCP_SA_KEY not configured — deploy simulated"; fi
-          - echo "Deploying Helm release to GKE dev namespace..."
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          - set -euo pipefail
+          - terraform fmt -check -recursive terraform/
+          - cd terraform/environments/gcp
+          - terraform init -backend=false -input=false
+          - terraform validate -no-color
+          - echo 'Cloud plan/apply is disabled here; configure durable state and locking first.'
+    - step: &publish-candidate
+        name: '7. Publish immutable image to GAR'
+        image: google/cloud-sdk:alpine
+        services: [docker]
+        script:
           - |
-            helm upgrade --install microservices ./helm/microservices-umbrella \
-              --namespace dev \
-              --create-namespace \
-              --set ${SERVICE_NAME}.image.repository=${GAR_REGISTRY}/${SERVICE_NAME} \
-              --set ${SERVICE_NAME}.image.tag=${IMAGE_TAG} \
-              --set global.environment=dev \
-              --set configMap.data.SPRING_PROFILES_ACTIVE=dev \
-              --wait --timeout 5m \
-              --atomic \
-              --cleanup-on-fail || echo "GKE Dev deployment simulated"
-
-    # -------------------------------------------------------------------------
-    # STAGE 6.1: 🔄 Automated Rollback for Dev Failure
-    # -------------------------------------------------------------------------
-    - step: &rollback-gke-dev
-        name: "🔄 Rollback GKE Dev"
+            set -euo pipefail
+            : "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"
+            : "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"
+            : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
+            : "${GAR_REPOSITORY:?Set GAR_REPOSITORY from the matching Terraform workspace}"
+            SERVICE_NAME="${SERVICE_NAME:-products-service}"
+            IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
+            printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+            trap 'rm -f /tmp/gcp-key.json' EXIT
+            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+            docker load -i "artifacts/images/${SERVICE_NAME}.tar"
+            IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}:${IMAGE_TAG}"
+            docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
+            docker push "$IMAGE"
+    - step: &deploy-gke
+        name: '8. Deploy Helm release to GKE'
         image: google/cloud-sdk:alpine
         script:
-          - echo "Initiating automated rollback on GKE dev..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-dev-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-dev} || true; fi
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - helm rollback microservices --namespace dev --wait --timeout 5m || echo "Dev rollback completed."
-
-    # -------------------------------------------------------------------------
-    # STAGE 7: 🚀 Deploy to Google Kubernetes Engine (GKE) Staging
-    # -------------------------------------------------------------------------
-    - step: &deploy-gke-staging
-        name: "🚀 6. Deploy to GKE Staging (GCP)"
-        image: google/cloud-sdk:alpine
-        script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
-          - echo "Authenticating with Google Cloud Platform..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || echo "GKE auth simulated in CI"; else echo "GCP_SA_KEY not configured — deploy simulated"; fi
-          - echo "Deploying Helm release to GKE staging namespace..."
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           - |
+            set -Eeuo pipefail
+            : "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"
+            : "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"
+            : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
+            : "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME to the Terraform output for this environment}"
+            : "${GAR_REPOSITORY:?Set GAR_REPOSITORY from the matching Terraform workspace}"
+            SERVICE_NAME="${SERVICE_NAME:-products-service}"
+            IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
+            case "${BITBUCKET_DEPLOYMENT_ENVIRONMENT:?Deployment environment must be configured}" in
+              test) NAMESPACE=dev; SPRING_PROFILE=dev ;;
+              staging) NAMESPACE=staging; SPRING_PROFILE=staging ;;
+              production) NAMESPACE=production; SPRING_PROFILE=prod ;;
+              *) echo "Unsupported Bitbucket deployment environment"; exit 2 ;;
+            esac
+            printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+            trap 'rm -f /tmp/gcp-key.json' EXIT
+            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
+            curl -fsSL https://raw.githubusercontent.com/helm/helm/v3.17.3/scripts/get-helm-3 | HELM_INSTALL_DIR=/usr/local/bin bash -s -- --version v3.17.3
+            kubectl get nodes
+            if helm status microservices --namespace "$NAMESPACE" >/dev/null 2>&1; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
+            PREVIOUS_REVISION=""
+            if [ "$RELEASE_EXISTS" = true ]; then
+              PREVIOUS_REVISION="$(helm history microservices --namespace "$NAMESPACE" --max 1 2>/dev/null | awk 'NR == 2 { print $1 }')"
+            fi
+            rollback_on_error() {
+              result=$?
+              if [ "$result" -ne 0 ] && [ "$RELEASE_EXISTS" = true ] && [ -n "$PREVIOUS_REVISION" ]; then
+                helm rollback microservices "$PREVIOUS_REVISION" --namespace "$NAMESPACE" --wait --timeout 5m || true
+              fi
+              exit "$result"
+            }
+            trap rollback_on_error ERR
             helm upgrade --install microservices ./helm/microservices-umbrella \
-              --namespace staging \
-              --create-namespace \
-              --set ${SERVICE_NAME}.image.repository=${GAR_REGISTRY}/${SERVICE_NAME} \
-              --set ${SERVICE_NAME}.image.tag=${IMAGE_TAG} \
-              --set global.environment=staging \
-              --set configMap.data.SPRING_PROFILES_ACTIVE=staging \
-              --wait --timeout 5m \
-              --atomic \
-              --cleanup-on-fail || echo "GKE Staging deployment simulated"
-          - echo "Retrieving GKE Istio Ingress Gateway Endpoint..."
-          - export GKE_INGRESS_IP=$(kubectl get svc -n istio-system istio-ingressgateway -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "localhost:30080")
-          - echo "GKE_INGRESS_URL=http://${GKE_INGRESS_IP}" > /tmp/gke-endpoint.env
-        artifacts:
-          - "/tmp/gke-endpoint.env"
-
-    # -------------------------------------------------------------------------
-    # STAGE 8: 🔗 Integration Tests (Newman / Postman)
-    # -------------------------------------------------------------------------
-    - step: &integration-tests-newman
-        name: "🔗 7. Integration Tests (Postman/Newman)"
-        image: node:20-slim
+              --namespace "$NAMESPACE" --create-namespace --reuse-values \
+              --set "${SERVICE_NAME}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
+              --set "${SERVICE_NAME}.image.tag=${IMAGE_TAG}" \
+              --set global.environment="$SPRING_PROFILE" \
+              --wait --timeout 8m --atomic
+            kubectl rollout status "deployment/${SERVICE_NAME}" --namespace "$NAMESPACE" --timeout=5m
+    - step: &api-contract
+        name: '9. API contract smoke tests'
+        image: node:22-slim
         script:
-          - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
-          - 'echo "Executing API Contract Tests against: $TARGET_URL"'
-          - npm install -g newman newman-reporter-htmlextra
-          - COLLECTION="devsecops/testing/newman/microservices.postman_collection.json"
-          - if [ -f "$COLLECTION" ]; then newman run "$COLLECTION" --env-var "BASE_URL=${TARGET_URL}" --reporters cli,htmlextra --reporter-htmlextra-export /tmp/newman-report.html || echo "Newman tests completed with warnings."; fi
-        artifacts:
-          - "/tmp/newman-report.html"
-
-    # -------------------------------------------------------------------------
-    # STAGE 9: 🧭 E2E Tests (Cypress)
-    # -------------------------------------------------------------------------
-    - step: &e2e-tests-cypress
-        name: "🧭 8. E2E Tests (Cypress User Journeys)"
-        image: cypress/included:13.6.0
+          - set -euo pipefail
+          - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'
+          - ': "${KEYCLOAK_URL:?Set KEYCLOAK_URL in the deployment environment}"'
+          - npm install --global newman
+          - newman run devsecops/testing/newman/microservices.postman_collection.json --env-var "BASE_URL=${GKE_INGRESS_URL}" --env-var "keycloak_url=${KEYCLOAK_URL}" --bail
+    - step: &frontend-e2e
+        name: '10. Storefront synthetic E2E checks'
+        image: python:3.12-slim
         script:
-          - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
-          - export SERVICE_DIR=${SERVICE_DIR:-frontend}
-          - echo "Executing Cypress E2E flows against GKE Staging ($TARGET_URL)..."
-          - if [ -f "${SERVICE_DIR}/cypress.config.js" ] || [ -f "${SERVICE_DIR}/cypress.config.ts" ]; then cd ${SERVICE_DIR} && CYPRESS_BASE_URL=$TARGET_URL npx cypress run || echo "Cypress tests executed with findings."; else echo "No Cypress config for ${SERVICE_DIR} — stage skipped."; fi
-
-    # -------------------------------------------------------------------------
-    # STAGE 10: ⚡ Performance & Stress Tests (k6)
-    # -------------------------------------------------------------------------
-    - step: &performance-tests-k6
-        name: "⚡ 9. Performance & SLA Tests (k6)"
-        image: grafana/k6:latest
+          - set -euo pipefail
+          - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'
+          - ': "${GKE_FRONTEND_URL:?Set GKE_FRONTEND_URL in the deployment environment}"'
+          - python scripts/endpoint-smoke-test.py --base-url "$GKE_INGRESS_URL" --frontend-url "$GKE_FRONTEND_URL"
+    - step: &performance
+        name: '11. k6 performance and SLO checks'
+        image: grafana/k6:0.55.0
         script:
-          - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
-          - echo "Executing k6 Performance Validation against GKE Gateway ($TARGET_URL)..."
-          - SCRIPT="devsecops/testing/k6/load-test.js"
-          - if [ -f "$SCRIPT" ]; then k6 run -e TARGET_URL=$TARGET_URL $SCRIPT || echo "k6 threshold notice."; else echo "devsecops/testing/k6/load-test.js not found, skipping k6."; fi
-
-    # -------------------------------------------------------------------------
-    # STAGE 11: 🕵️ DAST Scan (OWASP ZAP on GKE Edge)
-    # -------------------------------------------------------------------------
-    - step: &dast-scan-zap
-        name: "🕵️ 10. DAST Scan (OWASP ZAP)"
+          - set -euo pipefail
+          - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'
+          - k6 run -e TARGET_URL="$GKE_INGRESS_URL" devsecops/testing/k6/load-test.js
+    - step: &dast
+        name: '12. OWASP ZAP DAST baseline'
         image: ghcr.io/zaproxy/zaproxy:stable
         script:
-          - if [ -f "/tmp/gke-endpoint.env" ]; then source /tmp/gke-endpoint.env; fi
-          - export TARGET_URL=${GKE_INGRESS_URL:-http://localhost:30080}
-          - echo "Executing OWASP ZAP Baseline Scan against GKE Ingress ($TARGET_URL)..."
-          - mkdir -p /tmp/zap
-          - RULES="devsecops/dast/zap/rules.tsv"
-          - if [ -f "$RULES" ]; then zap-baseline.py -t $TARGET_URL -c /zap/rules.tsv -r /tmp/zap/zap-report.html -I || echo "ZAP scan finished."; else zap-baseline.py -t $TARGET_URL -r /tmp/zap/zap-report.html -I || echo "ZAP scan finished."; fi
+          - set -euo pipefail
+          - ': "${GKE_FRONTEND_URL:?Set GKE_FRONTEND_URL in the deployment environment}"'
+          - mkdir -p artifacts/zap
+          - zap-baseline.py -t "$GKE_FRONTEND_URL" -r artifacts/zap/report.html -I
         artifacts:
-          - "/tmp/zap/**"
-
-    # -------------------------------------------------------------------------
-    # STAGE 12: 🔄 Automated Rollback for Staging Failure
-    # -------------------------------------------------------------------------
-    - step: &rollback-gke-staging
-        name: "🔄 Rollback GKE Staging"
+          - artifacts/zap/**
+    - step: &runtime-verify
+        name: '13. Kubernetes rollout and endpoint verification'
         image: google/cloud-sdk:alpine
         script:
-          - echo "Initiating automated rollback on GKE staging..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || true; fi
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - helm rollback microservices --namespace staging --wait --timeout 5m || echo "Staging rollback completed."
-
-    # -------------------------------------------------------------------------
-    # STAGE 13: 📦 Push Certified Image to Google Artifact Registry (GAR)
-    # -------------------------------------------------------------------------
-    - step: &push-image-gar
-        name: "📦 11. Push to Google Artifact Registry (GAR)"
-        image: google/cloud-sdk:alpine
-        services:
-          - docker
+          - set -euo pipefail
+          - ': "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"'
+          - ': "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME in the deployment environment}"'
+          - ': "${GCP_REGION:?Set GCP_REGION in the deployment environment}"'
+          - ': "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"'
+          - printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+          - trap 'rm -f /tmp/gcp-key.json' EXIT
+          - gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+          - gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
+          - kubectl get deployments,pods,services --namespace "${K8S_NAMESPACE:?Set K8S_NAMESPACE in deployment environment}"
+          - curl --fail --silent --show-error "$GKE_FRONTEND_URL/healthz"
+    - step: &release-evidence
+        name: '14. Release evidence and immutable artifact verification'
+        image: alpine:3.21
         script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
-          - echo "Authenticating Docker with Google Artifact Registry..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud auth configure-docker ${GCP_REGION:-us-central1}-docker.pkg.dev --quiet || true; fi
-          - echo "Loading verified container image..."
-          - docker load -i /tmp/images/${SERVICE_NAME}-image.tar
-          - docker tag local/${SERVICE_NAME}:${IMAGE_TAG} ${GAR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG}
-          - docker tag local/${SERVICE_NAME}:${IMAGE_TAG} ${GAR_REGISTRY}/${SERVICE_NAME}:latest
-          - docker tag local/${SERVICE_NAME}:${IMAGE_TAG} ${GAR_REGISTRY}/${SERVICE_NAME}:1.0.0
-          - echo "Pushing certified images to GAR..."
-          - docker push ${GAR_REGISTRY}/${SERVICE_NAME}:${IMAGE_TAG} || echo "Push simulated"
-          - docker push ${GAR_REGISTRY}/${SERVICE_NAME}:latest || echo "Push simulated"
-          - docker push ${GAR_REGISTRY}/${SERVICE_NAME}:1.0.0 || echo "Push simulated"
-          - echo "Successfully pushed certified images to Google Artifact Registry!"
+          - set -euo pipefail
+          - test -s "artifacts/sbom/${SERVICE_NAME:-products-service}.cdx.json"
+          - sha256sum "artifacts/sbom/${SERVICE_NAME:-products-service}.cdx.json"
+          - echo "Verified commit ${BITBUCKET_COMMIT} for ${SERVICE_NAME:-products-service}."
 
-    # -------------------------------------------------------------------------
-    # STAGE 14: 🚢 Deploy to Production (GKE Canary with Istio)
-    # -------------------------------------------------------------------------
-    - step: &deploy-gke-production-canary
-        name: "🚢 12. Deploy to GKE Production (Canary with Istio)"
-        image: google/cloud-sdk:alpine
-        script:
-          - export SERVICE_NAME=${SERVICE_NAME:-products-service}
-          - export IMAGE_TAG=${BITBUCKET_COMMIT:0:7}
-          - export GAR_REGISTRY="${GCP_REGION:-us-central1}-docker.pkg.dev/${GCP_PROJECT_ID:-msa-gcp-prod}/msa-gar"
-          - echo "Authenticating with GKE Production Cluster..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || echo "GKE auth simulated"; fi
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - echo "Deploying Production Helm release to GKE..."
-          - |
-            helm upgrade --install microservices ./helm/microservices-umbrella \
-              --namespace production \
-              --create-namespace \
-              --set ${SERVICE_NAME}.image.repository=${GAR_REGISTRY}/${SERVICE_NAME} \
-              --set ${SERVICE_NAME}.image.tag=${IMAGE_TAG} \
-              --set global.environment=production \
-              --set configMap.data.SPRING_PROFILES_ACTIVE=prod \
-              --wait --timeout 5m \
-              --atomic \
-              --cleanup-on-fail || echo "GKE Production deployment simulated"
-          - echo "Applying Istio Canary traffic routing (90% Prod / 10% Canary)..."
-          - |
-            if [ "${SERVICE_NAME}" = "products-service" ]; then
-              if [ -f "k8s/istio/05-destination-rules.yaml" ]; then kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true; fi
-              if [ -f "k8s/istio/06-canary-virtual-services.yaml" ]; then kubectl apply -f k8s/istio/06-canary-virtual-services.yaml -n production || true; fi
-            fi
-          - echo "Verifying production canary rollout health..."
-          - |
-            if command -v kubectl &>/dev/null && kubectl get nodes &>/dev/null; then
-              kubectl rollout status deployment/microservices-${SERVICE_NAME} -n production --timeout=2m || {
-                echo "Production canary health check failed! Initiating emergency Helm rollback..."
-                helm rollback microservices --namespace production --wait || true
-                exit 1
-              }
-              echo "Production canary deployment stabilized successfully."
-            fi
-
-    # -------------------------------------------------------------------------
-    # STAGE 14.1: 🔄 Automated Rollback for Production Failure
-    # -------------------------------------------------------------------------
-    - step: &rollback-gke-production
-        name: "🔄 Rollback GKE Production"
-        image: google/cloud-sdk:alpine
-        script:
-          - echo "Initiating emergency automated rollback on GKE production..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || true; fi
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - helm rollback microservices --namespace production --wait --timeout 5m || echo "Production rollback completed."
-          - if [ -f "k8s/istio/05-destination-rules.yaml" ]; then kubectl apply -f k8s/istio/05-destination-rules.yaml -n production || true; fi
-
-    # -------------------------------------------------------------------------
-    # Terraform GCP Infrastructure Steps per Environment
-    # -------------------------------------------------------------------------
-    - step: &terraform-gcp-dev
-        name: "☁️ Terraform GCP Dev Validation (no apply; remote backend prerequisite)"
-        image: hashicorp/terraform:1.8.0
-        script:
-          - cd terraform/environments/gcp
-          - terraform fmt -check
-          - terraform init -backend=false
-          - terraform workspace select -or-create dev || true
-          - terraform validate
-          - echo "GCP dev apply is disabled until a shared remote state backend and locking are configured."
-
-    - step: &terraform-gcp-staging
-        name: "☁️ Terraform GCP Staging Validation (no apply; remote backend prerequisite)"
-        image: hashicorp/terraform:1.8.0
-        script:
-          - cd terraform/environments/gcp
-          - terraform fmt -check
-          - terraform init -backend=false
-          - terraform workspace select -or-create staging || true
-          - terraform validate
-          - echo "GCP staging apply is disabled until a shared remote state backend and locking are configured."
-
-    - step: &terraform-gcp-prod
-        name: "☁️ Terraform GCP Production Validation (no apply; remote backend prerequisite)"
-        image: hashicorp/terraform:1.8.0
-        script:
-          - cd terraform/environments/gcp
-          - terraform fmt -check
-          - terraform init -backend=false
-          - terraform workspace select -or-create prod || true
-          - terraform validate
-          - echo "GCP production apply is disabled until a shared remote state backend and locking are configured."
-
-    - step: &terraform-gcp-step
-        name: "☁️ Terraform GCP Infrastructure Plan"
-        image: hashicorp/terraform:1.8.0
-        script:
-          - cd terraform/environments/gcp
-          - terraform fmt -check
-          - terraform init -backend=false
-          - terraform validate
-          - echo "Executing Terraform Plan for GCP..."
-          - terraform plan -var-file=prod/terraform.tfvars -no-color || true
-
-# =============================================================================
-# PIPELINES CONFIGURATION
-# =============================================================================
 pipelines:
-  # Automated Branch Pipelines (Unified 14+ Stages with Rollback)
   branches:
     develop:
+      - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
+      - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
+      - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
+      - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
+      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+      - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
       - stage:
-          name: "🧪 Verification & Compliance (CI)"
-          steps:
-            - step: *unit-tests-spring
-            - step: *sast-security
-            - step: *build-container-sbom
-            - step: *image-vulnerability-scan
-            - step: *compliance-opa-check
+          name: '7. Publish dev image'
+          environment: test
+          steps: [{ step: *publish-candidate }]
       - stage:
-          name: "☁️ GCP Terraform Dev Validation (no apply)"
-          steps:
-            - step: *terraform-gcp-dev
+          name: '8. Deploy dev to GKE'
+          deployment: test
+          steps: [{ step: *deploy-gke }]
       - stage:
-          name: "🌱 GKE Dev Deployment"
-          steps:
-            - step: *deploy-gke-dev
+          name: '9. Dev API contract'
+          environment: test
+          steps: [{ step: *api-contract }]
       - stage:
-          name: "🔄 Dev Emergency Rollback"
-          condition:
-            changesets:
-              includePaths:
-                - "**"
-          steps:
-            - step: *rollback-gke-dev
+          name: '10. Dev storefront E2E'
+          environment: test
+          steps: [{ step: *frontend-e2e }]
+      - stage:
+          name: '11. Dev performance SLO'
+          environment: test
+          steps: [{ step: *performance }]
+      - stage:
+          name: '12. Dev DAST'
+          environment: test
+          steps: [{ step: *dast }]
+      - stage:
+          name: '13. Verify dev rollout'
+          environment: test
+          steps: [{ step: *runtime-verify }]
+      - stage: { name: '14. Dev release evidence', steps: [{ step: *release-evidence }] }
 
     staging:
+      - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
+      - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
+      - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
+      - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
+      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+      - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
       - stage:
-          name: "🧪 Verification & Compliance (CI)"
-          steps:
-            - step: *unit-tests-spring
-            - step: *sast-security
-            - step: *build-container-sbom
-            - step: *image-vulnerability-scan
-            - step: *compliance-opa-check
+          name: '7. Publish staging image'
+          environment: staging
+          steps: [{ step: *publish-candidate }]
       - stage:
-          name: "☁️ GCP Terraform Staging Validation (no apply)"
-          steps:
-            - step: *terraform-gcp-staging
+          name: '8. Deploy staging to GKE'
+          deployment: staging
+          steps: [{ step: *deploy-gke }]
       - stage:
-          name: "🚀 GKE Staging & QA Validation (CD)"
-          steps:
-            - step: *deploy-gke-staging
-            - step: *integration-tests-newman
-            - step: *e2e-tests-cypress
-            - step: *performance-tests-k6
-            - step: *dast-scan-zap
-            - step: *push-image-gar
+          name: '9. Staging API contract'
+          environment: staging
+          steps: [{ step: *api-contract }]
       - stage:
-          name: "🔄 Staging Emergency Rollback"
-          steps:
-            - step: *rollback-gke-staging
+          name: '10. Staging storefront E2E'
+          environment: staging
+          steps: [{ step: *frontend-e2e }]
+      - stage:
+          name: '11. Staging performance SLO'
+          environment: staging
+          steps: [{ step: *performance }]
+      - stage:
+          name: '12. Staging DAST'
+          environment: staging
+          steps: [{ step: *dast }]
+      - stage:
+          name: '13. Verify staging rollout'
+          environment: staging
+          steps: [{ step: *runtime-verify }]
+      - stage: { name: '14. Staging release evidence', steps: [{ step: *release-evidence }] }
 
-    main:
+    main: &production-branch-pipeline
+      - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
+      - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
+      - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
+      - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
+      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+      - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
       - stage:
-          name: "🧪 Verification & Compliance (CI)"
-          steps:
-            - step: *unit-tests-spring
-            - step: *sast-security
-            - step: *build-container-sbom
-            - step: *image-vulnerability-scan
-            - step: *compliance-opa-check
+          name: '7. Publish staging candidate'
+          environment: staging
+          steps: [{ step: *publish-candidate }]
       - stage:
-          name: "☁️ GCP Terraform Production Validation (no apply)"
-          steps:
-            - step: *terraform-gcp-prod
+          name: '8. Deploy staging candidate'
+          deployment: staging
+          steps: [{ step: *deploy-gke }]
       - stage:
-          name: "🚀 GKE Staging Pre-flight & QA Validation"
-          steps:
-            - step: *deploy-gke-staging
-            - step: *integration-tests-newman
-            - step: *e2e-tests-cypress
-            - step: *performance-tests-k6
-            - step: *dast-scan-zap
-            - step: *push-image-gar
+          name: '9. Staging API contract'
+          environment: staging
+          steps: [{ step: *api-contract }]
       - stage:
-          name: "🚢 Production Canary Rollout (GKE + Istio)"
-          steps:
-            - step: *deploy-gke-production-canary
+          name: '10. Staging storefront E2E'
+          environment: staging
+          steps: [{ step: *frontend-e2e }]
       - stage:
-          name: "🔄 Production Emergency Rollback"
+          name: '11. Staging performance SLO'
+          environment: staging
+          steps: [{ step: *performance }]
+      - stage:
+          name: '12. Staging DAST'
+          environment: staging
+          steps: [{ step: *dast }]
+      - stage:
+          name: '13. Final staging readiness verification'
+          environment: staging
+          steps: [{ step: *runtime-verify }]
+      - stage:
+          name: '14. Production promotion and deployment (rolling; manual approval)'
+          deployment: production
+          trigger: manual
           steps:
-            - step: *rollback-gke-production
+            - step:
+                name: Promote tested image to production GAR
+                image: google/cloud-sdk:alpine
+                services: [docker]
+                script:
+                  - |
+                    set -euo pipefail
+                    : "${GCP_SA_KEY:?Set secured production GCP_SA_KEY}"
+                    : "${GCP_PROJECT_ID:?Set production GCP_PROJECT_ID}"
+                    : "${GCP_REGION:?Set production GCP_REGION}"
+                    SERVICE_NAME="${SERVICE_NAME:-products-service}"
+                    IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
+                    printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+                    trap 'rm -f /tmp/gcp-key.json' EXIT
+                    gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+                    gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+                    docker load -i "artifacts/images/${SERVICE_NAME}.tar"
+                    IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/msa-gcp-prod/${SERVICE_NAME}:${IMAGE_TAG}"
+                    docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
+                    docker push "$IMAGE"
+            - step: *deploy-gke
 
-    master:
-      - stage:
-          name: "🧪 Verification & Compliance (CI)"
-          steps:
-            - step: *unit-tests-spring
-            - step: *sast-security
-            - step: *build-container-sbom
-            - step: *image-vulnerability-scan
-            - step: *compliance-opa-check
-      - stage:
-          name: "☁️ GCP Terraform Production Validation (no apply)"
-          steps:
-            - step: *terraform-gcp-prod
-      - stage:
-          name: "🚀 GKE Staging Pre-flight & QA Validation"
-          steps:
-            - step: *deploy-gke-staging
-            - step: *integration-tests-newman
-            - step: *e2e-tests-cypress
-            - step: *performance-tests-k6
-            - step: *dast-scan-zap
-            - step: *push-image-gar
-      - stage:
-          name: "🚢 Production Canary Rollout (GKE + Istio)"
-          steps:
-            - step: *deploy-gke-production-canary
-      - stage:
-          name: "🔄 Production Emergency Rollback"
-          steps:
-            - step: *rollback-gke-production
+    master: *production-branch-pipeline
 
-  # Custom Manual Pipelines per Microservice & GCP IaC
+  pull-requests:
+    '**':
+      - step: *unit-tests
+      - step: *sast
+      - step: *terraform-validate
+
   custom:
-    # -------------------------------------------------------------------------
-    # 1. Parameterized Deployment for ANY Microservice
-    # -------------------------------------------------------------------------
-    deploy-service:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'products-service'
-            allowed-values:
-              - 'inventory-service'
-              - 'notification-service'
-              - 'orders-service'
-              - 'products-service'
-          - name: SERVICE_DIR
-            default: 'products-service'
-          - name: ENVIRONMENT
-            default: 'staging'
-            allowed-values:
-              - 'staging'
-              - 'production'
-          - name: CANARY_WEIGHT
-            default: '10'
-            allowed-values:
-              - '10'
-              - '25'
-              - '50'
-              - '100'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *integration-tests-newman
-      - step: *performance-tests-k6
-      - step: *dast-scan-zap
-      - step: *push-image-gar
-
-    # -------------------------------------------------------------------------
-    # 2. Dedicated Microservice Pipelines (Official Port & Service Matrix)
-    # -------------------------------------------------------------------------
-    # Frontend (React 19 / Puerto 80 / Nginx)
-    frontend:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'frontend'
-          - name: SERVICE_DIR
-            default: 'frontend'
-      - step: *unit-tests-react
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *e2e-tests-cypress
-      - step: *push-image-gar
-
-    # Inventory Service (Spring Boot / Puerto 8001)
-    inventory-service:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'inventory-service'
-          - name: SERVICE_DIR
-            default: 'inventory-service'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *integration-tests-newman
-      - step: *push-image-gar
-
-    # Notification Service (Spring Boot / Puerto 8002)
-    notification-service:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'notification-service'
-          - name: SERVICE_DIR
-            default: 'notification-service'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *push-image-gar
-
-    # Orders Service (Spring Boot / Puerto 8003)
-    orders-service:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'orders-service'
-          - name: SERVICE_DIR
-            default: 'orders-service'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *integration-tests-newman
-      - step: *push-image-gar
-
-    # Products Service (Spring Boot / Puerto 8004 - Canary Target)
-    products-service:
-      - variables:
-          - name: SERVICE_NAME
-            default: 'products-service'
-          - name: SERVICE_DIR
-            default: 'products-service'
-      - step: *unit-tests-spring
-      - step: *sast-security
-      - step: *build-container-sbom
-      - step: *image-vulnerability-scan
-      - step: *compliance-opa-check
-      - step: *deploy-gke-staging
-      - step: *integration-tests-newman
-      - step: *performance-tests-k6
-      - step: *dast-scan-zap
-      - step: *push-image-gar
-      - step: *deploy-gke-production-canary
-
-    # -------------------------------------------------------------------------
-    # 3. Terraform GCP Validation Pipeline (remote state prerequisites block apply)
-    # -------------------------------------------------------------------------
     terraform-gcp-validate:
-      - step:
-          <<: *terraform-gcp-step
-          name: "Validate GCP Terraform (no apply)"
-          script:
-            - cd terraform/environments/gcp
-            - terraform init -backend=false
-            - terraform validate
-            - echo "Apply is disabled until a durable remote state backend and locking are configured."
+      - step: *terraform-validate
+    deploy-service-staging:
+      - variables:
+          - name: SERVICE_NAME
+            default: products-service
+            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service]
+          - name: GKE_INGRESS_URL
+      - step: *unit-tests
+      - step: *sast
+      - step: *build-sbom
+      - step: *container-scan
+      - step: *policy-gate
+      - stage:
+          name: Publish and deploy to staging
+          deployment: staging
+          steps:
+            - step: *publish-candidate
+            - step: *deploy-gke
+            - step: *api-contract
+            - step: *frontend-e2e
+            - step: *performance
+            - step: *dast
+            - step: *runtime-verify
+      - step: *release-evidence

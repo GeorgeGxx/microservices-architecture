@@ -2,37 +2,41 @@ name: MSA-Orders-Service-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include:
-      - main
-      - develop
+    include: [develop, release/*, main, master]
   paths:
     include:
       - orders-service/**
       - helm/**
-      - pom.xml
+      - devsecops/**
+      - azure-devops/pipelines/orders-service.yml
+      - azure-devops/templates/**
 
 pr:
   branches:
-    include:
-      - main
+    include: [develop, release/*, main, master]
   paths:
     include:
       - orders-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/orders-service.yml
+      - azure-devops/templates/**
 
 variables:
-  - name: AZURE_SERVICE_CONNECTION
-    value: 'azure-service-connection'
-  - name: AZURE_RG
-    value: 'msa-azure-prod-rg'
-  - name: AKS_CLUSTER_NAME
-    value: 'msa-azure-prod-aks'
-  - name: ACR_NAME
-    value: 'msaazureprodacr'
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
 
 stages:
-  - template: ../templates/azure-pipelines.yml
+  - template: ../templates/app-stages.yml
     parameters:
-      serviceName: 'orders-service'
-      serviceDir: 'orders-service'
-      serviceType: 'spring-boot'
+      serviceName: orders-service
+      serviceDir: orders-service
+      serviceType: spring-boot
       servicePort: 8003
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure

@@ -22,11 +22,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Target AWS Environment (staging or prod)'
+        description: 'Target AWS Terraform workspace'
         required: true
         default: 'staging'
         type: choice
         options:
+          - dev
           - staging
           - prod
       action:
@@ -156,8 +157,10 @@ jobs:
 
           echo "target_env=$TARGET_ENV" >> $GITHUB_OUTPUT
           echo "var_file=$TARGET_ENV/terraform.tfvars" >> $GITHUB_OUTPUT
-          echo "s3_bucket=georgegxx-msa-tfstate-$TARGET_ENV" >> $GITHUB_OUTPUT
-          echo "dynamo_table=georgegxx-msa-tflock-$TARGET_ENV" >> $GITHUB_OUTPUT
+          # Match terraform/environments/aws/versions.tf and platform.ps1:
+          # one durable backend per provider, isolated by the Terraform workspace.
+          echo "s3_bucket=georgegxx-msa-tfstate-prod" >> $GITHUB_OUTPUT
+          echo "dynamo_table=georgegxx-msa-tflock-prod" >> $GITHUB_OUTPUT
           echo "Resolved target environment: $TARGET_ENV"
 
       - name: Configure AWS Credentials (IAM Key / OIDC fallback)
@@ -218,10 +221,69 @@ jobs:
           if-no-files-found: error
 
   # =========================================================================
-  # STAGE 3A: Terraform Apply - AWS Staging Environment
+  # STAGE 3A: Terraform Apply - AWS Dev Environment
+  # =========================================================================
+  tf-apply-dev:
+    name: 🚀 3A. Terraform Apply (AWS Dev)
+    needs: tf-plan
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply' && github.event.inputs.environment == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      id-token: write
+      contents: read
+    environment:
+      name: dev-infra
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform CLI
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+
+      - name: Download Terraform Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-dev
+          path: ${{ env.TF_WORKING_DIR }}
+
+      - name: Terraform Init
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform init \
+            -backend-config="bucket=georgegxx-msa-tfstate-prod" \
+            -backend-config="dynamodb_table=georgegxx-msa-tflock-prod" \
+            -backend-config="region=${{ env.AWS_REGION }}"
+
+      - name: Select Terraform Workspace
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform workspace select dev
+
+      - name: Terraform Apply
+        env:
+          TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD }}
+        run: |
+          cd ${{ env.TF_WORKING_DIR }}
+          test -s tfplan || { echo "::error::Reviewed dev plan artifact is required; refusing to create a fresh plan during apply."; exit 1; }
+          test -n "$TF_VAR_db_master_password" || { echo "::error::DB_MASTER_PASSWORD secret is required."; exit 1; }
+          terraform apply -input=false tfplan
+
+  # =========================================================================
+  # STAGE 3B: Terraform Apply - AWS Staging Environment
   # =========================================================================
   tf-apply-staging:
-    name: 🚀 3A. Terraform Apply (AWS Staging)
+    name: 🚀 3B. Terraform Apply (AWS Staging)
     needs: tf-plan
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply' && github.event.inputs.environment == 'staging'
     runs-on: ubuntu-latest
@@ -258,8 +320,8 @@ jobs:
         run: |
           cd ${{ env.TF_WORKING_DIR }}
           terraform init \
-            -backend-config="bucket=georgegxx-msa-tfstate-staging" \
-            -backend-config="dynamodb_table=georgegxx-msa-tflock-staging" \
+            -backend-config="bucket=georgegxx-msa-tfstate-prod" \
+            -backend-config="dynamodb_table=georgegxx-msa-tflock-prod" \
             -backend-config="region=${{ env.AWS_REGION }}"
 
       - name: Select Terraform Workspace
@@ -277,10 +339,10 @@ jobs:
           terraform apply -input=false tfplan
 
   # =========================================================================
-  # STAGE 3B: Terraform Apply - AWS Production Environment
+  # STAGE 3C: Terraform Apply - AWS Production Environment
   # =========================================================================
   tf-apply-prod:
-    name: 🚀 3B. Terraform Apply (AWS Production)
+    name: 🚀 3C. Terraform Apply (AWS Production)
     needs: tf-plan
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply' && github.event.inputs.environment == 'prod'
     runs-on: ubuntu-latest
