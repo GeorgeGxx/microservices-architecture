@@ -2,12 +2,12 @@
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "apollo-router.fullname" . }}
+  name: {{ include "cosmo-router.fullname" . }}
   labels:
-    {{- include "apollo-router.labels" . | nindent 4 }}
+    {{- include "cosmo-router.labels" . | nindent 4 }}
 spec:
   minAvailable: {{ .Values.podDisruptionBudget.minAvailable | default 1 }}
   selector:
     matchLabels:
-      app: apollo-router
+      app: cosmo-router
 {{- end }}

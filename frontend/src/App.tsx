@@ -44,7 +44,7 @@ export const App: React.FC = () => {
     ? products.find((product) => product.sku === quickViewProduct.sku) ?? quickViewProduct
     : null;
 
-  // Load products from Apollo Router Federation
+  // Load products from Cosmo Router Federation
   const loadProducts = useCallback(async (showLoading = false) => {
     if (productRefreshInProgress.current) return;
     productRefreshInProgress.current = true;

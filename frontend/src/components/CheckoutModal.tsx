@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { placeOrderUseCase } from '../application/use-cases/PlaceOrderUseCase';
+import { createIdempotencyKey, placeOrderUseCase } from '../application/use-cases/PlaceOrderUseCase';
 import { CheckoutStateMachine, CheckoutStep } from '../application/use-cases/CheckoutFSM';
 import { Order } from '../types';
 import confetti from 'canvas-confetti';
@@ -37,6 +37,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('CUSTOMER_INFO');
   const [isLoading, setIsLoading] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
+  const isSubmittingRef = useRef(false);
+  const orderAttemptRef = useRef<{ signature: string; key: string } | null>(null);
 
   const [formData, setFormData] = useState({
     customerName: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username : 'Alex Mercer',
@@ -48,6 +50,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     deliveryMethod: 'DHL Express Delivery (Priority 24h)',
     paymentMethod: 'SIMULATED_APPROVED',
   });
+
+  // App keeps this modal mounted while it is closed. Reset its UI state each
+  // time a new checkout starts so a previous PROCESSING state cannot survive
+  // a completed or interrupted attempt.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    fsm.reset();
+    isSubmittingRef.current = false;
+    setCurrentStep('CUSTOMER_INFO');
+    setIsLoading(false);
+    setStepError(null);
+  }, [fsm, isOpen]);
 
   if (!isOpen) return null;
 
@@ -69,17 +84,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (cart.length === 0) return;
+    if (isSubmittingRef.current || cart.length === 0) return;
 
+    isSubmittingRef.current = true;
     setIsLoading(true);
     setStepError(null);
 
     try {
-      fsm.transition('PROCESSING', formData);
+      if (!fsm.transition('PROCESSING', formData)) {
+        setStepError(fsm.errorMessage);
+        return;
+      }
       setCurrentStep(fsm.step);
 
       if (formData.paymentMethod === 'SIMULATED_DECLINED') {
-        const declineMessage = 'Pago rechazado en la simulación local. No se creó el pedido ni se modificó el inventario.';
+        const declineMessage = 'The simulated payment was declined. No order was created and inventory was not changed.';
         fsm.forceFail(declineMessage);
         fsm.retry();
         setCurrentStep(fsm.step);
@@ -87,20 +106,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         return;
       }
 
-      // Execute Domain Use Case with Idempotency Key injection
+      const orderRequest = {
+        items: cart,
+        customerName: formData.customerName,
+        customerEmail: formData.customerEmail,
+        shippingAddress: formData.shippingAddress,
+        city: formData.city,
+        postalCode: formData.postalCode,
+        phone: formData.phone,
+        deliveryMethod: formData.deliveryMethod,
+        paymentMethod: formData.paymentMethod,
+      };
+      const signature = JSON.stringify({
+        ...orderRequest,
+        items: cart.map(({ product, quantity }) => ({ sku: product.sku, quantity, price: product.price })),
+      });
+      if (orderAttemptRef.current?.signature !== signature) {
+        orderAttemptRef.current = { signature, key: createIdempotencyKey() };
+      }
+
+      // Keep the same key on retry so an uncertain response cannot duplicate an order.
       const newOrder = await placeOrderUseCase.execute(
-        {
-          items: cart,
-          customerName: formData.customerName,
-          customerEmail: formData.customerEmail,
-          shippingAddress: formData.shippingAddress,
-          city: formData.city,
-          postalCode: formData.postalCode,
-          phone: formData.phone,
-          deliveryMethod: formData.deliveryMethod,
-          paymentMethod: formData.paymentMethod,
-        },
-        user?.token
+        orderRequest,
+        user?.token,
+        orderAttemptRef.current.key
       );
 
       fsm.transition('CONFIRMED', formData);
@@ -122,7 +151,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       );
 
       clearCart();
+      orderAttemptRef.current = null;
       fsm.reset();
+      setCurrentStep('CUSTOMER_INFO');
       onClose();
       onOrderSuccess(newOrder);
     } catch (err: unknown) {
@@ -133,6 +164,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       setStepError(msg);
       showToast('Checkout Error', msg, 'stock');
     } finally {
+      isSubmittingRef.current = false;
       setIsLoading(false);
     }
   };
@@ -159,7 +191,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               Secure Transactional Checkout
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Apollo Router v2 Federated Orchestration & Idempotent Saga
+              Cosmo Router v2 Federated Orchestration & Idempotent Saga
             </p>
           </div>
         </div>
@@ -378,8 +410,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="py-12 flex flex-col items-center text-center gap-4" role="status" aria-live="polite">
               <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Procesando pago de demostración</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">No se está realizando ningún cargo real.</p>
+                <p className="font-bold text-slate-900 dark:text-white">Placing your order</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Payment is simulated. No real charge will be made.</p>
               </div>
             </div>
           )}
@@ -388,7 +420,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="space-y-4 animate-in fade-in">
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Resultado del pago de prueba
+                  Simulated payment outcome
                 </label>
                 <select
                   required
@@ -396,11 +428,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-indigo-500 focus:outline-none transition"
                 >
-                  <option value="SIMULATED_APPROVED">Pago aprobado (demo local)</option>
-                  <option value="SIMULATED_DECLINED">Pago rechazado (demo local)</option>
+                  <option value="SIMULATED_APPROVED">Approved (local demo)</option>
+                  <option value="SIMULATED_DECLINED">Declined (local demo)</option>
                 </select>
                 <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                  Simulación local: no hay pasarela ni cargos reales. No ingreses datos de tarjeta; el rechazo demo no crea el pedido ni descuenta inventario.
+                  Local simulation only: no payment provider or real charge is involved. Do not enter card details. A declined demo does not create an order or change inventory.
                 </p>
               </div>
 

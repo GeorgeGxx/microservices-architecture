@@ -55,12 +55,12 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: apollo-router-metrics-mtls
+  name: cosmo-router-metrics-mtls
   namespace: dev
 spec:
   selector:
     matchLabels:
-      app: apollo-router
+      app: cosmo-router
   mtls:
     mode: STRICT
   portLevelMtls:

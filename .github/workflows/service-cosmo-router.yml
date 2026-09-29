@@ -1,0 +1,49 @@
+name: Cosmo Router Federation CI
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - 'cosmo-router/**'
+      - 'helm/charts/cosmo-router/**'
+      - 'helm/microservices-umbrella/**'
+      - '.github/workflows/service-cosmo-router.yml'
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - 'cosmo-router/**'
+      - 'helm/charts/cosmo-router/**'
+      - 'helm/microservices-umbrella/**'
+      - '.github/workflows/service-cosmo-router.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cosmo-router-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Compose Federation v2 and lint Helm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compose static Cosmo execution config
+        run: |
+          npx --yes wgc@0.132.0 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
+          mkdir -p helm/charts/cosmo-router/files
+          cp cosmo-router/execution-config.json helm/charts/cosmo-router/files/execution-config.json
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: 'v3.17.3'
+
+      - name: Resolve local Helm dependencies and lint
+        run: |
+          helm dependency update helm/microservices-umbrella
+          helm lint helm/charts/cosmo-router
+          helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml

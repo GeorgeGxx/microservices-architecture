@@ -48,14 +48,14 @@ class Colors:
 
 DEFAULT_PROBES = [
     {
-        "name": "Apollo Router Supergraph GraphQL Probe",
+        "name": "Cosmo Router Supergraph GraphQL Probe",
         "path": "/graphql",
         "method": "POST",
         "body": b'{"query": "{ __typename }"}',
         "headers": {"Content-Type": "application/json"},
         "expected_status": [200],
         "category": "GraphQL Supergraph",
-        "description": "Validates Apollo Router v2 federated GraphQL execution",
+        "description": "Validates Cosmo Router v2 federated GraphQL execution",
     },
     {
         "name": "Storefront Nginx Health",

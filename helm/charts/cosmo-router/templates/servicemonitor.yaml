@@ -2,16 +2,16 @@
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: {{ include "apollo-router.fullname" . }}
+  name: {{ include "cosmo-router.fullname" . }}
   labels:
-    app: {{ include "apollo-router.fullname" . }}
+    app: {{ include "cosmo-router.fullname" . }}
     release: prometheus
   annotations:
     argocd.argoproj.io/sync-wave: "4"
 spec:
   selector:
     matchLabels:
-      app: {{ include "apollo-router.fullname" . }}
+      app: {{ include "cosmo-router.fullname" . }}
   namespaceSelector:
     matchNames:
       - {{ .Release.Namespace }}

@@ -14,10 +14,26 @@ export interface PlaceOrderRequest {
   paymentMethod: string;
 }
 
+export function createIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+
+  throw new Error('Secure browser cryptography is required to place an order.');
+}
+
 export class PlaceOrderUseCase {
   constructor(private readonly orderRepo: IOrderRepository = orderRepository) {}
 
-  async execute(request: PlaceOrderRequest, token?: string): Promise<Order> {
+  async execute(request: PlaceOrderRequest, token?: string, idempotencyKey?: string): Promise<Order> {
     if (request.items.length === 0) {
       throw new Error('Cart cannot be empty to place an order.');
     }
@@ -31,10 +47,7 @@ export class PlaceOrderUseCase {
     }
 
     // Generate cryptographic UUIDv4 for Idempotency
-    const idempotencyKey =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const requestKey = idempotencyKey ?? createIdempotencyKey();
 
     const orderInput: PlaceOrderInput = {
       customerName: request.customerName,
@@ -52,7 +65,7 @@ export class PlaceOrderUseCase {
       })),
     };
 
-    return await this.orderRepo.placeOrder(orderInput, token, idempotencyKey);
+    return await this.orderRepo.placeOrder(orderInput, token, requestKey);
   }
 }
 

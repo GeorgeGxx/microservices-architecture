@@ -10,12 +10,12 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
-  name: apollo-router-metrics
+  name: cosmo-router-metrics
   namespace: dev
 spec:
   selector:
     matchLabels:
-      app: apollo-router
+      app: cosmo-router
   portLevelMtls:
     9090:
       mode: PERMISSIVE

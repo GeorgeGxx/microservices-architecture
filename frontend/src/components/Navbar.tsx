@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const healthLabel = {
     checking: 'Checking storefront API',
-    healthy: 'Apollo Router and Products subgraph reachable',
+    healthy: 'Cosmo Router and Products subgraph reachable',
     unavailable: 'Storefront API unavailable',
   }[storefrontHealth];
 

@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cosmo-router.fullname" . }}-config
+  labels:
+    {{- include "cosmo-router.labels" . | nindent 4 }}
+data:
+  router.yaml: |
+    version: "1"
+    log_level: info
+    listen_addr: 0.0.0.0:8080
+    graphql_path: /graphql
+    playground_enabled: {{ .Values.graphql.playgroundEnabled }}
+    introspection:
+      enabled: {{ .Values.graphql.introspection }}
+    health_check_path: /health
+    readiness_check_path: /health/ready
+    liveness_check_path: /health/live
+    execution_config:
+      file:
+        path: /runtime/execution-config.json
+        watch: true
+        watch_interval: 5s
+    watch_config:
+      enabled: true
+      interval: 10s
+    authentication:
+      jwt:
+        jwks:
+          - url: {{ .Values.authentication.jwksUrl | quote }}
+            refresh_interval: {{ .Values.authentication.jwksRefreshInterval | quote }}
+            algorithms:
+{{ toYaml .Values.authentication.allowedAlgorithms | indent 14 }}
+            refresh_unknown_kid:
+              enabled: true
+              max_wait: 10s
+              interval: 30s
+              burst: 2
+        header_name: Authorization
+        header_value_prefix: Bearer
+        header_sources:
+          - type: header
+            name: Authorization
+            value_prefixes: [Bearer]
+        on_error: reject
+    authorization:
+      require_authentication: false
+      reject_operation_if_unauthorized: true
+      enable_pre_fetch_field_authorization: true
+    access_logs:
+      enabled: true
+      level: info
+      router:
+        ignore_query_params_list: [variables, extensions]
+        fields:
+          - key: operation_name
+            value_from:
+              context_field: operation_name
+          - key: operation_type
+            value_from:
+              context_field: operation_type
+          - key: operation_hash
+            value_from:
+              context_field: operation_hash
+      subgraphs:
+        enabled: true
+        fields:
+          - key: operation_name
+            value_from:
+              context_field: operation_name
+    cors:
+      allow_origins:
+{{ toYaml .Values.cors.allowedOrigins | indent 8 }}
+      allow_methods: [GET, POST, OPTIONS]
+      allow_headers: [Authorization, Content-Type, X-Idempotency-Key, X-Correlation-ID, apollographql-client-name, apollographql-client-version]
+    headers:
+      all:
+        request:
+          - op: propagate
+            named: Authorization
+          - op: propagate
+            named: X-Idempotency-Key
+          - op: propagate
+            named: traceparent
+          - op: propagate
+            named: tracestate
+          - op: propagate
+            named: X-Correlation-ID
+    traffic_shaping:
+      router:
+        max_request_body_size: {{ .Values.requestLimits.maxBodySize | quote }}
+        max_header_bytes: {{ .Values.requestLimits.maxHeaderBytes | quote }}
+      all:
+        request_timeout: {{ .Values.trafficShaping.subgraphTimeout | quote }}
+        dial_timeout: {{ .Values.trafficShaping.dialTimeout | quote }}
+        response_header_timeout: {{ .Values.trafficShaping.responseHeaderTimeout | quote }}
+        max_conns_per_host: {{ .Values.trafficShaping.maxConnsPerHost }}
+        max_idle_conns_per_host: {{ .Values.trafficShaping.maxIdleConnsPerHost }}
+        retry:
+          enabled: {{ .Values.trafficShaping.retry.enabled }}
+          algorithm: backoff_jitter
+          max_attempts: {{ .Values.trafficShaping.retry.maxAttempts }}
+          interval: {{ .Values.trafficShaping.retry.interval | quote }}
+          max_duration: {{ .Values.trafficShaping.retry.maxDuration | quote }}
+          expression: "IsRetryableStatusCode() || IsConnectionError() || IsTimeout()"
+        circuit_breaker:
+          enabled: {{ .Values.trafficShaping.circuitBreaker.enabled }}
+          request_threshold: {{ .Values.trafficShaping.circuitBreaker.requestThreshold }}
+          error_threshold_percentage: {{ .Values.trafficShaping.circuitBreaker.errorThresholdPercentage }}
+          sleep_window: {{ .Values.trafficShaping.circuitBreaker.sleepWindow | quote }}
+          half_open_attempts: {{ .Values.trafficShaping.circuitBreaker.halfOpenAttempts }}
+          required_successful: {{ .Values.trafficShaping.circuitBreaker.requiredSuccessful }}
+          rolling_duration: {{ .Values.trafficShaping.circuitBreaker.rollingDuration | quote }}
+          num_buckets: {{ .Values.trafficShaping.circuitBreaker.numBuckets }}
+          execution_timeout: {{ .Values.trafficShaping.circuitBreaker.executionTimeout | quote }}
+    security:
+      complexity_calculation_cache:
+        enabled: true
+        size: {{ .Values.security.complexityCacheSize }}
+      complexity_limits:
+        mode: enforce
+        ignore_introspection: false
+        depth:
+          enabled: true
+          limit: {{ .Values.security.maxDepth }}
+        total_fields:
+          enabled: true
+          limit: {{ .Values.security.maxTotalFields }}
+        root_fields:
+          enabled: true
+          limit: {{ .Values.security.maxRootFields }}
+        root_field_aliases:
+          enabled: true
+          limit: {{ .Values.security.maxRootFieldAliases }}
+      parser_limits:
+        approximate_depth_limit: {{ .Values.security.parserDepthLimit }}
+        total_fields_limit: {{ .Values.security.parserTotalFieldsLimit }}
+      operation_name_length_limit: {{ .Values.security.maxOperationNameLength }}
+    telemetry:
+      service_name: cosmo-router
+      tracing:
+        enabled: true
+        sampling_rate: {{ .Values.telemetry.tracing.samplingRate }}
+        exporters:
+          - exporter: http
+            endpoint: {{ .Values.telemetry.tracing.endpoint | quote }}
+            batch_timeout: 5s
+            export_timeout: 5s
+      metrics:
+        prometheus:
+          enabled: true
+          listen_addr: 0.0.0.0:9090
+          path: /metrics
+          graphql_cache: true
+          connection_stats: true
+          network:
+            enabled: true
+          circuit_breaker: true
+  execution-config.json: |
+{{ required "Cosmo execution config is missing. Run scripts/build-cosmo-router-config.ps1 and commit files/execution-config.json for Argo CD." (.Files.Get "files/execution-config.json") | indent 4 }}

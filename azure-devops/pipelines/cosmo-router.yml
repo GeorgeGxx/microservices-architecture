@@ -1,0 +1,56 @@
+name: MSA-Cosmo-Router-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - cosmo-router/**
+      - helm/charts/cosmo-router/**
+      - helm/microservices-umbrella/**
+      - azure-devops/pipelines/cosmo-router.yml
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - cosmo-router/**
+      - helm/charts/cosmo-router/**
+      - helm/microservices-umbrella/**
+      - azure-devops/pipelines/cosmo-router.yml
+
+stages:
+  - stage: ComposeAndLint
+    displayName: 'Compose Federation v2 and validate Helm'
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: '22.x'
+            displayName: 'Install Node.js for pinned wgc CLI'
+
+          - task: Bash@3
+            displayName: 'Compose static Cosmo execution config'
+            inputs:
+              targetType: inline
+              script: |
+                npx --yes wgc@0.132.0 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
+                mkdir -p helm/charts/cosmo-router/files
+                cp cosmo-router/execution-config.json helm/charts/cosmo-router/files/execution-config.json
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'v3.17.3'
+
+          - task: Bash@3
+            displayName: 'Resolve local Helm dependencies and lint charts'
+            inputs:
+              targetType: inline
+              script: |
+                helm dependency update helm/microservices-umbrella
+                helm lint helm/charts/cosmo-router
+                helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml

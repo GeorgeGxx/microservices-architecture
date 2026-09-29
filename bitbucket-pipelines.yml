@@ -72,11 +72,17 @@ definitions:
         name: '5. Helm, OpenCost and OPA policy gate'
         image: alpine/helm:3.17.3
         script:
-          - apk add --no-cache bash curl tar
+          - apk add --no-cache bash curl tar nodejs npm
+          - npx --yes wgc@0.132.0 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
+          - mkdir -p helm/charts/cosmo-router/files
+          - cp cosmo-router/execution-config.json helm/charts/cosmo-router/files/execution-config.json
           - bash scripts/validate-opencost.sh
           - curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin conftest
+          - helm dependency update helm/microservices-umbrella
           - helm template microservices ./helm/microservices-umbrella --set "${SERVICE_NAME:-products-service}.image.tag=${BITBUCKET_COMMIT:0:12}" > /tmp/rendered.yaml
           - conftest test /tmp/rendered.yaml --policy devsecops/policies/conftest/
+        artifacts:
+          - helm/charts/cosmo-router/files/**
     - step: &terraform-validate
         name: '6. GCP Terraform format and validation (no backend/apply)'
         image: hashicorp/terraform:1.8.5
@@ -132,6 +138,7 @@ definitions:
             gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
             gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
             curl -fsSL https://raw.githubusercontent.com/helm/helm/v3.17.3/scripts/get-helm-3 | HELM_INSTALL_DIR=/usr/local/bin bash -s -- --version v3.17.3
+            helm dependency update helm/microservices-umbrella
             kubectl get nodes
             if helm status microservices --namespace "$NAMESPACE" >/dev/null 2>&1; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
             PREVIOUS_REVISION=""

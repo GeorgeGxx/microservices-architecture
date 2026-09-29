@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Generates devsecops/testing/newman/microservices.postman_collection.json
-Aligned 100% with Apollo Router GraphQL Federation 2.3, Keycloak OIDC,
+Aligned with Cosmo Router GraphQL Federation v2 (orders v2.5), Keycloak OIDC,
 Logistics State Machine, Saga Compensation, and SSE Notifications.
 """
 
@@ -13,8 +13,8 @@ def build_postman_collection():
     collection = {
         "info": {
             "_postman_id": "80d0f149-1d5d-4cef-a67e-10c7cee79cf9",
-            "name": "microservices-apollo-router",
-            "description": "Enterprise Microservices Architecture Collection with Apollo Router v2 (GraphQL Federation 2.3), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
+            "name": "microservices-cosmo-router",
+            "description": "Enterprise Microservices Architecture Collection with Cosmo Router 0.353.0 (GraphQL Federation v2; orders v2.5), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Cart Abandonment Telemetry, and Saga Compensation Pattern.",
             "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
         },
         "item": [
@@ -120,17 +120,17 @@ def build_postman_collection():
                 ]
             },
             {
-                "name": "🚀 Apollo Router - GraphQL Supergraph",
+                "name": "🚀 Cosmo Router - GraphQL Supergraph",
                 "item": [
                     {
-                        "name": "1. Apollo Router GraphQL Reachability",
+                        "name": "1. Cosmo Router GraphQL Reachability",
                         "event": [
                             {
                                 "listen": "test",
                                 "script": {
                                     "type": "text/javascript",
                                     "exec": [
-                                        "pm.test('Apollo Router GraphQL endpoint responds (HTTP 200)', () => {",
+                                        "pm.test('Cosmo Router GraphQL endpoint responds (HTTP 200)', () => {",
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "const res = pm.response.json();",
@@ -158,7 +158,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Checks the Apollo Router GraphQL listener on port 8080 without depending on the separate health listener on port 8088."
+                            "description": "Checks the Cosmo Router GraphQL listener and readiness endpoint on port 8080. Prometheus metrics are exposed on the internal port 9090."
                         },
                         "response": []
                     },
@@ -211,7 +211,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Fetches products catalog federating product entity with inventory stock in a single GraphQL query through Apollo Router."
+                            "description": "Fetches products catalog federating product entity with inventory stock in a single GraphQL query through Cosmo Router."
                         },
                         "response": []
                     },
@@ -325,7 +325,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Places a new order through Apollo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
+                            "description": "Places a new order through Cosmo Router propagating JWT authorization and X-Idempotency-Key. Saves order_id and DHL tracking_number."
                         },
                         "response": []
                     },
@@ -460,7 +460,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Transitions the order into SHIPPED status via Apollo Router GraphQL mutation."
+                            "description": "Transitions the order into SHIPPED status via Cosmo Router GraphQL mutation."
                         },
                         "response": []
                     },
@@ -505,7 +505,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Transitions the order into DELIVERED status via Apollo Router GraphQL mutation."
+                            "description": "Transitions the order into DELIVERED status via Cosmo Router GraphQL mutation."
                         },
                         "response": []
                     },
@@ -593,7 +593,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Direct GraphQL query to inventory subgraph via Apollo Router."
+                            "description": "Direct GraphQL query to inventory subgraph via Cosmo Router."
                         },
                         "response": []
                     },
@@ -636,7 +636,7 @@ def build_postman_collection():
                                 "host": ["{{base_url}}"],
                                 "path": ["graphql"]
                             },
-                            "description": "Fetches all inventory stock levels via Apollo Router."
+                            "description": "Fetches all inventory stock levels via Cosmo Router."
                         },
                         "response": []
                     }
@@ -943,7 +943,7 @@ def build_postman_collection():
 
     graphql_folder = next(
         group for group in collection["item"]
-        if group["name"] == "🚀 Apollo Router - GraphQL Supergraph"
+        if group["name"] == "🚀 Cosmo Router - GraphQL Supergraph"
     )
     graphql_items = graphql_folder["item"]
     place_order = next(item for item in graphql_items if item["name"].startswith("4. Place Order"))

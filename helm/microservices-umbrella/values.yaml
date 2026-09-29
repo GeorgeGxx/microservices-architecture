@@ -26,8 +26,8 @@ configMap:
   create: true
   name: microservices-config
   data:
-    APOLLO_ROUTER_SERVICE_NAME: "apollo-router"
-    APOLLO_ROUTER_PORT: "8080"
+    COSMO_ROUTER_SERVICE_NAME: "cosmo-router"
+    COSMO_ROUTER_PORT: "8080"
     INVENTORY_SERVICE_NAME: "inventory-service"
     NOTIFICATION_SERVICE_NAME: "notification-service"
     ORDERS_SERVICE_NAME: "orders-service"
@@ -95,7 +95,7 @@ alertmanagerConfig:
       key: "url"
 
 # Per-subchart overrides (mirrors each chart's own values.yaml keys)
-apollo-router:
+cosmo-router:
   resources:
     requests:
       cpu: 100m
@@ -104,9 +104,9 @@ apollo-router:
       cpu: 1000m
       memory: 512Mi
   probes:
-    initialDelaySeconds: 5
-    readinessPath: /health
-    livenessPath: /health
+    initialDelaySeconds: 10
+    readinessPath: /health/ready
+    livenessPath: /health/live
   autoscaling:
     enabled: true
     minReplicas: 1
@@ -120,8 +120,8 @@ apollo-router:
     prometheus:
       enabled: true
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-      metricName: "apollo_router_requests_per_second"
-      query: "sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))"
+      metricName: "cosmo_router_requests_per_second"
+      query: 'sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]) or vector(0))'
       threshold: "100"
     cpu:
       enabled: true

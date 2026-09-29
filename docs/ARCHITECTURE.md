@@ -29,7 +29,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 | Service | Path Prefix | Key Endpoints | Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Apollo Router Gateway** | `/graphql`, `/health` | `POST /graphql`, `GET /` (Apollo Sandbox) | High-performance Rust Supergraph Gateway (Federation 2.3), query planning, OTel distributed tracing, JWT validation |
+| **Cosmo Router Gateway** | `/graphql`, `/health`, `/health/ready`, `/health/live` | `POST /graphql`, local `GET /` (GraphQL Playground) | Go Supergraph Gateway (Federation v2; Orders subgraph v2.5), query planning, Keycloak JWKS JWT validation, OTLP tracing |
 | **Products Service** | `/api/product`, `/graphql` | `POST /api/product`, `GET /api/product`, `/swagger-ui.html` | Product catalog, pricing, Redis caching, Subgraph entity resolver, OpenAPI v3 documentation |
 | **Orders Service** | `/api/order`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `/swagger-ui.html` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry, OpenAPI v3 documentation |
 | **Inventory Service** | `/api/inventory`, `/graphql`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `/swagger-ui.html` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction, OpenAPI v3 documentation |
@@ -42,7 +42,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | Service | Local / Docker Port | Minikube Service / Access | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **React Frontend** | Vite host `5173` / Nginx container `8080` / Service `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
-| **Apollo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Apollo Federation v2 GraphQL router |
+| **Cosmo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Federation v2.3 GraphQL router |
 | **Products Service** | `8004` | ClusterIP `8004`; tunnel/port-forward only | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | ClusterIP `8003`; tunnel/port-forward only | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | ClusterIP `8001`; tunnel/port-forward only | ClusterIP | Stock control & atomic verification |
@@ -75,7 +75,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
   - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
   - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
   - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
-- **Federated Identity & Token Propagation:** Apollo Router v2 propagates the incoming `Authorization` header to federated subgraphs. Protected Spring services validate bearer tokens against Keycloak JWKS; public GraphQL fields and public REST routes remain accessible without a token according to each service's security configuration.
+- **Federated Identity & Token Propagation:** Cosmo Router v2 propagates the incoming `Authorization` header to federated subgraphs. Protected Spring services validate bearer tokens against Keycloak JWKS; public GraphQL fields and public REST routes remain accessible without a token according to each service's security configuration.
 - **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation client (`microservices_client`), realm roles, and local test users. Run it after Keycloak is available; `docs/realm-export.json` is a realm snapshot, not the source of those bootstrap-created users and clients.
 
 ---
@@ -154,9 +154,9 @@ This avoids conflicts between NGINX, Traefik, Kong and Istio and keeps policy en
 
 ---
 
-## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Apollo Router ➔ Istio)
+## 🔄 End-to-End Edge-to-Mesh Traffic Flow (Ingress ➔ Keycloak ➔ Cosmo Router ➔ Istio)
 
-The platform implements an enterprise defense-in-depth traffic flow combining a single standard edge layer based on the **Istio Ingress Gateway**, **Keycloak IAM**, **Apollo Router**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
+The platform implements an enterprise defense-in-depth traffic flow combining a single standard edge layer based on the **Istio Ingress Gateway**, **Keycloak IAM**, **Cosmo Router**, **Istio Envoy Service Mesh (`mTLS STRICT`)**, and **Kiali Topology Visualization**:
 
 ```mermaid
 sequenceDiagram
@@ -165,7 +165,7 @@ sequenceDiagram
     participant Ingress as 🚪 Istio Ingress Gateway<br/>(L4 NLB + Envoy)
     participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
     participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
-    participant Gateway as 🚀 Apollo Router v2<br/>(Query Planner / Fed 2.3)
+    participant Gateway as 🚀 Cosmo Router v2<br/>(Query Planner / Fed 2.3)
     participant Microservice as 📦 Subgraphs (Orders/Products/Inv)<br/>(Spring Boot 4.0.8)
     participant Kiali as 📊 Kiali Dashboard
 
@@ -178,9 +178,9 @@ sequenceDiagram
     Note over Client, Microservice: Phase 2: Business Execution (Defense-in-Depth)
     Client->>Ingress: 5. GraphQL POST / (Authorization: Bearer <JWT>, traceparent)
     Note over Ingress: Perimeter L7 Filtering:<br/>• Rate limiting (100 RPS)<br/>• WAF / Input sanitization<br/>• Security Headers injection
-    Ingress->>Envoy: 6. Forward egress traffic to apollo-router:8080
+    Ingress->>Envoy: 6. Forward egress traffic to cosmo-router:8080
     Note over Envoy: Istio Service Mesh (mTLS STRICT):<br/>• Envoy interception<br/>• VirtualService / DestinationRule validation<br/>• Cryptographic mTLS with SPIFFE X.509 certs
-    Envoy->>Gateway: 7. Deliver decrypted GraphQL request to Apollo Router
+    Envoy->>Gateway: 7. Deliver decrypted GraphQL request to Cosmo Router
     Note over Gateway: Application Layer Processing:<br/>• Native JWT verification against Keycloak JWKS<br/>• Supergraph Federated Query Planning<br/>• Header propagation (Authorization & Idempotency)
     Gateway->>Envoy: 8. Dispatch concurrent subgraph queries to orders-service:8003 over mTLS
     Envoy->>Microservice: 9. East-West mTLS encrypted leap to backend container
@@ -188,16 +188,16 @@ sequenceDiagram
     Gateway-->>Ingress-->>Client: 11. Consolidated GraphQL response returned to React 19 Storefront
 
     Note over Kiali: Real-Time Observability
-    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [apollo-router] ➔ [orders-service] with green 🔒 mTLS lock
+    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [cosmo-router] ➔ [orders-service] with green 🔒 mTLS lock
 ```
 
 ### Flow Breakdown & Separation of Concerns:
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
 2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/realms/**`, `/resources/**`, `/admin/**`, and `/js/**` directly to Keycloak. The React client uses the local forwarded Keycloak port on loopback and the shared Istio origin in ingress deployments.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
-4. **Federated GraphQL Gateway:** **Apollo Router v2** performs query planning across subgraphs, native Keycloak JWT validation, header propagation, and sub-millisecond Rust routing.
-5. **Core Microservices Subgraphs (East-West):** Apollo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
-6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `apollo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
+4. **Federated GraphQL Gateway:** **Cosmo Router 0.353.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router capability matrix](COSMO_ROUTER_CAPABILITIES.md).
+5. **Core Microservices Subgraphs (East-West):** Cosmo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
+6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `cosmo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
 
 ---
 
@@ -218,7 +218,7 @@ flowchart TD
     subgraph LocalModel["💻 Local Development (Minikube / Docker)"]
         BrowserLocal([💻 Local Developer]) --> LocalIngress["Istio Ingress Gateway / NodePort"]
         LocalIngress -->|'/','/graphql','/api/*'| LocalFE["Pod: frontend (NodePort 30080)<br/>(Nginx SPA + per-peer rate limit + JSON access logs)"]
-        LocalFE -->|proxied '/graphql'| LocalGW["Pod: apollo-router (Port 8080)"]
+        LocalFE -->|proxied '/graphql'| LocalGW["Pod: cosmo-router (Port 8080)"]
     end
 ```
 
@@ -229,7 +229,7 @@ In Docker Compose and Minikube, the frontend Nginx is the shared local edge for 
 | **AWS EKS (`staging`/`prod`)** | **AWS S3 Assets Bucket** (`module.s3_assets`) | AWS NLB (`module.nlb`) | **CloudFront Distribution + WAFv2** (`s3Origin` + `nlbOrigin`) | Edge cached, zero pod CPU/RAM footprint |
 | **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`istio_gateway_public_ip`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
 | **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
-| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Apollo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
+| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Cosmo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
 
 ---
 
@@ -278,7 +278,7 @@ The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and
    * Pure and immutable: each mutation returns a new `CartAggregate` instance.
 3. **Ports & Adapters (Decoupled Infrastructure):**
    * Domain ports ([`IProductRepository`](../frontend/src/domain/repositories/IProductRepository.ts), [`IOrderRepository`](../frontend/src/domain/repositories/IOrderRepository.ts)) define contracts independently of network frameworks.
-   * Infrastructure adapters ([`GraphQLProductRepository`](../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Apollo Router v2 Supergraph (`POST /graphql`).
+   * Infrastructure adapters ([`GraphQLProductRepository`](../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Cosmo Router v2 Supergraph (`POST /graphql`).
 4. **Finite State Machine (FSM) Checkout ([`CheckoutFSM`](../frontend/src/application/use-cases/CheckoutFSM.ts)):**
    * Eliminates invalid or skipped checkout states: `CUSTOMER_INFO` ➔ `DELIVERY_TIER` ➔ `PAYMENT` ➔ `PROCESSING` ➔ `CONFIRMED` / `FAILED`.
    * Enforces domain field validations before advancing between stages.
@@ -353,7 +353,7 @@ sequenceDiagram
     actor POS as 🛒 POS Cashier / Customer
     participant SPA as 💻 React 19 SPA
     participant Scanner as 📷 QR / Barcode Scanner
-    participant APIGW as 🚪 Apollo Router v2
+    participant APIGW as 🚪 Cosmo Router v2
     participant OrderMS as 📦 Orders Service
     participant InvMS as 🏭 Inventory Service
 
@@ -461,7 +461,7 @@ flowchart TD
   ```
 
 ### 4. 🛡️ Admin Operations Console, Live Sync & Storefront API LED
-* **Dynamic Storefront API LED:** The brand indicator in the navbar checks a lightweight `products { sku }` GraphQL query every 30 seconds. 🟢 means the browser → frontend Nginx → Apollo Router → Products subgraph path is responding; 🟠 means the check is in progress; 🔴 means that path is unavailable. This indicator does not claim to represent every service or the Kubernetes cluster; use Grafana and Kubernetes health probes for platform-wide status.
+* **Dynamic Storefront API LED:** The brand indicator in the navbar checks a lightweight `products { sku }` GraphQL query every 30 seconds. 🟢 means the browser → frontend Nginx → Cosmo Router → Products subgraph path is responding; 🟠 means the check is in progress; 🔴 means that path is unavailable. This indicator does not claim to represent every service or the Kubernetes cluster; use Grafana and Kubernetes health probes for platform-wide status.
 * **Modern Live Sync Indicator:** The `/admin` operations console auto-synchronizes catalog inventory, warehouse stock levels, and order states every 4 seconds or on manual click with a glassmorphism `● LIVE SYNC` widget.
 * **Separation of Concerns (Grafana Observability):** Complex infrastructure telemetry (Kubernetes cluster nodes, KRaft partition lags, and Istio Envoy service mesh mTLS traffic) is strictly delegated to Grafana LGTM dashboards (Port 3000) and Kiali (Port 20001), keeping the frontend clean, focused, and free of redundant telemetry docks.
 
@@ -516,7 +516,7 @@ graph LR
     end
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
-        APIGW["🚪 Apollo Router v2 (8080)<br/>(Supergraph Engine / Apollo Sandbox)"]
+        APIGW["🚪 Cosmo Router 0.353.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
         Keycloak["🔐 Keycloak 26.7.4 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
@@ -530,7 +530,7 @@ graph LR
 ```
 
 ### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
-* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Apollo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Cosmo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
   .\platform.ps1 tunnels

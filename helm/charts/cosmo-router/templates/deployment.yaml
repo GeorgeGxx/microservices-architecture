@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "apollo-router.fullname" . }}
+  name: {{ include "cosmo-router.fullname" . }}
   labels:
-    {{- include "apollo-router.labels" . | nindent 4 }}
+    {{- include "cosmo-router.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
@@ -12,12 +12,12 @@ spec:
 {{- end }}
   selector:
     matchLabels:
-      app: apollo-router
+      app: cosmo-router
   template:
     metadata:
       labels:
-        app: apollo-router
-        version: {{ .Values.version | default "2.16.3" }}
+        app: cosmo-router
+        version: {{ .Values.image.tag | quote }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       {{- with .Values.podAnnotations }}
@@ -25,30 +25,22 @@ spec:
       {{- end }}
     spec:
       {{- if or .Values.serviceAccount.create .Values.serviceAccount.name }}
-      serviceAccountName: {{ .Values.serviceAccount.name | default (include "apollo-router.fullname" .) }}
+      serviceAccountName: {{ .Values.serviceAccount.name | default (include "cosmo-router.fullname" .) }}
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: apollo-router
+        - name: cosmo-router
           image: "{{ .Values.image.repository }}{{ if .Values.image.digest }}@{{ .Values.image.digest }}{{ else }}:{{ .Values.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          args:
-            - "--config"
-            - "/dist/config/router.yaml"
-            - "--supergraph"
-            - "/dist/config/supergraph.graphql"
-            - "--anonymous-telemetry-disabled"
-            {{- if .Values.devMode }}
-            - "--dev"
-            {{- end }}
+          env:
+            - name: CONFIG_PATH
+              value: /dist/config/router.yaml
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           ports:
             - name: http-router
               containerPort: {{ .Values.containerPort }}
-            - name: health
-              containerPort: {{ .Values.healthPort | default 8088 }}
             - name: metrics
               containerPort: {{ .Values.metricsPort }}
           {{- with .Values.env }}
@@ -63,14 +55,14 @@ spec:
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readinessPath }}
-              port: {{ .Values.healthPort | default 8088 }}
+              port: http-router
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 10
             timeoutSeconds: 5
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
-              port: {{ .Values.healthPort | default 8088 }}
+              port: http-router
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 5 }}
             periodSeconds: 15
             timeoutSeconds: 5
@@ -78,12 +70,15 @@ spec:
             - name: config
               mountPath: /dist/config
               readOnly: true
+            - name: config
+              mountPath: /runtime
+              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
         - name: config
           configMap:
-            name: {{ include "apollo-router.fullname" . }}-config
+            name: {{ include "cosmo-router.fullname" . }}-config
         - name: tmp
           emptyDir: {}
       {{- with .Values.nodeSelector }}

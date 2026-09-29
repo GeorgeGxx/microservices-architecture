@@ -95,12 +95,12 @@ sum by (cohort) (ecommerce_orders_by_cohort{service=~"$service"})
 ### ⚡ Golden Signals: Traffic, Latency & Error Rates (Unified Router & Subgraphs)
 
 #### 📈 Request Throughput (Requests Per Second - RPS)
-Calculates per-second request rate across both Apollo Router (GraphQL) and Spring Boot subgraphs:
+Calculates per-second request rate across both Cosmo Router (GraphQL) and Spring Boot subgraphs:
 ```promql
-# Unified (Apollo Router + Spring Boot Subgraphs):
+# Unified (Cosmo Router + Spring Boot Subgraphs):
 sum by (service, status) (rate(http_server_requests_seconds_count{service=~"$service"}[1m])) 
 or 
-sum by (service, http_response_status_code) (rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",service=~"$service"}[1m]))
+sum by (service, http_status_code) (rate(router_http_requests_total{service=~"$service",wg_subgraph_name=""}[1m]))
 ```
 
 #### ⏱️ P95 Request Latency by Microservice (in milliseconds)
@@ -109,13 +109,13 @@ Calculates 95th percentile response latency over a 5-minute rolling window:
 # Subgraphs (Spring Boot):
 histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"$service"}[5m]))) * 1000
 
-# Edge Gateway (Apollo Router):
-histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000
+# Edge Gateway (Cosmo Router):
+histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m])))
 ```
 
 #### ⏱️ P99 Critical Tail Latency (Global Gateway)
 ```promql
-(histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000)
+histogram_quantile(0.99, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m])))
 or
 (histogram_quantile(0.99, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000)
 ```
@@ -124,7 +124,7 @@ or
 ```promql
 sum by (service) (rate(http_server_requests_seconds_count{status=~"5.."}[1m]))
 or
-sum by (service) (rate(http_server_request_duration_seconds_count{otel_scope_name="apollo/router",http_response_status_code=~"5.."}[1m]))
+sum by (service) (rate(router_http_requests_error_total{wg_subgraph_name="",http_status_code=~"5.."}[1m]))
 ```
 
 #### 🛑 Frontend Nginx Rate-Limit HTTP 429 Interceptions
@@ -139,40 +139,40 @@ mappings) so the background color reflects the current value.
 
 ---
 
-### 🚀 Apollo Router & Federation 2.3 Supergraph Telemetry (Native Rust Engine)
+### 🚀 Cosmo Router & Federation 2.3 Supergraph Telemetry (Go Engine)
 
 #### 🧩 Query Planning Latency (P95 in ms)
-Measures the duration Apollo Router takes in Rust to compute the distributed query execution plan across subgraphs:
+Measures the duration Cosmo Router takes in its Go runtime to compute the distributed query execution plan across subgraphs:
 ```promql
-histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_plan_duration_seconds_bucket[5m]))) * 1000
+histogram_quantile(0.95, sum by (le) (rate(router_graphql_operation_planning_time_milliseconds_bucket[5m])))
 ```
 
 #### 📦 Subgraph Request Throughput & Decomposition
-HTTP requests dispatched by Apollo Router, grouped by the downstream address. This uses the Router's OpenTelemetry HTTP client instrument; confirm that instrument is enabled in the Router metrics exporter before relying on it:
+HTTP requests dispatched by Cosmo Router, grouped by the downstream address. This uses the Router's OpenTelemetry HTTP client instrument; confirm that instrument is enabled in the Router metrics exporter before relying on it:
 ```promql
-sum by (server_address) (rate(http_client_request_duration_seconds_count{service="apollo-router"}[1m]))
+sum by (wg_subgraph_name) (rate(router_http_requests_total{wg_subgraph_name!=""}[1m]))
 ```
 
 #### ⏱️ Downstream HTTP P95 Latency
 Shows downstream HTTP latency grouped by server address; the address is not guaranteed to map one-to-one to a named subgraph:
 ```promql
-histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_duration_seconds_bucket{service="apollo-router"}[5m]))) * 1000
+histogram_quantile(0.95, sum by (le, wg_subgraph_name) (rate(router_http_client_time_to_first_byte_milliseconds_bucket[5m])))
 ```
 
 #### ❌ GraphQL Operation Errors Rate
-Tracks GraphQL field-level or execution errors returned by Apollo Router:
+Tracks GraphQL field-level or execution errors returned by Cosmo Router:
 ```promql
-sum by (code) (rate(apollo_router_graphql_error_total[1m]))
+sum by (http_status_code) (rate(router_http_requests_error_total{wg_subgraph_name=""}[1m]))
 ```
 
-#### 🦀 Apollo Router Connections & Active Requests
+#### 🦀 Cosmo Router Connections & Active Requests
 Router v2 exposes open connections and active HTTP requests (the old session-count metric is deprecated):
 ```promql
 # In-flight HTTP requests:
-http_server_active_requests{service="apollo-router"}
+router_http_requests_in_flight{wg_subgraph_name=""}
 
 # Open client connections:
-apollo_router_open_connections{service="apollo-router"}
+router_http_client_connection_active
 ```
 
 ---
@@ -278,7 +278,7 @@ Isolates errors originating specifically within `orders-service`:
 #### 🛡️ Security Audits & Malicious Traffic Logs
 Filters logs for automated security interception alerts, rate-limit warnings, and blocked requests:
 ```logql
-{service="apollo-router"} |~ "SECURITY-AUDIT|BLOCKED|RATE_LIMIT"
+{service="cosmo-router"} |~ "SECURITY-AUDIT|BLOCKED|RATE_LIMIT"
 ```
 
 #### 🔄 Distributed Saga Compensation & Rollback Logs
@@ -321,13 +321,13 @@ sum by (service) (rate({service=~".+"} |= "ERROR" [1m]))
 
 #### 🛑 Rate of Throttled Requests on Edge Router
 ```logql
-sum(rate({service="apollo-router"} |= "429 Too Many Requests" [1m]))
+sum(rate({service="cosmo-router"} |= "429 Too Many Requests" [1m]))
 ```
 
 #### 🧩 Structured JSON Field Unpacking & Status Filter
 Parses structured JSON logs and filters requests where HTTP status $\ge 500$:
 ```logql
-{service="apollo-router"} | json | status_code >= 500
+{service="cosmo-router"} | json | status_code >= 500
 ```
 
 ---
@@ -336,7 +336,7 @@ Parses structured JSON logs and filters requests where HTTP status $\ge 500$:
 
 #### 🌐 Envoy Access Logs on Edge Router Pod
 ```logql
-{container="istio-proxy", pod=~"apollo-router.+"}
+{container="istio-proxy", pod=~"cosmo-router.+"}
 ```
 
 #### ⏱️ Slow Ingress Requests via Envoy (> 200ms)
@@ -394,15 +394,15 @@ Locates all distributed spans that resulted in an error status or HTTP client/se
 ### 🌐 Cross-Service Topology & Multi-Span Cascades
 
 #### 🔄 Multi-Hop Order Placement Journey
-Locates traces that crossed both `apollo-router` and `orders-service`:
+Locates traces that crossed both `cosmo-router` and `orders-service`:
 ```traceql
-{ resource.service.name = "apollo-router" } && { resource.service.name = "orders-service" }
+{ resource.service.name = "cosmo-router" } && { resource.service.name = "orders-service" }
 ```
 
 #### 📦 Full End-to-End E-Commerce Chain (Router ➔ Orders ➔ Inventory)
 Searches for traces spanning the complete multi-service synchronous checkout pipeline:
 ```traceql
-{ resource.service.name = "apollo-router" } && { resource.service.name = "orders-service" } && { resource.service.name = "inventory-service" }
+{ resource.service.name = "cosmo-router" } && { resource.service.name = "orders-service" } && { resource.service.name = "inventory-service" }
 ```
 
 #### 📨 Asynchronous Kafka Messaging Traces
@@ -420,7 +420,7 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 # Catalog queries with federated stock:
 { span.graphql.operation.name = "GetProductsWithStock" }
 
-# Root Apollo Router span:
+# Root Cosmo Router span:
 { span.name = "router" && status = ok }
 
 # Subgraph execution spans:
@@ -434,9 +434,9 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | Diagnostic Scenario | Recommended Tool | Query to Run |
 | :--- | :---: | :--- |
 | **High Cart Abandonment Alarm** | PromQL | `clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)` |
-| **Apollo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{otel_scope_name="apollo/router"}[5m]))) * 1000` |
-| **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(apollo_router_query_planning_plan_duration_seconds_bucket[5m]))) * 1000` |
-| **Downstream HTTP Latency by Address** | PromQL | `histogram_quantile(0.95, sum by (le, server_address) (rate(http_client_request_duration_seconds_bucket{service="apollo-router"}[5m]))) * 1000` |
+| **Cosmo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m])))` |
+| **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(router_graphql_operation_planning_time_milliseconds_bucket[5m])))` |
+| **Downstream HTTP Latency by Subgraph** | PromQL | `histogram_quantile(0.95, sum by (le, wg_subgraph_name) (rate(router_http_client_time_to_first_byte_milliseconds_bucket[5m])))` |
 | **Trace a Customer Order by Operation** | TraceQL | `{ span.graphql.operation.name = "PlaceOrder" && duration > 200ms }` |
 | **Circuit Breaker Tripped** | PromQL | `resilience4j_circuitbreaker_state{state="open"}` |
 | **Investigate Sudden 500 Error** | LogQL | `{service=~".+"} \|~ "(?i)ERROR\|Exception"` |

@@ -1,8 +1,10 @@
 package com.georgegxx.orders_service.controllers;
 
 import com.georgegxx.orders_service.model.dtos.*;
+import com.georgegxx.orders_service.config.IdempotencyKeyGraphQlInterceptor;
 import com.georgegxx.orders_service.repositories.OrderRepository;
 import com.georgegxx.orders_service.services.OrderService;
+import graphql.schema.DataFetchingEnvironment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -16,10 +18,15 @@ import org.springframework.stereotype.Controller;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Controller
 @RequiredArgsConstructor
 public class OrderGraphQlController {
+
+    private static final Pattern UUID_IDEMPOTENCY_KEY = Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    );
 
     private final OrderService orderService;
     private final OrderRepository orderRepository;
@@ -55,7 +62,7 @@ public class OrderGraphQlController {
     }
 
     @MutationMapping
-    public OrderResponse placeOrder(@Argument PlaceOrderInput input) {
+    public OrderResponse placeOrder(@Argument PlaceOrderInput input, DataFetchingEnvironment environment) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         requireUser(auth);
         Jwt jwt = (Jwt) auth.getPrincipal();
@@ -84,7 +91,13 @@ public class OrderGraphQlController {
             username = userId;
         }
 
-        String idempotencyKey = UUID.randomUUID().toString();
+        String idempotencyKey = environment.getGraphQlContext()
+                .get(IdempotencyKeyGraphQlInterceptor.CONTEXT_KEY);
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            idempotencyKey = UUID.randomUUID().toString();
+        } else if (!UUID_IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
+            throw new IllegalArgumentException("X-Idempotency-Key must be a valid UUID.");
+        }
         return orderService.placeOrder(req, idempotencyKey, userId, username);
     }
 

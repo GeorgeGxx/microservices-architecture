@@ -7,7 +7,7 @@ machine without provisioning cloud resources. Terraform commands in CI use
 ## 1. Resilience and bounded load
 
 The k6 scenario `scripts/testing/resilience-smoke.js` drives the storefront's
-`/graphql` endpoint through Nginx and Apollo Router with only two virtual users
+`/graphql` endpoint through Nginx and Cosmo Router with only two virtual users
 for 30 seconds. It enforces a 2-second p95 and fewer than 2% failed requests.
 This is a repeatable smoke baseline, not a capacity benchmark or DDoS test.
 
@@ -29,7 +29,7 @@ Prometheus, Loki, Tempo and Alloy; a green config check does not claim that the
 containers are running or that a trace was emitted.
 
 For runtime correlation, use the same smoke request while watching Grafana and
-verify the frontend request, Apollo Router span, service metrics, and logs.
+verify the frontend request, Cosmo Router span, service metrics, and logs.
 
 ## 3. Backup and restore drill
 

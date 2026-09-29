@@ -1,0 +1,143 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/wundergraph/cosmo/router
+  tag: "0.353.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+  metricsPort: 9090
+
+containerPort: 8080
+metricsPort: 9090
+
+# Production-safe runtime defaults; explicitly expose playground/introspection only in local values.
+graphql:
+  introspection: false
+  playgroundEnabled: false
+cors:
+  allowedOrigins: []
+authentication:
+  # Override for environments where Keycloak is installed elsewhere.
+  jwksUrl: http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/protocol/openid-connect/certs
+  jwksRefreshInterval: 5m
+  allowedAlgorithms:
+    - RS256
+requestLimits:
+  maxBodySize: 1MB
+  maxHeaderBytes: 1MiB
+security:
+  complexityCacheSize: 1024
+  maxDepth: 12
+  maxTotalFields: 250
+  maxRootFields: 12
+  maxRootFieldAliases: 5
+  parserDepthLimit: 40
+  parserTotalFieldsLimit: 500
+  maxOperationNameLength: 128
+trafficShaping:
+  subgraphTimeout: 20s
+  dialTimeout: 3s
+  responseHeaderTimeout: 15s
+  maxConnsPerHost: 64
+  maxIdleConnsPerHost: 16
+  retry:
+    enabled: true
+    maxAttempts: 2
+    interval: 100ms
+    maxDuration: 1s
+  circuitBreaker:
+    # Kept disabled by default in local environments to avoid opening on the
+    # first cold-start burst. Enable explicitly on production values overlays.
+    enabled: false
+    requestThreshold: 20
+    errorThresholdPercentage: 50
+    sleepWindow: 15s
+    halfOpenAttempts: 3
+    requiredSuccessful: 2
+    rollingDuration: 60s
+    numBuckets: 10
+    executionTimeout: 20s
+
+telemetry:
+  tracing:
+    endpoint: "http://otel-collector.observability.svc.cluster.local:4318"
+    samplingRate: 0.25
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+keda:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 15
+  cooldownPeriod: 300
+  prometheus:
+    enabled: true
+    serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
+    metricName: "cosmo_router_requests_per_second"
+    query: 'sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]) or vector(0))'
+    threshold: "100"
+  cpu:
+    enabled: true
+    targetUtilizationPercentage: 70
+  memory:
+    enabled: false
+    targetUtilizationPercentage: 80
+
+probes:
+  readinessPath: /health/ready
+  livenessPath: /health/live
+  initialDelaySeconds: 10
+
+env: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /metrics
+  port: metrics
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "9090"
+  prometheus.io/path: "/metrics"

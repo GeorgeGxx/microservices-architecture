@@ -32,7 +32,7 @@ on:
         type: choice
         options:
           - all
-          - apollo-router
+          - cosmo-router
           - orders-service
           - products-service
           - inventory-service
@@ -112,7 +112,7 @@ jobs:
           CLUSTER_NAME=$(echo "$TF_OUT" | jq -r '.cluster_name.value // "msa-aws-prod-eks"')
           CLUSTER_ENDPOINT=$(echo "$TF_OUT" | jq -r '.cluster_endpoint.value // "https://eks.us-east-1.amazonaws.com"')
           ALB_DNS=$(echo "$TF_OUT" | jq -r '.alb_dns_name.value // "k8s-ingress-alb.us-east-1.elb.amazonaws.com"')
-          ECR_REGISTRY=$(echo "$TF_OUT" | jq -r '.ecr_repository_urls.value["apollo-router"] // "123456789012.dkr.ecr.us-east-1.amazonaws.com"' | cut -d'/' -f1)
+          ECR_REGISTRY=$(echo "$TF_OUT" | jq -r '.ecr_repository_urls.value["cosmo-router"] // "123456789012.dkr.ecr.us-east-1.amazonaws.com"' | cut -d'/' -f1)
           FRONTEND_BUCKET=$(echo "$TF_OUT" | jq -r '.frontend_s3_bucket.value // "georgegxx-ecommerce-frontend-prod"')
           CLOUDFRONT_ID=$(echo "$TF_OUT" | jq -r '.cloudfront_distribution_id.value // "E1234EXAMPLE"')
 
@@ -233,7 +233,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [apollo-router, orders-service, products-service, inventory-service, notification-service]
+        service: [cosmo-router, orders-service, products-service, inventory-service, notification-service]
     steps:
       - name: Filter Service
         if: inputs.service_name != 'all' && inputs.service_name != matrix.service
@@ -440,7 +440,7 @@ jobs:
       - name: Verify Production Canary Rollout Health & Trigger Rollback on Failure
         run: |
           echo "Verifying production canary pods health on Amazon EKS..."
-          kubectl rollout status deployment/microservices-${{ inputs.service_name == 'all' && 'apollo-router' || inputs.service_name }} -n prod --timeout=2m || {
+          kubectl rollout status deployment/microservices-${{ inputs.service_name == 'all' && 'cosmo-router' || inputs.service_name }} -n prod --timeout=2m || {
             echo "::error::Production canary health check failed! Initiating emergency Helm rollback..."
             helm rollback microservices --namespace prod --wait || true
             exit 1

@@ -666,8 +666,16 @@ function Invoke-MinikubePlatform {
             if (-not (Test-Path -LiteralPath (Join-Path $root "helm\values\values-minikube.yaml") -PathType Leaf)) {
                 throw "Minikube Helm values file is missing. No platform changes were applied."
             }
+            $cosmoConfigBuilder = Join-Path $root "scripts\build-cosmo-router-config.ps1"
+            if (-not (Test-Path -LiteralPath $cosmoConfigBuilder -PathType Leaf)) {
+                throw "Cosmo Router config builder is missing at '$cosmoConfigBuilder'. No cluster changes were applied."
+            }
+            & $cosmoConfigBuilder
+            if ($LASTEXITCODE -ne 0) {
+                throw "Cosmo Router Federation v2 composition failed. No cluster changes were applied."
+            }
             $resolvedUmbrellaDir = (Resolve-Path -LiteralPath $umbrellaDir -ErrorAction Stop).Path
-            & helm dependency build $resolvedUmbrellaDir
+            & helm dependency update $resolvedUmbrellaDir
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm dependency build failed with exit code $LASTEXITCODE. No cluster changes were applied."
             }
@@ -856,6 +864,25 @@ stringData:
             kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
             if (Test-Path "$infraDir\dev-infra-bridges.yaml") { kubectl apply -f "$infraDir\dev-infra-bridges.yaml" 2>$null }
 
+            # Cosmo Router fetches its JWKS document during startup. Bootstrap
+            # the realm before Helm creates the router, otherwise Keycloak
+            # returns 404 and the router enters CrashLoopBackOff.
+            Write-Host "  ▶ Waiting for Keycloak before bootstrapping its realm..." -ForegroundColor White
+            & kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=300s
+            if ($LASTEXITCODE -ne 0) { throw "Keycloak did not become Ready; skipping Cosmo Router deployment because its JWKS endpoint is required at startup." }
+
+            $keycloakBootstrapScript = Join-Path $scriptsDir "bootstrap-keycloak.ps1"
+            if (Test-Path $keycloakBootstrapScript) {
+                Write-Host "  ▶ Bootstrapping Keycloak Realm (microservices-realm) before Cosmo Router..." -ForegroundColor White
+                & $keycloakBootstrapScript
+                $keycloakBootstrapSucceeded = $?
+                if (-not $keycloakBootstrapSucceeded) {
+                    throw "Keycloak realm bootstrap failed. Cosmo Router was not deployed because its JWKS endpoint would return 404."
+                }
+            } else {
+                throw "Keycloak bootstrap script is missing at '$keycloakBootstrapScript'. Cosmo Router requires the realm JWKS before startup."
+            }
+
             Write-Host "`n[8/10] 🚀 Deploying Microservices & React Frontend via Helm..." -ForegroundColor Yellow
             $existingDevSecret = kubectl get secret microservices-secrets -n dev --no-headers 2>$null
             if ($existingDevSecret) {
@@ -936,11 +963,11 @@ stringData:
                 kubectl label configmap grafana-dashboard-technical grafana_dashboard=1 -n observability --overwrite 2>$null | Out-Null
             }
 
-            Write-Host "  ▶ Awaiting pod readiness for Keycloak, Apollo Router and Frontend..." -ForegroundColor White
+            Write-Host "  ▶ Awaiting pod readiness for Keycloak, Cosmo Router and Frontend..." -ForegroundColor White
             & kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=300s
             if ($LASTEXITCODE -ne 0) { throw "Keycloak did not become Ready. Stopping bootstrap before smoke tests." }
-            & kubectl wait --namespace dev --for=condition=ready pod -l app=apollo-router --timeout=300s
-            if ($LASTEXITCODE -ne 0) { throw "Apollo Router did not become Ready. Stopping bootstrap before smoke tests." }
+            & kubectl wait --namespace dev --for=condition=ready pod -l app=cosmo-router --timeout=300s
+            if ($LASTEXITCODE -ne 0) { throw "Cosmo Router did not become Ready. Stopping bootstrap before smoke tests." }
             & kubectl wait --namespace dev --for=condition=ready pod -l app=frontend --timeout=180s
             if ($LASTEXITCODE -ne 0) { throw "Frontend did not become Ready. Stopping bootstrap before smoke tests." }
 
@@ -950,12 +977,6 @@ stringData:
                 Start-Process -FilePath "python" -ArgumentList "`"$supervisorScript`"" -WindowStyle Hidden -ErrorAction SilentlyContinue
                 Start-Sleep -Seconds 3
                 Write-Host "  [OK] Resilient port-forward tunnel daemon started." -ForegroundColor Green
-            }
-
-            $keycloakBootstrapScript = Join-Path $scriptsDir "bootstrap-keycloak.ps1"
-            if (Test-Path $keycloakBootstrapScript) {
-                Write-Host "  ▶ Bootstrapping Keycloak Realm (microservices-realm)..." -ForegroundColor White
-                & $keycloakBootstrapScript 2>$null
             }
 
             Write-Host "`n[9/10] 🩺 Performing Doctor Health Audit & Smoke Verification..." -ForegroundColor Yellow
@@ -1286,10 +1307,11 @@ switch ($Command) {
         Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
         Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
         Write-Host "│ 🌐 React Storefront          │ http://localhost:5173                      │ Open           │" -ForegroundColor White
-        Write-Host "│ 🚀 Apollo Router (Sandbox)   │ http://localhost:8080                      │ Open           │" -ForegroundColor White
+        Write-Host "│ 🚀 Cosmo Router (Sandbox)   │ http://localhost:8080                      │ Open           │" -ForegroundColor White
         Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
         Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
         Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
+        Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
         Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
         Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
         Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
@@ -1298,7 +1320,7 @@ switch ($Command) {
         Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
         Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
         Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
-        Write-Host '  [INFO] Background tunnels include OpenCost UI (7000), Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
+        Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
         Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
     }
 

@@ -10,14 +10,14 @@ groups:
           summary: "{{ $labels.service }} is down"
           description: "Service {{ $labels.service }} has been unreachable for more than 3 minutes."
 
-      - alert: ApolloRouterDown
-        expr: up{service="apollo-router"} == 0
+      - alert: CosmoRouterDown
+        expr: up{service="cosmo-router"} == 0
         for: 3m
         labels:
           severity: critical
         annotations:
-          summary: "Apollo Router is down"
-          description: "The Apollo Router Prometheus target has been unreachable for more than 3 minutes."
+          summary: "Cosmo Router is down"
+          description: "The Cosmo Router Prometheus target has been unreachable for more than 3 minutes."
 
       - alert: HighErrorRate
         expr: |
@@ -40,26 +40,26 @@ groups:
           summary: "High Service Request Latency"
           description: "P95 request latency for Spring services exceeds 1 second over the last 5 minutes."
 
-      - alert: ApolloRouterHighErrorRate
+      - alert: CosmoRouterHighErrorRate
         expr: |
-          sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router", http_response_status_code=~"5.."}[5m]))
-          / sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router"}[5m])) > 0.05
+          sum(rate(router_http_requests_error_total{wg_subgraph_name=""}[5m]))
+          / sum(rate(router_http_requests_total{wg_subgraph_name=""}[5m])) > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Apollo Router 5xx error rate is high"
-          description: "Apollo Router has returned 5xx responses for more than 5% of requests over the last 5 minutes."
+          summary: "Cosmo Router failed-request rate is high"
+          description: "More than 5% of Cosmo Router GraphQL requests failed over the last 5 minutes."
 
-      - alert: ApolloRouterHighLatency
+      - alert: CosmoRouterHighLatency
         expr: |
-          histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{service="apollo-router", otel_scope_name="apollo/router"}[5m]))) > 1
+          histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m]))) > 1000
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "Apollo Router P95 latency is high"
-          description: "Apollo Router request latency P95 has exceeded 1 second for 5 minutes."
+          summary: "Cosmo Router P95 latency is high"
+          description: "Cosmo Router request latency P95 has exceeded 1 second for 5 minutes."
 
       - alert: RedisExporterDown
         expr: up{job="redis"} == 0
@@ -97,26 +97,26 @@ groups:
       - alert: PotentialDDoSAttack
         expr: |
           (sum(rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1m])) or vector(0))
-          + (sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router"}[1m])) or vector(0)) > 150
+          + (sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m])) or vector(0)) > 150
         for: 1m
         labels:
           severity: critical
           category: security
         annotations:
           summary: "Potential DDoS Attack In Progress"
-          description: "Observed Spring service and Apollo Router HTTP throughput is above 150 requests/sec."
+          description: "Observed Spring service and Cosmo Router HTTP throughput is above 150 requests/sec."
 
       - alert: RateLimiterHighRejections
         expr: |
           (sum(rate(http_server_requests_seconds_count{status="429"}[1m])) or vector(0))
-          + (sum(rate(http_server_request_duration_seconds_count{service="apollo-router", otel_scope_name="apollo/router", http_response_status_code="429"}[1m])) or vector(0)) > 25
+          + (sum(rate(router_http_requests_total{wg_subgraph_name="", http_status_code="429"}[1m])) or vector(0)) > 25
         for: 1m
         labels:
           severity: warning
           category: security
         annotations:
           summary: "High Volume of 429 Rate Limiter Blocks"
-          description: "Observed Spring services and Apollo Router are returning more than 25 HTTP 429 responses/sec; this rule reports the status code and does not assume a specific limiting implementation."
+          description: "Observed Spring services and Cosmo Router are returning more than 25 HTTP 429 responses/sec; this rule reports the status code and does not assume a specific limiting implementation."
 
       - alert: TargetEndpointFlooding
         expr: topk(1, sum by (uri) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1m]))) > 80

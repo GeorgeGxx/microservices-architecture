@@ -31,7 +31,7 @@ The values below describe the primary application and observability workloads in
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Apollo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
+| **Cosmo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
 | **Spring Boot Microservices (x4)** | `250m` | `1500m` | `512Mi` | `1536Mi` | `1Gi` | Minikube overrides for Java 21 services |
 | **Keycloak 26.7.4 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
@@ -129,7 +129,7 @@ npm run dev
 - **Product Catalog Social Proof & Verified Ratings:**
   - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
 - **Admin Operations Console & Storefront API Health LED:**
-  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Apollo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. It does not represent all microservices or cluster health; use Grafana for platform telemetry. The `/admin` dashboard is available to users with the Keycloak `ADMIN` role.
+  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Cosmo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. It does not represent all microservices or cluster health; use Grafana for platform telemetry. The `/admin` dashboard is available to users with the Keycloak `ADMIN` role.
 - **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
   - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
   - 📑 **5-Stage Lifecycle Tabs:** Responsive wrapping (`flex-wrap: wrap`) for `All Orders`, `Processing` (`PLACED`), `Shipped` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`), eliminating hidden horizontal clipping on mobile viewports.
@@ -196,7 +196,7 @@ docker compose ps -a
 docker compose logs -f
 
 # View logs for a specific service
-docker compose logs -f apollo-router
+docker compose logs -f cosmo-router
 
 # Graceful shutdown & volume teardown
 docker compose down -v
@@ -257,7 +257,7 @@ Audit proxy synchronization and mutual TLS enforcement without needing browser t
 
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
 > - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
-> - **Selective Metrics Scraping:** Apollo Router metrics port `9090` and Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `k8s/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
+> - **Selective Metrics Scraping:** Cosmo Router metrics port `9090` and Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `k8s/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
 > - **Kafka SASL Authentication (Port 9094):** Microservices produce and consume events through `kafka:9094` using SASL PLAIN (`app` credentials). In-mesh traffic benefits from **Defense-in-Depth** (Layer 7 SASL identification + Layer 4 Istio mTLS wire encryption).
 > - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
 
@@ -274,7 +274,11 @@ Expose all internal services and web consoles to `localhost`:
 
 Once tunnels are active, access local web interfaces:
 - **Frontend SPA:** [http://localhost:5173](http://localhost:5173)
-- **Apollo Router GraphQL:** [http://localhost:8080/graphql](http://localhost:8080/graphql)
+- **Cosmo Router GraphQL:** [http://localhost:8080/graphql](http://localhost:8080/graphql)
+- **Inventory Swagger UI:** [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html)
+- **Notification Swagger UI:** [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html)
+- **Orders Swagger UI:** [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html)
+- **Products Swagger UI:** [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html)
 - **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
 - **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
@@ -285,7 +289,7 @@ Once tunnels are active, access local web interfaces:
 
 Alternatively, access services directly via their configured Minikube NodePorts (ClusterIP workloads remain internal):
 - **Frontend SPA:** `http://$(minikube ip):30080`
-- **Apollo Router:** internal ClusterIP; access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`.
+- **Cosmo Router:** internal ClusterIP; access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`.
 - **Keycloak Admin:** `http://$(minikube ip):30181`
 - **Vault Web UI:** `http://$(minikube ip):30820`
 - **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
@@ -419,7 +423,7 @@ flowchart TD
     subgraph Autoscaling["⚖️ KEDA v2.20.1 & HPA Integration"]
         KEDA_OP[KEDA Operator v2.20.1<br/>Namespace: keda]
         SO_NOTIF[ScaledObject: notification-service<br/>Trigger: Kafka Lag & CPU]
-        SO_GW[ScaledObject: apollo-router<br/>Trigger: Prometheus RPS & CPU]
+        SO_GW[ScaledObject: cosmo-router<br/>Trigger: Prometheus RPS & CPU]
         HPA[Unified Kubernetes HPA<br/>Controlled by KEDA]
         PDB[PodDisruptionBudgets<br/>minAvailable: 1]
     end
@@ -442,7 +446,7 @@ flowchart TD
 ### 1. ⚖️ KEDA v2.20.1 Event-Driven Autoscaling & HPA Orchestration
 * **Architecture & Coexistence:** KEDA does not replace Kubernetes `HorizontalPodAutoscaler` (HPA); it acts as an intelligent controller that creates and continuously synchronizes native `autoscaling/v2` HPA resources. To prevent flapping and replica race conditions, subcharts conditionally decouple native static HPAs when `keda.enabled=true`.
 * **Kafka Consumer Lag Trigger (`notification-service`):** Scales pods dynamically in response to pending messages in the `orders-topic` partition queue (`lagThreshold: 10`), ensuring fast consumer drain under bulk checkout spikes.
-* **Prometheus RPS Trigger (`apollo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))`) scaling before CPU threshold saturation occurs.
+* **Prometheus RPS Trigger (`cosmo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]))`) scaling before CPU threshold saturation occurs.
 * **CPU & Memory Stabilization:** ScaledObjects bundle resource utilization targets ($70\%$ CPU, $80\%$ Memory) alongside event triggers into a single unified HPA.
 * **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never compromise platform quorum.
 * **Verification Commands:**

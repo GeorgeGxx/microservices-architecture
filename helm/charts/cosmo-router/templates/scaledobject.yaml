@@ -2,14 +2,14 @@
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ include "apollo-router.fullname" . }}-scaler
+  name: {{ include "cosmo-router.fullname" . }}-scaler
   labels:
-    {{- include "apollo-router.labels" . | nindent 4 }}
+    {{- include "cosmo-router.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "apollo-router.fullname" . }}
+    name: {{ include "cosmo-router.fullname" . }}
   minReplicaCount: {{ .Values.keda.minReplicaCount | default 1 }}
   maxReplicaCount: {{ .Values.keda.maxReplicaCount | default 3 }}
   {{- if and .Values.keda.minReplicaCount (eq (int .Values.keda.minReplicaCount) 0) }}
@@ -21,8 +21,8 @@ spec:
     - type: prometheus
       metadata:
         serverAddress: {{ .Values.keda.prometheus.serverAddress | default "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090" | quote }}
-        metricName: {{ .Values.keda.prometheus.metricName | default "apollo_router_requests_per_second" | quote }}
-        query: {{ .Values.keda.prometheus.query | default "sum(rate(http_server_request_duration_seconds_count{otel_scope_name='apollo/router'}[1m]))" | quote }}
+        metricName: {{ .Values.keda.prometheus.metricName | default "cosmo_router_requests_per_second" | quote }}
+        query: {{ .Values.keda.prometheus.query | default "sum(rate(router_http_requests_total{wg_subgraph_name=\"\"}[1m]))" | quote }}
         threshold: {{ .Values.keda.prometheus.threshold | default "100" | quote }}
     {{- end }}
     {{- if and .Values.keda.cpu .Values.keda.cpu.enabled }}

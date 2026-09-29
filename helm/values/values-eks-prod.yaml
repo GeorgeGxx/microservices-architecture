@@ -4,18 +4,19 @@ global:
   storageClass: ebs-gp3-sc
 
 # AWS ECR High Performance Tier (Production)
-apollo-router:
-  devMode: false
+cosmo-router:
   graphql:
     introspection: false
-    sandbox: false
+    playgroundEnabled: false
   cors:
-    allowAnyOrigin: false
     # Set to the public storefront origin(s) if browser traffic is cross-origin.
     allowedOrigins: []
   image:
-    repository: "ghcr.io/apollographql/router"
-    tag: "v2.16.3"
+    repository: "ghcr.io/wundergraph/cosmo/router"
+    tag: "0.353.0"
+  trafficShaping:
+    circuitBreaker:
+      enabled: true
   replicaCount: 3
   autoscaling:
     enabled: true
