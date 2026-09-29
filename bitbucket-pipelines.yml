@@ -111,13 +111,15 @@ definitions:
           - echo "Installing Helm & Conftest..."
           - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
           - curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin
+          - echo "Rendering pinned OpenCost and Prometheus charts..."
+          - bash scripts/validate-opencost.sh
           - echo "Rendering Helm manifests for policy evaluation..."
           - helm template microservices ./helm/microservices-umbrella --set ${SERVICE_NAME}.image.tag=${BITBUCKET_COMMIT:0:7} > rendered-manifests.yaml
           - echo "Validating against devsecops/policies/conftest/..."
           - if [ -d "devsecops/policies/conftest" ]; then conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/ || echo "Conftest audit logged advisory findings."; fi
 
     # -------------------------------------------------------------------------
-    # STAGE 5.1: 🌱 Deploy to Google Kubernetes Engine (GKE) Dev
+    # STAGE 6: 🌱 Deploy to Google Kubernetes Engine (GKE) Dev
     # -------------------------------------------------------------------------
     - step: &deploy-gke-dev
         name: "🌱 Deploy to GKE Dev (GCP)"
@@ -143,7 +145,7 @@ definitions:
               --cleanup-on-fail || echo "GKE Dev deployment simulated"
 
     # -------------------------------------------------------------------------
-    # STAGE 5.2: 🔄 Automated Rollback for Dev Failure
+    # STAGE 6.1: 🔄 Automated Rollback for Dev Failure
     # -------------------------------------------------------------------------
     - step: &rollback-gke-dev
         name: "🔄 Rollback GKE Dev"
@@ -155,7 +157,7 @@ definitions:
           - helm rollback microservices --namespace dev --wait --timeout 5m || echo "Dev rollback completed."
 
     # -------------------------------------------------------------------------
-    # STAGE 6: 🚀 Deploy to Google Kubernetes Engine (GKE) Staging
+    # STAGE 7: 🚀 Deploy to Google Kubernetes Engine (GKE) Staging
     # -------------------------------------------------------------------------
     - step: &deploy-gke-staging
         name: "🚀 6. Deploy to GKE Staging (GCP)"
@@ -186,7 +188,7 @@ definitions:
           - "/tmp/gke-endpoint.env"
 
     # -------------------------------------------------------------------------
-    # STAGE 7: 🔗 Integration Tests (Newman / Postman)
+    # STAGE 8: 🔗 Integration Tests (Newman / Postman)
     # -------------------------------------------------------------------------
     - step: &integration-tests-newman
         name: "🔗 7. Integration Tests (Postman/Newman)"
@@ -202,7 +204,7 @@ definitions:
           - "/tmp/newman-report.html"
 
     # -------------------------------------------------------------------------
-    # STAGE 8: 🧭 E2E Tests (Cypress)
+    # STAGE 9: 🧭 E2E Tests (Cypress)
     # -------------------------------------------------------------------------
     - step: &e2e-tests-cypress
         name: "🧭 8. E2E Tests (Cypress User Journeys)"
@@ -215,7 +217,7 @@ definitions:
           - if [ -f "${SERVICE_DIR}/cypress.config.js" ] || [ -f "${SERVICE_DIR}/cypress.config.ts" ]; then cd ${SERVICE_DIR} && CYPRESS_BASE_URL=$TARGET_URL npx cypress run || echo "Cypress tests executed with findings."; else echo "No Cypress config for ${SERVICE_DIR} — stage skipped."; fi
 
     # -------------------------------------------------------------------------
-    # STAGE 9: ⚡ Performance & Stress Tests (k6)
+    # STAGE 10: ⚡ Performance & Stress Tests (k6)
     # -------------------------------------------------------------------------
     - step: &performance-tests-k6
         name: "⚡ 9. Performance & SLA Tests (k6)"
@@ -228,7 +230,7 @@ definitions:
           - if [ -f "$SCRIPT" ]; then k6 run -e TARGET_URL=$TARGET_URL $SCRIPT || echo "k6 threshold notice."; else echo "devsecops/testing/k6/load-test.js not found, skipping k6."; fi
 
     # -------------------------------------------------------------------------
-    # STAGE 10: 🕵️ DAST Scan (OWASP ZAP on GKE Edge)
+    # STAGE 11: 🕵️ DAST Scan (OWASP ZAP on GKE Edge)
     # -------------------------------------------------------------------------
     - step: &dast-scan-zap
         name: "🕵️ 10. DAST Scan (OWASP ZAP)"
@@ -244,7 +246,19 @@ definitions:
           - "/tmp/zap/**"
 
     # -------------------------------------------------------------------------
-    # STAGE 11: 📦 Push Certified Image to Google Artifact Registry (GAR)
+    # STAGE 12: 🔄 Automated Rollback for Staging Failure
+    # -------------------------------------------------------------------------
+    - step: &rollback-gke-staging
+        name: "🔄 Rollback GKE Staging"
+        image: google/cloud-sdk:alpine
+        script:
+          - echo "Initiating automated rollback on GKE staging..."
+          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || true; fi
+          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          - helm rollback microservices --namespace staging --wait --timeout 5m || echo "Staging rollback completed."
+
+    # -------------------------------------------------------------------------
+    # STAGE 13: 📦 Push Certified Image to Google Artifact Registry (GAR)
     # -------------------------------------------------------------------------
     - step: &push-image-gar
         name: "📦 11. Push to Google Artifact Registry (GAR)"
@@ -269,7 +283,7 @@ definitions:
           - echo "Successfully pushed certified images to Google Artifact Registry!"
 
     # -------------------------------------------------------------------------
-    # STAGE 12: 🚢 Deploy to Production (GKE Canary with Istio)
+    # STAGE 14: 🚢 Deploy to Production (GKE Canary with Istio)
     # -------------------------------------------------------------------------
     - step: &deploy-gke-production-canary
         name: "🚢 12. Deploy to GKE Production (Canary with Istio)"
@@ -311,19 +325,7 @@ definitions:
             fi
 
     # -------------------------------------------------------------------------
-    # STAGE: 🔄 Automated Rollback for Staging Failure
-    # -------------------------------------------------------------------------
-    - step: &rollback-gke-staging
-        name: "🔄 Rollback GKE Staging"
-        image: google/cloud-sdk:alpine
-        script:
-          - echo "Initiating automated rollback on GKE staging..."
-          - if [ -n "$GCP_SA_KEY" ]; then echo "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json && gcloud auth activate-service-account --key-file=/tmp/gcp-key.json && gcloud container clusters get-credentials ${GKE_CLUSTER_NAME:-msa-gcp-prod-gke} --region ${GCP_REGION:-us-central1} --project ${GCP_PROJECT_ID:-msa-gcp-prod} || true; fi
-          - curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
-          - helm rollback microservices --namespace staging --wait --timeout 5m || echo "Staging rollback completed."
-
-    # -------------------------------------------------------------------------
-    # STAGE: 🔄 Automated Rollback for Production Failure
+    # STAGE 14.1: 🔄 Automated Rollback for Production Failure
     # -------------------------------------------------------------------------
     - step: &rollback-gke-production
         name: "🔄 Rollback GKE Production"
@@ -339,7 +341,7 @@ definitions:
     # Terraform GCP Infrastructure Steps per Environment
     # -------------------------------------------------------------------------
     - step: &terraform-gcp-dev
-        name: "☁️ Terraform GCP Dev (GKE Autopilot, VPC, Dev Services)"
+        name: "☁️ Terraform GCP Dev Validation (no apply; remote backend prerequisite)"
         image: hashicorp/terraform:1.8.0
         script:
           - cd terraform/environments/gcp
@@ -347,15 +349,10 @@ definitions:
           - terraform init -backend=false
           - terraform workspace select -or-create dev || true
           - terraform validate
-          - echo "Applying GCP Dev Infrastructure..."
-          - terraform apply -var-file=dev/terraform.tfvars -auto-approve || {
-              echo "Terraform Dev Apply failed! Unlocking state...";
-              terraform force-unlock -force 0 2>/dev/null || true;
-              exit 1;
-            }
+          - echo "GCP dev apply is disabled until a shared remote state backend and locking are configured."
 
     - step: &terraform-gcp-staging
-        name: "☁️ Terraform GCP Staging (Medium Perf GKE, Cloud SQL, Memorystore)"
+        name: "☁️ Terraform GCP Staging Validation (no apply; remote backend prerequisite)"
         image: hashicorp/terraform:1.8.0
         script:
           - cd terraform/environments/gcp
@@ -363,15 +360,10 @@ definitions:
           - terraform init -backend=false
           - terraform workspace select -or-create staging || true
           - terraform validate
-          - echo "Applying GCP Staging Infrastructure..."
-          - terraform apply -var-file=staging/terraform.tfvars -auto-approve || {
-              echo "Terraform Staging Apply failed! Unlocking state...";
-              terraform force-unlock -force 0 2>/dev/null || true;
-              exit 1;
-            }
+          - echo "GCP staging apply is disabled until a shared remote state backend and locking are configured."
 
     - step: &terraform-gcp-prod
-        name: "☁️ Terraform GCP Production (High Perf GKE, HA Cloud SQL, Cloud Armor)"
+        name: "☁️ Terraform GCP Production Validation (no apply; remote backend prerequisite)"
         image: hashicorp/terraform:1.8.0
         script:
           - cd terraform/environments/gcp
@@ -379,12 +371,7 @@ definitions:
           - terraform init -backend=false
           - terraform workspace select -or-create prod || true
           - terraform validate
-          - echo "Applying GCP Production Infrastructure..."
-          - terraform apply -var-file=prod/terraform.tfvars -auto-approve || {
-              echo "Terraform Prod Apply failed! Unlocking state...";
-              terraform force-unlock -force 0 2>/dev/null || true;
-              exit 1;
-            }
+          - echo "GCP production apply is disabled until a shared remote state backend and locking are configured."
 
     - step: &terraform-gcp-step
         name: "☁️ Terraform GCP Infrastructure Plan"
@@ -401,7 +388,7 @@ definitions:
 # PIPELINES CONFIGURATION
 # =============================================================================
 pipelines:
-  # Automated Branch Pipelines (Unified 12+ Stages with Rollback)
+  # Automated Branch Pipelines (Unified 14+ Stages with Rollback)
   branches:
     develop:
       - stage:
@@ -413,7 +400,7 @@ pipelines:
             - step: *image-vulnerability-scan
             - step: *compliance-opa-check
       - stage:
-          name: "☁️ GCP Terraform Dev Infrastructure"
+          name: "☁️ GCP Terraform Dev Validation (no apply)"
           steps:
             - step: *terraform-gcp-dev
       - stage:
@@ -439,7 +426,7 @@ pipelines:
             - step: *image-vulnerability-scan
             - step: *compliance-opa-check
       - stage:
-          name: "☁️ GCP Terraform Staging (Medium Perf)"
+          name: "☁️ GCP Terraform Staging Validation (no apply)"
           steps:
             - step: *terraform-gcp-staging
       - stage:
@@ -466,7 +453,7 @@ pipelines:
             - step: *image-vulnerability-scan
             - step: *compliance-opa-check
       - stage:
-          name: "☁️ GCP Terraform Production (High Perf)"
+          name: "☁️ GCP Terraform Production Validation (no apply)"
           steps:
             - step: *terraform-gcp-prod
       - stage:
@@ -497,7 +484,7 @@ pipelines:
             - step: *image-vulnerability-scan
             - step: *compliance-opa-check
       - stage:
-          name: "☁️ GCP Terraform Production (High Perf)"
+          name: "☁️ GCP Terraform Production Validation (no apply)"
           steps:
             - step: *terraform-gcp-prod
       - stage:
@@ -643,13 +630,14 @@ pipelines:
       - step: *deploy-gke-production-canary
 
     # -------------------------------------------------------------------------
-    # 3. Terraform GCP Infrastructure Apply Pipeline
+    # 3. Terraform GCP Validation Pipeline (remote state prerequisites block apply)
     # -------------------------------------------------------------------------
-    terraform-gcp-apply:
+    terraform-gcp-validate:
       - step:
           <<: *terraform-gcp-step
-          name: "Apply GCP Infrastructure (GKE, VPC, Cloud SQL)"
+          name: "Validate GCP Terraform (no apply)"
           script:
             - cd terraform/environments/gcp
             - terraform init -backend=false
-            - terraform apply -var-file=prod/terraform.tfvars -auto-approve || echo "Terraform Apply simulated"
+            - terraform validate
+            - echo "Apply is disabled until a durable remote state backend and locking are configured."

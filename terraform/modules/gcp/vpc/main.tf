@@ -20,6 +20,22 @@ resource "google_compute_subnetwork" "this" {
     range_name    = "gke-services"
     ip_cidr_range = var.services_cidr
   }
+
+  dynamic "secondary_ip_range" {
+    for_each = var.additional_pods_cidr == null ? [] : [var.additional_pods_cidr]
+    content {
+      range_name    = "gke-pods-dp2"
+      ip_cidr_range = secondary_ip_range.value
+    }
+  }
+
+  dynamic "secondary_ip_range" {
+    for_each = var.additional_services_cidr == null ? [] : [var.additional_services_cidr]
+    content {
+      range_name    = "gke-services-dp2"
+      ip_cidr_range = secondary_ip_range.value
+    }
+  }
 }
 
 resource "google_compute_router" "this" {

@@ -9,6 +9,7 @@ locals {
     Cloud              = "azure"
     Owner              = "devops-team"
     CostCenter         = "engineering-${local.env}"
+    CostAllocation     = "opencost-workload-allocation"
     SecurityCompliance = "standard"
   }
 
@@ -31,6 +32,7 @@ locals {
       enable_managed_db    = false
       db_sku_name          = "B_Standard_B1ms"
       db_storage_mb        = 32768
+      db_backup_retention_days = 7
       db_ha                = false
       enable_istio         = true
       enable_istio_ingress = true
@@ -57,6 +59,7 @@ locals {
       enable_managed_db    = true
       db_sku_name          = "GP_Standard_D2s_v3"
       db_storage_mb        = 65536
+      db_backup_retention_days = 7
       db_ha                = false
       enable_istio         = true
       enable_istio_ingress = true
@@ -83,6 +86,7 @@ locals {
       enable_managed_db    = true
       db_sku_name          = "GP_Standard_D4s_v3"
       db_storage_mb        = 131072
+      db_backup_retention_days = 14
       db_ha                = true
       enable_istio         = true
       enable_istio_ingress = true

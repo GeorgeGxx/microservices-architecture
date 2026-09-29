@@ -33,6 +33,35 @@ module "aks" {
   tags                = local.tags
 }
 
+# Separate prod subnet and AKS control plane for the second production data
+# plane. In dev/staging the extra subnet and cluster do not exist.
+resource "azurerm_subnet" "aks_dataplane_2" {
+  count                = local.env == "prod" ? 1 : 0
+  name                 = "aks-dp2-subnet"
+  resource_group_name  = azurerm_resource_group.this.name
+  virtual_network_name = "${local.name}-${local.env}-vnet"
+  address_prefixes     = ["10.60.32.0/20"]
+
+  depends_on = [module.vnet]
+}
+
+module "aks_dp2" {
+  count  = local.env == "prod" ? 1 : 0
+  source = "../../modules/azure/aks"
+
+  name                = "${local.name}-dp2"
+  environment         = local.env
+  location            = var.location
+  resource_group_name = azurerm_resource_group.this.name
+  subnet_id           = azurerm_subnet.aks_dataplane_2[0].id
+  node_vm_size        = local.cfg.node_vm_size
+  node_count          = local.cfg.node_count
+  min_count           = local.cfg.min_count
+  max_count           = local.cfg.max_count
+  enable_auto_scaling = true
+  tags                = merge(local.tags, { DataPlane = "2" })
+}
+
 module "acr" {
   source = "../../modules/azure/acr"
 
@@ -99,6 +128,7 @@ module "postgresql" {
   administrator_login    = "psqladmin"
   administrator_password = local.postgres_admin_password
   high_availability      = local.cfg.db_ha
+  backup_retention_days  = local.cfg.db_backup_retention_days
   database_names         = local.database_names
   tags                   = local.tags
 

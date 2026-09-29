@@ -236,7 +236,7 @@ jobs:
           retention-days: 1
 
       - name: Generate CycloneDX SBOM (from tarball)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'image'
           input: /tmp/${{ inputs.service-name }}-image.tar
@@ -270,7 +270,7 @@ jobs:
           path: /tmp
 
       - name: Trivy Container Vulnerability Scan (Calibrated Soft-Gate)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'image'
           input: /tmp/${{ inputs.service-name }}-image.tar
@@ -332,6 +332,8 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
+    outputs:
+      image-digest: ${{ steps.registry-push.outputs.digest }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
@@ -345,6 +347,7 @@ jobs:
         run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
 
       - name: Tag and Push to Container Registry
+        id: registry-push
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
           DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
@@ -361,7 +364,14 @@ jobs:
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
             docker push $RELEASE_TAG
-            docker push $SHA_TAG
+            set -o pipefail
+            docker push "$SHA_TAG" 2>&1 | tee /tmp/docker-push.log
+            IMAGE_DIGEST="$(sed -n 's/.*digest: \(sha256:[0-9a-f]*\).*/\1/p' /tmp/docker-push.log | tail -n 1)"
+            if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "::error::Registry did not return a valid immutable image digest."
+              exit 1
+            fi
+            echo "digest=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
             docker push $LATEST_TAG
             echo "Successfully pushed certified image to Docker Hub: $RELEASE_TAG, $SHA_TAG and $LATEST_TAG"
           else
@@ -414,17 +424,26 @@ jobs:
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
         run: |
           echo "Connecting to ArgoCD for $APP_NAME in namespace $TARGET_NS..."
+          IMAGE_DIGEST="${{ needs.push-dockerhub.outputs.image-digest }}"
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
-            argocd app set "$APP_NAME" --helm-set ${{ inputs.service-name }}.image.tag=${{ github.sha }} --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure || true
+            if [ -n "$IMAGE_DIGEST" ]; then
+              argocd app set "$APP_NAME" --helm-set ${{ inputs.service-name }}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
+            else
+              argocd app set "$APP_NAME" --helm-set ${{ inputs.service-name }}.image.digest= --helm-set ${{ inputs.service-name }}.image.tag=${{ github.sha }} --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
+            fi
             argocd app sync "$APP_NAME" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             argocd app wait "$APP_NAME" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             echo "Successfully synchronized and validated $APP_NAME via ArgoCD."
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             echo "Using direct cluster fallback for $TARGET_ENV..."
+            IMAGE_REF_ARGS=(--set ${{ inputs.service-name }}.image.digest= --set ${{ inputs.service-name }}.image.tag=${{ github.sha }})
+            if [ -n "$IMAGE_DIGEST" ]; then
+              IMAGE_REF_ARGS=(--set ${{ inputs.service-name }}.image.digest="$IMAGE_DIGEST")
+            fi
             helm upgrade --install microservices ./helm/microservices-umbrella \
               --namespace "$TARGET_NS" \
               --create-namespace \
-              --set ${{ inputs.service-name }}.image.tag=${{ github.sha }} \
+              "${IMAGE_REF_ARGS[@]}" \
               --set global.environment="$TARGET_ENV" \
               --wait --timeout 5m \
               --atomic \

@@ -1,0 +1,118 @@
+name: Local Stack and Infrastructure Quality Gates
+
+on:
+  pull_request:
+    branches: [develop, staging, main, master]
+    paths:
+      - 'terraform/**'
+      - 'compose.yaml'
+      - 'scripts/testing/**'
+      - 'observability/**'
+      - 'frontend/nginx.conf'
+      - 'frontend/rate-limit.conf'
+      - 'scripts/update_dashboards.py'
+      - 'observability/grafana/dashboards/**'
+      - 'Install-DevTools.ps1'
+      - 'platform.ps1'
+      - 'docs/LOCAL_MATURITY_GATES.md'
+      - '.github/workflows/local-quality-gates.yml'
+  push:
+    branches: [develop, staging, main, master]
+    paths:
+      - 'terraform/**'
+      - 'compose.yaml'
+      - 'scripts/testing/**'
+      - 'observability/**'
+      - 'frontend/nginx.conf'
+      - 'frontend/rate-limit.conf'
+      - 'scripts/update_dashboards.py'
+      - 'observability/grafana/dashboards/**'
+      - 'Install-DevTools.ps1'
+      - 'platform.ps1'
+      - 'docs/LOCAL_MATURITY_GATES.md'
+      - '.github/workflows/local-quality-gates.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-quality-gates-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform-static:
+    name: Terraform format and validation (no apply)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        working-directory:
+          - terraform/environments/local-minikube
+          - terraform/environments/aws
+          - terraform/environments/azure
+          - terraform/environments/gcp
+          - terraform/examples/lifecycle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.0
+      - name: Check formatting
+        run: terraform fmt -check -recursive terraform/
+      - name: Initialize without remote backend
+        working-directory: ${{ matrix.working-directory }}
+        run: terraform init -backend=false -input=false
+      - name: Validate configuration
+        working-directory: ${{ matrix.working-directory }}
+        run: terraform validate -no-color
+
+  iac-security:
+    name: Terraform security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
+        with:
+          directory: terraform/
+          framework: terraform
+          quiet: true
+          soft_fail: true
+
+  local-config-and-tests:
+    name: Compose config, Python checks and observability assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate Compose configuration
+        run: |
+          cp .example.env .env
+          docker compose config --quiet
+      - name: Compile Python testing tools
+        run: python -m compileall -q scripts/testing
+      - name: Parse PowerShell scripts
+        shell: pwsh
+        run: |
+          $parseErrors = $null
+          foreach ($path in @('Install-DevTools.ps1', 'platform.ps1', 'scripts/testing/backup-restore-check.ps1')) {
+            [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$null, [ref]$parseErrors)
+            if ($parseErrors.Count -gt 0) { $parseErrors | Format-List *; exit 1 }
+          }
+      - name: Validate Grafana dashboard JSON
+        run: python -c "import json,pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('observability/grafana/dashboards').glob('*.json')]"
+      - name: Validate Prometheus config and rules
+        run: |
+          docker run --rm \
+            -v "$PWD/observability/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.14.0 \
+            promtool check config /etc/prometheus/prometheus.yml --lint=all
+      - name: Check patch whitespace
+        run: git diff --check HEAD^ HEAD

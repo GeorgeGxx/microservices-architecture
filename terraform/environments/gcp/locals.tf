@@ -9,6 +9,7 @@ locals {
     cloud               = "gcp"
     owner               = "devops-team"
     cost_center         = "engineering-${local.env}"
+    cost_allocation     = "opencost-workload-allocation"
     security_compliance = "standard"
   }
 
@@ -18,6 +19,9 @@ locals {
       pods_cidr               = "10.31.0.0/16"
       services_cidr           = "10.32.0.0/20"
       master_cidr             = "172.16.0.0/28"
+      dataplane_2_pods_cidr   = null
+      dataplane_2_services_cidr = null
+      dataplane_2_master_cidr = null
       enable_gke_autopilot    = true
       enable_managed_database = false
       db_tier                 = "db-custom-2-7680"
@@ -39,6 +43,9 @@ locals {
       pods_cidr               = "10.36.0.0/16"
       services_cidr           = "10.37.0.0/20"
       master_cidr             = "172.16.1.0/28"
+      dataplane_2_pods_cidr   = null
+      dataplane_2_services_cidr = null
+      dataplane_2_master_cidr = null
       enable_gke_autopilot    = true
       enable_managed_database = true
       db_tier                 = "db-custom-2-7680"
@@ -60,6 +67,9 @@ locals {
       pods_cidr               = "10.41.0.0/16"
       services_cidr           = "10.42.0.0/20"
       master_cidr             = "172.16.2.0/28"
+      dataplane_2_pods_cidr   = "10.43.0.0/16"
+      dataplane_2_services_cidr = "10.44.0.0/20"
+      dataplane_2_master_cidr = "172.16.3.0/28"
       enable_gke_autopilot    = true
       enable_managed_database = true
       db_tier                 = "db-custom-4-16384"

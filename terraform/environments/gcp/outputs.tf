@@ -7,6 +7,17 @@ output "gke_endpoint" {
   sensitive = true
 }
 
+output "production_dataplane_2_gke_cluster_name" {
+  description = "Second independent production GKE data-plane cluster; null outside prod."
+  value       = try(module.gke_dp2[0].cluster_name, null)
+}
+
+output "production_dataplane_2_gke_endpoint" {
+  description = "API endpoint for the second production GKE data-plane cluster; null outside prod."
+  value       = try(module.gke_dp2[0].cluster_endpoint, null)
+  sensitive   = true
+}
+
 output "artifact_registry_id" {
   value = module.gar.repository_id
 }

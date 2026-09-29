@@ -1,0 +1,65 @@
+# =============================================================================
+# templates/steps/helm-rollback.yml  —  the ONLY place where rollback happens
+#
+# Works for both failure shapes:
+#   - the upgrade itself failed  -> release is in "failed" state at revision N
+#   - post-deploy checks failed  -> release is "deployed" at revision N
+# In both cases `helm rollback` (no revision) returns to N-1.
+# First-ever release (only 1 revision): there is nothing to go back to -> uninstall.
+# =============================================================================
+parameters:
+  - name: serviceConnection
+    type: string
+  - name: resourceGroup
+    type: string
+  - name: cluster
+    type: string
+  - name: namespace
+    type: string
+  - name: helmRelease
+    type: string
+  - name: helmVersion
+    type: string
+  - name: restoreManifests     # space-separated manifests to re-apply after rollback (e.g. Istio); only existing files are applied
+    type: string
+    default: ''
+
+steps:
+  - checkout: self
+
+  - task: HelmInstaller@1
+    displayName: "Install Helm ${{ parameters.helmVersion }}"
+    inputs:
+      helmVersionToInstall: ${{ parameters.helmVersion }}
+
+  - task: AzureCLI@2
+    displayName: "Helm rollback ${{ parameters.helmRelease }} @ ${{ parameters.namespace }}"
+    inputs:
+      azureSubscription: ${{ parameters.serviceConnection }}
+      scriptType: bash
+      scriptLocation: inlineScript
+      inlineScript: |
+        set -euo pipefail
+        echo "##vso[task.logissue type=warning]Deployment failed - rolling back ${{ parameters.helmRelease }} in ${{ parameters.namespace }}"
+        az aks get-credentials \
+          --resource-group ${{ parameters.resourceGroup }} \
+          --name ${{ parameters.cluster }} \
+          --overwrite-existing
+        if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
+
+        if ! helm status ${{ parameters.helmRelease }} -n ${{ parameters.namespace }} >/dev/null 2>&1; then
+          echo "Release does not exist - nothing to roll back."
+          exit 0
+        fi
+
+        REVISIONS=$(helm history ${{ parameters.helmRelease }} -n ${{ parameters.namespace }} -o json | jq length)
+        if [ "$REVISIONS" -le 1 ]; then
+          echo "First revision of the release: uninstalling instead of rolling back."
+          helm uninstall ${{ parameters.helmRelease }} -n ${{ parameters.namespace }} --wait --timeout 5m
+        else
+          helm rollback ${{ parameters.helmRelease }} -n ${{ parameters.namespace }} --wait --timeout 5m
+        fi
+
+        for m in ${{ parameters.restoreManifests }}; do
+          if [ -f "$m" ]; then kubectl apply -f "$m" -n ${{ parameters.namespace }}; fi
+        done

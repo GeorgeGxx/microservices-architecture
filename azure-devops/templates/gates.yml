@@ -1,0 +1,17 @@
+# =============================================================================
+# templates/gates.yml  —  SHARED gate policy (infra + every service pipeline)
+#
+# Include it from the ROOT of every entry point:
+#   variables:
+#     - template: templates/gates.yml
+#
+# GATE POLICY (same rule for Terraform and for the apps):
+#   - Protected branches (release/*, main, master): scanners are BLOCKING.
+#   - Any other branch / PR / develop: scanners are ADVISORY (warning only).
+#   - Gitleaks is ALWAYS blocking (see app-stages.yml).
+#
+# Evaluated at compile time; scripts read it as: [ "$(isProtectedBranch)" = "True" ]
+# =============================================================================
+variables:
+  - name: isProtectedBranch
+    value: ${{ or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')) }}

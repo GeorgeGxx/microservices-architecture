@@ -54,4 +54,26 @@ resource "aws_db_instance" "this" {
   final_snapshot_identifier = var.environment == "prod" ? "${var.name}-${var.environment}-final" : null
 
   tags = local.common_tags
+
+  lifecycle {
+    # Protect production data both at the provider and Terraform graph layers.
+    # This module only provisions managed cloud databases in staging/prod.
+    # The literal is required by Terraform's lifecycle meta-argument rules.
+    prevent_destroy = true
+
+    precondition {
+      condition     = var.environment != "prod" || var.backup_retention_days >= 7
+      error_message = "Production RDS must retain automated backups for at least seven days."
+    }
+
+    precondition {
+      condition     = var.environment != "prod" || var.deletion_protection
+      error_message = "Production RDS requires deletion_protection to be enabled."
+    }
+
+    postcondition {
+      condition     = self.storage_encrypted && self.backup_retention_period >= 7
+      error_message = "RDS must remain encrypted and retain at least seven days of backups."
+    }
+  }
 }
