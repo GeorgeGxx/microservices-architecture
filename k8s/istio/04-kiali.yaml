@@ -133,13 +133,16 @@ data:
       tracing:
         enabled: true
         provider: "tempo"
-        in_cluster_url: "http://tempo.observability.svc.cluster.local:3200"
-        url: "http://localhost:3200"
+        internal_url: "http://tempo.observability.svc.cluster.local:3200"
+        external_url: "http://localhost:3000"
         use_grpc: false
+        tempo_config:
+          datasource_uid: "tempo-ds"
+          url_format: "grafana"
       grafana:
         enabled: true
-        in_cluster_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
-        url: "http://localhost:3000"
+        internal_url: "http://kube-prometheus-grafana.observability.svc.cluster.local:80"
+        external_url: "http://localhost:3000"
         auth:
           type: "basic"
           username: "admin"
