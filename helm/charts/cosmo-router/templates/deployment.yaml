@@ -41,7 +41,7 @@ spec:
           ports:
             - name: http-router
               containerPort: {{ .Values.containerPort }}
-            - name: metrics
+            - name: http-metrics
               containerPort: {{ .Values.metricsPort }}
           {{- with .Values.env }}
           env:

@@ -93,7 +93,7 @@ spec:
                   key: REDIS_PASSWORD
           ports:
             - containerPort: 9121
-              name: metrics
+              name: http-metrics
           resources:
             requests:
               cpu: "50m"

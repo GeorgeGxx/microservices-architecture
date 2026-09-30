@@ -13,7 +13,7 @@ spec:
       port: {{ .Values.service.port }}
       targetPort: {{ .Values.containerPort }}
       protocol: TCP
-    - name: metrics
+    - name: http-metrics
       port: {{ .Values.service.metricsPort }}
       targetPort: {{ .Values.metricsPort }}
       protocol: TCP
