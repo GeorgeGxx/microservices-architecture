@@ -23,11 +23,38 @@ definitions:
               cd frontend
               npm ci --no-audit
               npm run build
+              if [ -n "${SONAR_TOKEN:-}" ]; then
+                : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
+                SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
+                npx --yes sonar-scanner \
+                  -Dsonar.projectKey=msa-frontend \
+                  -Dsonar.projectName="MSA Frontend React" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="$SONAR_HOST_URL" \
+                  -Dsonar.sources=src \
+                  -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+                  -Dsonar.qualitygate.wait=true
+              else
+                echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+              fi
             else
               SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
               test -f "$SERVICE_DIR/pom.xml" || { echo "Unknown Spring service: $SERVICE_DIR"; exit 1; }
               cd "$SERVICE_DIR"
               mvn -B -T 1C clean verify jacoco:report -Dspring.profiles.active=test
+              if [ -n "${SONAR_TOKEN:-}" ]; then
+                : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
+                SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
+                mvn -B -T 1C org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
+                  -Dsonar.projectKey="msa-${SERVICE_NAME}" \
+                  -Dsonar.projectName="MSA ${SERVICE_NAME}" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="$SONAR_HOST_URL" \
+                  -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                  -Dsonar.qualitygate.wait=true
+              else
+                echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+              fi
             fi
     - step: &sast
         name: '2. SAST, secrets and IaC scan'

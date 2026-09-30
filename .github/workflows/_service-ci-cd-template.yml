@@ -71,6 +71,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Spring Boot / Maven (Multi-threaded)
       - name: Set up JDK 21
@@ -110,8 +112,59 @@ jobs:
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         run: |
           cd ${{ inputs.service-dir }}
-          npm install
+          npm ci
           npm run build
+
+      - name: Sonar Analysis (Spring Boot)
+        if: inputs.service-type == 'spring-boot'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          mvn -B -T 1C \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
+            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
+            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.qualitygate.wait=true
+
+      - name: Set up Java for Frontend Sonar Scanner
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Sonar Analysis (React Frontend)
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          npx --yes sonar-scanner \
+            -Dsonar.projectKey=msa-frontend \
+            -Dsonar.projectName="MSA Frontend React" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.sources=src \
+            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+            -Dsonar.qualitygate.wait=true
 
   # ==========================================================
   # STEP 2: 🔍 SAST & Secret Scanning (Security) — Runs in parallel with Unit Tests
@@ -146,62 +199,6 @@ jobs:
         run: |
           python3 -m pip install checkov || pip install checkov
           checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
-
-      # SonarQube / SonarCloud (Java)
-      - name: Set up JDK 21
-        if: inputs.service-type == 'spring-boot'
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Sonar Analysis (Spring Boot)
-        if: inputs.service-type == 'spring-boot'
-        continue-on-error: true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || 'georgegxx' }}
-        run: |
-          if [ -n "$SONAR_TOKEN" ]; then
-            cd ${{ inputs.service-dir }}
-            SONAR_ARGS="-Dsonar.projectKey=msa-${{ inputs.service-name }} \
-              -Dsonar.projectName=\"MSA ${{ inputs.service-name }}\" \
-              -Dsonar.host.url=$SONAR_HOST_URL \
-              -Dsonar.token=$SONAR_TOKEN \
-              -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-              -Dsonar.qualitygate.wait=false"
-            if [ -n "$SONAR_ORGANIZATION" ] && [ "$SONAR_HOST_URL" = "https://sonarcloud.io" ]; then
-              SONAR_ARGS="$SONAR_ARGS -Dsonar.organization=$SONAR_ORGANIZATION"
-            fi
-            mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar $SONAR_ARGS || echo "::warning::Sonar analysis completed with advisory warnings."
-          else
-            echo "::warning::SONAR_TOKEN not set — skipping SonarQube Quality Gate."
-          fi
-
-      - name: Sonar Analysis (React Frontend)
-        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        continue-on-error: true
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION || 'georgegxx' }}
-        run: |
-          if [ -n "$SONAR_TOKEN" ]; then
-            cd frontend
-            SONAR_ARGS="-Dsonar.projectKey=msa-frontend \
-              -Dsonar.projectName=\"MSA Frontend React\" \
-              -Dsonar.host.url=$SONAR_HOST_URL \
-              -Dsonar.token=$SONAR_TOKEN \
-              -Dsonar.sources=src \
-              -Dsonar.qualitygate.wait=false"
-            if [ -n "$SONAR_ORGANIZATION" ] && [ "$SONAR_HOST_URL" = "https://sonarcloud.io" ]; then
-              SONAR_ARGS="$SONAR_ARGS -Dsonar.organization=$SONAR_ORGANIZATION"
-            fi
-            npx -y sonar-scanner $SONAR_ARGS || echo "::warning::Frontend Sonar analysis completed with warnings."
-          else
-            echo "::warning::SONAR_TOKEN not set — skipping frontend SonarQube scan."
-          fi
 
   # ==========================================================
   # STEP 3: ⚙️ Build Container Once & SBOM (DevOps / Supply Chain)
@@ -494,4 +491,3 @@ jobs:
           else
             echo "::warning::Automated rollback event recorded for $APP_NAME."
           fi
-
