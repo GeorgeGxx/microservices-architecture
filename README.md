@@ -323,7 +323,9 @@ microservices-architecture/
 │   ├── endpoint-smoke-test.py      # Synthetic post-deployment health & SLO prober
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
 │   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator
-│   ├── local-cost-estimator.py     # Offline illustrative estimate (not provider billing)
+│   ├── local-cost-estimator.py     # Offline illustrative AWS profile estimate and optional ceiling
+│   ├── finops-rightsize.py         # Prometheus 7-day Kubernetes request sizing advisory
+│   ├── terraform-cost-delta.py     # Narrow AWS plan delta estimate and unpriced type report
 │   ├── validate-opencost.sh        # Render pinned OpenCost and cloud Prometheus charts
 │   ├── supervise-tunnels.py        # Resilient background port-forward supervisor daemon
 │   └── update_dashboards.py        # Dashboard JSON generator; Grafana publishing is explicit

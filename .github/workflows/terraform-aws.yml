@@ -104,7 +104,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run Checkov IaC Scanner
-        uses: bridgecrewio/checkov-action@99bb2caf247dfd9f03cf984373bc6043d4e32ebf # v12.1347.0
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: 'terraform/'
           framework: 'terraform'
@@ -209,6 +209,30 @@ jobs:
           fi
           test -n "$TF_VAR_db_master_password" || { echo "::error::DB_MASTER_PASSWORD secret is required."; exit 1; }
           terraform plan $PLAN_FLAGS
+
+      - name: FinOps Architecture Estimate and Optional Budget Gate
+        env:
+          FINOPS_MAX_MONTHLY_USD: ${{ vars.FINOPS_MAX_MONTHLY_USD }}
+        run: |
+          TARGET_ENV="${{ steps.resolve-env.outputs.target_env }}"
+          if [ -n "$FINOPS_MAX_MONTHLY_USD" ]; then
+            python scripts/local-cost-estimator.py --env "$TARGET_ENV" --max-monthly-usd "$FINOPS_MAX_MONTHLY_USD"
+          else
+            python scripts/local-cost-estimator.py --env "$TARGET_ENV"
+            echo "FinOps ceiling is not configured; estimate is informational only. Set repository variable FINOPS_MAX_MONTHLY_USD to enable the profile-level budget gate."
+          fi
+
+      - name: Terraform Plan Cost Delta and Optional Increase Gate
+        env:
+          FINOPS_MAX_MONTHLY_DELTA_USD: ${{ vars.FINOPS_MAX_MONTHLY_DELTA_USD }}
+        run: |
+          terraform show -json "${TF_WORKING_DIR}/tfplan" > "$RUNNER_TEMP/tfplan.json"
+          if [ -n "$FINOPS_MAX_MONTHLY_DELTA_USD" ]; then
+            python scripts/terraform-cost-delta.py "$RUNNER_TEMP/tfplan.json" --max-monthly-delta-usd "$FINOPS_MAX_MONTHLY_DELTA_USD"
+          else
+            python scripts/terraform-cost-delta.py "$RUNNER_TEMP/tfplan.json"
+            echo "Terraform delta ceiling is not configured; mapped resource changes are informational. Set repository variable FINOPS_MAX_MONTHLY_DELTA_USD to enable the increase gate."
+          fi
 
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v4

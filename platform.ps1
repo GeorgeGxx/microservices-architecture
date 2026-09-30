@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "cost", "tunnels", "secrets", "smoke", "tools", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "secrets", "smoke", "tools", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -1332,6 +1332,12 @@ switch ($Command) {
         python (Join-Path $scriptsDir "local-cost-estimator.py") --env $targetCostEnv
     }
 
+    "finops-rightsize" {
+        Show-Banner "FinOps Workload Right-Sizing (Prometheus 7-day peak usage)"
+        python (Join-Path $scriptsDir "finops-rightsize.py") --prometheus-url "http://127.0.0.1:9090"
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
     "tools" {
         Show-Banner "Platform CLI Tools Auditor & Winget Installer"
         Invoke-CliToolsAudit -InstallTools:$Install
@@ -1428,6 +1434,7 @@ switch ($Command) {
         Write-Host "  doctor | verify     Deep health diagnostics on pods, NodePorts, and policies"
         Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
         Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
+        Write-Host "  finops-rightsize    Prometheus-based 7-day workload request right-sizing report"
         Write-Host "  tools [-Install]    Audit and install CLI tools via Winget (excluding 9 ignored tools)"
         Write-Host "  smoke               Run automated HTTP smoke tests against microservices"
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"

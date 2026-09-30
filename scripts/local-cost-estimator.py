@@ -53,6 +53,15 @@ DEFAULT_PROFILES = {
             {"component": "Network Data Transfer", "detail": "Loopback (localhost / 127.0.0.1)", "monthly": 0.00, "cloud_equiv": 35.00},
         ]
     },
+    "dev": {
+        "title": "AWS Dev Environment (Illustrative Low-Cost Profile)",
+        "items": [
+            {"component": "Amazon EKS Control Plane", "detail": "1x EKS Cluster", "monthly": 73.00},
+            {"component": "EKS Managed Node Group", "detail": "2x t3.medium (SPOT instances)", "monthly": round(2 * 0.0125 * 730, 2)},
+            {"component": "AWS NAT Gateway", "detail": "1x NAT Gateway (data transfer excluded)", "monthly": 32.40},
+            {"component": "Application Load Balancer", "detail": "1x ingress load balancer", "monthly": 16.20},
+        ]
+    },
     "staging": {
         "title": "AWS Staging Environment (Cost-Optimized Pre-Production)",
         "items": [
@@ -158,7 +167,7 @@ def parse_tfplan(plan_path: str, env_name: str) -> List[Dict[str, Any]]:
     return items if items else DEFAULT_PROFILES.get(env_name, DEFAULT_PROFILES["staging"])["items"]
 
 
-def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: str = None):
+def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: str = None, budget_usd: float = None):
     is_minikube = (env_name == "minikube")
 
     # Terminal Output
@@ -188,6 +197,9 @@ def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: 
             print(f"{item['component']:<32} {item['detail']:<34} ${item['monthly']:>10.2f}")
         print("-" * 80)
         print(f"{'TOTAL ESTIMATED MONTHLY AWS COST:':<66} ${total_monthly:>10.2f}")
+        if budget_usd is not None:
+            status = "WITHIN" if total_monthly <= budget_usd else "OVER"
+            print(f"Monthly estimate budget: ${budget_usd:.2f} USD — {status} budget")
 
     print("=" * 80 + "\n")
 
@@ -226,6 +238,8 @@ def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: 
             f"### **Total Estimated AWS Monthly Cost:** `${total_monthly:.2f} USD`",
             f"*Hourly Run Rate:* `${(total_monthly / 730):.4f} USD / hr`"
         ])
+        if budget_usd is not None:
+            md_lines.extend(["", f"**Configured estimate ceiling:** `${budget_usd:.2f} USD / month` — {'within' if total_monthly <= budget_usd else 'over'} ceiling."])
 
     md_content = "\n".join(md_lines)
 
@@ -250,9 +264,13 @@ def main():
     parser.add_argument("--env", choices=["minikube", "dev", "staging", "prod"], default="staging", help="Target environment")
     parser.add_argument("--plan", default=None, help="Path to terraform plan JSON (tfplan.json)")
     parser.add_argument("--markdown-out", default=None, help="Path to write Markdown report")
+    parser.add_argument("--max-monthly-usd", type=float, default=None, help="Optional estimate ceiling in USD; exits 2 if the illustrative profile exceeds it")
     args = parser.parse_args()
 
-    env = "minikube" if args.env in ["minikube", "dev"] else args.env
+    if args.max_monthly_usd is not None and args.max_monthly_usd <= 0:
+        parser.error("--max-monthly-usd must be greater than zero")
+
+    env = args.env
 
     if args.plan and os.path.exists(args.plan) and env != "minikube":
         items = parse_tfplan(args.plan, env)
@@ -260,8 +278,11 @@ def main():
         profile = DEFAULT_PROFILES.get(env, DEFAULT_PROFILES["staging"])
         items = profile["items"]
 
-    generate_reports(env, items, args.markdown_out)
+    generate_reports(env, items, args.markdown_out, args.max_monthly_usd)
+    if args.max_monthly_usd is not None and env != "minikube" and sum(item.get("monthly", 0.0) for item in items) > args.max_monthly_usd:
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

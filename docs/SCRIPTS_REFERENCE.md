@@ -96,12 +96,13 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 
 ---
 
-#### 6. 💰 Live Kubernetes Costs and Offline Estimates (`cost` / `finops`)
+#### 6. 💰 Live Kubernetes Costs, Right-Sizing, and Estimates (`cost` / `finops`)
 
 | Command / Combination | Environment | Analysis Performed |
 | :--- | :--- | :--- |
 | `.\platform.ps1 cost` | Current Kubernetes context | Queries live namespace costs from OpenCost through Krew plugin `kubectl-cost` (`--opencost`). |
 | `.\platform.ps1 finops -Environment minikube` | Local estimate | Runs the offline architecture estimate; it is not live cluster allocation or provider billing. |
+| `.\platform.ps1 finops-rightsize` | Current Prometheus | Compares seven-day container peaks with Kubernetes requests; advisory only, no resources are changed. |
 
 ---
 
@@ -144,7 +145,8 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | **[`build-all.py`](../scripts/build-all.py)** | `scripts/` | **Multi-Threaded Container Image Compiler:** Concurrently builds all Java & React containers. | • Parallel compilation of 4 Spring Boot services<br/>• Nginx Distroless React 19 build<br/>• Docker daemon tagging & Minikube sync | `python scripts/build-all.py 1.0.0` |
 | **[`endpoint-smoke-test.py`](../scripts/endpoint-smoke-test.py)** | `scripts/` | **Synthetic Post-Deployment Smoke Prober:** Independent gateway and frontend health/latency checks. | • Cosmo Router GraphQL (`/graphql`)<br/>• Frontend Nginx health (`/healthz`)<br/>• Frontend SPA root (`/`)<br/>• Separate gateway and frontend targets | `python scripts/endpoint-smoke-test.py --base-url http://localhost:8080 --frontend-url http://localhost:5173` |
 | **[`generate-secure-secrets.py`](../scripts/generate-secure-secrets.py)** | `scripts/` | **Zero-Trust Cryptographic Secret Generator:** CSPRNG high-entropy key generator. | • High-entropy DB passwords and JWT keys<br/>• Exports to `.env`, JSON, or K8s `Secret` YAML<br/>• Automated HashiCorp Vault token generation | `python scripts/generate-secure-secrets.py --format k8s-yaml --namespace staging` |
-| **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Offline Architecture Estimate:** Illustrative profile totals, not live cloud cost data. | • Staging and production profile estimates<br/>• Not live provider billing<br/>• Clearly separate from OpenCost allocation | `python scripts/local-cost-estimator.py --env minikube` |
+| **[`local-cost-estimator.py`](../scripts/local-cost-estimator.py)** | `scripts/` | **Offline Architecture Estimate:** Illustrative AWS profile totals, not live cloud cost data. | • USD profile estimates<br/>• Optional estimate ceiling<br/>• Not live billing or Terraform plan pricing | `python scripts/local-cost-estimator.py --env minikube` |
+| **[`terraform-cost-delta.py`](../scripts/terraform-cost-delta.py)** | `scripts/` | **Terraform Plan Cost Delta:** Narrow catalog estimate for selected AWS resource types. | • Lists changed but unpriced resources<br/>• Optional net monthly increase ceiling<br/>• Omits usage-based charges | `python scripts/terraform-cost-delta.py tfplan.json` |
 | **[`validate-opencost.sh`](../scripts/validate-opencost.sh)** | `scripts/` | Renders pinned OpenCost and cloud Prometheus Helm charts with project values in CI. | • Validates local and cloud values<br/>• Used by GitHub Actions, Azure DevOps, and Bitbucket | `bash scripts/validate-opencost.sh` |
 | **[`supervise-tunnels.py`](../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (5173), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
 | **[`update_dashboards.py`](../scripts/update_dashboards.py)** | `scripts/` | **Grafana Dashboard Generator:** Writes the curated business and technical dashboard JSON. | • Local file generation is the default<br/>• Live publish requires `--push` plus `GRAFANA_TOKEN` or `GRAFANA_USERNAME` / `GRAFANA_PASSWORD`<br/>• Supports business and technical security panels | `python scripts/update_dashboards.py` (publish: `python scripts/update_dashboards.py --push`) |
@@ -276,7 +278,23 @@ python scripts/local-cost-estimator.py --env minikube
 
 # Cloud environment cost breakdown:
 python scripts/local-cost-estimator.py --env prod
+python scripts/local-cost-estimator.py --env staging --max-monthly-usd 250
 ```
+
+The optional ceiling compares against the selected illustrative AWS profile. The AWS workflow uses repository variable `FINOPS_MAX_MONTHLY_USD` for that coarse profile gate. It also runs `scripts/terraform-cost-delta.py` on Terraform plan JSON and accepts `FINOPS_MAX_MONTHLY_DELTA_USD` as a ceiling for the estimated increase. The delta covers a small AWS price catalog, lists changed but unpriced types, and omits usage-based costs; it is not a complete quote.
+
+### 5. 📉 Kubernetes Workload Right-Sizing (`finops-rightsize.py`)
+
+```powershell
+.\platform.ps1 finops-rightsize
+python scripts/finops-rightsize.py --prometheus-url http://127.0.0.1:9090
+```
+
+The report compares seven-day CPU and memory peaks with Kubernetes requests and suggests values with headroom. It requires cAdvisor and kube-state-metrics, reports missing data instead of inventing it, and never applies changes. It cannot run against Docker Compose resource metrics.
+
+### 6. ☁️ Cloud Monthly Budget Notifications
+
+Cloud Terraform supports opt-in budgets via `enable_monthly_cost_budget` and `monthly_cost_budget_usd`. AWS/Azure require `finops_alert_emails`; GCP requires `billing_account_id` and uses billing account recipients. See `terraform/environments/{aws,azure,gcp}/finops.tf`. Budgets are disabled by default and notify only; they are not automatic spending caps or shutdown policies. AWS environment attribution requires activating the CostCenter cost allocation tag.
 
 ### 5. 💰 Live Kubernetes Workload Cost (`kubectl-cost`)
 
