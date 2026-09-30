@@ -19,7 +19,7 @@ on:
         required: false
         type: string
         default: 'ubuntu-latest'
-        description: 'Runner label: self-hosted (local Ryzen 7) or ubuntu-latest'
+        description: 'Runner label: self-hosted (local AMD/Intel) or ubuntu-latest'
       dockerhub-owner:
         required: false
         type: string
@@ -62,7 +62,7 @@ permissions:
 jobs:
   # ==========================================================
   # STEP 1: 🧪 Unit Tests (QA) — Runs in parallel with SAST
-  #   Leverages multi-threading (-T 1C) on Ryzen 7 (16 threads)
+  #   Leverages multi-threading (-T 1C) on AMD/Intel CPU
   # ==========================================================
   unit-tests:
     name: "🧪 1. Unit Tests (JUnit/JaCoCo) - ${{ inputs.service-name }}"
