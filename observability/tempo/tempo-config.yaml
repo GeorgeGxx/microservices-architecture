@@ -2,6 +2,10 @@ server:
   http_listen_port: 3200
   grpc_listen_port: 9095
 
+compactor:
+  compaction:
+    block_retention: 168h
+
 distributor:
   receivers:
     otlp:

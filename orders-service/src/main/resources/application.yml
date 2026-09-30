@@ -144,7 +144,7 @@ management:
       enabled: true
   tracing:
     sampling:
-      probability: 1.0
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
   opentelemetry:
     resource-attributes:
       '[service.name]': ${spring.application.name}

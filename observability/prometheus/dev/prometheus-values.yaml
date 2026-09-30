@@ -11,7 +11,15 @@
 prometheus:
   prometheusSpec:
     retention: 7d
+    retentionSize: 8GB
     serviceMonitorSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi
     resources:
       requests: { cpu: 200m, memory: 512Mi }
       limits: { cpu: 500m, memory: 1Gi }

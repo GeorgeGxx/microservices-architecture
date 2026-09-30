@@ -12,6 +12,10 @@ global:
   #     - name: db-password
   #       alias: DB_PASSWORD
 
+configMap:
+  data:
+    TRACING_SAMPLING_PROBABILITY: "0.1"
+
 cosmo-router:
   graphql:
     introspection: false

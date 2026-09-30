@@ -1,6 +1,16 @@
 groups:
   - name: microservices-architecture-alerts
     rules:
+      - alert: ObservabilityTargetDown
+        expr: up{job=~"prometheus|loki|tempo|alloy"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: observability
+        annotations:
+          summary: "Observability target {{ $labels.job }} is down"
+          description: "Prometheus has not scraped {{ $labels.job }} successfully for 5 minutes."
+
       - alert: ServiceDown
         expr: up{service=~"products-service|inventory-service|orders-service|notification-service"} == 0
         for: 3m

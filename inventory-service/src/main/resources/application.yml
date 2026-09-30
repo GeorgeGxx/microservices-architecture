@@ -94,7 +94,7 @@ management:
   #       url: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/metrics
   tracing:
     sampling:
-      probability: 1.0
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
   opentelemetry:
     resource-attributes:
       '["service.name"]': ${spring.application.name}
