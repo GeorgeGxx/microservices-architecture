@@ -1,4 +1,3 @@
-import { Product, InventoryItem } from '../types';
 import { getValidAccessToken } from './keycloak';
 
 async function createHeaders(token?: string, json = false): Promise<Record<string, string>> {

@@ -8,8 +8,8 @@ import {
   TrendingUp,
   Search,
   Plus,
-  Trash2,
   Edit2,
+  Trash2,
   QrCode,
   Image as ImageIcon,
   Sparkles,
@@ -22,8 +22,10 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { Product, Order, InventoryItem } from '../types';
-import { fetchProducts, fetchOrders, fetchInventories, submitCancelOrder } from '../services/graphql';
-import { createProduct, deleteProduct, saveOrUpdateStock, updateStockQuantity } from '../services/api';
+import { fetchProducts, fetchOrders, fetchInventories, submitCancelOrder, submitDeliverOrder, submitShipOrder } from '../services/graphql';
+import { deleteProduct, saveOrUpdateStock, updateProduct, updateStockQuantity } from '../services/api';
+import { createProductWithInitialStock } from '../services/adminCatalog';
+import { compressProductImage } from '../utils/compressProductImage';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -136,7 +138,13 @@ export const AdminDashboardPage: React.FC = () => {
     initialStock: 50,
     status: true,
   });
+  const [selectedImageName, setSelectedImageName] = useState('');
+  const previousProductImageUrl = useRef<string | null>(null);
+  const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [pendingStockInitializations, setPendingStockInitializations] = useState<Array<{ sku: string; name: string; quantity: number }>>([]);
+  const [isRetryingStockSku, setIsRetryingStockSku] = useState<string | null>(null);
 
   // Inventory Quick Adjust Form
   const [inventoryForm, setInventoryForm] = useState({
@@ -148,6 +156,7 @@ export const AdminDashboardPage: React.FC = () => {
   // Modals
   const [selectedQRProduct, setSelectedQRProduct] = useState<Product | null>(null);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const loadDashboardData = useCallback(async () => {
     if (refreshInProgress.current) return;
@@ -212,6 +221,9 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Quick Preset Helper
   const applyPreset = (preset: typeof HARDWARE_PRESETS[0]) => {
+    setEditingProduct(null);
+    setSelectedImageName('');
+    previousProductImageUrl.current = null;
     setProductForm({
       sku: preset.sku,
       name: preset.name,
@@ -225,9 +237,41 @@ export const AdminDashboardPage: React.FC = () => {
     showToast('Preset Loaded', `Applied template for ${preset.name}`, 'info');
   };
 
-  // Submit Product + Stock creation
+  const beginProductEdit = (product: Product) => {
+    setEditingProduct(product);
+    setSelectedImageName('');
+    previousProductImageUrl.current = null;
+    setProductForm({
+      sku: product.sku,
+      name: product.name,
+      description: product.description || '',
+      price: product.price,
+      category: product.category || 'Computers',
+      imageUrl: product.imageUrl || '',
+      initialStock: product.quantity ?? 0,
+      status: product.status ?? true,
+    });
+    setActiveTab('catalog');
+  };
+
+  const resetProductForm = () => {
+    setEditingProduct(null);
+    setSelectedImageName('');
+    previousProductImageUrl.current = null;
+    setProductForm({
+      sku: '', name: '', description: '', price: 99.99, category: 'Computers',
+      imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800',
+      initialStock: 50, status: true,
+    });
+  };
+
+  // Update catalog data or create a product and initialize its inventory in the owning services.
   const handleCreateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (editingProduct && !editingProduct.id) {
+      showToast('Product Update Failed', 'The catalog response did not include a product ID, so this item cannot be updated safely.', 'system');
+      return;
+    }
     if (!productForm.sku || !productForm.name || productForm.price <= 0) {
       showToast('Validation Error', 'SKU, name, and positive price are required.', 'system');
       return;
@@ -236,58 +280,67 @@ export const AdminDashboardPage: React.FC = () => {
     setIsSubmittingProduct(true);
     const skuClean = productForm.sku.toUpperCase().trim();
 
+    const payload = {
+      sku: skuClean,
+      name: productForm.name.trim(),
+      description: productForm.description.trim(),
+      price: Number(productForm.price),
+      category: productForm.category,
+      imageUrl: productForm.imageUrl.trim() || undefined,
+      status: productForm.status,
+      rating: editingProduct?.rating ?? 5.0,
+      reviewCount: editingProduct?.reviewCount ?? 1,
+      isBestSeller: editingProduct?.isBestSeller ?? true,
+    };
+
     try {
-      // 1. Create product in products-service
-      await createProduct(
-        {
-          sku: skuClean,
-          name: productForm.name.trim(),
-          description: productForm.description.trim(),
-          price: Number(productForm.price),
-          category: productForm.category,
-          imageUrl: productForm.imageUrl.trim() || undefined,
-          status: productForm.status,
-          rating: 5.0,
-          reviewCount: 1,
-          isBestSeller: true,
-        },
-        user?.token
-      );
+      if (editingProduct?.id) {
+        await updateProduct(editingProduct.id, payload, user?.token);
+        showToast('Product Updated', `${payload.name} was updated in products-service.`, 'order');
+        resetProductForm();
+        await loadDashboardData();
+        return;
+      }
 
-      // 2. Initialize stock in inventory-service
-      const stockUnits = Math.max(0, Number(productForm.initialStock) || 25);
-      await saveOrUpdateStock(
-        {
-          sku: skuClean,
-          quantity: stockUnits,
-        },
-        user?.token
-      );
+      const stockUnits = Math.max(0, Number(productForm.initialStock) || 0);
+      const setupResult = await createProductWithInitialStock(payload, stockUnits, user?.token);
+      resetProductForm();
 
-      showToast(
-        'Product & Stock Initialized',
-        `SKU ${skuClean} (${productForm.name}) created with ${stockUnits} units in inventory.`,
-        'order'
-      );
-
-      // Reset form & reload
-      setProductForm({
-        sku: '',
-        name: '',
-        description: '',
-        price: 99.99,
-        category: 'Computers',
-        imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=800',
-        initialStock: 50,
-        status: true,
-      });
+      if (setupResult.inventoryInitialized) {
+        setPendingStockInitializations((pending) => pending.filter((item) => item.sku !== skuClean));
+        showToast('Product & Stock Initialized', `SKU ${skuClean} created with ${stockUnits} units.`, 'order');
+      } else {
+        setPendingStockInitializations((pending) => [
+          ...pending.filter((item) => item.sku !== skuClean),
+          { sku: skuClean, name: payload.name, quantity: stockUnits },
+        ]);
+        const stockError = setupResult.inventoryError;
+        showToast('Product Created; Stock Needs Retry', stockError instanceof Error ? stockError.message : 'The product exists, but inventory initialization failed.', 'system');
+      }
 
       await loadDashboardData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to register product';
-      showToast('Creation Failed', msg, 'system');
+      showToast(editingProduct ? 'Product Update Failed' : 'Product Creation Failed', msg, 'system');
     } finally {
       setIsSubmittingProduct(false);
+    }
+  };
+
+  const retryStockInitialization = async (pendingItem: { sku: string; name: string; quantity: number }) => {
+    setIsRetryingStockSku(pendingItem.sku);
+    try {
+      await saveOrUpdateStock(
+        { sku: pendingItem.sku, quantity: pendingItem.quantity },
+        user?.token
+      );
+      showToast('Inventory Initialized', `${pendingItem.sku} now has ${pendingItem.quantity} units.`, 'stock');
+      setPendingStockInitializations((pending) => pending.filter((item) => item.sku !== pendingItem.sku));
+      await loadDashboardData();
+    } catch (err: unknown) {
+      showToast('Inventory Retry Failed', err instanceof Error ? err.message : 'Could not initialize inventory.', 'system');
+    } finally {
+      setIsRetryingStockSku(null);
     }
   };
 
@@ -309,6 +362,7 @@ export const AdminDashboardPage: React.FC = () => {
     const nextQty = Math.max(0, currentQty + delta);
     try {
       await updateStockQuantity(sku, nextQty, user?.token);
+      setPendingStockInitializations((pending) => pending.filter((item) => item.sku !== sku));
       showToast('Stock Adjusted', `SKU ${sku}: ${nextQty} units.`, 'stock');
       setInventories((prev) =>
         prev.map((i) => (i.sku === sku ? { ...i, quantity: nextQty, isInStock: nextQty > 0 } : i))
@@ -326,13 +380,15 @@ export const AdminDashboardPage: React.FC = () => {
 
     setIsSubmittingInventory(true);
     try {
+      const sku = inventoryForm.sku.toUpperCase().trim();
       await saveOrUpdateStock(
         {
-          sku: inventoryForm.sku.toUpperCase().trim(),
+          sku,
           quantity: Number(inventoryForm.quantity),
         },
         user?.token
       );
+      setPendingStockInitializations((pending) => pending.filter((item) => item.sku !== sku));
       showToast(
         'Inventory Allocated',
         `SKU ${inventoryForm.sku} set to ${inventoryForm.quantity} units.`,
@@ -364,6 +420,22 @@ export const AdminDashboardPage: React.FC = () => {
       showToast('Cancel Failed', msg, 'system');
     } finally {
       setCancellingOrderId(null);
+    }
+  };
+
+  const handleOrderFulfillment = async (orderId: string, orderNumber: string, action: 'ship' | 'deliver') => {
+    setUpdatingOrderId(orderId);
+    try {
+      const updated = action === 'ship'
+        ? await submitShipOrder(orderId, user?.token)
+        : await submitDeliverOrder(orderId, user?.token);
+      setOrders((previous) => previous.map((order) => order.id === orderId ? { ...order, ...updated } : order));
+      showToast(action === 'ship' ? 'Order Shipped' : 'Order Delivered', `Order #${orderNumber} status saved by Orders Service.`, 'order');
+      await loadDashboardData();
+    } catch (err: unknown) {
+      showToast('Order Update Failed', err instanceof Error ? err.message : `Could not ${action} order.`, 'system');
+    } finally {
+      setUpdatingOrderId(null);
     }
   };
 
@@ -509,21 +581,42 @@ export const AdminDashboardPage: React.FC = () => {
       {/* ================= TAB 1: CATALOG & ITEM UPLOAD ================= */}
       {activeTab === 'catalog' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Item Creation Form */}
+          {/* Item Creation and Editing Form */}
           <div className="lg:col-span-1 glass-card p-6 rounded-2xl border border-slate-800 space-y-5">
             <div>
               <div className="flex items-center gap-2 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">
                 <Sparkles className="w-4 h-4" />
-                Upload New Item
+                {editingProduct ? 'Edit Catalog Item' : 'Upload New Item'}
               </div>
-              <h3 className="text-lg font-bold text-white">Manual Product Creation</h3>
+              <h3 className="text-lg font-bold text-white">{editingProduct ? 'Edit Product' : 'Manual Product Creation'}</h3>
               <p className="text-xs text-slate-400">
-                Registers item in products-service and automatically initializes stock in inventory-service
+                {editingProduct
+                  ? 'Updates catalog fields in products-service. SKU and inventory remain managed by their owning services.'
+                  : 'Registers the catalog item in products-service and initializes stock in inventory-service.'}
               </p>
             </div>
 
+            {pendingStockInitializations.length > 0 && (
+              <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-3">
+                <p className="text-xs font-semibold text-amber-200">Catalog items created without their initial inventory:</p>
+                {pendingStockInitializations.map((pendingItem) => (
+                  <div key={pendingItem.sku} className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-[11px] text-amber-100">{pendingItem.name} ({pendingItem.sku})</span>
+                    <button
+                      type="button"
+                      onClick={() => void retryStockInitialization(pendingItem)}
+                      disabled={isRetryingStockSku === pendingItem.sku}
+                      className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 disabled:opacity-50 text-amber-100 text-xs font-bold"
+                    >
+                      {isRetryingStockSku === pendingItem.sku ? 'Retrying...' : `Retry (${pendingItem.quantity} units)`}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {/* 1-Click Hardware Presets Bar */}
-            <div>
+            {!editingProduct && <div>
               <span className="text-[11px] font-bold text-slate-400 block mb-2">
                 ⚡ 1-Click Hardware Presets:
               </span>
@@ -539,7 +632,7 @@ export const AdminDashboardPage: React.FC = () => {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             <form onSubmit={handleCreateProduct} className="space-y-4">
               <div>
@@ -549,12 +642,13 @@ export const AdminDashboardPage: React.FC = () => {
                 <input
                   type="text"
                   required
+                  readOnly={Boolean(editingProduct)}
                   value={productForm.sku}
                   onChange={(e) =>
                     setProductForm({ ...productForm, sku: e.target.value.toUpperCase() })
                   }
                   placeholder="e.g. LAPTOP-PRO-01"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 read-only:text-slate-500 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
                   Pattern: 6-20 uppercase alphanumeric or hyphen characters
@@ -592,7 +686,7 @@ export const AdminDashboardPage: React.FC = () => {
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
-                <div>
+                {!editingProduct && <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
                     Initial Stock <span className="text-rose-400">*</span>
                   </label>
@@ -606,7 +700,7 @@ export const AdminDashboardPage: React.FC = () => {
                     }
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                   />
-                </div>
+                </div>}
               </div>
 
               <div>
@@ -632,12 +726,76 @@ export const AdminDashboardPage: React.FC = () => {
                   Photo / Image URL
                 </label>
                 <input
-                  type="url"
-                  value={productForm.imageUrl}
-                  onChange={(e) => setProductForm({ ...productForm, imageUrl: e.target.value })}
+                  type="text"
+                  inputMode="url"
+                  pattern="https?://.+"
+                  disabled={isCompressingImage}
+                  value={productForm.imageUrl.startsWith('data:image/') ? '' : productForm.imageUrl}
+                  onChange={(e) => {
+                    setSelectedImageName('');
+                    previousProductImageUrl.current = null;
+                    setProductForm({ ...productForm, imageUrl: e.target.value });
+                  }}
                   placeholder="https://images.unsplash.com/..."
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-indigo-500 focus:outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1" htmlFor="product-image-upload">
+                  Or upload from this computer
+                </label>
+                <div className="flex items-center gap-3">
+                  <label
+                    htmlFor="product-image-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-500 text-slate-200 text-xs font-semibold transition"
+                  >
+                    <ImageIcon className="w-4 h-4 text-indigo-400" />
+                    Choose image
+                  </label>
+                  <input
+                    id="product-image-upload"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={isCompressingImage}
+                    onChange={async (event) => {
+                      const file = event.currentTarget.files?.[0];
+                      event.currentTarget.value = '';
+                      if (!file) return;
+                      setIsCompressingImage(true);
+                      try {
+                        const compressedImage = await compressProductImage(file);
+                        if (!productForm.imageUrl.startsWith('data:image/')) {
+                          previousProductImageUrl.current = productForm.imageUrl;
+                        }
+                        setProductForm((current) => ({ ...current, imageUrl: compressedImage }));
+                        setSelectedImageName(`${file.name} · optimized`);
+                      } catch (error) {
+                        showToast('Image Upload Failed', error instanceof Error ? error.message : 'Could not prepare this image.', 'system');
+                      } finally {
+                        setIsCompressingImage(false);
+                      }
+                    }}
+                  />
+                  <span className="min-w-0 truncate text-[11px] text-slate-400">
+                    {selectedImageName || 'JPEG, PNG, or WebP · up to 15 MB'}
+                  </span>
+                  {selectedImageName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImageName('');
+                        const fallbackUrl = previousProductImageUrl.current || '';
+                        previousProductImageUrl.current = null;
+                        setProductForm((current) => ({ ...current, imageUrl: fallbackUrl }));
+                      }}
+                      className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Photo Preview */}
@@ -673,12 +831,15 @@ export const AdminDashboardPage: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={isSubmittingProduct}
+                disabled={isSubmittingProduct || isCompressingImage}
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition active:scale-95"
               >
-                <Plus className="w-4 h-4" />
-                {isSubmittingProduct ? 'Saving to Database...' : 'Create Product & Allocate Stock'}
+                {editingProduct ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {isCompressingImage ? 'Optimizing image...' : isSubmittingProduct ? 'Saving to Database...' : editingProduct ? 'Save Product Changes' : 'Create Product & Allocate Stock'}
               </button>
+              {editingProduct && (
+                <button type="button" onClick={resetProductForm} className="w-full py-2 text-xs text-slate-400 hover:text-white">Cancel editing</button>
+              )}
             </form>
           </div>
 
@@ -747,6 +908,15 @@ export const AdminDashboardPage: React.FC = () => {
                       </td>
                       <td className="py-3 pl-2 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {p.id && (
+                            <button
+                              onClick={() => beginProductEdit(p)}
+                              title="Edit Product"
+                              className="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/30 border border-indigo-900/40 transition"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => setSelectedQRProduct(p)}
                             title="Generate QR Barcode Label"
@@ -1072,10 +1242,6 @@ export const AdminDashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {paginatedOrders.map((ord) => {
-                  const canCancel =
-                    ord.orderStatus.toUpperCase() === 'PLACED' ||
-                    ord.orderStatus.toUpperCase() === 'CONFIRMED';
-
                   return (
                     <tr key={ord.id} className="hover:bg-slate-800/30">
                       <td className="py-3 pr-2 font-mono font-bold text-white">
@@ -1115,18 +1281,37 @@ export const AdminDashboardPage: React.FC = () => {
                         {formatPrice(ord.totalAmount || 0)}
                       </td>
                       <td className="py-3 pl-2 text-right">
-                        {canCancel ? (
-                          <button
-                            onClick={() => handleAdminCancelOrder(ord.id, ord.orderNumber)}
-                            disabled={cancellingOrderId === ord.id}
-                            className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-[11px] font-bold transition flex items-center gap-1 ml-auto disabled:opacity-50"
-                          >
-                            <Ban className="w-3 h-3" />
-                            Cancel & Restore Stock
-                          </button>
-                        ) : (
-                          <span className="text-[11px] text-slate-500">Stock Compensated</span>
-                        )}
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {ord.orderStatus === 'PLACED' && (
+                            <>
+                              <button
+                                onClick={() => handleAdminCancelOrder(ord.id, ord.orderNumber)}
+                                disabled={cancellingOrderId === ord.id || updatingOrderId === ord.id}
+                                className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-[11px] font-bold transition flex items-center gap-1 disabled:opacity-50"
+                              >
+                                <Ban className="w-3 h-3" /> Cancel
+                              </button>
+                              <button
+                                onClick={() => handleOrderFulfillment(ord.id, ord.orderNumber, 'ship')}
+                                disabled={updatingOrderId === ord.id || cancellingOrderId === ord.id}
+                                className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 text-[11px] font-bold transition flex items-center gap-1 disabled:opacity-50"
+                              >
+                                <Truck className="w-3 h-3" /> {updatingOrderId === ord.id ? 'Saving...' : 'Mark Shipped'}
+                              </button>
+                            </>
+                          )}
+                          {ord.orderStatus === 'SHIPPED' && (
+                            <button
+                              onClick={() => handleOrderFulfillment(ord.id, ord.orderNumber, 'deliver')}
+                              disabled={updatingOrderId === ord.id}
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-[11px] font-bold transition flex items-center gap-1 disabled:opacity-50"
+                            >
+                              <Package className="w-3 h-3" /> {updatingOrderId === ord.id ? 'Saving...' : 'Mark Delivered'}
+                            </button>
+                          )}
+                          {ord.orderStatus === 'DELIVERED' && <span className="text-[11px] text-emerald-400">Fulfilled</span>}
+                          {ord.orderStatus === 'CANCELLED' && <span className="text-[11px] text-slate-500">Cancelled</span>}
+                        </div>
                       </td>
                     </tr>
                   );

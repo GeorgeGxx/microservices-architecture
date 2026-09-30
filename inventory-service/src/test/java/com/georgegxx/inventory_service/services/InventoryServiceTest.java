@@ -114,6 +114,22 @@ class InventoryServiceTest {
     }
 
     @Test
+    @DisplayName("saveOrUpdateInventory accepts a new product with zero initial stock")
+    void testSaveOrUpdateInventory_ZeroInitialStock() {
+        InventoryRequest request = InventoryRequest.builder().sku("SKU-ZERO").quantity(0L).build();
+        when(inventoryRepository.findBySkuWithLock("SKU-ZERO")).thenReturn(Optional.empty());
+        when(inventoryRepository.save(any(Inventory.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InventoryResponse response = inventoryService.saveOrUpdateInventory(request);
+
+        assertEquals("SKU-ZERO", response.getSku());
+        assertEquals(0L, response.getQuantity());
+        assertFalse(response.getIsInStock());
+        verify(inventoryRepository).save(any(Inventory.class));
+        verify(cache).evict("SKU-ZERO");
+    }
+
+    @Test
     @DisplayName("areInStock validates multiple items availability accurately")
     void testAreInStock_Success() {
         List<OrderItemsRequest> items = List.of(

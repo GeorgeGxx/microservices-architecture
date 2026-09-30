@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useNotifications } from '../context/NotificationContext';
 import { processOrders } from '../utils/orderProcessing';
-import { canCancelOrder, computeEffectiveStatus, getNextDeliveryStage } from '../utils/orderPipeline';
+import { canCancelOrder } from '../utils/orderPipeline';
 import { OrderLivePipeline } from '../components/OrderLivePipeline';
 
 interface OrdersPageProps {
@@ -46,7 +46,6 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
   const [cancellingId, setCancellingId] = useState<string | null>(null);
-  const [simulatedStatusMap, setSimulatedStatusMap] = useState<Record<string, string>>({});
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
@@ -108,20 +107,14 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
     setCurrentPage(1);
   }, [searchTerm, statusFilter]);
 
-  // Apply simulated statuses so filtering, search, and pagination reflect active pipeline transitions
-  const effectiveOrders = useMemo(() => {
-    return orders.map((o) => ({
-      ...o,
-      orderStatus: computeEffectiveStatus(o.orderStatus, simulatedStatusMap[o.id]),
-    }));
-  }, [orders, simulatedStatusMap]);
+  // Statuses are authoritative values returned by Orders Service.
+  const effectiveOrders = orders;
 
   // Tab count metrics calculated dynamically from effectiveOrders
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {
       ALL: effectiveOrders.length,
       PLACED: 0,
-      CONFIRMED: 0,
       SHIPPED: 0,
       DELIVERED: 0,
       CANCELLED: 0,
@@ -160,7 +153,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
           </div>
           <h2 className="text-2xl font-black text-white">Sign In to View Your Orders</h2>
           <p className="text-sm text-slate-400 max-w-md mx-auto">
-            You are currently browsing in guest mode. Sign in with your Keycloak account to view your placed orders, download official PDF receipts, and track live DHL express deliveries.
+            You are currently browsing in guest mode. Sign in with your Keycloak account to view your orders, download receipts, and check persisted fulfillment status.
           </p>
           <div className="pt-4 flex items-center justify-center gap-3">
             <button
@@ -191,14 +184,10 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
       setCancellingId(orderId);
       await submitCancelOrder(orderId, user?.token);
       showToast('Order Cancelled (Saga Rollback)', `Order #${orderNumber} cancelled. Inventory stock restored via distributed compensation.`, 'system');
-      // Immediately freeze as CANCELLED in both orders and simulatedStatusMap so transit halts
+      // Reflect the persisted mutation immediately while the periodic refresh catches up.
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, orderStatus: 'CANCELLED' } : o))
       );
-      setSimulatedStatusMap((prev) => ({
-        ...prev,
-        [orderId]: 'CANCELLED',
-      }));
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not cancel order';
       showToast('Cancellation Failed', msg, 'system');
@@ -219,19 +208,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
       case 'SHIPPED':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
-            <Truck className="w-3.5 h-3.5 animate-pulse" /> In Transit (DHL)
-          </span>
-        );
-      case 'CONFIRMED':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-            <Clock className="w-3.5 h-3.5" /> Confirmed
-          </span>
-        );
-      case 'PREPARING':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20">
-            <Package className="w-3.5 h-3.5 animate-pulse" /> Warehouse Packing
+            <Truck className="w-3.5 h-3.5" /> Shipped
           </span>
         );
       case 'PLACED':
@@ -269,7 +246,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
             </h1>
           </div>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            Real-time status monitoring, DHL satellite tracking, and receipt management
+            Order status refreshes automatically every 30 seconds while this page is open. Carrier codes are references, not live carrier telemetry.
           </p>
         </div>
 
@@ -294,7 +271,6 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
           {[
             { id: 'ALL', label: 'All Orders' },
             { id: 'PLACED', label: 'Placed' },
-            { id: 'CONFIRMED', label: 'Confirmed' },
             { id: 'SHIPPED', label: 'In Transit' },
             { id: 'DELIVERED', label: 'Delivered' },
             { id: 'CANCELLED', label: 'Cancelled' },
@@ -373,7 +349,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
         <div className="space-y-4">
           {paginatedOrders.map((order) => {
             const isExpanded = expandedOrders[order.id];
-            const effectiveStatus = simulatedStatusMap[order.id] || order.orderStatus;
+            const effectiveStatus = order.orderStatus;
             const canCancel = canCancelOrder(effectiveStatus);
 
             return (
@@ -498,16 +474,12 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
                 {/* Expanded Details: Tracking Steps & Items */}
                 {isExpanded && (
                   <div className="border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/30 p-6 space-y-6 animate-in slide-in-from-top-2 duration-200">
-                    {/* Visual Live 5-Stage Stepper Tracker with Real-Time Animation */}
+                    {/* Fulfillment stepper derived from persisted Orders Service status */}
                     <OrderLivePipeline
-                      orderId={order.id}
                       orderNumber={order.orderNumber}
                       carrier={order.carrier || 'DHL Express'}
                       trackingNumber={order.trackingNumber}
                       initialStatus={order.orderStatus}
-                      onStatusChange={(newStatus) => {
-                        setSimulatedStatusMap((prev) => ({ ...prev, [order.id]: newStatus }));
-                      }}
                     />
 
                     {/* Order Line Items */}

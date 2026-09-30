@@ -298,8 +298,8 @@ The system features an enterprise, zero-dependency **Media Ingestion & Rendering
 ```mermaid
 flowchart LR
     subgraph Client["🎨 React 19 Client"]
-        A[📂 Local File Picker] -->|Raw File| B[⚡ HTML5 Canvas Compressor]
-        B -->|Base64 Data URL 40-90 KB| C[Form Payload]
+        A[📂 Local File Picker] -->|JPEG / PNG / WebP up to 15 MB| B[⚡ HTML5 Canvas Compressor]
+        B -->|Data URL, compressed image up to 256 KiB| C[Form Payload]
         D[🔗 Web URL Input] --> C
         E[✨ Tech Image Presets] --> C
         F[🛡️ Keyword Fallback Engine] -.->|On Error/Null| G[HD Storefront Display]
@@ -324,13 +324,13 @@ flowchart LR
 ```
 
 ### 1. 📂 Client-Side Canvas Compression & Base64 Data URL Engine
-* **Offline-First Local File Uploads:** Upload raw `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device without requiring third-party cloud storage (e.g. AWS S3 buckets or Cloudinary).
-* **Automated Canvas Rescaling:** Raw photos (5–15 MB) are scaled to a maximum dimension of $800\text{ px}$ with $82\%$ lossy quality encoding on an offscreen HTML5 Canvas element, converting large images into lightweight **Base64 Data URLs** ($40\text{--}90\text{ KB}$) in milliseconds.
+* **Local File Selection:** Select `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device. The browser compresses the image before sending product creation to `products-service`, without requiring a third-party image host.
+* **Automated Canvas Rescaling:** The browser accepts JPEG, PNG, and WebP source images up to $15\text{ MB}$, scales them to a maximum dimension of $800\text{ px}$, and encodes WebP at up to $82\%$ quality. It retries at smaller dimensions and lower quality until the compressed image is at most $256\text{ KiB}$ before converting it to a **Base64 Data URL**. No separate upload service or object-store configuration is needed.
 * **1-Click Curated Presets:** Instant template selector for high-end hardware categories (*Apple Vision Pro, PlayStation 5 Pro, RTX 4090 OC, Dell XPS 16 OLED, Bose QC Ultra, Server Racks*).
 * **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
 
 ### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
-* **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to support arbitrary-length Base64 strings or HTTPS URLs up to $1\text{ GB}$ in PostgreSQL without database truncation errors.
+* **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to $256\text{ KiB}$ to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
 * **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](./products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
 * **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through the products service.
 
@@ -391,7 +391,7 @@ flowchart TD
         CheckoutStep2["🚚 Step 2: Tiered Delivery<br/>Free Standard ($0.00) vs<br/>⚡ DHL Express Priority ($9.99)"]
         CheckoutStep3["💳 Step 3: Local Payment Demo<br/>Approved / Declined Simulation<br/>No card data or real charge"]
         StickySummary["📊 Sticky Order Summary<br/>Subtotal + Shipping + 8% Tax = Total"]
-        LogisticsStepper["📦 Consumer Logistics Stepper<br/>Placed ➔ Preparing in Hub ➔<br/>In Transit (DHL) ➔ Out for Delivery ➔ Delivered"]
+        LogisticsStepper["📦 Consumer Order Status<br/>Placed ➔ Shipped ➔ Delivered<br/>Read from Orders Service"]
     end
 
     subgraph BackendMS ["⚙️ Spring Boot 4.0.8 Microservices"]
@@ -427,27 +427,12 @@ flowchart TD
 * **1-Click LocalStorage Persistence (`msa_shipping_address`):** Frequently returning customers have their shipping coordinates stored securely on their local device, enabling instant auto-fill upon subsequent visits.
 * **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
 
-### 2. 🚚 Real-Time Logistics Tracking & Consumer Stepper
-* **Interactive 5-Stage Live Delivery Pipeline:** Replaces static client-only status text with an interactive, end-to-end simulated parcel fulfillment journey:
-  $$\text{Order Placed} \longrightarrow \text{Preparing in Hub} \longrightarrow \text{In Transit (DHL Express)} \longrightarrow \text{Out for Delivery} \longrightarrow \text{Delivered \& Signed}$$
-  Triggered via the **"▶ Start Live Delivery Flow"** button on any active order in the customer dashboard.
-* **Animated Courier Runner & Dynamic Icon Morphing:**
-  - CSS-engineered runner (`.delivery-courier-runner`) that smoothly travels across the progress connector ($0\% \rightarrow 25\% \rightarrow 50\% \rightarrow 75\% \rightarrow 100\%$) synchronized with each fulfillment milestone.
-  - Real-time icon morphing illustrating physical logistics:
-    - **Stage 1 (Order Placed):** `📦` Parcel minted and inventory locked.
-    - **Stage 2 (Preparing in Hub):** `📦` Warehouse sorting, pick & pack operations.
-    - **Stage 3 (In Transit - DHL):** `🚚` Regional trunk line dispatch via DHL Express carrier.
-    - **Stage 4 (Out for Delivery):** `🚚` Local courier vehicle en route to customer doorstep.
-    - **Stage 5 (Delivered & Signed):** `✨` Delivery celebration, verified doorstep signature, and final receipt sealing.
-  - Active light-beam connector animation (`.step-connector.active-pulse`) emitting a glowing pulse along the active transit segment.
-* **Automated Backend State Persistence & Kafka Events:**
-  - **Stage 3 Integration:** Automatically executes `PUT /api/orders/{id}/ship` against [`OrderService`](../orders-service/src/main/java/com/georgegxx/orders_service/services/OrderService.java), setting `orderStatus = SHIPPED`, persisting to PostgreSQL `t_orders`, and emitting an enriched event to Kafka `orders-topic`.
-  - **Stage 5 Integration:** Automatically executes `PUT /api/orders/{id}/deliver`, setting `orderStatus = DELIVERED`, recording delivery timestamp, synchronizing PostgreSQL Micrometer database gauges (`syncDatabaseMetrics()`), and unlocking the **"Delivered & Signed"** seal.
-* **Real-Time Customer Milestones & Multi-Channel Alerts:**
-  - Milestone floating toasts dispatched at every physical handover stage (e.g. *"🚚 Package in Transit with DHL Express"*).
-  - Synchronous push into the **Customer Notification Center** drawer (`msa_customer_notifications` in `sessionStorage`), updating the top navigation badge counter with zero technical jargon.
-* **Automated DHL Tracking Generation:** Upon order placement, [`OrderService`](../orders-service/src/main/java/com/georgegxx/orders_service/services/OrderService.java) automatically mints a carrier-compliant tracking number (e.g. `DHL-A8E29C1F`) and assigns the carrier.
-* **Interactive Logistics Badging & Digital Receipt:** Orders history displays a priority express pill, clickable tracking code badge, and digital invoice receipt (`AUTH-XXXX-VERIFIED`) with printable QR verification and itemized line items.
+### 2. 🚚 Order Fulfillment Status & Tracking Reference
+* **Backend-authoritative order stepper:** The customer page renders persisted `PLACED`, `SHIPPED`, `DELIVERED`, or `CANCELLED` status returned by Orders Service. It refreshes orders every 30 seconds while visible; it does not invent warehouse or courier events in the browser.
+* **Administrative fulfillment actions:** An administrator can call federated `shipOrder(id)` and `deliverOrder(id)` GraphQL mutations. Orders Service enforces the `ADMIN` role, persists status in PostgreSQL, and emits status events to Kafka `orders-topic`.
+* **Cancellation and inventory compensation:** Customer cancellation is restricted in the UI to eligible placed orders; the backend owns the cancellation invariant and Saga stock compensation.
+* **Carrier reference, not live carrier integration:** Orders include a generated DHL-labelled tracking reference, but the project does not integrate the DHL tracking API or provide live carrier telemetry, proof of delivery, or carrier-sourced milestone updates.
+* **Digital receipt:** Order history provides an itemized receipt with the order and payment-demo details.
 
 ### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
 * **Customer Confidence Metrics:** Every catalog product showcases verified buyer ratings (`★ 4.8 / 5.0`), total ratings volume (`(1,240 customer ratings)`), and authenticity verification (`• 100% Authentic`).
