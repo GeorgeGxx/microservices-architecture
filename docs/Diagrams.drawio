@@ -23,7 +23,7 @@
         <mxCell id="c_edge" parent="1" value="&lt;b&gt;🛡️ EDGE &amp; IDENTITY LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="440" y="110" width="380" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="n_gw" parent="1" value="&lt;b&gt;Cosmo Router 0.353.0 (Gateway)&lt;/b&gt;&lt;br&gt;Port 8080 (Go Engine)&lt;br&gt;Federation 2.3 Supergraph&lt;br&gt;GraphQL Playground • OTLP Traces" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" vertex="1">
+        <mxCell id="n_gw" parent="1" value="&lt;b&gt;Cosmo Router 0.353.0 (Gateway)&lt;/b&gt;&lt;br&gt;Service: http-router 8080 • http-metrics 9090&lt;br&gt;Federation 2.3 Supergraph&lt;br&gt;GraphQL Playground • OTLP Traces" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
           <mxGeometry x="470" y="170" width="320" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_kc" parent="1" value="&lt;b&gt;Keycloak 26 (IAM)&lt;/b&gt;&lt;br&gt;Port 8181 (OIDC / OAuth2)&lt;br&gt;Realm: microservices-realm&lt;br&gt;Self-Registration • Default USER Role&lt;br&gt;Users / Roles / PKCE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
@@ -281,7 +281,7 @@
         <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="100" y="280" width="1340" height="480" as="geometry" />
         </mxCell>
-        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: cosmo-router&lt;/b&gt;&lt;br&gt;Go Router (8080)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/cosmo-router&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: cosmo-router&lt;/b&gt;&lt;br&gt;HTTP Service ports: http-router 8080; http-metrics 9090&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/cosmo-router&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
           <mxGeometry x="140" y="350" width="320" height="90" as="geometry" />
         </mxCell>
         <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
