@@ -10,7 +10,13 @@ data:
       http_listen_port: 3200
       grpc_listen_port: 9095
 
-    compactor:
+    backend_scheduler:
+      provider:
+        compaction:
+          compaction:
+            block_retention: 168h
+
+    backend_worker:
       compaction:
         block_retention: 168h
 
