@@ -349,7 +349,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   {
                     id: 'DHL Express Delivery (Priority 24h)',
                     title: 'DHL Express Priority (24-48 hrs)',
-                    desc: 'Live satellite tracking with AWB tracking number & digital signature',
+                    desc: 'Local demo shipping option with an order tracking reference. No live carrier connection or signature capture.',
                     badge: 'Recommended',
                   },
                   {

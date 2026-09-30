@@ -114,6 +114,33 @@ class ProductServiceTest {
     }
 
     @Test
+    @DisplayName("updateProduct persists an uploaded image while keeping the catalog SKU immutable")
+    void testUpdateProduct_PersistsImageAndPreservesSku() {
+        String compressedImageDataUrl = "data:image/webp;base64,dGVzdA==";
+        ProductRequest request = ProductRequest.builder()
+                .sku("SKU-ATTEMPTED-CHANGE")
+                .name("Updated Keyboard")
+                .description("Updated description")
+                .price(119.99)
+                .status(true)
+                .imageUrl(compressedImageDataUrl)
+                .category("Peripherals")
+                .rating(4.9)
+                .reviewCount(12)
+                .isBestSeller(true)
+                .build();
+        when(productRepository.findById(1L)).thenReturn(Optional.of(sampleProduct));
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        productService.updateProduct(1L, request);
+
+        assertEquals("SKU-DEV-1", sampleProduct.getSku());
+        assertEquals(compressedImageDataUrl, sampleProduct.getImageUrl());
+        assertEquals("Updated Keyboard", sampleProduct.getName());
+        verify(productRepository).save(sampleProduct);
+    }
+
+    @Test
     @DisplayName("deleteProduct deletes product when it exists")
     void testDeleteProduct_Success() {
         when(productRepository.findById(1L)).thenReturn(Optional.of(sampleProduct));

@@ -133,7 +133,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-amber-400" />
-              <span>DHL Express Carrier Engine</span>
+              <span>Carrier Reference on Orders</span>
             </div>
           </div>
         </div>

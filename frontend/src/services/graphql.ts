@@ -163,6 +163,30 @@ export const CANCEL_ORDER_MUTATION = `
   }
 `;
 
+export const SHIP_ORDER_MUTATION = `
+  mutation ShipOrder($id: ID!) {
+    shipOrder(id: $id) {
+      id
+      orderNumber
+      orderStatus
+      trackingNumber
+      carrier
+    }
+  }
+`;
+
+export const DELIVER_ORDER_MUTATION = `
+  mutation DeliverOrder($id: ID!) {
+    deliverOrder(id: $id) {
+      id
+      orderNumber
+      orderStatus
+      trackingNumber
+      carrier
+    }
+  }
+`;
+
 export async function fetchProducts(token?: string): Promise<Product[]> {
   try {
     const [productsData, inventoriesData] = await Promise.all([
@@ -218,4 +242,14 @@ export async function submitPlaceOrder(
 export async function submitCancelOrder(id: string, token?: string): Promise<Order> {
   const data = await executeGraphQL<{ cancelOrder: Order }>(CANCEL_ORDER_MUTATION, { id }, token);
   return data.cancelOrder;
+}
+
+export async function submitShipOrder(id: string, token?: string): Promise<Order> {
+  const data = await executeGraphQL<{ shipOrder: Order }>(SHIP_ORDER_MUTATION, { id }, token);
+  return data.shipOrder;
+}
+
+export async function submitDeliverOrder(id: string, token?: string): Promise<Order> {
+  const data = await executeGraphQL<{ deliverOrder: Order }>(DELIVER_ORDER_MUTATION, { id }, token);
+  return data.deliverOrder;
 }

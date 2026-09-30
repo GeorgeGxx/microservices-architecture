@@ -1,7 +1,7 @@
 import React from 'react';
 import { Order } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
-import { X, Printer, PackageCheck, Copy, Check, Truck, ShieldAlert } from 'lucide-react';
+import { X, Printer, PackageCheck, Copy, Check, Truck } from 'lucide-react';
 
 interface ReceiptModalProps {
   order: Order | null;
@@ -14,9 +14,10 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
 
   if (!order) return null;
 
-  const tracking = order.trackingNumber || `DHL-EXP-${order.orderNumber.replace(/[^0-9]/g, '').slice(-8) || '84729103'}`;
+  const tracking = order.trackingNumber;
 
   const handleCopyTracking = () => {
+    if (!tracking) return;
     navigator.clipboard.writeText(tracking);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -41,7 +42,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/10">
             <PackageCheck className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold text-white">Order Receipt & Tracking</h3>
+          <h3 className="text-xl font-bold text-white">Order Receipt & Fulfillment</h3>
           <p className="text-xs font-mono text-slate-400 mt-1">#{order.orderNumber}</p>
         </div>
 
@@ -50,22 +51,23 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
           <div className="flex items-center justify-between text-xs mb-1.5">
             <div className="flex items-center gap-1.5 text-indigo-400 font-semibold">
               <Truck className="w-4 h-4" />
-              <span>{order.carrier || 'DHL Express Priority'}</span>
+              <span>{order.carrier || order.deliveryMethod || 'Shipping option'}</span>
             </div>
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              {order.orderStatus || 'CONFIRMED'}
+              {order.orderStatus}
             </span>
           </div>
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/80 text-xs">
-            <span className="text-slate-400">Tracking Code:</span>
-            <button
-              onClick={handleCopyTracking}
+            <span className="text-slate-400">Tracking reference:</span>
+            {tracking ? <button
+              onClick={() => void handleCopyTracking()}
               className="flex items-center gap-1 text-slate-200 font-mono text-[11px] bg-slate-900 px-2 py-1 rounded hover:bg-slate-800 transition"
             >
               {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
               {tracking}
-            </button>
+            </button> : <span className="text-slate-500">Not assigned</span>}
           </div>
+          <p className="mt-2 text-[10px] text-slate-500">Demo reference only; no live carrier tracking is connected.</p>
         </div>
 
         {/* Customer & Shipping Details */}
