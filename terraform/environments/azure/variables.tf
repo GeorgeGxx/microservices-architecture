@@ -16,3 +16,21 @@ variable "domain_name" {
   type        = string
   default     = ""
 }
+
+variable "enable_monthly_cost_budget" {
+  description = "Create an Azure subscription monthly consumption budget. This sends alerts only; it does not stop or scale resources."
+  type        = bool
+  default     = false
+}
+
+variable "monthly_cost_budget_usd" {
+  description = "Optional monthly USD budget limit by Terraform workspace (dev/staging/prod). Required when enable_monthly_cost_budget is true."
+  type        = map(number)
+  default     = {}
+}
+
+variable "finops_alert_emails" {
+  description = "Email recipients for Azure actual and forecast budget alerts."
+  type        = list(string)
+  default     = []
+}

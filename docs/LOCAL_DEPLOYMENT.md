@@ -76,6 +76,14 @@ OpenCost is reconciled by ArgoCD on Minikube and cloud clusters. Minikube reuses
 Cloud cluster entries managed by the cloud ApplicationSets must carry these Argo CD cluster-secret labels: `finops.opencost.io/enabled=true`, `finops.opencost.io/provider=aws|azure|gcp`, `environment=dev|staging|prod`, `data-plane=primary|dp1|dp2`, and `git-branch=develop|staging|main`. Use `primary` for dev/staging and `dp1`/`dp2` for the two production data planes. The Terraform tags/labels aid cloud-side cost allocation; OpenCost cloud-billing ingestion stays disabled until provider billing exports and credentials are configured.
 
 Docker Compose does not install OpenCost: it can run the application containers but does not provide Kubernetes workload allocation data.
+
+### FinOps controls and workload sizing
+
+- **Live Kubernetes allocation:** `.\platform.ps1 cost` uses OpenCost through the optional Krew plugin. Cloud billing remains unavailable until provider billing exports and credentials are connected.
+- **Seven-day request sizing:** `.\platform.ps1 finops-rightsize` queries Prometheus for per-container CPU and memory peaks, compares them with Kubernetes requests, and reports advisory requests with headroom. It requires cAdvisor and kube-state-metrics series; it does not patch workloads. Docker Compose has no Kubernetes request metrics.
+- **Illustrative USD estimate:** `.\platform.ps1 finops -Environment staging` uses a fixed AWS architecture catalog, not a provider quote or Terraform plan cost. `--max-monthly-usd` can enforce a ceiling against that profile.
+- **Cloud budget alerts:** AWS, Azure, and GCP Terraform environments support opt-in monthly budgets. Set `enable_monthly_cost_budget=true` and `monthly_cost_budget_usd` for the workspace. AWS/Azure also require `finops_alert_emails`; GCP requires `billing_account_id` and uses billing account notification recipients. Defaults are disabled. These thresholds notify but do not stop or scale resources. AWS CostCenter filtering requires activating that tag as a cost allocation tag in Billing.
+- **CI estimate gates:** the manual AWS Terraform workflow reports the illustrative environment profile and a plan-derived monthly delta for a small AWS catalog. `FINOPS_MAX_MONTHLY_USD` enables the profile ceiling; `FINOPS_MAX_MONTHLY_DELTA_USD` enables a plan increase ceiling. The delta prices selected EKS control planes/node types, RDS classes/storage, NAT gateways, and load balancers only; it lists other changed types as unpriced, omits usage charges, and is not a complete quote.
 - **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
 
 ### 4. Runtimes, Build Tools & Productivity

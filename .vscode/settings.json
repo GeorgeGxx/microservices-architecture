@@ -1,4 +1,7 @@
 {
+  "files.associations": {
+    "azure-devops/**/*.yml": "azure-pipelines"
+  },
   "yaml.schemas": {
     "kubernetes": "k8s/**/*.yaml"
   }
