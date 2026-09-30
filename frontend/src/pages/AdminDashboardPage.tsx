@@ -30,6 +30,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useNotifications } from '../context/NotificationContext';
 import { ProductQRModal } from '../components/ProductQRModal';
+import { getOrderStatusPresentation } from '../utils/orderFulfillment';
 
 // Popular 1-Click Hardware Presets for Rapid Admin Upload
 const HARDWARE_PRESETS = [
@@ -1240,6 +1241,7 @@ export const AdminDashboardPage: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-800/60 font-medium">
                 {paginatedOrders.map((ord) => {
+                  const statusPresentation = getOrderStatusPresentation(ord.orderStatus);
                   return (
                     <tr key={ord.id} className="hover:bg-slate-800/30">
                       <td className="py-3 pr-2 font-mono font-bold text-white">
@@ -1251,16 +1253,18 @@ export const AdminDashboardPage: React.FC = () => {
                       <td className="py-3 pr-2">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            ord.orderStatus === 'DELIVERED'
+                            statusPresentation.tone === 'emerald'
                               ? 'bg-emerald-500/10 text-emerald-400'
-                              : ord.orderStatus === 'SHIPPED'
+                              : statusPresentation.tone === 'blue'
                               ? 'bg-blue-500/10 text-blue-400'
-                              : ord.orderStatus === 'CANCELLED'
+                              : statusPresentation.tone === 'rose'
                               ? 'bg-rose-500/10 text-rose-400'
-                              : 'bg-amber-500/10 text-amber-400'
+                              : statusPresentation.tone === 'amber'
+                              ? 'bg-amber-500/10 text-amber-400'
+                              : 'bg-slate-500/10 text-slate-400'
                           }`}
                         >
-                          {ord.orderStatus}
+                          {statusPresentation.label}
                         </span>
                       </td>
                       <td className="py-3 pr-2">
@@ -1294,7 +1298,7 @@ export const AdminDashboardPage: React.FC = () => {
                                 disabled={updatingOrderId === ord.id || cancellingOrderId === ord.id}
                                 className="px-2.5 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/30 text-[11px] font-bold transition flex items-center gap-1 disabled:opacity-50"
                               >
-                                <Truck className="w-3 h-3" /> {updatingOrderId === ord.id ? 'Saving...' : 'Mark Shipped'}
+                                <Truck className="w-3 h-3" /> {updatingOrderId === ord.id ? 'Saving...' : 'Dispatch · In Transit'}
                               </button>
                             </>
                           )}

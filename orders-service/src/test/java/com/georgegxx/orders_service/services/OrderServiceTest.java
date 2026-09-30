@@ -113,6 +113,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("deliverOrder updates order status to DELIVERED and publishes event")
     void testDeliverOrder() {
+        sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
         when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -122,6 +123,18 @@ class OrderServiceTest {
         assertEquals(OrderStatus.DELIVERED, response.orderStatus());
         verify(orderRepository).save(sampleOrder);
         verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+    }
+
+    @Test
+    @DisplayName("deliverOrder rejects an order that has not been dispatched")
+    void testDeliverOrder_RequiresDispatch() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> orderService.deliverOrder(1L));
+
+        assertTrue(error.getMessage().contains("must be in transit first"));
+        verify(orderRepository, never()).save(any(Order.class));
+        verify(kafkaTemplate, never()).send(eq("orders-topic"), anyString(), anyString());
     }
 
     @Test
@@ -149,5 +162,20 @@ class OrderServiceTest {
         assertEquals(OrderStatus.CANCELLED, response.orderStatus());
         verify(orderRepository).save(sampleOrder);
         verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+    }
+
+    @Test
+    @DisplayName("cancelOrder rejects cancellation once the order is in transit")
+    void testCancelOrder_RejectsAfterDispatch() {
+        sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> orderService.cancelOrder(1L, "user-123", false));
+
+        assertTrue(error.getMessage().contains("only available before dispatch"));
+        verify(orderRepository, never()).save(any(Order.class));
+        verifyNoInteractions(inventoryClient);
+        verify(kafkaTemplate, never()).send(eq("orders-topic"), anyString(), anyString());
     }
 }

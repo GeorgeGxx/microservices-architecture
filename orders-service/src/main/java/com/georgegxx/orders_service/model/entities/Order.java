@@ -67,28 +67,25 @@ public class Order {
     // Domain Invariant Operations (DDD Aggregate Root)
 
     public void cancel() {
-        if (this.orderStatus == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("Order #" + this.orderNumber + " is already cancelled.");
-        }
-        if (this.orderStatus == OrderStatus.SHIPPED || this.orderStatus == OrderStatus.DELIVERED) {
-            throw new IllegalStateException("Cannot cancel order #" + this.orderNumber + " in status " + this.orderStatus);
+        if (this.orderStatus != OrderStatus.PLACED) {
+            throw new IllegalStateException("Cannot cancel order #" + this.orderNumber + " in status " + this.orderStatus
+                    + ". Cancellation is only available before dispatch.");
         }
         this.orderStatus = OrderStatus.CANCELLED;
     }
 
     public void ship() {
-        if (this.orderStatus == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("Cannot ship cancelled order #" + this.orderNumber);
-        }
-        if (this.orderStatus == OrderStatus.DELIVERED) {
-            throw new IllegalStateException("Order #" + this.orderNumber + " has already been delivered.");
+        if (this.orderStatus != OrderStatus.PLACED) {
+            throw new IllegalStateException("Cannot dispatch order #" + this.orderNumber + " in status " + this.orderStatus
+                    + ". Only placed orders can be dispatched.");
         }
         this.orderStatus = OrderStatus.SHIPPED;
     }
 
     public void deliver() {
-        if (this.orderStatus == OrderStatus.CANCELLED) {
-            throw new IllegalStateException("Cannot deliver cancelled order #" + this.orderNumber);
+        if (this.orderStatus != OrderStatus.SHIPPED) {
+            throw new IllegalStateException("Cannot deliver order #" + this.orderNumber + " in status " + this.orderStatus
+                    + ". The order must be in transit first.");
         }
         this.orderStatus = OrderStatus.DELIVERED;
     }
