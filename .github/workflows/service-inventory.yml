@@ -6,11 +6,15 @@ on:
     paths:
       - 'inventory-service/**'
       - 'pom.xml'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-inventory.yml'
   pull_request:
     branches: [ develop ]
     paths:
       - 'inventory-service/**'
       - 'pom.xml'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-inventory.yml'
   workflow_dispatch:
 
 concurrency:

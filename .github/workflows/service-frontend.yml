@@ -5,10 +5,14 @@ on:
     branches: [ develop ]
     paths:
       - 'frontend/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-frontend.yml'
   pull_request:
     branches: [ develop ]
     paths:
       - 'frontend/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-frontend.yml'
   workflow_dispatch:
 
 concurrency:

@@ -13,7 +13,9 @@ paths = [
   '''(?i).*values.*\.yaml$''',
   '''(?i)scripts/devsecops/.*''',
   '''(?i)k8s/minikube/.*''',
-  '''(?i)terraform/.*\.tfvars.*'''
+  '''(?i)terraform/.*\.tfvars.*''',
+  '''(?i).*execution-config\.json$''',
+  '''(?i)cosmo-router/.*'''
 ]
 regexes = [
   '''(?i)dummy.*''',

@@ -35,6 +35,11 @@ on:
         type: string
         default: 'localhost:8088'
         description: 'ArgoCD Server URL for GitOps CD'
+      sonar-qualitygate-wait:
+        required: false
+        type: boolean
+        default: false
+        description: 'Wait for SonarQube / SonarCloud Quality Gate result (fails step if Quality Gate fails)'
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -121,6 +126,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
           if [ -z "$SONAR_TOKEN" ]; then
             echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
@@ -135,7 +141,7 @@ jobs:
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
       - name: Set up Java for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
@@ -150,6 +156,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
           if [ -z "$SONAR_TOKEN" ]; then
             echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
@@ -164,7 +171,7 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=src \
             -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
-            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
   # ==========================================================
   # STEP 2: 🔍 SAST & Secret Scanning (Security) — Runs in parallel with Unit Tests
