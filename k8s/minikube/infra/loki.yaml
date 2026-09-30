@@ -31,7 +31,8 @@ data:
     compactor:
       working_directory: /loki/compactor
       compaction_interval: 10m
-      retention_enabled: false
+      retention_enabled: true
+      delete_request_store: filesystem
     limits_config:
       retention_period: 720h
       reject_old_samples: true
@@ -50,6 +51,17 @@ spec:
       targetPort: 3100
   selector:
     app: loki
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: loki-data
+  namespace: observability
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 2Gi
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -122,4 +134,5 @@ spec:
           configMap:
             name: loki-config
         - name: storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: loki-data

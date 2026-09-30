@@ -40,7 +40,6 @@ data:
       stage.labels {
         values = {
           namespace = "",
-          pod       = "",
           container = "",
           service   = "",
           app       = "",
@@ -54,6 +53,20 @@ data:
         url = "http://loki:3100/loki/api/v1/push"
       }
     }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alloy
+  namespace: observability
+spec:
+  type: ClusterIP
+  selector:
+    app: alloy
+  ports:
+    - name: http-metrics
+      port: 3300
+      targetPort: 3300
 ---
 apiVersion: apps/v1
 kind: DaemonSet

@@ -3,6 +3,10 @@ global:
   cloudProvider: aws
   storageClass: ebs-gp3-sc
 
+configMap:
+  data:
+    TRACING_SAMPLING_PROBABILITY: "0.25"
+
 # AWS ECR Medium Performance Tier (Staging)
 cosmo-router:
   image:

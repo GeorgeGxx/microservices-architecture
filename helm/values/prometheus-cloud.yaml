@@ -4,6 +4,7 @@ pushgateway:
   enabled: false
 server:
   retention: 15d
+  retentionSize: 6GB
   persistentVolume:
     enabled: true
     size: 8Gi

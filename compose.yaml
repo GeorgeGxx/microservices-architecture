@@ -127,6 +127,7 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
     restart: unless-stopped
     depends_on:
       db-inventory:
@@ -176,6 +177,7 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
     restart: unless-stopped
     depends_on:
       - kafka
@@ -201,6 +203,7 @@ services:
       PRODUCTS_SERVICE_URI: ${PRODUCTS_SERVICE_URI:-http://products-service:8004}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
     restart: unless-stopped
     depends_on:
       db-orders:
@@ -252,6 +255,7 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
     restart: unless-stopped
     depends_on:
       db-products:
@@ -398,9 +402,13 @@ services:
     container_name: prometheus
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-7d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-2GB}
     volumes:
       - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./observability/prometheus/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro
+      - prometheus_data:/prometheus
     ports:
       - "9090:9090"
     depends_on:
@@ -409,6 +417,7 @@ services:
       - kafka-exporter
       - postgres-exporter
     restart: unless-stopped
+    mem_limit: 768m
     networks:
       - spring
 
@@ -454,6 +463,7 @@ services:
     container_name: otel-collector
     image: "otel/opentelemetry-collector-contrib:${OTEL_COLLECTOR_VERSION}"
     command: [ "--config=/etc/otel/config.yaml" ]
+    mem_limit: 256m
     volumes:
       - ./observability/otel/otel-collector-config.yaml:/etc/otel/config.yaml
     ports:
@@ -597,6 +607,7 @@ volumes:
   loki_data:
   tempo_data:
   alloy_data:
+  prometheus_data:
   vault_data:
 
 networks:

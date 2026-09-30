@@ -235,9 +235,26 @@ Terraform and bootstrap automation provision:
 * **ArgoCD** in namespace `argocd` (Web UI at `https://localhost:8088`, credentials: `admin` / `admin`)
 * **Prometheus & Grafana** in namespace `observability` (Grafana at `http://localhost:3000`, credentials: `admin` / `admin`)
 * **Loki & Alloy** log aggregation daemonset in namespace `observability`
+* **Tempo** trace storage and OTLP ingestion in namespace `observability`
 * **Vault** in namespace `vault` (Web UI at `http://localhost:8200`, dev token: `root`)
 * **Keycloak IAM** in namespace `auth` (Web UI at `http://localhost:8181`, credentials: `admin` / `admin`)
 * Namespaces `staging` and `prod` with Istio sidecar injection enabled (`istio-injection=enabled`).
+
+##### 📊 Local Observability Retention & Resource Controls
+
+Compose and Minikube keep the telemetry stores on persistent storage so a container or pod restart does not erase recent data. Their local retention budgets are intentionally bounded:
+
+| Store | Compose | Minikube | Retention behavior |
+| --- | --- | --- | --- |
+| Prometheus | Named `prometheus_data` volume; 7 days or 2 GB, whichever is reached first | 5 GiB PVC; 7 days or 4 GB, whichever is reached first | Older TSDB blocks are expired automatically |
+| Loki | Named `loki_data` volume | 2 GiB PVC | 30 days; compactor deletes expired chunks and indexes |
+| Tempo | Named `tempo_data` volume | 2 GiB PVC | 7 days; compactor expires old trace blocks |
+
+The Minikube Prometheus scrape/evaluation interval is 15 seconds. Prometheus scrapes itself, Loki, Tempo, and Alloy in both local modes; an alert fires if one of those targets stays down for five minutes. Kubernetes Alloy avoids using pod UID/name as a Loki index label to keep label cardinality bounded. Grafana still correlates traces and logs through the existing service and trace-ID links.
+
+Spring trace sampling uses `TRACING_SAMPLING_PROBABILITY`: it defaults to `1.0` (all traces) in Compose and local Minikube, is set to `0.25` in the AWS staging values, and `0.1` in AWS/Azure production values. Adjust the same Helm ConfigMap key for other cloud environments. Deleting a Minikube observability namespace also deletes its PVCs and retained telemetry; normal pod restarts do not.
+
+The standalone kube-prometheus-stack values also persist Prometheus data: development uses a 10 GiB claim with a 7-day/8 GB limit, while production uses a 50 GiB claim with a 30-day/40 GB limit. The cloud Prometheus chart values cap its 8 GiB claim at 6 GB with 15-day retention. The local OpenTelemetry Collector has a 192 MiB memory limit configured in its memory limiter and a 256 MiB container budget to reduce local memory spikes.
 
 ##### 🛡️ 4. Apply Gatekeeper Templates & Constraints
 

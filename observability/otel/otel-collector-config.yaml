@@ -13,11 +13,15 @@ exporters:
       insecure: true
 
 processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 192
+    spike_limit_mib: 32
   batch:
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, batch]
       exporters: [otlp]
