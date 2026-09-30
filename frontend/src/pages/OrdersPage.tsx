@@ -28,6 +28,7 @@ import { canCancelOrder } from '../utils/orderPipeline';
 import { OrderLivePipeline } from '../components/OrderLivePipeline';
 import { sseService } from '../services/sse';
 import { getOrderStatusPresentation } from '../utils/orderFulfillment';
+import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
 
 interface OrdersPageProps {
   onOpenReceipt: (order: Order) => void;
@@ -203,7 +204,8 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
     try {
       setCancellingId(orderId);
       await submitCancelOrder(orderId, user?.token);
-      showToast('Order Cancelled', `Order #${orderNumber} was cancelled before dispatch. Inventory was restored.`, 'system');
+      const cancellationNotification = getOrderStatusNotificationCopy('CANCELLED', orderNumber);
+      showToast(cancellationNotification.title, cancellationNotification.message, 'order');
       // Reflect the persisted mutation immediately while the periodic refresh catches up.
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, orderStatus: 'CANCELLED' } : o))

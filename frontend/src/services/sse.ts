@@ -1,10 +1,13 @@
 import { AppNotification } from '../types';
+import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
 
 export type NotificationListener = (notification: AppNotification) => void;
 
 export interface OrderStatusEvent {
   orderNumber: string;
   orderStatus: 'PLACED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+  userId?: string;
+  username?: string;
 }
 
 const ORDER_STATUSES = new Set<OrderStatusEvent['orderStatus']>(['PLACED', 'SHIPPED', 'DELIVERED', 'CANCELLED']);
@@ -17,7 +20,15 @@ export function parseOrderStatusEvent(data: string): OrderStatusEvent | null {
     if (typeof event.orderNumber !== 'string' || !event.orderNumber.trim()) return null;
     if (typeof event.orderStatus !== 'string') return null;
     const orderStatus = event.orderStatus.trim().toUpperCase() as OrderStatusEvent['orderStatus'];
-    return ORDER_STATUSES.has(orderStatus) ? { orderNumber: event.orderNumber, orderStatus } : null;
+    if (!ORDER_STATUSES.has(orderStatus)) return null;
+    const userId = typeof event.userId === 'string' ? event.userId : undefined;
+    const username = typeof event.username === 'string' ? event.username : undefined;
+    return {
+      orderNumber: event.orderNumber,
+      orderStatus,
+      ...(userId ? { userId } : {}),
+      ...(username ? { username } : {}),
+    };
   } catch {
     return null;
   }
@@ -69,6 +80,7 @@ class SSEService {
       this.eventSource.addEventListener('ORDER_NOTIFICATION', (event: MessageEvent<string>) => {
         const orderEvent = parseOrderStatusEvent(event.data);
         if (!orderEvent) return;
+        this.broadcast(createOrderNotification(orderEvent));
         this.orderStatusListeners.forEach((listener) => listener(orderEvent));
       });
 
@@ -77,11 +89,12 @@ class SSEService {
           this.eventSource.close();
           this.eventSource = null;
         }
+        if (!this.hasSubscribers()) return;
         // Graceful reconnect retry backoff
         if (!this.reconnectTimeout) {
           this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;
-            this.connect();
+            if (this.hasSubscribers()) this.connect();
           }, 5000);
         }
       };
@@ -97,18 +110,52 @@ class SSEService {
     }
     return () => {
       this.listeners.delete(listener);
+      this.disconnectWhenIdle();
     };
   }
 
   subscribeOrderStatus(listener: (event: OrderStatusEvent) => void) {
     this.orderStatusListeners.add(listener);
     if (!this.eventSource) this.connect();
-    return () => this.orderStatusListeners.delete(listener);
+    return () => {
+      this.orderStatusListeners.delete(listener);
+      this.disconnectWhenIdle();
+    };
+  }
+
+  private hasSubscribers() {
+    return this.listeners.size > 0 || this.orderStatusListeners.size > 0;
+  }
+
+  private disconnectWhenIdle() {
+    if (this.hasSubscribers()) return;
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
+    this.eventSource?.close();
+    this.eventSource = null;
   }
 
   private broadcast(notification: AppNotification) {
     this.listeners.forEach((listener) => listener(notification));
   }
+}
+
+export function createOrderNotification(event: OrderStatusEvent): AppNotification {
+  const { title, message } = getOrderStatusNotificationCopy(event.orderStatus, event.orderNumber);
+
+  return {
+    id: `order-${event.orderNumber}-${event.orderStatus}`,
+    title,
+    message,
+    type: 'order',
+    timestamp: new Date(),
+    read: false,
+    orderNumber: event.orderNumber,
+    userId: event.userId,
+    username: event.username,
+  };
 }
 
 export const sseService = new SSEService();
