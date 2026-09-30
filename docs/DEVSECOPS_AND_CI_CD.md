@@ -137,6 +137,17 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 .\platform.ps1 apply -Platform gcp -Environment staging
 ```
 
+#### 3. GitHub Actions Commands
+
+```powershell
+gh workflow run service-orders.yml --ref develop
+gh workflow run service-products.yml --ref develop
+gh workflow run service-notifications.yml --ref develop
+gh workflow run service-frontend.yml --ref develop
+gh workflow run service-inventory.yml --ref develop
+gh run list --limit 5
+```
+
 ### 🛡️ DevSecOps & Governance Hub
 
 This section centralizes all security, compliance, quality, and dynamic testing assets and policies for the `microservices-architecture` ecosystem, alongside the complete 100% local deployment and operations runbook on Minikube.

@@ -197,4 +197,122 @@ class OrderServiceTest {
         verifyNoInteractions(inventoryClient);
         verify(kafkaTemplate, never()).send(eq("orders-topic"), anyString(), anyString());
     }
+
+    @Test
+    @DisplayName("getAllOrders returns all orders mapped to DTO")
+    void testGetAllOrders() {
+        when(orderRepository.findAllWithItems()).thenReturn(List.of(sampleOrder));
+
+        List<OrderResponse> results = orderService.getAllOrders();
+
+        assertEquals(1, results.size());
+        assertEquals("ORD-TEST-001", results.get(0).orderNumber());
+    }
+
+    @Test
+    @DisplayName("getOrdersForUser returns empty for blank and user orders when present")
+    void testGetOrdersForUser() {
+        assertTrue(orderService.getOrdersForUser(null).isEmpty());
+        assertTrue(orderService.getOrdersForUser("   ").isEmpty());
+
+        when(orderRepository.findAllByUserIdWithItems("user-123")).thenReturn(List.of(sampleOrder));
+        List<OrderResponse> results = orderService.getOrdersForUser("user-123");
+        assertEquals(1, results.size());
+        assertEquals("ORD-TEST-001", results.get(0).orderNumber());
+    }
+
+    @Test
+    @DisplayName("cancelOrder single parameter defaults to admin execution")
+    void testCancelOrderSingleParam() {
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OrderResponse response = orderService.cancelOrder(1L);
+
+        assertNotNull(response);
+        assertEquals(OrderStatus.CANCELLED, response.orderStatus());
+    }
+
+    @Test
+    @DisplayName("recordFunnelEvent increments corresponding funnel metrics")
+    void testRecordFunnelEvent() {
+        com.georgegxx.orders_service.model.dtos.FunnelEventRequest cartEvent =
+                com.georgegxx.orders_service.model.dtos.FunnelEventRequest.builder()
+                        .eventType("CART_ADD")
+                        .category("Electronics")
+                        .build();
+        orderService.recordFunnelEvent(cartEvent);
+
+        com.georgegxx.orders_service.model.dtos.FunnelEventRequest checkoutEvent =
+                com.georgegxx.orders_service.model.dtos.FunnelEventRequest.builder()
+                        .eventType("CHECKOUT_START")
+                        .build();
+        orderService.recordFunnelEvent(checkoutEvent);
+
+        com.georgegxx.orders_service.model.dtos.FunnelEventRequest stepEvent =
+                com.georgegxx.orders_service.model.dtos.FunnelEventRequest.builder()
+                        .eventType("CHECKOUT_STEP")
+                        .step("PAYMENT")
+                        .build();
+        orderService.recordFunnelEvent(stepEvent);
+
+        assertNotNull(meterRegistry.find("ecommerce_checkout_started_total").gauge());
+    }
+
+    @Test
+    @DisplayName("placeOrder returns cached response on idempotency hit")
+    void testPlaceOrder_IdempotencyHit() {
+        com.georgegxx.orders_service.model.dtos.OrderRequest req = new com.georgegxx.orders_service.model.dtos.OrderRequest();
+        OrderResponse cached = new OrderResponse(
+                99L, "ORD-CACHED", "user-1", "user", OrderStatus.PLACED,
+                List.of(), "Name", "e@mail.com", "Addr", "City", "00000",
+                "123", "Standard", null, null, 100.0, 0.0, 0.0, 100.0, "CARD"
+        );
+        when(idempotencyManager.checkOrLock("idem-hit", req)).thenReturn(Optional.of(cached));
+
+        OrderResponse result = orderService.placeOrder(req, "idem-hit");
+
+        assertEquals("ORD-CACHED", result.orderNumber());
+        verifyNoInteractions(productsClient);
+        verifyNoInteractions(inventoryClient);
+    }
+
+    @Test
+    @DisplayName("placeOrder completes full order placement and publishing flow")
+    void testPlaceOrder_Success() {
+        com.georgegxx.orders_service.model.dtos.OrderItemsRequest item =
+                com.georgegxx.orders_service.model.dtos.OrderItemsRequest.builder()
+                        .sku("000001")
+                        .price(199.99)
+                        .quantity(1L)
+                        .build();
+
+        com.georgegxx.orders_service.model.dtos.OrderRequest req = new com.georgegxx.orders_service.model.dtos.OrderRequest();
+        req.setOrderItems(List.of(item));
+        req.setCustomerName("John Doe");
+        req.setCustomerEmail("john@example.com");
+        req.setShippingAddress("123 Test St");
+        req.setCity("Testville");
+        req.setPostalCode("12345");
+        req.setTotalAmount(199.99);
+
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(100L);
+            return o;
+        });
+
+        OrderResponse result = orderService.placeOrder(req, "key-new", "user-123", "johndoe");
+
+        assertNotNull(result);
+        assertNotNull(result.orderNumber());
+        verify(inventoryClient).decrementStock(any());
+        verify(kafkaTemplate).send(eq("orders-topic"), anyString(), anyString());
+        verify(idempotencyManager).saveCompleted(eq("key-new"), eq(req), any(OrderResponse.class));
+    }
 }
