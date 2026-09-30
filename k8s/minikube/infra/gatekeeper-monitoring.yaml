@@ -13,7 +13,7 @@ metadata:
     gatekeeper.sh/system: "yes"
 spec:
   ports:
-    - name: metrics
+    - name: http-metrics
       port: 8888
       targetPort: 8888
       protocol: TCP
@@ -34,7 +34,7 @@ spec:
     matchLabels:
       app: gatekeeper
   endpoints:
-    - port: metrics
+    - port: http-metrics
       interval: 15s
       scrapeTimeout: 10s
       relabelings:

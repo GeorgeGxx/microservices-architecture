@@ -286,7 +286,7 @@ spec:
     - name: http-router
       port: 8080
       targetPort: 8080
-    - name: metrics
+    - name: http-metrics
       port: 9090
       targetPort: 9090
   selector:
@@ -366,7 +366,7 @@ spec:
           ports:
             - name: http-router
               containerPort: 8080
-            - name: metrics
+            - name: http-metrics
               containerPort: 9090
           resources:
             requests:
