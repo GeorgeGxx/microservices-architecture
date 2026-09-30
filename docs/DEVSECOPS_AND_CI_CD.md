@@ -297,7 +297,7 @@ The runner leverages all available hardware threads of the Intel/AMD processor t
 The reusable service workflow currently has seven numbered job groups, followed by a conditional recovery job. Its implemented path is:
 
 1. **🧪 Unit/build verification**: Maven tests and JaCoCo for Spring services, or npm build for the web frontend.
-2. **🔍 SAST and secrets**: Gitleaks, Semgrep, Checkov and optional Sonar analysis.
+2. **🔍 SAST and secrets**: Gitleaks, Semgrep and Checkov. Optional SonarQube Cloud analysis runs with unit/build verification.
 3. **⚙️ Image and SBOM**: BuildKit produces an image archive and Trivy generates CycloneDX SBOM.
 4. **🧰 Container scan**: Trivy audits critical/high findings in soft-gate mode (`exit-code: 0`).
 5. **🧾 Policy gate**: Helm renders the chart and Conftest evaluates Rego policies.
@@ -326,6 +326,26 @@ When you are ready to enforce strict blocking in production:
 ---
 
 ## 🤖 Multi-CI/CD & GitOps Automation
+
+### SonarQube Cloud configuration (GitHub Actions, Azure DevOps, Bitbucket)
+
+All three CI providers use the same project keys so results converge into the same SonarQube Cloud projects:
+
+| Component | Sonar project key |
+| --- | --- |
+| Products | `msa-products-service` |
+| Orders | `msa-orders-service` |
+| Inventory | `msa-inventory-service` |
+| Notifications | `msa-notification-service` |
+| React storefront | `msa-frontend` |
+
+Configure these values in each CI provider before enabling Sonar analysis:
+
+- `SONAR_TOKEN`: secret token with permission to analyze the projects.
+- `SONAR_ORGANIZATION`: SonarQube Cloud organization key (plain variable).
+- `SONAR_HOST_URL`: optional; defaults to `https://sonarcloud.io` (GitHub secret, Azure pipeline variable, or Bitbucket repository/deployment variable).
+
+Without `SONAR_TOKEN`, each pipeline skips the Sonar step and continues. With a token configured, a missing organization key or a failed Quality Gate fails the pipeline. The scanners wait for the Quality Gate result. Spring projects import JaCoCo XML from `target/site/jacoco/jacoco.xml`. The React scan currently performs static analysis only; configure LCOV generation/import separately if frontend coverage is added. Create/import the matching projects in the SonarQube Cloud organization, and install/authorize SonarQube Cloud's GitHub App if PR decoration is desired.
 
 ### 1. GitHub Actions ➔ AWS Cloud
 Located in `.github/workflows/`:

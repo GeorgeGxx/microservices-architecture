@@ -21,7 +21,7 @@
 # Environments (ADO): dev, staging, production. Cluster/RG per env come from
 # <namePrefix>-<env>-aks / -rg, i.e. the ones created by infra-stages.yml.
 #
-# Requires (variable group / pipeline vars): SONAR_TOKEN (secret, optional).
+# Sonar is optional until SONAR_TOKEN (secret) and SONAR_ORGANIZATION are configured.
 # =============================================================================
 parameters:
   - name: serviceName
@@ -146,21 +146,24 @@ stages:
             # The step is skipped (visible in the UI) when SONAR_TOKEN is not defined.
             - script: |
                 set -euo pipefail
-                QG_WAIT=false
-                if [ "$(isProtectedBranch)" = "True" ]; then QG_WAIT=true; fi
+                if [ -z "$SONAR_ORGANIZATION" ] || [ "$SONAR_ORGANIZATION" = '$(SONAR_ORGANIZATION)' ]; then
+                  echo "SONAR_ORGANIZATION must match the SonarQube Cloud organization key."
+                  exit 1
+                fi
                 cd ${{ parameters.serviceDir }}
                 mvn -B -Dmaven.repo.local=$(MAVEN_CACHE_FOLDER) \
-                  org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-                  -Dsonar.projectKey=msa-azure-${{ parameters.serviceName }} \
-                  -Dsonar.projectName="MSA Azure ${{ parameters.serviceName }}" \
-                  -Dsonar.host.url=${{ parameters.sonarHostUrl }} \
-                  -Dsonar.token="$SONAR_TOKEN" \
+                  org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
+                  -Dsonar.projectKey=msa-${{ parameters.serviceName }} \
+                  -Dsonar.projectName="MSA ${{ parameters.serviceName }}" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
                   -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                  -Dsonar.qualitygate.wait=$QG_WAIT
-              displayName: "SonarQube / SonarCloud (Quality Gate enforced on protected branches)"
+                  -Dsonar.qualitygate.wait=true
+              displayName: "SonarQube Cloud Analysis & Quality Gate"
               condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
               env:
                 SONAR_TOKEN: $(SONAR_TOKEN)
+                SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
 
           - ${{ if or(eq(parameters.serviceType, 'react'), eq(parameters.serviceType, 'frontend')) }}:
             - task: Cache@2
@@ -181,6 +184,38 @@ stages:
                 npm ci
                 npm run build
               displayName: "React Build & Compile Gate"
+
+            - task: JavaToolInstaller@0
+              displayName: "Set up Java for Sonar Scanner"
+              inputs:
+                versionSpec: '21'
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+
+            - script: |
+                set -euo pipefail
+                if [ -z "$SONAR_TOKEN" ] || [ "$SONAR_TOKEN" = '$(SONAR_TOKEN)' ]; then
+                  echo "SonarQube Cloud token is not configured; skipping frontend analysis."
+                  exit 0
+                fi
+                if [ -z "$SONAR_ORGANIZATION" ] || [ "$SONAR_ORGANIZATION" = '$(SONAR_ORGANIZATION)' ]; then
+                  echo "SONAR_ORGANIZATION must match the SonarQube Cloud organization key."
+                  exit 1
+                fi
+                cd ${{ parameters.serviceDir }}
+                npx --yes sonar-scanner \
+                  -Dsonar.projectKey=msa-frontend \
+                  -Dsonar.projectName="MSA Frontend React" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
+                  -Dsonar.sources=src \
+                  -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+                  -Dsonar.qualitygate.wait=true
+              displayName: "SonarQube Cloud Frontend Analysis & Quality Gate"
+              condition: succeeded()
+              env:
+                SONAR_TOKEN: $(SONAR_TOKEN)
+                SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
 
   # ==========================================================
   # STAGE 2: SAST, secrets & governance
