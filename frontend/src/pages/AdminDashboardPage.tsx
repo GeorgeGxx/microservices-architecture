@@ -140,6 +140,7 @@ export const AdminDashboardPage: React.FC = () => {
   });
   const [selectedImageName, setSelectedImageName] = useState('');
   const previousProductImageUrl = useRef<string | null>(null);
+  const productImageInputRef = useRef<HTMLInputElement | null>(null);
   const [isCompressingImage, setIsCompressingImage] = useState(false);
   const [isSubmittingProduct, setIsSubmittingProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -722,42 +723,39 @@ export const AdminDashboardPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Photo / Image URL
-                </label>
-                <input
-                  type="text"
-                  inputMode="url"
-                  pattern="https?://.+"
-                  disabled={isCompressingImage}
-                  value={productForm.imageUrl.startsWith('data:image/') ? '' : productForm.imageUrl}
-                  onChange={(e) => {
-                    setSelectedImageName('');
-                    previousProductImageUrl.current = null;
-                    setProductForm({ ...productForm, imageUrl: e.target.value });
-                  }}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1" htmlFor="product-image-upload">
-                  Or upload from this computer
-                </label>
-                <div className="flex items-center gap-3">
-                  <label
-                    htmlFor="product-image-upload"
-                    className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-indigo-500 text-slate-200 text-xs font-semibold transition"
+                <label className="block text-xs font-bold text-slate-300 mb-2">Product Image</label>
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => productImageInputRef.current?.click()}
+                    disabled={isCompressingImage}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-indigo-400/50 bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-900/30 transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-wait disabled:opacity-60"
                   >
-                    <ImageIcon className="w-4 h-4 text-indigo-400" />
-                    Choose image
-                  </label>
+                    <ImageIcon className="w-4 h-4" />
+                    {isCompressingImage ? 'Preparing image...' : 'Choose image from computer'}
+                  </button>
+                  <span className="min-w-0 truncate text-[11px] text-slate-400">
+                    {selectedImageName || 'JPEG, PNG, or WebP · up to 15 MB'}
+                  </span>
+                  {selectedImageName && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedImageName('');
+                        const fallbackUrl = previousProductImageUrl.current || '';
+                        previousProductImageUrl.current = null;
+                        setProductForm((current) => ({ ...current, imageUrl: fallbackUrl }));
+                      }}
+                      className="text-[11px] text-slate-400 underline underline-offset-2 hover:text-white"
+                    >
+                      Remove selected image
+                    </button>
+                  )}
                   <input
-                    id="product-image-upload"
+                    ref={productImageInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
+                    className="hidden"
                     disabled={isCompressingImage}
                     onChange={async (event) => {
                       const file = event.currentTarget.files?.[0];
@@ -778,24 +776,24 @@ export const AdminDashboardPage: React.FC = () => {
                       }
                     }}
                   />
-                  <span className="min-w-0 truncate text-[11px] text-slate-400">
-                    {selectedImageName || 'JPEG, PNG, or WebP · up to 15 MB'}
-                  </span>
-                  {selectedImageName && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedImageName('');
-                        const fallbackUrl = previousProductImageUrl.current || '';
-                        previousProductImageUrl.current = null;
-                        setProductForm((current) => ({ ...current, imageUrl: fallbackUrl }));
-                      }}
-                      className="text-[11px] text-slate-400 hover:text-white underline underline-offset-2"
-                    >
-                      Remove
-                    </button>
-                  )}
                 </div>
+                <label className="mb-1 block text-[11px] font-semibold text-slate-400">
+                  Or paste an image URL
+                </label>
+                <input
+                  type="text"
+                  inputMode="url"
+                  pattern="https?://.+"
+                  disabled={isCompressingImage}
+                  value={productForm.imageUrl.startsWith('data:image/') ? '' : productForm.imageUrl}
+                  onChange={(e) => {
+                    setSelectedImageName('');
+                    previousProductImageUrl.current = null;
+                    setProductForm({ ...productForm, imageUrl: e.target.value });
+                  }}
+                  placeholder="https://images.unsplash.com/..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-indigo-500 focus:outline-none"
+                />
               </div>
 
               {/* Photo Preview */}
