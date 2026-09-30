@@ -6,11 +6,15 @@ on:
     paths:
       - 'notification-service/**'
       - 'pom.xml'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-notifications.yml'
   pull_request:
     branches: [ develop ]
     paths:
       - 'notification-service/**'
       - 'pom.xml'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-notifications.yml'
   workflow_dispatch:
 
 concurrency:
