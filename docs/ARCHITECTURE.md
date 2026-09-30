@@ -42,7 +42,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | Service | Local / Docker Port | Minikube Service / Access | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **React Frontend** | Vite host `5173` / Nginx container `8080` / Service `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
-| **Cosmo Router** | `8080` | ClusterIP | Ingress/frontend proxy (`/graphql`) | Federation v2.3 GraphQL router |
+| **Cosmo Router** | `8080` | ClusterIP `http-router:8080`; metrics `http-metrics:9090` | Ingress/frontend proxy (`/graphql`) | Federation v2.3 GraphQL router; Service port names follow Istio protocol naming |
 | **Products Service** | `8004` | ClusterIP `8004`; tunnel/port-forward only | ClusterIP | Product catalog domain + PostgreSQL |
 | **Orders Service** | `8003` | ClusterIP `8003`; tunnel/port-forward only | ClusterIP | Order orchestration + Kafka Producer |
 | **Inventory Service** | `8001` | ClusterIP `8001`; tunnel/port-forward only | ClusterIP | Stock control & atomic verification |
