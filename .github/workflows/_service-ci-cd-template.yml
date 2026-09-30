@@ -118,6 +118,7 @@ jobs:
         run: |
           cd ${{ inputs.service-dir }}
           npm ci
+          npm run test:coverage
           npm run build
 
       - name: Sonar Analysis (Spring Boot)
@@ -171,6 +172,7 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=src \
             -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
   # ==========================================================
