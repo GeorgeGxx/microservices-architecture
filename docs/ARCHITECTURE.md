@@ -12,7 +12,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 * **🛍️ Catalog & Multi-Currency Context (`products-service`):**
   * **Aggregate Root `Product`:** Encapsulates pricing rules across multiple currencies (USD, MXN) and guarantees catalog status invariants.
 * **📦 Order Lifecycle & Fulfillment Context (`orders-service`):**
-  * **Aggregate Root `Order`:** Directly guards state transitions (`cancel()`, `ship()`, `deliver()`, `assignItems()`). Prevents business conflicts such as cancelling already shipped/delivered orders or duplicate items.
+  * **Aggregate Root `Order`:** Directly guards the lifecycle `PLACED → SHIPPED → DELIVERED`; cancellation is allowed only from `PLACED`. This rejects delivery before dispatch, duplicate dispatch transitions, and cancellation after dispatch.
 * **🏭 Warehouse Stock Allocation Context (`inventory-service`):**
   * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and Saga compensations.
 * **🔔 Notification & Real-Time Stream Context (`notification-service`):**
@@ -428,9 +428,9 @@ flowchart TD
 * **Sticky Financial Summary:** Right-hand pane displaying dynamic calculations: `Subtotal + Shipping Fee + Estimated Tax (8%) = Total Order Amount`.
 
 ### 2. 🚚 Order Fulfillment Status & Tracking Reference
-* **Backend-authoritative order stepper:** The customer page renders persisted `PLACED`, `SHIPPED`, `DELIVERED`, or `CANCELLED` status returned by Orders Service. It refreshes orders every 30 seconds while visible; it does not invent warehouse or courier events in the browser.
+* **Backend-authoritative order stepper:** The customer page renders persisted `PLACED`, `SHIPPED`, `DELIVERED`, or `CANCELLED` status returned by Orders Service. `SHIPPED` is presented consistently as **In Transit** in customer and admin views. The progress bar animates only after the API returns the persisted state; it also listens for the named `ORDER_NOTIFICATION` SSE event and refreshes the matching authorized order, with a 30-second polling fallback. It does not invent warehouse or courier events in the browser. `CANCELLED` is a terminal branch, not a later fulfillment step.
 * **Administrative fulfillment actions:** An administrator can call federated `shipOrder(id)` and `deliverOrder(id)` GraphQL mutations. Orders Service enforces the `ADMIN` role, persists status in PostgreSQL, and emits status events to Kafka `orders-topic`.
-* **Cancellation and inventory compensation:** Customer cancellation is restricted in the UI to eligible placed orders; the backend owns the cancellation invariant and Saga stock compensation.
+* **Cancellation and inventory compensation:** Customers and administrators can cancel only `PLACED` orders, before dispatch. The domain rejects cancellation in every other state, including `SHIPPED`/In Transit, and the existing Saga compensation restores reserved stock.
 * **Carrier reference, not live carrier integration:** Orders include a generated DHL-labelled tracking reference, but the project does not integrate the DHL tracking API or provide live carrier telemetry, proof of delivery, or carrier-sourced milestone updates.
 * **Digital receipt:** Order history provides an itemized receipt with the order and payment-demo details.
 
