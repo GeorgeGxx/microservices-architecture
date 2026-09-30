@@ -85,9 +85,12 @@ export interface AppNotification {
   timestamp: Date;
   read: boolean;
   orderNumber?: string;
+  userId?: string;
+  username?: string;
 }
 
 export interface UserProfile {
+  userId?: string;
   username: string;
   email?: string;
   firstName?: string;

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { AppNotification } from '../types';
 import { sseService } from '../services/sse';
+import { canUserReceiveNotification } from '../utils/notificationAudience';
 import { useAuth } from './AuthContext';
 
 interface Toast {
@@ -47,18 +48,24 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const seenOrderEvents = useRef(new Set<string>(notifications.map((notification) => notification.id)));
+  const recentToastKeys = useRef(new Map<string, number>());
 
   // Sync user notifications when authenticated user changes
   useEffect(() => {
     if (!user) {
       setNotifications([]);
+      seenOrderEvents.current.clear();
       return;
     }
     try {
       const saved = localStorage.getItem(`novashop_notifications_${user.username}`);
-      setNotifications(saved ? JSON.parse(saved) : []);
+      const parsed: AppNotification[] = saved ? JSON.parse(saved) : [];
+      setNotifications(parsed);
+      seenOrderEvents.current = new Set(parsed.map((notification) => notification.id));
     } catch {
       setNotifications([]);
+      seenOrderEvents.current.clear();
     }
   }, [user?.username]);
 
@@ -74,6 +81,15 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const showToast = (title: string, message: string, type: Toast['type'] = 'info') => {
+    const now = Date.now();
+    const toastKey = `${title}\u0000${message}`;
+    const visibleUntil = recentToastKeys.current.get(toastKey);
+    if (visibleUntil && visibleUntil > now) return;
+    for (const [key, expiry] of recentToastKeys.current) {
+      if (expiry <= now) recentToastKeys.current.delete(key);
+    }
+    recentToastKeys.current.set(toastKey, now + 5000);
+
     const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const newToast: Toast = { id, title, message, type };
     setToasts((prev) => [...prev, newToast]);
@@ -86,12 +102,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // SSE subscription: Only append personal notifications to user feed if signed in
   useEffect(() => {
+    if (!user) return;
     const unsubscribe = sseService.subscribe((notif) => {
       // In mature e-commerce, show live toast and store in user history if authenticated
-      if (user) {
-        setNotifications((prev) => [notif, ...prev.slice(0, 49)]); // keep latest 50
-        showToast(notif.title, notif.message, notif.type);
-      }
+      if (!canUserReceiveNotification(user, notif) || seenOrderEvents.current.has(notif.id)) return;
+      seenOrderEvents.current.add(notif.id);
+      setNotifications((prev) => [notif, ...prev.filter((item) => item.id !== notif.id).slice(0, 49)]);
+      showToast(notif.title, notif.message, notif.type);
     });
 
     return () => {

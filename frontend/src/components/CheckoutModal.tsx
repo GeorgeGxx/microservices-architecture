@@ -6,6 +6,7 @@ import { useNotifications } from '../context/NotificationContext';
 import { createIdempotencyKey, placeOrderUseCase } from '../application/use-cases/PlaceOrderUseCase';
 import { CheckoutStateMachine, CheckoutStep } from '../application/use-cases/CheckoutFSM';
 import { Order } from '../types';
+import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
 import confetti from 'canvas-confetti';
 import {
   X,
@@ -144,11 +145,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         });
       } catch {}
 
-      showToast(
-        'Order Placed Successfully!',
-        `Order #${newOrder.orderNumber} was dispatched to Kafka Distributed Saga.`,
-        'order'
-      );
+      const placedNotification = getOrderStatusNotificationCopy('PLACED', newOrder.orderNumber);
+      showToast(placedNotification.title, placedNotification.message, 'order');
 
       clearCart();
       orderAttemptRef.current = null;

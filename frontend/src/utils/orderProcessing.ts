@@ -15,6 +15,28 @@ export interface ProcessedOrdersResult {
   endIndex: number;
 }
 
+/** Sorts most recently created orders first, using the monotonic DB ID when no timestamp is exposed. */
+export function sortOrdersNewestFirst(orders: Order[]): Order[] {
+  return orders
+    .map((order, index) => ({ order, index }))
+    .sort(({ order: a, index: indexA }, { order: b, index: indexB }) => {
+      const timeA = a.createdAt ? Date.parse(a.createdAt) : Number.NaN;
+      const timeB = b.createdAt ? Date.parse(b.createdAt) : Number.NaN;
+      if (Number.isFinite(timeA) && Number.isFinite(timeB) && timeA !== timeB) return timeB - timeA;
+
+      try {
+        const idA = BigInt(a.id);
+        const idB = BigInt(b.id);
+        if (idA !== idB) return idA > idB ? -1 : 1;
+      } catch {
+        const idOrder = b.id.localeCompare(a.id, undefined, { numeric: true });
+        if (idOrder !== 0) return idOrder;
+      }
+      return indexA - indexB;
+    })
+    .map(({ order }) => order);
+}
+
 /**
  * Pure domain utility to filter, invert (newest order first), and paginate orders.
  */
@@ -41,17 +63,7 @@ export function processOrders(
 
   // 1. Invert list so the newest/last placed order is first
   // If orders have valid createdAt timestamps, sort descending; otherwise reverse list order
-  const inverted = [...orders].sort((a, b) => {
-    if (a.createdAt && b.createdAt) {
-      const timeA = new Date(a.createdAt).getTime();
-      const timeB = new Date(b.createdAt).getTime();
-      if (!isNaN(timeA) && !isNaN(timeB)) {
-        return timeB - timeA;
-      }
-    }
-    // Fallback: reverse order
-    return -1;
-  });
+  const inverted = sortOrdersNewestFirst(orders);
 
   // 2. Filter by search term and status
   const normalizedSearch = searchTerm.trim().toLowerCase();

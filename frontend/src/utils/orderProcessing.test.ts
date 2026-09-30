@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processOrders, ProcessOrdersOptions } from './orderProcessing';
+import { processOrders, ProcessOrdersOptions, sortOrdersNewestFirst } from './orderProcessing';
 import { Order } from '../types';
 
 describe('Order Processing & Pagination (TDD)', () => {
@@ -91,6 +91,12 @@ describe('Order Processing & Pagination (TDD)', () => {
     expect(page3.paginatedOrders[0].orderNumber).toBe('ORD-001');
     expect(page3.startIndex).toBe(5);
     expect(page3.endIndex).toBe(5);
+  });
+
+  it('sorts newest first by numeric database ID when the API does not provide creation timestamps', () => {
+    const withoutTimestamps = mockOrders.map(({ createdAt: _createdAt, ...order }) => order);
+    const sorted = sortOrdersNewestFirst(withoutTimestamps);
+    expect(sorted.map((order) => order.id)).toEqual(['5', '4', '3', '2', '1']);
   });
 
   it('Requirement: Search term filters before pagination', () => {

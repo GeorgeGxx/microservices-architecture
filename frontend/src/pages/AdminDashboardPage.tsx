@@ -31,6 +31,8 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useNotifications } from '../context/NotificationContext';
 import { ProductQRModal } from '../components/ProductQRModal';
 import { getOrderStatusPresentation } from '../utils/orderFulfillment';
+import { sortOrdersNewestFirst } from '../utils/orderProcessing';
+import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
 
 // Popular 1-Click Hardware Presets for Rapid Admin Upload
 const HARDWARE_PRESETS = [
@@ -408,11 +410,12 @@ export const AdminDashboardPage: React.FC = () => {
 
   // Cancel Order & Refund Stock
   const handleAdminCancelOrder = async (orderId: string, orderNumber: string) => {
-    if (!confirm(`Cancel order ${orderNumber} and restore inventory stock in PostgreSQL?`)) return;
+    if (!confirm(`Cancel order ${orderNumber} before dispatch? Inventory compensation will be requested.`)) return;
     try {
       setCancellingOrderId(orderId);
       await submitCancelOrder(orderId, user?.token);
-      showToast('Order Cancelled & Restocked', `Order #${orderNumber} cancelled. Stock restored.`, 'order');
+      const cancellationNotification = getOrderStatusNotificationCopy('CANCELLED', orderNumber);
+      showToast(cancellationNotification.title, cancellationNotification.message, 'order');
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, orderStatus: 'CANCELLED' } : o))
       );
@@ -432,7 +435,8 @@ export const AdminDashboardPage: React.FC = () => {
         ? await submitShipOrder(orderId, user?.token)
         : await submitDeliverOrder(orderId, user?.token);
       setOrders((previous) => previous.map((order) => order.id === orderId ? { ...order, ...updated } : order));
-      showToast(action === 'ship' ? 'Order Shipped' : 'Order Delivered', `Order #${orderNumber} status saved by Orders Service.`, 'order');
+      const statusNotification = getOrderStatusNotificationCopy(action === 'ship' ? 'SHIPPED' : 'DELIVERED', orderNumber);
+      showToast(statusNotification.title, statusNotification.message, 'order');
       await loadDashboardData();
     } catch (err: unknown) {
       showToast('Order Update Failed', err instanceof Error ? err.message : `Could not ${action} order.`, 'system');
@@ -458,7 +462,7 @@ export const AdminDashboardPage: React.FC = () => {
     i.sku.toLowerCase().includes(inventorySearch.toLowerCase())
   );
 
-  const filteredOrders = orders.filter(
+  const filteredOrders = sortOrdersNewestFirst(orders).filter(
     (o) =>
       o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
       (o.customerName && o.customerName.toLowerCase().includes(orderSearch.toLowerCase())) ||

@@ -81,6 +81,7 @@ export function getUserProfile(): UserProfile | null {
   const roles = realmAccess.roles || [];
 
   return {
+    userId: (parsed['sub'] as string) || undefined,
     username: (parsed['preferred_username'] as string) || 'User',
     email: (parsed['email'] as string) || '',
     firstName: (parsed['given_name'] as string) || '',

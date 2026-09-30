@@ -8,7 +8,12 @@ export const ToastContainer: React.FC = () => {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col space-y-3 max-w-md w-full pointer-events-none">
+    <div
+      aria-label="Notifications"
+      aria-live="polite"
+      aria-relevant="additions text"
+      className="pointer-events-none fixed bottom-6 right-4 z-50 flex max-h-[min(70vh,600px)] w-[calc(100vw-2rem)] flex-col space-y-3 overflow-y-auto sm:right-6 sm:w-full sm:max-w-md"
+    >
       {toasts.map((toast) => {
         let Icon = Info;
         let colorClasses = 'border-indigo-500/30 bg-slate-900/90 text-indigo-400';
@@ -36,6 +41,7 @@ export const ToastContainer: React.FC = () => {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
+              aria-label={`Dismiss notification: ${toast.title}`}
               className="text-slate-400 hover:text-slate-200 transition-colors p-1"
             >
               <X className="w-4 h-4" />
