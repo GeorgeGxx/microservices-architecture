@@ -739,11 +739,30 @@ function Invoke-MinikubePlatform {
             $missingDependencyArchives = @($expectedDependencyArchives | Where-Object { -not (Test-Path -LiteralPath $_ -PathType Leaf) })
 
             if ($cachedDependencyFingerprint -ne $dependencyFingerprint -or $missingDependencyArchives.Count -gt 0) {
-                Write-Host "  ▶ Packaging Helm subcharts because their sources changed or an archive is missing..." -ForegroundColor White
-                & helm dependency update $resolvedUmbrellaDir
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Helm dependency packaging failed with exit code $LASTEXITCODE. No cluster changes were applied."
+                Write-Host "  ▶ Building Helm dependencies because their sources changed or an archive is missing..." -ForegroundColor White
+                $chartLockFile = Join-Path $resolvedUmbrellaDir "Chart.lock"
+                if (Test-Path -LiteralPath $chartLockFile -PathType Leaf) {
+                    & helm dependency build $resolvedUmbrellaDir
+                } else {
+                    Write-Host "  [INFO] Chart.lock is missing; resolving dependencies once to create it." -ForegroundColor Yellow
+                    & helm dependency update $resolvedUmbrellaDir
                 }
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Helm dependency build failed with exit code $LASTEXITCODE. No cluster changes were applied."
+                }
+                # `dependency update` can create Chart.lock on the first run.
+                # Cache the post-build inputs so that does not force a second
+                # unnecessary package rebuild on the next platform invocation.
+                [void]$dependencyFingerprintInput.Clear()
+                foreach ($dependencyFile in $dependencySourceFiles) {
+                    if (-not (Test-Path -LiteralPath $dependencyFile -PathType Leaf)) { continue }
+                    $dependencyFileHash = (Get-FileHash -LiteralPath $dependencyFile -Algorithm SHA256).Hash
+                    [void]$dependencyFingerprintInput.Append($dependencyFile).Append('|').AppendLine($dependencyFileHash)
+                }
+                $dependencyFingerprintBytes = [System.Security.Cryptography.SHA256]::Create().ComputeHash(
+                    [System.Text.Encoding]::UTF8.GetBytes($dependencyFingerprintInput.ToString())
+                )
+                $dependencyFingerprint = [BitConverter]::ToString($dependencyFingerprintBytes).Replace('-', '').ToLowerInvariant()
                 New-Item -ItemType Directory -Path $dependencyCacheRoot -Force | Out-Null
                 Set-Content -LiteralPath $dependencyCacheFile -Value $dependencyFingerprint -NoNewline
             } else {
