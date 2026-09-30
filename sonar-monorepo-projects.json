@@ -1,0 +1,22 @@
+[
+  {
+    "projectKey": "msa-products-service",
+    "projectName": "Products Service"
+  },
+  {
+    "projectKey": "msa-orders-service",
+    "projectName": "Orders Service"
+  },
+  {
+    "projectKey": "msa-inventory-service",
+    "projectName": "Inventory Service"
+  },
+  {
+    "projectKey": "msa-notification-service",
+    "projectName": "Notification Service"
+  },
+  {
+    "projectKey": "msa-frontend",
+    "projectName": "React Storefront"
+  }
+]
