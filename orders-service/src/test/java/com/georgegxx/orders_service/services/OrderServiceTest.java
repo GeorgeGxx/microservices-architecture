@@ -138,6 +138,25 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("fulfillment metrics expose persisted statuses and exclude cancelled orders")
+    void testFulfillmentMetricsMatchPersistedOrderStatuses() {
+        Order shippedOrder = Order.builder().id(2L).orderNumber("ORD-TEST-002").orderStatus(OrderStatus.SHIPPED).build();
+        Order deliveredOrder = Order.builder().id(3L).orderNumber("ORD-TEST-003").orderStatus(OrderStatus.DELIVERED).build();
+        Order cancelledOrder = Order.builder().id(4L).orderNumber("ORD-TEST-004").orderStatus(OrderStatus.CANCELLED).build();
+        when(orderRepository.findAllWithItems()).thenReturn(List.of(sampleOrder, shippedOrder, deliveredOrder, cancelledOrder));
+
+        orderService.syncDatabaseMetrics();
+
+        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "PLACED").gauge().value());
+        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "SHIPPED").gauge().value());
+        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "DELIVERED").gauge().value());
+        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "CANCELLED").gauge());
+        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "PREPARING").gauge());
+        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "IN_TRANSIT").gauge());
+        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "OUT_FOR_DELIVERY").gauge());
+    }
+
+    @Test
     @DisplayName("cancelOrder throws AccessDeniedException when unauthorized user attempts cancellation")
     void testCancelOrder_AccessDenied() {
         when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));

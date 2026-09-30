@@ -65,18 +65,20 @@ sum(ecommerce_checkout_step_reached_total{step="PAYMENT"}) or vector(0)
 sum(ecommerce_orders{status="COMPLETED", service=~"$service"}) or sum(ecommerce_orders_total{status="COMPLETED", service=~"$service"}) or vector(0)
 ```
 
-#### 🚚 5-Stage Logistics Pipeline Distribution
-Counts live orders active across each fulfillment stage:
+#### 🚚 Active Orders by Fulfillment Stage
+Counts non-cancelled orders using the statuses currently persisted by Orders Service. `SHIPPED` is presented as **In Transit**; cancelled orders are terminal and excluded from active fulfillment. `max by (status)` prevents database-wide gauge snapshots from being added once per service replica.
 ```promql
-sum by (status) (ecommerce_orders_active_in_pipeline{service=~"$service"})
+label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="PLACED"}), "stage", "1 · Placed", "status", "PLACED")
+or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="SHIPPED"}), "stage", "2 · In Transit", "status", "SHIPPED")
+or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="DELIVERED"}), "stage", "3 · Delivered", "status", "DELIVERED")
 ```
-*Statuses:* `ORDER_PLACED`, `PREPARING_IN_HUB`, `IN_TRANSIT_DHL`, `OUT_FOR_DELIVERY`, `DELIVERED_AND_SIGNED`.
 
 #### 📊 Live SKU Inventory & Low-Stock Detection
 Reports instant warehouse stock quantity per product SKU.
 ```promql
-ecommerce_inventory_sku_stock{service=~"$service"}
+max by (sku) (ecommerce_inventory_sku_stock{service=~"$service"})
 ```
+The inventory gauge is exported by each Inventory Service replica, so raw series repeat a SKU with different `pod`/`instance` labels. Aggregate by `sku` in Grafana to render one bar per product instead of one per replica.
 
 #### 🥧 Top-Selling SKUs & Catalog Market Share
 Cumulative sales volume grouped by SKU.

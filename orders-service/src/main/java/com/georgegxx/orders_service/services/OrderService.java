@@ -163,8 +163,8 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             })
         );
 
-        // Pre-register Logistics & Fulfillment 5-Stage Pipeline (O(1) bounded cardinality)
-        List.of("PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED").forEach(status ->
+        // Pre-register the persisted OrderStatus lifecycle (cancelled orders are terminal, not active).
+        List.of("PLACED", "SHIPPED", "DELIVERED").forEach(status ->
             this.dbPipelineOrders.computeIfAbsent(status, s -> {
                 AtomicLong val = new AtomicLong(0);
                 Gauge.builder("ecommerce_orders_active_in_pipeline", val, AtomicLong::get)
@@ -328,11 +328,11 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             this.dbBasketSizes.computeIfAbsent("2_3_items", k -> new AtomicLong(0)).set(mediumOrders);
             this.dbBasketSizes.computeIfAbsent("bulk_4_plus", k -> new AtomicLong(0)).set(bulkOrders);
 
-            // 3. Pipeline Lifecycle Distribution Aggregation (O(1) Bounded Cardinality)
+            // 3. Persisted active fulfillment state distribution; cancelled orders are excluded above.
             Map<String, Long> pipelineCounts = activeOrders.stream()
                     .collect(Collectors.groupingBy(o -> Optional.ofNullable(o.getOrderStatus()).map(Enum::name).orElse("PLACED"), Collectors.counting()));
 
-            List.of("PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED").forEach(status ->
+            List.of("PLACED", "SHIPPED", "DELIVERED").forEach(status ->
                 this.dbPipelineOrders.computeIfAbsent(status, k -> new AtomicLong(0)).set(pipelineCounts.getOrDefault(status, 0L))
             );
 

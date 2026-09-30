@@ -378,8 +378,8 @@
     {
       "id": 12,
       "type": "bargauge",
-      "title": "🚚 Active Orders Across 5-Stage Logistics Pipeline",
-      "description": "Real-time state machine progression: PLACED -> PREPARING -> IN_TRANSIT -> OUT_FOR_DELIVERY -> DELIVERED.",
+      "title": "🚚 Active Orders by Fulfillment Stage",
+      "description": "Counts persisted by Orders Service: Placed → In Transit (SHIPPED) → Delivered. Cancelled orders are excluded from active fulfillment.",
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -424,8 +424,8 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline)",
-          "legendFormat": "Stage: {{status}}"
+          "expr": "label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~\"$service\",status=\"PLACED\"}), \"stage\", \"1 · Placed\", \"status\", \"PLACED\") or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~\"$service\",status=\"SHIPPED\"}), \"stage\", \"2 · In Transit\", \"status\", \"SHIPPED\") or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~\"$service\",status=\"DELIVERED\"}), \"stage\", \"3 · Delivered\", \"status\", \"DELIVERED\")",
+          "legendFormat": "{{stage}}"
         }
       ]
     },
@@ -499,7 +499,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "ecommerce_inventory_sku_stock",
+          "expr": "max by (sku) (ecommerce_inventory_sku_stock{service=~\"$service\"})",
           "legendFormat": "{{sku}}"
         }
       ]
