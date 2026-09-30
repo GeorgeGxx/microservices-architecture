@@ -44,10 +44,22 @@ try {
 
 if (-not $SkipChartCopy) {
     New-Item -ItemType Directory -Path $routerChartFiles -Force | Out-Null
-    Copy-Item -LiteralPath $outputFile -Destination (Join-Path $routerChartFiles 'execution-config.json') -Force
+    $chartConfigFile = Join-Path $routerChartFiles 'execution-config.json'
+    $shouldCopyConfig = -not (Test-Path -LiteralPath $chartConfigFile -PathType Leaf)
+    if (-not $shouldCopyConfig) {
+        $generatedConfigHash = (Get-FileHash -LiteralPath $outputFile -Algorithm SHA256).Hash
+        $chartConfigHash = (Get-FileHash -LiteralPath $chartConfigFile -Algorithm SHA256).Hash
+        $shouldCopyConfig = $generatedConfigHash -ne $chartConfigHash
+    }
+    if ($shouldCopyConfig) {
+        Copy-Item -LiteralPath $outputFile -Destination $chartConfigFile -Force
+        Write-Host "Generated Cosmo Router config copied to Helm chart files."
+    } else {
+        Write-Host "Cosmo Router Helm config is unchanged; reusing the existing file."
+    }
 }
 
 Write-Host "Cosmo Router execution config composed locally and saved to $outputFile"
 if (-not $SkipChartCopy) {
-    Write-Host "Generated execution config copied to $routerChartFiles for Helm/Argo CD"
+    Write-Host "Helm/Argo CD router config is available at $routerChartFiles"
 }
