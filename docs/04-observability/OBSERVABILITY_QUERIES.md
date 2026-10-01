@@ -1,5 +1,8 @@
 # 📊 Observability Query Handbook: PromQL, LogQL & TraceQL
 
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **04. Observability** > `OBSERVABILITY_QUERIES.md`
+
 > Reference for queries used with the project's actual Grafana datasources (Prometheus, Loki, and Tempo) and its telemetry collectors (Grafana Alloy and OpenTelemetry Collector).
 
 ---

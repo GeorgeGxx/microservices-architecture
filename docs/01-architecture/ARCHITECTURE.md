@@ -1,5 +1,8 @@
 # 🏛️ Enterprise Microservices Architecture & Tactical Domain Guide
 
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **01. Architecture** > `ARCHITECTURE.md`
+
 > Deep dive into Domain-Driven Design (DDD), Event-Driven Choreography, Security, Frontends, and E-Commerce workflows.
 
 ---
@@ -78,7 +81,7 @@ Port numbers are scoped to their listener: container ports belong to individual 
   - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
   - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
 - **Federated Identity & Token Propagation:** Cosmo Router v2 propagates the incoming `Authorization` header to federated subgraphs. Protected Spring services validate bearer tokens against Keycloak JWKS; public GraphQL fields and public REST routes remain accessible without a token according to each service's security configuration.
-- **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation client (`microservices_client`), realm roles, and local test users. Run it after Keycloak is available; `docs/realm-export.json` is a realm snapshot, not the source of those bootstrap-created users and clients.
+- **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation client (`microservices_client`), realm roles, and local test users. Run it after Keycloak is available; [`docs/reference/iam/realm-export.json`](../reference/iam/realm-export.json) provides the declarative realm snapshot and backup.
 
 ---
 
@@ -88,7 +91,7 @@ The platform provides enterprise-grade secret management across 4 distinct imple
 
 ### 1. Approach A: Local Development with Docker Compose (Zero-Touch)
 - **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Dev Token: `root`)
-- **Zero-Touch Auto-Initialization:** When running `docker compose up -d`, the ephemeral [`vault-init`](./compose.yaml) container automatically creates the KV-v2 engine, seeds database credentials, Kafka parameters, Keycloak secrets, and configures Least-Privilege access policies.
+- **Zero-Touch Auto-Initialization:** When running `docker compose up -d`, the ephemeral [`vault-init`](../../compose.yaml) container automatically creates the KV-v2 engine, seeds database credentials, Kafka parameters, Keycloak secrets, and configures Least-Privilege access policies.
 - **Optional Manual Re-seed Tool:** `.\platform.ps1 secrets` is available if you ever need to generate high-entropy secrets and synchronize Vault credentials:
   ```powershell
   pwsh .\platform.ps1 secrets
@@ -107,18 +110,18 @@ The platform provides enterprise-grade secret management across 4 distinct imple
 
 ### 3. Approach C: Kubernetes External Secrets Operator (ESO - Recommended)
 - **Zero-Sidecar Footprint:** Synchronizes secrets directly from Vault into native Kubernetes `Secret` resources (`microservices-secrets`) without requiring sidecar containers.
-- **Manifests:** Located in [`k8s/minikube/vault/external-secrets/`](./k8s/minikube/vault/external-secrets/).
+- **Manifests:** Located in [`k8s/minikube/vault/external-secrets/`](../../k8s/minikube/vault/external-secrets/).
   ```powershell
   # Apply SecretStore & ExternalSecret sync:
   kubectl apply -f k8s/minikube/vault/external-secrets/
   ```
 
 ### 4. Approach D: Kubernetes Multi-Cloud Vault Agent Sidecar Injector
-- **Minikube:** Manifests in [`k8s/minikube/vault/`](./k8s/minikube/vault/) with RBAC and [`vault-k8s-auth-setup.ps1`](./k8s/minikube/vault/vault-k8s-auth-setup.ps1) for Least-Privilege roles (`products-service-role`, `orders-service-role`, etc.).
-- **AWS EKS:** Production Helm values in [`k8s/eks/vault/vault-helm-values-eks.yaml`](./k8s/eks/vault/vault-helm-values-eks.yaml) featuring **AWS KMS Auto-Unseal** and **IRSA**.
-- **Azure AKS:** Production Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](./k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
-- **Google Cloud GKE:** Production Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](./k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
-- **Demo Deployment:** Test sidecar injection with [`k8s/minikube/vault/demo-vault-agent-inject.yaml`](./k8s/minikube/vault/demo-vault-agent-inject.yaml).
+- **Minikube:** Manifests in [`k8s/minikube/vault/`](../../k8s/minikube/vault/) with RBAC. Configure isolated service policies through `.\platform.ps1 vault -VaultAction k8s-auth`; the `products-service-vault-demo` uses its dedicated `products-service-role`.
+- **AWS EKS:** Production Helm values in [`k8s/eks/vault/vault-helm-values-eks.yaml`](../../k8s/eks/vault/vault-helm-values-eks.yaml) featuring **AWS KMS Auto-Unseal** and **IRSA**.
+- **Azure AKS:** Production Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](../../k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
+- **Google Cloud GKE:** Production Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](../../k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
+- **Demo Deployment:** Test sidecar injection with [`k8s/minikube/vault/demo-vault-agent-inject.yaml`](../../k8s/minikube/vault/demo-vault-agent-inject.yaml).
 
 ---
 
@@ -146,7 +149,7 @@ provision one cluster, while prod provisions two independent production data
 planes. Shared networking and managed data services remain single resources
 per environment. The second production Azure cluster has a dedicated subnet;
 the second production GKE cluster has dedicated Pod/Service secondary ranges
-and a separate control-plane CIDR. See the [multi-cloud Terraform guide](./MULTI_CLOUD_TERRAFORM.md)
+and a separate control-plane CIDR. See the [multi-cloud Terraform guide](./MULTI_CLOUD_INFRASTRUCTURE.md)
 for names, workspace setup, and plan-before-apply guidance.
 - Local Minikube and remote cloud clusters follow the same Istio ingress model; the difference is only the underlying provider and the operational context
 
@@ -197,7 +200,7 @@ sequenceDiagram
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
 2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/realms/**`, `/resources/**`, `/admin/**`, and `/js/**` directly to Keycloak. The React client uses the local forwarded Keycloak port on loopback and the shared Istio origin in ingress deployments.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
-4. **Federated GraphQL Gateway:** **Cosmo Router 0.353.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router capability matrix](COSMO_ROUTER_CAPABILITIES.md).
+4. **Federated GraphQL Gateway:** **Cosmo Router 0.353.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router Hardening & Gateway Capabilities](#-cosmo-router-hardening--gateway-capabilities).
 5. **Core Microservices Subgraphs (East-West):** Cosmo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
 6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `cosmo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
 
@@ -232,6 +235,35 @@ In Docker Compose and Minikube, the frontend Nginx is the shared local edge for 
 | **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`istio_gateway_public_ip`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
 | **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
 | **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Cosmo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
+
+---
+
+## 🚪 Cosmo Router Hardening & Gateway Capabilities
+
+This section consolidates the router capabilities enabled across the platform and prerequisites for capabilities intentionally deferred:
+
+### 1. Enabled & Active Capabilities
+
+| Capability | Production Implementation Details |
+|---|---|
+| **JWT Verification** | Router verifies presented Keycloak JWTs using the realm JWKS endpoint (`RS256`). Anonymous requests remain allowed globally for public catalog fields and health endpoints. Invalid supplied tokens are rejected. |
+| **Field Authentication** | Orders subgraph uses Federation v2.5 and `@authenticated` on order queries/mutations; the Router rejects unauthorized operations before subgraph fetches. Spring service authorization remains authoritative as defense in depth. |
+| **Scope Authorization** | Not configured. Keycloak roles are in the nested `realm_access.roles` claim; Cosmo `scope_claim` only reads top-level claims. Do not apply `@requiresScopes` until an explicit top-level OAuth scope contract is established. |
+| **CORS & Request Headers** | Origins remain restricted per deployment values. `Authorization`, idempotency, W3C trace context and `X-Correlation-ID` are propagated; credentials and query variables are never logged. |
+| **Query & Body Abuse Limits** | Body is capped at 1 MB, headers at 1 MiB, GraphQL depth at 12, total fields at 250, root fields at 12, root aliases at 5, parser depth at 40, and parsed fields at 500. A 1024-entry in-memory complexity cache avoids repeated calculations. |
+| **Rate Limiting** | Existing Nginx edge limit is 20 req/s per peer with burst 30. No second Router limiter is configured, since Cosmo's distributed limiter requires Redis and Redis is intentionally excluded from this Router design. |
+| **Resilience & Timeouts** | 20s subgraph request, 3s dial and 15s response-header timeouts plus bounded jitter retries (2 attempts). Retries are safe for GraphQL queries; Cosmo never retries mutations. Circuit breaker remains enabled in cloud production overlays. |
+| **Performance** | Cosmo's request deduplication and query-plan cache are built in. The complexity calculation cache is configured above. |
+| **Observability** | Prometheus metrics and OTLP traces are enabled. Router and subgraph JSON access logs include operation name/type/hash; Alloy/Loki collects container logs. |
+| **Live Configuration** | Router config watch is enabled at 10s. The Helm chart mounts the ConfigMap read-only at both config paths with readiness/liveness probes. |
+| **Mesh Security** | In Kubernetes, Istio sidecars enforce mesh mTLS while the Router calls in-cluster HTTP service addresses. TLS terminates at the mesh proxy. |
+
+### 2. Configuration Sources of Truth
+Keep these aligned when changing Router behavior:
+* `cosmo-router/router.yaml` — Docker Compose runtime configuration.
+* `cosmo-router/subgraphs/orders.graphql` — Local Federation composition source of truth.
+* `helm/charts/cosmo-router/{values.yaml,templates/configmap.yaml}` — Helm/ArgoCD deployments.
+* `k8s/minikube/services/cosmo-router.yaml` — Standalone Minikube manifest and embedded composition SDL.
 
 ---
 
@@ -272,21 +304,21 @@ The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and
 ### Core Tactical DDD & Clean Architecture Highlights:
 
 1. **Immutable Value Objects:**
-   * [`Money`](../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), automated conversion between **USD**, **EUR**, and **MXN**, and localized formatting via `Intl.NumberFormat`.
-   * [`TrackingNumber`](../frontend/src/domain/value-objects/TrackingNumber.ts): Validates international shipping codes and dynamically generates live DHL Express tracking URLs.
-2. **Domain Aggregate Pattern ([`CartAggregate`](../frontend/src/domain/aggregates/CartAggregate.ts)):**
+   * [`Money`](../../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), automated conversion between **USD**, **EUR**, and **MXN**, and localized formatting via `Intl.NumberFormat`.
+   * [`TrackingNumber`](../../frontend/src/domain/value-objects/TrackingNumber.ts): Validates international shipping codes and dynamically generates live DHL Express tracking URLs.
+2. **Domain Aggregate Pattern ([`CartAggregate`](../../frontend/src/domain/aggregates/CartAggregate.ts)):**
    * Protects warehouse stock invariants (cannot exceed available units reported by `inventory-service`).
    * Computes subtotal, tiered shipping rate ($0 if subtotal $\ge \$100$, else $\$9.99$), $8\%$ sales tax, and free shipping progress percentage.
    * Pure and immutable: each mutation returns a new `CartAggregate` instance.
 3. **Ports & Adapters (Decoupled Infrastructure):**
-   * Domain ports ([`IProductRepository`](../frontend/src/domain/repositories/IProductRepository.ts), [`IOrderRepository`](../frontend/src/domain/repositories/IOrderRepository.ts)) define contracts independently of network frameworks.
-   * Infrastructure adapters ([`GraphQLProductRepository`](../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Cosmo Router v2 Supergraph (`POST /graphql`).
-4. **Finite State Machine (FSM) Checkout ([`CheckoutFSM`](../frontend/src/application/use-cases/CheckoutFSM.ts)):**
+   * Domain ports ([`IProductRepository`](../../frontend/src/domain/repositories/IProductRepository.ts), [`IOrderRepository`](../../frontend/src/domain/repositories/IOrderRepository.ts)) define contracts independently of network frameworks.
+   * Infrastructure adapters ([`GraphQLProductRepository`](../../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Cosmo Router v2 Supergraph (`POST /graphql`).
+4. **Finite State Machine (FSM) Checkout ([`CheckoutFSM`](../../frontend/src/application/use-cases/CheckoutFSM.ts)):**
    * Eliminates invalid or skipped checkout states: `CUSTOMER_INFO` ➔ `DELIVERY_TIER` ➔ `PAYMENT` ➔ `PROCESSING` ➔ `CONFIRMED` / `FAILED`.
    * Enforces domain field validations before advancing between stages.
-5. **Compound Components Pattern ([`ProductCard`](../frontend/src/components/ui/ProductCard.tsx)):**
+5. **Compound Components Pattern ([`ProductCard`](../../frontend/src/components/ui/ProductCard.tsx)):**
    * Deconstructs monolithic card UI into composable subcomponents: `<ProductCard.Image>`, `<ProductCard.Category>`, `<ProductCard.Title>`, `<ProductCard.Rating>`, `<ProductCard.StockBadge>`, `<ProductCard.Price>`, `<ProductCard.Actions>`.
-6. **Command Pattern & Idempotency Key Injection ([`PlaceOrderUseCase`](../frontend/src/application/use-cases/PlaceOrderUseCase.ts)):**
+6. **Command Pattern & Idempotency Key Injection ([`PlaceOrderUseCase`](../../frontend/src/application/use-cases/PlaceOrderUseCase.ts)):**
    * Automatically generates a cryptographically secure client UUIDv4 (`X-Idempotency-Key`) per transaction, preventing duplicate charges upon multiple clicks or transient network retries.
 7. **Real-Time Event-Driven Subscriptions (SSE):**
    * Background EventSource connection streaming live Kafka notifications from `notification-service` (`/api/notifications/subscribe`) directly to toast alerts and the slide-out drawer without HTTP polling.
@@ -332,8 +364,8 @@ flowchart LR
 * **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
 
 ### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
-* **JPA Entity Schema ([`Product.java`](./products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to $256\text{ KiB}$ to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
-* **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](./products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](./products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
+* **JPA Entity Schema ([`Product.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to $256\text{ KiB}$ to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
+* **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](../../products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
 * **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through the products service.
 
 ### 3. 🎨 High-Fidelity Storefront Visual Integration
@@ -439,7 +471,7 @@ flowchart TD
 ### 3. ⭐ Social Proof, Verified Ratings & Best Seller Engine
 * **Customer Confidence Metrics:** Every catalog product showcases verified buyer ratings (`★ 4.8 / 5.0`), total ratings volume (`(1,240 customer ratings)`), and authenticity verification (`• 100% Authentic`).
 * **Ecommerce Amber `#1 Best Seller` Badge:** Distinctive `#e67a00` badge applied to top-tier SKUs in both catalog cards and Quick View modals.
-* **Backend Database Schema:** Enriched fields in [`Product`](../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java) persisted in the catalog domain:
+* **Backend Database Schema:** Enriched fields in [`Product`](../../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java) persisted in the catalog domain:
   ```sql
   ALTER TABLE t_products ADD COLUMN IF NOT EXISTS rating DOUBLE PRECISION DEFAULT 4.8;
   ALTER TABLE t_products ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 1200;
@@ -517,20 +549,20 @@ graph LR
 ```
 
 ### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
-* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Cosmo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Cosmo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
   .\platform.ps1 tunnels
   # Direct script execution:
   python scripts/supervise-tunnels.py
   ```
-* **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](./compose.yaml) and [`keycloak.yaml`](./k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
+* **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](../../compose.yaml) and [`keycloak.yaml`](../../k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
 
 ### 2. 🚀 Vercel Monorepo Deployment & Output Directory Configuration
-* **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](./frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
+* **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](../../frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
   * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications. The standard Authorization Code + PKCE flow redirects the browser to Keycloak's hosted sign-in page; use a branded Keycloak theme if that page needs to match the storefront. Do not collect Keycloak passwords in the SPA or use Direct Access Grants to hide the identity provider.
-  * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Python automation (`smoke.py`, `simulate.py`, `test_order.py`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
+  * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Python automation (`smoke.py`, `simulate.py`, and `diagnose.py orders-readonly`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
 
 ### 3. 📱 Responsive Web Storefront
 * **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:
@@ -548,12 +580,12 @@ The current React web SPA is not a React Native app. For a native mobile client,
 The backend microservices ecosystem leverages modern Java 21 LTS and Spring Boot 4.0.8 capabilities to deliver high throughput, sub-millisecond GC pauses, and clean domain models:
 
 ### 1. 🌐 Modern HTTP Client with HTTP/2 & Virtual Threads (`JdkClientHttpRequestFactory`)
-- Replaced legacy blocking `HttpURLConnection` (`SimpleClientHttpRequestFactory`) with Java 21's native [`JdkClientHttpRequestFactory`](../orders-service/src/main/java/com/georgegxx/orders_service/config/RestClientConfig.java) powered by `java.net.http.HttpClient`.
+- Replaced legacy blocking `HttpURLConnection` (`SimpleClientHttpRequestFactory`) with Java 21's native [`JdkClientHttpRequestFactory`](../../orders-service/src/main/java/com/georgegxx/orders_service/config/RestClientConfig.java) powered by `java.net.http.HttpClient`.
 - **Features:** Built-in connection pooling, HTTP/2 multiplexing, native non-blocking scheduling on Project Loom Virtual Threads, and zero external HTTP client dependencies.
 - **Declarative Proxy:** Mapped directly to Spring's `@HttpExchange` interfaces (`InventoryClient`, `ProductsClient`) via `HttpServiceProxyFactory`.
 
 ### 2. 🧩 Exhaustive Pattern Matching & Record Patterns (JEP 440 & 441)
-- Implemented in event listeners such as [`OrderEventListener.java`](../notification-service/src/main/java/com/georgegxx/notification_service/listeners/OrderEventListener.java):
+- Implemented in event listeners such as [`OrderEventListener.java`](../../notification-service/src/main/java/com/georgegxx/notification_service/listeners/OrderEventListener.java):
   - **Record Pattern Deconstruction:** Direct extraction of record components (`case OrderEvent(var orderNum, var items, var status, ...) ->`) avoiding verbose accessor boilerplate.
   - **Exhaustive Switch on Enums:** Comprehensive pattern matching over `OrderStatus` (`PLACED`, `CANCELLED`, `SHIPPED`, `DELIVERED`, and `case null`), ensuring compile-time safety and differentiated notification dispatching.
 

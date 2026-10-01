@@ -1,5 +1,8 @@
 # ☸️ Local Deployment & Kubernetes Operations Guide (Docker Compose & Minikube)
 
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **02. Operations** > `LOCAL_DEPLOYMENT.md`
+
 > Complete manual for running the microservices ecosystem locally: Docker Compose (15 services), Minikube, Istio Service Mesh, and Cluster Resiliency.
 
 ---
@@ -90,11 +93,11 @@ Docker Compose does not install OpenCost: it can run the application containers 
 - **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
 - **`BellSoft.LibericaJDK.21` (`java`)**: Java 21 runtime required by the Spring Boot services.
 - **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for React frontend compilation.
-- **`Python.Python.3.12` (`python`)**: Runtime for the documented project automation and test scripts.
+- **`Python.Python.3.11` (`python`)**: Runtime for the documented project automation and test scripts (3.11 or newer).
 - **`Git.Git` (`git`)**: Distributed version control system.
 - **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
 
-`Install-DevTools.ps1` audits by default. Use `-Install` to install only this documented inventory; use `-IncludeCloudCli` only when configuring AWS/Azure/GCP credentials and `-InstallOpenCostPlugin` for the optional OpenCost Krew plugin. It does not install Spark, Transmission, alternate IaC CLIs, or unrelated Kubernetes utilities, and it does not change machine-wide environment variables.
+Use `.\platform.ps1 tools` to audit the documented CLI inventory. Add `-Install` to install missing tools, `-IncludeCloudCli` to include AWS/Azure/GCP CLIs, or `-InstallOpenCostPlugin` to install the optional OpenCost Krew plugin. This does not install unrelated tools or change machine-wide environment variables.
 
 > ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
 > To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
@@ -176,7 +179,7 @@ Run the bootstrap script to create realm `microservices-realm`, configure public
 
 ```powershell
 # Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\auth\bootstrap-keycloak.ps1
+pwsh -File .\scripts\bootstrap-keycloak.ps1
 ```
 
 #### Pre-Configured Test Users:
@@ -188,7 +191,7 @@ pwsh -File .\scripts\auth\bootstrap-keycloak.ps1
 ### 3. Launch Full Microservices Ecosystem
 Once Keycloak is bootstrapped and `.env` has the synced client secret, spin up all remaining containers (microservices, databases, messaging, LGTM observability stack, and HashiCorp Vault). 
 
-**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](./compose.yaml) container on startup:
+**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
 
 ```powershell
 # Build and launch all services in detached mode
@@ -238,7 +241,7 @@ Deploy the entire infrastructure, security, mesh, and microservices in a single 
 $candidateTag = "canary-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
 .\platform.ps1 up -Build -DeployCanary -CanaryImageTag $candidateTag
 
-# Fast-track bootstrap skipping security scans (Gitleaks/TFLint/Trivy):
+# Explicitly bypass local Gitleaks/TFLint/Trivy/Conftest gates:
 .\platform.ps1 up -SkipScans
 
 # Optional: Build all container images from Dockerfiles and deploy to the cluster (re-applies on existing cluster)
@@ -263,6 +266,17 @@ Audit proxy synchronization and mutual TLS enforcement without needing browser t
 # Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
 .\platform.ps1 doctor
 ```
+
+Run the local DevSecOps controls independently after the stack is reachable:
+
+```powershell
+.\platform.ps1 security-scan   # Gitleaks, TFLint, Trivy, Conftest
+.\platform.ps1 contract       # Newman API/auth collection
+.\platform.ps1 performance    # k6 SLO suite in Docker
+.\platform.ps1 dast           # OWASP ZAP baseline with devsecops/dast/zap/rules.tsv
+```
+
+For cloud targets, set `BASE_URL`, `TARGET_URL`, `FRONTEND_URL`, and `KEYCLOAK_URL` to reachable endpoints before running the corresponding checks. `contract`, `performance`, and `dast` are explicit commands; they do not generate load or scan the application during every `up`.
 
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
 > - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
@@ -310,33 +324,44 @@ Alternatively, access services directly via their configured Minikube NodePorts 
 > 💡 Review the [Minikube workload right-sizing](#️-kubernetes-workload-right-sizing-minikube) matrix for the primary application and observability container requests and limits. Add-on chart defaults may add containers that are not listed there.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
-Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. The rollout script checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
+Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. `platform.ps1 canary -Action rollout` checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
 ```powershell
 # Deploy the canary and start at 90% stable / 10% canary:
 .\platform.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
 
 # Change traffic manually; both weights must add up to 100:
-.\scripts\istio\set-canary-weight.ps1 -Namespace dev -V1Weight 75 -V2Weight 25
+.\platform.ps1 canary -Action weight -Namespace dev -V1Weight 75 -V2Weight 25
 
 # Promote interactively through 10%, 25%, 50%, 75%, then 100% canary:
-.\scripts\istio\auto-canary-rollout.ps1 -Namespace dev -Steps 10,25,50,75,100 -StepIntervalSeconds 30
+.\platform.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100 -StepIntervalSeconds 30
 
 # Immediate traffic rollback to stable v1; keeps the canary deployed for investigation:
-.\scripts\istio\set-canary-weight.ps1 -Namespace dev -V1Weight 100 -V2Weight 0
+.\platform.ps1 canary -Action weight -Namespace dev -V1Weight 100 -V2Weight 0
 ```
 
 At 100% canary, v1 remains Ready but receives no normal traffic so it is available for a fast rollback. For final retirement, promote the exact tested image tag in `helm/values/values-minikube.yaml` and let ArgoCD sync the stable Deployment first; remove the canary only after that rollout is Ready. The `x-canary: true` header remains a 100%-to-v2 QA override at every traffic weight.
 
 After the interactive rollout accepts 100%, stage the tested canary image into the stable Minikube Helm values:
 ```powershell
-.\scripts\istio\promote-canary.ps1 -Namespace dev
+.\platform.ps1 canary -Action promote -Namespace dev
 ```
 Review and commit/push the resulting `helm/values/values-minikube.yaml` change to the GitOps branch. Wait until ArgoCD reports Synced/Healthy and the stable `products-service` Deployment is Ready on the same image. Only then remove the canary route and workload:
 ```powershell
-.\scripts\istio\promote-canary.ps1 -Namespace dev -RetireCanary
+.\platform.ps1 canary -Action retire -Namespace dev
 ```
 The retirement command verifies the stable image and readiness before it removes the canary VirtualService, restores the baseline Istio DestinationRules, and deletes `products-service-v2`. To roll back before retirement, set traffic to `v1=100, v2=0`; after retirement, roll back by reverting the stable image tag through GitOps.
 
+### Vault setup actions (Minikube only)
+
+Vault setup is opt-in and is not run automatically by `platform.ps1 up`. Kubernetes auth configures per-service read-only roles for namespace `dev`. Istio PKI setup reuses an existing root CA and leaves an existing `cacerts` Secret untouched by default. Intermediate CA rotation is explicit and restarts `istiod` after applying the updated Secret:
+
+```powershell
+.\platform.ps1 vault -VaultAction k8s-auth
+.\platform.ps1 vault -VaultAction istio-pki
+.\platform.ps1 vault -VaultAction istio-pki -RotateVaultPki
+```
+
+The local dev Vault token defaults to `root`; set `VAULT_TOKEN` or pass `-VaultToken` when using a different token. The exported intermediate key is staged in a temporary directory during Secret creation, then the directory is removed. The broad legacy Kubernetes role is retained unless you explicitly pass `-PruneLegacyVaultRole`, after migrating any external consumers.
 ### 5. 🛑 Cluster Teardown & Resource Cleanup
 Clean up all background tunnels, port-forwards, and stop or purge the Minikube cluster:
 ```powershell
@@ -484,12 +509,12 @@ flowchart TD
   ```
 
 ### 3. 🌐 Progressive Canary Deployments in Istio Service Mesh
-* **Traffic Splitting:** Istio `VirtualService` (`products-service-canary-vs`) and `DestinationRule` (`products-service-dr`) allow guarded traffic shifting between stable `v1` and canary `v2` pods. `set-canary-weight.ps1` validates replica readiness and a 100% total before patching weights.
+* **Traffic Splitting:** Istio `VirtualService` (`products-service-canary-vs`) and `DestinationRule` (`products-service-dr`) allow guarded traffic shifting between stable `v1` and canary `v2` pods. `platform.ps1 canary -Action weight` validates replica readiness and a 100% total before patching weights.
 * **Instant Header Bypass:** Requests containing header `x-canary: true` route $100\%$ to the canary subset regardless of percentage weight, enabling safe QA verification before public traffic exposure.
 * **Interactive Progressive Rollout with Rollback:**
   ```powershell
   # Run the rollout gates in the namespace where the canary was deployed:
-  .\scripts\istio\auto-canary-rollout.ps1 -Service "products-service" -Namespace "dev" -StepIntervalSeconds 30
+  .\platform.ps1 canary -Action rollout -Namespace dev -StepIntervalSeconds 30
   ```
 
 ### 4. 🚨 Alertmanager Alert Routing (Local Default, Slack & Jira Ready)
