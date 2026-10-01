@@ -233,7 +233,7 @@ resource "helm_release" "observability" {
 }
 
 # ==============================================================================
-# 5. KEDA (Kubernetes Event-driven Autoscaling) v2.20.1
+# 5. KEDA (Kubernetes Event-driven Autoscaling) v2.21.0
 # ==============================================================================
 resource "helm_release" "keda" {
   depends_on = [kubernetes_namespace.namespaces]
@@ -241,7 +241,7 @@ resource "helm_release" "keda" {
   name       = "keda"
   repository = "https://kedacore.github.io/charts"
   chart      = "keda"
-  version    = "2.20.1"
+  version    = "2.21.0"
   namespace  = "keda"
   timeout    = 600
 

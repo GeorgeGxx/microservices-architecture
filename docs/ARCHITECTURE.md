@@ -39,6 +39,8 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ## 🔌 Ports & Service Matrix
 
+Port numbers are scoped to their listener: container ports belong to individual pods, and Kubernetes `ClusterIP` ports are reached through each Service's own DNS/IP. Reusing `9090` for Prometheus, Cosmo Router metrics, Kiali metrics, and the OpenCost UI is intentional; it does **not** bind all four to host port `9090`. In Docker Compose, only Prometheus publishes host `9090` (`9090:9090`) and Cosmo Router publishes `8080`; in Minikube, the local tunnels use Prometheus `9090`, Kiali `20001`, and OpenCost `7000`, while Cosmo Router metrics remain internal. Host conflicts occur only when two processes attempt to bind the same host IP and port.
+
 | Service | Local / Docker Port | Minikube Service / Access | AWS / Azure / GCP Target | Credentials / Notes |
 | :--- | :---: | :---: | :---: | :--- |
 | **React Frontend** | Vite host `5173` / Nginx container `8080` / Service `80` | `30080` | Ingress (`/`) | Modern React 19 + Tailwind v4 SPA |
@@ -61,7 +63,7 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | **Redis & Exporter** | `6379` / `9121` | ClusterIP `6379` / `9121` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
 | **PostgreSQL Databases** | Compose host ports `5431`–`5434` → container `5432` | Four ClusterIP Services on `5432` in `data`/`auth` | RDS / Flexible / Cloud SQL | Separate DB per service; host ports are distinct in Compose |
 | **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | ClusterIP `9092`, `9093`, `9094` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
-| **KEDA Operator & Metrics** | N/A (In-Cluster) | ClusterIP | Kubernetes Operator | Event-Driven Autoscaler v2.20.1 (Kafka Lag & Prometheus RPS) |
+| **KEDA Operator & Metrics** | N/A (In-Cluster) | ClusterIP | Kubernetes Operator | Event-Driven Autoscaler v2.21.0 (Kafka Lag & Prometheus RPS) |
 
 ---
 
