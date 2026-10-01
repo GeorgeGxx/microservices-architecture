@@ -13,9 +13,10 @@ on:
       - 'scripts/update_dashboards.py'
       - 'scripts/grafana.py'
       - 'observability/grafana/dashboards/**'
-      - 'Install-DevTools.ps1'
       - 'platform.ps1'
-      - 'docs/LOCAL_MATURITY_GATES.md'
+      - 'scripts/bootstrap-keycloak.ps1'
+      - 'scripts/manage-cloudflare-tunnels.ps1'
+      - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
       - '.github/workflows/local-quality-gates.yml'
   push:
     branches: [develop, staging, main, master]
@@ -29,9 +30,10 @@ on:
       - 'scripts/update_dashboards.py'
       - 'scripts/grafana.py'
       - 'observability/grafana/dashboards/**'
-      - 'Install-DevTools.ps1'
       - 'platform.ps1'
-      - 'docs/LOCAL_MATURITY_GATES.md'
+      - 'scripts/bootstrap-keycloak.ps1'
+      - 'scripts/manage-cloudflare-tunnels.ps1'
+      - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
       - '.github/workflows/local-quality-gates.yml'
   workflow_dispatch:
 
@@ -104,7 +106,13 @@ jobs:
         shell: pwsh
         run: |
           $parseErrors = $null
-          foreach ($path in @('Install-DevTools.ps1', 'platform.ps1', 'scripts/testing/backup-restore-check.ps1')) {
+          $scripts = @(
+            'platform.ps1',
+            'scripts/bootstrap-keycloak.ps1',
+            'scripts/manage-cloudflare-tunnels.ps1',
+            'scripts/testing/backup-restore-check.ps1'
+          )
+          foreach ($path in $scripts) {
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$null, [ref]$parseErrors)
             if ($parseErrors.Count -gt 0) { $parseErrors | Format-List *; exit 1 }
           }
