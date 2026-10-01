@@ -1,5 +1,5 @@
 # ==============================================================================
-# Microservices Architecture - KEDA ScaledObjects (v2.20.1)
+# Microservices Architecture - KEDA ScaledObjects (v2.21.0)
 # Target Namespace: dev
 #
 # Event-driven autoscalers orchestrated by KEDA:

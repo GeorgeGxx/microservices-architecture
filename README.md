@@ -8,13 +8,13 @@
   <img src="https://img.shields.io/badge/Keycloak-26.7.4-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
   <img src="https://img.shields.io/badge/Istio-Service%20Mesh-466BB0.svg?style=for-the-badge&logo=istio" alt="Istio" />
   <img src="https://img.shields.io/badge/HashiCorp-Vault-black.svg?style=for-the-badge&logo=vault" alt="Vault" />
-  <img src="https://img.shields.io/badge/KEDA-v2.20.1-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.20.1" />
+  <img src="https://img.shields.io/badge/KEDA-v2.21.0-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.21.0" />
   <img src="https://img.shields.io/badge/Grafana-LGTM%20Stack-F46800.svg?style=for-the-badge&logo=grafana" alt="Grafana LGTM" />
   <img src="https://img.shields.io/badge/DevSecOps-12--Stage%20Pipeline-success.svg?style=for-the-badge&logo=githubactions" alt="DevSecOps" />
   <img src="https://img.shields.io/badge/Newman%20Tests-22%2F22%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 22/22 Passing" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.20.1 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
 
 ---
 

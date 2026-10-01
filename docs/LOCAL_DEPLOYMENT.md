@@ -429,8 +429,8 @@ flowchart TD
         K8S_RES[K8s Resource Metrics<br/>CPU & Memory Utilization]
     end
 
-    subgraph Autoscaling["⚖️ KEDA v2.20.1 & HPA Integration"]
-        KEDA_OP[KEDA Operator v2.20.1<br/>Namespace: keda]
+    subgraph Autoscaling["⚖️ KEDA v2.21.0 & HPA Integration"]
+        KEDA_OP[KEDA Operator v2.21.0<br/>Namespace: keda]
         SO_NOTIF[ScaledObject: notification-service<br/>Trigger: Kafka Lag & CPU]
         SO_GW[ScaledObject: cosmo-router<br/>Trigger: Prometheus RPS & CPU]
         HPA[Unified Kubernetes HPA<br/>Controlled by KEDA]
@@ -452,12 +452,13 @@ flowchart TD
     PDB -->|Guarantees Quorum| PODS
 ```
 
-### 1. ⚖️ KEDA v2.20.1 Event-Driven Autoscaling & HPA Orchestration
+### 1. ⚖️ KEDA v2.21.0 Event-Driven Autoscaling & HPA Orchestration
 * **Architecture & Coexistence:** KEDA does not replace Kubernetes `HorizontalPodAutoscaler` (HPA); it acts as an intelligent controller that creates and continuously synchronizes native `autoscaling/v2` HPA resources. To prevent flapping and replica race conditions, subcharts conditionally decouple native static HPAs when `keda.enabled=true`.
 * **Kafka Consumer Lag Trigger (`notification-service`):** Scales pods dynamically in response to pending messages in the `orders-topic` partition queue (`lagThreshold: 10`), ensuring fast consumer drain under bulk checkout spikes.
 * **Prometheus RPS Trigger (`cosmo-router`):** Evaluates real-time HTTP Request Per Second rates using PromQL (`sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]))`) scaling before CPU threshold saturation occurs.
 * **CPU & Memory Stabilization:** ScaledObjects bundle resource utilization targets ($70\%$ CPU, $80\%$ Memory) alongside event triggers into a single unified HPA.
 * **Zero-Downtime Guarantee (PDB):** Each microservice maintains `minAvailable: 1`, ensuring cluster upgrades, node drains, and evictions never compromise platform quorum.
+* **2.21 migration note:** This release enforces service-account token audiences for Vault Kubernetes auth and `boundServiceAccountToken` scaler authentication. The project's current ScaledObjects use Kafka, Prometheus, CPU, and memory triggers without `TriggerAuthentication`/`ClusterTriggerAuthentication`, so no token-audience migration is needed for these manifests. If token-based KEDA authentication is added later, configure and verify the receiver's audience mappings before upgrading that environment. See the [KEDA 2.21 migration guide](https://keda.sh/docs/2.21/migration/).
 * **Verification Commands:**
   ```powershell
   # Inspect KEDA ScaledObjects

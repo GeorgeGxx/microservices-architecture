@@ -392,10 +392,10 @@
         <mxCell id="ns_keda" parent="1" value="&lt;b&gt;⚖️ NAMESPACE: keda (Event-Driven Autoscaling)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="60" y="560" width="580" height="200" as="geometry" />
         </mxCell>
-        <mxCell id="k_keda_op" parent="1" value="&lt;b&gt;Deployment: keda-operator (v2.20.1)&lt;/b&gt;&lt;br&gt;CRD Controller: ScaledObject &amp; TriggerAuthentication&lt;br&gt;Event-Driven Scaler (Kafka Lag, Prometheus RPS, Redis)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="k_keda_op" parent="1" value="&lt;b&gt;Deployment: keda-operator (v2.21.0)&lt;/b&gt;&lt;br&gt;CRD Controller: ScaledObject &amp; TriggerAuthentication&lt;br&gt;Event-Driven Scaler (Kafka Lag, Prometheus RPS, Redis)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="80" y="610" width="540" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="k_keda_ms" parent="1" value="&lt;b&gt;Deployment: keda-metrics-apiserver (v2.20.1)&lt;/b&gt;&lt;br&gt;External Metrics API Provider for Kubernetes HPA (autoscaling/v2)&lt;br&gt;Translates external telemetry to native HPA metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="k_keda_ms" parent="1" value="&lt;b&gt;Deployment: keda-metrics-apiserver (v2.21.0)&lt;/b&gt;&lt;br&gt;External Metrics API Provider for Kubernetes HPA (autoscaling/v2)&lt;br&gt;Translates external telemetry to native HPA metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="80" y="685" width="540" height="60" as="geometry" />
         </mxCell>
       </root>
@@ -640,13 +640,13 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t10" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;KEDA v2.20.1 Event-driven Autoscaling • Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t10" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;KEDA v2.21.0 Event-driven Autoscaling • Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="c_hpa" parent="1" value="&lt;b&gt;⚖️ AUTOSCALING &amp; HIGH AVAILABILITY (KEDA v2.20.1 + HPA &amp; PDB)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_hpa" parent="1" value="&lt;b&gt;⚖️ AUTOSCALING &amp; HIGH AVAILABILITY (KEDA v2.21.0 + HPA &amp; PDB)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="60" y="90" width="420" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="n_hpa" parent="1" value="&lt;b&gt;KEDA v2.20.1 Event Autoscaler + HPA&lt;/b&gt;&lt;br&gt;• Kafka Consumer Lag: notification-service (lag &amp;gt; 10)&lt;br&gt;• Prometheus RPS: cosmo-router (req/s &amp;gt; 100)&lt;br&gt;• CPU Target: 70% • Memory Target: 80%&lt;br&gt;• ScaledObjects unify event + resource triggers&lt;br&gt;• Auto-generates unified HPA with zero flapping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+        <mxCell id="n_hpa" parent="1" value="&lt;b&gt;KEDA v2.21.0 Event Autoscaler + HPA&lt;/b&gt;&lt;br&gt;• Kafka Consumer Lag: notification-service (lag &amp;gt; 10)&lt;br&gt;• Prometheus RPS: cosmo-router (req/s &amp;gt; 100)&lt;br&gt;• CPU Target: 70% • Memory Target: 80%&lt;br&gt;• ScaledObjects unify event + resource triggers&lt;br&gt;• Auto-generates unified HPA with zero flapping" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
           <mxGeometry x="80" y="140" width="380" height="90" as="geometry" />
         </mxCell>
         <mxCell id="n_pdb" parent="1" value="&lt;b&gt;PodDisruptionBudgets (PDB)&lt;/b&gt;&lt;br&gt;• minAvailable: 1 across all 5 services&lt;br&gt;• Guarantees application quorum&lt;br&gt;• Zero downtime during node drains &amp; updates&lt;br&gt;• Dynamic allowedDisruptions calculation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
