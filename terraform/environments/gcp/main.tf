@@ -1,12 +1,12 @@
 module "vpc" {
   source = "../../modules/gcp/vpc"
 
-  name          = local.name
-  environment   = local.env
-  region        = var.region
-  subnet_cidr   = local.cfg.subnet_cidr
-  pods_cidr     = local.cfg.pods_cidr
-  services_cidr = local.cfg.services_cidr
+  name                     = local.name
+  environment              = local.env
+  region                   = var.region
+  subnet_cidr              = local.cfg.subnet_cidr
+  pods_cidr                = local.cfg.pods_cidr
+  services_cidr            = local.cfg.services_cidr
   additional_pods_cidr     = local.cfg.dataplane_2_pods_cidr
   additional_services_cidr = local.cfg.dataplane_2_services_cidr
 }
@@ -31,17 +31,17 @@ module "gke_dp2" {
   count  = local.env == "prod" ? 1 : 0
   source = "../../modules/gcp/gke"
 
-  name                  = "${local.name}-dp2"
-  environment           = local.env
-  region                = var.region
-  project_id            = var.project_id
-  network_name          = module.vpc.network_name
-  subnetwork_name       = module.vpc.subnetwork_name
-  enable_autopilot      = local.cfg.enable_gke_autopilot
-  master_cidr           = local.cfg.dataplane_2_master_cidr
-  pods_range_name       = "gke-pods-dp2"
-  services_range_name   = "gke-services-dp2"
-  labels                = merge(local.labels, { data_plane = "2" })
+  name                = "${local.name}-dp2"
+  environment         = local.env
+  region              = var.region
+  project_id          = var.project_id
+  network_name        = module.vpc.network_name
+  subnetwork_name     = module.vpc.subnetwork_name
+  enable_autopilot    = local.cfg.enable_gke_autopilot
+  master_cidr         = local.cfg.dataplane_2_master_cidr
+  pods_range_name     = "gke-pods-dp2"
+  services_range_name = "gke-services-dp2"
+  labels              = merge(local.labels, { data_plane = "2" })
 }
 
 module "gar" {

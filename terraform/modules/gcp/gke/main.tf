@@ -1,6 +1,6 @@
 resource "google_container_cluster" "this" {
-  name     = "${var.name}-${var.environment}-cluster"
-  location = var.region
+  name            = "${var.name}-${var.environment}-cluster"
+  location        = var.region
   resource_labels = var.labels
 
   enable_autopilot = var.enable_autopilot
