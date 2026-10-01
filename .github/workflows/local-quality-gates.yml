@@ -111,8 +111,9 @@ jobs:
       - name: Validate Prometheus config and rules
         run: |
           docker run --rm \
+            --entrypoint promtool \
             -v "$PWD/observability/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v3.14.0 \
-            promtool check config /etc/prometheus/prometheus.yml --lint=all
+            check config /etc/prometheus/prometheus.yml --lint=all
       - name: Check patch whitespace
         run: git diff --check HEAD^ HEAD
