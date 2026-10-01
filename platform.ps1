@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "secrets", "smoke", "tools", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -25,6 +25,29 @@ param(
     [string]$CanaryImageTag = "canary",
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
+    [switch]$IncludeCloudCli = $false,
+    [switch]$InstallOpenCostPlugin = $false,
+    [ValidateSet("k8s-auth", "istio-pki")]
+    [string]$VaultAction = "",
+    [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
+    [string]$VaultNamespace = "vault",
+    [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
+    [string]$IstioNamespace = "istio-system",
+    [string]$VaultToken = "",
+    [switch]$RotateVaultPki = $false,
+    [switch]$PruneLegacyVaultRole = $false,
+    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart")]
+    [string]$Action = "",
+    [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
+    [string]$Namespace = "dev",
+    [ValidateRange(0, 100)]
+    [int]$V1Weight = 90,
+    [ValidateRange(0, 100)]
+    [int]$V2Weight = 10,
+    [ValidateRange(1, 3600)]
+    [int]$StepIntervalSeconds = 30,
+    [ValidateRange(1, 100)]
+    [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
     [int]$Cpus = 6,
     [int]$MemoryMb = 12288,
@@ -65,6 +88,86 @@ $enableIstio = if ($WithoutIstio) { $false } else { $WithIstio }
 # ------------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # ------------------------------------------------------------------------------
+
+function Invoke-CosmoRouterCompose {
+    $configDir = Join-Path $root "cosmo-router"
+    $inputFile = Join-Path $configDir "supergraph.yaml"
+    $outputFile = Join-Path $configDir "execution-config.json"
+    $chartConfigFile = Join-Path $root "helm\charts\cosmo-router\files\execution-config.json"
+    if (-not (Test-Path -LiteralPath $inputFile -PathType Leaf)) {
+        throw "Cosmo Router supergraph source is missing: $inputFile"
+    }
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) {
+        throw "npx is required to compose Federation. Install Node.js and retry."
+    }
+
+    Push-Location $root
+    try {
+        $composeOutput = @(& npx --yes wgc@0.132.0 router compose --input $inputFile --out $outputFile 2>&1)
+        $composeExitCode = $LASTEXITCODE
+        if ($composeExitCode -ne 0) {
+            if ($composeOutput.Count -gt 0) { $composeOutput | ForEach-Object { Write-Host $_ } }
+            throw "Cosmo Router composition failed with exit code $composeExitCode. See diagnostics above."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
+    if (-not (Test-Path -LiteralPath $outputFile -PathType Leaf) -or (Get-Item -LiteralPath $outputFile).Length -lt 100) {
+        throw "Cosmo composition did not produce a usable execution-config.json at '$outputFile'."
+    }
+    try {
+        Get-Content -LiteralPath $outputFile -Raw | ConvertFrom-Json | Out-Null
+    } catch {
+        throw "Cosmo produced invalid JSON at '$outputFile': $($_.Exception.Message)"
+    }
+
+    New-Item -ItemType Directory -Path (Split-Path -Parent $chartConfigFile) -Force | Out-Null
+    $shouldCopy = -not (Test-Path -LiteralPath $chartConfigFile -PathType Leaf)
+    if (-not $shouldCopy) {
+        $sourceHash = (Get-FileHash -LiteralPath $outputFile -Algorithm SHA256).Hash
+        $chartHash = (Get-FileHash -LiteralPath $chartConfigFile -Algorithm SHA256).Hash
+        $shouldCopy = $sourceHash -ne $chartHash
+    }
+    if ($shouldCopy) {
+        Copy-Item -LiteralPath $outputFile -Destination $chartConfigFile -Force
+        Write-Host "Cosmo Router config copied to Helm chart assets." -ForegroundColor Green
+    } else {
+        Write-Host "Cosmo Router Helm config is unchanged; reusing the existing asset." -ForegroundColor Green
+    }
+    Write-Host "Federation execution config is ready: $outputFile" -ForegroundColor Cyan
+}
+
+function Invoke-TerraformCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [string]$Description = "Terraform step",
+        [switch]$ShowSuccessSummary
+    )
+
+    $output = & terraform @Arguments 2>&1
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -ne 0) {
+        if ($output) {
+            $output | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+        }
+        throw "$Description failed with exit code $exitCode."
+    }
+
+    if ($ShowSuccessSummary) {
+        $summary = @($output | Where-Object { $_ -match '(Plan:|Apply complete!|Destroy complete!|No changes\.)' })
+        if ($summary.Count -gt 0) {
+            $lastLine = [string]($summary[-1])
+            Write-Host "  [OK] $($lastLine.Trim())" -ForegroundColor Green
+        } else {
+            Write-Host "  [OK] $Description completed." -ForegroundColor Green
+        }
+    }
+}
+
 
 function Set-TerraformWorkspace {
     param([string]$EnvName)
@@ -107,13 +210,12 @@ function Initialize-CloudTerraformBackend {
         [string]$CloudProvider
     )
 
-    $initArgs = @("init", "-input=false")
+    $initArgs = @("init", "-input=false", "-no-color")
     if ($CloudProvider -in @("azure", "gcp")) {
         $backendConfig = Join-Path $root "terraform\backend-config\$CloudProvider.hcl"
         $initArgs += "-backend-config=$backendConfig"
     }
-    & terraform @initArgs
-    if ($LASTEXITCODE -ne 0) { throw "Terraform backend initialization failed for '$CloudProvider'; no plan/apply/destroy was run." }
+    Invoke-TerraformCommand -Arguments $initArgs -Description "Terraform backend initialization ($CloudProvider)"
 }
 
 function Get-TerraformOutputValue {
@@ -143,122 +245,615 @@ function Initialize-LocalVault {
     }
 }
 
+function Get-LocalVaultPod {
+    param([Parameter(Mandatory = $true)][string]$Namespace)
+    $podJson = & kubectl get pods -n $Namespace -l app=vault -o json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $podJson) { throw "Cannot query Vault pods in namespace '$Namespace'; check the active Kubernetes context." }
+    $pods = (($podJson -join "`n") | ConvertFrom-Json).items
+    $readyPod = $pods | Where-Object {
+        $_.status.phase -eq 'Running' -and @($_.status.conditions | Where-Object { $_.type -eq 'Ready' -and $_.status -eq 'True' }).Count -gt 0
+    } | Select-Object -First 1
+    if (-not $readyPod) { throw "No Ready Vault pod found in namespace '$Namespace'. Deploy/unseal Vault before running this action." }
+    return [string]$readyPod.metadata.name
+}
+
+function Invoke-LocalVaultCli {
+    param(
+        [Parameter(Mandatory = $true)][string]$Pod,
+        [Parameter(Mandatory = $true)][string[]]$VaultArguments,
+        [switch]$AllowFailure
+    )
+    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
+    $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'vault') + $VaultArguments
+    $output = @(& kubectl @command 2>&1)
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0 -and -not $AllowFailure) {
+        throw "Vault command 'vault $($VaultArguments -join ' ')' failed (exit $exitCode): $($output -join ' ')"
+    }
+    return [pscustomobject]@{ ExitCode = $exitCode; Output = ($output -join "`n") }
+}
+
+function Invoke-LocalVaultCliWithInput {
+    param(
+        [Parameter(Mandatory = $true)][string]$Pod,
+        [Parameter(Mandatory = $true)][string[]]$VaultArguments,
+        [Parameter(Mandatory = $true)][string]$InputText
+    )
+    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
+    $encodedInput = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($InputText))
+    $vaultCommand = 'printf ''%s'' ''' + $encodedInput + ''' | base64 -d | vault ' + ($VaultArguments -join ' ')
+    $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'sh', '-c', $vaultCommand)
+    $output = @(& kubectl @command 2>&1)
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) { throw "Vault input command 'vault $($VaultArguments -join ' ')' failed (exit $exitCode): $($output -join ' ')" }
+    return ($output -join "`n")
+}
+
+function Invoke-VaultKubernetesAuthSetup {
+    param([Parameter(Mandatory = $true)][string]$Namespace, [switch]$PruneLegacyRole)
+    $pod = Get-LocalVaultPod -Namespace $Namespace
+    $mountsResult = Invoke-LocalVaultCli -Pod $pod -VaultArguments @('secrets', 'list', '-format=json')
+    $mounts = $mountsResult.Output | ConvertFrom-Json
+    if (-not $mounts.PSObject.Properties['secret/']) {
+        Invoke-LocalVaultCli -Pod $pod -VaultArguments @('secrets', 'enable', '-path=secret', 'kv-v2') | Out-Null
+    }
+
+    $authResult = Invoke-LocalVaultCli -Pod $pod -VaultArguments @('auth', 'list', '-format=json')
+    $authMethods = $authResult.Output | ConvertFrom-Json
+    if (-not $authMethods.PSObject.Properties['kubernetes/']) {
+        Invoke-LocalVaultCli -Pod $pod -VaultArguments @('auth', 'enable', 'kubernetes') | Out-Null
+    }
+    Invoke-LocalVaultCli -Pod $pod -VaultArguments @('write', 'auth/kubernetes/config', 'kubernetes_host=https://kubernetes.default.svc:443') | Out-Null
+
+    $services = @('products-service', 'orders-service', 'inventory-service', 'notification-service', 'cosmo-router')
+    foreach ($service in $services) {
+        $policy = @(
+            'path "secret/data/application" { capabilities = ["read"] }',
+            "path `"secret/data/$service`" { capabilities = [`"read`"] }"
+        ) -join "`n"
+        Invoke-LocalVaultCliWithInput -Pod $pod -VaultArguments @('policy', 'write', "$service-policy", '-') -InputText $policy | Out-Null
+        Invoke-LocalVaultCli -Pod $pod -VaultArguments @(
+            'write', "auth/kubernetes/role/$service-role",
+            "bound_service_account_names=$service",
+            'bound_service_account_namespaces=dev',
+            "policies=$service-policy", 'ttl=1h'
+        ) | Out-Null
+        Write-Host "  [OK] ${service}: read access limited to application and $service secrets; namespace dev." -ForegroundColor Green
+    }
+    if ($PruneLegacyRole) {
+        $roleList = Invoke-LocalVaultCli -Pod $pod -VaultArguments @('list', '-format=json', 'auth/kubernetes/role') -AllowFailure
+        if ($roleList.ExitCode -eq 0 -and (($roleList.Output | ConvertFrom-Json) -contains 'microservices-role')) {
+            Invoke-LocalVaultCli -Pod $pod -VaultArguments @('delete', 'auth/kubernetes/role/microservices-role') | Out-Null
+        }
+        $policyList = Invoke-LocalVaultCli -Pod $pod -VaultArguments @('list', '-format=json', 'sys/policies/acl') -AllowFailure
+        if ($policyList.ExitCode -eq 0 -and (($policyList.Output | ConvertFrom-Json) -contains 'microservices-policy')) {
+            Invoke-LocalVaultCli -Pod $pod -VaultArguments @('delete', 'sys/policies/acl/microservices-policy') | Out-Null
+        }
+        Write-Host 'Legacy broad Kubernetes role and ACL policy were pruned if present.' -ForegroundColor Yellow
+    } else {
+        Write-Host 'Legacy broad microservices-role was not removed; use -PruneLegacyVaultRole after migrating any external consumers.' -ForegroundColor Yellow
+    }
+    Write-Host 'Kubernetes auth and scoped service policies configured.' -ForegroundColor Green
+}
+
+function Invoke-VaultIstioPkiSetup {
+    param(
+        [Parameter(Mandatory = $true)][string]$VaultPod,
+        [Parameter(Mandatory = $true)][string]$MeshNamespace,
+        [switch]$Rotate
+    )
+    $existingSecretJson = & kubectl get secret cacerts -n $MeshNamespace -o json 2>$null
+    $secretExists = ($LASTEXITCODE -eq 0 -and $existingSecretJson)
+    if ($secretExists -and -not $Rotate) {
+        $existingSecret = ($existingSecretJson -join "`n") | ConvertFrom-Json
+        $requiredKeys = @('ca-cert.pem', 'ca-key.pem', 'root-cert.pem', 'cert-chain.pem')
+        $missingKeys = @($requiredKeys | Where-Object { -not $existingSecret.data.PSObject.Properties[$_] })
+        if ($missingKeys.Count -gt 0) {
+            throw "Existing 'cacerts' Secret is missing Istio CA key(s): $($missingKeys -join ', '). Review it and run with -RotateVaultPki to replace it safely."
+        }
+        Write-Host "Secret 'cacerts' already has the required Istio CA files in '$MeshNamespace'; leaving the active mesh CA unchanged. Pass -RotateVaultPki only for a planned rotation." -ForegroundColor Yellow
+        return
+    }
+
+    $mountsResult = Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('secrets', 'list', '-format=json')
+    $mounts = $mountsResult.Output | ConvertFrom-Json
+    if (-not $mounts.PSObject.Properties['pki/']) { Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('secrets', 'enable', 'pki') | Out-Null }
+    if (-not $mounts.PSObject.Properties['pki_int/']) { Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('secrets', 'enable', '-path=pki_int', 'pki') | Out-Null }
+    Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('secrets', 'tune', '-max-lease-ttl=87600h', 'pki') | Out-Null
+    Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('secrets', 'tune', '-max-lease-ttl=43800h', 'pki_int') | Out-Null
+
+    $rootResult = Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('read', '-field=certificate', 'pki/cert/ca') -AllowFailure
+    $rootCertificate = $rootResult.Output.Trim()
+    if ($rootResult.ExitCode -ne 0 -or -not $rootCertificate) {
+        $rootResult = Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('write', '-field=certificate', 'pki/root/generate/internal', 'common_name=ecommerce.local Root CA', 'ttl=87600h')
+        $rootCertificate = $rootResult.Output.Trim()
+    }
+
+    # Istio's cacerts format needs the intermediate private key. Generate it as
+    # exported so the key can be placed in the Kubernetes Secret intentionally.
+    $intermediateJsonResult = Invoke-LocalVaultCli -Pod $VaultPod -VaultArguments @('write', '-format=json', 'pki_int/intermediate/generate/exported', 'common_name=ecommerce.local Istio Intermediate CA', 'ttl=43800h')
+    $intermediate = $intermediateJsonResult.Output | ConvertFrom-Json
+    $csr = [string]$intermediate.data.csr
+    $privateKey = [string]$intermediate.data.private_key
+    if (-not $csr -or -not $privateKey) { throw 'Vault did not return an intermediate CSR and private key; cacerts was not changed.' }
+
+    $signedJsonText = Invoke-LocalVaultCliWithInput -Pod $VaultPod -VaultArguments @('write', '-format=json', 'pki/root/sign-intermediate', 'csr=-', 'format=pem_bundle', 'ttl=43800h') -InputText $csr
+    $signed = $signedJsonText | ConvertFrom-Json
+    $intermediateCertificate = [string]$signed.data.certificate
+    $caChain = @($signed.data.ca_chain) -join "`n"
+    if (-not $intermediateCertificate -or -not $caChain) { throw 'Vault did not return a signed intermediate certificate and CA chain; cacerts was not changed.' }
+    Invoke-LocalVaultCliWithInput -Pod $VaultPod -VaultArguments @('write', 'pki_int/intermediate/set-signed', 'certificate=-') -InputText $intermediateCertificate | Out-Null
+
+    $tempDir = Join-Path ([IO.Path]::GetTempPath()) ("vault-istio-pki-" + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $tempDir -ErrorAction Stop | Out-Null
+    try {
+        $caCertPath = Join-Path $tempDir 'ca-cert.pem'
+        $caKeyPath = Join-Path $tempDir 'ca-key.pem'
+        $rootCertPath = Join-Path $tempDir 'root-cert.pem'
+        $chainPath = Join-Path $tempDir 'cert-chain.pem'
+        [IO.File]::WriteAllText($caCertPath, $intermediateCertificate + "`n", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText($caKeyPath, $privateKey + "`n", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText($rootCertPath, $rootCertificate + "`n", [Text.Encoding]::ASCII)
+        [IO.File]::WriteAllText($chainPath, $intermediateCertificate + "`n" + $rootCertificate + "`n", [Text.Encoding]::ASCII)
+        & kubectl create namespace $MeshNamespace --dry-run=client -o yaml | kubectl apply -f - | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not ensure mesh namespace '$MeshNamespace'." }
+        $secretYaml = & kubectl create secret generic cacerts -n $MeshNamespace --from-file="ca-cert.pem=$caCertPath" --from-file="ca-key.pem=$caKeyPath" --from-file="root-cert.pem=$rootCertPath" --from-file="cert-chain.pem=$chainPath" --dry-run=client -o yaml
+        if ($LASTEXITCODE -ne 0 -or -not $secretYaml) { throw 'Could not render the Istio cacerts Secret; the active Secret was not changed.' }
+        $secretYaml | kubectl apply -f - | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'Could not apply the Istio cacerts Secret.' }
+    }
+    finally {
+        Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    $istiod = & kubectl get deployment istiod -n $MeshNamespace -o name 2>$null
+    if ($LASTEXITCODE -eq 0 -and $istiod) {
+        & kubectl rollout restart deployment/istiod -n $MeshNamespace
+        if ($LASTEXITCODE -ne 0) { throw 'cacerts was applied, but istiod restart could not be initiated.' }
+        & kubectl rollout status deployment/istiod -n $MeshNamespace --timeout=120s
+        if ($LASTEXITCODE -ne 0) { throw 'cacerts was applied, but istiod did not become Ready after the CA update.' }
+    }
+    Write-Host "Istio cacerts Secret configured in '$MeshNamespace'. Root CA was reused when it already existed." -ForegroundColor Green
+}
+
 function Invoke-CliToolsAudit {
     [CmdletBinding()]
     param(
-        [switch]$InstallTools = $false,
-        [switch]$Force = $false
+        [switch]$InstallTools,
+        [switch]$IncludeCloudCli,
+        [switch]$InstallOpenCostPlugin
     )
 
     $tools = @(
-        @{ Id = "Hashicorp.Terraform";     Cmd = "terraform";   Category = "IaC";          Desc = "Multi-Cloud Infrastructure-as-Code Engine" },
-        @{ Id = "TerraformLinters.tflint"; Cmd = "tflint";      Category = "IaC";          Desc = "Linter for Terraform modules and provider configurations" },
-        @{ Id = "Graphviz.Graphviz";       Cmd = "dot";         Category = "IaC";          Desc = "Visual dependency graph generator (terraform graph | dot)" },
-        @{ Id = "Gitleaks.Gitleaks";       Cmd = "gitleaks";    Category = "Security";     Desc = "Hardcoded secret and credential scanner for git repository" },
-        @{ Id = "AquaSecurity.Trivy";      Cmd = "trivy";       Category = "Security";     Desc = "Vulnerability, SBOM, and misconfiguration container/Helm scanner" },
-        @{ Id = "Sigstore.Cosign";         Cmd = "cosign";      Category = "Security";     Desc = "Cryptographic signing and verification for OCI container images" },
-        @{ Id = "Hashicorp.Vault";         Cmd = "vault";       Category = "Security";     Desc = "Dynamic secrets engine, PKI intermediate CA & transit encryption" },
-        @{ Id = "Kubernetes.minikube";     Cmd = "minikube";    Category = "Kubernetes";   Desc = "Local enterprise Kubernetes cluster runtime" },
-        @{ Id = "Kubernetes.kubectl";      Cmd = "kubectl";     Category = "Kubernetes";   Desc = "Kubernetes cluster control CLI" },
-        @{ Id = "Helm.Helm";               Cmd = "helm";        Category = "Kubernetes";   Desc = "Package manager for Kubernetes umbrella charts and dependencies" },
-        @{ Id = "Istio.Istio";             Cmd = "istioctl";    Category = "Kubernetes";   Desc = "Istio service mesh control plane management CLI" },
-        @{ Id = "Docker.DockerDesktop";    Cmd = "docker";      Category = "Runtime";      Desc = "OCI container runtime and BuildKit engine" },
-        @{ Id = "Apache.Maven";            Cmd = "mvn";         Category = "Runtime";      Desc = "Java 21 / Spring Boot build orchestrator" },
-        @{ Id = "BellSoft.LibericaJDK.21"; Cmd = "java";        Category = "Runtime";      Desc = "Java 21 runtime for Spring Boot services" },
-        @{ Id = "OpenJS.NodeJS.LTS";       Cmd = "node";        Category = "Runtime";      Desc = "React 19 storefront runtime environment" },
-        @{ Id = "Python.Python.3.12";     Cmd = "python";      Category = "Runtime";      Desc = "Python automation and test scripts" },
-        @{ Id = "Git.Git";                 Cmd = "git";         Category = "Runtime";      Desc = "Distributed version control system" },
-        @{ Id = "Cloudflare.cloudflared";  Cmd = "cloudflared"; Category = "Networking";   Desc = "Zero-trust application tunnel supervisor" }
+        [pscustomobject]@{ Id = 'Hashicorp.Terraform';      Command = 'terraform';   Purpose = 'Terraform IaC' },
+        [pscustomobject]@{ Id = 'TerraformLinters.tflint'; Command = 'tflint';      Purpose = 'Terraform linting' },
+        [pscustomobject]@{ Id = 'Graphviz.Graphviz';        Command = 'dot';         Purpose = 'Terraform graph rendering' },
+        [pscustomobject]@{ Id = 'Gitleaks.Gitleaks';       Command = 'gitleaks';    Purpose = 'Secret scanning' },
+        [pscustomobject]@{ Id = 'AquaSecurity.Trivy';      Command = 'trivy';       Purpose = 'Image and IaC scanning' },
+        [pscustomobject]@{ Id = 'Sigstore.Cosign';         Command = 'cosign';      Purpose = 'Image signature verification' },
+        [pscustomobject]@{ Id = 'Hashicorp.Vault';         Command = 'vault';       Purpose = 'Vault CLI workflows' },
+        [pscustomobject]@{ Id = 'Kubernetes.minikube';     Command = 'minikube';    Purpose = 'Local Kubernetes cluster' },
+        [pscustomobject]@{ Id = 'Kubernetes.kubectl';      Command = 'kubectl';     Purpose = 'Kubernetes administration' },
+        [pscustomobject]@{ Id = 'Helm.Helm';               Command = 'helm';        Purpose = 'Helm deployments' },
+        [pscustomobject]@{ Id = 'Istio.Istio';             Command = 'istioctl';    Purpose = 'Istio mesh operations' },
+        [pscustomobject]@{ Id = 'Docker.DockerDesktop';    Command = 'docker';      Purpose = 'Compose and image builds' },
+        [pscustomobject]@{ Id = 'Apache.Maven';            Command = 'mvn';         Purpose = 'Spring Boot builds' },
+        [pscustomobject]@{ Id = 'BellSoft.LibericaJDK.21'; Command = 'java';        Purpose = 'Java 21 runtime' },
+        [pscustomobject]@{ Id = 'OpenJS.NodeJS.LTS';       Command = 'node';        Purpose = 'React/Vite build runtime' },
+        [pscustomobject]@{ Id = 'Python.Python.3.11';      Command = 'python';      Purpose = 'Project automation scripts' },
+        [pscustomobject]@{ Id = 'Git.Git';                 Command = 'git';         Purpose = 'Version control' },
+        [pscustomobject]@{ Id = 'Cloudflare.cloudflared';  Command = 'cloudflared'; Purpose = 'Documented tunnel workflows' }
+        [pscustomobject]@{ Id = 'Scoop: conftest';         Command = 'conftest';   Purpose = 'Helm/Rego policy gate'; Installer = 'scoop' }
+    )
+    if ($IncludeCloudCli) {
+        $tools += @(
+            [pscustomobject]@{ Id = 'Amazon.AWSCLI';      Command = 'aws';    Purpose = 'AWS credentials and operations' },
+            [pscustomobject]@{ Id = 'Microsoft.AzureCLI'; Command = 'az';     Purpose = 'Azure credentials and operations' },
+            [pscustomobject]@{ Id = 'Google.CloudSDK';    Command = 'gcloud'; Purpose = 'GCP credentials and operations' }
+        )
+    }
+    if ($InstallTools -and -not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw 'WinGet is required to install tools. Install Microsoft App Installer or run platform.ps1 tools without -Install to audit.'
+    }
+
+    Write-Host "CLI audit: install=$($InstallTools.IsPresent), cloud CLIs=$($IncludeCloudCli.IsPresent), OpenCost plugin=$($InstallOpenCostPlugin.IsPresent)" -ForegroundColor Cyan
+    $results = [System.Collections.Generic.List[object]]::new()
+    foreach ($tool in $tools) {
+        $command = Get-Command $tool.Command -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $command -and $InstallTools) {
+            if ($tool.Installer -eq 'scoop') {
+                if (-not (Get-Command scoop -ErrorAction SilentlyContinue)) {
+                    $results.Add([pscustomobject]@{ Tool = $tool.Command; Package = $tool.Id; Status = 'Missing: install Scoop, then rerun tools -Install' })
+                    continue
+                }
+                Write-Host "Installing $($tool.Command) with Scoop ($($tool.Purpose))..." -ForegroundColor Yellow
+                & scoop install conftest
+            } else {
+                Write-Host "Installing $($tool.Id) ($($tool.Purpose))..." -ForegroundColor Yellow
+                & winget install --id $tool.Id --exact --silent --accept-source-agreements --accept-package-agreements --disable-interactivity
+            }
+            if ($LASTEXITCODE -ne 0) {
+                $results.Add([pscustomobject]@{ Tool = $tool.Command; Package = $tool.Id; Status = "FAILED ($LASTEXITCODE)" })
+                continue
+            }
+            $command = Get-Command $tool.Command -ErrorAction SilentlyContinue | Select-Object -First 1
+        }
+        $status = if ($command) { 'Available' } elseif ($InstallTools) { 'Installed; reopen terminal to refresh PATH' } else { 'Missing' }
+        $results.Add([pscustomobject]@{ Tool = $tool.Command; Package = $tool.Id; Status = $status })
+    }
+
+    if ($InstallOpenCostPlugin) {
+        if (-not (Get-Command kubectl -ErrorAction SilentlyContinue)) {
+            $results.Add([pscustomobject]@{ Tool = 'kubectl cost'; Package = 'Kubernetes.krew / cost'; Status = 'Missing: kubectl is required' })
+        } else {
+            $krew = kubectl krew version 2>$null
+            if ($LASTEXITCODE -ne 0 -and $InstallTools) {
+                Write-Host 'Installing the optional Krew package manager...' -ForegroundColor Yellow
+                & winget install --id Kubernetes.krew --exact --silent --accept-source-agreements --accept-package-agreements --disable-interactivity
+                if ($LASTEXITCODE -eq 0) {
+                    $krewBin = Join-Path $env:USERPROFILE '.krew\bin'
+                    if (Test-Path $krewBin) { $env:PATH = "$env:PATH;$krewBin" }
+                    $krew = kubectl krew version 2>$null
+                }
+            }
+            if ($LASTEXITCODE -ne 0) {
+                $pluginStatus = if ($InstallTools) { 'FAILED: Krew is unavailable' } else { 'Missing: rerun with -Install -InstallOpenCostPlugin' }
+            } else {
+                $plugins = kubectl krew list 2>$null
+                if ($plugins -match '(?m)^cost\s*$') {
+                    $pluginStatus = 'Available'
+                } elseif ($InstallTools) {
+                    & kubectl krew install cost
+                    $pluginStatus = if ($LASTEXITCODE -eq 0) { 'Installed' } else { "FAILED ($LASTEXITCODE)" }
+                } else {
+                    $pluginStatus = 'Missing: rerun with -Install -InstallOpenCostPlugin'
+                }
+            }
+            $results.Add([pscustomobject]@{ Tool = 'kubectl cost'; Package = 'Krew cost plugin'; Status = $pluginStatus })
+        }
+    }
+
+    $results | Format-Table -AutoSize | Out-Host
+    $missing = @($results | Where-Object { $_.Status -eq 'Missing' -or $_.Status -like 'Missing:*' -or $_.Status -like 'FAILED*' })
+    if ($missing.Count -gt 0) {
+        Write-Host "`nMissing or failed tools ($($missing.Count)):" -ForegroundColor Red
+        foreach ($item in $missing) {
+        $installerLabel = if ($item.Package -like 'Scoop:*') { 'Scoop' } else { 'WinGet' }
+        Write-Host "  - $($item.Tool) | $installerLabel`: $($item.Package) | $($item.Status)" -ForegroundColor Yellow
+        }
+        Write-Host "Install the documented inventory with '.\platform.ps1 tools -Install'; Conftest is installed through Scoop." -ForegroundColor Cyan
+        return $false
+    }
+    Write-Host 'CLI tool audit completed successfully.' -ForegroundColor Green
+    return $true
+}
+
+function Invoke-LocalPolicyGate {
+    $helm = Get-Command helm -ErrorAction SilentlyContinue
+    if (-not $helm) { throw "Helm is required. Install it with '.\platform.ps1 tools -Install' and rerun '.\platform.ps1 policy'." }
+    $conftest = Get-Command conftest -ErrorAction SilentlyContinue
+    if (-not $conftest) { throw "Conftest is required. Install Scoop, then run '.\platform.ps1 tools -Install'; or install Conftest using Scoop and rerun this command." }
+
+    $policyDir = Join-Path $root 'devsecops\policies\conftest'
+    $valuesFile = Join-Path $root 'helm\values\values-minikube.yaml'
+    if (-not (Test-Path -LiteralPath $policyDir -PathType Container)) { throw "Conftest policy directory is missing: $policyDir" }
+    if (-not (Get-ChildItem -LiteralPath $policyDir -Filter '*.rego' -File)) { throw "No Rego policies were found in '$policyDir'." }
+    if (-not (Test-Path -LiteralPath $valuesFile -PathType Leaf)) { throw "Minikube Helm values are missing: $valuesFile" }
+    if (-not (Test-Path -LiteralPath (Join-Path $umbrellaDir 'charts') -PathType Container)) { throw "Helm chart dependencies are missing. Run '.\platform.ps1 up -Platform minikube -Environment dev' once to prepare the umbrella chart." }
+
+    $renderedFile = Join-Path ([System.IO.Path]::GetTempPath()) ("microservices-policy-{0}.yaml" -f [guid]::NewGuid().ToString('N'))
+    try {
+        Write-Host 'Rendering Minikube Helm manifests for policy evaluation...' -ForegroundColor Cyan
+        $renderedManifests = & helm template microservices $umbrellaDir --namespace dev --values $valuesFile --include-crds
+        if ($LASTEXITCODE -ne 0) { throw "Helm rendering failed with exit code $LASTEXITCODE." }
+        [System.IO.File]::WriteAllLines($renderedFile, [string[]]$renderedManifests, [System.Text.UTF8Encoding]::new($false))
+        if (-not (Test-Path -LiteralPath $renderedFile -PathType Leaf) -or (Get-Item -LiteralPath $renderedFile).Length -eq 0) { throw 'Helm produced no manifest content to evaluate.' }
+
+        Write-Host 'Evaluating Kubernetes manifests against centralized Rego policies...' -ForegroundColor Cyan
+        & conftest test $renderedFile --policy $policyDir
+        if ($LASTEXITCODE -ne 0) { throw "Conftest policy gate failed with exit code $LASTEXITCODE." }
+        Write-Host 'Conftest policy gate passed.' -ForegroundColor Green
+    } finally {
+        Remove-Item -LiteralPath $renderedFile -Force -ErrorAction SilentlyContinue
+    }
+}
+
+function Invoke-LocalDevSecOpsScan {
+    [CmdletBinding()]
+    param(
+        [switch]$IncludeRenderedPolicy,
+        [ValidateSet('minikube', 'aws', 'azure', 'gcp')]
+        [string]$TargetPlatform = 'minikube'
     )
 
-    Write-Host ""
-    Write-Host "==============================================================================" -ForegroundColor Cyan
-    Write-Host " [TOOLS] MICROSERVICES PLATFORM CLI TOOLS AUDIT & WINGET INSTALLER" -ForegroundColor Cyan
-    Write-Host "==============================================================================" -ForegroundColor Cyan
+    $gitleaksConfig = Join-Path $root 'devsecops\sast\gitleaks\.gitleaks.toml'
+    $trivyConfig = Join-Path $root 'devsecops\compliance\trivy\trivy.yaml'
+    $trivyIgnore = Join-Path $root 'devsecops\compliance\trivy\.trivyignore'
+    foreach ($configPath in @($gitleaksConfig, $trivyConfig, $trivyIgnore)) {
+        if (-not (Test-Path -LiteralPath $configPath -PathType Leaf)) { throw "Central DevSecOps configuration is missing: $configPath" }
+    }
 
-    $results = @()
-    foreach ($t in $tools) {
-        $existing = Get-Command $t.Cmd -ErrorAction SilentlyContinue
-        $isInstalled = ($null -ne $existing)
-        $versionStr = "Not Installed"
-        if ($isInstalled) {
-            $fileVer = $existing.FileVersionInfo.ProductVersion
-            if ($fileVer -and $fileVer.Trim() -ne "0.0.0.0") {
-                $versionStr = $fileVer.Trim()
-            } elseif ($existing.Version -and $existing.Version.ToString() -ne "0.0.0.0") {
-                $versionStr = $existing.Version.ToString()
-            } else {
-                try {
-                    $rawOut = switch ($t.Cmd) {
-                        "minikube"    { (minikube version --short 2>$null | Select-Object -First 1) }
-                        "kubectl"     { (kubectl version --client 2>$null | Select-String -Pattern "Client Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "terraform"   { (terraform version 2>$null | Select-String -Pattern "Terraform\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "tflint"      { (tflint --version 2>$null | Select-String -Pattern "TFLint\s+version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "gitleaks"    { (gitleaks version 2>$null | Select-Object -First 1) }
-                        "trivy"       { (trivy --version 2>$null | Select-String -Pattern "Version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "cosign"      { (cosign version 2>$null | Select-String -Pattern "GitVersion:\s*v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "vault"       { (vault --version 2>$null | Select-String -Pattern "Vault\s+v?([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "helm"        { (helm version --short 2>$null | Select-Object -First 1) }
-                        "istioctl"    { (istioctl version --remote=false 2>$null | Select-String -Pattern "client version:\s*([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "docker"      { (docker --version 2>$null | Select-String -Pattern "Docker version\s+([^\s,]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "mvn"         { (mvn --version 2>$null | Select-String -Pattern "Apache Maven\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "node"        { (node --version 2>$null | Select-Object -First 1) }
-                        "git"         { (git --version 2>$null | Select-String -Pattern "git version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "cloudflared" { (cloudflared --version 2>$null | Select-String -Pattern "cloudflared version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        "dot"         { (dot -V 2>&1 | Select-String -Pattern "version\s+([^\s]+)" | Select-Object -First 1 | ForEach-Object { $_.Matches[0].Groups[1].Value }) }
-                        default       { "" }
-                    }
-                    if ($rawOut -and "$rawOut".Trim()) { $versionStr = "$rawOut".Trim() } else { $versionStr = "Installed" }
-                } catch { $versionStr = "Installed" }
+    Push-Location $root
+    try {
+        foreach ($tool in @('gitleaks', 'tflint', 'trivy')) {
+            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+                throw "Required local DevSecOps CLI '$tool' is missing. Run '.\platform.ps1 tools -Install' and reopen the terminal."
             }
-            if ($versionStr.Length -gt 35) { $versionStr = $versionStr.Substring(0, 32) + "..." }
         }
 
-        $results += [PSCustomObject]@{
-            Category  = $t.Category
-            Command   = $t.Cmd
-            Status    = if ($isInstalled) { "INSTALLED" } else { "MISSING" }
-            Version   = $versionStr
-            PackageId = $t.Id
-            Desc      = $t.Desc
-            Installed = $isInstalled
-        }
-    }
+        Write-Host '▶ Gitleaks: repository secret scan with the centralized rules...' -ForegroundColor Yellow
+        & gitleaks detect --source=$root --config=$gitleaksConfig --no-git
+        if ($LASTEXITCODE -ne 0) { throw "Gitleaks detected a failure (exit $LASTEXITCODE). Review findings before continuing." }
 
-    $results | Format-Table -Property Category, Command, Status, Version, PackageId -AutoSize
-
-    $missing = @($results | Where-Object { -not $_.Installed })
-    if ($missing.Count -eq 0) {
-        Write-Host "`n[SUCCESS] All $($results.Count) audited platform CLI tools are installed and available in PATH!" -ForegroundColor Green
-        return
-    }
-
-    Write-Host "`n[WARN] Found $($missing.Count) missing tool(s):" -ForegroundColor Yellow
-    foreach ($m in $missing) {
-        Write-Host "  - $($m.Command) ($($m.PackageId)): $($m.Desc)" -ForegroundColor Gray
-    }
-
-    if (-not $InstallTools) {
-        Write-Host "`nTo automatically install missing tools using Winget, run:" -ForegroundColor Cyan
-        Write-Host "  .\platform.ps1 tools -Install`n" -ForegroundColor Green
-        return
-    }
-
-    Write-Host "`n[INFO] Starting automated installation of missing tools via Winget..." -ForegroundColor Cyan
-    foreach ($item in $missing) {
-        Write-Host "  -> Installing $($item.PackageId) ($($item.Command))..." -ForegroundColor Yellow
+        $terraformScanDir = if ($TargetPlatform -eq 'minikube') { $tfMinikubeDir } else { Join-Path $root "terraform\environments\$TargetPlatform" }
+        Write-Host "▶ TFLint: $TargetPlatform Terraform validation..." -ForegroundColor Yellow
+        Push-Location $terraformScanDir
         try {
-            winget install --id $item.PackageId --exact --silent --accept-source-agreements --accept-package-agreements
-            if ($LASTEXITCODE -eq 0) {
-                Write-Host "    [OK] Successfully installed $($item.PackageId)" -ForegroundColor Green
-            } else {
-                Write-Host "    [WARN] Winget returned code $LASTEXITCODE for $($item.PackageId)" -ForegroundColor Yellow
-            }
-        } catch {
-            Write-Host "    [ERR] Error installing $($item.PackageId): $_" -ForegroundColor Red
+            & tflint --init
+            if ($LASTEXITCODE -ne 0) { throw "TFLint plugin initialization failed (exit $LASTEXITCODE)." }
+            & tflint
+            if ($LASTEXITCODE -ne 0) { throw "TFLint reported a failure (exit $LASTEXITCODE)." }
+        } finally { Pop-Location }
+
+        $trivyTargets = if ($TargetPlatform -eq 'minikube') {
+            @($umbrellaDir)
+        } else {
+            @((Join-Path $root "terraform\environments\$TargetPlatform"), $umbrellaDir)
+        }
+        foreach ($trivyTarget in $trivyTargets) {
+            Write-Host "▶ Trivy: scanning $trivyTarget with the central config and exception list..." -ForegroundColor Yellow
+            & trivy --config $trivyConfig config $trivyTarget
+            if ($LASTEXITCODE -ne 0) { throw "Trivy configuration scan failed for '$trivyTarget' (exit $LASTEXITCODE)." }
+        }
+
+        if ($IncludeRenderedPolicy) {
+            if ($TargetPlatform -ne 'minikube') { throw 'The local Conftest render gate currently targets Minikube values only; cloud manifests are evaluated in their provider pipelines.' }
+            Write-Host '▶ Conftest: evaluating rendered Minikube manifests...' -ForegroundColor Yellow
+            Invoke-LocalPolicyGate
+        }
+
+        Write-Host 'Local DevSecOps scans completed. Trivy findings remain in audit mode as configured in trivy.yaml.' -ForegroundColor Green
+    } finally {
+        Pop-Location
+    }
+}
+
+function Get-DevSecOpsTargetUrl {
+    param([Parameter(Mandatory = $true)][string]$EnvironmentVariable, [Parameter(Mandatory = $true)][string]$LocalDefault)
+    $configuredUrl = [Environment]::GetEnvironmentVariable($EnvironmentVariable)
+    if (-not $configuredUrl) {
+        $cfStateFile = Join-Path $root 'scripts\.cloudflare-tunnels.json'
+        if (Test-Path $cfStateFile) {
+            try {
+                $cfState = Get-Content $cfStateFile -Raw | ConvertFrom-Json
+                $targetTunnelName = switch ($EnvironmentVariable) {
+                    'FRONTEND_URL' { 'frontend' }
+                    'BASE_URL'     { 'frontend' }
+                    'TARGET_URL'   { 'frontend' }
+                    'KEYCLOAK_URL' { 'keycloak' }
+                    default        { $null }
+                }
+                if ($targetTunnelName) {
+                    $matched = $cfState.processes | Where-Object { $_.name -eq $targetTunnelName -and $_.url }
+                    if ($matched) { $configuredUrl = $matched[0].url }
+                }
+            } catch {}
         }
     }
-    Write-Host "`n[DONE] Installation process completed." -ForegroundColor Green
+    if (-not $configuredUrl) {
+        if ($Platform -ne 'minikube') { throw "Set $EnvironmentVariable to a reachable application URL for '$Platform'." }
+        $configuredUrl = $LocalDefault
+    }
+    $parsedUrl = $null
+    if (-not [Uri]::TryCreate($configuredUrl, [UriKind]::Absolute, [ref]$parsedUrl) -or $parsedUrl.Scheme -notin @('http', 'https')) {
+        throw "$EnvironmentVariable must be an absolute HTTP(S) URL; received '$configuredUrl'."
+    }
+    return $configuredUrl.TrimEnd('/')
+}
+
+function ConvertTo-DockerReachableUrl {
+    param([Parameter(Mandatory = $true)][string]$Url)
+    $builder = [System.UriBuilder]::new($Url)
+    if ($builder.Host -in @('localhost', '127.0.0.1', '::1')) { $builder.Host = 'host.docker.internal' }
+    return $builder.Uri.AbsoluteUri.TrimEnd('/')
+}
+
+function Invoke-LocalContractChecks {
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { throw "Node.js/npm are required. Run '.\platform.ps1 tools -Install' and reopen PowerShell." }
+    $collection = Join-Path $root 'devsecops\testing\newman\microservices.postman_collection.json'
+    if (-not (Test-Path -LiteralPath $collection -PathType Leaf)) { throw "Newman collection is missing: $collection" }
+    $baseUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'BASE_URL' -LocalDefault 'http://127.0.0.1:5173'
+    $keycloakUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'KEYCLOAK_URL' -LocalDefault 'http://127.0.0.1:8181'
+    Push-Location $root
+    try {
+        & npx --yes newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
+        if ($LASTEXITCODE -ne 0) { throw "Newman contract suite failed (exit $LASTEXITCODE)." }
+    } finally { Pop-Location }
+}
+
+function Invoke-LocalPerformanceChecks {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Docker Desktop CLI is required to run the containerized k6 suite.' }
+    $scriptPath = Join-Path $root 'devsecops\testing\k6\load-test.js'
+    if (-not (Test-Path -LiteralPath $scriptPath -PathType Leaf)) { throw "k6 test script is missing: $scriptPath" }
+    $target = Get-DevSecOpsTargetUrl -EnvironmentVariable 'TARGET_URL' -LocalDefault 'http://127.0.0.1:5173'
+    $containerTarget = ConvertTo-DockerReachableUrl -Url $target
+    & docker run --rm --mount "type=bind,source=$root,target=/workspace,readonly" grafana/k6:0.55.0 run --env "TARGET_URL=$containerTarget" /workspace/devsecops/testing/k6/load-test.js
+    if ($LASTEXITCODE -ne 0) { throw "k6 performance/SLO checks failed (exit $LASTEXITCODE)." }
+}
+
+function Invoke-LocalDastScan {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) { throw 'Docker Desktop CLI is required to run OWASP ZAP.' }
+    $rulesFile = Join-Path $root 'devsecops\dast\zap\rules.tsv'
+    if (-not (Test-Path -LiteralPath $rulesFile -PathType Leaf)) { throw "Central OWASP ZAP rules are missing: $rulesFile" }
+    $target = Get-DevSecOpsTargetUrl -EnvironmentVariable 'FRONTEND_URL' -LocalDefault 'http://127.0.0.1:5173'
+    $containerTarget = ConvertTo-DockerReachableUrl -Url $target
+    $reportDir = Join-Path $root 'devsecops\dast\zap'
+    & docker run --rm --mount "type=bind,source=$reportDir,target=/zap/rules,readonly" --mount "type=bind,source=$reportDir,target=/zap/wrk" ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t $containerTarget -c /zap/rules/rules.tsv -r zap-report.html -I
+    $scanExitCode = $LASTEXITCODE
+    $report = Join-Path $reportDir 'zap-report.html'
+    if (Test-Path -LiteralPath $report) { Write-Host "OWASP ZAP report: $report" -ForegroundColor Cyan }
+    if ($scanExitCode -ne 0) { throw "OWASP ZAP baseline scan failed (exit $scanExitCode). Review the report and rules.tsv findings." }
+}
+
+function Get-CanaryDeployment {
+    param([Parameter(Mandatory = $true)][string]$DeploymentName, [Parameter(Mandatory = $true)][string]$CanaryNamespace)
+    $deploymentJson = & kubectl get deployment $DeploymentName -n $CanaryNamespace -o json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $deploymentJson) {
+        throw "Could not read deployment '$DeploymentName' in namespace '$CanaryNamespace'."
+    }
+    return (($deploymentJson -join "`n") | ConvertFrom-Json)
+}
+
+function Set-CanaryTrafficWeight {
+    param(
+        [Parameter(Mandatory = $true)][string]$CanaryNamespace,
+        [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$StableWeight,
+        [Parameter(Mandatory = $true)][ValidateRange(0, 100)][int]$CandidateWeight
+    )
+    if ($StableWeight + $CandidateWeight -ne 100) {
+        throw "Stable and candidate traffic weights must add up to 100."
+    }
+
+    $virtualServiceName = "products-service-canary-vs"
+    $virtualServiceJson = & kubectl get virtualservice $virtualServiceName -n $CanaryNamespace -o json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $virtualServiceJson) {
+        throw "VirtualService '$virtualServiceName' is missing in '$CanaryNamespace'; deploy canary before shifting traffic."
+    }
+    $virtualService = ($virtualServiceJson -join "`n") | ConvertFrom-Json
+    if ($virtualService.spec.http.Count -lt 2 -or $virtualService.spec.http[1].route.Count -ne 2) {
+        throw "VirtualService '$virtualServiceName' does not contain the expected header route and weighted stable/candidate destinations."
+    }
+
+    foreach ($target in @(@{ Name = "products-service"; Weight = $StableWeight }, @{ Name = "products-service-v2"; Weight = $CandidateWeight })) {
+        if ($target.Weight -gt 0) {
+            $deployment = Get-CanaryDeployment -DeploymentName $target.Name -CanaryNamespace $CanaryNamespace
+            if ([int]$deployment.status.readyReplicas -lt 1) {
+                throw "Deployment '$($target.Name)' has no Ready replicas; refusing to direct traffic to it."
+            }
+        }
+    }
+
+    $patch = @(
+        @{ op = "replace"; path = "/spec/http/1/route/0/weight"; value = $StableWeight },
+        @{ op = "replace"; path = "/spec/http/1/route/1/weight"; value = $CandidateWeight }
+    ) | ConvertTo-Json -Compress
+    & kubectl patch virtualservice $virtualServiceName -n $CanaryNamespace --type=json -p $patch | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Istio rejected the requested canary weights." }
+
+    $verifiedJson = & kubectl get virtualservice $virtualServiceName -n $CanaryNamespace -o json
+    if ($LASTEXITCODE -ne 0 -or -not $verifiedJson) { throw "Could not verify the applied canary weights." }
+    $verified = ($verifiedJson -join "`n") | ConvertFrom-Json
+    $actualStable = [int]$verified.spec.http[1].route[0].weight
+    $actualCandidate = [int]$verified.spec.http[1].route[1].weight
+    if ($actualStable -ne $StableWeight -or $actualCandidate -ne $CandidateWeight) {
+        throw "Traffic weight verification mismatch: requested $StableWeight/$CandidateWeight, found $actualStable/$actualCandidate."
+    }
+    Write-Host "Canary traffic in '$CanaryNamespace': stable=$actualStable%, v2=$actualCandidate%." -ForegroundColor Green
+}
+
+function Invoke-CanaryRollout {
+    param([string]$CanaryNamespace, [int[]]$RolloutSteps, [int]$IntervalSeconds)
+    if (-not $RolloutSteps -or ($RolloutSteps | Measure-Object -Minimum).Minimum -lt 1 -or ($RolloutSteps | Measure-Object -Maximum).Maximum -gt 100) {
+        throw "Canary steps must be percentages between 1 and 100."
+    }
+    for ($index = 1; $index -lt $RolloutSteps.Count; $index++) {
+        if ($RolloutSteps[$index] -le $RolloutSteps[$index - 1]) {
+            throw "Canary steps must increase strictly, for example 10,25,50,75,100."
+        }
+    }
+    if ($RolloutSteps[-1] -ne 100) { throw "The final canary step must route 100% to v2 before promotion." }
+
+    $currentJson = & kubectl get virtualservice products-service-canary-vs -n $CanaryNamespace -o json 2>$null
+    if ($LASTEXITCODE -ne 0 -or -not $currentJson) { throw "Deploy the products-service canary before starting its progressive rollout." }
+    $current = ($currentJson -join "`n") | ConvertFrom-Json
+    if ($current.spec.http.Count -lt 2 -or $current.spec.http[1].route.Count -ne 2) { throw "Canary VirtualService route structure is invalid." }
+    $lastAcceptedV2 = [int]$current.spec.http[1].route[1].weight
+
+    try {
+        foreach ($candidateWeight in $RolloutSteps) {
+            $stableWeight = 100 - $candidateWeight
+            Write-Host "`nSetting traffic to stable=$stableWeight%, v2=$candidateWeight%..." -ForegroundColor Cyan
+            Set-CanaryTrafficWeight -CanaryNamespace $CanaryNamespace -StableWeight $stableWeight -CandidateWeight $candidateWeight
+            Start-Sleep -Seconds $IntervalSeconds
+            foreach ($deploymentName in @("products-service", "products-service-v2")) {
+                & kubectl rollout status "deployment/$deploymentName" -n $CanaryNamespace --timeout=60s
+                if ($LASTEXITCODE -ne 0) { throw "Readiness check failed for '$deploymentName' at v2=$candidateWeight%." }
+            }
+            Write-Host "Observe product-service errors, latency and business behavior in Grafana/Kiali." -ForegroundColor Yellow
+            $approval = Read-Host "Keep v2 at $candidateWeight% and advance? Enter Y to continue; anything else restores the previous accepted split"
+            if ($approval -notmatch '^(y|yes)$') {
+                Set-CanaryTrafficWeight -CanaryNamespace $CanaryNamespace -StableWeight (100 - $lastAcceptedV2) -CandidateWeight $lastAcceptedV2
+                Write-Host "Rollout stopped; restored stable=$((100 - $lastAcceptedV2))%, v2=$lastAcceptedV2%." -ForegroundColor Yellow
+                return
+            }
+            $lastAcceptedV2 = $candidateWeight
+        }
+    } catch {
+        $failure = $_
+        try {
+            Set-CanaryTrafficWeight -CanaryNamespace $CanaryNamespace -StableWeight (100 - $lastAcceptedV2) -CandidateWeight $lastAcceptedV2
+        } catch {
+            Write-Warning "Automatic traffic restoration also failed: $($_.Exception.Message)"
+        }
+        throw $failure
+    }
+    Write-Host "v2 now receives 100% of traffic; v1 remains deployed and Ready for rollback." -ForegroundColor Green
+    Write-Host "Promote the same immutable image through GitOps before retiring the canary workload." -ForegroundColor Yellow
+}
+
+function Invoke-CanaryPromotion {
+    param([string]$CanaryNamespace)
+    $canary = Get-CanaryDeployment -DeploymentName "products-service-v2" -CanaryNamespace $CanaryNamespace
+    $canaryImage = [string]$canary.spec.template.spec.containers[0].image
+    if ($canaryImage -notmatch '^georgegxx/products-service:(?!canary$|latest$)([^\s]+)$') {
+        throw "Canary image '$canaryImage' is not an immutable, distinct tagged products-service image."
+    }
+    if ([int]$canary.status.readyReplicas -lt 1) { throw "Canary deployment has no Ready replicas." }
+    $virtualServiceJson = & kubectl get virtualservice products-service-canary-vs -n $CanaryNamespace -o json
+    if ($LASTEXITCODE -ne 0 -or -not $virtualServiceJson) { throw "Canary VirtualService is missing; verify the 100% v2 rollout before promotion." }
+    $virtualService = ($virtualServiceJson -join "`n") | ConvertFrom-Json
+    $stableWeight = [int]$virtualService.spec.http[1].route[0].weight
+    $candidateWeight = [int]$virtualService.spec.http[1].route[1].weight
+    if ($stableWeight -ne 0 -or $candidateWeight -ne 100) {
+        throw "Promotion requires stable=0%, v2=100%; current split is stable=$stableWeight%, v2=$candidateWeight%."
+    }
+
+    $valuesPath = Join-Path $root "helm\values\values-minikube.yaml"
+    if (-not (Test-Path -LiteralPath $valuesPath -PathType Leaf)) { throw "Minikube Helm values file not found: $valuesPath" }
+    $content = [System.IO.File]::ReadAllText($valuesPath)
+    $pattern = '(?m)^(\s*image:\s*\{\s*repository:\s*georgegxx/products-service,\s*tag:\s*)"[^"]+"(\s*\})'
+    $matches = [regex]::Matches($content, $pattern)
+    if ($matches.Count -ne 1) { throw "Expected exactly one products-service image tag in '$valuesPath'; found $($matches.Count). No values were changed." }
+    $replacement = '${1}"' + $canaryImage.Split(':')[-1] + '"${2}'
+    $updated = [regex]::Replace($content, $pattern, $replacement, 1)
+    if ($updated -ne $content) {
+        [System.IO.File]::WriteAllText($valuesPath, $updated, [System.Text.UTF8Encoding]::new($false))
+        Write-Host "Stable Helm values now reference $canaryImage." -ForegroundColor Green
+    } else {
+        Write-Host "Stable Helm values already reference $canaryImage." -ForegroundColor Green
+    }
+    Write-Host "Review and commit/push this values change so ArgoCD deploys the stable workload before retiring v2." -ForegroundColor Yellow
+}
+
+function Invoke-CanaryRetirement {
+    param([string]$CanaryNamespace)
+    $stable = Get-CanaryDeployment -DeploymentName "products-service" -CanaryNamespace $CanaryNamespace
+    $canary = Get-CanaryDeployment -DeploymentName "products-service-v2" -CanaryNamespace $CanaryNamespace
+    $stableImage = [string]$stable.spec.template.spec.containers[0].image
+    $canaryImage = [string]$canary.spec.template.spec.containers[0].image
+    if ($stableImage -ne $canaryImage) { throw "Refusing to retire canary: stable image '$stableImage' does not match candidate '$canaryImage'. Promote through GitOps and wait for rollout first." }
+    if ([int]$stable.status.readyReplicas -lt 1) { throw "Refusing to retire canary: stable deployment has no Ready replicas." }
+
+    $destinationRulesPath = Join-Path $root "k8s\istio\destination-rules-dev.yaml"
+    if (-not (Test-Path -LiteralPath $destinationRulesPath -PathType Leaf)) { throw "DestinationRule baseline not found: $destinationRulesPath" }
+    Write-Host "Stable Deployment is Ready on $stableImage. Removing canary routing and v2 workload." -ForegroundColor Cyan
+    & kubectl delete virtualservice products-service-canary-vs -n $CanaryNamespace --ignore-not-found
+    if ($LASTEXITCODE -ne 0) { throw "Could not remove the canary VirtualService; deployment was kept." }
+    & kubectl apply -f $destinationRulesPath -n $CanaryNamespace
+    if ($LASTEXITCODE -ne 0) { throw "Could not restore baseline DestinationRules; deployment was kept." }
+    & kubectl delete deployment products-service-v2 -n $CanaryNamespace
+    if ($LASTEXITCODE -ne 0) { throw "Could not remove products-service v2." }
+    Write-Host "Canary retired; stable products-service remains on $canaryImage." -ForegroundColor Green
 }
 
 function Invoke-UnifiedPlatformVerify {
@@ -479,17 +1074,14 @@ function Invoke-CloudPlatform {
             Assert-CloudRemoteBackend -CloudProvider $CloudProvider
             Push-Location $cloudTfDir
             try {
-                & terraform fmt -check
-                if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'." }
+                Invoke-TerraformCommand -Arguments @("fmt", "-check") -Description "Terraform format check ($CloudProvider)"
                 Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 Set-TerraformWorkspace $Env
-                & terraform validate
-                if ($LASTEXITCODE -ne 0) { throw "Terraform validation failed for '$CloudProvider'; plan was not run." }
+                Invoke-TerraformCommand -Arguments @("validate", "-no-color") -Description "Terraform validation ($CloudProvider)"
                 $varFile = "${Env}/terraform.tfvars"
                 $planArgs = @("plan", "-no-color")
                 if (Test-Path $varFile) { $planArgs += "-var-file=$varFile" }
-                & terraform @planArgs
-                if ($LASTEXITCODE -ne 0) { throw "Terraform plan failed for '$CloudProvider' environment '$Env'." }
+                Invoke-TerraformCommand -Arguments $planArgs -Description "Terraform plan ($CloudProvider - $Env)" -ShowSuccessSummary
             } finally {
                 Pop-Location
             }
@@ -501,41 +1093,35 @@ function Invoke-CloudPlatform {
             Push-Location $cloudTfDir
             try {
                 Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
-                & terraform fmt -check
-                if ($LASTEXITCODE -ne 0) { throw "Terraform fmt check failed for '$CloudProvider'; apply was not run." }
+                Invoke-TerraformCommand -Arguments @("fmt", "-check") -Description "Terraform format check ($CloudProvider)"
                 Set-TerraformWorkspace $Env
-                & terraform validate
-                if ($LASTEXITCODE -ne 0) { throw "Terraform validation failed for '$CloudProvider'; apply was not run." }
+                Invoke-TerraformCommand -Arguments @("validate", "-no-color") -Description "Terraform validation ($CloudProvider)"
                 $varFile = "${Env}/terraform.tfvars"
-                $applyArgs = @("apply")
+                $applyArgs = @("apply", "-no-color")
                 if (Test-Path $varFile) { $applyArgs += "-var-file=$varFile" }
                 if ($AutoApproveSwitch) { $applyArgs += "-auto-approve" }
-                & terraform @applyArgs
+                Invoke-TerraformCommand -Arguments $applyArgs -Description "Terraform apply ($CloudProvider - $Env)" -ShowSuccessSummary
 
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure provisioned successfully." -ForegroundColor Green
-                    $clusterName = Get-TerraformOutputValue -Name $clusterOutputName
-                    Write-Host "Configuring Kubernetes context and ensuring namespace '$targetNamespace' exists..." -ForegroundColor Cyan
-                    switch ($CloudProvider) {
-                        "azure" {
-                            $rgName = Get-TerraformOutputValue -Name "resource_group_name"
-                            & az aks get-credentials --resource-group $rgName --name $clusterName --overwrite-existing
-                        }
-                        "aws" {
-                            $cloudRegion = Get-TerraformOutputValue -Name "aws_region"
-                            & aws eks update-kubeconfig --name $clusterName --region $cloudRegion
-                        }
-                        "gcp" {
-                            $cloudRegion = Get-TerraformOutputValue -Name "gcp_region"
-                            $cloudProject = Get-TerraformOutputValue -Name "gcp_project_id"
-                            & gcloud container clusters get-credentials $clusterName --region $cloudRegion --project $cloudProject
-                        }
+                Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure provisioned successfully." -ForegroundColor Green
+                $clusterName = Get-TerraformOutputValue -Name $clusterOutputName
+                Write-Host "Configuring Kubernetes context and ensuring namespace '$targetNamespace' exists..." -ForegroundColor Cyan
+                switch ($CloudProvider) {
+                    "azure" {
+                        $rgName = Get-TerraformOutputValue -Name "resource_group_name"
+                        & az aks get-credentials --resource-group $rgName --name $clusterName --overwrite-existing
                     }
-                    if ($LASTEXITCODE -ne 0) { throw "Failed to configure the '$CloudProvider' Kubernetes context after Terraform apply." }
-                    kubectl create namespace $targetNamespace --dry-run=client -o yaml | kubectl apply -f - 2>$null | Out-Null
-                } else {
-                    Write-Error "Terraform Apply failed for $($CloudProvider.ToUpper()) environment: $Env"
+                    "aws" {
+                        $cloudRegion = Get-TerraformOutputValue -Name "aws_region"
+                        & aws eks update-kubeconfig --name $clusterName --region $cloudRegion
+                    }
+                    "gcp" {
+                        $cloudRegion = Get-TerraformOutputValue -Name "gcp_region"
+                        $cloudProject = Get-TerraformOutputValue -Name "gcp_project_id"
+                        & gcloud container clusters get-credentials $clusterName --region $cloudRegion --project $cloudProject
+                    }
                 }
+                if ($LASTEXITCODE -ne 0) { throw "Failed to configure the '$CloudProvider' Kubernetes context after Terraform apply." }
+                kubectl create namespace $targetNamespace --dry-run=client -o yaml | kubectl apply -f - 2>$null | Out-Null
             } finally {
                 Pop-Location
             }
@@ -557,16 +1143,11 @@ function Invoke-CloudPlatform {
                 Initialize-CloudTerraformBackend -CloudProvider $CloudProvider
                 Set-TerraformWorkspace $Env
                 $varFile = "${Env}/terraform.tfvars"
-                $destroyArgs = @("destroy")
+                $destroyArgs = @("destroy", "-no-color")
                 if (Test-Path $varFile) { $destroyArgs += "-var-file=$varFile" }
                 if ($AutoApproveSwitch) { $destroyArgs += "-auto-approve" }
-                & terraform @destroyArgs
-
-                if ($LASTEXITCODE -eq 0) {
-                    Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure destroyed successfully." -ForegroundColor Green
-                } else {
-                    Write-Error "Terraform Destroy failed for $($CloudProvider.ToUpper()) environment: $Env"
-                }
+                Invoke-TerraformCommand -Arguments $destroyArgs -Description "Terraform destroy ($CloudProvider - $Env)" -ShowSuccessSummary
+                Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure destroyed successfully." -ForegroundColor Green
             } finally {
                 Pop-Location
             }
@@ -688,14 +1269,7 @@ function Invoke-MinikubePlatform {
             if (-not (Test-Path -LiteralPath (Join-Path $root "helm\values\values-minikube.yaml") -PathType Leaf)) {
                 throw "Minikube Helm values file is missing. No platform changes were applied."
             }
-            $cosmoConfigBuilder = Join-Path $root "scripts\build-cosmo-router-config.ps1"
-            if (-not (Test-Path -LiteralPath $cosmoConfigBuilder -PathType Leaf)) {
-                throw "Cosmo Router config builder is missing at '$cosmoConfigBuilder'. No cluster changes were applied."
-            }
-            & $cosmoConfigBuilder
-            if ($LASTEXITCODE -ne 0) {
-                throw "Cosmo Router Federation v2 composition failed. No cluster changes were applied."
-            }
+            Invoke-CosmoRouterCompose
             $resolvedUmbrellaDir = (Resolve-Path -LiteralPath $umbrellaDir -ErrorAction Stop).Path
 
             # Local subcharts are committed as packaged dependencies for GitOps.
@@ -780,20 +1354,9 @@ function Invoke-MinikubePlatform {
 
             if (-not $BypassScans) {
                 Write-Host "`n[2/10] 🛡️ Running Shift-Left Security Scans..." -ForegroundColor Yellow
-                if (Get-Command "gitleaks" -ErrorAction SilentlyContinue) {
-                    & gitleaks detect --source=$root --no-git 2>$null
-                    Write-Host "  [OK] Gitleaks secret scan completed." -ForegroundColor Green
-                }
-                if (Get-Command "tflint" -ErrorAction SilentlyContinue) {
-                    Push-Location $tfMinikubeDir
-                    try { tflint --init 2>$null; tflint 2>$null; Write-Host "  [OK] TFLint code quality check passed." -ForegroundColor Green } finally { Pop-Location }
-                }
-                if (Get-Command "trivy" -ErrorAction SilentlyContinue) {
-                    & trivy config $umbrellaDir --severity HIGH,CRITICAL 2>$null
-                    Write-Host "  [OK] Trivy Helm configuration audit completed." -ForegroundColor Green
-                }
+                Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy
             } else {
-                Write-Host "`n[2/10] ⏩ Skipping security scans (-SkipScans specified)." -ForegroundColor Gray
+                Write-Host "`n[2/10] ⏩ Skipping Gitleaks, TFLint, Trivy and Conftest gates (-SkipScans specified)." -ForegroundColor Gray
             }
 
             Write-Host "`n[3/10] 📦 Checking Minikube Cluster Status..." -ForegroundColor Yellow
@@ -868,14 +1431,8 @@ function Invoke-MinikubePlatform {
             $terraformChdir = "-chdir=$tfMinikubeDir"
             Write-Host "  Terraform working directory: $tfMinikubeDir" -ForegroundColor DarkGray
             Write-Host "  Terraform files: $($terraformConfigFiles.Name -join ', ')" -ForegroundColor DarkGray
-            & terraform $terraformChdir init -input=false -no-color
-            if ($LASTEXITCODE -ne 0) {
-                throw "Terraform init failed with exit code $LASTEXITCODE. Infrastructure apply was not attempted."
-            }
-            & terraform $terraformChdir apply -input=false -auto-approve -no-color
-            if ($LASTEXITCODE -ne 0) {
-                throw "Terraform apply failed with exit code $LASTEXITCODE. Stopping bootstrap; inspect Terraform output before retrying."
-            }
+            Invoke-TerraformCommand -Arguments @($terraformChdir, "init", "-input=false", "-no-color") -Description "Terraform init (Minikube)"
+            Invoke-TerraformCommand -Arguments @($terraformChdir, "apply", "-input=false", "-auto-approve", "-no-color") -Description "Terraform apply (Minikube)" -ShowSuccessSummary
             Write-Host "  [OK] Platform namespaces and core helm controllers applied." -ForegroundColor Green
 
             $namespaces = @("dev", "auth", "data", "vault", "observability", "argocd", "gatekeeper-system", "keda")
@@ -1038,8 +1595,7 @@ stringData:
                     if ($LASTEXITCODE -ne 0) { throw "products-service v2 canary is not Ready; its Istio v2 subset was not enabled." }
                     kubectl apply -f $canaryTraffic -n dev
                     if ($LASTEXITCODE -ne 0) { throw "Could not apply the products-service canary DestinationRule/VirtualService." }
-                    & (Join-Path $scriptsDir "istio\set-canary-weight.ps1") -Namespace dev -V1Weight 90 -V2Weight 10
-                    if ($LASTEXITCODE -ne 0) { throw "Could not set the initial products-service canary traffic weights." }
+                    Set-CanaryTrafficWeight -CanaryNamespace dev -StableWeight 90 -CandidateWeight 10
                 } else {
                     kubectl delete virtualservice products-service-canary-vs -n dev --ignore-not-found 2>$null | Out-Null
                 }
@@ -1071,11 +1627,11 @@ stringData:
             Write-Host "`n[9/10] 🩺 Performing Doctor Health Audit & Smoke Verification..." -ForegroundColor Yellow
             $doctorPassed = Invoke-UnifiedPlatformVerify -Mode minikube -Environment dev -CheckIstio:$EnableIstioMesh
             if (-not $doctorPassed) { throw "Platform health audit failed. The deployment is not ready; inspect the checks above." }
-            $smokeScript = Join-Path $scriptsDir "endpoint-smoke-test.py"
+            $smokeScript = Join-Path $scriptsDir "testing\smoke.py"
             if (Test-Path $smokeScript) {
-                Write-Host "  ▶ Executing HTTP API Smoke Tests..." -ForegroundColor White
-                & python $smokeScript --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
-                if ($LASTEXITCODE -ne 0) { throw "HTTP API smoke tests failed with exit code $LASTEXITCODE. Platform is not declared ready." }
+                Write-Host "  ▶ Executing Router and Storefront Deployment Smoke Tests..." -ForegroundColor White
+                & python $smokeScript --deployment --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
+                if ($LASTEXITCODE -ne 0) { throw "Router/storefront deployment smoke gate failed with exit code $LASTEXITCODE. Platform is not declared ready." }
             }
 
             Write-Host "`n[10/10] 💰 Offline FinOps Architecture Estimate..." -ForegroundColor Yellow
@@ -1194,6 +1750,33 @@ if ($DeployCanary -and -not $enableIstio) { throw "-DeployCanary requires Istio 
 if ($Install -and $Command -ne "tools") {
     throw "-Install is valid only with 'tools'."
 }
+if ($VaultAction -and $Command -ne "vault") { throw "-VaultAction is valid only with 'vault'." }
+if ($Command -eq "vault") {
+    if (-not $VaultAction) { throw "Select a Vault action: -VaultAction k8s-auth|istio-pki." }
+    if ($Platform -ne "minikube") { throw "Vault setup actions currently support Minikube only." }
+    if ($Environment -notin @("dev", "minikube")) { throw "Vault setup actions are local-dev only; use -Environment dev or minikube." }
+    if ($RotateVaultPki -and $VaultAction -ne "istio-pki") { throw "-RotateVaultPki is valid only with '-VaultAction istio-pki'." }
+    if ($PruneLegacyVaultRole -and $VaultAction -ne "k8s-auth") { throw "-PruneLegacyVaultRole is valid only with '-VaultAction k8s-auth'." }
+} elseif ($RotateVaultPki -or $PruneLegacyVaultRole -or $VaultNamespace -ne "vault" -or $IstioNamespace -ne "istio-system" -or $VaultToken) {
+    throw "Vault-specific options are valid only with 'vault'."
+}
+if (($IncludeCloudCli -or $InstallOpenCostPlugin) -and $Command -ne "tools") {
+    throw "-IncludeCloudCli and -InstallOpenCostPlugin are valid only with 'tools'."
+}
+if ($Action -and $Command -notin @("canary", "cloudflare")) {
+    throw "-Action is valid only with 'canary' or 'cloudflare'."
+}
+$canaryOptionsChanged = ($Namespace -ne "dev") -or ($V1Weight -ne 90) -or ($V2Weight -ne 10) -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
+if ($canaryOptionsChanged -and $Command -ne "canary") {
+    throw "-Namespace, traffic weights, and rollout steps are valid only with 'canary'."
+}
+if ($Command -eq "canary") {
+    if ($Platform -ne "minikube" -or $Namespace -ne "dev") { throw "The managed canary workflow currently supports only Minikube namespace 'dev'." }
+    if (-not $Action -or $Action -notin @("weight", "rollout", "promote", "retire")) { throw "Select a canary action: -Action weight|rollout|promote|retire." }
+}
+if ($Command -eq "cloudflare") {
+    if ($Action -and $Action -notin @("start", "stop", "status", "restart")) { throw "Select a cloudflare action: -Action start|stop|status|restart." }
+}
 if ($LockId -and ($Command -ne "unlock" -or $Platform -eq "minikube")) {
     throw "-LockId is valid only for 'unlock' on a cloud platform; application rollback never releases Terraform locks."
 }
@@ -1232,7 +1815,12 @@ switch ($Command) {
         if ($Platform -eq "minikube") {
             Show-Banner "Minikube Local Terraform Plan"
             Push-Location $tfMinikubeDir
-            try { terraform init; terraform plan } finally { Pop-Location }
+            try {
+                Invoke-TerraformCommand -Arguments @("init", "-input=false", "-no-color") -Description "Terraform init (Minikube)"
+                Invoke-TerraformCommand -Arguments @("plan", "-no-color") -Description "Terraform plan (Minikube)" -ShowSuccessSummary
+            } finally {
+                Pop-Location
+            }
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction plan -Env $targetCloudEnv
         }
@@ -1339,14 +1927,54 @@ switch ($Command) {
     }
 
     "tools" {
-        Show-Banner "Platform CLI Tools Auditor & Winget Installer"
-        Invoke-CliToolsAudit -InstallTools:$Install
+        Show-Banner "Platform CLI Tools Auditor & Installer"
+        if (-not (Invoke-CliToolsAudit -InstallTools:$Install -IncludeCloudCli:$IncludeCloudCli -InstallOpenCostPlugin:$InstallOpenCostPlugin)) { exit 1 }
+    }
+
+    "policy" {
+        Show-Banner "Helm Manifest Policy Gate (Conftest / Rego)"
+        Invoke-LocalPolicyGate
+    }
+
+    "vault" {
+        Show-Banner "Minikube Vault Operations"
+        $vaultPod = Get-LocalVaultPod -Namespace $VaultNamespace
+        switch ($VaultAction) {
+            "k8s-auth" { Invoke-VaultKubernetesAuthSetup -Namespace $VaultNamespace -PruneLegacyRole:$PruneLegacyVaultRole }
+            "istio-pki" { Invoke-VaultIstioPkiSetup -VaultPod $vaultPod -MeshNamespace $IstioNamespace -Rotate:$RotateVaultPki }
+        }
+    }
+
+    "compose-router" {
+        Show-Banner "Compose Cosmo Router Federation v2 Execution Config"
+        Invoke-CosmoRouterCompose
+    }
+
+    "canary" {
+        Show-Banner "Products Service Progressive Canary"
+        switch ($Action) {
+            "weight" { Set-CanaryTrafficWeight -CanaryNamespace $Namespace -StableWeight $V1Weight -CandidateWeight $V2Weight }
+            "rollout" { Invoke-CanaryRollout -CanaryNamespace $Namespace -RolloutSteps $Steps -IntervalSeconds $StepIntervalSeconds }
+            "promote" { Invoke-CanaryPromotion -CanaryNamespace $Namespace }
+            "retire" { Invoke-CanaryRetirement -CanaryNamespace $Namespace }
+        }
     }
 
     "smoke" {
-        if ($Platform -ne "minikube") { throw "'smoke' currently targets local Minikube URLs only. For cloud, run scripts/endpoint-smoke-test.py with the environment's ingress URLs." }
-        Show-Banner "Microservice API Integration Smoke Tests"
-        python (Join-Path $scriptsDir "endpoint-smoke-test.py") --base-url http://127.0.0.1:8080 --frontend-url http://127.0.0.1:5173
+        Show-Banner "Router and Storefront Deployment Smoke Tests"
+        $smokeScript = Join-Path $scriptsDir "testing\smoke.py"
+        if ($Platform -eq "minikube") {
+            $routerUrl = "http://127.0.0.1:8080"
+            $frontendUrl = "http://127.0.0.1:5173"
+        } else {
+            $routerUrl = if ($env:TARGET_URL) { $env:TARGET_URL } elseif ($env:BASE_URL) { $env:BASE_URL } else { $null }
+            $frontendUrl = $env:FRONTEND_URL
+            if (-not $routerUrl -or -not $frontendUrl) {
+                throw "Cloud smoke requires TARGET_URL (or BASE_URL) and FRONTEND_URL for the Router and storefront ingress URLs."
+            }
+        }
+        python $smokeScript --deployment --base-url $routerUrl --frontend-url $frontendUrl
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
     "tunnels" {
@@ -1357,6 +1985,14 @@ switch ($Command) {
         python (Join-Path $scriptsDir "supervise-tunnels.py")
     }
 
+    "cloudflare" {
+        Show-Banner "Cloudflare Anycast Quick Tunnels (DevSecOps Post-Deployment)"
+        $cfScript = Join-Path $scriptsDir "manage-cloudflare-tunnels.ps1"
+        if (-not (Test-Path -LiteralPath $cfScript -PathType Leaf)) { throw "Cloudflare tunnel manager script is missing: $cfScript" }
+        $cfAction = if ($Action -in @("start", "stop", "status", "restart")) { (Get-Culture).TextInfo.ToTitleCase($Action) } else { "Start" }
+        & $cfScript -Action $cfAction
+    }
+
     "secrets" {
         Show-Banner "Zero-Trust Cryptographic Secret Generator"
         $ns = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
@@ -1364,18 +2000,27 @@ switch ($Command) {
     }
 
     "security-scan" {
-        Show-Banner "Security Scans (Gitleaks, TFLint, Trivy, Cosign)"
-        $scanTfDir = if ($Platform -eq "minikube") { $tfMinikubeDir } else { Join-Path $root "terraform\environments\$Platform" }
-        Write-Host "▶ Running Gitleaks..." -ForegroundColor Yellow
-        if (Get-Command "gitleaks" -ErrorAction SilentlyContinue) { & gitleaks detect --source=$root --no-git }
-        Write-Host "`n▶ Running TFLint on $Platform..." -ForegroundColor Yellow
-        if (Get-Command "tflint" -ErrorAction SilentlyContinue) {
-            Push-Location $scanTfDir; try { tflint 2>$null } finally { Pop-Location }
+        Show-Banner "Local DevSecOps Scans (Gitleaks, TFLint, Trivy, Conftest)"
+        if ($Platform -eq 'minikube') {
+            Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -TargetPlatform $Platform
+        } else {
+            Invoke-LocalDevSecOpsScan -TargetPlatform $Platform
         }
-        Write-Host "`n▶ Running Aqua Trivy Scan..." -ForegroundColor Yellow
-        if (Get-Command "trivy" -ErrorAction SilentlyContinue) {
-            & trivy config $umbrellaDir --severity HIGH,CRITICAL 2>$null
-        }
+    }
+
+    "contract" {
+        Show-Banner "Postman/Newman API Contract Checks"
+        Invoke-LocalContractChecks
+    }
+
+    "performance" {
+        Show-Banner "k6 Performance and SLO Checks"
+        Invoke-LocalPerformanceChecks
+    }
+
+    "dast" {
+        Show-Banner "OWASP ZAP Baseline DAST"
+        Invoke-LocalDastScan
     }
 
     "graph" {
@@ -1435,9 +2080,20 @@ switch ($Command) {
         Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
         Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
         Write-Host "  finops-rightsize    Prometheus-based 7-day workload request right-sizing report"
-        Write-Host "  tools [-Install]    Audit and install CLI tools via Winget (excluding 9 ignored tools)"
+        Write-Host "  tools [-Install] [-IncludeCloudCli] [-InstallOpenCostPlugin]  Audit/install documented host tools"
+        Write-Host "  policy              Render Minikube Helm manifests and enforce the centralized Conftest/Rego policies"
+        Write-Host "  security-scan        Run configured Gitleaks, TFLint, Trivy and Conftest gates"
+        Write-Host "  contract            Run Newman against BASE_URL (default Minikube storefront) and KEYCLOAK_URL"
+        Write-Host "  performance         Run the k6 suite in Docker against TARGET_URL"
+        Write-Host "  dast                Run OWASP ZAP in Docker against FRONTEND_URL using devsecops/dast/zap/rules.tsv"
+        Write-Host "  compose-router      Compose Cosmo Federation v2 config and sync the Helm asset"
+        Write-Host "  canary -Action weight|rollout|promote|retire  Manage products-service progressive rollout"
+        Write-Host "  vault -VaultAction k8s-auth|istio-pki  Configure Minikube Vault auth or Istio CA"
+        Write-Host "       [-VaultNamespace vault] [-IstioNamespace istio-system] [-VaultToken <token>] [-RotateVaultPki]"
+        Write-Host "       [-PruneLegacyVaultRole] (k8s-auth only; removes the broad legacy role/policy)"
         Write-Host "  smoke               Run automated HTTP smoke tests against microservices"
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"
+        Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
         Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
         Write-Host "  urls                Display table of active service endpoints and credentials"
