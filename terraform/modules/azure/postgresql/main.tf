@@ -6,9 +6,9 @@ resource "azurerm_postgresql_flexible_server" "this" {
   delegated_subnet_id = var.subnet_id
   private_dns_zone_id = var.private_dns_zone_id
 
-  sku_name   = var.sku_name
-  storage_mb = var.storage_mb
-  version    = var.postgres_version
+  sku_name              = var.sku_name
+  storage_mb            = var.storage_mb
+  version               = var.postgres_version
   backup_retention_days = var.backup_retention_days
 
   administrator_login    = var.administrator_login
