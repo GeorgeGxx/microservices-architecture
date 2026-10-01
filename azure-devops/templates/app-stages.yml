@@ -82,7 +82,7 @@ parameters:
     default: 'v0.58.1'
   - name: conftestVersion
     type: string
-    default: '0.56.0'
+    default: '0.58.0'
   - name: k6Version
     type: string
     default: '0.55.0'
@@ -343,6 +343,8 @@ stages:
               if [ "$(isProtectedBranch)" = "True" ]; then EXIT_CODE=1; fi
               trivy image \
                 --input $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar \
+                --config devsecops/compliance/trivy/trivy.yaml \
+                --ignorefile devsecops/compliance/trivy/.trivyignore \
                 --severity HIGH,CRITICAL --ignore-unfixed --exit-code $EXIT_CODE
             displayName: "Trivy Vulnerability Audit (Hard Gate on Protected Branches)"
 
@@ -370,10 +372,8 @@ stages:
               tar xzf conftest.tar.gz conftest
               sudo mv conftest /usr/local/bin/
 
-              if [ ! -d devsecops/policies/conftest ]; then
-                echo "##vso[task.logissue type=warning]devsecops/policies/conftest/ not found - policy audit skipped."
-                exit 0
-              fi
+              test -d devsecops/policies/conftest || { echo "##vso[task.logissue type=error]devsecops/policies/conftest/ not found - policy gate cannot verify."; exit 1; }
+              test -n "$(find devsecops/policies/conftest -maxdepth 1 -name '*.rego' -print -quit)" || { echo "##vso[task.logissue type=error]No Rego policies found - policy gate cannot verify."; exit 1; }
               if [ "$(isProtectedBranch)" = "True" ]; then
                 conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/
               else

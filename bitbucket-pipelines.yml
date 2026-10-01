@@ -94,7 +94,7 @@ definitions:
         script:
           - set -euo pipefail
           - test -s "artifacts/images/${SERVICE_NAME:-products-service}.tar"
-          - trivy image --input "artifacts/images/${SERVICE_NAME:-products-service}.tar" --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+          - trivy image --input "artifacts/images/${SERVICE_NAME:-products-service}.tar" --config devsecops/compliance/trivy/trivy.yaml --ignorefile devsecops/compliance/trivy/.trivyignore --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
     - step: &policy-gate
         name: '5. Helm, OpenCost and OPA policy gate'
         image: alpine/helm:3.17.3
@@ -210,7 +210,7 @@ definitions:
           - set -euo pipefail
           - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'
           - ': "${GKE_FRONTEND_URL:?Set GKE_FRONTEND_URL in the deployment environment}"'
-          - python scripts/endpoint-smoke-test.py --base-url "$GKE_INGRESS_URL" --frontend-url "$GKE_FRONTEND_URL"
+          - python scripts/testing/smoke.py --deployment --base-url "$GKE_INGRESS_URL" --frontend-url "$GKE_FRONTEND_URL"
     - step: &performance
         name: '11. k6 performance and SLO checks'
         image: grafana/k6:0.55.0
@@ -225,7 +225,7 @@ definitions:
           - set -euo pipefail
           - ': "${GKE_FRONTEND_URL:?Set GKE_FRONTEND_URL in the deployment environment}"'
           - mkdir -p artifacts/zap
-          - zap-baseline.py -t "$GKE_FRONTEND_URL" -r artifacts/zap/report.html -I
+          - zap-baseline.py -t "$GKE_FRONTEND_URL" -c devsecops/dast/zap/rules.tsv -r artifacts/zap/report.html -I
         artifacts:
           - artifacts/zap/**
     - step: &runtime-verify

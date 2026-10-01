@@ -104,7 +104,7 @@ def build_postman_collection():
                                     {"key": "grant_type", "value": "password", "type": "text"},
                                     {"key": "client_id", "value": "microservices_frontend", "type": "text"},
                                     {"key": "username", "value": "admin_user", "type": "text"},
-                                    {"key": "password", "value": "password", "type": "text"},
+                                    {"key": "password", "value": "admin", "type": "text"},
                                     {"key": "scope", "value": "openid email profile", "type": "text"}
                                 ]
                             },
@@ -246,7 +246,7 @@ def build_postman_collection():
                             "body": {
                                 "mode": "graphql",
                                 "graphql": {
-                                    "query": "query GetProductBySku($sku: String!) {\n  productBySku(sku: $sku) {\n    id\n    sku\n    name\n    price\n    category\n    isInStock\n    quantity\n  }\n}",
+                                    "query": "query GetProductBySku($sku: String!) {\n  productBySku(sku: $sku) {\n    id\n    sku\n    name\n    price\n    category\n  }\n}",
                                     "variables": "{\n  \"sku\": \"{{product_sku}}\"\n}"
                                 }
                             },
