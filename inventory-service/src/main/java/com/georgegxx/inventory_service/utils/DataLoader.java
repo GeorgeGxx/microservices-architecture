@@ -33,7 +33,7 @@ public class DataLoader implements CommandLineRunner {
             );
             log.info("Initial inventory seed data successfully loaded.");
         }
-        // Sincroniza las métricas en memoria tras la verificación/inserción
+        // Synchronize in-memory metrics after verification/insertion
         inventoryService.registerAllSkuGauges();
     }
 }

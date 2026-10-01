@@ -1,6 +1,6 @@
 -- ============================================================================
--- PROYECTO: microservices-architecture
--- MOTOR: PostgreSQL 18+ (Compatible con standard SQL / Enterprise Ready)
+-- PROJECT: microservices-architecture
+-- ENGINE: PostgreSQL 18+ (Enterprise-ready / standard SQL compliant)
 -- BOUNDED CONTEXTS:
 --   1. Products Service (Catalog & Multi-currency Pricing)
 --   2. Inventory Service (Stock Management & Invariant Protection)
@@ -8,7 +8,7 @@
 -- ============================================================================
 
 -- ============================================================================
--- SECCIÓN 0: LIMPIEZA TOTAL (DROP CON CASCADE)
+-- SECTION 0: FULL CLEANUP (DROP WITH CASCADE)
 -- ============================================================================
 DROP SCHEMA IF EXISTS products_service CASCADE;
 DROP SCHEMA IF EXISTS inventory_service CASCADE;
@@ -16,18 +16,18 @@ DROP SCHEMA IF EXISTS orders_service CASCADE;
 DROP SCHEMA IF EXISTS audit_service CASCADE;
 
 -- ============================================================================
--- SECCIÓN 1: CREACIÓN DE ESQUEMAS (Database-per-Service / Multi-Schema Pattern)
+-- SECTION 1: SCHEMA INITIALIZATION (Database-per-Service / Multi-Schema Pattern)
 -- ============================================================================
 CREATE SCHEMA products_service;
 CREATE SCHEMA inventory_service;
 CREATE SCHEMA orders_service;
 CREATE SCHEMA audit_service;
 
--- Habilitar extensiones necesarias (UUIDv7, Btree-Gist, Trigramas para búsqueda)
+-- Enable required extensions (UUID generation, Trigrams for fuzzy search)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- Tipos enumerados de dominio
+-- Domain enum types
 CREATE TYPE orders_service.order_status_enum AS ENUM (
     'PLACED',
     'CONFIRMED',
@@ -37,7 +37,7 @@ CREATE TYPE orders_service.order_status_enum AS ENUM (
 );
 
 -- ============================================================================
--- SECCIÓN 2: DDL - TABLAS, RESTRICCIONES, GENERATED COLUMNS E ÍNDICES
+-- SECTION 2: DDL - TABLES, CONSTRAINTS, GENERATED COLUMNS & INDEXES
 -- ============================================================================
 
 -------------------------------------------------------------------------------
@@ -61,11 +61,11 @@ CREATE TABLE products_service.product (
     CONSTRAINT uk_product_sku UNIQUE (sku)
 );
 
--- Índice GIN para búsquedas de texto rápido sobre el nombre y categoría
+-- GIN index for fast fuzzy text search on name and category
 CREATE INDEX idx_product_search_trgm ON products_service.product USING gin (name gin_trgm_ops);
--- Índice GIN para consultas sobre atributos JSONB (tags, especificaciones técnicas)
+-- GIN index for JSONB attribute queries (tags, technical specifications)
 CREATE INDEX idx_product_metadata ON products_service.product USING gin (metadata);
--- Índice condicional (Partial Index) para productos activos
+-- Partial index for active catalog products
 CREATE INDEX idx_product_active ON products_service.product (category, price) WHERE status = TRUE;
 
 CREATE TABLE products_service.product_price (
@@ -91,7 +91,7 @@ CREATE TABLE inventory_service.inventory (
     sku VARCHAR(100) NOT NULL,
     quantity BIGINT NOT NULL DEFAULT 0 CHECK (quantity >= 0),
     reserved_quantity BIGINT NOT NULL DEFAULT 0 CHECK (reserved_quantity >= 0),
-    -- Columna calculada/generada en PostgreSQL: stock efectivamente disponible
+    -- Generated stored column: effective available stock
     available_quantity BIGINT GENERATED ALWAYS AS (quantity - reserved_quantity) STORED,
     created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
@@ -102,18 +102,18 @@ CREATE TABLE inventory_service.inventory (
 CREATE INDEX idx_inventory_sku ON inventory_service.inventory (sku);
 CREATE INDEX idx_inventory_low_stock ON inventory_service.inventory (available_quantity) WHERE available_quantity < 10;
 
--- Registro de auditoría de movimientos de stock
+-- Stock movement audit log
 CREATE TABLE inventory_service.stock_movement (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     sku VARCHAR(100) NOT NULL,
-    delta BIGINT NOT NULL, -- positivo: entrada, negativo: salida/reserva
+    delta BIGINT NOT NULL, -- positive: intake, negative: deduction/reservation
     reason VARCHAR(50) NOT NULL, -- 'INITIAL', 'ORDER_RESERVED', 'ORDER_CANCELLED', 'RESTOCK'
-    reference_id VARCHAR(100), -- orderNumber o ID de lote
+    reference_id VARCHAR(100), -- orderNumber or batch ID
     created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp()
 );
 
 -------------------------------------------------------------------------------
--- 2.3 ORDERS SERVICE SCHEMA (Con Particionamiento por Rango de Fecha)
+-- 2.3 ORDERS SERVICE SCHEMA (Date-range partitioning)
 -------------------------------------------------------------------------------
 CREATE TABLE orders_service.orders (
     id BIGINT GENERATED ALWAYS AS IDENTITY,
@@ -142,7 +142,7 @@ CREATE TABLE orders_service.orders (
     CONSTRAINT uk_orders_number UNIQUE (order_number, order_date)
 ) PARTITION BY RANGE (order_date);
 
--- Particiones anuales
+-- Annual partitions
 CREATE TABLE orders_service.orders_2025 PARTITION OF orders_service.orders
     FOR VALUES FROM ('2025-01-01 00:00:00+00') TO ('2026-01-01 00:00:00+00');
 
@@ -156,7 +156,7 @@ CREATE INDEX idx_orders_user_id ON orders_service.orders (user_id);
 CREATE INDEX idx_orders_status ON orders_service.orders (order_status);
 CREATE INDEX idx_orders_customer_email ON orders_service.orders (customer_email);
 
--- Líneas de Orden (Order Items)
+-- Order Items
 CREATE TABLE orders_service.order_items (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     order_id BIGINT NOT NULL,
@@ -164,7 +164,7 @@ CREATE TABLE orders_service.order_items (
     sku VARCHAR(100) NOT NULL,
     price NUMERIC(15, 2) NOT NULL CHECK (price >= 0),
     quantity BIGINT NOT NULL CHECK (quantity > 0),
-    -- Columna generada: total de la línea
+    -- Generated stored column: line item total
     line_total NUMERIC(15, 2) GENERATED ALWAYS AS (price * quantity) STORED,
     CONSTRAINT fk_order_items_orders FOREIGN KEY (order_id, order_date)
         REFERENCES orders_service.orders (id, order_date) ON DELETE CASCADE
@@ -173,7 +173,7 @@ CREATE TABLE orders_service.order_items (
 CREATE INDEX idx_order_items_order_id ON orders_service.order_items (order_id);
 CREATE INDEX idx_order_items_sku ON orders_service.order_items (sku);
 
--- Tabla para Patrón Transaccional Outbox (Event-Driven con Kafka / Microservicios)
+-- Transactional Outbox table (Event-Driven microservices integration)
 CREATE TABLE orders_service.outbox_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     aggregate_type VARCHAR(50) NOT NULL,
@@ -189,10 +189,10 @@ CREATE TABLE orders_service.outbox_events (
 CREATE INDEX idx_outbox_pending ON orders_service.outbox_events (created_at) WHERE status = 'PENDING';
 
 -- ============================================================================
--- SECCIÓN 3: POBLACIÓN DE DATOS (DML - INSERTS AVANZADOS CON RETURNING Y ON CONFLICT)
+-- SECTION 3: DATA SEEDING (DML - ADVANCED INSERTS WITH RETURNING & ON CONFLICT)
 -- ============================================================================
 
--- 3.1 Inserts en Catálogo de Productos
+-- 3.1 Product Catalog Seeding
 INSERT INTO products_service.product (sku, name, description, price, status, image_url, category, rating, review_count, is_best_seller, metadata)
 VALUES
 ('SKU-TECH-001', 'MacBook Pro 16 M3 Max', 'Apple MacBook Pro 16-inch M3 Max 36GB RAM 1TB SSD', 3499.00, true, 'https://cdn.store.com/macbook.png', 'Laptops', 4.9, 142, true, '{"specs": {"ram": "36GB", "storage": "1TB", "cpu": "M3 Max"}, "warranty_months": 24}'),
@@ -205,7 +205,7 @@ ON CONFLICT (sku) DO UPDATE
 SET price = EXCLUDED.price,
     updated_at = clock_timestamp();
 
--- 3.2 Precios Multi-moneda usando CTE e INSERT
+-- 3.2 Multi-Currency Pricing via CTE & Bulk INSERT
 INSERT INTO products_service.product_price (product_id, currency, amount, is_active)
 SELECT p.id, curr.currency, (p.price * curr.exchange_rate)::numeric(15,2), true
 FROM products_service.product p
@@ -219,7 +219,7 @@ ON CONFLICT (product_id, currency) DO UPDATE
 SET amount = EXCLUDED.amount,
     updated_at = clock_timestamp();
 
--- 3.3 Inicializar Inventario
+-- 3.3 Inventory Seeding
 INSERT INTO inventory_service.inventory (sku, quantity, reserved_quantity)
 VALUES
 ('SKU-TECH-001', 50, 5),
@@ -233,7 +233,7 @@ SET quantity = EXCLUDED.quantity,
     reserved_quantity = EXCLUDED.reserved_quantity,
     updated_at = clock_timestamp();
 
--- 3.4 Inserción de Órdenes e Items utilizando WITH (CTE) y RETURNING
+-- 3.4 Orders and Items Insertion using WITH (CTE) and RETURNING
 WITH new_order AS (
     INSERT INTO orders_service.orders (
         order_number, user_id, username, order_status,
@@ -262,7 +262,7 @@ CROSS JOIN LATERAL (
     SELECT 'SKU-TECH-002', 2399.00, 1 WHERE o.order_number = 'ORD-2026-0004'
 ) AS items;
 
--- 3.5 Inserción en Outbox Pattern (Simulación de evento de integración con Kafka)
+-- 3.5 Transactional Outbox Event Seeding (Simulated integration event)
 INSERT INTO orders_service.outbox_events (aggregate_type, aggregate_id, event_type, payload, status)
 VALUES (
     'Order',
@@ -281,22 +281,22 @@ VALUES (
 );
 
 -- ============================================================================
--- NIVEL 1: CONSULTAS BÁSICAS (CRUD, FILTROS, ORDENAMIENTO Y AGREGACIONES BÁSICAS)
+-- LEVEL 1: BASIC QUERIES (CRUD, FILTERS, SORTING & BASIC AGGREGATIONS)
 -- ============================================================================
 
--- B1. Lectura con filtros lógicos, BETWEEN y ordenamiento
+-- B1. Filtered read with logical operators, BETWEEN, and sorting
 SELECT sku, name, category, price, rating
 FROM products_service.product
 WHERE status = TRUE 
   AND price BETWEEN 200.00 AND 3000.00
 ORDER BY price DESC;
 
--- B2. Búsqueda por patrón de texto (LIKE / ILIKE)
+-- B2. Text pattern search (LIKE / ILIKE)
 SELECT sku, name, description
 FROM products_service.product
 WHERE name ILIKE '%macbook%' OR description ILIKE '%pro%';
 
--- B3. UPDATE con condiciones y actualización de timestamp
+-- B3. Conditional UPDATE with timestamp touch
 UPDATE products_service.product
 SET rating = 5.0,
     review_count = review_count + 1,
@@ -304,13 +304,13 @@ SET rating = 5.0,
 WHERE sku = 'SKU-TECH-001'
 RETURNING id, sku, rating, review_count, updated_at;
 
--- B4. DELETE seguro con RETURNING (Borrado de un item específico o de una orden cancelada)
+-- B4. Safe DELETE with RETURNING (Purge processed events older than 30 days)
 DELETE FROM orders_service.outbox_events
 WHERE status = 'PROCESSED' 
   AND created_at < clock_timestamp() - INTERVAL '30 days'
 RETURNING id, aggregate_id, event_type;
 
--- B5. Agregaciones elementales
+-- B5. Catalog summary aggregations
 SELECT 
     COUNT(*) AS total_products,
     MIN(price) AS min_price,
@@ -321,10 +321,10 @@ FROM products_service.product
 WHERE status = TRUE;
 
 -- ============================================================================
--- NIVEL 2: CONSULTAS INTERMEDIAS (JOINS, SUBQUERIES, GROUP BY Y JSONB)
+-- LEVEL 2: INTERMEDIATE QUERIES (JOINS, SUBQUERIES, GROUP BY & JSONB)
 -- ============================================================================
 
--- I1. INNER JOIN & LEFT JOIN: Catálogo de productos con su stock en inventario y precio en MXN
+-- I1. INNER JOIN & LEFT JOIN: Product catalog with inventory stock and MXN price
 SELECT 
     p.sku,
     p.name,
@@ -345,7 +345,7 @@ LEFT JOIN inventory_service.inventory inv
        ON p.sku = inv.sku
 ORDER BY p.category, p.name;
 
--- I2. Detalle de Órdenes cruzando Múltiples Tablas y Esquemas
+-- I2. Cross-service order detail query
 SELECT 
     o.order_number,
     o.order_date,
@@ -364,7 +364,7 @@ LEFT JOIN products_service.product p
 WHERE o.order_status IN ('PLACED', 'SHIPPED')
 ORDER BY o.order_date DESC, oi.id ASC;
 
--- I3. GROUP BY con agregaciones condicionadas (FILTER clause de PostgreSQL)
+-- I3. GROUP BY with conditional aggregation (PostgreSQL FILTER clause)
 SELECT 
     o.customer_email,
     COUNT(DISTINCT o.id) AS total_orders,
@@ -376,8 +376,8 @@ FROM orders_service.orders o
 GROUP BY o.customer_email
 HAVING COUNT(DISTINCT o.id) >= 1;
 
--- I4. Subconsultas con EXISTS y NOT EXISTS (Detección de productos huérfanos o sin ventas)
--- Productos que nunca se han vendido
+-- I4. Subqueries with EXISTS and NOT EXISTS (Unsold/orphan product detection)
+-- Products with no sales recorded
 SELECT p.sku, p.name, p.category, p.price
 FROM products_service.product p
 WHERE NOT EXISTS (
@@ -386,7 +386,7 @@ WHERE NOT EXISTS (
     WHERE oi.sku = p.sku
 );
 
--- I5. Consultas directas sobre documentos JSONB
+-- I5. Direct queries on JSONB documents
 SELECT 
     sku,
     name,
@@ -397,10 +397,10 @@ FROM products_service.product
 WHERE metadata @> '{"specs": {"ram": "36GB"}}'::jsonb;
 
 -- ============================================================================
--- NIVEL 3: CONSULTAS AVANZADAS (WINDOW FUNCTIONS, CTEs, LATERAL, LOCKING Y RLS)
+-- LEVEL 3: ADVANCED QUERIES (WINDOW FUNCTIONS, CTEs, LATERAL, LOCKING & MATERIALIZED VIEWS)
 -- ============================================================================
 
--- A1. WINDOW FUNCTIONS: Ranking de Productos más vendidos por Categoría y Ticket Acumulado
+-- A1. WINDOW FUNCTIONS: Best-selling products ranked by category and cumulative revenue
 WITH sales_by_product AS (
     SELECT 
         p.category,
@@ -426,7 +426,7 @@ SELECT
     ROUND(100.0 * total_revenue / SUM(total_revenue) OVER (PARTITION BY category), 2) AS category_revenue_share_pct
 FROM sales_by_product;
 
--- A2. WINDOW FUNCTIONS: Intervalos de compra de clientes (LAG y LEAD)
+-- A2. WINDOW FUNCTIONS: Customer purchase interval analysis (LAG & LEAD)
 SELECT 
     order_number,
     user_id,
@@ -440,7 +440,7 @@ SELECT
     SUM(total_amount) OVER (PARTITION BY user_id ORDER BY order_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS customer_lifetime_value_running
 FROM orders_service.orders;
 
--- A3. CROSS JOIN LATERAL: Últimos 2 pedidos por cada cliente (Top-N per group óptimo)
+-- A3. CROSS JOIN LATERAL: Latest 2 orders per customer (Optimal Top-N per group)
 SELECT 
     u.user_id,
     u.customer_name,
@@ -459,15 +459,15 @@ CROSS JOIN LATERAL (
     LIMIT 2
 ) AS latest_orders;
 
--- A4. CONCURRENCY & PESSIMISTIC LOCKING: Reserva Atómica de Inventario en Alta Concurrencia
--- Previene Race Conditions y Double Spending de Stock
+-- A4. CONCURRENCY & PESSIMISTIC LOCKING: High-concurrency atomic stock reservation
+-- Prevents race conditions and inventory double-allocation
 DO $$
 DECLARE
     v_sku VARCHAR(100) := 'SKU-TECH-001';
     v_qty_to_reserve BIGINT := 2;
     v_available BIGINT;
 BEGIN
-    -- Bloqueo pesimista solo sobre la fila requerida
+    -- Pessimistic lock exclusively on the target inventory row
     SELECT available_quantity INTO v_available
     FROM inventory_service.inventory
     WHERE sku = v_sku
@@ -482,14 +482,14 @@ BEGIN
         INSERT INTO inventory_service.stock_movement (sku, delta, reason, reference_id)
         VALUES (v_sku, -v_qty_to_reserve, 'ORDER_RESERVED', 'ORD-MANUAL-RESERVATION');
 
-        RAISE NOTICE 'Reserva exitosa de % unidades para SKU %', v_qty_to_reserve, v_sku;
+        RAISE NOTICE 'Successfully reserved % units for SKU %', v_qty_to_reserve, v_sku;
     ELSE
-        RAISE EXCEPTION 'Stock insuficiente para SKU %: solicitado %, disponible %', v_sku, v_qty_to_reserve, v_available;
+        RAISE EXCEPTION 'Insufficient stock for SKU %: requested %, available %', v_sku, v_qty_to_reserve, v_available;
     END IF;
 END $$;
 
--- A5. PATRÓN TRANSACTIONAL OUTBOX: Worker Polling con FOR UPDATE SKIP LOCKED
--- Permite que múltiples instancias de microservicios procesen la cola de eventos sin colisiones ni bloqueos
+-- A5. TRANSACTIONAL OUTBOX PATTERN: Worker polling with FOR UPDATE SKIP LOCKED
+-- Allows multiple microservice instances to consume the event queue without collisions or locks
 WITH next_events AS (
     SELECT id
     FROM orders_service.outbox_events
@@ -505,7 +505,7 @@ FROM next_events n
 WHERE o.id = n.id
 RETURNING o.id, o.aggregate_type, o.aggregate_id, o.event_type, o.payload;
 
--- A6. VISTA MATERIALIZADA: Dashboard de Performance y Ventas en Tiempo Real
+-- A6. MATERIALIZED VIEW: Real-time sales and performance summary
 CREATE MATERIALIZED VIEW orders_service.mv_daily_sales_summary AS
 SELECT 
     date_trunc('day', o.order_date)::date AS sales_date,
@@ -521,16 +521,16 @@ JOIN orders_service.order_items oi
   ON o.id = oi.order_id AND o.order_date = oi.order_date
 WHERE o.order_status NOT IN ('CANCELLED')
 GROUP BY date_trunc('day', o.order_date)::date
-WITH DATA; -- Se crea con datos iniciales (o debe ejecutarse REFRESH sin CONCURRENTLY la 1era vez)
+WITH DATA; -- Populated with initial data (or run REFRESH without CONCURRENTLY the first time)
 
--- Índice único obligatorio para permitir refrescos concurrentes sin bloquear lecturas
+-- Mandatory unique index to enable concurrent non-blocking refreshes
 CREATE UNIQUE INDEX idx_mv_daily_sales_date ON orders_service.mv_daily_sales_summary (sales_date);
 
--- Refresco no bloqueante para actualizaciones posteriores (Concurrent Refresh)
+-- Non-blocking refresh for subsequent updates (Concurrent Refresh)
 REFRESH MATERIALIZED VIEW CONCURRENTLY orders_service.mv_daily_sales_summary;
 
 SELECT * FROM orders_service.mv_daily_sales_summary;
 
 -- ============================================================================
--- FIN DEL SCRIPT SQL POSTGRESQL 18
+-- END OF POSTGRESQL 18 SQL REFERENCE SCRIPT
 -- ============================================================================
