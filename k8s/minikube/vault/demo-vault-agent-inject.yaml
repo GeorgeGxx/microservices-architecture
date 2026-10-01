@@ -17,7 +17,7 @@ spec:
       annotations:
         # Enables the Vault Agent Sidecar Injector
         vault.hashicorp.com/agent-inject: "true"
-        vault.hashicorp.com/role: "microservices-role"
+        vault.hashicorp.com/role: "products-service-role"
         vault.hashicorp.com/agent-inject-secret-database.env: "secret/data/products-service"
         vault.hashicorp.com/agent-inject-template-database.env: |
           {{- with secret "secret/data/products-service" -}}

@@ -14,10 +14,25 @@ param (
     [string]$KeycloakUrl = "http://localhost:8181",
     [string]$AdminUser = "admin",
     [string]$AdminPassword = "admin",
-    [string]$Realm = "microservices-realm"
+    [string]$Realm = "microservices-realm",
+    [string]$RealmExportPath = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+# Auto-resolve default realm-export.json path if not explicitly provided
+if (-not $RealmExportPath) {
+    $candidates = @(
+        (Join-Path $PSScriptRoot "..\docs\reference\iam\realm-export.json"),
+        (Join-Path $PSScriptRoot "..\docs\realm-export.json")
+    )
+    foreach ($cand in $candidates) {
+        if (Test-Path $cand) {
+            $RealmExportPath = (Resolve-Path $cand).Path
+            break
+        }
+    }
+}
 
 # Auto-load defaults from .env if available
 $envCandidates = @(
@@ -164,17 +179,39 @@ try {
 }
 
 if (-not $realmExists) {
-    $realmPayload = @{
-        id = $Realm
-        realm = $Realm
-        enabled = $true
-        verifyEmail = $false
-        resetPasswordAllowed = $true
-        registrationAllowed = $true
-        loginWithEmailAllowed = $true
-    } | ConvertTo-Json
-    Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
-    Write-Host "[OK] Realm '$Realm' created successfully." -ForegroundColor Green
+    if ($RealmExportPath -and (Test-Path $RealmExportPath)) {
+        Write-Host "  Importing declarative realm definition from: $RealmExportPath" -ForegroundColor Cyan
+        try {
+            $rawJson = Get-Content -Path $RealmExportPath -Raw -Encoding UTF8
+            Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $rawJson
+            Write-Host "[OK] Realm '$Realm' imported from export file successfully." -ForegroundColor Green
+        } catch {
+            Write-Host "  [!] Warning: Import from $RealmExportPath failed ($($_.Exception.Message)). Creating default realm..." -ForegroundColor Yellow
+            $realmPayload = @{
+                id = $Realm
+                realm = $Realm
+                enabled = $true
+                verifyEmail = $false
+                resetPasswordAllowed = $true
+                registrationAllowed = $true
+                loginWithEmailAllowed = $true
+            } | ConvertTo-Json
+            Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
+            Write-Host "[OK] Default Realm '$Realm' created successfully." -ForegroundColor Green
+        }
+    } else {
+        $realmPayload = @{
+            id = $Realm
+            realm = $Realm
+            enabled = $true
+            verifyEmail = $false
+            resetPasswordAllowed = $true
+            registrationAllowed = $true
+            loginWithEmailAllowed = $true
+        } | ConvertTo-Json
+        Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
+        Write-Host "[OK] Realm '$Realm' created successfully." -ForegroundColor Green
+    }
 } else {
     try {
         $updatePayload = @{
