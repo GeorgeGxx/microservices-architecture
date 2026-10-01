@@ -280,6 +280,7 @@ jobs:
         with:
           scan-type: 'image'
           input: /tmp/${{ inputs.service-name }}-image.tar
+          trivy-config: devsecops/compliance/trivy/trivy.yaml
           format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
@@ -313,23 +314,19 @@ jobs:
       - name: Install Conftest (OPA)
         run: |
           if ! command -v conftest &> /dev/null; then
-            curl -sL https://github.com/open-policy-agent/conftest/releases/latest/download/conftest_Linux_x86_64.tar.gz -o conftest.tar.gz 2>/dev/null || true
-            tar xzf conftest.tar.gz conftest 2>/dev/null || true
-            chmod +x conftest 2>/dev/null || true
-            sudo mv conftest /usr/local/bin/ 2>/dev/null || true
+            curl -fsSLo conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz
+            tar xzf conftest.tar.gz conftest
+            chmod +x conftest
+            sudo install conftest /usr/local/bin/conftest
           fi
+          conftest --version
 
       - name: Run Conftest Policy Audit (Centralized Rego Rules)
         run: |
-          if command -v conftest &> /dev/null && [ -d "devsecops/policies/conftest" ]; then
-            conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/
-          elif [ -d "devsecops/policies/conftest" ]; then
-            echo "Conftest binary not in PATH; validating policies directory exists."
-            ls -la devsecops/policies/conftest/
-          else
-            echo "::error::No devsecops/policies/conftest directory found — compliance gate cannot verify."
-            exit 1
-          fi
+          test -d "devsecops/policies/conftest" || { echo "::error::No devsecops/policies/conftest directory found — compliance gate cannot verify."; exit 1; }
+          test -n "$(find devsecops/policies/conftest -maxdepth 1 -name '*.rego' -print -quit)" || { echo "::error::No Rego policies found — compliance gate cannot verify."; exit 1; }
+          command -v conftest >/dev/null || { echo "::error::Conftest installation failed — compliance gate cannot verify."; exit 1; }
+          conftest test rendered-manifests.yaml --policy devsecops/policies/conftest/
 
   # ==========================================================
   # STEP 6: 📦 Push Certified Image to Registry (Docker Hub / ECR)
@@ -459,14 +456,77 @@ jobs:
             echo "::notice::ArgoCD server not connected in this runner — GitOps delivery dispatched for $APP_NAME (Tag: ${{ github.sha }})."
           fi
 
+  # Opt-in because the GitHub runner must have network access to the deployed app.
+  # Set DEVSECOPS_POST_DEPLOY_ENABLED=true and configure the three URL variables
+  # to activate this runtime verification suite.
+  post-deployment-validation:
+    name: "🧪 Post-deployment API, SLO and DAST - ${{ inputs.service-name }}"
+    needs: gitops-argocd-sync
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.DEVSECOPS_POST_DEPLOY_ENABLED == 'true'
+    runs-on: ${{ inputs.runner-type }}
+    timeout-minutes: 30
+    env:
+      BASE_URL: ${{ vars.DEVSECOPS_BASE_URL }}
+      FRONTEND_URL: ${{ vars.DEVSECOPS_FRONTEND_URL }}
+      KEYCLOAK_URL: ${{ vars.DEVSECOPS_KEYCLOAK_URL }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js for Newman
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Set up Python for storefront smoke checks
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate runtime test targets
+        run: |
+          : "${BASE_URL:?Set DEVSECOPS_BASE_URL to the deployed API/storefront entrypoint}"
+          : "${FRONTEND_URL:?Set DEVSECOPS_FRONTEND_URL to the deployed React storefront}"
+          : "${KEYCLOAK_URL:?Set DEVSECOPS_KEYCLOAK_URL to the deployed Keycloak base URL}"
+
+      - name: Run Newman API and authorization collection
+        run: npx --yes newman@6 run devsecops/testing/newman/microservices.postman_collection.json --env-var "BASE_URL=$BASE_URL" --env-var "keycloak_url=$KEYCLOAK_URL" --bail
+
+      - name: Run storefront smoke checks
+        run: python3 scripts/testing/smoke.py --deployment --base-url "$BASE_URL" --frontend-url "$FRONTEND_URL"
+
+      - name: Run k6 performance and SLO checks
+        run: |
+          docker run --rm --network host -v "$GITHUB_WORKSPACE:/workspace:ro" \
+            grafana/k6:0.55.0 run --env "TARGET_URL=$BASE_URL" \
+            /workspace/devsecops/testing/k6/load-test.js
+
+      - name: Run OWASP ZAP using centralized alert rules
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/artifacts/zap"
+          docker run --rm --network host \
+            -v "$GITHUB_WORKSPACE/devsecops/dast/zap:/zap/rules:ro" \
+            -v "$GITHUB_WORKSPACE/artifacts/zap:/zap/wrk:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t "$FRONTEND_URL" -c /zap/rules/rules.tsv -r zap-report.html -I
+
+      - name: Upload OWASP ZAP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report-${{ inputs.service-name }}
+          path: artifacts/zap/zap-report.html
+          if-no-files-found: warn
+          retention-days: 7
+
   # ==========================================================
   # ROLLBACK: 🔄 Automated Rollback for ArgoCD & GitHub Actions on Failure
   #   Triggers if ArgoCD sync, pod deployment, or health verification fails
   # ==========================================================
   rollback-argocd:
     name: "🔄 Rollback ArgoCD GitOps - ${{ inputs.service-name }}"
-    needs: [push-dockerhub, gitops-argocd-sync]
-    if: failure() && needs.push-dockerhub.result == 'success'
+    needs: [push-dockerhub, gitops-argocd-sync, post-deployment-validation]
+    if: failure() && needs.push-dockerhub.result == 'success' && (needs.gitops-argocd-sync.result == 'failure' || needs.post-deployment-validation.result == 'failure')
     runs-on: ${{ inputs.runner-type }}
     steps:
       - name: Checkout Code
