@@ -18,3 +18,7 @@ terraform.tfstate
 terraform.tfstate.*
 terraform/backend-config/*.hcl
 !terraform/backend-config/*.hcl.example
+scripts/.cloudflare-tunnels.json
+scripts/.tunnel-logs/
+devsecops/dast/zap/zap-report.html
+devsecops/dast/zap/zap.yaml
