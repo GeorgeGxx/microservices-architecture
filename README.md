@@ -93,21 +93,70 @@ graph TB
 ```
 ---
 
-## 📚 Specialized Documentation Hub
+## 📚 Enterprise Documentation Hub & Architecture Blueprint
 
-To keep this overview concise and practical, in-depth architectural specifications, cloud matrices, and operational manuals have been modularized into dedicated guides:
+In-depth architectural specifications, multi-cloud topologies, operational runbooks, and quality gates are organized into **4 specialized pillars** under [`docs/`](./docs):
 
-| Guide | Focus & Key Contents | Target Audience |
-| :--- | :--- | :--- |
-| [🏛️ **Architecture & Domain Guide**](./docs/ARCHITECTURE.md) | Domain-Driven Design (DDD), Saga compensation flow, Keycloak 26 IAM, HashiCorp Vault secrets, React 19 state context, POS QR workflows, and Amazon/Mercado Libre e-commerce models. | Software Architects, Developers |
-| [☸️ **Local Deployment & Kubernetes**](./docs/LOCAL_DEPLOYMENT.md) | Docker Compose (15 services), Minikube cluster setup (6 CPUs / 12 GB RAM / 40 GB disk), Istio service mesh, Envoy sidecars, and cluster resiliency (HPA, ESO, Alertmanager). | DevOps, Platform Engineers |
-| [🛡️ **DevSecOps Platform & CI/CD**](./docs/DEVSECOPS_AND_CI_CD.md) | GitHub Actions service delivery flow, 14-stage Azure DevOps and Bitbucket pipelines, Policy-as-Code, SAST, Trivy, DAST, and ArgoCD GitOps. | SecOps, Cloud Engineers |
-| [📊 **Observability & Query Handbook**](./docs/OBSERVABILITY_QUERIES.md) | Comprehensive catalog and cheat sheet for PromQL (business funnels, RED signals, JVM), LogQL (Loki error hunting, trace correlation), and TraceQL (Tempo spans). | SRE, Operations Engineers |
-| [🧪 **Testing, Simulation & Chaos**](./docs/TESTING_AND_CHAOS.md) | Unified simulation engine (`simulate.py`), authenticated Cosmo Router load/chaos scenarios, frontend/API smoke checks, and Newman API contract testing. | QA Engineers, Developers |
-| [🛡️ **Local Reliability & Delivery Gates**](./docs/LOCAL_MATURITY_GATES.md) | Bounded k6 baseline, local database restore drill, observability validation, Terraform safeguards, and offline CI checks. | Developers, Platform Engineers |
-| [☁️ **Multi-Cloud Terraform & Recovery**](./docs/MULTI_CLOUD_TERRAFORM.md) | Infrastructure as Code for AWS (EKS/RDS), Azure (AKS/Postgres), and GCP (GKE/CloudSQL), reusable modules, isolated workspaces, and provider-specific recovery runbooks. | Cloud Architects, SRE |
-| [🛠️ **Automation Scripts Reference**](./docs/SCRIPTS_REFERENCE.md) | Complete CLI reference for `platform.ps1`, cloud helpers (`manage-aws.ps1`, `manage-azure.ps1`, `manage-gcp.ps1`), FinOps disk cleanup, and build automation. | Platform Ops, SysAdmins |
-| [📦 **Postman & Newman API Suite**](./devsecops/testing/newman/microservices.postman_collection.json) | Unified API collection aligned with Cosmo Router (Federation v2 operations, Keycloak login flows, DHL tracking, and dynamic order chaining through frontend Nginx). | API Developers, QA |
+### 🧭 Navigation Matrix by Role
+
+```mermaid
+graph TD
+    User([👤 Team Member / Auditor]) --> Role{Select Your Objective}
+    Role -->|Understand System Design| Arch["🏗️ 01. Architecture<br/>Domain Microservices, Supergraph, Multi-Cloud"]
+    Role -->|Run Locally or Operate Stack| Ops["🚀 02. Operations<br/>Minikube, Platform CLI, Cloudflare Tunnels, Helm"]
+    Role -->|Security, CI/CD & Testing| QA["🛡️ 03. DevSecOps & Quality<br/>Pipelines, Quality Gates, DoD, k6, Newman, ZAP"]
+    Role -->|Telemetry & SRE Monitoring| Obs["📊 04. Observability<br/>Grafana Dashboards, PromQL, LogQL, TraceQL"]
+```
+
+### 📑 Master Documentation Catalog
+
+| Pillar | Focus & Key Contents | Core Documents | Target Audience |
+| :--- | :--- | :--- | :--- |
+| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, and multi-cloud infrastructure topologies (AWS, Azure, GCP). | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md) | Software Architects, Developers |
+| **02. Operations** | Docker Compose (15 services), Minikube cluster setup, Istio service mesh, `platform.ps1` CLI reference, Cloudflare Zero-Trust Tunnels, and Helm Canary rollouts. | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md) | DevOps, Platform Engineers, SysAdmins |
+| **03. DevSecOps & Testing** | Multi-CI/CD pipelines (GitHub Actions, Azure DevOps, Bitbucket), Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, and Git workflows. | • [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md) | SecOps, QA Engineers, Cloud Engineers |
+| **04. Observability** | Full-stack LGTM telemetry handbook: PromQL queries (RED metrics, JVM, funnels), LogQL (Loki correlation), and TraceQL (Tempo distributed spans). | • [OBSERVABILITY_QUERIES.md](./docs/04-observability/OBSERVABILITY_QUERIES.md) | SRE, Operations Engineers |
+| **API Collections** | Unified Newman & Postman API suite with Federation v2 queries, Keycloak login flows, and end-to-end order orchestration. | • [Postman Collection](./devsecops/testing/newman/microservices.postman_collection.json) | API Developers, QA |
+
+### ⚡ Quick-Start Learning Pathways by Engineering Role
+
+Select the recommended reading sequence tailored to your day-to-day responsibilities:
+
+- **💻 Backend & Frontend Developers:**
+  1. [01. System Architecture](./docs/01-architecture/ARCHITECTURE.md): Master domain boundaries, Saga transactions, and GraphQL federation schema.
+  2. [02. Local Deployment Runbook](./docs/02-operations/LOCAL_DEPLOYMENT.md): Spin up the local Minikube cluster or Docker Compose stack in minutes.
+  3. [03. Quality Gates & DoD](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md): Review acceptance criteria, pre-PR local maturity checks, and the unified PR template.
+
+- **🛡️ DevSecOps, SRE & QA Engineers:**
+  1. [03. CI/CD Pipelines](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md): Multi-cloud pipeline engine (GitHub, Azure DevOps, Bitbucket) and static checks (Gitleaks, Semgrep, Trivy, OPA).
+  2. [03. Dynamic & Chaos Testing](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md): Run Newman contract regressions, k6 performance/SLO gates, and OWASP ZAP DAST scans.
+  3. [04. Observability Handbook](./docs/04-observability/OBSERVABILITY_QUERIES.md): Query metrics (PromQL), logs (LogQL), and distributed spans (TraceQL) across the Grafana LGTM stack.
+  4. [02. Cloudflare Tunnels](./docs/02-operations/CLOUDFLARE_TUNNELS.md): Expose local or staging endpoints securely to remote GitHub Actions runners.
+
+- **☁️ Cloud Platform & Infrastructure Architects:**
+  1. [01. Multi-Cloud Infrastructure](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md): Review Terraform modules, provider architectures (AWS EKS, Azure AKS, GCP GKE), remote backends, and state locks.
+  2. [02. Platform CLI Reference](./docs/02-operations/PLATFORM_CLI_REFERENCE.md): Single operational tool for cluster lifecycles, secrets, and canary routing.
+  3. [02. Helm Chart & Canary Releases](./docs/02-operations/HELM_AND_CANARY.md): Manage Umbrella Helm chart delivery, OCI registries, and Istio canary traffic splitting.
+  4. [03. Git Workflow & Rollbacks](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md): Release branching, hotfixes, GitOps ArgoCD syncs, and 4-tier disaster recovery.
+
+### 🎨 Visual Architecture Blueprint
+
+All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs/Diagrams.drawio) (viewable via [draw.io](https://app.diagrams.net/) or VS Code Draw.io extension):
+
+| Tab # | View Name | Architectural Scope |
+| :---: | :--- | :--- |
+| **01** | *General Architecture* | High-level topology across Client, Gateway, Microservices, Broker, and Observability layers. |
+| **02** | *GraphQL Supergraph* | Apollo Federation 2.3/2.5 schema composition, Cosmo Router, `@key` directives, and entity resolution. |
+| **03** | *Distributed Saga Flow* | Choreographed Saga transaction sequence, compensation rollbacks, and idempotency guarantees. |
+| **04** | *Multi-Cloud Ingress* | Istio Ingress Gateway, Envoy sidecar proxies, mutual TLS (`STRICT`), and traffic management. |
+| **05** | *Zero-Trust Security* | HashiCorp Vault KV-v2 secrets engine, AppRole authentication, and dynamic secret injection. |
+| **06** | *Keycloak IAM & OIDC* | Dual-token authentication (Frontend PKCE vs Backend Bearer), realm configuration, and role mappings. |
+| **07** | *Kafka Event Streaming* | Apache Kafka KRaft cluster, topic partitions, consumer group lag, and SSE Notification push. |
+| **08** | *LGTM Observability* | OpenTelemetry Collector pipeline, Prometheus TSDB, Grafana Loki, Tempo spans, and dashboards. |
+| **09** | *AWS Architecture* | AWS EKS, Managed Node Groups, RDS PostgreSQL, ElastiCache Redis, and ALB Ingress Controller. |
+| **10** | *Azure Architecture* | Azure AKS cluster, Azure Database for PostgreSQL, Azure Cache for Redis, and Application Gateway. |
+| **11** | *GCP Architecture* | Google Kubernetes Engine (GKE), Cloud SQL PostgreSQL, Memorystore Redis, and Cloud Armor. |
+| **12** | *DevSecOps Pipeline* | Unified 14-stage CI/CD pipeline matrix across GitHub Actions, Azure DevOps, and Bitbucket Pipelines. |
 
 ---
 
@@ -121,7 +170,7 @@ The host ports below describe the Docker Compose profile. In Minikube the micros
 | **React Frontend** | React 19 + Tailwind v4 / Nginx | `5173` | [http://localhost:5173](http://localhost:5173) | `admin_user` / `admin` & `basic_user` / `password` |
 | **Cosmo Router Gateway** | Cosmo Router 0.353.0 (Go / Federation v2; Orders subgraph v2.5 auth directives) | `8080` (`/graphql`) | [http://localhost:8080](http://localhost:8080) (GraphQL Playground in local mode) | Keycloak JWKS JWT validation, authenticated order fields, bounded query complexity, OTel/Prometheus |
 
-Cosmo Router security, complexity limits, observability, resilience settings and intentionally deferred capabilities are tracked in [docs/COSMO_ROUTER_CAPABILITIES.md](./docs/COSMO_ROUTER_CAPABILITIES.md).
+Cosmo Router security, complexity limits, observability, resilience settings and intentionally deferred capabilities are tracked in [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md#8-cosmo-router-gateway-capabilities--security-matrix).
 | **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8004/graphql](http://localhost:8004/graphql) & `/api/product` | Internal Subgraph & REST |
 | **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8003/graphql](http://localhost:8003/graphql) & `/api/order` | Internal Subgraph & REST |
 | **Inventory Service** | Spring Boot 4.0.8 | `8001` | [http://localhost:8001/graphql](http://localhost:8001/graphql) & `/api/inventory` | Internal Subgraph & REST |
@@ -238,7 +287,7 @@ kubectl get pods -n dev # observability, auth, data, ..
 .\platform.ps1 down -Destroy
 ```
 
-> 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/LOCAL_DEPLOYMENT.md](./docs/LOCAL_DEPLOYMENT.md).
+> 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
 ---
 
 ## 🧪 Automated Testing & Simulation Suite
@@ -246,22 +295,28 @@ kubectl get pods -n dev # observability, auth, data, ..
 The platform provides a comprehensive suite of Python and PowerShell scripts to validate health, contract integrity, load simulation, and telemetry:
 
 ```powershell
-# 1. End-to-End Smoke Testing (9/9 Synthetic Checks)
+# 1. Functional smoke checks (may place one test order)
 python scripts/testing/smoke.py
 
 # 2. Legitimate E-Commerce User Traffic Simulation
 python scripts/testing/simulate.py --scenario traffic --orders 15 --concurrency 3
 
-# 3. Telemetry & PromQL Diagnostics (JVM, Abandonment Rate, Vault)
-python scripts/testing/check.py --check all
+# 3. Unified component and telemetry diagnostics (read-only)
+python scripts/testing/diagnose.py all
 
-# 4. Platform Ecosystem Verification (Cosmo Router, Microservices, Grafana)
-python scripts/testing/verify.py
+# 4. Read-only authenticated order-list diagnostic (requires Keycloak client secret)
+python scripts/testing/diagnose.py orders-readonly
 
-# 5. DevSecOps Synthetic Health & Security Gate
-python scripts/endpoint-smoke-test.py
+# 5. Read-only deployment gate against Router and storefront independently
+python scripts/testing/smoke.py --deployment --base-url http://localhost:8080 --frontend-url http://localhost:5173
 
-# 6. Newman API Contract Suite (22 Requests)
+# 6. Grafana dashboard generation (publishing requires explicit --push)
+python scripts/grafana.py dashboards
+
+# Seed the Grafana funnel panel with explicit demo CART_ADD events
+python scripts/grafana.py funnel-demo --count 30 --category Electronics
+
+# 7. Newman API Contract Suite (22 Requests)
 npx --yes newman run devsecops/testing/newman/microservices.postman_collection.json `
   --env-var "BASE_URL=http://localhost:8080" `
   --env-var "keycloak_url=http://localhost:8181" `
@@ -294,20 +349,29 @@ microservices-architecture/
 │   ├── compliance/trivy/           # Trivy container scanner configuration
 |   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
 │   ├── policies/                   # OPA Rego Conftest & Gatekeeper constraints
-│   ├── reference/aws-eks/          # GHA and ArgoCDfor AWS (Lab version)
 |   ├── sast/gitleaks/              # Gitleaks and Semgrep static security configs
 │   └── testing/newman/             # Newman JSON export (21 requests) + Postman collection tree
-├── docs/                           # 📚 Specialized Modular Documentation
-│   ├── ARCHITECTURE.md             # Tactical DDD, Sagas, Security, POS & E-Commerce
-│   ├── LOCAL_DEPLOYMENT.md         # Docker Compose, Minikube, Istio & Resiliency
-│   ├── DEVSECOPS_AND_CI_CD.md      # GitHub/Azure/Bitbucket CI/CD, OPA, Trivy & DAST
-│   ├── GIT_WORKFLOW_AND_COLLABORATION.md # Trunk-based / Gitflow, branch drift & rollback playbooks
-│   ├── OBSERVABILITY_QUERIES.md    # PromQL, LogQL, and TraceQL Telemetry Handbook
-│   ├── TESTING_AND_CHAOS.md        # Load simulation, DDoS, Chaos & Newman tests
-│   ├── MULTI_CLOUD_TERRAFORM.md    # AWS, Azure, GCP Terraform & Rollback Guide
-│   ├── SCRIPTS_REFERENCE.md        # Complete platform.ps1 & automation scripts manual
-│   ├── Diagrams.drawio             # 12-Page Architectural Blueprint (Draw.io)
-│   └── realm-export.json           # Keycloak 26 Realm configuration backup
+├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
+│   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
+│   │   ├── ARCHITECTURE.md
+│   │   └── MULTI_CLOUD_INFRASTRUCTURE.md
+│   ├── 02-operations/              # 🚀 Operations, Local Minikube, Platform CLI & Cloudflare Tunnels
+│   │   ├── LOCAL_DEPLOYMENT.md
+│   │   ├── PLATFORM_CLI_REFERENCE.md
+│   │   ├── CLOUDFLARE_TUNNELS.md
+│   │   └── HELM_AND_CANARY.md
+│   ├── 03-devsecops-and-testing/   # 🛡️ CI/CD Pipelines, Quality Gates, DoD, k6, Newman & DAST
+│   │   ├── DEVSECOPS_PIPELINES.md
+│   │   ├── QUALITY_GATES_AND_DOD.md
+│   │   ├── DYNAMIC_AND_CHAOS_TESTING.md
+│   │   └── GIT_WORKFLOW_AND_COLLABORATION.md
+│   ├── 04-observability/           # 📊 Telemetry Handbook, Grafana, PromQL, LogQL & TraceQL
+│   │   └── OBSERVABILITY_QUERIES.md
+│   ├── reference/                  # 📦 Reference Schemas, IAM Backups, and Cloud Templates
+│   │   ├── iam/realm-export.json
+│   │   ├── schemas/POSTGRESQL_18_SCHEMA_AND_QUERIES.sql
+│   │   └── aws-eks/
+│   └── Diagrams.drawio             # 🎨 12-Page Architectural Blueprint (Draw.io)
 ├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
 ├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
 ├── inventory-service/              # Stock allocation & verification (Port 8001)
@@ -320,7 +384,6 @@ microservices-architecture/
 │   ├── testing/                    # Specialized testing & load simulation (simulate, smoke, verify, check)
 │   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
 │   ├── build-all.py                # Concurrent Java & React container image compiler
-│   ├── endpoint-smoke-test.py      # Synthetic post-deployment health & SLO prober
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
 │   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator
 │   ├── local-cost-estimator.py     # Offline illustrative AWS profile estimate and optional ceiling
@@ -328,7 +391,8 @@ microservices-architecture/
 │   ├── terraform-cost-delta.py     # Narrow AWS plan delta estimate and unpriced type report
 │   ├── validate-opencost.sh        # Render pinned OpenCost and cloud Prometheus charts
 │   ├── supervise-tunnels.py        # Resilient background port-forward supervisor daemon
-│   └── update_dashboards.py        # Dashboard JSON generator; Grafana publishing is explicit
+│   ├── grafana.py                  # Grafana dashboard and explicit demo-telemetry CLI
+│   └── update_dashboards.py        # Dashboard generation implementation used by grafana.py
 ├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
 ├── .example.env                    # Example environment file
 ├── .gitattributes                  # Git attributes file

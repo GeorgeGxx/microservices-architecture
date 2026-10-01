@@ -1,4 +1,7 @@
-# Immutable Production Helm Chart Releases
+# 📦 Immutable Production Helm Chart Releases & Canary Rollouts
+
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **02. Operations** > `HELM_AND_CANARY.md`
 
 The production chart is released as a versioned OCI artifact in GitHub Container Registry (GHCR), independent of image releases:
 
@@ -6,10 +9,12 @@ The production chart is released as a versioned OCI artifact in GitHub Container
 oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella:<Chart.yaml version>
 ```
 
+---
+
 ## Release procedure
 
 1. Use the current `version` in `helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version.
-2. If Federation composition inputs changed, run `scripts/build-cosmo-router-config.ps1` and commit the generated router config with the source change.
+2. If Federation composition inputs changed, run `platform.ps1 compose-router` and commit the generated router config with the source change.
 3. Merge the chart change to `main`.
 4. Create and push the matching release tag. For the first release at the current `1.0.0` version:
 

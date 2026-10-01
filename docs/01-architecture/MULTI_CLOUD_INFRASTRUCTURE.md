@@ -1,5 +1,8 @@
 # ☁️ Multi-Cloud Terraform Infrastructure & Recovery Guide
 
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **01. Architecture** > `MULTI_CLOUD_INFRASTRUCTURE.md`
+
 > Architecture specification for AWS (EKS / RDS / VPC), Azure (AKS / PostgreSQL / KeyVault), and GCP (GKE / CloudSQL / Memorystore), including environment-isolated Terraform state and application recovery procedures.
 
 ---
@@ -196,26 +199,26 @@ terraform/
 
 ---
 
-## ☁️ Enterprise AWS Architecture Reference Suite (`devsecops/reference/aws-eks/`)
+## ☁️ AWS Production-Environment Reference Suite (`docs/reference/aws-eks/`)
 
-This directory provides enterprise-grade reference templates for **Amazon Web Services (AWS)**, adhering to Zero-Trust security, GitOps best practices, and immutable delivery standards.
+This documentation-only directory holds example templates that illustrate a production-oriented **Amazon Web Services (AWS)** environment. They provide context for discussion and adaptation; they are not deployed platform components or maintained as active deployment definitions.
 
 > [!NOTE]
-> **Inert Reference State:** These files use the `.example` extension and are intentionally located outside `.github/workflows/`. **GitHub Actions will NOT trigger them** and **ArgoCD will NOT reconcile them** automatically. They serve as production-ready blueprints for AWS cloud deployments.
+> **Reference only:** These files use the `.example` extension and are intentionally located outside `.github/workflows/` and ArgoCD application paths. GitHub Actions will not trigger them and ArgoCD will not reconcile them automatically.
 
 ### Included Reference Architecture Templates
 
-* **[github-actions-eks-pipeline.yml.example](./devsecops/reference/aws-eks/github-actions-eks-pipeline.yml.example):**
+* **[github-actions-eks-pipeline.yml.example](../reference/aws-eks/github-actions-eks-pipeline.yml.example):**
   * **Dynamic S3 `.tfstate` Discovery:** Queries remote Terraform S3 state and DynamoDB lock to automatically extract EKS cluster name, ECR URLs, ALB ingress endpoints, frontend S3 bucket, and CloudFront distribution ID.
   * **Zero-Trust IAM OIDC:** Uses `aws-actions/configure-aws-credentials@v4` with web identity federation (zero static keys).
   * **Frontend SPA Deployment (React 19):** S3 sync with immutable caching headers (`max-age=31536000, immutable`), `no-cache` for `index.html`, and atomic CloudFront CDN invalidation (`/*`).
   * **Amazon ECR Hardening:** Immutable tagging with Trivy vulnerability scanning gates.
   * **Automated Rollbacks:** Dedicated `rollback-staging-eks` job and canary health check auto-rollback.
-* **[argocd-application-eks.yaml.example](./devsecops/reference/aws-eks/argocd-application-eks.yaml.example):**
+* **[argocd-application-eks.yaml.example](../reference/aws-eks/argocd-application-eks.yaml.example):**
   * Declarative GitOps Application manifest for external AWS EKS clusters.
   * Configures **AWS Load Balancer Controller (ALB)** with ACM TLS certificate ARN, AWS WAFv2 WebACL ARN, and SSL redirection.
   * Injects **IRSA (IAM Roles for Service Accounts)** role ARN, **EBS CSI `gp3`** storage class, and **External Secrets Operator (ESO)** AWS Secrets Manager parameters.
-* **[argocd-applicationset-eks.yaml.example](./devsecops/reference/aws-eks/argocd-applicationset-eks.yaml.example):**
+* **[argocd-applicationset-eks.yaml.example](../reference/aws-eks/argocd-applicationset-eks.yaml.example):**
   * Multi-environment matrix automating both `staging` (automated sync) and `prod` (manual gate with canary routing).
 
 ### 🛠️ AWS Blueprint Step-by-Step Activation Guide
@@ -243,8 +246,7 @@ To allow GitHub Actions to deploy to AWS without static access keys:
    ```
 2. Apply the application manifest:
    ```bash
-   kubectl apply -f ./devsecops/reference/aws-eks/argocd-application-eks.yaml.example
+   kubectl apply -f ./docs/reference/aws-eks/argocd-application-eks.yaml.example
    ```
 
 ---
-

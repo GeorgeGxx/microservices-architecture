@@ -2,7 +2,7 @@
 # REFERENCE ONLY — ARGOCD APPLICATION MANIFEST FOR AWS EKS
 # =============================================================================
 # SECURITY / GITOPS NOTICE:
-# This file is placed in devsecops/reference/aws-eks with the '.example' extension
+# This file is placed in docs/reference/aws-eks with the '.example' extension
 # so that ArgoCD will NOT reconcile or synchronize it automatically.
 #
 # To activate in your ArgoCD cluster:

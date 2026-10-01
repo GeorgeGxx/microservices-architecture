@@ -1,5 +1,8 @@
 # 🌿 Enterprise Git Branching Strategy & Team Collaboration Manual
 
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **03. DevSecOps & Testing** > `GIT_WORKFLOW_AND_COLLABORATION.md`
+
 > Exhaustive guide to the project's hybrid Trunk-Based & Environment Branching workflow, branch protection policies, collaborative Git divergence resolution, and disaster recovery playbooks.
 
 ---
@@ -84,6 +87,9 @@ git rebase origin/develop
    * **SAST & Secret Detection:** Gitleaks, Semgrep, and Trivy filesystem scan.
    * **OPA Policy Check:** Verifies Kubernetes resource limits and container security contexts.
 4. Once approved, use **Squash and Merge** or **Rebase and Merge** to maintain a linear Git history on `develop`.
+
+> [!NOTE]
+> For the complete list of acceptance criteria, contract validation, and quality gates required before opening and merging a PR, consult [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md).
 
 ---
 
