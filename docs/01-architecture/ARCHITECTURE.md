@@ -14,8 +14,8 @@
 The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ### 🧩 1. Bounded Contexts & Aggregate Roots
-* **🛍️ Catalog & Multi-Currency Context (`products-service`):**
-  * **Aggregate Root `Product`:** Encapsulates pricing rules across multiple currencies (USD, MXN) and guarantees catalog status invariants.
+* **🛍️ Catalog & Product Context (`products-service`):**
+  * **Aggregate Root `Product`:** Encapsulates catalog pricing rules in US Dollars (USD) and guarantees catalog status invariants.
 * **📦 Order Lifecycle & Fulfillment Context (`orders-service`):**
   * **Aggregate Root `Order`:** Directly guards the lifecycle `PLACED → SHIPPED → DELIVERED`; cancellation is allowed only from `PLACED`. This rejects delivery before dispatch, duplicate dispatch transitions, and cancellation after dispatch.
 * **🏭 Warehouse Stock Allocation Context (`inventory-service`):**
@@ -399,7 +399,7 @@ The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and
 ### Core Tactical DDD & Clean Architecture Highlights:
 
 1. **Immutable Value Objects:**
-   * [`Money`](../../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), automated conversion between **USD**, **EUR**, and **MXN**, and localized formatting via `Intl.NumberFormat`.
+   * [`Money`](../../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), strict **USD** currency enforcement, and localized US formatting via `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`.
    * [`TrackingNumber`](../../frontend/src/domain/value-objects/TrackingNumber.ts): Validates international shipping codes and dynamically generates live DHL Express tracking URLs.
 2. **Domain Aggregate Pattern ([`CartAggregate`](../../frontend/src/domain/aggregates/CartAggregate.ts)):**
    * Protects warehouse stock invariants (cannot exceed available units reported by `inventory-service`).
