@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "gitlab-runner", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -36,7 +36,7 @@ param(
     [string]$VaultToken = "",
     [switch]$RotateVaultPki = $false,
     [switch]$PruneLegacyVaultRole = $false,
-    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart", "install", "uninstall", "logs")]
+    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart")]
     [string]$Action = "",
     [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
     [string]$Namespace = "dev",
@@ -1775,8 +1775,8 @@ if ($Command -eq "vault") {
 if (($IncludeCloudCli -or $InstallOpenCostPlugin) -and $Command -ne "tools") {
     throw "-IncludeCloudCli and -InstallOpenCostPlugin are valid only with 'tools'."
 }
-if ($Action -and $Command -notin @("canary", "cloudflare", "gitlab-runner")) {
-    throw "-Action is valid only with 'canary', 'cloudflare', or 'gitlab-runner'."
+if ($Action -and $Command -notin @("canary", "cloudflare")) {
+    throw "-Action is valid only with 'canary' or 'cloudflare'."
 }
 $canaryOptionsChanged = ($Namespace -ne "dev") -or ($V1Weight -ne 90) -or ($V2Weight -ne 10) -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
 if ($canaryOptionsChanged -and $Command -ne "canary") {
@@ -2065,16 +2065,6 @@ switch ($Command) {
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
-    "gitlab-runner" {
-        Show-Banner "GitLab Runner Lifecycle Manager (Minikube)"
-        $runnerScript = Join-Path $root "k8s\gitlab-runner\manage-gitlab-runner.ps1"
-        if (-not (Test-Path $runnerScript)) {
-            throw "GitLab Runner manager script not found at '$runnerScript'."
-        }
-        $runnerAction = if ($Action) { $Action } else { "status" }
-        & pwsh $runnerScript -Action $runnerAction
-    }
-
     default {
         Show-Banner "Command Usage & Multi-Platform Architecture Reference"
         Write-Host "USAGE:" -ForegroundColor Yellow
@@ -2116,7 +2106,6 @@ switch ($Command) {
         Write-Host "  smoke               Run automated HTTP smoke tests against microservices"
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"
         Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
-        Write-Host "  gitlab-runner [-Action install|status|logs|uninstall|restart]  Manage GitLab Runner on Minikube"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
         Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
         Write-Host "  urls                Display table of active service endpoints and credentials"
