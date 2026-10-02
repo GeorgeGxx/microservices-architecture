@@ -169,8 +169,6 @@ The host ports below describe the Docker Compose profile. In Minikube the micros
 | **Keycloak IAM** | Keycloak 26.7.4 (OIDC / OAuth2) | `8181` / `9000` | [http://localhost:8181](http://localhost:8181) | `admin` / `admin` |
 | **React Frontend** | React 19 + Tailwind v4 / Nginx | `5173` | [http://localhost:5173](http://localhost:5173) | `admin_user` / `admin` & `basic_user` / `password` |
 | **Cosmo Router Gateway** | Cosmo Router 0.353.0 (Go / Federation v2; Orders subgraph v2.5 auth directives) | `8080` (`/graphql`) | [http://localhost:8080](http://localhost:8080) (GraphQL Playground in local mode) | Keycloak JWKS JWT validation, authenticated order fields, bounded query complexity, OTel/Prometheus |
-
-Cosmo Router security, complexity limits, observability, resilience settings and intentionally deferred capabilities are tracked in [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md#8-cosmo-router-gateway-capabilities--security-matrix).
 | **Products Service** | Spring Boot 4.0.8 | `8004` | [http://localhost:8004/graphql](http://localhost:8004/graphql) & `/api/product` | Internal Subgraph & REST |
 | **Orders Service** | Spring Boot 4.0.8 | `8003` | [http://localhost:8003/graphql](http://localhost:8003/graphql) & `/api/order` | Internal Subgraph & REST |
 | **Inventory Service** | Spring Boot 4.0.8 | `8001` | [http://localhost:8001/graphql](http://localhost:8001/graphql) & `/api/inventory` | Internal Subgraph & REST |
@@ -191,6 +189,8 @@ Cosmo Router security, complexity limits, observability, resilience settings and
 | **Istio Ingress Gateway** | Envoy Proxy (Istio 1.31.1) | `80` / `443` | [http://localhost](http://localhost) | Mesh Ingress |
 | **Kiali Dashboard** | Kiali 2.31.0 | `20001` | [http://localhost:20001](http://localhost:20001) | *(No auth required)* |
 | **OpenCost Dashboard** | OpenCost 2.5.32 | `7000` | [http://localhost:7000](http://localhost:7000) | *(No auth required)* |
+
+> 📘 **Cosmo Router Capabilities:** Security, complexity limits, observability, resilience settings, and deferred capabilities are tracked in [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md#-cosmo-router-hardening--gateway-capabilities).
 
 ### 📖 API Exploration & Interactive Documentation Matrix
 
