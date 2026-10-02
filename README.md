@@ -145,18 +145,18 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 
 | Tab # | View Name | Architectural Scope |
 | :---: | :--- | :--- |
-| **01** | *General Architecture* | High-level topology across Client, Gateway, Microservices, Broker, and Observability layers. |
-| **02** | *GraphQL Supergraph* | Apollo Federation 2.3/2.5 schema composition, Cosmo Router, `@key` directives, and entity resolution. |
-| **03** | *Distributed Saga Flow* | Choreographed Saga transaction sequence, compensation rollbacks, and idempotency guarantees. |
-| **04** | *Multi-Cloud Ingress* | Istio Ingress Gateway, Envoy sidecar proxies, mutual TLS (`STRICT`), and traffic management. |
-| **05** | *Zero-Trust Security* | HashiCorp Vault KV-v2 secrets engine, AppRole authentication, and dynamic secret injection. |
-| **06** | *Keycloak IAM & OIDC* | Dual-token authentication (Frontend PKCE vs Backend Bearer), realm configuration, and role mappings. |
-| **07** | *Kafka Event Streaming* | Apache Kafka KRaft cluster, topic partitions, consumer group lag, and SSE Notification push. |
-| **08** | *LGTM Observability* | OpenTelemetry Collector pipeline, Prometheus TSDB, Grafana Loki, Tempo spans, and dashboards. |
-| **09** | *AWS Architecture* | AWS EKS, Managed Node Groups, RDS PostgreSQL, ElastiCache Redis, and ALB Ingress Controller. |
-| **10** | *Azure Architecture* | Azure AKS cluster, Azure Database for PostgreSQL, Azure Cache for Redis, and Application Gateway. |
-| **11** | *GCP Architecture* | Google Kubernetes Engine (GKE), Cloud SQL PostgreSQL, Memorystore Redis, and Cloud Armor. |
-| **12** | *DevSecOps Pipeline* | Unified 14-stage CI/CD pipeline matrix across GitHub Actions, Azure DevOps, and Bitbucket Pipelines. |
+| **01** | *General Architecture & Microservices* | High-level topology across Client, Edge Nginx, Cosmo Router Gateway, Core Domain Microservices, Kafka Broker, PostgreSQL DBs, and LGTM Observability stack. |
+| **02** | *HashiCorp Vault - Zero-Touch Security Architecture* | Zero-trust secrets management with Vault KV-v2 engine, Kubernetes Auth Method, AppRole authentication, dynamic secret injection, and least-privilege policies. |
+| **03** | *Sequence - Dynamic Database Secret Rotation* | Detailed sequence diagram of automated dynamic PostgreSQL database credentials generation, lease lifecycle, and Spring Boot connection renewal. |
+| **04** | *Istio Service Mesh & Zero-Trust mTLS* | Istio Ingress Gateway, Envoy sidecar injection, STRICT mutual TLS (`mTLS`), VirtualServices, DestinationRules, and Kiali mesh visualization. |
+| **05** | *Secret Isolation & Configuration Precedence* | Three-tier configuration precedence and security boundaries across environment variables, HashiCorp Vault, and Kubernetes ConfigMaps. |
+| **06** | *Kubernetes & Minikube Cluster Topology* | Multi-namespace architecture (`dev`, `istio-system`, `vault`, `observability`, `cert-manager`), NodePort mappings, resource limits, and persistent storage. |
+| **07** | *End-to-End Request Flow & Order Processing Sequence* | Complete synchronous and asynchronous transaction flow: Keycloak JWT validation, Cosmo Router supergraph resolution, Saga orchestration, and Kafka notification dispatch. |
+| **08** | *Mature E-Commerce Observability Architecture* | Unified LGTM telemetry pipeline: OpenTelemetry Collector, Prometheus TSDB, Grafana dashboards, Loki log streaming, and Tempo distributed tracing. |
+| **09** | *Local DevSecOps Platform & GitHub Actions Delivery* | Pre-commit maturity gates, 7-step CI delivery workflow, SAST (Semgrep, Gitleaks), Trivy container scanning, OPA Conftest, and GitOps synchronization with ArgoCD. |
+| **10** | *Resiliency, Secrets, Canary & Alerts* | Resilience4j circuit breakers, Istio Canary traffic shifting (10% to 100%), Alertmanager rules, and chaos resilience simulation. |
+| **11** | *Multi-Cloud IaC & CLI Automation Suite* | Unified `platform.ps1` CLI command reference, multi-cloud Terraform workspaces (AWS, Azure, GCP), OpenCost monitoring, and FinOps budgeting. |
+| **12** | *Multi-Cloud CI/CD & Recovery Architecture* | Cross-cloud delivery comparison: GitHub Actions (7 steps + ArgoCD GitOps), Azure DevOps (14 numbered stages), Bitbucket Pipelines (14 numbered stages), and 4-tier disaster recovery. |
 
 ---
 
