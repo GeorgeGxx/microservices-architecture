@@ -17,8 +17,14 @@ resource "kubernetes_namespace" "namespaces" {
   metadata {
     name = each.key
     labels = each.key == "dev" ? {
-      "istio-injection" = "enabled"
-      "environment"     = "dev"
+      "istio-injection"                            = "enabled"
+      "environment"                                = "dev"
+      "pod-security.kubernetes.io/enforce"         = "restricted"
+      "pod-security.kubernetes.io/enforce-version" = "latest"
+      "pod-security.kubernetes.io/warn"            = "restricted"
+      "pod-security.kubernetes.io/warn-version"    = "latest"
+      "pod-security.kubernetes.io/audit"           = "restricted"
+      "pod-security.kubernetes.io/audit-version"   = "latest"
       } : {
       "environment" = each.key
     }
