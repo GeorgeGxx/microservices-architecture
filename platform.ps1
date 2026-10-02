@@ -1477,7 +1477,7 @@ function Invoke-MinikubePlatform {
 
             if ($EnableIstioMesh) {
                 kubectl label namespace dev istio-injection=enabled environment=dev `
-                    "pod-security.kubernetes.io/enforce=baseline" `
+                    "pod-security.kubernetes.io/enforce=privileged" `
                     "pod-security.kubernetes.io/enforce-version=latest" `
                     "pod-security.kubernetes.io/warn=restricted" `
                     "pod-security.kubernetes.io/warn-version=latest" `
