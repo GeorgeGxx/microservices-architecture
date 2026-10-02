@@ -361,7 +361,7 @@ Without `SONAR_TOKEN`, each pipeline skips the Sonar step and continues. With a 
 
 ### 1. GitHub Actions ➔ AWS Cloud
 Located in `.github/workflows/`:
-- **Reusable service workflow ([`_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml))**: Seven numbered job groups cover tests/build, SAST, image/SBOM, Trivy, Conftest, optional registry publishing and ArgoCD/direct-cluster delivery. The opt-in post-deployment job runs Newman, storefront smoke, k6 and ZAP for `develop` pushes when the runner has network access and the three `DEVSECOPS_*_URL` variables are configured. It does not run Cypress or claim the Azure/Bitbucket 14-stage sequence.
+- **Reusable service workflow ([_service-ci-cd-template.yml](../../.github/workflows/_service-ci-cd-template.yml))**: Enterprise 12-stage DevSecOps delivery workflow covering unit tests, SAST (Semgrep), secrets (Gitleaks), container build & CycloneDX SBOM, Trivy scan, OPA Conftest, registry push, ArgoCD GitOps sync, Newman API contracts, storefront smoke, k6 SLO performance, OWASP ZAP DAST, and automated rollback. (Azure DevOps and Bitbucket Pipelines add static Terraform validation and multi-registry promotion to form their 14 stages).
 - **Terraform Pipeline ([`terraform-aws.yml`](../../.github/workflows/terraform-aws.yml))**: Manually dispatched, saved-plan workflow; applies require the protected GitHub environment and state-lock recovery is operator-led.
 
 ### 2. Azure DevOps Pipelines ➔ Azure Cloud
