@@ -50,7 +50,7 @@ param(
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
     [int]$Cpus = 8,
-    [int]$MemoryMb = 16384,
+    [int]$MemoryMb = 14336,
     [string]$DiskSize = "60g",
     [switch]$Destroy = $false
 )
@@ -1247,7 +1247,7 @@ function Invoke-MinikubePlatform {
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
         [int]$CpuCount = 8,
-        [int]$RamMb = 16384,
+        [int]$RamMb = 14336,
         [string]$DiskBudget = "60g",
         [switch]$PurgeAll = $false
     )
@@ -1362,8 +1362,18 @@ function Invoke-MinikubePlatform {
             Write-Host "`n[3/10] 📦 Checking Minikube Cluster Status..." -ForegroundColor Yellow
             $status = minikube status --format "{{.Host}}" 2>$null
             if ($status -ne "Running") {
-                Write-Host "  ▶ Starting Minikube ($CpuCount CPUs, $($RamMb / 1024) GB RAM, Ingress, Metrics-Server)..." -ForegroundColor White
-                minikube start --cpus=$CpuCount --memory=$RamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
+                $effectiveRamMb = $RamMb
+                $dockerMemBytes = docker info --format '{{.MemTotal}}' 2>$null
+                if ($dockerMemBytes -match '^\d+$') {
+                    $dockerMemMb = [math]::Floor([int64]$dockerMemBytes / 1MB)
+                    if ($effectiveRamMb -gt ($dockerMemMb - 512)) {
+                        $adjustedRamMb = [math]::Max(4096, ($dockerMemMb - 1500))
+                        Write-Host "  [INFO] Docker Desktop total memory is ${dockerMemMb}MB. Auto-adjusting Minikube allocation to ${adjustedRamMb}MB." -ForegroundColor Yellow
+                        $effectiveRamMb = $adjustedRamMb
+                    }
+                }
+                Write-Host "  ▶ Starting Minikube ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, Ingress, Metrics-Server)..." -ForegroundColor White
+                minikube start --cpus=$CpuCount --memory=$effectiveRamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "Failed to start Minikube. Verify Docker Desktop is active."
                 }
@@ -1747,13 +1757,13 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "60g")) {
+if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
     throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
 }
-if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "60g")) {
+if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
     throw "One or more local-only options were supplied for cloud platform '$Platform'. Remove -Build/-DeployCanary/-CanaryImageTag/-SkipScans/-WithoutIstio/-Cpus/-MemoryMb/-DiskSize or select -Platform minikube."
 }
 if ($CanaryImageTag -ne "canary" -and -not $DeployCanary) { throw "-CanaryImageTag is valid only with -DeployCanary." }
