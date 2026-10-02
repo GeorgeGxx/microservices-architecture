@@ -99,6 +99,28 @@ spec:
   policyTypes:
     - Egress
   egress:
+    # Allow egress to 'istio-system' (Istiod xDS, Envoy config & Citadel mTLS CA)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 15012
+        - protocol: TCP
+          port: 15010
+    # Allow egress to 'observability' (OTel/Tempo traces: 4317/4318, Loki logs: 3100)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              environment: observability
+      ports:
+        - protocol: TCP
+          port: 4317
+        - protocol: TCP
+          port: 4318
+        - protocol: TCP
+          port: 3100
     # Allow egress to 'data' namespace (PostgreSQL: 5432, Redis: 6379, Kafka: 9092/9094)
     - to:
         - namespaceSelector:
