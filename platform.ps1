@@ -1551,7 +1551,18 @@ stringData:
   REDIS_PASSWORD: $redisPass
   KEYCLOAK_CLIENT_SECRET: $kcSecret
 "@
-            @("auth", "data", "dev") | ForEach-Object { $seedSecrets | kubectl apply -n $_ -f - 2>$null | Out-Null }
+            $secretTmp = [System.IO.Path]::GetTempFileName()
+            try {
+                [System.IO.File]::WriteAllText($secretTmp, $seedSecrets)
+                foreach ($targetNs in @("auth", "data", "dev")) {
+                    kubectl apply -f $secretTmp -n $targetNs 2>$null | Out-Null
+                    if (-not (kubectl get secret microservices-secrets -n $targetNs 2>$null)) {
+                        kubectl apply -f $secretTmp -n $targetNs 2>$null | Out-Null
+                    }
+                }
+            } finally {
+                if (Test-Path $secretTmp) { Remove-Item -Force $secretTmp 2>$null }
+            }
 
             kubectl apply -f "$infraDir\postgres-products.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\postgres-orders.yaml" -n data 2>$null
