@@ -66,7 +66,17 @@ The platform audits **18 essential project CLI/runtime tools** managed via Windo
 - **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
 - **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
 - **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
-- **`Hashicorp.Vault` (`vault`)**: Client for HashiCorp Vault (KV-v2 secrets, PKI engine).
+- **`Hashicorp.Vault` (`vault`)**: Client CLI for HashiCorp Vault (KV-v2 secrets, PKI engine).
+  * **Server runtime vs. Host client:** The Vault server runs inside Kubernetes (Minikube `namespace: vault` or cloud EKS/AKS/GKE) exposed on port `8200` (`http://localhost:8200`). The local `vault.exe` on Windows functions as an interactive administrative and debugging client.
+  * **Script automation:** Orchestrator routines (`.\platform.ps1 vault ...` and `.\platform.ps1 up`) execute commands via `kubectl exec` inside the containerized Vault pod so developers without a local binary can still run all automations.
+  * **Connecting your host CLI to the cluster:**
+    ```powershell
+    $env:VAULT_ADDR = "http://localhost:8200"
+    $env:VAULT_TOKEN = "root"
+    vault status
+    vault kv list secret/
+    vault kv get secret/products-service
+    ```
 
 ### 3. Container & Kubernetes Orchestration
 - **`Docker.DockerDesktop` (`docker`)**: Local container engine and runtime.

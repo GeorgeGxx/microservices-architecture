@@ -370,6 +370,47 @@ Programmatically regenerates the 12-page architectural diagram in [`docs/Diagram
 python scripts/generate_drawio.py
 ```
 
+### 8. 🔒 HashiCorp Vault Administration & CLI Workflows
+
+The platform deploys HashiCorp Vault inside Kubernetes (Minikube `namespace: vault` or cloud EKS/AKS/GKE) on port `8200` (`http://localhost:8200`, root token: `root`).
+
+#### A. Automated Orchestrator Commands
+Automations interact with Vault using `kubectl exec` into the containerized pod, making these scripts completely portable across any host OS without requiring local binary dependencies:
+
+```powershell
+# 1. Configure Kubernetes ServiceAccount authentication & least-privilege service read policies:
+.\platform.ps1 vault -VaultAction k8s-auth
+
+# 2. Configure k8s-auth and prune legacy broad roles:
+.\platform.ps1 vault -VaultAction k8s-auth -PruneLegacyVaultRole
+
+# 3. Initialize Istio mTLS PKI CA certs from Vault:
+.\platform.ps1 vault -VaultAction istio-pki
+
+# 4. Rotate Istio intermediate CA certificate:
+.\platform.ps1 vault -VaultAction istio-pki -RotateVaultPki
+```
+
+#### B. Direct Host CLI Usage (`vault.exe`)
+For manual inspection, debugging, and secret rotation from Windows PowerShell, you can use the host CLI installed via WinGet (`Hashicorp.Vault`):
+
+```powershell
+# Configure host session to target the cluster Vault instance
+$env:VAULT_ADDR = "http://localhost:8200"
+$env:VAULT_TOKEN = "root"
+
+# Validate cluster connection & health status
+vault status
+
+# List secrets in KV-v2 engine
+vault kv list secret/
+
+# Read service-specific secrets
+vault kv get secret/products-service
+vault kv get secret/orders-service
+vault kv get secret/application
+```
+
 ---
 
 ### Progressive products-service canary lifecycle
