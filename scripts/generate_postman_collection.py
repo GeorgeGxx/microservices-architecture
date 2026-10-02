@@ -185,9 +185,9 @@ def build_postman_collection():
                                         "if (res.data && res.data.products && res.data.products.length > 0) {",
                                         "    const firstProd = res.data.products[0];",
                                         "    pm.collectionVariables.set('product_sku', firstProd.sku);",
-                                        "    pm.test('Product has stock resolved via inventory subgraph', () => {",
-                                        "        pm.expect(firstProd).to.have.property('isInStock');",
-                                        "        pm.expect(firstProd).to.have.property('quantity');",
+                                        "    pm.test('Product catalog has valid properties', () => {",
+                                        "        pm.expect(firstProd).to.have.property('sku');",
+                                        "        pm.expect(firstProd).to.have.property('price');",
                                         "    });",
                                         "}"
                                     ]
@@ -202,7 +202,7 @@ def build_postman_collection():
                             "body": {
                                 "mode": "graphql",
                                 "graphql": {
-                                    "query": "query GetProductsWithStock {\n  products {\n    id\n    sku\n    name\n    description\n    price\n    category\n    rating\n    reviewCount\n    isBestSeller\n    isInStock\n    quantity\n  }\n}",
+                                    "query": "query GetProductsWithStock {\n  products {\n    id\n    sku\n    name\n    description\n    price\n    category\n    rating\n    reviewCount\n    isBestSeller\n  }\n}",
                                     "variables": "{}"
                                 }
                             },
@@ -316,7 +316,7 @@ def build_postman_collection():
                             "body": {
                                 "mode": "graphql",
                                 "graphql": {
-                                    "query": "mutation PlaceOrder($input: PlaceOrderInput!) {\n  placeOrder(input: $input) {\n    id\n    orderNumber\n    orderStatus\n    customerName\n    customerEmail\n    deliveryMethod\n    trackingNumber\n    carrier\n    subtotalAmount\n    shippingFee\n    taxAmount\n    totalAmount\n    paymentMethod\n    orderItems {\n      id\n      sku\n      price\n      quantity\n      product {\n        sku\n        name\n      }\n    }\n  }\n}",
+                                    "query": "mutation PlaceOrder($input: PlaceOrderInput!) {\n  placeOrder(input: $input) {\n    id\n    orderNumber\n    orderStatus\n    customerName\n    customerEmail\n    deliveryMethod\n    trackingNumber\n    carrier\n    subtotalAmount\n    shippingFee\n    taxAmount\n    totalAmount\n    paymentMethod\n    orderItems {\n      id\n      sku\n      price\n      quantity\n    }\n  }\n}",
                                     "variables": "{\n  \"input\": {\n    \"customerName\": \"Jorge Garcia\",\n    \"customerEmail\": \"jorge@example.com\",\n    \"shippingAddress\": \"Av. Constitucion 1234, Col. Centro\",\n    \"city\": \"Monterrey\",\n    \"postalCode\": \"64000\",\n    \"phone\": \"+52 81 1234 5678\",\n    \"deliveryMethod\": \"EXPRESS\",\n    \"paymentMethod\": \"CARD_VISA\",\n    \"orderItems\": [\n      {\n        \"sku\": \"{{product_sku}}\",\n        \"price\": 999.99,\n        \"quantity\": 1\n      }\n    ]\n  }\n}"
                                 }
                             },
@@ -360,7 +360,7 @@ def build_postman_collection():
                             "body": {
                                 "mode": "graphql",
                                 "graphql": {
-                                    "query": "query GetOrders {\n  orders {\n    id\n    orderNumber\n    orderStatus\n    totalAmount\n    trackingNumber\n    carrier\n    orderItems {\n      sku\n      price\n      quantity\n      product {\n        sku\n        name\n      }\n    }\n  }\n}",
+                                    "query": "query GetOrders {\n  orders {\n    id\n    orderNumber\n    orderStatus\n    totalAmount\n    trackingNumber\n    carrier\n    orderItems {\n      sku\n      price\n      quantity\n    }\n  }\n}",
                                     "variables": "{}"
                                 }
                             },
@@ -741,27 +741,6 @@ def build_postman_collection():
                                 "path": ["api", "order", "funnel"]
                             },
                             "description": "Records CHECKOUT_STEP funnel telemetry event."
-                        },
-                        "response": []
-                    }
-                ]
-            },
-            {
-                "name": "📡 Notifications (SSE)",
-                "item": [
-                    {
-                        "name": "1. Stream SSE Notifications",
-                        "request": {
-                            "method": "GET",
-                            "header": [
-                                {"key": "Accept", "value": "text/event-stream", "type": "text"}
-                            ],
-                            "url": {
-                                "raw": "{{base_url}}/api/notifications/stream",
-                                "host": ["{{base_url}}"],
-                                "path": ["api", "notifications", "stream"]
-                            },
-                            "description": "Subscribes to real-time Server-Sent Events (SSE) emitted by notification-service."
                         },
                         "response": []
                     }

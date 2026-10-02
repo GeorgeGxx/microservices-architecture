@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/KEDA-v2.21.0-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.21.0" />
   <img src="https://img.shields.io/badge/Grafana-LGTM%20Stack-F46800.svg?style=for-the-badge&logo=grafana" alt="Grafana LGTM" />
   <img src="https://img.shields.io/badge/DevSecOps-12--Stage%20Pipeline-success.svg?style=for-the-badge&logo=githubactions" alt="DevSecOps" />
-  <img src="https://img.shields.io/badge/Newman%20Tests-22%2F22%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 22/22 Passing" />
+  <img src="https://img.shields.io/badge/Newman%20Tests-20%2F20%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 20/20 Passing" />
 </p>
 
 > **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
@@ -316,7 +316,7 @@ python scripts/grafana.py dashboards
 # Seed the Grafana funnel panel with explicit demo CART_ADD events
 python scripts/grafana.py funnel-demo --count 30 --category Electronics
 
-# 7. Newman API Contract Suite (22 Requests)
+# 7. Newman API Contract Suite (20 Requests)
 npx --yes newman run devsecops/testing/newman/microservices.postman_collection.json `
   --env-var "BASE_URL=http://localhost:8080" `
   --env-var "keycloak_url=http://localhost:8181" `
@@ -350,7 +350,7 @@ microservices-architecture/
 |   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
 │   ├── policies/                   # OPA Rego Conftest & Gatekeeper constraints
 |   ├── sast/gitleaks/              # Gitleaks and Semgrep static security configs
-│   └── testing/newman/             # Newman JSON export (21 requests) + Postman collection tree
+│   └── testing/newman/             # Newman JSON export (20 requests) + Postman collection tree
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
 │   │   ├── ARCHITECTURE.md
