@@ -89,6 +89,25 @@ $enableIstio = if ($WithoutIstio) { $false } else { $WithIstio }
 # HELPER FUNCTIONS
 # ------------------------------------------------------------------------------
 
+function Get-EnvMap {
+    param([string]$FilePath = (Join-Path $root ".env"))
+    $map = @{}
+    if (Test-Path -LiteralPath $FilePath -PathType Leaf) {
+        Get-Content -LiteralPath $FilePath | ForEach-Object {
+            $line = $_.Trim()
+            if ($line -and -not $line.StartsWith("#") -and ($line -match "^([^=]+)=(.*)$")) {
+                $k = $matches[1].Trim()
+                $v = $matches[2].Trim()
+                if (($v.StartsWith('"') -and $v.EndsWith('"')) -or ($v.StartsWith("'") -and $v.EndsWith("'"))) {
+                    if ($v.Length -ge 2) { $v = $v.Substring(1, $v.Length - 2) }
+                }
+                $map[$k] = $v
+            }
+        }
+    }
+    return $map
+}
+
 function Invoke-CosmoRouterCompose {
     $configDir = Join-Path $root "cosmo-router"
     $inputFile = Join-Path $configDir "supergraph.yaml"
@@ -235,11 +254,15 @@ function Initialize-LocalVault {
     Write-Host "  >> Initializing Vault KV-v2 Secrets Engine..." -ForegroundColor Cyan
     $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
     if ($vaultPod) {
+        $envMap = Get-EnvMap
+        $pgUser = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
+        $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "admin" }
+        $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET } else { "super-secure-jwt-secret-key-for-microservices-dev-environment-12345" }
         kubectl exec -n vault $vaultPod -- vault secrets enable -path=secret kv-v2 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/application "spring.datasource.username=postgres" "spring.datasource.password=admin" "jwt.secret=super-secure-jwt-secret-key-for-microservices-dev-environment-12345" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/products-service "spring.datasource.url=jdbc:postgresql://db-products:5432/ms_products" "spring.datasource.username=postgres" "spring.datasource.password=admin" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.url=jdbc:postgresql://db-orders:5432/ms_orders" "spring.datasource.username=postgres" "spring.datasource.password=admin" "spring.kafka.bootstrap-servers=kafka:9092" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.url=jdbc:postgresql://db-inventory:5432/ms_inventory" "spring.datasource.username=postgres" "spring.datasource.password=admin" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/application "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" "jwt.secret=$jwtSecret" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/products-service "spring.datasource.url=jdbc:postgresql://db-products:5432/ms_products" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.url=jdbc:postgresql://db-orders:5432/ms_orders" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" "spring.kafka.bootstrap-servers=kafka:9092" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.url=jdbc:postgresql://db-inventory:5432/ms_inventory" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
         kubectl exec -n vault $vaultPod -- vault kv put secret/notification-service "spring.kafka.bootstrap-servers=kafka:9092" "spring.mail.username=notification@microservices.local" "spring.mail.password=dev-mail-password" 2>$null | Out-Null
         Write-Host "  [OK] Vault KV-v2 engine initialized and secrets seeded." -ForegroundColor Green
     }
@@ -1506,6 +1529,14 @@ function Invoke-MinikubePlatform {
                 Initialize-LocalVault
             }
 
+            $envMap = Get-EnvMap
+            $keycloakAdmin = if ($envMap["KEYCLOAK_ADMIN"]) { $envMap["KEYCLOAK_ADMIN"] } elseif ($env:KEYCLOAK_ADMIN) { $env:KEYCLOAK_ADMIN } else { "admin" }
+            $keycloakPass  = if ($envMap["KEYCLOAK_ADMIN_PASSWORD"]) { $envMap["KEYCLOAK_ADMIN_PASSWORD"] } elseif ($env:KEYCLOAK_ADMIN_PASSWORD) { $env:KEYCLOAK_ADMIN_PASSWORD } else { "admin" }
+            $postgresUser  = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
+            $postgresPass  = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "admin" }
+            $redisPass     = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD } else { "admin" }
+            $kcSecret      = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET } else { "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu" }
+
             $seedSecrets = @"
 apiVersion: v1
 kind: Secret
@@ -1513,14 +1544,14 @@ metadata:
   name: microservices-secrets
 type: Opaque
 stringData:
-  KEYCLOAK_ADMIN: admin
-  KEYCLOAK_ADMIN_PASSWORD: admin
-  POSTGRES_USER: postgres
-  POSTGRES_PASSWORD: admin
-  REDIS_PASSWORD: admin
-  KEYCLOAK_CLIENT_SECRET: mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu
+  KEYCLOAK_ADMIN: $keycloakAdmin
+  KEYCLOAK_ADMIN_PASSWORD: $keycloakPass
+  POSTGRES_USER: $postgresUser
+  POSTGRES_PASSWORD: $postgresPass
+  REDIS_PASSWORD: $redisPass
+  KEYCLOAK_CLIENT_SECRET: $kcSecret
 "@
-            @("auth", "data") | ForEach-Object { $seedSecrets | kubectl apply -n $_ -f - 2>$null | Out-Null }
+            @("auth", "data", "dev") | ForEach-Object { $seedSecrets | kubectl apply -n $_ -f - 2>$null | Out-Null }
 
             kubectl apply -f "$infraDir\postgres-products.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\postgres-orders.yaml" -n data 2>$null
@@ -1561,7 +1592,14 @@ stringData:
                 kubectl label secret microservices-secrets -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
             }
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
-            & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev --values $minikubeValues --wait --timeout 10m
+            & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev `
+                --set secret.data.KEYCLOAK_ADMIN="$keycloakAdmin" `
+                --set secret.data.KEYCLOAK_ADMIN_PASSWORD="$keycloakPass" `
+                --set secret.data.POSTGRES_USER="$postgresUser" `
+                --set secret.data.POSTGRES_PASSWORD="$postgresPass" `
+                --set secret.data.REDIS_PASSWORD="$redisPass" `
+                --set secret.data.KEYCLOAK_CLIENT_SECRET="$kcSecret" `
+                --values $minikubeValues --wait --timeout 10m
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."
             }
