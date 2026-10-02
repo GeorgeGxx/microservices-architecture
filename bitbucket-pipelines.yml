@@ -11,10 +11,11 @@ definitions:
   caches:
     maven: ~/.m2/repository
     npm: ~/.npm
+    sonar: ~/.sonar/cache
   steps:
     - step: &unit-tests
         name: '1. Unit tests and coverage'
-        caches: [maven, npm]
+        caches: [maven, npm, sonar]
         script:
           - |
             set -euo pipefail
@@ -22,6 +23,7 @@ definitions:
             if [ "$SERVICE_NAME" = "frontend" ]; then
               cd frontend
               npm ci --no-audit
+              npm run test:coverage
               npm run build
               if [ -n "${SONAR_TOKEN:-}" ]; then
                 : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
@@ -33,7 +35,8 @@ definitions:
                   -Dsonar.host.url="$SONAR_HOST_URL" \
                   -Dsonar.sources=src \
                   -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
-                  -Dsonar.qualitygate.wait=true
+                  -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                  -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
               else
                 echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
               fi
@@ -51,7 +54,7 @@ definitions:
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
                   -Dsonar.host.url="$SONAR_HOST_URL" \
                   -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                  -Dsonar.qualitygate.wait=true
+                  -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
               else
                 echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
               fi

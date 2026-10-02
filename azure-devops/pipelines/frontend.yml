@@ -1,4 +1,4 @@
-name: MSA-Frontend-$(Date:yyyyMMdd)$(Rev:.r)
+name: Novashop-Frontend-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
