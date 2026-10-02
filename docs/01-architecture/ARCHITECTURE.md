@@ -4,6 +4,8 @@
 > 🧭 **[Enterprise Platform Hub](../../README.md)** > **01. Architecture** > `ARCHITECTURE.md`
 
 > Deep dive into Domain-Driven Design (DDD), Event-Driven Choreography, Security, Frontends, and E-Commerce workflows.
+> 
+> 📜 **Architecture Decision Records:** For formal rationale, trade-off analyses, and Pugh decision matrices, consult the [Architecture Decision Records (ADR) Catalog](./adr/README.md).
 
 ---
 
