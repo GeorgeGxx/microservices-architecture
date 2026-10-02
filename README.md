@@ -16,6 +16,8 @@
 
 > **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
 
+**Recommended local resources:** 8 CPU cores and 14 GB RAM free — the full local stack runs ~20+ containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+
 ---
 
 ## 🏛️ Master Architecture Diagram
@@ -260,8 +262,6 @@ docker compose ps
 # 7. Graceful shutdown & volume teardown
 docker compose down -v
 ```
-
-**Recommended local resources:** 8 CPU cores and 14 GB RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 ---
 
