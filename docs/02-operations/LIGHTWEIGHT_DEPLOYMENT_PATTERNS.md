@@ -10,13 +10,13 @@ For startups, pilot environments, demos, staging tiers, or cost-conscious organi
 ```mermaid
 graph TD
     subgraph "Option 1: Full Enterprise Kubernetes (EKS / Minikube)"
-        EKS[Amazon EKS Cluster / Istio / KEDA]
+        EKS[Amazon EKS Cluster / Istio / KEDA / NLB]
         EKS --> Costs1["~$180 - $450 / month"]
     end
 
     subgraph "Option 2: Serverless Containers (AWS ECS + Fargate)"
-        ECS[AWS ECS Fargate + ALB + Service Connect]
-        ECS --> Costs2["~$60 - $120 / month (Zero EKS fee)"]
+        ECS[AWS ECS Fargate + Layer-4 NLB + Service Connect]
+        ECS --> Costs2["~$60 - $120 / month (Zero EKS fee, No ALB)"]
     end
 
     subgraph "Option 3: Compact Single-Host (EC2 + Ansible)"
@@ -34,10 +34,15 @@ graph TD
 | **Target Scale** | Small-to-Medium (1 - 50 RPS) | Small / PoC / Staging (< 20 RPS) | Enterprise (> 1,000 RPS) |
 | **Estimated Monthly Cost** | **$60 - $120 USD** | **$35 - $60 USD** | $180 - $450 USD |
 | **Control Plane Fee** | **$0.00** (Serverless) | **$0.00** (Direct OS) | $73.00 USD/mo (AWS EKS fee) |
+| **Load Balancer Strategy** | **Layer-4 NLB** (ALB excluded) | Direct Elastic IP / Host Port | **Layer-4 NLB** fronting Istio Ingress |
 | **Server Maintenance** | Zero (Serverless Tasks) | OS managed via Ansible playbooks | Kubernetes node patching & upgrades |
 | **Service Discovery** | AWS ECS Service Connect (Cloud Map) | Docker Bridge Network (`internal-net`) | CoreDNS + Istio Envoy Sidecars |
 | **Autoscaling** | ECS Task Autoscaling (CPU/RAM) | Vertical (Resize EC2) or scale Compose | KEDA (Kafka Lag + Prometheus RPS) |
 | **IaC & Tooling** | 100% HashiCorp Terraform | Terraform + Ansible Playbooks | Terraform + Helm + ArgoCD |
+
+> [!IMPORTANT]
+> **Why Application Load Balancers (ALB) Are Completely Excluded:**
+> ALBs introduce redundant Layer-7 parsing, higher recurring LCU charges, and lack native raw TCP/mTLS passthrough. The platform standardizes exclusively on **AWS Network Load Balancers (NLB - Layer 4)** to deliver ultra-low latency TCP passthrough, delegating all HTTP routing, GraphQL federation, and TLS termination cleanly to the container layer (Cosmo Router, Istio, or Nginx).
 
 ---
 
@@ -47,7 +52,7 @@ Located in [`terraform/environments/aws-ecs-fargate/`](../../terraform/environme
 
 ### Key Features:
 * **Zero Node Management:** AWS handles host provisioning, patching, and container runtime security.
-* **Application Load Balancer (ALB):** Public entrypoint directing `/graphql*` to Cosmo Router and `/` to the React 19 Frontend.
+* **Network Load Balancer (NLB):** High-performance Layer-4 TCP entrypoint directing port 80 to the Frontend and port 8080 to the Cosmo Router GraphQL Supergraph, eliminating ALB billing fees.
 * **ECS Service Connect:** Native private mesh routing inter-service requests (e.g., `orders-service.microservices.local:8003`) without needing an external Consul or Eureka server.
 * **Centralized Telemetry:** Integrated AWS CloudWatch Container Insights.
 
@@ -65,7 +70,7 @@ terraform apply tfplan
 ```
 
 ### Outputs:
-* `alb_dns_name`: Public HTTP URL to access the storefront and GraphQL supergraph.
+* `nlb_dns_name`: Public TCP Network Load Balancer endpoint URL to access the storefront and GraphQL supergraph.
 * `ecs_cluster_arn`: Amazon Resource Name for the provisioned ECS cluster.
 
 ---

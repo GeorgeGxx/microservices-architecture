@@ -1,6 +1,6 @@
-output "alb_dns_name" {
-  description = "Public Application Load Balancer endpoint URL"
-  value       = "http://${aws_lb.main.dns_name}"
+output "nlb_dns_name" {
+  description = "Public Network Load Balancer endpoint URL (Layer 4 TCP)"
+  value       = aws_lb.main.dns_name
 }
 
 output "ecs_cluster_arn" {

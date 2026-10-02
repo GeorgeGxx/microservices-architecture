@@ -104,14 +104,15 @@ resource "aws_route_table_association" "private" {
 }
 
 # ==============================================================================
-# APPLICATION LOAD BALANCER (ALB)
+# NETWORK LOAD BALANCER (NLB - LAYER 4 ULTRA-LOW LATENCY & COST OPTIMIZED)
 # ==============================================================================
-resource "aws_security_group" "alb_sg" {
-  name        = "${var.project_name}-alb-sg"
-  description = "Public HTTP/HTTPS traffic to ALB"
+resource "aws_security_group" "nlb_sg" {
+  name        = "${var.project_name}-nlb-sg"
+  description = "Public TCP traffic to Layer-4 Network Load Balancer"
   vpc_id      = aws_vpc.ecs_vpc.id
 
   ingress {
+    description = "Public HTTP entry"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -119,8 +120,17 @@ resource "aws_security_group" "alb_sg" {
   }
 
   ingress {
+    description = "Public HTTPS entry"
     from_port   = 443
     to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Direct Cosmo Router probe"
+    from_port   = 8080
+    to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -135,14 +145,14 @@ resource "aws_security_group" "alb_sg" {
 
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.project_name}-ecs-tasks-sg"
-  description = "Allow inbound from ALB and East-West between tasks"
+  description = "Allow inbound from NLB and East-West between tasks"
   vpc_id      = aws_vpc.ecs_vpc.id
 
   ingress {
     from_port       = 0
     to_port         = 65535
     protocol        = "tcp"
-    security_groups = [aws_security_group.alb_sg.id]
+    security_groups = [aws_security_group.nlb_sg.id]
   }
 
   ingress {
@@ -161,30 +171,30 @@ resource "aws_security_group" "ecs_sg" {
 }
 
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = aws_subnet.public[*].id
+  name                             = "${var.project_name}-nlb"
+  internal                         = false
+  load_balancer_type               = "network"
+  security_groups                  = [aws_security_group.nlb_sg.id]
+  subnets                          = aws_subnet.public[*].id
+  enable_cross_zone_load_balancing = true
 
   tags = {
+    Name        = "${var.project_name}-nlb"
     Environment = var.environment
+    Layer       = "4-Transport"
   }
 }
 
 resource "aws_lb_target_group" "frontend" {
   name        = "${var.project_name}-frontend-tg"
   port        = 8080
-  protocol    = "HTTP"
+  protocol    = "TCP"
   vpc_id      = aws_vpc.ecs_vpc.id
   target_type = "ip"
 
   health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200-399"
-    interval            = 30
-    timeout             = 5
+    protocol            = "TCP"
+    interval            = 15
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
@@ -193,25 +203,23 @@ resource "aws_lb_target_group" "frontend" {
 resource "aws_lb_target_group" "router" {
   name        = "${var.project_name}-router-tg"
   port        = 8080
-  protocol    = "HTTP"
+  protocol    = "TCP"
   vpc_id      = aws_vpc.ecs_vpc.id
   target_type = "ip"
 
   health_check {
-    path                = "/health"
-    protocol            = "HTTP"
-    matcher             = "200"
+    protocol            = "TCP"
     interval            = 15
-    timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
   }
 }
 
-resource "aws_lb_listener" "http" {
+# Port 80 forwards directly to Frontend (which handles SPA & reverse proxy to router)
+resource "aws_lb_listener" "frontend_tcp" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
-  protocol          = "HTTP"
+  protocol          = "TCP"
 
   default_action {
     type             = "forward"
@@ -219,19 +227,15 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-resource "aws_lb_listener_rule" "router_graphql" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 10
+# Port 8080 forwards directly to Cosmo Router GraphQL Supergraph
+resource "aws_lb_listener" "router_tcp" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = 8080
+  protocol          = "TCP"
 
-  action {
+  default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.router.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/graphql*", "/health"]
-    }
   }
 }
 
