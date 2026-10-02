@@ -44,30 +44,32 @@ resource "helm_release" "gatekeeper" {
   namespace  = "gatekeeper-system"
   timeout    = 600
 
-  set {
-    name  = "controllerManager.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "controllerManager.resources.requests.memory"
-    value = "256Mi"
-  }
-  set {
-    name  = "controllerManager.resources.limits.cpu"
-    value = "500m"
-  }
-  set {
-    name  = "controllerManager.resources.limits.memory"
-    value = "512Mi"
-  }
-  set {
-    name  = "audit.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "audit.resources.requests.memory"
-    value = "128Mi"
-  }
+  set = [
+    {
+      name  = "controllerManager.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "controllerManager.resources.requests.memory"
+      value = "256Mi"
+    },
+    {
+      name  = "controllerManager.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "controllerManager.resources.limits.memory"
+      value = "512Mi"
+    },
+    {
+      name  = "audit.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "audit.resources.requests.memory"
+      value = "128Mi"
+    }
+  ]
 }
 
 # ==============================================================================
@@ -83,73 +85,76 @@ resource "helm_release" "argocd" {
   namespace  = "argocd"
   timeout    = 600
 
-  set_sensitive {
-    name  = "configs.secret.argocdServerAdminPassword"
-    value = var.argocd_admin_password_hash
-  }
+  set_sensitive = [
+    {
+      name  = "configs.secret.argocdServerAdminPassword"
+      value = var.argocd_admin_password_hash
+    }
+  ]
 
-  set {
-    name  = "configs.secret.argocdServerAdminPasswordMtime"
-    value = var.argocd_admin_password_mtime
-  }
-
-  set {
-    name  = "server.service.type"
-    value = "NodePort"
-  }
-  set {
-    name  = "server.service.nodePortHttp"
-    value = "30088"
-  }
-  set {
-    name  = "server.insecure"
-    value = "false"
-  }
-  set {
-    name  = "configs.params.server\\.insecure"
-    value = "false"
-  }
-  set {
-    name  = "server.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "server.resources.requests.memory"
-    value = "128Mi"
-  }
-  set {
-    name  = "server.resources.limits.cpu"
-    value = "500m"
-  }
-  set {
-    name  = "server.resources.limits.memory"
-    value = "512Mi"
-  }
-  set {
-    name  = "repoServer.resources.requests.memory"
-    value = "128Mi"
-  }
-  set {
-    name  = "applicationController.resources.requests.memory"
-    value = "128Mi"
-  }
-  # Fast reconciliation (poll Git every 15s without jitter for rapid dev sync)
-  set {
-    name  = "configs.cm.timeout\\.reconciliation"
-    value = "15s"
-  }
-  set {
-    name  = "configs.cm.timeout\\.reconciliation\\.jitter"
-    value = "0s"
-  }
-  set {
-    name  = "configs.params.reposerver\\.default\\.cache\\.expiration"
-    value = "15s"
-  }
-  set {
-    name  = "configs.params.controller\\.app\\.state\\.cache\\.expiration"
-    value = "15s"
-  }
+  set = [
+    {
+      name  = "configs.secret.argocdServerAdminPasswordMtime"
+      value = var.argocd_admin_password_mtime
+    },
+    {
+      name  = "server.service.type"
+      value = "NodePort"
+    },
+    {
+      name  = "server.service.nodePortHttp"
+      value = "30088"
+    },
+    {
+      name  = "server.insecure"
+      value = "false"
+    },
+    {
+      name  = "configs.params.server\\.insecure"
+      value = "false"
+    },
+    {
+      name  = "server.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "server.resources.requests.memory"
+      value = "128Mi"
+    },
+    {
+      name  = "server.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "server.resources.limits.memory"
+      value = "512Mi"
+    },
+    {
+      name  = "repoServer.resources.requests.memory"
+      value = "128Mi"
+    },
+    {
+      name  = "applicationController.resources.requests.memory"
+      value = "128Mi"
+    },
+    # Fast reconciliation (poll Git every 15s without jitter for rapid dev sync)
+    {
+      name  = "configs.cm.timeout\\.reconciliation"
+      value = "15s"
+    },
+    {
+      name  = "configs.cm.timeout\\.reconciliation\\.jitter"
+      value = "0s"
+    },
+    {
+      name  = "configs.params.reposerver\\.default\\.cache\\.expiration"
+      value = "15s"
+    },
+    {
+      name  = "configs.params.controller\\.app\\.state\\.cache\\.expiration"
+      value = "15s"
+    }
+  ]
 }
 
 # ==============================================================================
@@ -165,77 +170,79 @@ resource "helm_release" "observability" {
   namespace  = "observability"
   timeout    = 900
 
-  set {
-    name  = "grafana.adminPassword"
-    value = var.grafana_admin_password
-  }
-  set {
-    name  = "grafana.service.type"
-    value = "NodePort"
-  }
-  set {
-    name  = "grafana.service.nodePort"
-    value = "30030"
-  }
-  set {
-    name  = "grafana.sidecar.datasources.defaultDatasourceEnabled"
-    value = "false"
-  }
-  set {
-    name  = "grafana.env.GF_PLUGINS_PREINSTALL_AUTO_UPDATE"
-    value = "false"
-  }
-  set {
-    name  = "grafana.env.GF_PLUGINS_PREINSTALL_DISABLED"
-    value = "true"
-  }
-  # Optimized retention to save Minikube disk and RAM
-  set {
-    name  = "prometheus.prometheusSpec.retention"
-    value = "2d"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.resources.requests.cpu"
-    value = "200m"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.resources.requests.memory"
-    value = "512Mi"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.resources.limits.cpu"
-    value = "1000m"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.resources.limits.memory"
-    value = "1536Mi"
-  }
-  # Disable non-exposed host components in Minikube to keep all Prometheus targets green
-  set {
-    name  = "kubeControllerManager.enabled"
-    value = "false"
-  }
-  set {
-    name  = "kubeScheduler.enabled"
-    value = "false"
-  }
-  set {
-    name  = "kubeEtcd.enabled"
-    value = "false"
-  }
-  set {
-    name  = "kubeProxy.enabled"
-    value = "false"
-  }
-  # Enable discovery of ServiceMonitors across all namespaces (including staging)
-  set {
-    name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
-    value = "false"
-  }
-  set {
-    name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
-    value = "false"
-  }
+  set = [
+    {
+      name  = "grafana.adminPassword"
+      value = var.grafana_admin_password
+    },
+    {
+      name  = "grafana.service.type"
+      value = "NodePort"
+    },
+    {
+      name  = "grafana.service.nodePort"
+      value = "30030"
+    },
+    {
+      name  = "grafana.sidecar.datasources.defaultDatasourceEnabled"
+      value = "false"
+    },
+    {
+      name  = "grafana.env.GF_PLUGINS_PREINSTALL_AUTO_UPDATE"
+      value = "false"
+    },
+    {
+      name  = "grafana.env.GF_PLUGINS_PREINSTALL_DISABLED"
+      value = "true"
+    },
+    # Optimized retention to save Minikube disk and RAM
+    {
+      name  = "prometheus.prometheusSpec.retention"
+      value = "2d"
+    },
+    {
+      name  = "prometheus.prometheusSpec.resources.requests.cpu"
+      value = "200m"
+    },
+    {
+      name  = "prometheus.prometheusSpec.resources.requests.memory"
+      value = "512Mi"
+    },
+    {
+      name  = "prometheus.prometheusSpec.resources.limits.cpu"
+      value = "1000m"
+    },
+    {
+      name  = "prometheus.prometheusSpec.resources.limits.memory"
+      value = "1536Mi"
+    },
+    # Disable non-exposed host components in Minikube to keep all Prometheus targets green
+    {
+      name  = "kubeControllerManager.enabled"
+      value = "false"
+    },
+    {
+      name  = "kubeScheduler.enabled"
+      value = "false"
+    },
+    {
+      name  = "kubeEtcd.enabled"
+      value = "false"
+    },
+    {
+      name  = "kubeProxy.enabled"
+      value = "false"
+    },
+    # Enable discovery of ServiceMonitors across all namespaces (including staging)
+    {
+      name  = "prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues"
+      value = "false"
+    },
+    {
+      name  = "prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues"
+      value = "false"
+    }
+  ]
 }
 
 # ==============================================================================
@@ -251,36 +258,38 @@ resource "helm_release" "keda" {
   namespace  = "keda"
   timeout    = 600
 
-  set {
-    name  = "operator.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "operator.resources.requests.memory"
-    value = "128Mi"
-  }
-  set {
-    name  = "operator.resources.limits.cpu"
-    value = "500m"
-  }
-  set {
-    name  = "operator.resources.limits.memory"
-    value = "256Mi"
-  }
-  set {
-    name  = "metricsServer.resources.requests.cpu"
-    value = "100m"
-  }
-  set {
-    name  = "metricsServer.resources.requests.memory"
-    value = "128Mi"
-  }
-  set {
-    name  = "metricsServer.resources.limits.cpu"
-    value = "500m"
-  }
-  set {
-    name  = "metricsServer.resources.limits.memory"
-    value = "256Mi"
-  }
+  set = [
+    {
+      name  = "operator.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "operator.resources.requests.memory"
+      value = "128Mi"
+    },
+    {
+      name  = "operator.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "operator.resources.limits.memory"
+      value = "256Mi"
+    },
+    {
+      name  = "metricsServer.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "metricsServer.resources.requests.memory"
+      value = "128Mi"
+    },
+    {
+      name  = "metricsServer.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "metricsServer.resources.limits.memory"
+      value = "256Mi"
+    }
+  ]
 }
