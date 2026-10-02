@@ -155,7 +155,10 @@
           <mxGeometry x="100" y="120" width="380" height="140" as="geometry" />
         </mxCell>
         <mxCell id="v_box_server" parent="1" value="&lt;b&gt;2. HASHICORP VAULT SERVER&lt;/b&gt;&lt;br&gt;Core Security Engine (Port 8200)&lt;br&gt;• Token &amp; Kubernetes Authentication&lt;br&gt;• Policy Enforcement Engine&lt;br&gt;• Telemetry &amp; Prometheus metrics&lt;br&gt;• Real-time Audit logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;align=left;spacingLeft=15;" vertex="1">
-          <mxGeometry x="580" y="120" width="420" height="140" as="geometry" />
+          <mxGeometry x="540" y="120" width="460" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="v_box_cli" parent="1" value="&lt;b&gt;3. OPERATOR &amp; CLI CLIENT (Host)&lt;/b&gt;&lt;br&gt;• Windows Host CLI: Hashicorp.Vault (v2.1.1)&lt;br&gt;• $env:VAULT_ADDR = 'http://localhost:8200'&lt;br&gt;• platform.ps1 automation (kubectl exec)&lt;br&gt;• Direct KV-v2 queries &amp; PKI rotation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#EAB308;strokeWidth=2;fontColor=#854D0E;fontSize=12;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="1040" y="120" width="380" height="140" as="geometry" />
         </mxCell>
         <mxCell id="e_kv" parent="1" value="&lt;b&gt;KV-v2 Secrets Engine&lt;/b&gt;&lt;br&gt;secret/application&lt;br&gt;secret/products-service&lt;br&gt;secret/orders-service&lt;br&gt;secret/inventory-service&lt;br&gt;secret/notification-service&lt;br&gt;secret/cosmo-router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="100" y="320" width="240" height="140" as="geometry" />
@@ -185,6 +188,9 @@
           <mxGeometry x="100" y="660" width="1320" height="120" as="geometry" />
         </mxCell>
         <mxCell id="ve1" parent="1" value="Seeds All Engines" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" source="v_box_init" target="v_box_server">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ve_cli" parent="1" value="CLI Admin (Port 8200)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EAB308;strokeWidth=2;" edge="1" source="v_box_cli" target="v_box_server">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="ve2" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="v_box_server" target="e_kv">
