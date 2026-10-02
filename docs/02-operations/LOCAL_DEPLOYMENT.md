@@ -23,7 +23,7 @@
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
 | Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
 
-**Recommended local resources:** 8 CPU cores and 16 GB RAM (allocating up to 6 CPUs and 12 GB RAM to Minikube, leaving 2 CPUs and 4 GB RAM for Windows OS and IDE) — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+**Recommended local resources:** 8+ CPU cores and 16+ GB RAM (allocating up to 8 CPUs and 14 GB RAM to Minikube, leaving ample resources for Windows OS, Docker, and IDE) — the full platform stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 > ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
 
