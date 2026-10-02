@@ -34,7 +34,7 @@ Core platform services, Swagger UIs, and dashboards are available on Windows `lo
 
 | Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
 | :--- | :--- | :--- | :--- |
-| 🌐 **Frontend React 19 SPA** | [`http://localhost:5173`](http://localhost:5173) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
+| 🌐 **Novashop Storefront (React 19 SPA)** | [`http://localhost:5173`](http://localhost:5173) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
 | 🚀 **Cosmo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
 | 📖 **Products Swagger UI** | [`http://localhost:8004/swagger-ui.html`](http://localhost:8004/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Products REST APIs |
 | 📖 **Orders Swagger UI** | [`http://localhost:8003/swagger-ui.html`](http://localhost:8003/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Orders REST APIs |
@@ -349,7 +349,7 @@ All three CI providers use the same project keys so results converge into the sa
 | Orders | `msa-orders-service` |
 | Inventory | `msa-inventory-service` |
 | Notifications | `msa-notification-service` |
-| React storefront | `msa-frontend` |
+| Novashop storefront | `msa-frontend` |
 
 Configure these values in each CI provider before enabling Sonar analysis:
 

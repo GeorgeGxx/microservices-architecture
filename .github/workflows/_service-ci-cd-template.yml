@@ -104,7 +104,7 @@ jobs:
             ${{ inputs.service-dir }}/target/site/jacoco/
           retention-days: 7
 
-      # React Frontend
+      # Novashop Storefront (Frontend)
       - name: Set up Node.js 22
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         uses: actions/setup-node@v4
@@ -113,7 +113,7 @@ jobs:
           cache: 'npm'
           cache-dependency-path: ${{ inputs.service-dir }}/package.json
 
-      - name: Install & Build React Frontend
+      - name: Install & Build Novashop Frontend
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         run: |
           cd ${{ inputs.service-dir }}
@@ -151,7 +151,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Sonar Analysis (React Frontend)
+      - name: Sonar Analysis (Novashop Frontend)
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -167,7 +167,7 @@ jobs:
           cd "${{ inputs.service-dir }}"
           npx --yes sonar-scanner \
             -Dsonar.projectKey=msa-frontend \
-            -Dsonar.projectName="MSA Frontend React" \
+            -Dsonar.projectName="Novashop Storefront" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=src \
@@ -486,7 +486,7 @@ jobs:
       - name: Validate runtime test targets
         run: |
           : "${BASE_URL:?Set DEVSECOPS_BASE_URL to the deployed API/storefront entrypoint}"
-          : "${FRONTEND_URL:?Set DEVSECOPS_FRONTEND_URL to the deployed React storefront}"
+          : "${FRONTEND_URL:?Set DEVSECOPS_FRONTEND_URL to the deployed Novashop storefront}"
           : "${KEYCLOAK_URL:?Set DEVSECOPS_KEYCLOAK_URL to the deployed Keycloak base URL}"
 
       - name: Run Newman API and authorization collection

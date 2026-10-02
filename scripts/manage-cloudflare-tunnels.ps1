@@ -146,7 +146,7 @@ function Start-AllTunnels {
 
     # Pre-flight check: ensure local services are listening
     $targets = @(
-        @{ Name = "frontend"; Port = 5173; HealthPath = "/healthz"; Desc = "React Storefront" },
+        @{ Name = "frontend"; Port = 5173; HealthPath = "/healthz"; Desc = "Novashop Storefront" },
         @{ Name = "router";   Port = 8080; HealthPath = "";         Desc = "Cosmo Router Supergraph" },
         @{ Name = "keycloak"; Port = 8181; HealthPath = "/realms/microservices-realm"; Desc = "Keycloak IAM" }
     )
@@ -306,7 +306,7 @@ function Start-AllTunnels {
     Write-Host ("=" * 80) -ForegroundColor Cyan
     Write-Host " 🌐 PUBLIC CLOUDFLARE ENDPOINTS (EXPOSED FOR DEVSECOPS & GITHUB ACTIONS)" -ForegroundColor Cyan
     Write-Host ("=" * 80) -ForegroundColor Cyan
-    Write-Host "  ▶ React Storefront (Frontend / DAST) : $frontendUrl" -ForegroundColor Green
+    Write-Host "  ▶ Novashop Storefront (Frontend / DAST) : $frontendUrl" -ForegroundColor Green
     Write-Host "  ▶ Cosmo Router (GraphQL Supergraph)   : $routerUrl" -ForegroundColor Green
     Write-Host "  ▶ Keycloak IAM (OAuth2 / Realm)       : $keycloakUrl" -ForegroundColor Green
     Write-Host ("-" * 80) -ForegroundColor DarkGray

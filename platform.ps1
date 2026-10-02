@@ -1217,7 +1217,7 @@ function Show-LocalPlatformUrls {
     Show-Banner "Active Platform Web Dashboards & Management Consoles"
     Write-Host "┌──────────────────────────────┬────────────────────────────────────────────┬────────────────┐" -ForegroundColor Cyan
     Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
-    Write-Host "│ 🌐 React Storefront          │ http://localhost:5173                      │ Open           │" -ForegroundColor White
+    Write-Host "│ 🌐 Novashop Storefront       │ http://localhost:5173                      │ Open           │" -ForegroundColor White
     Write-Host "│ 🚀 Cosmo Router (Sandbox)    │ http://localhost:8080                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
