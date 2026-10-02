@@ -1,0 +1,170 @@
+# =========================================================================
+# GitLab CI/CD Pipeline - Liferay DXP / Portal Workspace & Modules
+# Reference template for Gradle / Liferay Workspace continuous delivery
+# =========================================================================
+
+stages:
+  - build
+  - test
+  - package
+  - deploy-dev
+  - deploy-staging
+  - deploy-prod
+
+# Global reusable variables
+variables:
+  # Recommended Java runtime for Liferay DXP 7.4 (JDK 11 or 17 depending on patch release)
+  JAVA_IMAGE: "eclipse-temurin:11-jdk-alpine"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.caching=true"
+  GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+
+  # Container registry and image naming configuration
+  DOCKER_IMAGE_NAME: "$CI_REGISTRY_IMAGE/liferay-bundle"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+# Global pipeline cache for Gradle wrapper and downloaded dependencies
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-liferay-cache"
+  paths:
+    - .gradle/wrapper/
+    - .gradle/caches/
+    - node_modules/ # Used when building frontend themes via Liferay Theme Generator / Node.js
+
+# Reusable rule anchor for branch execution
+.rules_default:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# =========================================================================
+# STAGE 1: BUILD (OSGi Bundles, WARs, and Theme Compilation)
+# =========================================================================
+build:workspace:
+  stage: build
+  image: $JAVA_IMAGE
+  extends: .rules_default
+  before_script:
+    - chmod +x gradlew
+  script:
+    - echo "Compiling Liferay Workspace OSGi modules, WARs, and configurations..."
+    - ./gradlew clean compileJava compileJSP jar war bundle --info
+  artifacts:
+    name: "liferay-modules-$CI_COMMIT_SHORT_SHA"
+    expire_in: 3 days
+    paths:
+      # OSGi JAR packages, configuration files, and legacy WARs
+      - "modules/**/build/libs/*.jar"
+      - "wars/**/build/libs/*.war"
+      - "configs/"
+      # Complete distribution bundle if using workspace dist task:
+      - "build/dist/"
+
+# =========================================================================
+# STAGE 2: TEST & CODE QUALITY
+# =========================================================================
+test:unit:
+  stage: test
+  image: $JAVA_IMAGE
+  extends: .rules_default
+  before_script:
+    - chmod +x gradlew
+  script:
+    - echo "Running unit and integration tests across Liferay modules..."
+    - ./gradlew test
+  artifacts:
+    when: always
+    reports:
+      junit: "modules/**/build/test-results/test/TEST-*.xml"
+    paths:
+      - "modules/**/build/reports/tests/"
+
+# Static application security and quality analysis via SonarQube Scanner
+test:sonarqube:
+  stage: test
+  image: sonarsource/sonar-scanner-cli:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop" || $CI_COMMIT_BRANCH == "main"'
+  variables:
+    SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar/cache"
+  script:
+    - sonar-scanner
+      -Dsonar.host.url="${SONAR_HOST_URL}"
+      -Dsonar.login="${SONAR_TOKEN}"
+      -Dsonar.projectKey="liferay-portal-${CI_PROJECT_NAME}"
+  allow_failure: true
+
+# =========================================================================
+# STAGE 3: PACKAGE (Custom Liferay Docker Image Build)
+# =========================================================================
+package:docker-image:
+  stage: package
+  image: docker:25.0-cli
+  services:
+    - docker:25.0-dind
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG'
+  before_script:
+    # Authenticate to GitLab Container Registry
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - echo "Building Liferay Docker image and injecting compiled OSGi artifacts..."
+    - docker build
+        --build-arg LIFERAY_BASE_IMAGE=liferay/portal:7.4.3.120-ga120
+        -t "$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+        -t "$DOCKER_IMAGE_NAME:latest"
+        -f Dockerfile .
+    - docker push "$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA"
+    - docker push "$DOCKER_IMAGE_NAME:latest"
+
+# =========================================================================
+# STAGE 4: DEPLOY TO DEV (Automatic deployment on develop branch)
+# =========================================================================
+deploy:dev:
+  stage: deploy-dev
+  image: bitnami/kubectl:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  script:
+    - echo "Deploying to DEV environment (Kubernetes Pods)..."
+    - kubectl set image deployment/liferay-portal liferay-portal="$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -n liferay-dev
+    - kubectl rollout status deployment/liferay-portal -n liferay-dev --timeout=300s
+  environment:
+    name: development
+    url: https://dev-portal.example.com
+
+# =========================================================================
+# STAGE 5: DEPLOY TO STAGING (Automatic or controlled trigger on main)
+# =========================================================================
+deploy:staging:
+  stage: deploy-staging
+  image: bitnami/kubectl:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - echo "Deploying to STAGING environment..."
+    - kubectl set image deployment/liferay-portal liferay-portal="$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -n liferay-staging
+    - kubectl rollout status deployment/liferay-portal -n liferay-staging --timeout=300s
+  environment:
+    name: staging
+    url: https://staging-portal.example.com
+
+# =========================================================================
+# STAGE 6: DEPLOY TO PRODUCTION (Manual approval quality gate)
+# =========================================================================
+deploy:production:
+  stage: deploy-prod
+  image: bitnami/kubectl:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+      when: manual # Requires manual operator trigger / approval gate
+  script:
+    - echo "Deploying certified release to PRODUCTION..."
+    - kubectl set image deployment/liferay-portal liferay-portal="$DOCKER_IMAGE_NAME:$CI_COMMIT_SHORT_SHA" -n liferay-prod
+    - kubectl rollout status deployment/liferay-portal -n liferay-prod --timeout=400s
+  environment:
+    name: production
+    url: https://portal.example.com
