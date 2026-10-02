@@ -709,3 +709,53 @@ For a production-grade rollout, I would keep this as the minimum bar before prom
 - **Infrastructure discipline:** remote state, lock files, least-privilege IAM roles, private networking, WAF/CDN on public edge, and environment segregation
 
 This is a strong production baseline, and the repository is already close to it.
+
+---
+
+### 🗺️ Multi-Zone Topology & High-Availability Next Steps for Production (Cloud Day-2)
+
+While single-node local environments (like Minikube) run on a single machine without failure zones, production deployments on **AWS EKS**, **Azure AKS**, and **Google Cloud GKE** must tolerate the loss of an entire cloud Availability Zone (AZ) or physical worker node.
+
+#### 1. Pod Topology Spread Constraints (`topologySpreadConstraints`)
+To ensure replicas of each microservice (`products-service`, `orders-service`, etc.) are evenly distributed across cloud failure domains, incorporate `topologySpreadConstraints` in your Helm chart values for production (`values-prod.yaml`):
+
+```yaml
+spec:
+  topologySpreadConstraints:
+    # 1. Distribute evenly across Cloud Availability Zones (Zone-level failure tolerance)
+    - maxSkew: 1
+      topologyKey: "topology.kubernetes.io/zone"
+      whenUnsatisfiable: DoNotSchedule  # Hard requirement in multi-AZ clusters
+      labelSelector:
+        matchLabels:
+          app: products-service
+    # 2. Distribute evenly across distinct Node Hosts (Node-level failure tolerance)
+    - maxSkew: 1
+      topologyKey: "kubernetes.io/hostname"
+      whenUnsatisfiable: ScheduleAnyway  # Soft spread across worker nodes
+      labelSelector:
+        matchLabels:
+          app: products-service
+```
+
+#### 2. Pod Anti-Affinity (`podAntiAffinity`)
+As an alternative or complement to topology spread, configure soft pod anti-affinity so the scheduler prefers placing companion replicas on different Kubernetes nodes:
+
+```yaml
+spec:
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["products-service"]
+            topologyKey: "kubernetes.io/hostname"
+```
+
+> [!NOTE]
+> In local Minikube, these constraints are intentionally omitted from development manifests because Minikube provisions a single node with no cloud zones. Enforcing `whenUnsatisfiable: DoNotSchedule` locally would cause secondary replicas to remain permanently trapped in `Pending` state. In cloud staging and production clusters with 3+ availability zones, these constraints provide automated multi-datacenter high availability.
+

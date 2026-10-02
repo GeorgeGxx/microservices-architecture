@@ -1,0 +1,47 @@
+# ==============================================================================
+# GitLab Runner Helm Values for Minikube Local DevSecOps Cluster
+# ==============================================================================
+gitlabUrl: "https://gitlab.com/"
+runnerRegistrationToken: "${GITLAB_RUNNER_TOKEN}"
+
+concurrent: 4
+checkInterval: 10
+
+rbac:
+  create: true
+  serviceAccountName: gitlab-runner
+
+runners:
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        namespace = "gitlab-runner"
+        image = "alpine:3.21"
+        privileged = false
+        cpu_request = "250m"
+        cpu_limit = "2000m"
+        memory_request = "512Mi"
+        memory_limit = "4096Mi"
+        service_cpu_request = "100m"
+        service_cpu_limit = "1000m"
+        service_memory_request = "256Mi"
+        service_memory_limit = "2048Mi"
+        poll_interval = 5
+        poll_timeout = 3600
+        [runners.kubernetes.volumes]
+          [[runners.kubernetes.volumes.host_path]]
+            name = "docker-sock"
+            mount_path = "/var/run/docker.sock"
+            read_only = false
+            host_path = "/var/run/docker.sock"
+  tags: "minikube,local,devsecops,kubernetes"
+  runUntagged: true
+  protected: false
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi

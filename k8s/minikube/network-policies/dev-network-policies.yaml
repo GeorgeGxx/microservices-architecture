@@ -1,0 +1,163 @@
+# ==============================================================================
+# Zero-Trust L3/L4 Network Policies for namespace 'dev'
+# Defense-in-depth complement to Istio mTLS (Layer 7)
+# ==============================================================================
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# 01. Allow DNS resolution (Egress to CoreDNS in kube-system)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-resolution
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+# 02. Allow Ingress Gateway (istio-system) traffic to Edge services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-gateway-traffic
+  namespace: dev
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["frontend", "cosmo-router"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+# 03. Allow East-West communication between Cosmo Router & Microservices
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-microservices-east-west
+  namespace: dev
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["products-service", "orders-service", "inventory-service", "notification-service"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: cosmo-router
+        - podSelector:
+            matchLabels:
+              app: orders-service
+      ports:
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+        - protocol: TCP
+          port: 8004
+---
+# 04. Allow Egress to Backing Infrastructure (Data, Auth, Vault)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backing-infra-egress
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # Allow egress to 'data' namespace (PostgreSQL: 5432, Redis: 6379, Kafka: 9092/9094)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              environment: data
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 9094
+    # Allow egress to 'auth' namespace (Keycloak: 8181)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              environment: auth
+      ports:
+        - protocol: TCP
+          port: 8181
+    # Allow egress to 'vault' namespace (Vault: 8200)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              environment: vault
+      ports:
+        - protocol: TCP
+          port: 8200
+    # Allow intra-namespace egress between pods in 'dev'
+    - to:
+        - podSelector: {}
+---
+# 05. Allow Telemetry & Health Scraping from Observability namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-observability-scraping
+  namespace: dev
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              environment: observability
+      ports:
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+        - protocol: TCP
+          port: 8004
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090

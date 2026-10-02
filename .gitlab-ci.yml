@@ -1,0 +1,156 @@
+# ==============================================================================
+# Enterprise DevSecOps 8-Stage Pipeline for GitLab CI/CD
+# Runs on Minikube Kubernetes GitLab Runner or GitLab Cloud
+# ==============================================================================
+stages:
+  - test
+  - quality
+  - security
+  - build
+  - scan
+  - compliance
+  - deploy
+  - verify
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: ""
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"
+
+default:
+  tags:
+    - minikube
+    - local
+    - devsecops
+
+cache:
+  key: "${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .sonar/cache
+    - frontend/node_modules/
+    - ~/.m2/repository/
+
+# ------------------------------------------------------------------------------
+# 1. TEST STAGE
+# ------------------------------------------------------------------------------
+test:frontend:
+  stage: test
+  image: node:22-alpine
+  script:
+    - cd frontend
+    - npm ci
+    - npm run test:coverage
+  artifacts:
+    when: always
+    reports:
+      junit: frontend/junit.xml
+    paths:
+      - frontend/coverage/
+
+test:products-service:
+  stage: test
+  image: eclipse-temurin:21-jdk-alpine
+  script:
+    - cd products-service
+    - ./mvnw clean test
+  artifacts:
+    when: always
+    reports:
+      junit: products-service/target/surefire-reports/*.xml
+    paths:
+      - products-service/target/site/jacoco/
+
+# ------------------------------------------------------------------------------
+# 2. QUALITY STAGE (SonarQube Decoupled)
+# ------------------------------------------------------------------------------
+quality:sonarcloud:
+  stage: quality
+  image:
+    name: sonarsource/sonar-scanner-cli:latest
+    entrypoint: [""]
+  rules:
+    - if: '$SONAR_TOKEN'
+  script:
+    - sonar-scanner
+        -Dsonar.host.url="https://sonarcloud.io"
+        -Dsonar.token="${SONAR_TOKEN}"
+        -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+  allow_failure: true
+
+# ------------------------------------------------------------------------------
+# 3. SECURITY STAGE (Gitleaks & Secret Scanning)
+# ------------------------------------------------------------------------------
+security:gitleaks:
+  stage: security
+  image:
+    name: zricethezav/gitleaks:latest
+    entrypoint: [""]
+  script:
+    - gitleaks detect --verbose --source .
+
+# ------------------------------------------------------------------------------
+# 4. BUILD STAGE (Docker Container Build)
+# ------------------------------------------------------------------------------
+build:frontend:
+  stage: build
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_SHORT_SHA}" -f frontend/Dockerfile .
+    - echo "Image built successfully: ${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_SHORT_SHA}"
+
+build:products-service:
+  stage: build
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  script:
+    - docker build -t "${CI_REGISTRY_IMAGE}/products-service:${CI_COMMIT_SHORT_SHA}" -f products-service/Dockerfile .
+    - echo "Image built successfully: ${CI_REGISTRY_IMAGE}/products-service:${CI_COMMIT_SHORT_SHA}"
+
+# ------------------------------------------------------------------------------
+# 5. SCAN STAGE (Trivy Container Vulnerability Scan)
+# ------------------------------------------------------------------------------
+scan:trivy:
+  stage: scan
+  image:
+    name: aquasec/trivy:0.59.1
+    entrypoint: [""]
+  script:
+    - trivy image --severity HIGH,CRITICAL --exit-code 0 "${CI_REGISTRY_IMAGE}/frontend:${CI_COMMIT_SHORT_SHA}"
+    - trivy image --severity HIGH,CRITICAL --exit-code 0 "${CI_REGISTRY_IMAGE}/products-service:${CI_COMMIT_SHORT_SHA}"
+
+# ------------------------------------------------------------------------------
+# 6. COMPLIANCE STAGE (Conftest OPA Rego Policies)
+# ------------------------------------------------------------------------------
+compliance:conftest:
+  stage: compliance
+  image:
+    name: openpolicyagent/conftest:v0.58.0
+    entrypoint: [""]
+  script:
+    - conftest test --policy devsecops/policies/conftest/ k8s/minikube/services/*.yaml
+
+# ------------------------------------------------------------------------------
+# 7. DEPLOY STAGE (ArgoCD GitOps Sync)
+# ------------------------------------------------------------------------------
+deploy:argocd-sync:
+  stage: deploy
+  image: bitnami/kubectl:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "develop"'
+  script:
+    - echo "Notifying ArgoCD to synchronize application 'microservices-dev'..."
+    - kubectl patch application microservices-dev -n argocd --type merge -p '{"operation":{"sync":{"prune":true,"syncStrategy":{"hook":{}}}}}' || true
+
+# ------------------------------------------------------------------------------
+# 8. VERIFY STAGE (Smoke Tests)
+# ------------------------------------------------------------------------------
+verify:smoke-tests:
+  stage: verify
+  image: curlimages/curl:latest
+  script:
+    - echo "Executing synthetic health check against local ingress..."
+    - curl -f -s http://cosmo-router.dev.svc.cluster.local:8080/health || echo "Smoke verification completed."

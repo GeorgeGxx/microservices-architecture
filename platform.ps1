@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "gitlab-runner", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -36,7 +36,7 @@ param(
     [string]$VaultToken = "",
     [switch]$RotateVaultPki = $false,
     [switch]$PruneLegacyVaultRole = $false,
-    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart")]
+    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart", "install", "uninstall", "logs")]
     [string]$Action = "",
     [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
     [string]$Namespace = "dev",
@@ -49,9 +49,9 @@ param(
     [ValidateRange(1, 100)]
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
-    [int]$Cpus = 6,
-    [int]$MemoryMb = 12288,
-    [string]$DiskSize = "40g",
+    [int]$Cpus = 8,
+    [int]$MemoryMb = 16384,
+    [string]$DiskSize = "60g",
     [switch]$Destroy = $false
 )
 
@@ -1246,9 +1246,9 @@ function Invoke-MinikubePlatform {
         [switch]$DeployCanaryOption = $false,
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
-        [int]$CpuCount = 6,
-        [int]$RamMb = 12288,
-        [string]$DiskBudget = "40g",
+        [int]$CpuCount = 8,
+        [int]$RamMb = 16384,
+        [string]$DiskBudget = "60g",
         [switch]$PurgeAll = $false
     )
 
@@ -1443,7 +1443,13 @@ function Invoke-MinikubePlatform {
             }
 
             if ($EnableIstioMesh) {
-                kubectl label namespace dev istio-injection=enabled environment=dev --overwrite 2>$null | Out-Null
+                kubectl label namespace dev istio-injection=enabled environment=dev `
+                    "pod-security.kubernetes.io/enforce=restricted" `
+                    "pod-security.kubernetes.io/enforce-version=latest" `
+                    "pod-security.kubernetes.io/warn=restricted" `
+                    "pod-security.kubernetes.io/warn-version=latest" `
+                    "pod-security.kubernetes.io/audit=restricted" `
+                    "pod-security.kubernetes.io/audit-version=latest" --overwrite 2>$null | Out-Null
             }
 
             Write-Host "  ▶ Deploying LGTM Telemetry Stack (Tempo 3.0, Loki 3.7, Alloy, OTel, Grafana Datasources)..." -ForegroundColor White
@@ -1474,6 +1480,12 @@ function Invoke-MinikubePlatform {
                 if (Test-Path "$istioDir\destination-rules-dev.yaml") { kubectl apply -f "$istioDir\destination-rules-dev.yaml" 2>$null }
                 if (Test-Path "$istioDir\peer-authentication-dev.yaml") { kubectl apply -f "$istioDir\peer-authentication-dev.yaml" 2>$null }
                 Write-Host "  [OK] Istio STRICT mTLS and Gateway active." -ForegroundColor Green
+            }
+
+            $networkPolicyFile = Join-Path $root "k8s\minikube\network-policies\dev-network-policies.yaml"
+            if (Test-Path $networkPolicyFile) {
+                kubectl apply -f $networkPolicyFile 2>$null | Out-Null
+                Write-Host "  [OK] Zero-Trust L3/L4 NetworkPolicies applied to dev namespace." -ForegroundColor Green
             }
 
             Write-Host "`n[7/10] 🔒 Deploying Vault, Keycloak & Data Persistence..." -ForegroundColor Yellow
@@ -1735,13 +1747,13 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 6 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
+if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "60g")) {
     throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
 }
-if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 6 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
+if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "60g")) {
     throw "One or more local-only options were supplied for cloud platform '$Platform'. Remove -Build/-DeployCanary/-CanaryImageTag/-SkipScans/-WithoutIstio/-Cpus/-MemoryMb/-DiskSize or select -Platform minikube."
 }
 if ($CanaryImageTag -ne "canary" -and -not $DeployCanary) { throw "-CanaryImageTag is valid only with -DeployCanary." }
@@ -1763,8 +1775,8 @@ if ($Command -eq "vault") {
 if (($IncludeCloudCli -or $InstallOpenCostPlugin) -and $Command -ne "tools") {
     throw "-IncludeCloudCli and -InstallOpenCostPlugin are valid only with 'tools'."
 }
-if ($Action -and $Command -notin @("canary", "cloudflare")) {
-    throw "-Action is valid only with 'canary' or 'cloudflare'."
+if ($Action -and $Command -notin @("canary", "cloudflare", "gitlab-runner")) {
+    throw "-Action is valid only with 'canary', 'cloudflare', or 'gitlab-runner'."
 }
 $canaryOptionsChanged = ($Namespace -ne "dev") -or ($V1Weight -ne 90) -or ($V2Weight -ne 10) -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
 if ($canaryOptionsChanged -and $Command -ne "canary") {
@@ -2053,6 +2065,16 @@ switch ($Command) {
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
+    "gitlab-runner" {
+        Show-Banner "GitLab Runner Lifecycle Manager (Minikube)"
+        $runnerScript = Join-Path $root "k8s\gitlab-runner\manage-gitlab-runner.ps1"
+        if (-not (Test-Path $runnerScript)) {
+            throw "GitLab Runner manager script not found at '$runnerScript'."
+        }
+        $runnerAction = if ($Action) { $Action } else { "status" }
+        & pwsh $runnerScript -Action $runnerAction
+    }
+
     default {
         Show-Banner "Command Usage & Multi-Platform Architecture Reference"
         Write-Host "USAGE:" -ForegroundColor Yellow
@@ -2094,6 +2116,7 @@ switch ($Command) {
         Write-Host "  smoke               Run automated HTTP smoke tests against microservices"
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"
         Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
+        Write-Host "  gitlab-runner [-Action install|status|logs|uninstall|restart]  Manage GitLab Runner on Minikube"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
         Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
         Write-Host "  urls                Display table of active service endpoints and credentials"
