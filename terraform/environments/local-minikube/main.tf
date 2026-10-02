@@ -19,7 +19,7 @@ resource "kubernetes_namespace" "namespaces" {
     labels = each.key == "dev" ? {
       "istio-injection"                            = "enabled"
       "environment"                                = "dev"
-      "pod-security.kubernetes.io/enforce"         = "restricted"
+      "pod-security.kubernetes.io/enforce"         = "baseline"
       "pod-security.kubernetes.io/enforce-version" = "latest"
       "pod-security.kubernetes.io/warn"            = "restricted"
       "pod-security.kubernetes.io/warn-version"    = "latest"
