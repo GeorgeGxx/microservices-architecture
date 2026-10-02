@@ -100,6 +100,7 @@ jobs:
         with:
           name: surefire-${{ inputs.service-name }}
           path: |
+            ${{ inputs.service-dir }}/target/classes/
             ${{ inputs.service-dir }}/target/surefire-reports/
             ${{ inputs.service-dir }}/target/site/jacoco/
           retention-days: 7
@@ -121,66 +122,20 @@ jobs:
           npm run test:coverage
           npm run build
 
-      - name: Sonar Analysis (Spring Boot)
-        if: inputs.service-type == 'spring-boot'
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
-        run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
-            exit 0
-          fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
-          mvn -B -T 1C \
-            org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
-            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
-            -Dsonar.organization="$SONAR_ORGANIZATION" \
-            -Dsonar.host.url="$SONAR_HOST_URL" \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
-
-      - name: Set up Java for Frontend Sonar Scanner
-        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/setup-java@v4
+      - name: Upload Frontend Coverage Artifact
+        if: (inputs.service-type == 'react' || inputs.service-type == 'frontend') && always()
+        uses: actions/upload-artifact@v4
         with:
-          java-version: '21'
-          distribution: 'temurin'
-
-      - name: Sonar Analysis (Novashop Frontend)
-        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
-          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
-          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
-        run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
-            exit 0
-          fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
-          npx --yes sonar-scanner \
-            -Dsonar.projectKey=msa-frontend \
-            -Dsonar.projectName="Novashop Storefront" \
-            -Dsonar.organization="$SONAR_ORGANIZATION" \
-            -Dsonar.host.url="$SONAR_HOST_URL" \
-            -Dsonar.sources=src \
-            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
-            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
-            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage/
+          retention-days: 7
 
   # ==========================================================
   # STEP 2: 🔍 SAST & Secret Scanning (Security) — Runs in parallel with Unit Tests
   #   Uses centralized governance configs in devsecops/sast/
   # ==========================================================
   sast-scans:
-    name: "🔍 2. SAST (SonarQube/Semgrep/Gitleaks) - ${{ inputs.service-name }}"
+    name: "🔍 2. SAST (Semgrep/Gitleaks/Checkov) - ${{ inputs.service-name }}"
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
@@ -208,6 +163,124 @@ jobs:
         run: |
           python3 -m pip install checkov || pip install checkov
           checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+
+  # ==========================================================
+  # STEP 2b: 📊 SonarQube Cloud Code Quality & Security Analysis
+  #   Decoupled: runs in parallel with Container Build without blocking deployment
+  # ==========================================================
+  sonar-analysis:
+    name: "📊 SonarQube Analysis - ${{ inputs.service-name }}"
+    needs: unit-tests
+    runs-on: ${{ inputs.runner-type }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache SonarCloud Global Packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar-cache
+          restore-keys: |
+            ${{ runner.os }}-sonar-cache
+
+      # Spring Boot Sonar Analysis
+      - name: Set up JDK 21
+        if: inputs.service-type == 'spring-boot'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Download Spring Boot Test & Coverage Artifacts
+        if: inputs.service-type == 'spring-boot'
+        uses: actions/download-artifact@v4
+        with:
+          name: surefire-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/target
+
+      - name: Sonar Analysis (Spring Boot)
+        if: inputs.service-type == 'spring-boot'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          mvn -B -T 1C \
+            org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
+            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
+            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+
+      # Frontend Sonar Analysis
+      - name: Set up Java for Frontend Sonar Scanner
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js for Frontend Sonar Scanner
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.service-dir }}/package.json
+
+      - name: Download Frontend Coverage Artifacts
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage
+
+      - name: Cache SonarCloud Scanner Work
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        uses: actions/cache@v4
+        with:
+          path: ${{ inputs.service-dir }}/.scannerwork
+          key: ${{ runner.os }}-sonar-work-${{ inputs.service-name }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-sonar-work-${{ inputs.service-name }}-
+
+      - name: Sonar Analysis (Novashop Frontend)
+        if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          npx --yes sonar-scanner \
+            -Dsonar.projectKey=msa-frontend \
+            -Dsonar.projectName="Novashop Storefront" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.sources=src \
+            -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
   # ==========================================================
   # STEP 3: ⚙️ Build Container Once & SBOM (DevOps / Supply Chain)
