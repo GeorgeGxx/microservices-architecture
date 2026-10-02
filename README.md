@@ -354,6 +354,7 @@ microservices-architecture/
 │   └── testing/newman/             # Newman JSON export (20 requests) + Postman collection tree
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
+│   │   ├── adr/                    # Architecture Decision Records (ADRs) with Pugh Matrices
 │   │   ├── ARCHITECTURE.md
 │   │   └── MULTI_CLOUD_INFRASTRUCTURE.md
 │   ├── 02-operations/              # 🚀 Operations, Local Minikube, Platform CLI & Cloudflare Tunnels
