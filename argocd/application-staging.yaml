@@ -43,3 +43,7 @@ spec:
       kind: ServiceMonitor
       jsonPointers:
         - /spec/endpoints
+    - group: "apps"
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

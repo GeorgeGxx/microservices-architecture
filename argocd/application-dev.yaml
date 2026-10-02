@@ -43,5 +43,7 @@ spec:
       kind: ServiceMonitor
       jsonPointers:
         - /spec/endpoints
-    - group: "autoscaling"
-      kind: HorizontalPodAutoscaler
+    - group: "apps"
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

@@ -43,6 +43,9 @@ parameters:
   - name: tagLatest            # mutable 'latest' tag on promotion (off by default)
     type: boolean
     default: false
+  - name: sonarQualityGateWait # wait for SonarQube Cloud quality gate (fails if gate fails)
+    type: boolean
+    default: false
   - name: canaryEnabled
     type: boolean
     default: false
@@ -158,7 +161,7 @@ stages:
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
                   -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
                   -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                  -Dsonar.qualitygate.wait=true
+                  -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
               displayName: "SonarQube Cloud Analysis & Quality Gate"
               condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
               env:
@@ -175,6 +178,12 @@ stages:
                   npm
                 path: $(npm_config_cache)
 
+            - task: Cache@2
+              displayName: "Cache SonarCloud Packages"
+              inputs:
+                key: 'sonar | "$(Agent.OS)"'
+                path: $(HOME)/.sonar/cache
+
             - task: NodeTool@0
               inputs:
                 versionSpec: '22.x'
@@ -182,8 +191,9 @@ stages:
             - script: |
                 cd ${{ parameters.serviceDir }}
                 npm ci
+                npm run test:coverage
                 npm run build
-              displayName: "React Build & Compile Gate"
+              displayName: "Novashop Frontend Test, Coverage & Build Gate"
 
             - task: JavaToolInstaller@0
               displayName: "Set up Java for Sonar Scanner"
@@ -210,7 +220,8 @@ stages:
                   -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
                   -Dsonar.sources=src \
                   -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
-                  -Dsonar.qualitygate.wait=true
+                  -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                  -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
               displayName: "SonarQube Cloud Frontend Analysis & Quality Gate"
               condition: succeeded()
               env:
