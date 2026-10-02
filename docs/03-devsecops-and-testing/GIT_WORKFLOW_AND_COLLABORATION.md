@@ -98,7 +98,7 @@ git rebase origin/develop
 ### 🚫 The Golden Rule of Shared Branches
 > **NEVER execute `git reset --hard` followed by a `git push --force` on shared collaboration branches (`develop`, `staging`, `main`/`master`).**
 
-On GitHub/GitLab/Bitbucket, configure branch protection rules for `develop`, `staging`, and `main`:
+On GitHub, Azure DevOps, and Bitbucket, configure branch protection rules for `develop`, `staging`, and `main`:
 1. **Require pull request reviews** before merging (minimum 1 peer review).
 2. **Require status checks to pass** before merging (CI tests, Trivy, Gitleaks).
 3. **Do not allow bypassing the above settings**.
