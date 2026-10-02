@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -2134,6 +2134,11 @@ switch ($Command) {
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
+    { $_ -in @("bcdr", "dr") } {
+        Show-Banner "Business Continuity & Disaster Recovery Simulation (BCDR Drill)"
+        & (Join-Path $scriptsDir "bcdr-simulation.ps1") -Environment $Environment
+    }
+
     default {
         Show-Banner "Command Usage & Multi-Platform Architecture Reference"
         Write-Host "USAGE:" -ForegroundColor Yellow
@@ -2177,6 +2182,7 @@ switch ($Command) {
         Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
         Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
+        Write-Host "  bcdr | dr           Run BCDR GameDay drill: snapshot DBs, test recovery & audit RTO/RPO SLOs"
         Write-Host "  urls                Display table of active service endpoints and credentials"
 
         Write-Host ""

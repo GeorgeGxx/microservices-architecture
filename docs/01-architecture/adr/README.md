@@ -30,6 +30,7 @@ An **Architecture Decision Record (ADR)** captures a significant architectural d
 | **[ADR-007](./ADR-007-event-driven-autoscaling-keda.md)** | Event-Driven Autoscaling with KEDA | 🟢 ACCEPTED | 2026-03 | Scale microservice pods based on Kafka queue lag and Prometheus request rates beyond basic CPU/RAM HPA. |
 | **[ADR-008](./ADR-008-telemetry-observability-lgtm-opentelemetry.md)** | OpenTelemetry & Full-Stack LGTM Telemetry Engine | 🟢 ACCEPTED | 2026-03 | Deploy Loki, Grafana, Tempo, and Prometheus with OTLP tracing to prevent vendor lock-in. |
 | **[ADR-009](./ADR-009-multi-cloud-iac-terraform.md)** | Multi-Cloud Infrastructure as Code with Terraform | 🟢 ACCEPTED | 2026-03 | Structure modular Terraform for 4 target versions (Minikube, AWS EKS, Azure AKS, GCP GKE). |
+| **[ADR-010](./ADR-010-disaster-recovery-and-business-continuity.md)** | Cross-Region Warm Standby & Business Continuity (BCDR) | 🟢 ACCEPTED | 2026-10 | Enforce cross-region warm standby, streaming replication, immutable S3 WAL archiving, and RTO < 15m / RPO < 1m. |
 
 ---
 

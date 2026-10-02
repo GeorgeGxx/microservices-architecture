@@ -138,6 +138,7 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 | `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
 | `.\platform.ps1 graph` | Generates a visual Terraform dependency graph PNG at `docs/terraform-graph.png` using Graphviz (`dot`). |
 | `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 12 architectural tabs in [`docs/Diagrams.drawio`](../Diagrams.drawio) via Python. |
+| `.\platform.ps1 bcdr` | Executes live BCDR GameDay drill: captures cross-service PostgreSQL snapshots, tests automated recovery in isolated database, and audits actual RTO/RPO metrics against ISO 22301 SLOs. |
 
 ---
 

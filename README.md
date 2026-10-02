@@ -114,7 +114,7 @@ graph TD
 
 | Pillar | Focus & Key Contents | Core Documents | Target Audience |
 | :--- | :--- | :--- | :--- |
-| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, multi-cloud infrastructure topologies (AWS, Azure, GCP), formalized Architecture Decision Records (ADRs), and enterprise API design standards (RFC 7807 & GraphQL Federation). | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [API_DESIGN_AND_CONTRACTS.md](./docs/01-architecture/API_DESIGN_AND_CONTRACTS.md)<br/>• [Architecture Decision Records (ADRs)](./docs/01-architecture/adr/README.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md) | Software Architects, Developers |
+| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, multi-cloud infrastructure topologies (AWS, Azure, GCP), formalized Architecture Decision Records (ADRs), enterprise API design (RFC 7807 & GraphQL), and Business Continuity / Disaster Recovery (BCDR). | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [DISASTER_RECOVERY_STRATEGY.md](./docs/01-architecture/DISASTER_RECOVERY_STRATEGY.md)<br/>• [API_DESIGN_AND_CONTRACTS.md](./docs/01-architecture/API_DESIGN_AND_CONTRACTS.md)<br/>• [Architecture Decision Records (ADRs)](./docs/01-architecture/adr/README.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md) | Software Architects, Developers |
 | **02. Operations** | Docker Compose (15 services), Minikube cluster setup, Istio service mesh, `platform.ps1` CLI reference, Cloudflare Zero-Trust Tunnels, and Helm Canary rollouts. | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md) | DevOps, Platform Engineers, SysAdmins |
 | **03. DevSecOps & Testing** | Multi-CI/CD pipelines (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage), Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, Git workflows, and enterprise DevSecOps governance model & RACI matrix. | • [DEVSECOPS_GOVERNANCE_AND_MODEL.md](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md)<br/>• [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md) | SecOps, QA Engineers, Cloud Engineers, Architects |
 | **04. Observability** | Full-stack LGTM telemetry handbook: PromQL queries (RED metrics, JVM, funnels), LogQL (Loki correlation), and TraceQL (Tempo distributed spans). | • [OBSERVABILITY_QUERIES.md](./docs/04-observability/OBSERVABILITY_QUERIES.md) | SRE, Operations Engineers |
@@ -354,9 +354,10 @@ microservices-architecture/
 │   └── testing/newman/             # Newman JSON export (20 requests) + Postman collection tree
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
-│   │   ├── adr/                    # Architecture Decision Records (ADRs) with Pugh Matrices
+│   │   ├── adr/                    # Architecture Decision Records (ADRs: ADR-001 - ADR-010)
 │   │   ├── API_DESIGN_AND_CONTRACTS.md # RESTful OpenAPI 3.0 & RFC 7807 Problem Details standards
 │   │   ├── ARCHITECTURE.md
+│   │   ├── DISASTER_RECOVERY_STRATEGY.md # Business Continuity, Warm Standby DR, RTO/RPO SLAs
 │   │   └── MULTI_CLOUD_INFRASTRUCTURE.md
 │   ├── 02-operations/              # 🚀 Operations, Local Minikube, Platform CLI & Cloudflare Tunnels
 │   │   ├── LOCAL_DEPLOYMENT.md
