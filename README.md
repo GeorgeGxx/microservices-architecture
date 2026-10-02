@@ -261,7 +261,7 @@ docker compose ps
 docker compose down -v
 ```
 
-**Recommended local resources:** 6 CPU cores and 12 GB RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+**Recommended local resources:** 8 CPU cores and 14 GB RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 ---
 
