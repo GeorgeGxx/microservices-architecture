@@ -28,7 +28,7 @@ definitions:
                 SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
                 npx --yes sonar-scanner \
                   -Dsonar.projectKey=msa-frontend \
-                  -Dsonar.projectName="MSA Frontend React" \
+                  -Dsonar.projectName="Novashop Storefront" \
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
                   -Dsonar.host.url="$SONAR_HOST_URL" \
                   -Dsonar.sources=src \

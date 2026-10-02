@@ -205,7 +205,7 @@ stages:
                 cd ${{ parameters.serviceDir }}
                 npx --yes sonar-scanner \
                   -Dsonar.projectKey=msa-frontend \
-                  -Dsonar.projectName="MSA Frontend React" \
+                  -Dsonar.projectName="Novashop Storefront" \
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
                   -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
                   -Dsonar.sources=src \

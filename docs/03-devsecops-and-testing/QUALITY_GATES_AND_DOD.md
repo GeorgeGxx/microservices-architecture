@@ -9,7 +9,7 @@
 
 ## 📌 Executive Summary & Architecture Alignment
 
-In a distributed, event-driven microservices architecture composed of independent runtimes (Spring Boot, Angular SPA, Cosmo Router GraphQL federation, PostgreSQL databases, Kafka/RabbitMQ events, and multi-cloud Kubernetes clusters), defects rarely originate from isolated unit code errors. Instead, the majority of critical outages stem from:
+In a distributed, event-driven microservices architecture composed of independent runtimes (Spring Boot, Novashop React SPA, Cosmo Router GraphQL federation, PostgreSQL databases, Kafka/RabbitMQ events, and multi-cloud Kubernetes clusters), defects rarely originate from isolated unit code errors. Instead, the majority of critical outages stem from:
 
 1. **Schema and Contract Drift:** Breaking changes in federated GraphQL subgraphs or event payloads.
 2. **Destructive Database Mutations:** Premature column drops or synchronous migration locks.
@@ -92,10 +92,10 @@ Because microservices operate across isolated containers, federated gateways, Gi
 #### Mandatory Verification Criteria:
 - [ ] **Clean Build & Compilation:**
   - Java/Maven microservices compile with zero fatal warnings (`mvn clean compile`).
-  - Angular frontend compiles under strict TypeScript mode (`pnpm run build`).
+  - Novashop React frontend compiles under strict TypeScript mode (`npm run build`).
 - [ ] **Automated Unit Testing & Coverage:**
-  - Unit tests run and pass cleanly (`mvn test` / `pnpm test:headless`).
-  - Code line coverage meets or exceeds **80%** as verified by **JaCoCo** reports.
+  - Unit tests run and pass cleanly (`mvn test` / `npm run test` or `npm run test:coverage`).
+  - Code line coverage meets or exceeds **80%** as verified by **JaCoCo** and **Vitest** reports.
 - [ ] **Static Code & Secret Analysis (Shift-Left SAST):**
   - **Secret Detection:** Zero unencrypted tokens or credentials flagged by **Gitleaks** (`gitleaks detect` against `.gitleaks.toml`).
   - **Static Analysis:** Zero critical/high security bugs detected by **Semgrep** and **SonarQube**.
@@ -238,7 +238,7 @@ Copy and paste the template below when opening a Pull Request targeting `develop
 ---
 
 ### 🛡️ Definition of Done (DoD) - Level 1 (Required for `develop` Merge)
-- [ ] **Compilation & Tests:** All unit and service integration tests pass (`mvn clean test` / `pnpm test:headless`).
+- [ ] **Compilation & Tests:** All unit and service integration tests pass (`mvn clean test` / `npm run test`).
 - [ ] **Test Coverage:** JaCoCo / code coverage meets or exceeds the **80%** threshold.
 - [ ] **Shift-Left Security:**
   - [ ] Gitleaks secret detection passed (0 credentials or private tokens).
