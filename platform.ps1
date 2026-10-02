@@ -1537,6 +1537,13 @@ function Invoke-MinikubePlatform {
             $redisPass     = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD } else { "admin" }
             $kcSecret      = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET } else { "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu" }
 
+            $escAdmin  = ([string]$keycloakAdmin).Replace('"', '\"')
+            $escPass   = ([string]$keycloakPass).Replace('"', '\"')
+            $escUser   = ([string]$postgresUser).Replace('"', '\"')
+            $escPgPass = ([string]$postgresPass).Replace('"', '\"')
+            $escRedis  = ([string]$redisPass).Replace('"', '\"')
+            $escKc     = ([string]$kcSecret).Replace('"', '\"')
+
             $seedSecrets = @"
 apiVersion: v1
 kind: Secret
@@ -1544,12 +1551,12 @@ metadata:
   name: microservices-secrets
 type: Opaque
 stringData:
-  KEYCLOAK_ADMIN: $keycloakAdmin
-  KEYCLOAK_ADMIN_PASSWORD: $keycloakPass
-  POSTGRES_USER: $postgresUser
-  POSTGRES_PASSWORD: $postgresPass
-  REDIS_PASSWORD: $redisPass
-  KEYCLOAK_CLIENT_SECRET: $kcSecret
+  KEYCLOAK_ADMIN: "$escAdmin"
+  KEYCLOAK_ADMIN_PASSWORD: "$escPass"
+  POSTGRES_USER: "$escUser"
+  POSTGRES_PASSWORD: "$escPgPass"
+  REDIS_PASSWORD: "$escRedis"
+  KEYCLOAK_CLIENT_SECRET: "$escKc"
 "@
             $secretTmp = [System.IO.Path]::GetTempFileName()
             try {
