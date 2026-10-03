@@ -198,7 +198,7 @@ resource "helm_release" "observability" {
     # Optimized retention to save Minikube disk and RAM
     {
       name  = "prometheus.prometheusSpec.retention"
-      value = "2d"
+      value = "1d"
     },
     {
       name  = "prometheus.prometheusSpec.resources.requests.cpu"
@@ -210,11 +210,11 @@ resource "helm_release" "observability" {
     },
     {
       name  = "prometheus.prometheusSpec.resources.limits.cpu"
-      value = "1000m"
+      value = "800m"
     },
     {
       name  = "prometheus.prometheusSpec.resources.limits.memory"
-      value = "1536Mi"
+      value = "1024Mi"
     },
     # Disable non-exposed host components in Minikube to keep all Prometheus targets green
     {

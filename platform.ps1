@@ -50,8 +50,8 @@ param(
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
     [int]$Cpus = 8,
-    [int]$MemoryMb = 14336,
-    [string]$DiskSize = "60g",
+    [int]$MemoryMb = 12288,
+    [string]$DiskSize = "40g",
     [switch]$Destroy = $false
 )
 
@@ -1270,8 +1270,8 @@ function Invoke-MinikubePlatform {
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
         [int]$CpuCount = 8,
-        [int]$RamMb = 14336,
-        [string]$DiskBudget = "60g",
+        [int]$RamMb = 12288,
+        [string]$DiskBudget = "40g",
         [switch]$PurgeAll = $false
     )
 
@@ -1816,13 +1816,13 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
+if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
 }
-if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
+if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
     throw "One or more local-only options were supplied for cloud platform '$Platform'. Remove -Build/-DeployCanary/-CanaryImageTag/-SkipScans/-WithoutIstio/-Cpus/-MemoryMb/-DiskSize or select -Platform minikube."
 }
 if ($CanaryImageTag -ne "canary" -and -not $DeployCanary) { throw "-CanaryImageTag is valid only with -DeployCanary." }

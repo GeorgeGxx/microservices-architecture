@@ -205,13 +205,13 @@ Deploy and operate the complete enterprise **DevSecOps** ecosystem locally on yo
 
 ##### 📋 1. Resource Allocation & Minikube Startup
 
-Open PowerShell as Administrator and initialize Minikube with the allocated resource budget (8 CPUs, 14 GB RAM, 60 GB disk):
+Open PowerShell as Administrator and initialize Minikube with the allocated resource budget (8 CPUs, 12 GB RAM, 40 GB disk):
 
 ```powershell
 minikube start `
   --cpus=8 `
-  --memory=14336 `
-  --disk-size=60g `
+  --memory=12288 `
+  --disk-size=40g `
   --driver=docker `
   --addons=ingress,metrics-server,dashboard
 ```
