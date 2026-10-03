@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "help")]
+    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
     [string]$Command = "help",
 
     [Parameter(Position = 1)]
@@ -50,8 +50,8 @@ param(
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
     [int]$Cpus = 8,
-    [int]$MemoryMb = 14336,
-    [string]$DiskSize = "60g",
+    [int]$MemoryMb = 12288,
+    [string]$DiskSize = "40g",
     [switch]$Destroy = $false
 )
 
@@ -1270,8 +1270,8 @@ function Invoke-MinikubePlatform {
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
         [int]$CpuCount = 8,
-        [int]$RamMb = 14336,
-        [string]$DiskBudget = "60g",
+        [int]$RamMb = 12288,
+        [string]$DiskBudget = "40g",
         [switch]$PurgeAll = $false
     )
 
@@ -1537,6 +1537,13 @@ function Invoke-MinikubePlatform {
             $redisPass     = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD } else { "admin" }
             $kcSecret      = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET } else { "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu" }
 
+            $escAdmin  = ([string]$keycloakAdmin).Replace('"', '\"')
+            $escPass   = ([string]$keycloakPass).Replace('"', '\"')
+            $escUser   = ([string]$postgresUser).Replace('"', '\"')
+            $escPgPass = ([string]$postgresPass).Replace('"', '\"')
+            $escRedis  = ([string]$redisPass).Replace('"', '\"')
+            $escKc     = ([string]$kcSecret).Replace('"', '\"')
+
             $seedSecrets = @"
 apiVersion: v1
 kind: Secret
@@ -1544,14 +1551,25 @@ metadata:
   name: microservices-secrets
 type: Opaque
 stringData:
-  KEYCLOAK_ADMIN: $keycloakAdmin
-  KEYCLOAK_ADMIN_PASSWORD: $keycloakPass
-  POSTGRES_USER: $postgresUser
-  POSTGRES_PASSWORD: $postgresPass
-  REDIS_PASSWORD: $redisPass
-  KEYCLOAK_CLIENT_SECRET: $kcSecret
+  KEYCLOAK_ADMIN: "$escAdmin"
+  KEYCLOAK_ADMIN_PASSWORD: "$escPass"
+  POSTGRES_USER: "$escUser"
+  POSTGRES_PASSWORD: "$escPgPass"
+  REDIS_PASSWORD: "$escRedis"
+  KEYCLOAK_CLIENT_SECRET: "$escKc"
 "@
-            @("auth", "data", "dev") | ForEach-Object { $seedSecrets | kubectl apply -n $_ -f - 2>$null | Out-Null }
+            $secretTmp = [System.IO.Path]::GetTempFileName()
+            try {
+                [System.IO.File]::WriteAllText($secretTmp, $seedSecrets)
+                foreach ($targetNs in @("auth", "data", "dev")) {
+                    kubectl apply -f $secretTmp -n $targetNs 2>$null | Out-Null
+                    if (-not (kubectl get secret microservices-secrets -n $targetNs 2>$null)) {
+                        kubectl apply -f $secretTmp -n $targetNs 2>$null | Out-Null
+                    }
+                }
+            } finally {
+                if (Test-Path $secretTmp) { Remove-Item -Force $secretTmp 2>$null }
+            }
 
             kubectl apply -f "$infraDir\postgres-products.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\postgres-orders.yaml" -n data 2>$null
@@ -1798,13 +1816,13 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
+if ($Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
 }
-if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 14336 -or $DiskSize -ne "60g")) {
+if ($Platform -ne "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 12288 -or $DiskSize -ne "40g")) {
     throw "One or more local-only options were supplied for cloud platform '$Platform'. Remove -Build/-DeployCanary/-CanaryImageTag/-SkipScans/-WithoutIstio/-Cpus/-MemoryMb/-DiskSize or select -Platform minikube."
 }
 if ($CanaryImageTag -ne "canary" -and -not $DeployCanary) { throw "-CanaryImageTag is valid only with -DeployCanary." }
@@ -2116,6 +2134,11 @@ switch ($Command) {
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
+    { $_ -in @("bcdr", "dr") } {
+        Show-Banner "Business Continuity & Disaster Recovery Simulation (BCDR Drill)"
+        & (Join-Path $scriptsDir "bcdr-simulation.ps1") -Environment $Environment
+    }
+
     default {
         Show-Banner "Command Usage & Multi-Platform Architecture Reference"
         Write-Host "USAGE:" -ForegroundColor Yellow
@@ -2159,6 +2182,7 @@ switch ($Command) {
         Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
         Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
+        Write-Host "  bcdr | dr           Run BCDR GameDay drill: snapshot DBs, test recovery & audit RTO/RPO SLOs"
         Write-Host "  urls                Display table of active service endpoints and credentials"
 
         Write-Host ""
