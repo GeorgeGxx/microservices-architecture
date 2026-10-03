@@ -175,7 +175,7 @@ Keycloak and its PostgreSQL database must be initialized first:
 cd microservices-architecture
 
 # 2. Copy environment file if not already present
-cp .example.env .env
+cp .env.example .env
 
 # 3. Start Keycloak and its database in detached mode
 docker compose up -d --build keycloak

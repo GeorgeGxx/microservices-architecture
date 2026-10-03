@@ -101,7 +101,7 @@ Because microservices operate across isolated containers, federated gateways, Gi
   - **Static Analysis:** Zero critical/high security bugs detected by **Semgrep** and **SonarQube**.
   - **Dependency Scanning:** Container and library dependencies scanned with zero exploitable High/Critical CVEs (**Trivy**).
 - [ ] **Local Maturity & Infrastructure Consistency:**
-  - Docker Compose configuration passes validation (`docker compose config --quiet` with `.example.env`).
+  - Docker Compose configuration passes validation (`docker compose config --quiet` with `.env.example`).
   - Terraform code formatted without discrepancies (`terraform fmt -check -recursive terraform`).
 - [ ] **Git Hygiene & Peer Review:**
   - Rebased onto latest `origin/develop` with clean, atomic Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`).
@@ -199,7 +199,7 @@ Run these baseline checks before pushing your branch:
 # 1. Terraform formatting verification
 terraform fmt -check -recursive terraform
 
-# 2. Docker Compose interpolation check with .example.env
+# 2. Docker Compose interpolation check with .env.example
 docker compose config --quiet
 
 # 3. Python test scripts syntax validation
@@ -244,7 +244,7 @@ Copy and paste the template below when opening a Pull Request targeting `develop
   - [ ] Gitleaks secret detection passed (0 credentials or private tokens).
   - [ ] Semgrep & Trivy static scans report zero Critical/High unaddressed issues.
 - [ ] **Local Maturity Gates:**
-  - [ ] `docker compose config --quiet` verified against `.example.env`.
+  - [ ] `docker compose config --quiet` verified against `.env.example`.
   - [ ] `terraform fmt -check -recursive terraform` passes (if infrastructure altered).
 - [ ] **Git Hygiene:** Rebased on latest `origin/develop`, Conventional Commits used, ready for Squash & Merge.
 

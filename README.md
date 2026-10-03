@@ -246,7 +246,7 @@ git clone https://github.com/georgegxx/microservices-architecture.git
 cd microservices-architecture
 
 # 2. Copy environment file if not already present and define the passwords
-cp .example.env .env
+cp .env.example .env
 
 # 3. Start Keycloak and its database in detached mode
 docker compose up -d --build keycloak
@@ -407,7 +407,7 @@ microservices-architecture/
 │   ├── grafana.py                  # Grafana dashboard and explicit demo-telemetry CLI
 │   └── update_dashboards.py        # Dashboard generation implementation used by grafana.py
 ├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
-├── .example.env                    # Example environment file
+├── .env.example                    # Example environment file
 ├── .gitattributes                  # Git attributes file
 ├── .gitignore                      # Git ignore file
 ├── .gitleaks.toml                  # Gitleaks configuration file
