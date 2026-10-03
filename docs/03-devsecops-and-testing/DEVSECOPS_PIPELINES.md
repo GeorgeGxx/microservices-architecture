@@ -9,7 +9,7 @@
 
 ## 🛡️ Local DevSecOps Platform and delivery paths
 
-The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (8+ CPU cores, 16+ GB RAM, 100+ GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (8 CPUs / 14 GB RAM), and **Terraform**:
+The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (8+ CPU cores, 16+ GB RAM, 100+ GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (8 CPUs / 12 GB RAM), and **Terraform**:
 
 ```mermaid
 flowchart LR
@@ -62,7 +62,7 @@ The validation path is also unified: `verify-platform.ps1` handles both local Mi
 
 | Platform Script | Target Environment | Git Branch | Cloud & Container Runtime | CI/CD Engine |
 | :--- | :--- | :--- | :--- | :--- |
-| [`platform.ps1`](../../platform.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 8 CPUs, 14 GB RAM) | GitHub Actions CI + ArgoCD CD |
+| [`platform.ps1`](../../platform.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 8 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
 | [`platform.ps1`](../../platform.ps1) | `dev`, `staging`, `prod` | Provider-specific workflow branches | AWS EKS, Azure AKS, GCP GKE | Shared platform CLI; cloud operations require a configured remote backend |
 
 #### 1. Quick Start with Master CLI (`platform.ps1`)
