@@ -319,7 +319,46 @@ The reusable service workflow currently has seven numbered job groups, followed 
 6. **📦 Registry publish**: Publishes the immutable commit tag when Docker Hub credentials are configured; local evaluation can continue without pushing.
 7. **🐙 GitOps delivery**: Attempts ArgoCD sync/health verification, or a direct Helm path when a cluster is reachable. Configure the runner and credentials for the intended target before relying on this job as a deployment gate.
 
-The reusable GitHub workflow can run Newman, storefront smoke, k6, and ZAP after a `develop` push when `DEVSECOPS_POST_DEPLOY_ENABLED=true`. It requires reachable `DEVSECOPS_BASE_URL`, `DEVSECOPS_FRONTEND_URL`, and `DEVSECOPS_KEYCLOAK_URL` repository/environment variables. Keep it disabled until the selected runner can reach the deployed services. The job runs for runtime validation only; it is not a substitute for the 14-stage Azure DevOps or Bitbucket flows.
+The reusable GitHub workflow includes a runtime validation stage (`🧪 Post-deployment API, SLO and DAST`) that executes Newman API tests, storefront smoke checks, k6 load/SLO checks, and OWASP ZAP security audits after a `develop` push.
+
+> [!NOTE]
+> **Current Status: Disabled (`DEVSECOPS_POST_DEPLOY_ENABLED=false`)**
+> This stage is currently **disabled** so that CI/CD builds, quality gates, image publishing, and SonarQube analyses complete successfully in GitHub Actions without requiring a running Minikube cluster or active Cloudflare tunnels.
+
+#### 🎛️ Managing the Live Validation Stage
+
+##### Option 1: Automating with Cloudflare Tunnels (Recommended)
+The platform CLI script automates the tunnel lifecycle, health checks, and GitHub Actions variable configuration:
+
+* **To Enable (when testing against a live local cluster):**
+  1. Start the cluster:
+     ```powershell
+     .\platform.ps1 up -Platform minikube
+     ```
+  2. Start the tunnels (this automatically sets `DEVSECOPS_POST_DEPLOY_ENABLED=true` and syncs the tunnel URLs to GitHub Actions):
+     ```powershell
+     .\platform.ps1 cloudflare -Action start
+     # or: pwsh -File .\scripts\manage-cloudflare-tunnels.ps1 -Action start
+     ```
+* **To Disable (when finishing testing or shutting down Minikube):**
+  ```powershell
+  .\platform.ps1 cloudflare -Action stop
+  # or: pwsh -File .\scripts\manage-cloudflare-tunnels.ps1 -Action stop
+  ```
+  *(Gracefully terminates `cloudflared` and sets `DEVSECOPS_POST_DEPLOY_ENABLED=false` in GitHub Actions).*
+
+##### Option 2: Manual Toggle via GitHub CLI (`gh`)
+If tunnels or public URLs are already established, you can toggle the stage directly:
+
+* **Disable the stage (Skip runtime tests):**
+  ```powershell
+  gh variable set DEVSECOPS_POST_DEPLOY_ENABLED --body "false"
+  ```
+* **Enable the stage (Run runtime tests against reachable cluster):**
+  ```powershell
+  gh variable set DEVSECOPS_POST_DEPLOY_ENABLED --body "true"
+  ```
+  *(Requires `DEVSECOPS_BASE_URL`, `DEVSECOPS_FRONTEND_URL`, and `DEVSECOPS_KEYCLOAK_URL` to point to the active public tunnel endpoints).*
 
 ##### 🎯 7. Transitioning to Maturity Mode (Strict Enforce / Hard-Gate)
 
