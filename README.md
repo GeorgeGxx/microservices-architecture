@@ -16,6 +16,8 @@
 
 > **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, real-time **Cart Abandonment Rate** telemetry, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, and full **DevSecOps automation** across AWS, Azure, GCP, and local Minikube.
 
+**Recommended local resources:** 8 CPU cores and 12 GB RAM free — the full local stack runs ~20+ containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+
 ---
 
 ## 🏛️ Master Architecture Diagram
@@ -112,9 +114,9 @@ graph TD
 
 | Pillar | Focus & Key Contents | Core Documents | Target Audience |
 | :--- | :--- | :--- | :--- |
-| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, and multi-cloud infrastructure topologies (AWS, Azure, GCP). | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md) | Software Architects, Developers |
-| **02. Operations** | Docker Compose (15 services), Minikube cluster setup, Istio service mesh, `platform.ps1` CLI reference, Cloudflare Zero-Trust Tunnels, and Helm Canary rollouts. | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md) | DevOps, Platform Engineers, SysAdmins |
-| **03. DevSecOps & Testing** | Multi-CI/CD pipelines (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage), Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, and Git workflows. | • [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md) | SecOps, QA Engineers, Cloud Engineers |
+| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, multi-cloud infrastructure topologies (AWS, Azure, GCP), formalized Architecture Decision Records (ADRs), enterprise API design (RFC 7807 & GraphQL), and Business Continuity / Disaster Recovery (BCDR). | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [DISASTER_RECOVERY_STRATEGY.md](./docs/01-architecture/DISASTER_RECOVERY_STRATEGY.md)<br/>• [API_DESIGN_AND_CONTRACTS.md](./docs/01-architecture/API_DESIGN_AND_CONTRACTS.md)<br/>• [Architecture Decision Records (ADRs)](./docs/01-architecture/adr/README.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md) | Software Architects, Developers |
+| **02. Operations** | Docker Compose (15 services), Minikube cluster setup, Istio service mesh, `platform.ps1` CLI reference, Cloudflare Zero-Trust Tunnels, Helm Canary rollouts, and lightweight deployment patterns (ECS Fargate & EC2 Ansible). | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md](./docs/02-operations/LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md) | DevOps, Platform Engineers, SysAdmins |
+| **03. DevSecOps & Testing** | Multi-CI/CD pipelines (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage), Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, Git workflows, and enterprise DevSecOps governance model & RACI matrix. | • [DEVSECOPS_GOVERNANCE_AND_MODEL.md](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md)<br/>• [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md) | SecOps, QA Engineers, Cloud Engineers, Architects |
 | **04. Observability** | Full-stack LGTM telemetry handbook: PromQL queries (RED metrics, JVM, funnels), LogQL (Loki correlation), and TraceQL (Tempo distributed spans). | • [OBSERVABILITY_QUERIES.md](./docs/04-observability/OBSERVABILITY_QUERIES.md) | SRE, Operations Engineers |
 | **API Collections** | Unified Newman & Postman API suite with Federation v2 queries, Keycloak login flows, and end-to-end order orchestration. | • [Postman Collection](./devsecops/testing/newman/microservices.postman_collection.json) | API Developers, QA |
 
@@ -128,10 +130,11 @@ Select the recommended reading sequence tailored to your day-to-day responsibili
   3. [03. Quality Gates & DoD](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md): Review acceptance criteria, pre-PR local maturity checks, and the unified PR template.
 
 - **🛡️ DevSecOps, SRE & QA Engineers:**
-  1. [03. CI/CD Pipelines](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md): Multi-cloud pipeline engine (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage) and static checks (Gitleaks, Semgrep, Trivy, OPA).
-  2. [03. Dynamic & Chaos Testing](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md): Run Newman contract regressions, k6 performance/SLO gates, and OWASP ZAP DAST scans.
-  3. [04. Observability Handbook](./docs/04-observability/OBSERVABILITY_QUERIES.md): Query metrics (PromQL), logs (LogQL), and distributed spans (TraceQL) across the Grafana LGTM stack.
-  4. [02. Cloudflare Tunnels](./docs/02-operations/CLOUDFLARE_TUNNELS.md): Expose local or staging endpoints securely to remote GitHub Actions runners.
+  1. [03. DevSecOps Governance & Model](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md): End-to-end 5-phase delivery model, BPMN lifecycle, role profiles, and organizational RACI matrix.
+  2. [03. CI/CD Pipelines](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md): Multi-cloud pipeline engine (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage) and static checks (Gitleaks, Semgrep, Trivy, OPA).
+  3. [03. Dynamic & Chaos Testing](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md): Run Newman contract regressions, k6 performance/SLO gates, and OWASP ZAP DAST scans.
+  4. [04. Observability Handbook](./docs/04-observability/OBSERVABILITY_QUERIES.md): Query metrics (PromQL), logs (LogQL), and distributed spans (TraceQL) across the Grafana LGTM stack.
+  5. [02. Cloudflare Tunnels](./docs/02-operations/CLOUDFLARE_TUNNELS.md): Expose local or staging endpoints securely to remote GitHub Actions runners.
 
 - **☁️ Cloud Platform & Infrastructure Architects:**
   1. [01. Multi-Cloud Infrastructure](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md): Review Terraform modules, provider architectures (AWS EKS, Azure AKS, GCP GKE), remote backends, and state locks.
@@ -243,7 +246,7 @@ git clone https://github.com/georgegxx/microservices-architecture.git
 cd microservices-architecture
 
 # 2. Copy environment file if not already present and define the passwords
-cp .example.env .env
+cp .env.example .env
 
 # 3. Start Keycloak and its database in detached mode
 docker compose up -d --build keycloak
@@ -260,8 +263,6 @@ docker compose ps
 # 7. Graceful shutdown & volume teardown
 docker compose down -v
 ```
-
-**Recommended local resources:** 8 CPU cores and 14 GB RAM free — the full Docker Compose stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 ---
 
@@ -342,6 +343,10 @@ The presentation layer (`http://localhost:5173`) has been re-architected followi
 ```text
 microservices-architecture/
 ├── .github/workflows/              # GitHub Actions service CI, registry, GitOps and Terraform workflows
+├── ansible/                        # 🤖 Ansible Automation for Compact Host Deployments
+│   ├── inventory/hosts.ini         # Dynamic EC2 host inventory
+│   ├── playbooks/deploy-compact-stack.yml # Master Docker, UFW, Systemd deployment
+│   └── templates/                  # Compose stack & multi-DB initialization
 ├── cosmo-router/                  # Cosmo Router 0.353.0 (Port 8080 • Federation v2)
 ├── argocd                          # GitOps and CD Deployments
 ├── azure-devops                    # Azure DevOps Pipeline YAML files
@@ -353,10 +358,14 @@ microservices-architecture/
 │   └── testing/newman/             # Newman JSON export (20 requests) + Postman collection tree
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
+│   │   ├── adr/                    # Architecture Decision Records (ADRs: ADR-001 - ADR-010)
+│   │   ├── API_DESIGN_AND_CONTRACTS.md # RESTful OpenAPI 3.0 & RFC 7807 Problem Details standards
 │   │   ├── ARCHITECTURE.md
+│   │   ├── DISASTER_RECOVERY_STRATEGY.md # Business Continuity, Warm Standby DR, RTO/RPO SLAs
 │   │   └── MULTI_CLOUD_INFRASTRUCTURE.md
 │   ├── 02-operations/              # 🚀 Operations, Local Minikube, Platform CLI & Cloudflare Tunnels
 │   │   ├── LOCAL_DEPLOYMENT.md
+│   │   ├── LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md # AWS ECS Fargate & EC2 Ansible patterns
 │   │   ├── PLATFORM_CLI_REFERENCE.md
 │   │   ├── CLOUDFLARE_TUNNELS.md
 │   │   └── HELM_AND_CANARY.md
@@ -368,9 +377,13 @@ microservices-architecture/
 │   ├── 04-observability/           # 📊 Telemetry Handbook, Grafana, PromQL, LogQL & TraceQL
 │   │   └── OBSERVABILITY_QUERIES.md
 │   ├── reference/                  # 📦 Reference Schemas, IAM Backups, and Cloud Templates
+│   │   ├── api-contracts/          # Canonical OpenAPI 3.0 Reference Specification
 │   │   ├── iam/realm-export.json
 │   │   ├── schemas/POSTGRESQL_18_SCHEMA_AND_QUERIES.sql
 │   │   └── aws-eks/
+│   ├── liferay-pipeline/           # Reference CI/CD pipelines for Liferay DXP deployments
+│   │   ├── README.md
+│   │   └── .gitlab-ci.yml
 │   └── Diagrams.drawio             # 🎨 12-Page Architectural Blueprint (Draw.io)
 ├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
 ├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
@@ -394,7 +407,7 @@ microservices-architecture/
 │   ├── grafana.py                  # Grafana dashboard and explicit demo-telemetry CLI
 │   └── update_dashboards.py        # Dashboard generation implementation used by grafana.py
 ├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
-├── .example.env                    # Example environment file
+├── .env.example                    # Example environment file
 ├── .gitattributes                  # Git attributes file
 ├── .gitignore                      # Git ignore file
 ├── .gitleaks.toml                  # Gitleaks configuration file
