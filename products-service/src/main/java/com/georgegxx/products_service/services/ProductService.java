@@ -119,7 +119,7 @@ public class ProductService {
                 .stream()
                 .filter(pp -> Boolean.TRUE.equals(pp.getIsActive()))
                 .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(ProductPrice::getCurrency, ProductPrice::getAmount, (a, b) -> a),
+                        Collectors.toMap(price -> price.getCurrency(), price -> price.getAmount(), (a, b) -> a),
                         map -> map.isEmpty() && product.getPrice() != null
                                 ? Map.of("USD", BigDecimal.valueOf(product.getPrice()))
                                 : Collections.unmodifiableMap(map)

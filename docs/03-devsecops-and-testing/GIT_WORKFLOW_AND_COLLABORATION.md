@@ -246,3 +246,103 @@ git config --global init.defaultBranch main
 # 5. Convenient colorized log alias:
 git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
 ```
+
+---
+
+## 🚨 Incident Playbook: Leaked Credentials & Git History Purge
+
+If a developer accidentally commits a `.env` file, HashiCorp Vault token, or cloud credential, execute the following containment protocol immediately:
+
+```mermaid
+flowchart TD
+    Leak["Accidental Secret Commit (.env / token)"] --> Check{"Pushed to Remote?"}
+    Check -- No --> Soft["1. git reset --soft HEAD~1<br/>2. git restore --staged .env<br/>3. Re-commit clean"]
+    Check -- Yes --> Purge["Emergency History Purge & Credential Rotation"]
+    Purge --> Step1["Step 1: Stop Tracking & Ignore<br/>git rm --cached .env<br/>echo '.env' >> .gitignore"]
+    Purge --> Step2["Step 2: Deep History Purge<br/>pip install git-filter-repo<br/>git filter-repo --path .env --invert-paths"]
+    Purge --> Step3["Step 3: Revoke & Rotate Credentials<br/>• Rotate Vault secret<br/>• Regenerate K8s microservices-secrets<br/>• Invalidate Keycloak/DB passwords"]
+```
+
+### 1. Stop Tracking Without Deleting Locally
+```bash
+git rm --cached .env
+echo ".env" >> .gitignore
+git add .gitignore
+git commit -m "security: stop tracking .env and ensure ignored"
+```
+
+### 2. Purge Committed Secrets from Full Git History (using `git-filter-repo`)
+If the secret was committed across several revisions or pushed to remote:
+```bash
+# 1. Install official git-filter-repo tool
+pip install git-filter-repo
+
+# 2. Completely scrub all revisions of .env across all branches
+git filter-repo --path .env --invert-paths
+
+# 3. Force-push the cleansed history to protected branches (requires temporary bypass permission)
+git push origin --force --all
+git push origin --force --tags
+```
+
+### 3. Immediate Credential Revocation & Vault Rotation
+A purged secret is still considered compromised. Execute immediate rotation:
+```bash
+# Rotate affected secret in HashiCorp Vault:
+vault kv put secret/microservices/config POSTGRES_PASSWORD="new_complex_password"
+
+# Re-apply Kubernetes secret in Minikube/Cluster:
+.\platform.ps1 up
+```
+
+---
+
+## 🚒 Production Emergency Hotfix & Synchronization Playbook
+
+When a critical production defect (Severity 1 / SLO breach) is discovered, follow this zero-regression hotfix workflow to patch production while keeping `develop` and `staging` in perfect sync:
+
+```mermaid
+gitGraph
+    commit id: "v1.2.0 (Prod)" tag: "v1.2.0"
+    branch develop
+    checkout develop
+    commit id: "dev-feature-A"
+    commit id: "dev-feature-B"
+    checkout main
+    branch hotfix/fix-jwt-replay
+    checkout hotfix/fix-jwt-replay
+    commit id: "fix(auth): sanitize JWT nonce"
+    checkout main
+    merge hotfix/fix-jwt-replay id: "Release v1.2.1" tag: "v1.2.1"
+    checkout develop
+    merge hotfix/fix-jwt-replay id: "Sync hotfix to develop"
+    checkout develop
+    commit id: "dev-feature-C"
+```
+
+### Step-by-Step Hotfix Execution:
+
+```bash
+# 1. Branch from the exact broken production tag:
+git checkout main
+git checkout -b hotfix/fix-jwt-replay v1.2.0
+
+# 2. Implement minimal, surgical fix and verify tests:
+npm test
+git commit -am "fix(auth): sanitize JWT nonce to prevent replay attacks"
+
+# 3. Merge into 'main' with a new patch tag:
+git checkout main
+git merge --no-ff hotfix/fix-jwt-replay
+git tag -a v1.2.1 -m "hotfix: resolved JWT replay vulnerability"
+git push origin main --tags
+
+# 4. CRITICAL: Merge into 'develop' to prevent regressions in next releases:
+git checkout develop
+git merge --no-ff hotfix/fix-jwt-replay
+git push origin develop
+
+# 5. Clean up temporary hotfix branch:
+git branch -d hotfix/fix-jwt-replay
+```
+

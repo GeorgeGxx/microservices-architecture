@@ -28,7 +28,7 @@ public class ProductPrice {
     private Product product;
 
     @Column(nullable = false, length = 3)
-    private String currency; // 'USD', 'MXN', 'EUR'
+    private String currency; // 'USD'
 
     @Column(nullable = false, precision = 15, scale = 2)
     private BigDecimal amount;

@@ -32,6 +32,9 @@ class InventoryServiceTest {
     @Mock
     private Cache cache;
 
+    @Mock
+    private org.springframework.beans.factory.ObjectProvider<InventoryService> self;
+
     private MeterRegistry meterRegistry;
     private InventoryService inventoryService;
 
@@ -39,7 +42,9 @@ class InventoryServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         lenient().when(cacheManager.getCache("inventory")).thenReturn(cache);
-        inventoryService = new InventoryService(inventoryRepository, meterRegistry, cacheManager);
+        inventoryService = new InventoryService(inventoryRepository, meterRegistry, cacheManager, self);
+        lenient().when(self.getObject()).thenAnswer(inv -> inventoryService);
+        lenient().when(self.getIfAvailable()).thenAnswer(inv -> inventoryService);
     }
 
     @Test

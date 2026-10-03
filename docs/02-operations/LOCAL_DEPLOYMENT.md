@@ -23,7 +23,7 @@
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
 | Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
 
-**Recommended local resources:** 8+ CPU cores and 16+ GB RAM (allocating up to 8 CPUs and 14 GB RAM to Minikube, leaving ample resources for Windows OS, Docker, and IDE) — the full platform stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+**Recommended local resources:** 8+ CPU cores and 16+ GB RAM (allocating up to 8 CPUs and 12 GB RAM to Minikube, leaving ample resources for Windows OS, Docker, and IDE) — the full platform stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
 
 > ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
 
@@ -34,15 +34,15 @@ The values below describe the primary application and observability workloads in
 
 | Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
 | :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Cosmo Router** | `100m` | `1000m` | `128Mi` | `512Mi` | — | GraphQL Federation edge router |
-| **Spring Boot Microservices (x4)** | `250m` | `1500m` | `512Mi` | `1536Mi` | `1Gi` | Minikube overrides for Java 21 services |
-| **Keycloak 26.7.4 IAM** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx768m) |
+| **Cosmo Router** | `100m` | `500m` | `128Mi` | `256Mi` | — | GraphQL Federation edge router |
+| **Spring Boot Microservices (x4)** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Minikube overrides for Java 21 services |
+| **Keycloak 26.7.4 IAM** | `300m` | `800m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx512m) |
 | **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
 | **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
 | **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
 | **Redis 8 Cache & Token Bucket** | `100m` | `250m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
 | **Frontend React 19 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
-| **Prometheus 3 Metrics Server** | `200m` | `1000m` | `512Mi` | `1536Mi` | `2Gi` | Active kube-prometheus-stack StatefulSet |
+| **Prometheus 3 Metrics Server** | `200m` | `800m` | `512Mi` | `1024Mi` | `2Gi` | Active kube-prometheus-stack StatefulSet |
 | **OpenCost Exporter** | `50m` | `300m` | `192Mi` | `512Mi` | — | Allocation API/metrics on `9003`; cloud billing disabled locally |
 | **OpenCost UI** | `25m` | `150m` | `64Mi` | `192Mi` | — | UI container on `9090`, reached through host tunnel `7000` |
 | **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
@@ -175,7 +175,7 @@ Keycloak and its PostgreSQL database must be initialized first:
 cd microservices-architecture
 
 # 2. Copy environment file if not already present
-cp .example.env .env
+cp .env.example .env
 
 # 3. Start Keycloak and its database in detached mode
 docker compose up -d --build keycloak
