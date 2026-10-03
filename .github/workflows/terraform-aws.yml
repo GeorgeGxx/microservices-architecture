@@ -63,15 +63,15 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 
       - name: Install Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.17.3
 
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Run Checkov IaC Scanner
         uses: bridgecrewio/checkov-action@v12
@@ -113,7 +113,7 @@ jobs:
           soft_fail: true
 
       - name: Upload Checkov SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
         with:
@@ -142,7 +142,7 @@ jobs:
       var_file: ${{ steps.resolve-env.outputs.var_file }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Resolve Target AWS Environment
         id: resolve-env
@@ -164,7 +164,7 @@ jobs:
           echo "Resolved target environment: $TARGET_ENV"
 
       - name: Configure AWS Credentials (IAM Key / OIDC fallback)
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -172,7 +172,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 
@@ -235,7 +235,7 @@ jobs:
           fi
 
       - name: Upload Terraform Plan Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tfplan-${{ steps.resolve-env.outputs.target_env }}
           path: |
@@ -260,10 +260,10 @@ jobs:
       name: dev-infra
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -271,12 +271,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan-dev
           path: ${{ env.TF_WORKING_DIR }}
@@ -319,10 +319,10 @@ jobs:
       name: staging-infra
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -330,12 +330,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan-staging
           path: ${{ env.TF_WORKING_DIR }}
@@ -378,10 +378,10 @@ jobs:
       name: prod-infra
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -389,12 +389,12 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 
       - name: Download Terraform Plan Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: tfplan-prod
           path: ${{ env.TF_WORKING_DIR }}
@@ -434,10 +434,10 @@ jobs:
       contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -445,7 +445,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.8.0
 

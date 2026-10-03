@@ -75,14 +75,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # Spring Boot / Maven (Multi-threaded)
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -96,7 +96,7 @@ jobs:
 
       - name: Upload Test & Coverage Results
         if: inputs.service-type == 'spring-boot' && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: surefire-${{ inputs.service-name }}
           path: |
@@ -108,7 +108,7 @@ jobs:
       # Novashop Storefront (Frontend)
       - name: Set up Node.js 22
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload Frontend Coverage Artifact
         if: (inputs.service-type == 'react' || inputs.service-type == 'frontend') && always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage/
@@ -140,13 +140,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # Gitleaks Secrets Detection (Centralized Config - Hard Gate)
       - name: Run Gitleaks Secret Detector
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         continue-on-error: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -175,12 +175,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Cache SonarCloud Global Packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar-cache
@@ -190,7 +190,7 @@ jobs:
       # Spring Boot Sonar Analysis
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -198,7 +198,7 @@ jobs:
 
       - name: Download Spring Boot Test & Coverage Artifacts
         if: inputs.service-type == 'spring-boot'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: surefire-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/target
@@ -229,14 +229,14 @@ jobs:
       # Frontend Sonar Analysis
       - name: Set up Java for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Set up Node.js for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'npm'
@@ -244,14 +244,14 @@ jobs:
 
       - name: Download Frontend Coverage Artifacts
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage
 
       - name: Cache SonarCloud Scanner Work
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ inputs.service-dir }}/.scannerwork
           key: ${{ runner.os }}-sonar-work-${{ inputs.service-name }}-${{ github.sha }}
@@ -292,13 +292,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build Docker Image & Export to OCI Tarball
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.' }}
           file: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir) }}
@@ -308,7 +308,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Upload Image Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp/${{ inputs.service-name }}-image.tar
@@ -323,7 +323,7 @@ jobs:
           output: 'sbom-${{ inputs.service-name }}.cdx.json'
 
       - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ inputs.service-name }}
           path: sbom-${{ inputs.service-name }}.cdx.json
@@ -340,10 +340,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download Image Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp
@@ -371,10 +371,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Helm
-        uses: azure/setup-helm@v4
+        uses: azure/setup-helm@v5
         with:
           version: v3.14.0
 
@@ -414,7 +414,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Download Image Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp
@@ -467,7 +467,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup ArgoCD CLI
         run: |
@@ -544,15 +544,15 @@ jobs:
       KEYCLOAK_URL: ${{ vars.DEVSECOPS_KEYCLOAK_URL }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Node.js for Newman
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
 
       - name: Set up Python for storefront smoke checks
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -585,7 +585,7 @@ jobs:
 
       - name: Upload OWASP ZAP report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zap-report-${{ inputs.service-name }}
           path: artifacts/zap/zap-report.html
@@ -603,7 +603,7 @@ jobs:
     runs-on: ${{ inputs.runner-type }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Determine Target Application for Rollback
         run: |
