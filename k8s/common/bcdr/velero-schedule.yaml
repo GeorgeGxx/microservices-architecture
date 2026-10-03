@@ -1,0 +1,29 @@
+# ==============================================================================
+# Velero Kubernetes Disaster Recovery Schedule Manifest
+# Target Platforms: AWS (EKS), Azure (AKS), GCP (GKE), Minikube
+# ==============================================================================
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: microservices-cluster-bcdr-schedule
+  namespace: velero
+  labels:
+    app.kubernetes.io/name: velero-bcdr-schedule
+    app.kubernetes.io/part-of: bcdr-governance
+spec:
+  # Daily snapshot at 02:00 UTC
+  schedule: "0 2 * * *"
+  template:
+    includedNamespaces:
+      - dev
+      - auth
+      - data
+      - vault
+      - istio-system
+    excludedResources:
+      - events
+      - events.events.k8s.io
+    includeClusterResources: true
+    snapshotVolumes: true
+    defaultVolumesToFsBackup: true
+    ttl: 720h0m0s # 30-day retention policy

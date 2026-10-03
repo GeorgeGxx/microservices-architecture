@@ -1,0 +1,172 @@
+---
+# ==============================================================================
+# 🤖 Master Ansible Playbook: Deploy Compact Microservices Stack
+# Target: Single-Node Ubuntu Host (EC2 t3.xlarge / On-Premise)
+# ==============================================================================
+- name: Deploy Compact Microservices Stack
+  hosts: microservices_hosts
+  become: true
+  vars:
+    app_dir: /opt/microservices
+    docker_compose_plugin_version: "2.27.0"
+
+  tasks:
+    # --------------------------------------------------------------------------
+    # 1. SYSTEM PACKAGES & HARDENING
+    # --------------------------------------------------------------------------
+    - name: Update apt cache and install prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - ufw
+          - htop
+        state: present
+        update_cache: true
+
+    - name: Configure UFW firewall rules
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "22"    # SSH
+        - "80"    # HTTP Frontend
+        - "443"   # HTTPS
+        - "8080"  # Cosmo Router
+      notify: Reload UFW
+
+    - name: Ensure UFW is enabled
+      community.general.ufw:
+        state: enabled
+
+    # --------------------------------------------------------------------------
+    # 2. DOCKER ENGINE INSTALLATION
+    # --------------------------------------------------------------------------
+    - name: Add Docker official GPG key
+      ansible.builtin.apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker CE and Docker Compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is running and enabled on boot
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    # --------------------------------------------------------------------------
+    # 3. APPLICATION STACK DEPLOYMENT
+    # --------------------------------------------------------------------------
+    - name: Create application deployment directory
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: ubuntu
+        group: docker
+        mode: '0755'
+
+    - name: Deploy docker-compose.compact.yml
+      ansible.builtin.copy:
+        src: ../templates/docker-compose.compact.yml
+        dest: "{{ app_dir }}/docker-compose.yml"
+        owner: ubuntu
+        group: docker
+        mode: '0644'
+
+    - name: Deploy database initialization script
+      ansible.builtin.copy:
+        src: ../templates/init-dbs.sql
+        dest: "{{ app_dir }}/init-dbs.sql"
+        owner: ubuntu
+        group: docker
+        mode: '0644'
+
+    - name: Deploy .env configuration
+      ansible.builtin.template:
+        src: ../../.env.example
+        dest: "{{ app_dir }}/.env"
+        owner: ubuntu
+        group: docker
+        mode: '0600'
+
+    # --------------------------------------------------------------------------
+    # 4. SYSTEMD AUTO-HEALING SERVICE
+    # --------------------------------------------------------------------------
+    - name: Create systemd unit for automated stack auto-start & recovery
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/microservices.service
+        content: |
+          [Unit]
+          Description=Compact Enterprise Microservices Stack
+          Requires=docker.service
+          After=docker.service
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          WorkingDirectory={{ app_dir }}
+          ExecStart=/usr/bin/docker compose up -d --remove-orphans
+          ExecStop=/usr/bin/docker compose down
+          ExecReload=/usr/bin/docker compose pull && /usr/bin/docker compose up -d
+          Restart=on-failure
+          TimeoutStartSec=300
+
+          [Install]
+          WantedBy=multi-user.target
+        mode: '0644'
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start microservices systemd service
+      ansible.builtin.systemd:
+        name: microservices
+        state: started
+        enabled: true
+
+    # --------------------------------------------------------------------------
+    # 5. POST-DEPLOYMENT VERIFICATION GATE
+    # --------------------------------------------------------------------------
+    - name: Wait for Cosmo Router GraphQL endpoint to become healthy
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:8080/health"
+        status_code: 200
+        timeout: 5
+      register: router_probe
+      until: router_probe.status == 200
+      retries: 30
+      delay: 5
+
+    - name: Verify Frontend HTTP response
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:80"
+        status_code: [200, 304]
+        timeout: 5
+
+    - name: Print deployment success summary
+      ansible.builtin.debug:
+        msg: "✅ Compact Microservices Stack deployed successfully on {{ inventory_hostname }}!"
+
+  handlers:
+    - name: Reload UFW
+      community.general.ufw:
+        state: reloaded

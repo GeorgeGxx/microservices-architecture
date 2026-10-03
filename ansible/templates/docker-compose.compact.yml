@@ -1,0 +1,187 @@
+# ==============================================================================
+# Compact Microservices Docker Compose Stack
+# Optimized for Single-Node Host (EC2 t3.xlarge / t4g.xlarge / On-Premise)
+# ==============================================================================
+services:
+
+  # ----------------------------------------------------------------------------
+  # 1. STATEFUL STORAGE TIER
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:18-alpine
+    container_name: compact-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-dbs.sql:/docker-entrypoint-initdb.d/init-dbs.sql:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8.8.1-alpine
+    container_name: compact-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD:-admin}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.8.0
+    container_name: compact-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    volumes:
+      - kafka_data:/tmp/kraft-combined-logs
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # 2. SECURITY & IDENTITY (KEYCLOAK 26)
+  # ----------------------------------------------------------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    container_name: compact-keycloak
+    restart: unless-stopped
+    command: start-dev --http-port=8181
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/db_keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      KC_HEALTH_ENABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8181:8181"
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # 3. DOMAIN MICROSERVICES (JAVA 21 / SPRING BOOT 3)
+  # ----------------------------------------------------------------------------
+  products-service:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/products-service:latest
+    container_name: compact-products
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_products
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-admin}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - internal-net
+
+  orders-service:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/orders-service:latest
+    container_name: compact-orders
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_orders
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - internal-net
+
+  inventory-service:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/inventory-service:latest
+    container_name: compact-inventory
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_inventory
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+    depends_on:
+      - postgres
+    networks:
+      - internal-net
+
+  notification-service:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/notification-service:latest
+    container_name: compact-notification
+    restart: unless-stopped
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+    depends_on:
+      - kafka
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # 4. EDGE GATEWAY & FRONTEND
+  # ----------------------------------------------------------------------------
+  cosmo-router:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/cosmo-router:latest
+    container_name: compact-router
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - internal-net
+    depends_on:
+      - products-service
+      - orders-service
+      - inventory-service
+
+  frontend:
+    image: ${REGISTRY:-ghcr.io/georgegxx}/frontend:latest
+    container_name: compact-frontend
+    restart: unless-stopped
+    ports:
+      - "80:8080"
+    networks:
+      - internal-net
+    depends_on:
+      - cosmo-router
+
+networks:
+  internal-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:

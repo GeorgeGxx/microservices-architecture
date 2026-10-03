@@ -71,7 +71,7 @@ CREATE INDEX idx_product_active ON products_service.product (category, price) WH
 CREATE TABLE products_service.product_price (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     product_id BIGINT NOT NULL,
-    currency VARCHAR(3) NOT NULL CHECK (currency IN ('USD', 'MXN', 'EUR', 'GBP')),
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD' CHECK (currency = 'USD'),
     amount NUMERIC(15, 2) NOT NULL CHECK (amount >= 0),
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
@@ -211,9 +211,7 @@ SELECT p.id, curr.currency, (p.price * curr.exchange_rate)::numeric(15,2), true
 FROM products_service.product p
 CROSS JOIN (
     VALUES 
-        ('USD', 1.00),
-        ('MXN', 18.50),
-        ('EUR', 0.92)
+        ('USD', 1.00)
 ) AS curr(currency, exchange_rate)
 ON CONFLICT (product_id, currency) DO UPDATE
 SET amount = EXCLUDED.amount,
@@ -324,13 +322,13 @@ WHERE status = TRUE;
 -- LEVEL 2: INTERMEDIATE QUERIES (JOINS, SUBQUERIES, GROUP BY & JSONB)
 -- ============================================================================
 
--- I1. INNER JOIN & LEFT JOIN: Product catalog with inventory stock and MXN price
+-- I1. INNER JOIN & LEFT JOIN: Product catalog with inventory stock and USD price
 SELECT 
     p.sku,
     p.name,
     p.category,
     p.price AS base_usd_price,
-    pp.amount AS mxn_price,
+    pp.amount AS active_usd_price,
     COALESCE(inv.quantity, 0) AS total_stock,
     COALESCE(inv.available_quantity, 0) AS available_stock,
     CASE 
@@ -340,7 +338,7 @@ SELECT
     END AS stock_status
 FROM products_service.product p
 LEFT JOIN products_service.product_price pp 
-       ON p.id = pp.product_id AND pp.currency = 'MXN' AND pp.is_active = TRUE
+       ON p.id = pp.product_id AND pp.currency = 'USD' AND pp.is_active = TRUE
 LEFT JOIN inventory_service.inventory inv 
        ON p.sku = inv.sku
 ORDER BY p.category, p.name;

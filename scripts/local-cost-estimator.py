@@ -42,14 +42,14 @@ PRICING_CATALOG = {
 DEFAULT_PROFILES = {
     "minikube": {
         "title": "Local Minikube Environment (Intel/AMD Hardware)",
-        "hardware": "8 vCPUs allocated | 14 GB RAM | 60 GB NVMe Disk",
+        "hardware": "8 vCPUs allocated | 12 GB RAM | 40 GB NVMe Disk",
         "cloud_equivalent_cost": 309.80,
         "actual_cost": 0.00,
         "items": [
             {"component": "Kubernetes Control Plane", "detail": "Local Minikube (v1.39.0)", "monthly": 0.00, "cloud_equiv": 73.00},
-            {"component": "Workload Compute Nodes", "detail": "Intel/AMD (8 vCPUs / 14GB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
+            {"component": "Workload Compute Nodes", "detail": "Intel/AMD (8 vCPUs / 12GB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
             {"component": "Container Ingress & Mesh", "detail": "Local Istio Demo + Ingress", "monthly": 0.00, "cloud_equiv": 16.20},
-            {"component": "Backing Storage & Logs", "detail": "60 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 4.80},
+            {"component": "Backing Storage & Logs", "detail": "40 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 3.20},
             {"component": "Network Data Transfer", "detail": "Loopback (localhost / 127.0.0.1)", "monthly": 0.00, "cloud_equiv": 35.00},
         ]
     },

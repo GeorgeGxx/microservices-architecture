@@ -4,7 +4,6 @@ metadata:
   name: microservices-config
   namespace: dev
 data:
-  COSMO_ROUTER_SERVICE_NAME: "cosmo-router"
   COSMO_ROUTER_PORT: "8080"
   INVENTORY_SERVICE_NAME: "inventory-service"
   NOTIFICATION_SERVICE_NAME: "notification-service"
@@ -39,6 +38,7 @@ data:
   # OpenTelemetry & Tracing (Tempo in-cluster endpoint)
   OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
   OTEL_TRACES_SAMPLER: "parentbased_always_on"
+  TRACING_SAMPLING_PROBABILITY: "1.0"
   OTEL_RESOURCE_ATTRIBUTES: "service.namespace=microservices"
 
   # 🔹 Platform Tools & Infrastructure Versions Alignment
@@ -50,7 +50,6 @@ data:
   GRAFANA_VERSION: "13.2.1"
   LOKI_VERSION: "3.7.4"
   TEMPO_VERSION: "3.0.3"
-  TEMPO_FALLBACK_VERSION: "3.0.2"
   ALLOY_VERSION: "v1.19.1"
   OTEL_COLLECTOR_VERSION: "0.159.0"
   VAULT_VERSION: "2.0.4"
@@ -76,5 +75,6 @@ stringData:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: <password>
   REDIS_PASSWORD: <password>
-  # Automatically injected when running: pwsh -File .\scripts\bootstrap-keycloak.ps1
+  # Copied from .env (KEYCLOAK_CLIENT_SECRET) or generated via: pwsh -File .\scripts\bootstrap-keycloak.ps1
   KEYCLOAK_CLIENT_SECRET: <YOUR_KEYCLOAK_CLIENT_SECRET>
+  JWT_SECRET: <YOUR_JWT_SECRET>

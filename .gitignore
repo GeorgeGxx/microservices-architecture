@@ -9,7 +9,8 @@ target/
 *.log
 scripts/__pycache__/
 scripts/testing/__pycache__/
-backups/local-drills/
+backups/
+*.dump
 .pnpm-store/
 notes.md
 test.ps1
