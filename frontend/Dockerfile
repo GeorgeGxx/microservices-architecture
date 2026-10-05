@@ -1,9 +1,6 @@
 # ---- Stage 1: Build React 19 SPA with Vite ----
 FROM node:22-alpine AS build
 
-RUN apk update && apk upgrade --no-cache && \
-    npm install -g npm@latest
-
 WORKDIR /app
 
 # Copy package manifests first for optimal Docker layer caching

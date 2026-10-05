@@ -152,17 +152,29 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
 
-      # Semgrep SAST — fails on ERROR-severity findings
+      # Semgrep SAST — fails on ERROR-severity findings (Anti-bottleneck: container/CLI fast path)
       - name: Run Semgrep Security Scanner
         run: |
-          python3 -m pip install semgrep || pip install semgrep
-          semgrep scan --config auto --severity ERROR --error ${{ inputs.service-dir }}
+          if command -v semgrep &>/dev/null; then
+            semgrep scan --config auto --severity ERROR --error ${{ inputs.service-dir }}
+          elif command -v docker &>/dev/null; then
+            docker run --rm -v "$GITHUB_WORKSPACE:/src:ro" returntocorp/semgrep semgrep scan --config auto --severity ERROR --error "${{ inputs.service-dir }}"
+          else
+            python3 -m pip install --upgrade pip && pip install semgrep
+            semgrep scan --config auto --severity ERROR --error ${{ inputs.service-dir }}
+          fi
 
-      # Checkov IaC/Dockerfile Scanner
+      # Checkov IaC/Dockerfile Scanner (Anti-bottleneck: container/CLI fast path)
       - name: Run Checkov Scanner
         run: |
-          python3 -m pip install checkov || pip install checkov
-          checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+          if command -v checkov &>/dev/null; then
+            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+          elif command -v docker &>/dev/null; then
+            docker run --rm -v "$GITHUB_WORKSPACE:/work:ro" bridgecrew/checkov -d "/work/${{ inputs.service-dir }}" --framework dockerfile,kubernetes,helm --compact || true
+          else
+            python3 -m pip install --upgrade pip && pip install checkov
+            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+          fi
 
   # ==========================================================
   # STEP 2b: 📊 SonarQube Cloud Code Quality & Security Analysis
@@ -305,7 +317,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           outputs: type=docker,dest=/tmp/${{ inputs.service-name }}-image.tar
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
 
       - name: Upload Image Artifact
         uses: actions/upload-artifact@v7
@@ -313,6 +325,7 @@ jobs:
           name: image-${{ inputs.service-name }}
           path: /tmp/${{ inputs.service-name }}-image.tar
           retention-days: 1
+          compression-level: 1
 
       - name: Generate CycloneDX SBOM (from tarball)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -362,11 +375,10 @@ jobs:
 
   # ==========================================================
   # STEP 5: 🧾 Pre-flight Policy Check (Governance - Conftest / Rego) — BLOCKING
-  #   Uses centralized policies in devsecops/policies/conftest/
+  #   Anti-bottleneck: Decoupled to run in parallel at pipeline start
   # ==========================================================
   compliance-check:
     name: "🧾 5. Compliance & Policy Gate - ${{ inputs.service-name }}"
-    needs: [build-container, image-scan]
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 10
     steps:
@@ -384,7 +396,15 @@ jobs:
             --set ${{ inputs.service-name }}.image.tag=${{ github.sha }} \
             > rendered-manifests.yaml
 
+      - name: Cache Conftest Binary
+        id: cache-conftest
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/conftest
+          key: ${{ runner.os }}-conftest-0.58.0
+
       - name: Install Conftest (OPA)
+        if: steps.cache-conftest.outputs.cache-hit != 'true'
         run: |
           if ! command -v conftest &> /dev/null; then
             curl -fsSLo conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz
