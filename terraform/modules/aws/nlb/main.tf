@@ -2,6 +2,10 @@
 # Delivers ultra-low latency TCP passthrough with direct target IP registration.
 # Layer 7 WAF protection and DDoS mitigation are enforced at the Edge via CloudFront + AWS WAFv2.
 
+data "aws_vpc" "this" {
+  id = var.vpc_id
+}
+
 resource "aws_security_group" "nlb" {
   name        = "${var.name}-${var.environment}-nlb-sg"
   description = "Public Network Load Balancer security group"
@@ -24,18 +28,20 @@ resource "aws_security_group" "nlb" {
   }
 
   egress {
-    description = "Allow all outbound traffic to cluster nodes"
+    description = "Allow all outbound traffic to cluster nodes inside VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [data.aws_vpc.this.cidr_block]
   }
 
   tags = var.tags
 }
 
+# trivy:ignore:AVD-AWS-0053 Intentionally public-facing NLB to receive ingress traffic
 resource "aws_lb" "this" {
   name                             = "${var.name}-${var.environment}-nlb"
+  internal                         = false
   load_balancer_type               = "network"
   security_groups                  = [aws_security_group.nlb.id]
   subnets                          = var.public_subnet_ids

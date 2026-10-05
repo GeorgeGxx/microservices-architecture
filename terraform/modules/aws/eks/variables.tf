@@ -51,7 +51,19 @@ variable "node_capacity_type" {
 
 variable "endpoint_public_access" {
   type    = bool
-  default = true
+  default = false
+}
+
+variable "public_access_cidrs" {
+  description = "List of CIDR blocks that can access the Amazon EKS public API server endpoint."
+  type        = list(string)
+  default     = ["10.0.0.0/8"]
+}
+
+variable "kms_key_arn" {
+  description = "Custom KMS Key ARN for EKS secret encryption. If null, a managed key will be created."
+  type        = string
+  default     = null
 }
 
 variable "tags" {

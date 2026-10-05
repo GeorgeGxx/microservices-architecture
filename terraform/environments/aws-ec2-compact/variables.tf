@@ -37,5 +37,5 @@ variable "ssh_private_key_path" {
 variable "admin_cidr" {
   description = "CIDR block permitted for SSH management"
   type        = string
-  default     = "0.0.0.0/0"
+  default     = "10.0.0.0/8"
 }

@@ -33,7 +33,7 @@ resource "aws_vpc" "compact_vpc" {
 resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.compact_vpc.id
   cidr_block              = "10.20.1.0/24"
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = {
     Name = "${var.project_name}-compact-public-subnet"
@@ -64,6 +64,7 @@ resource "aws_route_table_association" "public" {
 # ==============================================================================
 # SECURITY GROUP (HTTP, HTTPS, SSH)
 # ==============================================================================
+# trivy:ignore:AVD-AWS-0104 Egress required for package updates and container registry access
 resource "aws_security_group" "compact_host" {
   name        = "${var.project_name}-compact-host-sg"
   description = "Inbound HTTP, HTTPS, and SSH access"
@@ -102,9 +103,18 @@ resource "aws_security_group" "compact_host" {
   }
 
   egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    description = "Allow outbound HTTPS for container registries and updates"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow outbound HTTP for apt mirrors"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -142,6 +152,11 @@ resource "aws_instance" "compact_host" {
     volume_type           = "gp3"
     encrypted             = true
     delete_on_termination = true
+  }
+
+  metadata_options {
+    http_endpoint = "enabled"
+    http_tokens   = "required"
   }
 
   tags = {

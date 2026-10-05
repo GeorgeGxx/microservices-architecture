@@ -54,3 +54,9 @@ variable "labels" {
   type        = map(string)
   default     = {}
 }
+
+variable "authorized_ipv4_cidr_block" {
+  description = "The CIDR block from which to allow access to the master."
+  type        = string
+  default     = "10.0.0.0/8"
+}
