@@ -26,4 +26,11 @@ resource "google_container_cluster" "this" {
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"
   }
+
+  master_authorized_networks_config {
+    cidr_blocks {
+      cidr_block   = var.authorized_ipv4_cidr_block
+      display_name = "management-network"
+    }
+  }
 }

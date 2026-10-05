@@ -12,7 +12,7 @@ resource "azurerm_kubernetes_cluster" "this" {
     node_count          = var.node_count
     min_count           = var.enable_auto_scaling ? var.min_count : null
     max_count           = var.enable_auto_scaling ? var.max_count : null
-    enable_auto_scaling = var.enable_auto_scaling
+    auto_scaling_enabled = var.enable_auto_scaling
   }
 
   identity {
@@ -27,8 +27,13 @@ resource "azurerm_kubernetes_cluster" "this" {
   # Enables Azure AD Workload Identity - the Azure equivalent of AWS IRSA,
   # used for pod-level access to Key Vault, ACR, or other Azure services
   # without static credentials.
-  oidc_issuer_enabled       = true
-  workload_identity_enabled = true
+  oidc_issuer_enabled               = true
+  workload_identity_enabled         = true
+  role_based_access_control_enabled = true
+
+  api_server_access_profile {
+    authorized_ip_ranges = var.api_server_authorized_ip_ranges
+  }
 
   tags = var.tags
 }

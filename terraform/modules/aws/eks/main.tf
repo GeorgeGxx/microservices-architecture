@@ -64,6 +64,17 @@ resource "aws_iam_role_policy_attachment" "node_ecr" {
 }
 
 # ---------------------------------------------------------------------------
+# KMS Key for EKS Secrets Encryption
+# ---------------------------------------------------------------------------
+resource "aws_kms_key" "eks" {
+  count                   = var.kms_key_arn == null ? 1 : 0
+  description             = "EKS Secret Encryption Key for ${local.cluster_name}"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
+  tags                    = local.common_tags
+}
+
+# ---------------------------------------------------------------------------
 # EKS Cluster
 # ---------------------------------------------------------------------------
 resource "aws_eks_cluster" "this" {
@@ -75,6 +86,14 @@ resource "aws_eks_cluster" "this" {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
     endpoint_public_access  = var.endpoint_public_access
     endpoint_private_access = true
+    public_access_cidrs     = var.public_access_cidrs
+  }
+
+  encryption_config {
+    provider {
+      key_arn = var.kms_key_arn != null ? var.kms_key_arn : aws_kms_key.eks[0].arn
+    }
+    resources = ["secrets"]
   }
 
   tags = local.common_tags

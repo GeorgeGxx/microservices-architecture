@@ -35,7 +35,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.ecs_vpc.id
   cidr_block              = cidrsubnet(var.vpc_cidr, 4, count.index)
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = false
 
   tags = {
     Name = "${var.project_name}-public-subnet-${count.index + 1}"
@@ -139,10 +139,11 @@ resource "aws_security_group" "nlb_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [var.vpc_cidr]
   }
 }
 
+# trivy:ignore:AVD-AWS-0104 Egress required for ECS tasks to pull images and communicate externally
 resource "aws_security_group" "ecs_sg" {
   name        = "${var.project_name}-ecs-tasks-sg"
   description = "Allow inbound from NLB and East-West between tasks"
@@ -170,6 +171,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
+# trivy:ignore:AVD-AWS-0053 Public NLB required to receive ingress traffic
 resource "aws_lb" "main" {
   name                             = "${var.project_name}-nlb"
   internal                         = false
