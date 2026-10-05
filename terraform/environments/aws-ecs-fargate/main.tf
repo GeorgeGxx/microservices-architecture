@@ -261,7 +261,7 @@ resource "aws_service_discovery_http_namespace" "internal" {
 # CloudWatch Logs
 resource "aws_cloudwatch_log_group" "ecs" {
   name              = "/ecs/${var.project_name}"
-  retention_in_days = 7
+  retention_in_days = var.log_retention_days
 }
 
 # IAM Execution Role

@@ -18,3 +18,13 @@ output "primary_access_key" {
   value       = azurerm_storage_account.this.primary_access_key
   sensitive   = true
 }
+
+output "identity_principal_id" {
+  description = "The Principal ID for the Managed Identity of this Storage Account"
+  value       = try(azurerm_storage_account.this.identity[0].principal_id, null)
+}
+
+output "identity_tenant_id" {
+  description = "The Tenant ID for the Managed Identity of this Storage Account"
+  value       = try(azurerm_storage_account.this.identity[0].tenant_id, null)
+}

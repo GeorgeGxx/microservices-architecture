@@ -17,6 +17,10 @@ resource "azurerm_storage_account" "this" {
   account_replication_type = var.account_replication_type
   min_tls_version          = "TLS1_2"
 
+  identity {
+    type = "SystemAssigned"
+  }
+
   blob_properties {
     versioning_enabled = true
     delete_retention_policy {
