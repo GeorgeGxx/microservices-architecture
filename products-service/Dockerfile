@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/root/.m2 \
 # 4) Source code + build (single layer that changes per commit)
 COPY ./products-service/src ./src
 RUN --mount=type=cache,target=/root/.m2 \
-    ./mvnw clean package -T 1C -DskipTests -Dmaven.javadoc.skip=true -B
+    ./mvnw package -T 1C -DskipTests -Dmaven.javadoc.skip=true -B
 
 # 5) Extract Spring Boot layers
 WORKDIR /app/products-service/target
