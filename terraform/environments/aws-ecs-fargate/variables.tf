@@ -27,3 +27,10 @@ variable "container_registry" {
   type        = string
   default     = "ghcr.io/georgegxx"
 }
+
+variable "log_retention_days" {
+  description = "Specifies the number of days to retain CloudWatch log events (e.g., 30, 90, 365)"
+  type        = number
+  default     = 30
+}
+
