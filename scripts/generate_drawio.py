@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
-    root_mxfile = ET.Element("mxfile", host="Electron", pages="12", type="device")
+    root_mxfile = ET.Element("mxfile", host="Electron", pages="13", type="device")
 
     # Helper function to create page
     def create_page(page_id, page_name):
@@ -417,7 +417,7 @@ def build_drawio_xml():
 
     # Section 3: Scripts Ecosystem Directory Map
     add_node(r11, "c_scripts", "1", "<b>📂 AUTOMATION SCRIPTS PORTFOLIO (scripts/)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E293B;fontSize=12;dashed=1;", 960, 580, 880, 340)
-    add_node(r11, "scripts_map", "1", "• <b>Unified Master CLI:</b> platform.ps1 (Multi-cloud lifecycle, diagnostics, live OpenCost allocation, offline finops and right-sizing)<br>• <b>scripts/bootstrap-keycloak.ps1:</b> Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync<br>• <b>scripts/build-all.py:</b> Concurrent Maven + React container image compiler<br>• <b>scripts/testing/smoke.py --deployment:</b> Read-only Router + storefront deployment smoke gate<br>• <b>scripts/generate-secure-secrets.py:</b> High-entropy CSPRNG credential & JWT secret generator<br>• <b>scripts/local-cost-estimator.py:</b> Offline illustrative AWS profile estimate and optional ceiling<br>• <b>scripts/terraform-cost-delta.py:</b> Narrow AWS Terraform plan delta with unpriced resource disclosure<br>• <b>scripts/finops-rightsize.py:</b> Prometheus seven-day Kubernetes request sizing advisory<br>• <b>Terraform FinOps budgets:</b> Opt-in monthly AWS, Azure, and GCP spend notifications<br>• <b>scripts/validate-opencost.sh:</b> Pinned OpenCost and cloud Prometheus chart rendering for CI<br>• <b>scripts/supervise-tunnels.py:</b> Resilient background port-forward supervisor (includes OpenCost UI :7000)<br>• <b>scripts/grafana.py:</b> Dashboard generation/publish plus explicit CART_ADD demo telemetry<br>• <b>scripts/generate_drawio.py:</b> 12-page architectural blueprint generator<br>• <b>scripts/testing/:</b> simulate.py (Cosmo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, diagnose.py, verify.py, check.py, read-only test_order.py", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;", 980, 630, 840, 270)
+    add_node(r11, "scripts_map", "1", "• <b>Unified Master CLI:</b> platform.ps1 (Multi-cloud lifecycle, diagnostics, live OpenCost allocation, offline finops and right-sizing)<br>• <b>scripts/bootstrap-keycloak.ps1:</b> Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync<br>• <b>scripts/build-all.py:</b> Concurrent Maven + React container image compiler<br>• <b>scripts/testing/smoke.py --deployment:</b> Read-only Router + storefront deployment smoke gate<br>• <b>scripts/generate-secure-secrets.py:</b> High-entropy CSPRNG credential & JWT secret generator<br>• <b>scripts/local-cost-estimator.py:</b> Offline illustrative AWS profile estimate and optional ceiling<br>• <b>scripts/terraform-cost-delta.py:</b> Narrow AWS Terraform plan delta with unpriced resource disclosure<br>• <b>scripts/finops-rightsize.py:</b> Prometheus seven-day Kubernetes request sizing advisory<br>• <b>Terraform FinOps budgets:</b> Opt-in monthly AWS, Azure, and GCP spend notifications<br>• <b>scripts/validate-opencost.sh:</b> Pinned OpenCost and cloud Prometheus chart rendering for CI<br>• <b>scripts/supervise-tunnels.py:</b> Resilient background port-forward supervisor (includes OpenCost UI :7000)<br>• <b>scripts/grafana.py:</b> Dashboard generation/publish plus explicit CART_ADD demo telemetry<br>• <b>scripts/generate_drawio.py:</b> 13-page architectural blueprint generator<br>• <b>scripts/testing/:</b> simulate.py (Cosmo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, diagnose.py, verify.py, check.py, read-only test_order.py", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;", 980, 630, 840, 270)
 
     # Section 4: Bottom Banner
     add_node(r11, "ops_box_11", "1", "<b>🎯 MULTI-CLOUD PLATFORM SUMMARY</b>: AWS, Azure, and GCP use provider-specific modules with a consistent dev/staging/prod workspace model. Each provider plans four Kubernetes clusters (one dev, one staging, two production); Minikube is a local development platform, not full cloud parity.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 940, 1780, 60)
@@ -456,10 +456,34 @@ def build_drawio_xml():
     # Section 3: Summary Banner
     add_node(r12, "ops_box_12", "1", "<b>🎯 IMMUTABLE CHART DELIVERY</b>: GitHub Actions is the only publisher to GHCR; Azure DevOps and Bitbucket deploy the exact Chart.yaml version; AWS/Azure/GCP Terraform outputs expose the same pin across all workspaces. ArgoCD Applications remain Git-sourced until GHCR publication and pull access are configured.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;", 60, 920, 1780, 60)
 
+    # =========================================================================
+    # PAGE 13: The 5-Phase End-to-End Delivery Lifecycle
+    # =========================================================================
+    r13 = create_page("page_devsecops_lifecycle", "13. The 5-Phase End-to-End Delivery Lifecycle")
+    add_node(r13, "t13", "1", "<b style='font-size:22px;color:#1E293B;'>THE 5-PHASE END-TO-END DELIVERY LIFECYCLE</b><br><span style='font-size:13px;color:#64748B;'>Enterprise DevSecOps governance • Automated quality and security gates • Continuous reliability feedback</span>", title_style, 260, 25, 1400, 55)
+
+    lifecycle_style = "rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;"
+    phases = [
+        ("phase1_delivery", "<b style='font-size:15px;'>PHASE 1<br>PORTFOLIO &amp; ARCHITECTURE CONCEPTION</b><br><br><b>Business / PO</b><br>Business need and value-stream hypothesis<br><br><b>Enterprise &amp; Solution Architect</b><br>Baseline architecture and technical feasibility<br>Architecture Decision Record (ADR) and approved MVP scope<br><br><b>Cybersecurity Lead</b><br>STRIDE threat modeling and abuse cases", 50, "fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#1E3A8A;"),
+        ("phase2_delivery", "<b style='font-size:15px;'>PHASE 2<br>AGILE REFINEMENT &amp; CONSTRUCTION</b><br><br><b>Business / PO → Dev Team</b><br>Refined user stories and acceptance criteria<br><br><b>Dev Team &amp; Tech Lead</b><br>Test-Driven Development (TDD), clean code, and local pre-commit linting<br>Versioned Flyway database migrations and Terraform infrastructure as code<br>Open pull request to <code>develop</code>", 418, "fillColor=#FFFBEB;strokeColor=#F59E0B;fontColor=#78350F;"),
+        ("phase3_delivery", "<b style='font-size:15px;'>PHASE 3<br>AUTOMATED QUALITY &amp; SECURITY GATES</b><br><br><b>CI/CD Pipeline (automated)</b><br>1. Unit tests and JaCoCo coverage ≥ 80%<br>2. SAST: SonarQube Quality Gate<br>3. SCA and secret scanning: Trivy and Gitleaks<br>4. IaC policy checks: Checkov / OPA<br><br><b>Pipeline output</b><br>Build artifacts and container images delivered to the Dev Team", 786, "fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#064E3B;"),
+        ("phase4_delivery", "<b style='font-size:15px;'>PHASE 4<br>STAGING VALIDATION &amp; PROMOTION</b><br><br><b>CI/CD → SRE / Platform</b><br>Deploy to staging with Helm / ArgoCD<br><br><b>Automated validation</b><br>5. Newman API contract check: 20/20 pass<br>6. k6 load and SLO benchmark: p95 &lt; 200 ms<br>7. OWASP ZAP baseline DAST<br><br><b>Production promotion</b><br>Istio canary rollout: 10% → 100%", 1154, "fillColor=#FEF2F2;strokeColor=#EF4444;fontColor=#7F1D1D;"),
+        ("phase5_delivery", "<b style='font-size:15px;'>PHASE 5<br>CONTINUOUS RELIABILITY &amp; FEEDBACK LOOP</b><br><br><b>SRE / Platform / Observability</b><br>Distributed tracing (Jaeger) and metrics (Prometheus / Grafana)<br><br><b>ServiceNow / Incident Management</b><br>Anomaly trigger / PagerAlert<br>P1/P2 incident root-cause analysis and blameless post-mortem<br><br><b>Dev Team → Business / PO</b><br>Add preventive technical-debt stories to the backlog", 1522, "fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;"),
+    ]
+    for cell_id, value, x, colors in phases:
+        add_node(r13, cell_id, "1", value, lifecycle_style + colors, x, 135, 340, 600)
+
+    lifecycle_edge_style = "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;"
+    for index in range(1, 5):
+        add_edge(r13, f"lifecycle_flow_{index}", "1", "", lifecycle_edge_style + "strokeColor=#64748B;", f"phase{index}_delivery", f"phase{index + 1}_delivery")
+
+    add_edge(r13, "lifecycle_feedback", "1", "", lifecycle_edge_style + "strokeColor=#8B5CF6;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=1;", "phase5_delivery", "phase1_delivery", [(1692, 785), (220, 785)])
+    add_node(r13, "lifecycle_feedback_label", "1", "<b>↶ CONTINUOUS FEEDBACK:</b> Incident learning and preventive backlog stories inform the next portfolio and architecture cycle.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#C4B5FD;strokeWidth=1.5;fontColor=#4C1D95;fontSize=12;align=center;verticalAlign=middle;", 360, 820, 1200, 55)
+
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)
     tree.write("docs/Diagrams.drawio", encoding="utf-8", xml_declaration=True)
-    print("Successfully generated docs/Diagrams.drawio in English with 12 comprehensive tabs!")
+    print("Successfully generated docs/Diagrams.drawio in English with 13 comprehensive tabs!")
 
 if __name__ == "__main__":
     build_drawio_xml()

@@ -398,7 +398,7 @@ microservices-architecture/
 │   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
 │   ├── build-all.py                # Concurrent Java & React container image compiler
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
-│   ├── generate_drawio.py          # Programmatic 12-page architectural diagram generator
+│   ├── generate_drawio.py          # Programmatic 13-page architectural diagram generator
 │   ├── local-cost-estimator.py     # Offline illustrative AWS profile estimate and optional ceiling
 │   ├── finops-rightsize.py         # Prometheus 7-day Kubernetes request sizing advisory
 │   ├── terraform-cost-delta.py     # Narrow AWS plan delta estimate and unpriced type report
