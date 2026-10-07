@@ -2130,7 +2130,7 @@ switch ($Command) {
 
     { $_ -in @("diagrams", "sync-diagrams") } {
         Show-Banner "Synchronize Architecture Blueprint (docs/Diagrams.drawio)"
-        Write-Host "Regenerating docs/Diagrams.drawio across all 12 architectural tabs..." -ForegroundColor White
+        Write-Host "Regenerating docs/Diagrams.drawio across all 13 architectural tabs..." -ForegroundColor White
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
@@ -2181,7 +2181,7 @@ switch ($Command) {
         Write-Host "  tunnels             Launch background resilient port-forwarding daemon"
         Write-Host "  cloudflare [-Action start|stop|status|restart]  Manage Cloudflare Anycast tunnels & sync GitHub variables"
         Write-Host "  graph               Generate visual PNG dependency graph with Graphviz"
-        Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (12 pages)"
+        Write-Host "  diagrams            Synchronize and regenerate docs/Diagrams.drawio (13 pages)"
         Write-Host "  bcdr | dr           Run BCDR GameDay drill: snapshot DBs, test recovery & audit RTO/RPO SLOs"
         Write-Host "  urls                Display table of active service endpoints and credentials"
 

@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="12" type="device">
+<mxfile host="Electron" pages="13" type="device">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
@@ -787,7 +787,7 @@
         <mxCell id="c_scripts" parent="1" value="&lt;b&gt;📂 AUTOMATION SCRIPTS PORTFOLIO (scripts/)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E293B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="960" y="580" width="880" height="340" as="geometry" />
         </mxCell>
-        <mxCell id="scripts_map" parent="1" value="• &lt;b&gt;Unified Master CLI:&lt;/b&gt; platform.ps1 (Multi-cloud lifecycle, diagnostics, live OpenCost allocation, offline finops and right-sizing)&lt;br&gt;• &lt;b&gt;scripts/bootstrap-keycloak.ps1:&lt;/b&gt; Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync&lt;br&gt;• &lt;b&gt;scripts/build-all.py:&lt;/b&gt; Concurrent Maven + React container image compiler&lt;br&gt;• &lt;b&gt;scripts/testing/smoke.py --deployment:&lt;/b&gt; Read-only Router + storefront deployment smoke gate&lt;br&gt;• &lt;b&gt;scripts/generate-secure-secrets.py:&lt;/b&gt; High-entropy CSPRNG credential &amp; JWT secret generator&lt;br&gt;• &lt;b&gt;scripts/local-cost-estimator.py:&lt;/b&gt; Offline illustrative AWS profile estimate and optional ceiling&lt;br&gt;• &lt;b&gt;scripts/terraform-cost-delta.py:&lt;/b&gt; Narrow AWS Terraform plan delta with unpriced resource disclosure&lt;br&gt;• &lt;b&gt;scripts/finops-rightsize.py:&lt;/b&gt; Prometheus seven-day Kubernetes request sizing advisory&lt;br&gt;• &lt;b&gt;Terraform FinOps budgets:&lt;/b&gt; Opt-in monthly AWS, Azure, and GCP spend notifications&lt;br&gt;• &lt;b&gt;scripts/validate-opencost.sh:&lt;/b&gt; Pinned OpenCost and cloud Prometheus chart rendering for CI&lt;br&gt;• &lt;b&gt;scripts/supervise-tunnels.py:&lt;/b&gt; Resilient background port-forward supervisor (includes OpenCost UI :7000)&lt;br&gt;• &lt;b&gt;scripts/grafana.py:&lt;/b&gt; Dashboard generation/publish plus explicit CART_ADD demo telemetry&lt;br&gt;• &lt;b&gt;scripts/generate_drawio.py:&lt;/b&gt; 12-page architectural blueprint generator&lt;br&gt;• &lt;b&gt;scripts/testing/:&lt;/b&gt; simulate.py (Cosmo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, diagnose.py, verify.py, check.py, read-only test_order.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="scripts_map" parent="1" value="• &lt;b&gt;Unified Master CLI:&lt;/b&gt; platform.ps1 (Multi-cloud lifecycle, diagnostics, live OpenCost allocation, offline finops and right-sizing)&lt;br&gt;• &lt;b&gt;scripts/bootstrap-keycloak.ps1:&lt;/b&gt; Keycloak realm, roles, local test users, public SPA/confidential automation clients, secret sync&lt;br&gt;• &lt;b&gt;scripts/build-all.py:&lt;/b&gt; Concurrent Maven + React container image compiler&lt;br&gt;• &lt;b&gt;scripts/testing/smoke.py --deployment:&lt;/b&gt; Read-only Router + storefront deployment smoke gate&lt;br&gt;• &lt;b&gt;scripts/generate-secure-secrets.py:&lt;/b&gt; High-entropy CSPRNG credential &amp; JWT secret generator&lt;br&gt;• &lt;b&gt;scripts/local-cost-estimator.py:&lt;/b&gt; Offline illustrative AWS profile estimate and optional ceiling&lt;br&gt;• &lt;b&gt;scripts/terraform-cost-delta.py:&lt;/b&gt; Narrow AWS Terraform plan delta with unpriced resource disclosure&lt;br&gt;• &lt;b&gt;scripts/finops-rightsize.py:&lt;/b&gt; Prometheus seven-day Kubernetes request sizing advisory&lt;br&gt;• &lt;b&gt;Terraform FinOps budgets:&lt;/b&gt; Opt-in monthly AWS, Azure, and GCP spend notifications&lt;br&gt;• &lt;b&gt;scripts/validate-opencost.sh:&lt;/b&gt; Pinned OpenCost and cloud Prometheus chart rendering for CI&lt;br&gt;• &lt;b&gt;scripts/supervise-tunnels.py:&lt;/b&gt; Resilient background port-forward supervisor (includes OpenCost UI :7000)&lt;br&gt;• &lt;b&gt;scripts/grafana.py:&lt;/b&gt; Dashboard generation/publish plus explicit CART_ADD demo telemetry&lt;br&gt;• &lt;b&gt;scripts/generate_drawio.py:&lt;/b&gt; 13-page architectural blueprint generator&lt;br&gt;• &lt;b&gt;scripts/testing/:&lt;/b&gt; simulate.py (Cosmo Router; Keycloak-authenticated traffic/chaos; explicit anonymous DDoS mode), smoke.py, diagnose.py, verify.py, check.py, read-only test_order.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CBD5E1;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="980" y="630" width="840" height="270" as="geometry" />
         </mxCell>
         <mxCell id="ops_box_11" parent="1" value="&lt;b&gt;🎯 MULTI-CLOUD PLATFORM SUMMARY&lt;/b&gt;: AWS, Azure, and GCP use provider-specific modules with a consistent dev/staging/prod workspace model. Each provider plans four Kubernetes clusters (one dev, one staging, two production); Minikube is a local development platform, not full cloud parity." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
@@ -854,6 +854,55 @@
         </mxCell>
         <mxCell id="ops_box_12" parent="1" value="&lt;b&gt;🎯 IMMUTABLE CHART DELIVERY&lt;/b&gt;: GitHub Actions is the only publisher to GHCR; Azure DevOps and Bitbucket deploy the exact Chart.yaml version; AWS/Azure/GCP Terraform outputs expose the same pin across all workspaces. ArgoCD Applications remain Git-sourced until GHCR publication and pull access are configured." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="60" y="920" width="1780" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_devsecops_lifecycle" name="13. The 5-Phase End-to-End Delivery Lifecycle">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t13" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;THE 5-PHASE END-TO-END DELIVERY LIFECYCLE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Enterprise DevSecOps governance • Automated quality and security gates • Continuous reliability feedback&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="260" y="25" width="1400" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="phase1_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 1&lt;br&gt;PORTFOLIO &amp;amp; ARCHITECTURE CONCEPTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Business / PO&lt;/b&gt;&lt;br&gt;Business need and value-stream hypothesis&lt;br&gt;&lt;br&gt;&lt;b&gt;Enterprise &amp;amp; Solution Architect&lt;/b&gt;&lt;br&gt;Baseline architecture and technical feasibility&lt;br&gt;Architecture Decision Record (ADR) and approved MVP scope&lt;br&gt;&lt;br&gt;&lt;b&gt;Cybersecurity Lead&lt;/b&gt;&lt;br&gt;STRIDE threat modeling and abuse cases" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#1E3A8A;" vertex="1">
+          <mxGeometry x="50" y="135" width="340" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="phase2_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 2&lt;br&gt;AGILE REFINEMENT &amp;amp; CONSTRUCTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Business / PO → Dev Team&lt;/b&gt;&lt;br&gt;Refined user stories and acceptance criteria&lt;br&gt;&lt;br&gt;&lt;b&gt;Dev Team &amp;amp; Tech Lead&lt;/b&gt;&lt;br&gt;Test-Driven Development (TDD), clean code, and local pre-commit linting&lt;br&gt;Versioned Flyway database migrations and Terraform infrastructure as code&lt;br&gt;Open pull request to &lt;code&gt;develop&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FFFBEB;strokeColor=#F59E0B;fontColor=#78350F;" vertex="1">
+          <mxGeometry x="418" y="135" width="340" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="phase3_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 3&lt;br&gt;AUTOMATED QUALITY &amp;amp; SECURITY GATES&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;CI/CD Pipeline (automated)&lt;/b&gt;&lt;br&gt;1. Unit tests and JaCoCo coverage ≥ 80%&lt;br&gt;2. SAST: SonarQube Quality Gate&lt;br&gt;3. SCA and secret scanning: Trivy and Gitleaks&lt;br&gt;4. IaC policy checks: Checkov / OPA&lt;br&gt;&lt;br&gt;&lt;b&gt;Pipeline output&lt;/b&gt;&lt;br&gt;Build artifacts and container images delivered to the Dev Team" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#064E3B;" vertex="1">
+          <mxGeometry x="786" y="135" width="340" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="phase4_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 4&lt;br&gt;STAGING VALIDATION &amp;amp; PROMOTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;CI/CD → SRE / Platform&lt;/b&gt;&lt;br&gt;Deploy to staging with Helm / ArgoCD&lt;br&gt;&lt;br&gt;&lt;b&gt;Automated validation&lt;/b&gt;&lt;br&gt;5. Newman API contract check: 20/20 pass&lt;br&gt;6. k6 load and SLO benchmark: p95 &amp;lt; 200 ms&lt;br&gt;7. OWASP ZAP baseline DAST&lt;br&gt;&lt;br&gt;&lt;b&gt;Production promotion&lt;/b&gt;&lt;br&gt;Istio canary rollout: 10% → 100%" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FEF2F2;strokeColor=#EF4444;fontColor=#7F1D1D;" vertex="1">
+          <mxGeometry x="1154" y="135" width="340" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="phase5_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 5&lt;br&gt;CONTINUOUS RELIABILITY &amp;amp; FEEDBACK LOOP&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;SRE / Platform / Observability&lt;/b&gt;&lt;br&gt;Distributed tracing (Jaeger) and metrics (Prometheus / Grafana)&lt;br&gt;&lt;br&gt;&lt;b&gt;ServiceNow / Incident Management&lt;/b&gt;&lt;br&gt;Anomaly trigger / PagerAlert&lt;br&gt;P1/P2 incident root-cause analysis and blameless post-mortem&lt;br&gt;&lt;br&gt;&lt;b&gt;Dev Team → Business / PO&lt;/b&gt;&lt;br&gt;Add preventive technical-debt stories to the backlog" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;" vertex="1">
+          <mxGeometry x="1522" y="135" width="340" height="600" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_flow_1" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#64748B;" edge="1" source="phase1_delivery" target="phase2_delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_flow_2" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#64748B;" edge="1" source="phase2_delivery" target="phase3_delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_flow_3" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#64748B;" edge="1" source="phase3_delivery" target="phase4_delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_flow_4" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#64748B;" edge="1" source="phase4_delivery" target="phase5_delivery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_feedback" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#8B5CF6;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=1;" edge="1" source="phase5_delivery" target="phase1_delivery">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1692" y="785" />
+              <mxPoint x="220" y="785" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="lifecycle_feedback_label" parent="1" value="&lt;b&gt;↶ CONTINUOUS FEEDBACK:&lt;/b&gt; Incident learning and preventive backlog stories inform the next portfolio and architecture cycle." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#C4B5FD;strokeWidth=1.5;fontColor=#4C1D95;fontSize=12;align=center;verticalAlign=middle;" vertex="1">
+          <mxGeometry x="360" y="820" width="1200" height="55" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

@@ -137,7 +137,7 @@ The repository includes a single, master PowerShell orchestrator [`platform.ps1`
 | `.\platform.ps1 secrets [-Environment <dev\|staging\|prod>]` | Generates high-entropy CSPRNG cryptographic secrets (JWT keys, DB passwords, Keycloak client secrets) for Kubernetes manifests or `.env`. |
 | `.\platform.ps1 security-scan` | Runs local pre-flight security suite: Gitleaks (secret detection), TFLint (Terraform static analysis), Trivy (chart/image vulnerabilities), and Cosign (signing validation). |
 | `.\platform.ps1 graph` | Generates a visual Terraform dependency graph PNG at `docs/terraform-graph.png` using Graphviz (`dot`). |
-| `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 12 architectural tabs in [`docs/Diagrams.drawio`](../Diagrams.drawio) via Python. |
+| `.\platform.ps1 diagrams` | Synchronizes and programmatically regenerates all 13 architectural tabs in [`docs/Diagrams.drawio`](../Diagrams.drawio) via Python. |
 | `.\platform.ps1 bcdr` | Executes live BCDR GameDay drill: captures cross-service PostgreSQL snapshots, tests automated recovery in isolated database, and audits actual RTO/RPO metrics against ISO 22301 SLOs. |
 
 ---
@@ -159,7 +159,7 @@ All previously fragmented platform and cloud scripts (`manage-aws.ps1`, `manage-
 | **[`validate-opencost.sh`](../../scripts/validate-opencost.sh)** | `scripts/` | Renders pinned OpenCost and cloud Prometheus Helm charts with project values in CI. | • Validates local and cloud values<br/>• Used by GitHub Actions, Azure DevOps, and Bitbucket | `bash scripts/validate-opencost.sh` |
 | **[`supervise-tunnels.py`](../../scripts/supervise-tunnels.py)** | `scripts/` | **Resilient Port-Forward Supervisor Daemon:** Background tunnel supervisor with auto-reconnect. | • Supervises frontend (5173), gateway (8080), keycloak (8181), vault (8200), grafana (3000), argo (8088)<br/>• Automatic recovery on transient network drops | `python scripts/supervise-tunnels.py` |
 | **[`grafana.py`](../../scripts/grafana.py)** | `scripts/` | **Grafana Operations CLI:** One entry point for dashboard generation/publication and funnel demo telemetry. | • `dashboards` generates JSON locally; `--push` explicitly publishes using configured credentials<br/>• `funnel-demo` sends bounded `CART_ADD` events for business panels<br/>• Demo traffic is a separate, explicit subcommand | `python scripts/grafana.py dashboards`<br/>`python scripts/grafana.py funnel-demo --count 30` |
-| **[`generate_drawio.py`](../../scripts/generate_drawio.py)** | `scripts/` | **Architectural Blueprint Generator:** Programmatically generates the 12-page Draw.io model. | • Generates [`docs/Diagrams.drawio`](../Diagrams.drawio)<br/>• 12 specialized architectural views<br/>• Mathematical layout without XML overlap | `python scripts/generate_drawio.py` |
+| **[`generate_drawio.py`](../../scripts/generate_drawio.py)** | `scripts/` | **Architectural Blueprint Generator:** Programmatically generates the 13-page Draw.io model. | • Generates [`docs/Diagrams.drawio`](../Diagrams.drawio)<br/>• 13 specialized architectural views<br/>• Mathematical layout without XML overlap | `python scripts/generate_drawio.py` |
 | **`simulate.py`** | `scripts/testing/` | **Unified Load, Traffic, Checkout & GraphQL Flood Simulator.** | • Traffic/chaos use Cosmo Router; DDoS uses frontend edge via `DDOS_EDGE_URL` / `--ddos-url`<br/>• Keycloak JWT required unless DDoS `--no-auth` is explicit<br/>• Rate-limit probe reports real HTTP responses; Nginx JSON logs feed Loki IP panels<br/>• Stops before sending traffic/mutations if authentication fails | `python scripts/testing/simulate.py --scenario traffic` |
 | **`smoke.py`** | `scripts/testing/` | **Unified Smoke Tester:** Functional, deployment, and bounded resilience suites. | • Default mode: frontend, GraphQL, REST, and auth integration (may place a test order)<br/>• `--deployment`: read-only independent Router GraphQL and storefront health/root gates<br/>• `--resilience`: bounded, read-only GraphQL load with configurable thresholds | `python scripts/testing/smoke.py --deployment --base-url http://localhost:8080 --frontend-url http://localhost:5173`<br/>`python scripts/testing/smoke.py --resilience` |
 | **[`diagnose.py`](../../scripts/testing/diagnose.py)** | `scripts/testing/` | **Unified Read-Only Diagnostic CLI:** Routes component, telemetry, and order-list checks. | • `components`: Router/Swagger, Prometheus series, Grafana dashboards<br/>• `telemetry`: JVM, cart abandonment, Vault, custom PromQL<br/>• `orders-readonly`: authenticated order-list GET; never creates orders<br/>• `all`: components + telemetry only; no order query | `python scripts/testing/diagnose.py all`<br/>`python scripts/testing/diagnose.py orders-readonly` |
@@ -183,7 +183,7 @@ scripts/
 ├── bootstrap-keycloak.ps1             # Native PowerShell Keycloak 26 IAM realm bootstrapper & client secret sync
 ├── build-all.py                       # Concurrent multi-service container compiler (Java 21 Maven + React 19)
 ├── generate-secure-secrets.py         # High-entropy CSPRNG credential & JWT generator
-├── generate_drawio.py                 # Programmatic 12-page Draw.io architectural blueprint generator
+├── generate_drawio.py                 # Programmatic 13-page Draw.io architectural blueprint generator
 ├── local-cost-estimator.py            # Offline illustrative estimate (not provider billing)
 ├── validate-opencost.sh               # Render pinned OpenCost and cloud Prometheus charts
 ├── supervise-tunnels.py               # Resilient background port-forward supervisor daemon
@@ -364,7 +364,7 @@ python scripts/supervise-tunnels.py
 ```
 
 ### 7. 📐 Architectural Blueprint Generator (`generate_drawio.py`)
-Programmatically regenerates the 12-page architectural diagram in [`docs/Diagrams.drawio`](../Diagrams.drawio) with full mathematical coordinate calculations:
+Programmatically regenerates the 13-page architectural diagram in [`docs/Diagrams.drawio`](../Diagrams.drawio) with full mathematical coordinate calculations:
 
 ```powershell
 # Regenerate Draw.io diagram model:
