@@ -398,7 +398,7 @@ jobs:
 
       - name: Cache Conftest Binary
         id: cache-conftest
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /usr/local/bin/conftest
           key: ${{ runner.os }}-conftest-0.58.0
