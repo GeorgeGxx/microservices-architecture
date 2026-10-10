@@ -1,7 +1,12 @@
 import json
 import argparse
+import base64
 import os
 import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -9,12 +14,11 @@ biz_path = r'observability/grafana/dashboards/business-operations-dashboard.json
 tech_path = r'observability/grafana/dashboards/technical-security-dashboard.json'
 
 # =========================================================================
-# 1. CURATED BUSINESS OPERATIONS DASHBOARD (10 HIGH-VALUE PANELS, 4 ROWS)
-# =========================================================================
-with open(biz_path, 'r', encoding='utf-8') as f:
-    biz = json.load(f)
+def build_business_dashboard():
+    with open(biz_path, 'r', encoding='utf-8') as f:
+        biz = json.load(f)
 
-biz_panels = [
+    biz_panels = [
     # ROW 1: EXECUTIVE BUSINESS SUMMARY (Top 4 KPIs)
     {
         "id": 1,
@@ -351,22 +355,20 @@ biz_panels = [
     }
 ]
 
-biz['panels'] = biz_panels
-biz['version'] = biz.get('version', 1) + 1
+    biz['panels'] = biz_panels
+    biz['version'] = biz.get('version', 1) + 1
 
-with open(biz_path, 'w', encoding='utf-8') as f:
-    json.dump(biz, f, indent=2, ensure_ascii=False)
+    with open(biz_path, 'w', encoding='utf-8') as f:
+        json.dump(biz, f, indent=2, ensure_ascii=False)
 
-print("Business dashboard successfully curated (10 high-value panels, 4 rows)!")
+    print("Business dashboard successfully curated (10 high-value panels, 4 rows)!")
 
 
-# =========================================================================
-# 2. CURATED TECHNICAL & SRE DASHBOARD (12 ESSENTIAL PANELS, 5 SRE ROWS)
-# =========================================================================
-with open(tech_path, 'r', encoding='utf-8') as f:
-    tech = json.load(f)
+def build_technical_dashboard():
+    with open(tech_path, 'r', encoding='utf-8') as f:
+        tech = json.load(f)
 
-tech_panels = [
+    tech_panels = [
     # ROW 1: GLOBAL HEALTH & GOLDEN SIGNALS (Top 4 Vital Signs)
     {
         "id": 100,
@@ -790,23 +792,23 @@ tech_panels = [
     }
 ]
 
-tech['panels'] = tech_panels
-tech['version'] = tech.get('version', 1) + 1
-with open(tech_path, 'w', encoding='utf-8') as f:
-    json.dump(tech, f, indent=2, ensure_ascii=False)
+    tech['panels'] = tech_panels
+    tech['version'] = tech.get('version', 1) + 1
+    with open(tech_path, 'w', encoding='utf-8') as f:
+        json.dump(tech, f, indent=2, ensure_ascii=False)
 
-print("Technical dashboard successfully curated (12 essential panels, 5 SRE rows)!")
+    print("Technical dashboard successfully curated (12 essential panels, 5 SRE rows)!")
 
-# Live Grafana updates are explicit and require user-provided credentials.
-import urllib.request
-import base64
 
-parser = argparse.ArgumentParser(description="Generate Grafana dashboards; live publishing is opt-in.")
-parser.add_argument("--push", action="store_true", help="Publish generated dashboards to GRAFANA_URL using a token or credentials from environment variables.")
-args = parser.parse_args()
+def update_dashboard_files():
+    """Build and write both business and technical dashboard JSON files."""
+    build_business_dashboard()
+    build_technical_dashboard()
 
-if args.push:
-    grafana_url = os.getenv("GRAFANA_URL", "http://localhost:3000").rstrip("/")
+
+def push_dashboards(grafana_url: str = None) -> int:
+    """Publish generated dashboards to GRAFANA_URL using a token or credentials from environment variables."""
+    url = (grafana_url or os.getenv("GRAFANA_URL", "http://localhost:3000")).rstrip("/")
     token = os.getenv("GRAFANA_TOKEN")
     username = os.getenv("GRAFANA_USERNAME")
     password = os.getenv("GRAFANA_PASSWORD")
@@ -816,14 +818,109 @@ if args.push:
         encoded = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
         authorization = f"Basic {encoded}"
     else:
-        raise SystemExit("--push requires GRAFANA_TOKEN or both GRAFANA_USERNAME and GRAFANA_PASSWORD.")
+        print("Error: --push requires GRAFANA_TOKEN or both GRAFANA_USERNAME and GRAFANA_PASSWORD.", file=sys.stderr)
+        return 1
 
     headers = {"Content-Type": "application/json", "Authorization": authorization}
     for path in [biz_path, tech_path]:
-        with open(path, "r", encoding="utf-8") as dashboard_file:
-            dashboard = json.load(dashboard_file)
-        payload = json.dumps({"dashboard": dashboard, "overwrite": True}).encode("utf-8")
-        req = urllib.request.Request(f"{grafana_url}/api/dashboards/db", data=payload, headers=headers)
-        with urllib.request.urlopen(req, timeout=10) as response:
-            result = json.loads(response.read().decode("utf-8"))
-            print(f"Pushed {path} to Grafana: {result.get('status')}")
+        try:
+            with open(path, "r", encoding="utf-8") as dashboard_file:
+                dashboard = json.load(dashboard_file)
+            payload = json.dumps({"dashboard": dashboard, "overwrite": True}).encode("utf-8")
+            req = urllib.request.Request(f"{url}/api/dashboards/db", data=payload, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                result = json.loads(response.read().decode("utf-8"))
+                print(f"Pushed {path} to Grafana: {result.get('status')}")
+        except Exception as e:
+            print(f"Failed to push {path} to Grafana at {url}: {e}", file=sys.stderr)
+            return 1
+    return 0
+
+
+def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: int, timeout_seconds: int) -> int:
+    """Emit demo CART_ADD telemetry events for Grafana funnel panels."""
+    endpoint = f"{frontend_url.rstrip('/')}/api/order/funnel"
+    payload = json.dumps({"eventType": "CART_ADD", "category": category, "step": "cart"}).encode("utf-8")
+    headers = {"Content-Type": "application/json", "User-Agent": "Grafana-Demo-Telemetry/1.0"}
+    failures = []
+    accepted = 0
+    started = time.monotonic()
+
+    print(f"Sending {count} demo CART_ADD events to {endpoint}")
+    print(f"Category: {category} | Interval: {delay_ms} ms | Timeout: {timeout_seconds} s")
+    for index in range(1, count + 1):
+        request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                response.read()
+                if 200 <= response.status < 300:
+                    accepted += 1
+                else:
+                    failures.append({"request": index, "status": response.status, "error": "Unexpected response"})
+        except urllib.error.HTTPError as error:
+            failures.append({"request": index, "status": error.code, "error": str(error.reason)})
+        except Exception as error:
+            failures.append({"request": index, "status": None, "error": str(error)})
+
+        if delay_ms and index < count:
+            time.sleep(delay_ms / 1000)
+
+    print(f"Completed in {time.monotonic() - started:.2f}s: {accepted}/{count} events accepted.")
+    for failure in failures[:10]:
+        status = f"HTTP {failure['status']}" if failure["status"] is not None else "request failed"
+        print(f"  Request {failure['request']}: {status} — {failure['error']}", file=sys.stderr)
+    if len(failures) > 10:
+        print(f"  ... and {len(failures) - 10} more failure(s)", file=sys.stderr)
+    if failures:
+        print("Check frontend/Nginx and Orders Service, then inspect the Grafana funnel panels.", file=sys.stderr)
+        return 1
+    print("Demo events accepted. Allow the metrics pipeline to scrape them before checking Grafana.")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Unified Grafana dashboard generator and demo-telemetry operations."
+    )
+    # Direct flags (backward-compatible with python scripts/update_dashboards.py [--push])
+    parser.add_argument("--push", action="store_true", help="Publish generated dashboards to GRAFANA_URL using environment credentials")
+    parser.add_argument("--grafana-url", default=None, help="Grafana base URL")
+
+    # Subcommands (backward-compatible with grafana.py dashboards / funnel-demo)
+    subparsers = parser.add_subparsers(dest="command")
+
+    dash_cmd = subparsers.add_parser("dashboards", help="Generate dashboard JSON files")
+    dash_cmd.add_argument("--push", action="store_true", help="Publish to Grafana using configured credentials")
+    dash_cmd.add_argument("--grafana-url", default=None, help="Grafana base URL")
+
+    funnel_cmd = subparsers.add_parser("funnel-demo", help="Emit CART_ADD demo events for Grafana funnel panels")
+    funnel_cmd.add_argument("--frontend-url", default=os.getenv("FRONTEND_URL", "http://127.0.0.1:5173"), help="Frontend/Nginx URL")
+    funnel_cmd.add_argument("--count", type=int, default=30, help="Number of demo events (1-1000; default: 30)")
+    funnel_cmd.add_argument("--category", default="Electronics", help="Event category (default: Electronics)")
+    funnel_cmd.add_argument("--delay-ms", type=int, default=100, help="Pause between events, ms (0-60000; default: 100)")
+    funnel_cmd.add_argument("--timeout-seconds", type=int, default=10, help="HTTP timeout per event (1-120; default: 10)")
+
+    args = parser.parse_args()
+
+    if args.command == "funnel-demo":
+        if not 1 <= args.count <= 1000:
+            parser.error("--count must be between 1 and 1000")
+        if not 0 <= args.delay_ms <= 60000:
+            parser.error("--delay-ms must be between 0 and 60000")
+        if not 1 <= args.timeout_seconds <= 120:
+            parser.error("--timeout-seconds must be between 1 and 120")
+        return emit_funnel_events(args.frontend_url, args.count, args.category, args.delay_ms, args.timeout_seconds)
+
+    # Generate dashboard JSON files (default action or 'dashboards' subcommand)
+    update_dashboard_files()
+
+    should_push = getattr(args, "push", False)
+    if should_push:
+        target_url = getattr(args, "grafana_url", None)
+        return push_dashboards(target_url)
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
