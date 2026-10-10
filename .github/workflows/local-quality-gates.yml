@@ -1,42 +1,45 @@
 name: Local Stack and Infrastructure Quality Gates
 
+# Note: Automatic push and pull_request triggers are temporarily disabled
+# until AWS remote tfstate and production cloud infrastructure are provisioned.
+# To trigger manually: use the 'Run workflow' button in GitHub Actions.
 on:
-  pull_request:
-    branches: [develop, staging, main, master]
-    paths:
-      - 'terraform/**'
-      - 'compose.yaml'
-      - 'scripts/testing/**'
-      - 'observability/**'
-      - 'frontend/nginx.conf'
-      - 'frontend/rate-limit.conf'
-      - 'scripts/update_dashboards.py'
-      - 'scripts/grafana.py'
-      - 'observability/grafana/dashboards/**'
-      - 'platform-*.ps1'
-      - 'platform-common.ps1'
-      - 'scripts/bootstrap-keycloak.ps1'
-      - 'scripts/manage-cloudflare-tunnels.ps1'
-      - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
-      - '.github/workflows/local-quality-gates.yml'
-  push:
-    branches: [develop, staging, main, master]
-    paths:
-      - 'terraform/**'
-      - 'compose.yaml'
-      - 'scripts/testing/**'
-      - 'observability/**'
-      - 'frontend/nginx.conf'
-      - 'frontend/rate-limit.conf'
-      - 'scripts/update_dashboards.py'
-      - 'observability/grafana/dashboards/**'
-      - 'platform-*.ps1'
-      - 'platform-common.ps1'
-      - 'scripts/bootstrap-keycloak.ps1'
-      - 'scripts/manage-cloudflare-tunnels.ps1'
-      - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
-      - '.github/workflows/local-quality-gates.yml'
   workflow_dispatch:
+  # pull_request:
+  #   branches: [develop, staging, main, master]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'compose.yaml'
+  #     - 'scripts/testing/**'
+  #     - 'observability/**'
+  #     - 'frontend/nginx.conf'
+  #     - 'frontend/rate-limit.conf'
+  #     - 'scripts/update_dashboards.py'
+  #     - 'scripts/grafana.py'
+  #     - 'observability/grafana/dashboards/**'
+  #     - 'platform-*.ps1'
+  #     - 'platform-common.ps1'
+  #     - 'scripts/bootstrap-keycloak.ps1'
+  #     - 'scripts/manage-cloudflare-tunnels.ps1'
+  #     - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
+  #     - '.github/workflows/local-quality-gates.yml'
+  # push:
+  #   branches: [develop, staging, main, master]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'compose.yaml'
+  #     - 'scripts/testing/**'
+  #     - 'observability/**'
+  #     - 'frontend/nginx.conf'
+  #     - 'frontend/rate-limit.conf'
+  #     - 'scripts/update_dashboards.py'
+  #     - 'observability/grafana/dashboards/**'
+  #     - 'platform-*.ps1'
+  #     - 'platform-common.ps1'
+  #     - 'scripts/bootstrap-keycloak.ps1'
+  #     - 'scripts/manage-cloudflare-tunnels.ps1'
+  #     - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
+  #     - '.github/workflows/local-quality-gates.yml'
 
 permissions:
   contents: read
