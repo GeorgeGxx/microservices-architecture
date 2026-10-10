@@ -55,7 +55,10 @@ if ($SimulateOrders) {
     } else {
         Push-Location $repoRoot
         try {
-            & docker compose run --rm demand-sales-capture python /app/generate_sample_sales.py --days $Days --kafka-bootstrap-servers kafka:9092 --kafka-topic orders-topic
+            & docker compose run --rm --entrypoint python demand-sales-capture /app/generate_sample_sales.py --days $Days --kafka-bootstrap-servers kafka:9092 --kafka-topic orders-topic
+            if ($LASTEXITCODE -ne 0) {
+                throw "Failed to stream simulated orders to Kafka in Docker Compose (exit code $LASTEXITCODE)."
+            }
         } finally {
             Pop-Location
         }
