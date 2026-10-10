@@ -65,6 +65,17 @@ def snapshot_dataset(dataset_path: Path) -> tuple[list[date], str]:
     return sorted(set(dates)), fingerprint.hexdigest() if parquet_files else ""
 
 
+def evaluate_champion_candidate(
+    candidate_rmse: float, prior_rmse: float | None, tolerance: float = 0.02
+) -> tuple[bool, str]:
+    """Determine whether a candidate model qualifies as champion."""
+    if prior_rmse is None:
+        return True, "PROMOTED_INITIAL_BASELINE"
+    if candidate_rmse <= (prior_rmse * (1.0 + tolerance)):
+        return True, "PROMOTED_IMPROVED_OR_COMPARABLE"
+    return False, "REJECTED_DEGRADED"
+
+
 def sample_sales(spark: SparkSession, days: int = 240) -> DataFrame:
     """Create reproducible daily sales for three example products."""
     rows = []
@@ -234,8 +245,51 @@ def main() -> int:
             residuals = predictions - test_pdf["units_sold"].to_numpy()
             rmse = float(np.sqrt(np.mean(np.square(residuals))))
             mae = float(np.mean(np.abs(residuals)))
-            mlflow.log_metric("rmse", rmse)
-            mlflow.log_metric("mae", mae)
+            # Champion vs Challenger Evaluation
+            best_prior_rmse: float | None = None
+            try:
+                client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
+                current_exp = client.get_experiment_by_name(args.experiment)
+                if current_exp:
+                    champion_runs = client.search_runs(
+                        experiment_ids=[current_exp.experiment_id],
+                        filter_string="attributes.status = 'FINISHED' and tags.model_role = 'champion'",
+                        order_by=["metrics.rmse ASC"],
+                        max_results=1,
+                    )
+                    if not champion_runs:
+                        champion_runs = client.search_runs(
+                            experiment_ids=[current_exp.experiment_id],
+                            filter_string="attributes.status = 'FINISHED' and metrics.rmse > 0",
+                            order_by=["metrics.rmse ASC"],
+                            max_results=1,
+                        )
+                    if champion_runs and "rmse" in champion_runs[0].data.metrics:
+                        best_prior_rmse = champion_runs[0].data.metrics["rmse"]
+            except Exception as eval_exc:
+                print(f"Warning: could not evaluate prior champion metrics: {eval_exc}", flush=True)
+
+            is_champion, promotion_status = evaluate_champion_candidate(rmse, best_prior_rmse)
+            if not is_champion:
+                print(
+                    f"Challenger model degraded: candidate RMSE {rmse:.3f} > prior champion RMSE {best_prior_rmse:.3f}. "
+                    "Model tagged as challenger_rejected.",
+                    flush=True,
+                )
+            else:
+                status_text = (
+                    f"(improved from {best_prior_rmse:.3f})"
+                    if best_prior_rmse is not None
+                    else "(baseline champion initialized)"
+                )
+                print(f"Candidate accepted as champion: RMSE {rmse:.3f} {status_text}.", flush=True)
+
+            mlflow.set_tag("model_role", "champion" if is_champion else "challenger_rejected")
+            mlflow.set_tag("promotion_status", promotion_status)
+            mlflow.log_metric("is_champion", 1 if is_champion else 0)
+            if best_prior_rmse is not None:
+                mlflow.log_metric("prior_champion_rmse", best_prior_rmse)
+
             mlflow.sklearn.log_model(
                 model,
                 name="demand-forecast",
@@ -244,7 +298,7 @@ def main() -> int:
             )
             print(f"Run ID: {run.info.run_id}")
             print(f"Experiment: {args.experiment}")
-            print(f"RMSE: {rmse:.3f} | MAE: {mae:.3f}")
+            print(f"Role: {'champion' if is_champion else 'challenger_rejected'} | RMSE: {rmse:.3f} | MAE: {mae:.3f}")
             print(f"MLflow UI: {os.getenv('MLFLOW_UI_URL', tracking_uri)}")
 
         if args.auto and state_path and fingerprint:

@@ -386,7 +386,10 @@ npx --yes newman run devsecops/testing/newman/microservices.postman_collection.j
   --env-var "keycloak_url=http://localhost:8181" `
   --reporters cli
 
-# 8. Platform CLI wrappers (Minikube / DevSecOps):
+# 8. MLOps Quality & Model Governance Suite (15 automated tests)
+$env:PYTHONPATH = "mlops"; python -m unittest discover -s mlops/tests -v
+
+# 9. Platform CLI wrappers (Minikube / DevSecOps):
 .\platform-minikube.ps1 smoke          # Runs smoke checks against active cluster
 .\platform-minikube.ps1 contract       # Runs Newman API collection in automated container
 .\platform-minikube.ps1 performance    # Runs k6 SLO latency and throughput benchmark
