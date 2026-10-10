@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 19,
+  "version": 32,
   "tags": [
     "spring-boot",
     "java21",
@@ -773,5 +773,6 @@
         }
       ]
     }
-  ]
+  ],
+  "description": "SRE view for service availability, traffic, latency, errors, platform saturation, and security events. No data means telemetry is unavailable; it is not treated as healthy."
 }

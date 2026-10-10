@@ -46,6 +46,14 @@ scrape_configs:
           service: 'notification-service'
           job: 'spring-services'
 
+  - job_name: 'demand-forecast-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['demand-forecast-service:8005']
+        labels:
+          service: 'demand-forecast-service'
+          job: 'mlops'
+
   - job_name: 'redis'
     metrics_path: /metrics
     static_configs:

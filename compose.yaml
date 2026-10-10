@@ -1,4 +1,145 @@
 services:
+  ### Local MLOps tracking server (starts with the default Compose stack)
+  mlflow:
+    image: georgegxx/mlflow:1.0.0
+    build:
+      context: ./mlops
+      dockerfile: Dockerfile
+    hostname: mlflow
+    command:
+      - mlflow
+      - server
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --backend-store-uri
+      - sqlite:////mlflow-data/mlflow.db
+      - --artifacts-destination
+      - /mlflow-artifacts
+    environment:
+      MLFLOW_SERVER_ALLOWED_HOSTS: mlflow:5000,localhost:5000,127.0.0.1:5000
+    volumes:
+      - mlops_mlflow_data:/mlflow-data
+      - mlops_mlflow_artifacts:/mlflow-artifacts
+    ports:
+      - "127.0.0.1:${MLFLOW_PORT:-5000}:5000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    networks:
+      - spring
+
+  ### One-off, platform-independent PySpark training job.
+  demand-model-training:
+    profiles: [training]
+    image: georgegxx/mlops-training:1.0.0
+    build:
+      context: ./mlops
+      dockerfile: Dockerfile.training
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_UI_URL: http://127.0.0.1:${MLFLOW_PORT:-5000}
+      MLFLOW_EXPERIMENT_NAME: inventory-demand-forecast
+      SPARK_LOCAL_IP: 127.0.0.1
+      GIT_PYTHON_REFRESH: quiet
+      HOME: /tmp
+    volumes:
+      - ./mlops/data:/data
+    depends_on:
+      mlflow:
+        condition: service_healthy
+    restart: "no"
+    cpus: 4.0
+    mem_limit: 4g
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    networks:
+      - spring
+
+  ### One-off Kafka capture job; attach interactively and stop it with Ctrl+C.
+  demand-sales-capture:
+    profiles: [capture]
+    image: georgegxx/mlops-training:1.0.0
+    build:
+      context: ./mlops
+      dockerfile: Dockerfile.training
+    entrypoint: ["python", "/app/capture_orders.py", "--engine", "spark"]
+    command:
+      - --bootstrap-servers
+      - kafka:9092
+      - --topic
+      - orders-topic
+      - --output
+      - /data/sales_parquet
+      - --checkpoint-location
+      - /data/checkpoints/sales_parquet
+    volumes:
+      - ./mlops/data:/data
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: inventory-demand-forecast
+      MLOPS_SALES_PATH: /data/sales_parquet
+      MLOPS_TRAINING_STATE_PATH: /data/checkpoints/auto-training/last-successful-input.sha256
+      MLOPS_MIN_PARTITIONS: "9"
+      MLOPS_AUTO_TRAIN_INTERVAL_SEC: "20"
+      SPARK_LOCAL_IP: 127.0.0.1
+      HOME: /tmp
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: "no"
+    cpus: 4.0
+    mem_limit: 4g
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=1g
+    networks:
+      - spring
+
+  ### Local seven-day demand forecast API (admin-only through Keycloak)
+  demand-forecast-service:
+    image: georgegxx/demand-forecast:1.0.0
+    build:
+      context: ./mlops
+      dockerfile: Dockerfile.forecast
+    hostname: demand-forecast-service
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      MLFLOW_EXPERIMENT_NAME: inventory-demand-forecast
+      MLOPS_SALES_PATH: /data/${MLOPS_SALES_FILE:-synthetic_sales.csv}
+      HOME: /tmp
+      KEYCLOAK_ISSUER: http://localhost:${KEYCLOAK_PORT:-8181}/realms/microservices-realm
+      KEYCLOAK_JWKS_URI: http://keycloak:${KEYCLOAK_PORT:-8181}/realms/microservices-realm/protocol/openid-connect/certs
+    volumes:
+      - ./mlops/data:/data:ro
+    ports:
+      - "127.0.0.1:${FORECAST_API_PORT:-8005}:8005"
+    restart: unless-stopped
+    cpus: 1.0
+    mem_limit: 768m
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8005/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    depends_on:
+      - mlflow
+      - keycloak
+    networks:
+      - spring
+
   ### Keycloak - http://localhost:8181
   keycloak:
     hostname: keycloak
@@ -109,6 +250,7 @@ services:
     depends_on:
       - cosmo-router
       - keycloak
+      - demand-forecast-service
     networks:
       - spring
 
@@ -302,7 +444,6 @@ services:
       - .env
     ports:
       - "9092:9092"
-      - "9094:9094"
       - "29092:29092"
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID}
@@ -315,9 +456,6 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: ${KAFKA_CONTROLLER_LISTENER_NAMES}
       KAFKA_INTER_BROKER_LISTENER_NAME: ${KAFKA_INTER_BROKER_LISTENER_NAME}
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: ${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP}
-      KAFKA_SASL_ENABLED_MECHANISMS: ${KAFKA_SASL_MECHANISM:-PLAIN}
-      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: ${KAFKA_BROKER_SASL_JAAS_CONFIG}
-      KAFKA_OPTS: ${KAFKA_OPTS}
       KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
       JAVA_TOOL_OPTIONS: ""
       KAFKA_LOG_DIRS: ${KAFKA_LOG_DIRS}
@@ -327,6 +465,12 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
     volumes:
       - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   ### Kafka Prometheus Exporter - http://localhost:9308/metrics
   kafka-exporter:
@@ -562,9 +706,9 @@ services:
         echo "📦 [Vault Auto-Init] Seeding microservice secrets..."
         vault kv put secret/application spring.datasource.username="postgres" spring.datasource.password="postgres" jwt.secret="super-secure-jwt-secret-key-3300" 2>/dev/null || true
         vault kv put secret/products-service spring.datasource.url="jdbc:postgresql://db-products:5432/ms_products" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' 2>/dev/null || true
+        vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9092" spring.kafka.properties.security.protocol="PLAINTEXT" 2>/dev/null || true
         vault kv put secret/inventory-service spring.datasource.url="jdbc:postgresql://db-inventory:5432/ms_inventory" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9094" spring.kafka.properties.security.protocol="SASL_PLAINTEXT" spring.kafka.properties.sasl.mechanism="PLAIN" spring.kafka.properties.sasl.jaas.config='org.apache.kafka.common.security.plain.PlainLoginModule required username="app" password="microservices-kafka-secret";' spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
+        vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9092" spring.kafka.properties.security.protocol="PLAINTEXT" spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
         vault kv put secret/cosmo-router keycloak.client-secret="microservices-client-secret-key-3300" keycloak.issuer-uri="http://keycloak:8181/realms/microservices-realm" 2>/dev/null || true
         
         echo "🔐 [Vault Auto-Init] Enabling Transit Encryption Engine..."
@@ -597,6 +741,8 @@ services:
       - spring
 
 volumes:
+  mlops_mlflow_data:
+  mlops_mlflow_artifacts:
   inventory-pgdata:
   orders-pgdata:
   products-pgdata:
