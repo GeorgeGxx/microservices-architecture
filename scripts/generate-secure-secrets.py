@@ -65,7 +65,6 @@ def build_credentials_bundle(length: int = 32) -> Dict[str, str]:
         "KEYCLOAK_ADMIN_PASSWORD": generate_complex_password(length),
         "KEYCLOAK_CLIENT_SECRET": generate_alphanumeric_secret(48),
         "REDIS_PASSWORD": generate_alphanumeric_secret(length),
-        "KAFKA_SASL_PASSWORD": generate_alphanumeric_secret(length),
         "JWT_SECRET_KEY": generate_jwt_key(256),
     }
 

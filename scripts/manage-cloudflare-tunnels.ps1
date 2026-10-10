@@ -310,7 +310,7 @@ function Start-AllTunnels {
     Write-Host "  ▶ Cosmo Router (GraphQL Supergraph)   : $routerUrl" -ForegroundColor Green
     Write-Host "  ▶ Keycloak IAM (OAuth2 / Realm)       : $keycloakUrl" -ForegroundColor Green
     Write-Host ("-" * 80) -ForegroundColor DarkGray
-    Write-Host "  To stop the tunnels at any time, run: .\platform.ps1 cloudflare -Action stop`n" -ForegroundColor DarkGray
+    Write-Host "  To stop the tunnels at any time, run: .\platform-minikube.ps1 cloudflare -Action stop`n" -ForegroundColor DarkGray
 }
 
 switch ($Action) {

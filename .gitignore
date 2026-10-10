@@ -7,8 +7,8 @@ target/
 *.iml
 .vscode/
 *.log
-scripts/__pycache__/
-scripts/testing/__pycache__/
+__pycache__/
+*.pyc
 backups/
 *.dump
 .pnpm-store/
@@ -23,3 +23,6 @@ scripts/.cloudflare-tunnels.json
 scripts/.tunnel-logs/
 devsecops/dast/zap/zap-report.html
 devsecops/dast/zap/zap.yaml
+.venv-ml/
+.venv/
+mlops/data/
