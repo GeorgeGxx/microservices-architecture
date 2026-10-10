@@ -16,7 +16,7 @@ flowchart TD
     subgraph Pyramid["Modern DevSecOps Testing Strategy"]
         E2E["🧭 Stage 8: E2E Functional Testing<br/>(Cypress • React 19 SPA • Keycloak OIDC)"]
         PERF["⚡ Stage 9: Performance & Load Testing<br/>(k6 • SLA Thresholds • Rollback Gates)"]
-        INT["🔗 Stage 7: Integration & Contract Testing<br/>(Newman / Postman • 20 API Assertions)"]
+        INT["🔗 Stage 7: Integration & Contract Testing<br/>(Newman / Postman • 23 API Requests • 54 Assertions)"]
         CHAOS["💥 Runtime Chaos & Simulation<br/>(Python simulate.py • Circuit Breakers • DDoS)"]
         UNIT["🧪 Stage 1: Unit & Component Testing<br/>(JUnit 5 • Mockito • JaCoCo 80% Gate)"]
     end
@@ -35,7 +35,7 @@ flowchart TD
 | **Newman (Postman CLI)** | **Stage 7 (Integration)** | Runs the repository collection through the frontend Nginx proxy, covering GraphQL/REST responses, Keycloak logins, and order lifecycle assertions. | Container / CLI (`newman run`) |
 | **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
 | **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles ($p_{95} < 500\text{ms}$), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
-| **`simulate.py` / `smoke.py`** | **Runtime / Chaos** | `simulate.py` generates shopper/chaos traffic; `smoke.py` provides functional, read-only deployment, and bounded GraphQL resilience modes. | Platform CLI (`.\platform.ps1 smoke`) |
+| **`simulate.py` / `smoke.py`** | **Runtime / Chaos** | `simulate.py` generates shopper/chaos traffic; `smoke.py` provides functional, read-only deployment, and bounded GraphQL resilience modes. | Minikube CLI (`.\platform-minikube.ps1 smoke`) |
 
 ---
 
@@ -168,56 +168,34 @@ python scripts/testing/diagnose.py components --target swagger
 python scripts/testing/diagnose.py components --target all
 ```
 
-### 6. 📉 Cart Abandonment Rate KPI Verification & Testing
-The **📉 Cart Abandonment Rate** panel in the **`🏢 Business Intelligence & Inventory Operations`** Grafana dashboard is an aggregate gauge derived from cart-addition and completed-order counters. It does not correlate individual sessions or prove that a specific cart was abandoned:
+### 6. 🛒 Funnel Event Activity Verification
 
-$$\text{Cart Abandonment Rate (\%)} = \text{clamp}\left(\left(1 - \frac{\sum \text{Orders Completed}}{\sum \text{Cart Additions}}\right) \times 100,\, 0,\, 100\right)$$
+The **Observed Funnel Event Activity** panel in **E-Commerce Business Intelligence & Inventory Operations** reports event counts in the selected time range. The Orders Service increments counters only when it receives `CART_ADD`, `CHECKOUT_START`, or `CHECKOUT_STEP`. These counters are process-local and reset when the service restarts.
 
-* **🟢 0% – 50% (Green):** Lower aggregate cart-addition to order ratio.
-* **🟡 50% – 75% (Yellow):** Intermediate aggregate ratio.
-* **🔴 75% – 100% (Red):** Higher aggregate ratio; investigate alongside application events and checkout metrics.
+The event contract does not carry a shared shopper/session identifier. The dashboard therefore does not calculate conversion or cart abandonment. Completed orders are database snapshots and are shown separately from funnel event counters.
 
-#### Step-by-Step Testing Procedures (3 Verified Methods):
-
-##### 🚀 Method 1: Instant CLI / PowerShell Event Injection (Simulate Mass Abandonment)
-Rapidly pump asynchronous "Cart Addition" funnel telemetry events (`CART_ADD`) without completing checkouts:
+#### Method 1: Send CART_ADD demo events
 
 ```powershell
-python scripts/grafana.py funnel-demo
+python scripts/update_dashboards.py funnel-demo --count 30 --category Electronics
 ```
 
-The command defaults to 30 events, category `Electronics`, and the storefront URL in `FRONTEND_URL` (or `http://127.0.0.1:5173`), with a 100 ms pause and a 10-second request timeout. Override these values as needed, for example:
+The command sends 30 observed cart-add events through the frontend endpoint. It does not synthesize checkout stages, orders, or an abandonment percentage. After the next Prometheus scrape, select the matching time range in Grafana to see the event count.
+
+#### Method 2: Exercise the observed funnel stages
+
+The multi-threaded traffic scenario sends `CART_ADD`, `CHECKOUT_START`, and `CHECKOUT_STEP` events before a subset of shopper journeys place orders:
 
 ```powershell
-python scripts/grafana.py funnel-demo --count 50 --category Home --delay-ms 150
-```
-
-* **Grafana Verification:** Open **http://localhost:3000** &rarr; Dashboards &rarr; **`🏢 Business Intelligence & Inventory Operations`**.
-* The **`📉 Cart Abandonment Rate`** gauge reflects the aggregate ratio after telemetry is scraped; the result depends on existing cart and order counters and is not guaranteed to land in a fixed color band.
-
----
-
-##### 🖥️ Method 2: Interactive Browser Testing via React 19 Frontend SPA
-1. Open the storefront in your web browser: **[http://localhost:5173](http://localhost:5173)**.
-2. Browse the product catalog and click **"Add to Cart"** repeatedly on various items without proceeding to checkout (each button click sends a public `CART_ADD` event through frontend Nginx to the Orders REST funnel endpoint).
-3. Leave the session idle or close the shopping cart drawer (abandoning the purchase).
-4. Refresh the **`🏢 Business Intelligence & Inventory Operations`** dashboard in Grafana to observe the aggregate gauge update after the next scrape.
-5. Next, proceed through the checkout flow and click **"Place Order & Pay"**: the aggregate gauge changes as the completed-order counter increases.
-
----
-
-##### ⚡ Method 3: Multi-Threaded Realistic Funnel Generation (`simulate.py --scenario traffic`)
-Run the autonomous e-commerce load generator to exercise the complete funnel stages (`CART_ADD` $\rightarrow$ `CHECKOUT_START` $\rightarrow$ `CHECKOUT_STEP` $\rightarrow$ `PLACED` $\rightarrow$ `DELIVERED`):
-
-```powershell
-# Simulate 20 realistic shopper journeys with 4 parallel threads:
 python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 4
 ```
 
-* **Behavior:** The script blends cart telemetry and authenticated GraphQL order placements. The funnel gauge is an aggregate of cart events and completed orders, not a session-level attribution metric.
+The panel shows stage-event activity and completed-order snapshot change over the selected range. It does not attribute an order to a particular cart.
+
+To support a true conversion or abandonment rate, the event contract must add a stable session/cart identifier and persist timestamped stage events so each journey can be correlated.
 
 ### 📦 Postman & Newman Test Suite (Unified Collection):
-The repository maintains a 20-request Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) for headless CI/CD execution with Newman. Its Postman collection tree is also kept under `devsecops/testing/newman/microservices-cosmo-router/`; the JSON export is generated by `scripts/generate_postman_collection.py`. The suite targets **Cosmo Router with GraphQL Federation v2** (orders uses Federation v2.5):
+The repository maintains a 23-request Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) for headless CI/CD execution with Newman (54 automated assertions, 100% pass rate). Its JSON export is generated by `scripts/generate_postman_collection.py`. The suite targets **Cosmo Router with GraphQL Federation v2**, **Keycloak OIDC**, and **MLOps Demand Forecasting**:
 
 * **Keycloak Login Requests:** The standard/admin requests save separate JWTs in `{{user_jwt_token}}` and `{{admin_jwt_token}}` via the public client (`microservices_frontend`). Provision the realm, enable the development test users and direct grants with `scripts/bootstrap-keycloak.ps1` before running them; the collection does not need a client secret.
 * **Federated GraphQL Operations:** Native queries and mutations against Cosmo Router (`POST {{base_url}}/graphql`):
@@ -225,6 +203,10 @@ The repository maintains a 20-request Postman collection in [`devsecops/testing/
   * **Order Placement:** Generates dynamic `idempotency_key` (UUIDv4) and automated DHL tracking number (`DHL-[A-Z0-9]+`), saving `order_id` into collection variables.
   * **Logistics State Machine:** Progresses orders through `shipOrder` (`SHIPPED`) and `deliverOrder` (`DELIVERED`).
   * **Saga Compensation:** Creates a second order, then cancels it while it is still `PLACED` to verify compensation and inventory restoration.
+* **MLOps & Demand Forecast API:** Automated verification of the 7-day SKU forecasting engine (`GET {{base_url}}/api/forecast`):
+  * **Admin Happy Path:** Validates 200 OK, `horizonDays: 7`, provenance `dataSource` (`captured-sales` / `synthetic`), model run ID and SKU predictions.
+  * **RBAC Enforcement:** Verifies that standard users lacking the `ADMIN` role are rejected with HTTP 403 Forbidden.
+  * **Authentication Gate:** Verifies that unauthenticated requests receive HTTP 401 Unauthorized (`Bearer token required`).
 * **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`). Requests use the frontend Nginx reverse proxy, so they work without separate host port-forwards to each ClusterIP service. Set `BASE_URL` to the reachable frontend URL (default `http://127.0.0.1:5173`, also used by the Minikube tunnel supervisor). The SSE stream is long-lived; run it individually rather than in the full Newman collection.
 * **CI/CD Quality Gate (Newman CLI):** Fully compatible with automated pipeline execution in GitHub Actions, Azure DevOps, and Bitbucket Pipelines (`newman run $COLLECTION --env-var "BASE_URL=${TARGET_URL}"`). Pre-request scripts automatically harmonize `base_url` and `BASE_URL`.
 

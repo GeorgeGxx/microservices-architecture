@@ -150,7 +150,7 @@ Because microservices operate across isolated containers, federated gateways, Gi
   - **Distributed Tracing:** Spans propagate through Cosmo Router, API layer, down to Spring Boot database transactions in Tempo / Alloy.
   - **Structured Logging:** Contextual logs (including trace IDs and tenant context) index in Loki with zero unhandled exceptions.
 - [ ] **Audited Backup & Rollback Readiness:**
-  - Automated database backup verification executed (confirming script `scripts/testing/backup-restore-check.ps1` compatibility).
+  - Automated database backup verification executed (confirming script `scripts/bcdr-simulation.ps1 -Action VerifyBackups` compatibility).
   - Rollback plan documented and verified (e.g., Git revert commit or declarative ArgoCD image revision rollback).
 - [ ] **Changelog & Release Notes:**
   - Semantic Versioning tag generated (`git tag -a v1.x.y -m "Release v1.x.y"`).
@@ -190,7 +190,7 @@ promtool check rules observability/prometheus/prometheus-rules.yml
 ### 3. Non-Destructive Database Backup & Restore Drill
 Creates a plain SQL backup of the `db-orders` database, restores it into an isolated temporary database in the same container, verifies table row counts, and cleans up the temporary database:
 ```powershell
-.\scripts\testing\backup-restore-check.ps1
+.\scripts\bcdr-simulation.ps1 -Action VerifyBackups
 ```
 
 ### 4. Fast Pre-PR Local Quality Verification

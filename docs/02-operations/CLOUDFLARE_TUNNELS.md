@@ -3,7 +3,7 @@
 > [!TIP]
 > 🧭 **[Enterprise Platform Hub](../../README.md)** > **02. Operations** > `CLOUDFLARE_TUNNELS.md`
 
-This document details the architecture, configuration, and lifecycle management of **Cloudflare Quick Tunnels** integrated with the unified orchestrator `platform.ps1` to enable automated post-deployment verification in **GitHub Actions**.
+This document details the architecture, configuration, and lifecycle management of **Cloudflare Quick Tunnels** integrated with the Minikube entrypoint to enable automated post-deployment verification in **GitHub Actions**.
 
 ---
 
@@ -81,13 +81,13 @@ The `post-deployment-validation` job defined in [`.github/workflows/_service-ci-
 
 ---
 
-## 🚀 3. Orchestration via `platform.ps1`
+## 🚀 3. Orchestration via the Minikube entrypoint
 
-The master orchestration script [`platform.ps1`](../../platform.ps1) delegates tunnel lifecycle tasks to [`scripts/manage-cloudflare-tunnels.ps1`](../../scripts/manage-cloudflare-tunnels.ps1):
+The Minikube entrypoint [`platform-minikube.ps1`](../../platform-minikube.ps1) delegates tunnel lifecycle tasks to [`scripts/manage-cloudflare-tunnels.ps1`](../../scripts/manage-cloudflare-tunnels.ps1):
 
 ### A. Start Tunnels & Synchronize GitHub Variables
 ```powershell
-.\platform.ps1 cloudflare -Action start
+.\platform-minikube.ps1 cloudflare -Action start
 ```
 1. Verifies local ports (`5173`, `8080`, `8181`) are actively listening.
 2. Launches background `cloudflared` daemons with `--protocol http2` (preventing UDP/QUIC packet loss on local routers and Windows firewalls).
@@ -97,19 +97,19 @@ The master orchestration script [`platform.ps1`](../../platform.ps1) delegates t
 
 ### B. Inspect Status & Health
 ```powershell
-.\platform.ps1 cloudflare -Action status
+.\platform-minikube.ps1 cloudflare -Action status
 ```
 Outputs a table with active process IDs (PIDs), local target ports, edge health status, and live public URLs.
 
 ### C. Stop & Disable in CI
 ```powershell
-.\platform.ps1 cloudflare -Action stop
+.\platform-minikube.ps1 cloudflare -Action stop
 ```
 Gracefully terminates `cloudflared` processes and sets `DEVSECOPS_POST_DEPLOY_ENABLED=false` in GitHub Actions to prevent CI pipelines from failing against closed tunnels.
 
 ### D. Restart
 ```powershell
-.\platform.ps1 cloudflare -Action restart
+.\platform-minikube.ps1 cloudflare -Action restart
 ```
 
 ---
@@ -118,25 +118,25 @@ Gracefully terminates `cloudflared` processes and sets `DEVSECOPS_POST_DEPLOY_EN
 
 | Feature | Docker Compose Environment | Minikube + Istio Service Mesh |
 | :--- | :--- | :--- |
-| **Startup Command** | `docker compose up -d` | `.\platform.ps1 up -Platform minikube -WithIstio` |
+| **Startup Command** | `docker compose up -d` | `.\platform-minikube.ps1 up -WithIstio` |
 | **Workload Location** | Containers in `spring` network | Pods in `dev`, `auth`, `data`, `istio-system` namespaces |
 | **Network Security** | Docker bridge networks | Istio mTLS STRICT + Gatekeeper OPA policies |
-| **Localhost Exposure** | Host port bindings (`5173`, `8080`, `8181`) | Supervised port-forwarding (`.\platform.ps1 tunnels`) or NodePort `30088` |
+| **Localhost Exposure** | Host port bindings (`5173`, `8080`, `8181`) | Supervised port-forwarding (`.\platform-minikube.ps1 tunnels`) or NodePort `30088` |
 | **Cloudflare Ingress** | Direct binding to `http://localhost:...` | Direct binding to `http://localhost:...` via Minikube tunnel supervisor |
 
 > [!IMPORTANT]
-> **Seamless Compatibility:** Because [`scripts/supervise-tunnels.py`](../../scripts/supervise-tunnels.py) (`.\platform.ps1 tunnels`) forwards the exact same ports (`5173`, `8080`, `8181`) to the Istio ingress gateway, the Cloudflare tunnel manager (`.\platform.ps1 cloudflare -Action start`) **operates identically across both environments**.
+> **Seamless Compatibility:** Because [`scripts/supervise-tunnels.py`](../../scripts/supervise-tunnels.py) (`.\platform-minikube.ps1 tunnels`) forwards the exact same ports (`5173`, `8080`, `8181`) to the Istio ingress gateway, the Cloudflare tunnel manager (`.\platform-minikube.ps1 cloudflare -Action start`) **operates identically across both environments**.
 
 ---
 
 ## 🧪 5. Verified DevSecOps Suites
 
-All testing technologies under `devsecops/` can be run either through the unified `platform.ps1` orchestrator (which automatically handles environment variables and Docker volume binds) or manually via PowerShell:
+All testing technologies under `devsecops/` can be run through the Minikube entrypoint (which automatically handles environment variables and Docker volume binds) or manually via PowerShell:
 
 ### 1. Deployment Smoke Gates ([`scripts/testing/smoke.py`](../../scripts/testing/smoke.py))
 * **Via Orchestrator:**
   ```powershell
-  .\platform.ps1 smoke
+  .\platform-minikube.ps1 smoke
   ```
 * **Manual PowerShell Command:**
   ```powershell
@@ -150,7 +150,7 @@ All testing technologies under `devsecops/` can be run either through the unifie
 ### 2. Newman API Contracts & Auth Verification ([`microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json))
 * **Via Orchestrator:**
   ```powershell
-  .\platform.ps1 contract
+  .\platform-minikube.ps1 contract
   ```
 * **Manual PowerShell Command:**
   ```powershell
@@ -169,7 +169,7 @@ All testing technologies under `devsecops/` can be run either through the unifie
 ### 3. Load Testing & SLO Gates with k6 ([`load-test.js`](../../devsecops/testing/k6/load-test.js))
 * **Via Orchestrator:**
   ```powershell
-  .\platform.ps1 performance
+  .\platform-minikube.ps1 performance
   ```
 * **Manual PowerShell Command (Docker mount required):**
   ```powershell
@@ -183,7 +183,7 @@ All testing technologies under `devsecops/` can be run either through the unifie
 ### 4. Dynamic Application Security Testing (DAST) with OWASP ZAP ([`rules.tsv`](../../devsecops/dast/zap/rules.tsv))
 * **Via Orchestrator:**
   ```powershell
-  .\platform.ps1 dast
+  .\platform-minikube.ps1 dast
   ```
 * **Manual PowerShell Command (Docker mounts required):**
   ```powershell

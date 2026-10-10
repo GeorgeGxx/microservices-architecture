@@ -28,52 +28,57 @@ PromQL (*Prometheus Query Language*) queries monitor golden signals, business co
 
 ### 💼 E-Commerce Business Intelligence & Revenue KPIs
 
-#### 📉 Cart Abandonment Rate (%)
-Computes the percentage of shopping sessions that triggered cart additions but failed to complete checkout. Clamped between 0% and 100%.
+#### 🛒 Observed Funnel Event Activity (selected range)
+The Orders Service exports process-local counters for events it actually receives. Events are not correlated by shopper/session, and completed orders are a database-backed gauge, so these counts cannot be interpreted as a conversion or cart-abandonment rate. Event counters reset when Orders Service restarts.
 ```promql
-clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED", service=~"$service"}) or sum(ecommerce_orders_total{status="COMPLETED", service=~"$service"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)
+sum(increase(ecommerce_funnel_events_total{event_type="cart_add"}[$__range])) or vector(0)
+sum(increase(ecommerce_funnel_events_total{event_type="checkout_start"}[$__range])) or vector(0)
+sum(increase(ecommerce_funnel_events_total{event_type="checkout_step",step="PAYMENT"}[$__range])) or vector(0)
+sum(max by (service) (clamp_min(delta(ecommerce_orders{status="COMPLETED",service="orders-service"}[$__range]), 0))) or vector(0)
 ```
 
-#### 💵 Net Sales Revenue (USD)
-Total accumulated gross sales across all completed customer orders.
+#### 💵 Delivered Merchandise Value (USD)
+All-time database-backed merchandise value from delivered orders. Tax, shipping, and cancelled orders are excluded. Use `max`, not `sum`, because replicas export the same database total.
 ```promql
-sum(ecommerce_revenue_usd{service=~"$service"}) or sum(ecommerce_revenue_usd_total{service=~"$service"}) or vector(0)
+max(ecommerce_revenue_usd{service="orders-service"})
 ```
 
-#### 🛍️ Completed Orders Count
-Total count of orders that successfully reached `COMPLETED` / `DELIVERED` status.
+#### 🛍️ Delivered Orders Count
+All-time database-backed delivered-order snapshot, deduplicated across replicas. The Prometheus status label remains `COMPLETED` for compatibility with the existing metric contract.
 ```promql
-sum(ecommerce_orders{status="COMPLETED", service=~"$service"}) or sum(ecommerce_orders_total{status="COMPLETED", service=~"$service"}) or vector(0)
+max(ecommerce_orders{status="COMPLETED", service="orders-service"})
 ```
 
-#### 🏷️ Average Order Value (AOV)
-Dynamic calculation: Total Sales Revenue $\div$ Total Completed Orders.
+#### 🏷️ Merchandise Value per Delivered Order
+All-time merchandise value divided by delivered-order count; tax, shipping, and cancelled orders are excluded.
 ```promql
-(sum(ecommerce_revenue_usd{service=~"$service"}) or sum(ecommerce_revenue_usd_total{service=~"$service"})) / clamp_min((sum(ecommerce_orders{status="COMPLETED", service=~"$service"}) or sum(ecommerce_orders_total{status="COMPLETED", service=~"$service"})), 1) or vector(0)
+max(ecommerce_revenue_usd{service="orders-service"}) / clamp_min(max(ecommerce_orders{status="COMPLETED",service="orders-service"}), 1)
 ```
 
-#### 🛒 4-Stage Conversion Funnel Metrics
-Measures user progression through each e-commerce journey milestone:
+#### 📈 Delivered Merchandise and Order Change (5-Minute Window)
+Each point reports the observed change across the preceding five minutes. This window remains longer than the 15-second scrape interval even when Grafana's graph step is small; a stable snapshot returns zero.
 ```promql
-# Stage 1: Cart Additions
-sum(ecommerce_cart_additions_total) or vector(0)
-
-# Stage 2: Checkout Initiated
-sum(ecommerce_checkout_started_total) or vector(0)
-
-# Stage 3: Payment Step Reached
-sum(ecommerce_checkout_step_reached_total{step="PAYMENT"}) or vector(0)
-
-# Stage 4: Order Completed
-sum(ecommerce_orders{status="COMPLETED", service=~"$service"}) or sum(ecommerce_orders_total{status="COMPLETED", service=~"$service"}) or vector(0)
+max by (service) (delta(ecommerce_orders{status="COMPLETED",service="orders-service"}[5m]))
+max by (service) (delta(ecommerce_revenue_usd{service="orders-service"}[5m]))
 ```
 
-#### 🚚 Active Orders by Fulfillment Stage
-Counts non-cancelled orders using the statuses currently persisted by Orders Service. `SHIPPED` is presented as **In Transit**; cancelled orders are terminal and excluded from active fulfillment. `max by (status)` prevents database-wide gauge snapshots from being added once per service replica.
+#### 🧾 All-Time Cancelled Orders
+Current database-backed cancelled-order snapshot, deduplicated across replicas.
 ```promql
-label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="PLACED"}), "stage", "1 · Placed", "status", "PLACED")
-or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="SHIPPED"}), "stage", "2 · In Transit", "status", "SHIPPED")
-or label_replace(max by (status) (ecommerce_orders_active_in_pipeline{service=~"$service",status="DELIVERED"}), "stage", "3 · Delivered", "status", "DELIVERED")
+max(ecommerce_orders{status="CANCELLED",service="orders-service"})
+```
+
+#### 🛒 Observed Funnel Event Counts
+Counts actual event increments over the selected time range. Since events do not carry a shared session identifier, these metrics cannot establish user progression or abandonment:
+```promql
+sum(increase(ecommerce_funnel_events_total{event_type="cart_add"}[$__range])) or vector(0)
+sum(increase(ecommerce_funnel_events_total{event_type="checkout_start"}[$__range])) or vector(0)
+sum(increase(ecommerce_funnel_events_total{event_type="checkout_step",step="PAYMENT"}[$__range])) or vector(0)
+```
+#### 🚚 Current Orders by Fulfillment Status
+Current non-cancelled order counts by persisted status. `DELIVERED` is a terminal state and is shown for reporting. `max by (status)` prevents shared database snapshots from being counted once per service replica.
+```promql
+max by (status) (ecommerce_orders_active_in_pipeline)
 ```
 
 #### 📊 Live SKU Inventory & Low-Stock Detection
@@ -83,14 +88,14 @@ max by (sku) (ecommerce_inventory_sku_stock{service=~"$service"})
 ```
 The inventory gauge is exported by each Inventory Service replica, so raw series repeat a SKU with different `pod`/`instance` labels. Aggregate by `sku` in Grafana to render one bar per product instead of one per replica.
 
-#### 🥧 Top-Selling SKUs & Catalog Market Share
-Cumulative sales volume grouped by SKU.
+#### 🥧 All-Time Delivered Units by SKU
+All-time units sold in delivered orders grouped by SKU. Use `max` so a shared database snapshot is not counted once per replica.
 ```promql
-sum by (sku) (ecommerce_sku_sales{service=~"$service"}) or sum by (sku) (ecommerce_sku_sales_total{service=~"$service"})
+max by (sku) (ecommerce_sku_sales{service="orders-service"})
 ```
 
 #### 👥 Customer Loyalty Cohort Retention
-Orders distribution by loyalty tier (`NEW_USER`, `RETURNING`, `VIP`).
+Delivered orders distribution by loyalty tier (`first_time`, `repeat`, `loyal_vip`).
 ```promql
 sum by (cohort) (ecommerce_orders_by_cohort{service=~"$service"})
 ```
@@ -438,7 +443,7 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 
 | Diagnostic Scenario | Recommended Tool | Query to Run |
 | :--- | :---: | :--- |
-| **High Cart Abandonment Alarm** | PromQL | `clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_cart_additions_total) or vector(1)), 1))) * 100, 0), 100)` |
+| **Orders Service target down** | PromQL | `up{service="orders-service"} == 0` |
 | **Cosmo Router P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m])))` |
 | **Supergraph Query Planning Bottleneck** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(router_graphql_operation_planning_time_milliseconds_bucket[5m])))` |
 | **Downstream HTTP Latency by Subgraph** | PromQL | `histogram_quantile(0.95, sum by (le, wg_subgraph_name) (rate(router_http_client_time_to_first_byte_milliseconds_bucket[5m])))` |

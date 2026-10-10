@@ -123,4 +123,4 @@ docker compose -f /opt/microservices/docker-compose.yml ps
 When traffic or organizational complexity grows beyond a single host:
 1. **Database Decoupling:** Migrate local containerized PostgreSQL to Amazon RDS Multi-AZ using AWS Database Migration Service (DMS).
 2. **Event Stream Decoupling:** Point microservices to Amazon Managed Streaming for Apache Kafka (MSK).
-3. **Switch to Minikube/EKS:** The application code, Dockerfiles, and Helm charts in `helm/charts/` remain 100% identical and can be deployed directly with `.\platform.ps1 up -Platform aws -Environment prod`.
+3. **Switch to Minikube/EKS:** The application code, Dockerfiles, and Helm charts in `helm/charts/` remain reusable. Use `.\platform-multicloud.ps1 plan -Provider aws -Environment prod` and `apply` to provision EKS; CI publishes application images and the existing Argo CD Application reconciles the chart from its remote Git source.

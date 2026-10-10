@@ -3,7 +3,7 @@
 > [!TIP]
 > 🧭 **[Enterprise Platform Hub](../../README.md)** > **02. Operations** > `LOCAL_DEPLOYMENT.md`
 
-> Complete manual for running the microservices ecosystem locally: Docker Compose (15 services), Minikube, Istio Service Mesh, and Cluster Resiliency.
+> Complete manual for running the full microservices ecosystem locally with Docker Compose, Minikube, Istio Service Mesh, and cluster resiliency.
 
 ---
 
@@ -23,38 +23,16 @@
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
 | Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
 
-**Recommended local resources:** 8+ CPU cores and 16+ GB RAM (allocating up to 8 CPUs and 12 GB RAM to Minikube, leaving ample resources for Windows OS, Docker, and IDE) — the full platform stack runs ~20 containers (5 microservices, frontend, Keycloak, Postgres, Kafka, Redis, and the Grafana LGTM observability stack).
+**Local Resource Profile & Allocation:**
+- **Host Allocation:** 8+ CPU cores and 16–32 GB host RAM; reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
+- **MLOps Resource Footprint:** During automatic training runs, MLOps workloads request ~2.3 CPU cores and 4.75 GiB RAM in total (Kafka-to-Parquet capture, MLflow, and forecast API). Scheduled training Jobs execute only when data drift or threshold criteria are met.
+- **Workload Right-Sizing Matrix:** For the complete per-service CPU/Memory requests, limits, storage reservations, operational ports, credentials, and architectural roles across all 27 platform components, refer to the canonical [Workload Matrix, Ports, Credentials & K8s Right-Sizing](../../README.md#-workload-matrix-ports-credentials--k8s-right-sizing) in `README.md`.
 
-> ⚠️ **Security note:** the Keycloak realm, test users (`admin_user`/`admin`, `basic_user`/`password`), and Grafana login (`admin`/`admin`) shown throughout this README are seeded for **local development only**. Rotate all credentials and secrets before using this stack in a shared or production environment.
-
----
-
-### ⚙️ Kubernetes Workload Right-Sizing (Minikube)
-The values below describe the primary application and observability workloads in the active Minikube profile. They are resource reservations/ceilings, not latency guarantees. Add-on charts such as Argo CD, Gatekeeper, Istio, and parts of the Prometheus stack also create controller, webhook, proxy, or reloader containers; their chart defaults are not all represented in this summary. Confirm effective resources with `kubectl describe pod` after changing chart versions or overrides.
-
-| Workload / Component | CPU Request | CPU Limit | Memory Request | Memory Limit | Ephemeral Storage | Architectural Focus |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Cosmo Router** | `100m` | `500m` | `128Mi` | `256Mi` | — | GraphQL Federation edge router |
-| **Spring Boot Microservices (x4)** | `300m` | `1000m` | `512Mi` | `1024Mi` | `1Gi` | Minikube overrides for Java 21 services |
-| **Keycloak 26.7.4 IAM** | `300m` | `800m` | `512Mi` | `1024Mi` | `1Gi` | Optimized JVM heap (-Xms256m -Xmx512m) |
-| **HashiCorp Vault 2.0.4** | `150m` | `500m` | `256Mi` | `512Mi` | Standard | Dynamic secrets engine & KMS encryption |
-| **Apache Kafka (KRaft Broker)** | `200m` | `1000m` | `512Mi` | `1024Mi` | `2Gi` | High-throughput event streaming |
-| **PostgreSQL (x4 Databases)** | `100m` | `500m` | `256Mi` | `512Mi` | `512Mi` | Isolated stateful per-service persistence |
-| **Redis 8 Cache & Token Bucket** | `100m` | `250m` | `128Mi` | `256Mi` | `256Mi` | Distributed rate limiting & catalog cache |
-| **Frontend React 19 SPA (Nginx)** | `50m` | `200m` | `64Mi` | `128Mi` | `256Mi` | Distroless client asset delivery |
-| **Prometheus 3 Metrics Server** | `200m` | `800m` | `512Mi` | `1024Mi` | `2Gi` | Active kube-prometheus-stack StatefulSet |
-| **OpenCost Exporter** | `50m` | `300m` | `192Mi` | `512Mi` | — | Allocation API/metrics on `9003`; cloud billing disabled locally |
-| **OpenCost UI** | `25m` | `150m` | `64Mi` | `192Mi` | — | UI container on `9090`, reached through host tunnel `7000` |
-| **Grafana LGTM Stack (Dashboards)** | `100m` | `500m` | `128Mi` | `512Mi` | `1Gi` | Correlated trace, log & metric visualization |
-| **Grafana Loki (Log Ingestion)** | `150m` | `800m` | `256Mi` | `1024Mi` | `2Gi` | Centralized container log indexing |
-| **Grafana Tempo (Tracing Backend)** | `100m` | `500m` | `192Mi` | `512Mi` | `1Gi` | W3C distributed trace span storage |
-| **Kiali Visual Mesh Topology** | `150m` | `600m` | `256Mi` | `512Mi` | `1Gi` | Real-time Istio Service Mesh visualizer |
-
----
+> ⚠️ **Security note:** The Keycloak realm, test accounts (`admin_user`/`admin`, `basic_user`/`password`), and Grafana credentials (`admin`/`admin`) documented across the platform are seeded for **local development only**. Rotate all credentials and secrets before using this stack in shared or production environments.
 
 ## 🛠️ Winget DevSecOps & Platform CLI Tool Suite
 
-The platform audits **18 essential project CLI/runtime tools** managed via Windows Package Manager (`winget`); the optional cloud-provider CLIs and `kubectl-cost` Krew plugin are installed separately:
+The Minikube entrypoint audits the local developer and deployment tool inventory. Each cloud entrypoint audits only Terraform, its matching provider CLI, and `kubectl`; those tools are not mixed into the local inventory.
 
 ### 1. IaC & FinOps
 - **`Hashicorp.Terraform` (`terraform`)**: Multi-cloud Infrastructure as Code engine.
@@ -68,7 +46,7 @@ The platform audits **18 essential project CLI/runtime tools** managed via Windo
 - **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
 - **`Hashicorp.Vault` (`vault`)**: Client CLI for HashiCorp Vault (KV-v2 secrets, PKI engine).
   * **Server runtime vs. Host client:** The Vault server runs inside Kubernetes (Minikube `namespace: vault` or cloud EKS/AKS/GKE) exposed on port `8200` (`http://localhost:8200`). The local `vault.exe` on Windows functions as an interactive administrative and debugging client.
-  * **Script automation:** Orchestrator routines (`.\platform.ps1 vault ...` and `.\platform.ps1 up`) execute commands via `kubectl exec` inside the containerized Vault pod so developers without a local binary can still run all automations.
+  * **Script automation:** Minikube routines (`.\platform-minikube.ps1 vault ...` and `.\platform-minikube.ps1 up`) execute commands via `kubectl exec` inside the containerized Vault pod so developers without a local binary can still run all automations.
   * **Connecting your host CLI to the cluster:**
     ```powershell
     $env:VAULT_ADDR = "http://localhost:8200"
@@ -92,9 +70,9 @@ Docker Compose does not install OpenCost: it can run the application containers 
 
 ### FinOps controls and workload sizing
 
-- **Live Kubernetes allocation:** `.\platform.ps1 cost` uses OpenCost through the optional Krew plugin. Cloud billing remains unavailable until provider billing exports and credentials are connected.
-- **Seven-day request sizing:** `.\platform.ps1 finops-rightsize` queries Prometheus for per-container CPU and memory peaks, compares them with Kubernetes requests, and reports advisory requests with headroom. It requires cAdvisor and kube-state-metrics series; it does not patch workloads. Docker Compose has no Kubernetes request metrics.
-- **Illustrative USD estimate:** `.\platform.ps1 finops -Environment staging` uses a fixed AWS architecture catalog, not a provider quote or Terraform plan cost. `--max-monthly-usd` can enforce a ceiling against that profile.
+- **Live Kubernetes allocation:** `.\platform-minikube.ps1 cost` uses OpenCost through the optional Krew plugin. Cloud billing remains unavailable until provider billing exports and credentials are connected.
+- **Seven-day request sizing:** `python scripts/local-cost-estimator.py rightsize` queries Prometheus for per-container CPU and memory peaks, compares them with Kubernetes requests, and reports advisory requests with headroom. It requires cAdvisor and kube-state-metrics series; it does not patch workloads. Docker Compose has no Kubernetes request metrics.
+- **Illustrative USD estimate:** `python scripts/local-cost-estimator.py --env staging` uses the fixed architecture catalog, not a provider quote or Terraform plan cost. `--max-monthly-usd` can enforce a ceiling against that profile.
 - **Cloud budget alerts:** AWS, Azure, and GCP Terraform environments support opt-in monthly budgets. Set `enable_monthly_cost_budget=true` and `monthly_cost_budget_usd` for the workspace. AWS/Azure also require `finops_alert_emails`; GCP requires `billing_account_id` and uses billing account notification recipients. Defaults are disabled. These thresholds notify but do not stop or scale resources. AWS CostCenter filtering requires activating that tag as a cost allocation tag in Billing.
 - **CI estimate gates:** the manual AWS Terraform workflow reports the illustrative environment profile and a plan-derived monthly delta for a small AWS catalog. `FINOPS_MAX_MONTHLY_USD` enables the profile ceiling; `FINOPS_MAX_MONTHLY_DELTA_USD` enables a plan increase ceiling. The delta prices selected EKS control planes/node types, RDS classes/storage, NAT gateways, and load balancers only; it lists other changed types as unpriced, omits usage charges, and is not a complete quote.
 - **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
@@ -107,16 +85,135 @@ Docker Compose does not install OpenCost: it can run the application containers 
 - **`Git.Git` (`git`)**: Distributed version control system.
 - **`Cloudflare.cloudflared` (`cloudflared`)**: Zero-trust client for secure encrypted tunnels.
 
-Use `.\platform.ps1 tools` to audit the documented CLI inventory. Add `-Install` to install missing tools, `-IncludeCloudCli` to include AWS/Azure/GCP CLIs, or `-InstallOpenCostPlugin` to install the optional OpenCost Krew plugin. This does not install unrelated tools or change machine-wide environment variables.
+Use `.\platform-minikube.ps1 tools` to audit the local CLI inventory. Add `-Install` to install missing tools or `-InstallOpenCostPlugin` to install the optional OpenCost Krew plugin. Cloud-provider tools are owned by their respective cloud entrypoints and are not added to this local inventory. This does not install unrelated tools or change machine-wide environment variables.
 
 > ℹ️ **Explicitly Excluded Tools (Zero Overhead):**  
 > To keep developer workstations lightweight and eliminate redundant tooling, the auditor **strictly ignores**: *OpenTofu, k9s, kubectx, kubens, argocd cli, kustomize, eksctl, lazygit, jq, yq*.
 
 ---
+ 
+## 🚀 Quick Start with Docker Compose
+ 
+### 1. Launch Keycloak (Auth Layer)
+Keycloak and its PostgreSQL database must be initialized first:
+ 
+```powershell
+# 1. Clone the repository and navigate to project directory
+cd microservices-architecture
+ 
+# 2. Copy environment file if not already present
+cp .env.example .env
+ 
+# 3. Start Keycloak and its database in detached mode
+docker compose up -d --build keycloak
+ 
+# 4. Verify Keycloak is healthy
+docker compose ps keycloak
+```
+ 
+### 2. Bootstrap Keycloak (Clients, Users & Secrets)
+Run the bootstrap script to create realm `microservices-realm`, configure public and confidential clients, generate passwords, and **automatically synchronize `KEYCLOAK_CLIENT_SECRET` into your `.env`**:
+ 
+```powershell
+# Native PowerShell script (auto-syncs client secret into .env):
+pwsh -File .\scripts\bootstrap-keycloak.ps1
+```
+ 
+#### Pre-Configured Test Users:
+| Username | Password | Roles | Purpose |
+| :--- | :--- | :--- | :--- |
+| **`admin_user`** | `admin` | `ADMIN`, `USER` | Full administration & product management |
+| **`basic_user`** | `password` | `USER` | Browsing catalog & placing orders |
+ 
+### 3. Launch the Default Docker Compose Stack
+Once Keycloak is bootstrapped and `.env` has the synced client secret, start the full Compose stack (microservices, databases, messaging, LGTM observability stack, HashiCorp Vault, MLflow, and the demand-forecast API). MLflow and the forecast API start with the rest; the forecast feature needs sales history and a trained model before it can return predictions.
+ 
+**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
+ 
+```powershell
+# Build and launch the complete platform stack in detached mode
+docker compose up -d --build
+ 
+# Check real-time container health
+# Note: It's OK if the vault-init service has exited in Docker Compose.
+docker compose ps -a
+```
+ 
+### 4. Useful Docker Compose Commands:
+```powershell
+# View aggregated live logs
+docker compose logs -f
+ 
+# View logs for a specific service
+docker compose logs -f cosmo-router
+ 
+# Graceful shutdown & volume teardown
+docker compose down -v
+```
+ 
+---
+ 
+### 5. 🧪 Local MLOps Workflow with Docker Compose
+ 
+The `training` and `capture` Compose profiles keep one-off jobs out of the regular `docker compose up` startup. Invoke each job directly with `docker compose run`; Compose activates the targeted service without requiring a manual `--profile` flag.
+ 
+#### 1. Start the platform
+Complete the Keycloak bootstrap steps above, then launch the normal stack:
+```powershell
+docker compose up -d --build
+```
+This starts MLflow, the demand-forecast API, Kafka, and the other default services. The MLflow UI is available at <http://localhost:5000>. MLflow metadata and model artifacts persist in the `mlops_mlflow_data` and `mlops_mlflow_artifacts` Docker volumes without requiring MinIO.
+ 
+#### 2. Train the demo model
+```powershell
+docker compose run --build --rm demand-model-training
+```
+The Linux training image contains Java 17, PySpark 3.5.9, scikit-learn, and MLflow. If `mlops/data/synthetic_sales.csv` does not exist, the job creates a deterministic 30-day example dataset there. It builds lag and calendar features with PySpark, trains a random forest, and logs the run, RMSE/MAE metrics, and model artifact to MLflow. The generated values demonstrate the pipeline and should not guide purchasing decisions.
+ 
+To train from another CSV, place it under `mlops/data` and pass its container path:
+```powershell
+docker compose run --build --rm demand-model-training --input-csv /data/sales.csv
+```
+Or use the PowerShell convenience wrapper:
+```powershell
+.\mlops\training.ps1 --input-csv .\mlops\data\sales.csv
+```
+ 
+#### 3. Stream delivered orders from Kafka to Parquet (Optional)
+Start or rebuild Kafka and order event producers:
+```powershell
+docker compose up -d --build kafka db-orders orders-service notification-service
+```
+In a separate terminal, start the streaming capture job:
+```powershell
+docker compose run --build --rm demand-sales-capture
+```
+It consumes `orders-topic` over the Compose network at `kafka:9092` and streams delivered order lines into the partitioned `mlops/data/sales_parquet` dataset. Spark stores its restart checkpoint under `mlops/data/checkpoints/sales_parquet`. Keep it running while you create orders and move them to `DELIVERED`. On restart, Structured Streaming resumes cleanly from its checkpoint.
+ 
+#### 4. Train on the captured sales and select forecast data
+After `sales_parquet` spans at least 9 calendar days per SKU:
+```powershell
+docker compose run --build --rm demand-model-training --input-parquet /data/sales_parquet
+```
+Or via the PowerShell script:
+```powershell
+.\mlops\training.ps1 --input-parquet .\mlops\data\sales_parquet
+```
+Set `MLOPS_SALES_FILE=sales_parquet` in `.env` so the forecast API reads that dataset, then recreate the container:
+```powershell
+docker compose up -d --force-recreate demand-forecast-service
+```
+ 
+#### 5. View the forecast and monitor operations
+Sign in as `admin_user` and navigate to **Admin Console → Demand Forecast · 7 Days**. The API requires the Keycloak `ADMIN` role, loads the latest successfully logged model from MLflow, and returns 7 daily estimates per SKU with data provenance.
+ 
+MLflow provides training run and metric comparison at <http://localhost:5000>. Grafana's **MLOps Forecast Service · Operations** dashboard monitors API availability, request rate, p95 latency, 5xx ratio, and data freshness.
+ 
+---
 
 ## 💻 Local Standalone Development
 
-To develop or debug microservices individually outside Docker:
+For targeted local debugging and feature development of individual components outside container environments:
 
 ### 1. Spring Boot Microservices (Java 21 / Maven)
 ```powershell
@@ -130,14 +227,28 @@ mvn spring-boot:run -pl inventory-service
 mvn spring-boot:run -pl notification-service
 ```
 
-### 2. React 19 SPA (Vite + TailwindCSS v4)
+### 2. Modernized Storefront Architecture (React 19 & TailwindCSS v4)
 ```powershell
 cd frontend
 npm install
 npm run dev
 ```
 
-**Key Frontend, Responsive Web & Storefront Features (`http://localhost:5173`):**
+**Key Architectural & Storefront Capabilities (`http://localhost:5173`):**
+- **Context-Aware Global & Scoped Search:**
+  - The navbar header search dynamically filters the product catalog and triggers a quick command palette.
+  - The Orders & Tracking view scopes search to customer order history, and the Admin Console isolates filters to specific management tables (the header search is automatically hidden on the Orders view to prevent conflicting search fields).
+- **Enterprise Wishlist & State Persistence:**
+  - Adheres to mature e-commerce identity patterns: guest shoppers attempting to save items are prompted to authenticate via Keycloak, while authenticated users have favorites safely synchronized across sessions and devices (`localStorage` + backend state).
+- **Role-Based Telemetry & Admin Controls:**
+  - Administrative tools (QR/Barcode Scanner for inventory auditing, Admin Telemetry tab, warehouse controls) are strictly gated to users holding the Keycloak `ADMIN` role.
+  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Cosmo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. Platform telemetry is monitored via Grafana.
+- **Seven-Day Demand Forecast Panel:**
+  - Dedicated admin tab reading the latest successfully registered MLflow model through `demand-forecast-service`.
+  - Distinguishes synthetic demo data from captured sales and displays the latest observed training timestamp. Containerized PySpark training and Kafka Structured Streaming integrate directly without requiring host Python or Java runtime configurations (see [Local MLOps Workflow with Docker Compose](#5--local-mlops-workflow-with-docker-compose) and [Minikube MLOps Deployment](#5--minikube-mlops-deployment--automated-dynamic-training)).
+- **Scoped Notification Feed (Server-Sent Events):**
+  - Real-time Server-Sent Events (SSE) from `notification-service` are strictly isolated per authenticated user profile to protect transactional privacy (order confirmation, DHL tracking updates, stock alerts).
+  - Features a viewport-bounded notifications drawer (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for tracking IDs.
 - **Hardware-Agnostic Universal QR & Barcode Engine:**
   - 📷 **Live Camera Stream (WebRTC):** Lens switching (front/rear), flashlight/torch toggle, and real-time laser animation.
   - 📁 **Image File Upload:** Drag-and-drop or file picker decoding of QR codes and barcodes.
@@ -149,83 +260,14 @@ npm run dev
   - 💳 **Local Payment Simulation:** Choose a demo-approved or demo-declined outcome. No payment card data is requested or stored; no payment provider or real charge is involved. A declined outcome does not create an order or decrement inventory.
 - **Product Catalog Social Proof & Verified Ratings:**
   - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
-- **Admin Operations Console & Storefront API Health LED:**
-  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Cosmo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. It does not represent all microservices or cluster health; use Grafana for platform telemetry. The `/admin` dashboard is available to users with the Keycloak `ADMIN` role.
-- **Order Lifecycle, Reverse Chronological Pagination & Saga Rollback:**
+- **Order Lifecycle, Responsive Pagination & Saga Rollback:**
   - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
   - 📑 **Order Status Filters:** Responsive filters for `All Orders`, `Placed` (`PLACED`), `In Transit` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`). UI labels map directly to Orders Service enums; cancelled is terminal and is not shown as a fulfillment step.
   - 🚚 **Dispatch and Cancellation Rule:** A placed order can be cancelled before dispatch; once the admin dispatches it (`SHIPPED` / In Transit), cancellation is removed and the backend rejects it. Later changes arrive through the Kafka-backed `ORDER_NOTIFICATION` SSE event and are confirmed by refetching GraphQL state, with periodic polling as fallback.
-  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier clearly pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
-  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order` ensuring 100% button visibility on smartphones without overflowing.
-  - 📄 **Non-Clipping Mobile Pagination:** Ergonomic pagination controls with responsive button wrapping preventing `Next` button clipping.
-- **Responsive Web UX:**
-  - 🔔 **Viewport-Bounded Notifications Drawer:** Fixed position mobile dropdown (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for long codes.
-  - 📱 **Mobile Web Storefront:** A web manifest is present along with a floating scan button, browser camera barcode scanner, and optional haptic feedback. A service worker/offline mode and a React Native app are not part of the current frontend.
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.4 with automatic JWT token management and route guards.
-
----
-
-## 🚀 Quick Start with Docker Compose
-
-### 1. Launch Keycloak (Auth Layer)
-Keycloak and its PostgreSQL database must be initialized first:
-
-```powershell
-# 1. Clone the repository and navigate to project directory
-cd microservices-architecture
-
-# 2. Copy environment file if not already present
-cp .env.example .env
-
-# 3. Start Keycloak and its database in detached mode
-docker compose up -d --build keycloak
-
-# 4. Verify Keycloak is healthy
-docker compose ps keycloak
-```
-
-### 2. Bootstrap Keycloak (Clients, Users & Secrets)
-Run the bootstrap script to create realm `microservices-realm`, configure public and confidential clients, generate passwords, and **automatically synchronize `KEYCLOAK_CLIENT_SECRET` into your `.env`**:
-
-```powershell
-# Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\bootstrap-keycloak.ps1
-```
-
-#### Pre-Configured Test Users:
-| Username | Password | Roles | Purpose |
-| :--- | :--- | :--- | :--- |
-| **`admin_user`** | `admin` | `ADMIN`, `USER` | Full administration & product management |
-| **`basic_user`** | `password` | `USER` | Browsing catalog & placing orders |
-
-### 3. Launch Full Microservices Ecosystem
-Once Keycloak is bootstrapped and `.env` has the synced client secret, spin up all remaining containers (microservices, databases, messaging, LGTM observability stack, and HashiCorp Vault). 
-
-**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
-
-```powershell
-# Build and launch all services in detached mode
-docker compose up -d --build
-
-# Check real-time container health
-# Note: It's OK if the vault-init service has exited in Docker Compose.
-docker compose ps -a
-```
-
-### 4. Useful Docker Compose Commands:
-```powershell
-# View aggregated live logs
-docker compose logs -f
-
-# View logs for a specific service
-docker compose logs -f cosmo-router
-
-# Graceful shutdown & volume teardown
-docker compose down -v
-```
-
----
-
+  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
+  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order`.
+  - 📄 **Responsive Pagination:** Full pagination controls with items-per-page selectors and page counters across both the public product catalog and administrative data tables, featuring non-clipping mobile wrapping.
+- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.4 with automatic JWT token management, role validation, and route guards.
 
 ---
 
@@ -237,53 +279,54 @@ The unified deployment orchestrator automates the complete lifecycle end-to-end:
 Deploy the entire infrastructure, security, mesh, and microservices in a single command:
 ```powershell
 # Unified Enterprise CLI Orchestrator (Installs Minikube, Istio, Vault, Keycloak + db-keycloak, DBs, Apps & Tunnels):
-.\platform.ps1 up
+.\platform-minikube.ps1 up
 
 # Options & Variations:
 # Deploy with Istio Service Mesh & Envoy sidecars (default):
-.\platform.ps1 up -WithIstio
+.\platform-minikube.ps1 up -WithIstio
 
 # Deploy in Native K8s Mode without Istio/Envoy overhead:
-.\platform.ps1 up -WithoutIstio
+.\platform-minikube.ps1 up -WithoutIstio
 
 # Build candidate source separately; -Build preserves the deployed stable products-service image.
 # Use a unique immutable commit/build tag (initial split: 90% stable / 10% canary):
 $candidateTag = "canary-$(git rev-parse --short HEAD)-$(Get-Date -Format yyyyMMddHHmmss)"
-.\platform.ps1 up -Build -DeployCanary -CanaryImageTag $candidateTag
+.\platform-minikube.ps1 up -Build -DeployCanary -CanaryImageTag $candidateTag
 
 # Explicitly bypass local Gitleaks/TFLint/Trivy/Conftest gates:
-.\platform.ps1 up -SkipScans
+.\platform-minikube.ps1 up -SkipScans
 
 # Optional: Build all container images from Dockerfiles and deploy to the cluster (re-applies on existing cluster)
-.\platform.ps1 up -Build
+.\platform-minikube.ps1 up -Build
 
 # Optional: Clean/destroy cluster first, then create and build everything from scratch
-.\platform.ps1 down -Destroy
-.\platform.ps1 up -Build
+.\platform-minikube.ps1 down -Destroy
+.\platform-minikube.ps1 up -Build
 
-# Custom hardware sizing:
-.\platform.ps1 up -Cpus 6 -MemoryMb 12288 -DiskSize 40g
+# Optional lower-memory profile (may constrain concurrent workloads and MLOps training):
+.\platform-minikube.ps1 up -Cpus 6 -MemoryMb 12288
 ```
 
 > 💡 **Smart Image Synchronization & Adaptive Observability:**
-> - **Zero-Rebuild Fallback:** The orchestrator automatically synchronizes any missing local Docker images into Minikube in seconds (`minikube image load`).
+> - **Dedicated Least-Privilege RBAC:** Every microservice and MLOps component runs under an isolated `ServiceAccount` (`cosmo-router-sa`, `orders-service-sa`, etc.) with `automountServiceAccountToken: false` and empty cluster API permissions, preventing token theft and lateral movement.
+> - **Fingerprint-Cached Images:** MLOps images are rebuilt only when their source fingerprint changes or neither a matching local image nor a matching cached Minikube image is available; Minikube is loaded only when its copy is absent or out of sync. The cache lives under `%LOCALAPPDATA%\microservices-architecture\minikube-image-cache`.
 > - **Standardized Image Nomenclature:** Strictly enforces the production naming format `georgegxx/<service>:1.0.0` across both Docker Compose and Minikube environments, preventing untagged duplicates or namespace collisions.
 > - **Adaptive Scraping:** Prometheus dynamically discovers Envoy sidecars and `istiod` when Istio is active, and cleanly monitors Actuator metrics across all microservices.
 
 ### 2. 🔍 Verify Mesh Health & Zero-Trust Policies
-Audit proxy synchronization and mutual TLS enforcement without needing browser tunnels:
+Audit proxy synchronization, RBAC service accounts, and mutual TLS enforcement without needing browser tunnels:
 ```powershell
 # Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
-.\platform.ps1 doctor
+.\platform-minikube.ps1 doctor
 ```
 
 Run the local DevSecOps controls independently after the stack is reachable:
 
 ```powershell
-.\platform.ps1 security-scan   # Gitleaks, TFLint, Trivy, Conftest
-.\platform.ps1 contract       # Newman API/auth collection
-.\platform.ps1 performance    # k6 SLO suite in Docker
-.\platform.ps1 dast           # OWASP ZAP baseline with devsecops/dast/zap/rules.tsv
+.\platform-minikube.ps1 security-scan   # Gitleaks, TFLint, Trivy, Conftest
+.\platform-minikube.ps1 contract       # Newman API/auth collection
+.\platform-minikube.ps1 performance    # k6 SLO suite in Docker
+.\platform-minikube.ps1 dast           # OWASP ZAP baseline with devsecops/dast/zap/rules.tsv
 ```
 
 For cloud targets, set `BASE_URL`, `TARGET_URL`, `FRONTEND_URL`, and `KEYCLOAK_URL` to reachable endpoints before running the corresponding checks. `contract`, `performance`, and `dast` are explicit commands; they do not generate load or scan the application during every `up`.
@@ -291,7 +334,7 @@ For cloud targets, set `BASE_URL`, `TARGET_URL`, `FRONTEND_URL`, and `KEYCLOAK_U
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
 > - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
 > - **Selective Metrics Scraping:** Cosmo Router exposes HTTP metrics at Service port `http-metrics:9090`; the Service port name follows Istio's `<protocol>[-suffix]` convention so Envoy classifies it as HTTP. Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `k8s/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
-> - **Kafka SASL Authentication (Port 9094):** Microservices produce and consume events through `kafka:9094` using SASL PLAIN (`app` credentials). In-mesh traffic benefits from **Defense-in-Depth** (Layer 7 SASL identification + Layer 4 Istio mTLS wire encryption).
+> - **Kafka (PLAINTEXT, Port 9092):** Microservices produce and consume events through `kafka:9092`. Istio can report TCP connection metrics for this traffic; Kafka message contents remain application-level data.
 > - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
 
 
@@ -299,87 +342,65 @@ For cloud targets, set `BASE_URL`, `TARGET_URL`, `FRONTEND_URL`, and `KEYCLOAK_U
 Expose all internal services and web consoles to `localhost`:
 ```powershell
 # Launch or supervise all background port-forward tunnels:
-.\platform.ps1 tunnels
+.\platform-minikube.ps1 tunnels
 
 # Display formatted table of active URLs and credentials:
-.\platform.ps1 urls
+.\platform-minikube.ps1 urls
 ```
+Running `.\platform-minikube.ps1 urls` automatically renders the formatted table of active `localhost` tunnels, Minikube NodePorts, and default credentials directly in the terminal.
 
-Once tunnels are active, access local web interfaces:
-- **Frontend SPA:** [http://localhost:5173](http://localhost:5173)
-- **Cosmo Router GraphQL:** [http://localhost:8080/graphql](http://localhost:8080/graphql)
-- **Inventory Swagger UI:** [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html)
-- **Notification Swagger UI:** [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html)
-- **Orders Swagger UI:** [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html)
-- **Products Swagger UI:** [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html)
-- **Keycloak Admin:** [http://localhost:8181](http://localhost:8181) (`admin` / `admin`)
-- **Vault Web UI:** [http://localhost:8200](http://localhost:8200) (Token: `root`)
-- **Kiali Mesh Topology:** [http://localhost:20001/kiali](http://localhost:20001/kiali)
-- **Grafana Observability (Metrics, Logs & Tempo Traces):** [http://localhost:3000](http://localhost:3000) (`admin` / `admin`)
-- **Prometheus Dashboard:** [http://localhost:9090](http://localhost:9090)
-- **ArgoCD Web UI:** [https://localhost:8088](https://localhost:8088)
-- **OpenCost UI:** [http://localhost:7000](http://localhost:7000)
-
-Alternatively, access services directly via their configured Minikube NodePorts (ClusterIP workloads remain internal):
-- **Frontend SPA:** `http://$(minikube ip):30080`
-- **Cosmo Router:** internal ClusterIP; access it through the frontend or the managed local port-forward at `http://localhost:8080/graphql`.
-- **Keycloak Admin:** `http://$(minikube ip):30181`
-- **Vault Web UI:** `http://$(minikube ip):30820`
-- **Kiali Visual Mesh:** `http://$(minikube ip):32001/kiali`
-- **Grafana:** `http://$(minikube ip):30030`
-- **Argo CD:** `https://$(minikube ip):30443` (HTTP NodePort is `30088` and redirects to TLS)
-- **Prometheus and OpenCost:** ClusterIP only; use the managed tunnels above or `kubectl port-forward`.
-- **Tempo:** HTTP NodePort `30200`; OTLP receiver NodePorts are dynamically allocated by this cluster.
-
-> 💡 Review the [Minikube workload right-sizing](#️-kubernetes-workload-right-sizing-minikube) matrix for the primary application and observability container requests and limits. Add-on chart defaults may add containers that are not listed there.
+> 🌐 **Canonical Endpoint & Documentation Matrix:** For the complete, interactive reference table listing all 16 direct `localhost` URLs, Minikube NodePorts, protocols, and OpenAPI Swagger UIs (Products, Orders, Inventory, Notification, Demand Forecast, MLflow, Keycloak, Vault, Grafana, Prometheus, Alloy, Kiali, ArgoCD, OpenCost), refer to the canonical [Unified Endpoints, Interactive Swagger & Console Access Matrix](../../README.md#-unified-endpoints-interactive-swagger--console-access-matrix) in `README.md`.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
-Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. `platform.ps1 canary -Action rollout` checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
+Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. `platform-minikube.ps1 canary -Action rollout` checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:
 ```powershell
 # Deploy the canary and start at 90% stable / 10% canary:
-.\platform.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
+.\platform-minikube.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
 
 # Change traffic manually; both weights must add up to 100:
-.\platform.ps1 canary -Action weight -Namespace dev -V1Weight 75 -V2Weight 25
+.\platform-minikube.ps1 canary -Action weight -Namespace dev -V1Weight 75 -V2Weight 25
 
 # Promote interactively through 10%, 25%, 50%, 75%, then 100% canary:
-.\platform.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100 -StepIntervalSeconds 30
+.\platform-minikube.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100 -StepIntervalSeconds 30
 
 # Immediate traffic rollback to stable v1; keeps the canary deployed for investigation:
-.\platform.ps1 canary -Action weight -Namespace dev -V1Weight 100 -V2Weight 0
+.\platform-minikube.ps1 canary -Action weight -Namespace dev -V1Weight 100 -V2Weight 0
 ```
 
 At 100% canary, v1 remains Ready but receives no normal traffic so it is available for a fast rollback. For final retirement, promote the exact tested image tag in `helm/values/values-minikube.yaml` and let ArgoCD sync the stable Deployment first; remove the canary only after that rollout is Ready. The `x-canary: true` header remains a 100%-to-v2 QA override at every traffic weight.
 
 After the interactive rollout accepts 100%, stage the tested canary image into the stable Minikube Helm values:
 ```powershell
-.\platform.ps1 canary -Action promote -Namespace dev
+.\platform-minikube.ps1 canary -Action promote -Namespace dev
 ```
 Review and commit/push the resulting `helm/values/values-minikube.yaml` change to the GitOps branch. Wait until ArgoCD reports Synced/Healthy and the stable `products-service` Deployment is Ready on the same image. Only then remove the canary route and workload:
 ```powershell
-.\platform.ps1 canary -Action retire -Namespace dev
+.\platform-minikube.ps1 canary -Action retire -Namespace dev
 ```
 The retirement command verifies the stable image and readiness before it removes the canary VirtualService, restores the baseline Istio DestinationRules, and deletes `products-service-v2`. To roll back before retirement, set traffic to `v1=100, v2=0`; after retirement, roll back by reverting the stable image tag through GitOps.
 
-### Vault setup actions (Minikube only)
+### 5. 🧪 Minikube MLOps Deployment & Automated Dynamic Training
 
-Vault setup is opt-in and is not run automatically by `platform.ps1 up`. Kubernetes auth configures per-service read-only roles for namespace `dev`. Istio PKI setup reuses an existing root CA and leaves an existing `cacerts` Secret untouched by default. Intermediate CA rotation is explicit and restarts `istiod` after applying the updated Secret:
+`.\platform-minikube.ps1 up` automatically deploys MLflow, `demand-sales-capture`, and `demand-forecast-service` alongside dedicated ServiceAccounts (`mlflow-sa`, `demand-forecast-sa`, etc.) in the `dev` namespace:
 
 ```powershell
-.\platform.ps1 vault -VaultAction k8s-auth
-.\platform.ps1 vault -VaultAction istio-pki
-.\platform.ps1 vault -VaultAction istio-pki -RotateVaultPki
+# Add or refresh MLOps on a running cluster:
+.\platform-minikube.ps1 mlops
+
+# Simulate and stream 14 calendar days of DELIVERED purchase orders into Kafka:
+.\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14
 ```
 
-The local dev Vault token defaults to `root`; set `VAULT_TOKEN` or pass `-VaultToken` when using a different token. The exported intermediate key is staged in a temporary directory during Secret creation, then the directory is removed. The broad legacy Kubernetes role is retained unless you explicitly pass `-PruneLegacyVaultRole`, after migrating any external consumers.
-### 5. 🛑 Cluster Teardown & Resource Cleanup
+A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly and trains only when $\ge 9$ valid date partitions exist and the SHA-256 dataset fingerprint has changed.
+
+### 6. 🛑 Cluster Teardown & Resource Cleanup
 Clean up all background tunnels, port-forwards, and stop or purge the Minikube cluster:
 ```powershell
 # Stop and pause the Minikube cluster (preserves storage and state):
-.\platform.ps1 down
+.\platform-minikube.ps1 down
 
 # Or completely purge Minikube cluster and all persistent volumes:
-.\platform.ps1 down -DeleteCluster
+.\platform-minikube.ps1 down -DeleteCluster
 ```
 
 ### Useful commands
@@ -519,12 +540,12 @@ flowchart TD
   ```
 
 ### 3. 🌐 Progressive Canary Deployments in Istio Service Mesh
-* **Traffic Splitting:** Istio `VirtualService` (`products-service-canary-vs`) and `DestinationRule` (`products-service-dr`) allow guarded traffic shifting between stable `v1` and canary `v2` pods. `platform.ps1 canary -Action weight` validates replica readiness and a 100% total before patching weights.
+* **Traffic Splitting:** Istio `VirtualService` (`products-service-canary-vs`) and `DestinationRule` (`products-service-dr`) allow guarded traffic shifting between stable `v1` and canary `v2` pods. `platform-minikube.ps1 canary -Action weight` validates replica readiness and a 100% total before patching weights.
 * **Instant Header Bypass:** Requests containing header `x-canary: true` route $100\%$ to the canary subset regardless of percentage weight, enabling safe QA verification before public traffic exposure.
 * **Interactive Progressive Rollout with Rollback:**
   ```powershell
   # Run the rollout gates in the namespace where the canary was deployed:
-  .\platform.ps1 canary -Action rollout -Namespace dev -StepIntervalSeconds 30
+  .\platform-minikube.ps1 canary -Action rollout -Namespace dev -StepIntervalSeconds 30
   ```
 
 ### 4. 🚨 Alertmanager Alert Routing (Local Default, Slack & Jira Ready)

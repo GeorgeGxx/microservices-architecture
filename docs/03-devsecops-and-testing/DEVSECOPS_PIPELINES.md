@@ -9,7 +9,7 @@
 
 ## 🛡️ Local DevSecOps Platform and delivery paths
 
-The architecture includes a production-parity **DevSecOps ecosystem** designed to run **100% locally** on workstation hardware (8+ CPU cores, 16+ GB RAM, 100+ GB SSD) with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), **Minikube** (8 CPUs / 12 GB RAM), and **Terraform**:
+The architecture includes a production-parity **DevSecOps ecosystem** designed to run locally with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), Minikube, and Terraform. See the [local deployment guide](../02-operations/LOCAL_DEPLOYMENT.md#-prerequisites) for the canonical workstation and Minikube resource profile.
 
 ```mermaid
 flowchart LR
@@ -50,94 +50,107 @@ Core platform services, Swagger UIs, and dashboards are available on Windows `lo
 
 The application and observability URLs above use Docker Compose host ports or the managed Minikube tunnels, depending on the active platform. In Minikube the microservices remain ClusterIP endpoints; the tunnel supervisor forwards ports `8001`–`8004` for the four Swagger UIs. OpenCost is available only when its Kubernetes Helm release is installed. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
 
-### ⚙️ Platform Operational Lifecycle Commands (Unified Master CLI & 4 Isolated Versions)
+### ⚙️ Platform Operational Lifecycle Commands (Independent Entry Points)
 
-The platform provides a master entrypoint [`platform.ps1`](../../platform.ps1) covering **3 environments (`dev`, `staging`, `prod`)**.
+The platform provides two independent entrypoints:
+- [`platform-minikube.ps1`](../../platform-minikube.ps1) for local zero-cloud-cost development, Istio, Gatekeeper, MLOps, and Vault.
+- [`platform-multicloud.ps1`](../../platform-multicloud.ps1) for enterprise cloud operations across AWS, Azure, and GCP.
+Shared implementation helpers and the unified DevSecOps core engine live in [`platform-common.ps1`](../../platform-common.ps1).
 
 > The naming model is intentionally split: Git branches are `develop`, `staging`, `master`, while cluster namespaces are `dev`, `staging`, `prod`. The deployment pipeline maps branch to namespace, but the scripts keep them distinct to avoid operational ambiguity.
 >
 > 📖 **Full Git Collaboration Guide:** For complete branching policies, PR lifecycle, force-push conflict resolution, and disaster recovery playbooks, see [GIT_WORKFLOW_AND_COLLABORATION.md](./GIT_WORKFLOW_AND_COLLABORATION.md).
 
-The validation path is also unified: `verify-platform.ps1` handles both local Minikube checks and cloud provider validation through a shared Istio mesh audit, instead of maintaining redundant cloud-specific wrappers.
+The Minikube entrypoint handles local-cluster validation; the multi-cloud entrypoint performs provider-specific identity, backend, and cluster-context preflight.
 
 | Platform Script | Target Environment | Git Branch | Cloud & Container Runtime | CI/CD Engine |
 | :--- | :--- | :--- | :--- | :--- |
-| [`platform.ps1`](../../platform.ps1) | `dev` (Local) | `develop` | Minikube (containerd, 8 CPUs, 12 GB RAM) | GitHub Actions CI + ArgoCD CD |
-| [`platform.ps1`](../../platform.ps1) | `dev`, `staging`, `prod` | Provider-specific workflow branches | AWS EKS, Azure AKS, GCP GKE | Shared platform CLI; cloud operations require a configured remote backend |
+| [`platform-minikube.ps1`](../../platform-minikube.ps1) | `dev` (Local) | `develop` | Minikube (containerd) | GitHub Actions CI + ArgoCD CD |
+| [`platform-multicloud.ps1`](../../platform-multicloud.ps1) `-Provider aws` | `dev`, `staging`, `prod` | Provider-specific workflow branches | AWS EKS | AWS identity + durable S3 Terraform state |
+| [`platform-multicloud.ps1`](../../platform-multicloud.ps1) `-Provider azure` | `dev`, `staging`, `prod` | Provider-specific workflow branches | Azure AKS | Azure subscription + durable AzureRM Terraform state |
+| [`platform-multicloud.ps1`](../../platform-multicloud.ps1) `-Provider gcp` | `dev`, `staging`, `prod` | Provider-specific workflow branches | GCP GKE | Active gcloud account/project + durable GCS Terraform state |
 
-#### 1. Quick Start with Master CLI (`platform.ps1`)
+#### 1. Quick Start with Platform Entry Points
 
 ```powershell
 # 1. Audit and install Windows CLI tools via Winget (excluding 9 ignored tools)
-.\platform.ps1 tools
-.\platform.ps1 tools -Install
+.\platform-minikube.ps1 tools
+.\platform-minikube.ps1 tools -Install
 
 # 2. Bootstrap full Minikube ecosystem (Istio, Vault, Keycloak, db-keycloak, Apps, Tunnels)
-.\platform.ps1 up
-.\platform.ps1 up -Build        # Compile Java & React Dockerfiles from source & sideload to Minikube
-.\platform.ps1 build            # Standalone image build & rolling update in Minikube
-.\platform.ps1 up -WithIstio     # With Istio mTLS and Kiali
-.\platform.ps1 up -WithoutIstio  # Pure Kubernetes native mode
-.\platform.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"  # Start at 10% canary traffic
-.\platform.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100
-.\platform.ps1 canary -Action promote -Namespace dev  # stage tested tag into stable values after reaching 100% v2
+.\platform-minikube.ps1 up
+.\platform-minikube.ps1 up -Build        # Compile Java & React Dockerfiles from source & load into Minikube
+.\platform-minikube.ps1 build            # Standalone image build & rolling update in Minikube
+.\platform-minikube.ps1 up -WithIstio     # With Istio mTLS and Kiali
+.\platform-minikube.ps1 up -WithoutIstio  # Pure Kubernetes native mode
+.\platform-minikube.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
+.\platform-minikube.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100
+.\platform-minikube.ps1 canary -Action promote -Namespace dev
 # Commit/push the values change, wait for ArgoCD + stable Deployment Ready, then retire:
-.\platform.ps1 canary -Action retire -Namespace dev
+.\platform-minikube.ps1 canary -Action retire -Namespace dev
 
 # 3. Multi-Cloud Terraform Planning & Deployment
-.\platform.ps1 plan -Platform aws -Environment staging
-.\platform.ps1 apply -Platform aws -Environment staging -AutoApprove
+.\platform-multicloud.ps1 plan -Provider aws -Environment staging
+.\platform-multicloud.ps1 apply -Provider aws -Environment staging
 
-.\platform.ps1 plan -Platform azure -Environment prod
-.\platform.ps1 apply -Platform azure -Environment prod -AutoApprove
+.\platform-multicloud.ps1 plan -Provider azure -Environment prod -DataPlane all
+.\platform-multicloud.ps1 apply -Provider azure -Environment prod -DataPlane all
 
-.\platform.ps1 plan -Platform gcp -Environment staging
-.\platform.ps1 apply -Platform gcp -Environment staging -AutoApprove
+.\platform-multicloud.ps1 plan -Provider gcp -Environment staging
+.\platform-multicloud.ps1 apply -Provider gcp -Environment staging
 
 # 4. Deep Diagnostic Health Check & Smoke Tests
-.\platform.ps1 doctor
-.\platform.ps1 smoke
+.\platform-minikube.ps1 doctor
+.\platform-minikube.ps1 smoke
 
 # 5. Live OpenCost allocation and offline architecture estimates
-.\platform.ps1 cost
-.\platform.ps1 finops -Environment minikube
-.\platform.ps1 finops -Environment staging
-.\platform.ps1 finops -Environment prod
+.\platform-minikube.ps1 cost
+.\platform-minikube.ps1 finops -Environment minikube
+.\platform-minikube.ps1 finops -Environment staging
+.\platform-minikube.ps1 finops -Environment prod
 
 # 6. Interactive Endpoints Table & Tunnels
-.\platform.ps1 urls
-.\platform.ps1 tunnels
+.\platform-minikube.ps1 urls
+.\platform-minikube.ps1 tunnels
 
 # 7. Gracefully Pause Minikube (preserves state) or Complete Purge
-.\platform.ps1 down
-.\platform.ps1 down -Destroy
+.\platform-minikube.ps1 down
+.\platform-minikube.ps1 down -Destroy
 ```
 
-#### 2. Direct Execution of Platform-Specific Scripts
+#### 2. Direct Execution of Multi-Cloud Orchestrator
 
 ```powershell
-# Minikube Direct
+# Minikube Direct (Zero-cloud-cost local stack)
 .\platform-minikube.ps1 up
 .\platform-minikube.ps1 up -Build      # Build Dockerfiles & sideload to Minikube
 .\platform-minikube.ps1 build          # Rebuild and rollout restart pods in dev
-.\platform-minikube.ps1 security-scan  # Runs Gitleaks, TFLint, Trivy
-.\platform-minikube.ps1 graph          # Generates visual Graphviz PNG in docs/terraform-graph.png
+.\platform-minikube.ps1 security-scan  # Runs Gitleaks, TFLint, Trivy, Conftest
+.\platform-minikube.ps1 graph          # Generates visual Graphviz PNG in docs/reference/
 .\platform-minikube.ps1 down
 
-# AWS Cloud Direct
-.\platform-aws.ps1 plan staging
-.\platform-aws.ps1 apply staging -AutoApprove
-.\platform-aws.ps1 rollback staging    # Releases state locks and rolls back ArgoCD/EKS
+# AWS Cloud Direct (Flavors: eks, ecs-fargate, ec2-compact • Delivery: Argo CD GitOps)
+.\platform-multicloud.ps1 pre-deploy -Provider aws -Environment staging -Flavor eks
+.\platform-multicloud.ps1 plan -Provider aws -Environment staging -Flavor eks
+.\platform-multicloud.ps1 apply -Provider aws -Environment staging -Flavor eks
+.\platform-multicloud.ps1 sync-argocd -Provider aws -Environment staging
+.\platform-multicloud.ps1 post-deploy -Provider aws -Environment staging -TargetUrl "https://staging.microservices.local"
+.\platform-multicloud.ps1 drift -Provider aws -Environment prod
 
-# Azure Cloud Direct
-.\platform-azure.ps1 plan prod
-.\platform-azure.ps1 apply prod -AutoApprove
-.\platform-azure.ps1 rollback prod     # Unlocks Azure Blob leases and rolls back AKS
+# Azure Cloud Direct (Delivery: Helm umbrella chart / Azure DevOps)
+.\platform-multicloud.ps1 pre-deploy -Provider azure -Environment prod
+.\platform-multicloud.ps1 plan -Provider azure -Environment prod -DataPlane all
+.\platform-multicloud.ps1 apply -Provider azure -Environment prod -DataPlane all
+.\platform-multicloud.ps1 apply-workloads -Provider azure -Environment prod
+.\platform-multicloud.ps1 rollback -Provider azure -Environment prod -Revision 2
+.\platform-multicloud.ps1 post-deploy -Provider azure -Environment prod -TargetUrl "https://azure.microservices.local"
 
-# GCP Cloud Direct
-# GCP Direct (same master CLI; requires terraform/backend-config/gcp.hcl)
-.\platform.ps1 plan -Platform gcp -Environment staging
-.\platform.ps1 apply -Platform gcp -Environment staging
+# GCP Cloud Direct (Delivery: Helm umbrella chart / Bitbucket Pipelines)
+.\platform-multicloud.ps1 pre-deploy -Provider gcp -Environment staging
+.\platform-multicloud.ps1 plan -Provider gcp -Environment staging
+.\platform-multicloud.ps1 apply -Provider gcp -Environment staging
+.\platform-multicloud.ps1 apply-workloads -Provider gcp -Environment staging
+.\platform-multicloud.ps1 post-deploy -Provider gcp -Environment staging -TargetUrl "https://gcp.microservices.local"
 ```
 
 #### 3. GitHub Actions Commands
@@ -196,24 +209,19 @@ devsecops/
 | :--- | :--- | :--- |
 | **Trivy** | The shared config applies severity and `.trivyignore`; local/GitHub report without blocking, Bitbucket blocks HIGH/CRITICAL, and Azure blocks on protected branches. | Use reviewed exceptions and the same config while moving audit/advisory gates to blocking. |
 | **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
-| **Conftest (OPA)** | Blocking on privileged containers or missing memory/CPU limits. | Extended blocking (enforces mandatory labels, network policies). |
+| **Conftest (OPA)** | Blocking on privileged containers, missing memory/CPU limits, ':latest' image tags, and default ServiceAccount usage (enforces least-privilege RBAC). | Extended blocking (enforces mandatory labels, network policies, and non-root users). |
 | **OWASP ZAP** | Fails on rules marked `FAIL` in `rules.tsv`; advisory on `WARN`. | Strict blocking on security headers and CSP violations. |
 
 #### 🚀 Deployment & Operations Guide: 100% Local Enterprise DevSecOps on Minikube
 
-Deploy and operate the complete enterprise **DevSecOps** ecosystem locally on your workstation (Intel/AMD, 16+ GB RAM, 100+ GB SSD) using **Minikube**, **Terraform**, **Docker Hub Registry (`georgegxx/*`)**, **Gatekeeper (OPA)**, **ArgoCD**, **Istio Service Mesh**, **Prometheus/Grafana/Loki/Alloy**, and **OWASP ZAP** with a **GitHub Actions Self-Hosted Runner**.
+Deploy and operate the complete enterprise **DevSecOps** ecosystem locally using **Minikube**, **Terraform**, **Docker Hub Registry (`georgegxx/*`)**, **Gatekeeper (OPA)**, **ArgoCD**, **Istio Service Mesh**, **Prometheus/Grafana/Loki/Alloy**, and **OWASP ZAP** with a **GitHub Actions Self-Hosted Runner**. Check the [local deployment guide](../02-operations/LOCAL_DEPLOYMENT.md#-prerequisites) for workstation sizing before starting.
 
 ##### 📋 1. Resource Allocation & Minikube Startup
 
-Open PowerShell as Administrator and initialize Minikube with the allocated resource budget (8 CPUs, 12 GB RAM, 40 GB disk):
+Open PowerShell as Administrator and start Minikube through the platform entrypoint, which applies the configured local profile:
 
 ```powershell
-minikube start `
-  --cpus=8 `
-  --memory=12288 `
-  --disk-size=40g `
-  --driver=docker `
-  --addons=ingress,metrics-server,dashboard
+.\platform-minikube.ps1 up
 ```
 
 Verify that the cluster is healthy:
@@ -333,16 +341,16 @@ The platform CLI script automates the tunnel lifecycle, health checks, and GitHu
 * **To Enable (when testing against a live local cluster):**
   1. Start the cluster:
      ```powershell
-     .\platform.ps1 up -Platform minikube
+     .\platform-minikube.ps1 up
      ```
   2. Start the tunnels (this automatically sets `DEVSECOPS_POST_DEPLOY_ENABLED=true` and syncs the tunnel URLs to GitHub Actions):
      ```powershell
-     .\platform.ps1 cloudflare -Action start
+     .\platform-minikube.ps1 cloudflare -Action start
      # or: pwsh -File .\scripts\manage-cloudflare-tunnels.ps1 -Action start
      ```
 * **To Disable (when finishing testing or shutting down Minikube):**
   ```powershell
-  .\platform.ps1 cloudflare -Action stop
+  .\platform-minikube.ps1 cloudflare -Action stop
   # or: pwsh -File .\scripts\manage-cloudflare-tunnels.ps1 -Action stop
   ```
   *(Gracefully terminates `cloudflared` and sets `DEVSECOPS_POST_DEPLOY_ENABLED=false` in GitHub Actions).*
