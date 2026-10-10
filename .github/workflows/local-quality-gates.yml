@@ -13,7 +13,8 @@ on:
       - 'scripts/update_dashboards.py'
       - 'scripts/grafana.py'
       - 'observability/grafana/dashboards/**'
-      - 'platform.ps1'
+      - 'platform-*.ps1'
+      - 'platform-common.ps1'
       - 'scripts/bootstrap-keycloak.ps1'
       - 'scripts/manage-cloudflare-tunnels.ps1'
       - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
@@ -28,9 +29,9 @@ on:
       - 'frontend/nginx.conf'
       - 'frontend/rate-limit.conf'
       - 'scripts/update_dashboards.py'
-      - 'scripts/grafana.py'
       - 'observability/grafana/dashboards/**'
-      - 'platform.ps1'
+      - 'platform-*.ps1'
+      - 'platform-common.ps1'
       - 'scripts/bootstrap-keycloak.ps1'
       - 'scripts/manage-cloudflare-tunnels.ps1'
       - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
@@ -107,10 +108,12 @@ jobs:
         run: |
           $parseErrors = $null
           $scripts = @(
-            'platform.ps1',
+            'platform-common.ps1',
+            'platform-minikube.ps1',
+            'platform-multicloud.ps1',
             'scripts/bootstrap-keycloak.ps1',
             'scripts/manage-cloudflare-tunnels.ps1',
-            'scripts/testing/backup-restore-check.ps1'
+            'scripts/bcdr-simulation.ps1'
           )
           foreach ($path in $scripts) {
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$null, [ref]$parseErrors)

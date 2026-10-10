@@ -13,12 +13,14 @@ terraform {
   }
 
   # Shared provider backend with isolated dev/staging/prod workspaces.
-  # platform.ps1 and GitHub Actions must use this same bucket/table pair.
+  # platform-multicloud.ps1 (-Provider aws) and GitHub Actions must use this same bucket/table pair.
+  # Terraform >= 1.10 supports native S3 object lockfiles (use_lockfile = true).
   backend "s3" {
     bucket         = "georgegxx-msa-tfstate-prod"
     key            = "aws/microservices.tfstate"
     region         = "us-east-1"
     dynamodb_table = "georgegxx-msa-tflock-prod"
+    use_lockfile   = true
     encrypt        = true
   }
 }

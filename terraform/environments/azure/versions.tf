@@ -2,7 +2,9 @@ terraform {
   required_version = ">= 1.8.0"
 
   # Partial backend configuration is supplied from the operator's ignored
-  # terraform/backend-config/azure.hcl file. Blob leases provide state locking.
+  # terraform/backend-config/azure.hcl file.
+  # Azure Blob Storage handles state locking natively and automatically via Blob Leases.
+  # No external table or 'use_lockfile' flag is needed (locking is built-in and always active).
   backend "azurerm" {}
 
   required_providers {

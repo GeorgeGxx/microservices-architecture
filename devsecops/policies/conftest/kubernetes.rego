@@ -41,3 +41,16 @@ warn contains msg if {
   not container.readinessProbe
   msg := sprintf("Container '%v' in Deployment '%v' does not have a readinessProbe configured.", [container.name, input.metadata.name])
 }
+
+# Deny Deployments using the default ServiceAccount (Least Privilege RBAC)
+deny contains msg if {
+  input.kind == "Deployment"
+  not input.spec.template.spec.serviceAccountName
+  msg := sprintf("Deployment '%v' does not define an explicit serviceAccountName. Running under the 'default' ServiceAccount is prohibited.", [input.metadata.name])
+}
+
+deny contains msg if {
+  input.kind == "Deployment"
+  input.spec.template.spec.serviceAccountName == "default"
+  msg := sprintf("Deployment '%v' uses the 'default' ServiceAccount. Dedicated least-privilege ServiceAccounts are required.", [input.metadata.name])
+}
