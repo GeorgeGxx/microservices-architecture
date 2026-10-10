@@ -1,0 +1,440 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlops-config
+  namespace: dev
+data:
+  MLFLOW_TRACKING_URI: "http://mlflow:5000"
+  MLFLOW_EXPERIMENT_NAME: "inventory-demand-forecast"
+  MLOPS_SALES_PATH: "/data/sales_parquet"
+  KEYCLOAK_ISSUER: "http://localhost:8181/realms/microservices-realm"
+  KEYCLOAK_JWKS_URI: "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/protocol/openid-connect/certs"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlops-sales-data
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-artifacts
+  namespace: dev
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  namespace: dev
+spec:
+  ports:
+    - name: http-mlflow
+      port: 5000
+      targetPort: 5000
+  selector:
+    app: mlflow
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      serviceAccountName: mlflow-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mlflow
+          image: georgegxx/mlflow:1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - mlflow
+          args:
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            - --workers
+            - "1"
+            - --backend-store-uri
+            - sqlite:////mlflow-data/mlflow.db
+            - --artifacts-destination
+            - /mlflow-artifacts
+          env:
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "mlflow:5000,mlflow.dev.svc.cluster.local:5000,localhost:5000,127.0.0.1:5000"
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: http
+              containerPort: 5000
+          resources:
+            requests:
+              cpu: 200m
+              memory: 1Gi
+            limits:
+              cpu: "1"
+              memory: 3Gi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow-data
+            - name: mlflow-artifacts
+              mountPath: /mlflow-artifacts
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+        - name: mlflow-artifacts
+          persistentVolumeClaim:
+            claimName: mlflow-artifacts
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-sales-capture
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demand-sales-capture
+  template:
+    metadata:
+      labels:
+        app: demand-sales-capture
+    spec:
+      serviceAccountName: demand-sales-capture-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: stream-orders
+          image: georgegxx/mlops-training:1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - python
+            - /app/stream_orders_to_parquet.py
+          args:
+            - --bootstrap-servers
+            - kafka.data.svc.cluster.local:9092
+            - --topic
+            - orders-topic
+            - --output
+            - /data/sales_parquet
+            - --checkpoint-location
+            - /data/checkpoints/sales_parquet
+          env:
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: mlops-config
+                  key: MLFLOW_TRACKING_URI
+            - name: MLFLOW_EXPERIMENT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: mlops-config
+                  key: MLFLOW_EXPERIMENT_NAME
+            - name: MLOPS_SALES_PATH
+              value: /data/sales_parquet
+            - name: MLOPS_TRAINING_STATE_PATH
+              value: /data/checkpoints/auto-training/last-successful-input.sha256
+            - name: MLOPS_MIN_PARTITIONS
+              value: "9"
+            - name: MLOPS_AUTO_TRAIN_INTERVAL_SEC
+              value: "20"
+            - name: HOME
+              value: /tmp
+            - name: SPARK_LOCAL_IP
+              value: 127.0.0.1
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: "4"
+              memory: 4Gi
+              ephemeral-storage: 2Gi
+          volumeMounts:
+            - name: sales-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sales-data
+          persistentVolumeClaim:
+            claimName: mlops-sales-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-forecast-service
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  template:
+    metadata:
+      labels:
+        app: demand-forecast-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8005"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: demand-forecast-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: forecast-api
+          image: georgegxx/demand-forecast:1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: mlops-config
+          env:
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: http
+              containerPort: 8005
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+              ephemeral-storage: 512Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 12
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: sales-data
+              mountPath: /data
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sales-data
+          persistentVolumeClaim:
+            claimName: mlops-sales-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demand-forecast-service
+  namespace: dev
+spec:
+  ports:
+    - name: http-forecast
+      port: 8005
+      targetPort: 8005
+  selector:
+    app: demand-forecast-service
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mlops-forecast-traffic
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: demand-forecast-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8005
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              environment: observability
+      ports:
+        - protocol: TCP
+          port: 8005
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mlops-tracking-traffic
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: mlflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - demand-forecast-service
+                  - demand-model-training
+                  - demand-sales-capture
+      ports:
+        - protocol: TCP
+          port: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-spark-package-downloads
+  namespace: dev
+spec:
+  podSelector:
+    matchLabels:
+      app: demand-sales-capture
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: demand-forecast-service
+  namespace: dev
+  labels:
+    release: kube-prometheus
+spec:
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  namespaceSelector:
+    matchNames:
+      - dev
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_pod_label_app
+          targetLabel: service

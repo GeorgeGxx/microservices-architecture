@@ -19,6 +19,7 @@ spec:
         version: "1.0.0"
         tier: presentation
     spec:
+      serviceAccountName: frontend-sa
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true

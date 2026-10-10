@@ -23,6 +23,9 @@ global:
 #       {{- end -}}
 
 cosmo-router:
+  serviceAccount:
+    create: false
+    name: "cosmo-router-sa"
   resources:
     requests: { cpu: 100m, memory: 128Mi }
     limits: { cpu: 500m, memory: 256Mi }
@@ -39,6 +42,9 @@ cosmo-router:
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
 inventory-service:
   image: { repository: georgegxx/inventory-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "inventory-service-sa"
   resources:
     requests: { cpu: 300m, memory: 512Mi }
     limits: { cpu: 1000m, memory: 1024Mi }
@@ -47,6 +53,9 @@ inventory-service:
     startupPeriodSeconds: 10
 notification-service:
   image: { repository: georgegxx/notification-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "notification-service-sa"
   resources:
     requests: { cpu: 300m, memory: 512Mi }
     limits: { cpu: 1000m, memory: 1024Mi }
@@ -55,6 +64,9 @@ notification-service:
     startupPeriodSeconds: 10
 orders-service:
   image: { repository: georgegxx/orders-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "orders-service-sa"
   resources:
     requests: { cpu: 300m, memory: 512Mi }
     limits: { cpu: 1000m, memory: 1024Mi }
@@ -63,9 +75,21 @@ orders-service:
     startupPeriodSeconds: 10
 products-service:
   image: { repository: georgegxx/products-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "products-service-sa"
   resources:
     requests: { cpu: 300m, memory: 512Mi }
     limits: { cpu: 1000m, memory: 1024Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+
+mlops:
+  enabled: true
+  mlflow:
+    image: { repository: georgegxx/mlflow, tag: "1.0.0" }
+  training:
+    image: { repository: georgegxx/mlops-training, tag: "1.0.0" }
+  forecast:
+    image: { repository: georgegxx/demand-forecast, tag: "1.0.0" }

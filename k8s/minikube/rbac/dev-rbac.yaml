@@ -1,0 +1,230 @@
+# ==============================================================================
+# Kubernetes RBAC Hardening for Minikube / Local Dev
+# Principle of Least Privilege: Dedicated ServiceAccounts, Roles & RoleBindings
+# ==============================================================================
+
+---
+# ------------------------------------------------------------------------------
+# 1. Dedicated ServiceAccounts per Microservice & Workload
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cosmo-router-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: cosmo-router
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orders-service-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: orders-service
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: products-service-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: products-service
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-service-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mlflow-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/part-of: mlops
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-sales-capture-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: demand-sales-capture
+    app.kubernetes.io/part-of: mlops
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-forecast-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: demand-forecast
+    app.kubernetes.io/part-of: mlops
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-training-sa
+  namespace: dev
+  labels:
+    app.kubernetes.io/name: demand-training
+    app.kubernetes.io/part-of: mlops
+automountServiceAccountToken: false
+
+---
+# ------------------------------------------------------------------------------
+# 2. Workload Role (Zero cluster privileges for business pods)
+# Microservices only communicate over network and have no K8s API write/read access
+# ------------------------------------------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: microservice-workload-role
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+rules: [] # Empty rules enforce absolute zero Kubernetes API permissions
+
+---
+# ------------------------------------------------------------------------------
+# 3. Developer & Operator RBAC (Namespace-scoped access control)
+# ------------------------------------------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-developer-role
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+rules:
+  # Pods, deployments, services, replicasets inspection & restart
+  - apiGroups: ["", "apps", "batch"]
+    resources:
+      - pods
+      - pods/log
+      - pods/status
+      - pods/portforward
+      - services
+      - deployments
+      - cronjobs
+      - jobs
+      - replicasets
+    verbs: ["get", "list", "watch", "describe"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"] # Allows rollout restart
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"] # Debugging shell in dev
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["podmonitors", "servicemonitors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-viewer-role
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "monitoring.coreos.com"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dev-cicd-deployer-role
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+rules:
+  # CI/CD (GitHub Actions / ArgoCD) scoped deployment rights in dev
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "monitoring.coreos.com"]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - persistentvolumeclaims
+      - configmaps
+      - secrets
+      - deployments
+      - replicasets
+      - cronjobs
+      - jobs
+      - networkpolicies
+      - podmonitors
+      - servicemonitors
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-developers-binding
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+subjects:
+  - kind: Group
+    name: "developers"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: dev-developer-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dev-viewers-binding
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+subjects:
+  - kind: Group
+    name: "viewers"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: dev-viewer-role
+  apiGroup: rbac.authorization.k8s.io

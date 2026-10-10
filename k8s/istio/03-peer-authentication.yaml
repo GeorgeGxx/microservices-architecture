@@ -85,6 +85,21 @@ spec:
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
+  name: demand-forecast-service-metrics-mtls
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  mtls:
+    mode: STRICT
+  portLevelMtls:
+    8005:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
   name: prometheus-telemetry-mtls
   namespace: dev
 spec:

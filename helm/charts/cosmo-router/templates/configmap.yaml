@@ -157,4 +157,4 @@ data:
             enabled: true
           circuit_breaker: true
   execution-config.json: |
-{{ required "Cosmo execution config is missing. Run platform.ps1 compose-router and commit files/execution-config.json for Argo CD." (.Files.Get "files/execution-config.json") | indent 4 }}
+{{ required "Cosmo execution config is missing. Run platform-minikube.ps1 compose-router and commit files/execution-config.json for Argo CD." (.Files.Get "files/execution-config.json") | indent 4 }}

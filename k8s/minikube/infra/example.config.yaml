@@ -23,13 +23,8 @@ data:
   INVENTORY_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-inventory.data.svc.cluster.local:5432/ms_inventory"
   ORDERS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-orders.data.svc.cluster.local:5432/ms_orders"
   PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products.data.svc.cluster.local:5432/ms_products"
-  KAFKA_BOOTSTRAP_SERVERS: "kafka.data.svc.cluster.local:9094"
-  KAFKA_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
-  KAFKA_SASL_MECHANISM: "PLAIN"
-  KAFKA_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
-  SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
-  SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: "PLAIN"
-  SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka.data.svc.cluster.local:9092"
+  KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
 
   # Redis (Cache / Rate Limiter)
   REDIS_HOST: "redis.data.svc.cluster.local"

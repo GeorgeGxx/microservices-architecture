@@ -316,6 +316,7 @@ spec:
         prometheus.io/port: "9090"
         prometheus.io/path: "/metrics"
     spec:
+      serviceAccountName: cosmo-router-sa
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
