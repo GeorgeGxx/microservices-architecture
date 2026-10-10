@@ -1,0 +1,76 @@
+{
+  "title": "MLOps Forecast Service · Operations",
+  "uid": "mlops-forecast-operations",
+  "editable": true,
+  "timezone": "browser",
+  "time": { "from": "now-6h", "to": "now" },
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["mlops", "forecasting", "sre", "operations"],
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Forecast API availability",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 5, "w": 6, "x": 0, "y": 0 },
+      "targets": [{ "expr": "up{service=\"demand-forecast-service\"}", "refId": "A" }],
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] }, "mappings": [{ "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }] }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "auto", "colorMode": "background", "graphMode": "none", "justifyMode": "center" }
+    },
+    {
+      "id": 2,
+      "title": "Forecast requests / minute",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
+      "targets": [{ "expr": "sum(rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\"}[5m])) * 60 or vector(0)", "legendFormat": "Requests/min", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "reqpm", "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } }
+    },
+    {
+      "id": 3,
+      "title": "Forecast API p95 latency",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(demand_forecast_http_request_duration_seconds_bucket{service=\"demand-forecast-service\"}[5m])) by (le)) or vector(0)", "legendFormat": "p95", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } }
+    },
+    {
+      "id": 4,
+      "title": "Forecast API 5xx rate",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "(sum(rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\"}[5m])), 1e-9)) or vector(0)", "legendFormat": "5xx ratio", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "single", "sort": "none" } }
+    },
+    {
+      "id": 5,
+      "title": "Hours since last successful forecast",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "targets": [{ "expr": "(time() - demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) / 3600", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "h", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 24 }, { "color": "red", "value": 72 }] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "area", "justifyMode": "center" }
+    },
+    {
+      "id": 6,
+      "title": "Age of latest observed sales date (days)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "prometheus-ds" },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 8 },
+      "targets": [{ "expr": "(time() - demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) / 86400", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "d", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "orange", "value": 2 }, { "color": "red", "value": 7 }] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "auto", "textMode": "value", "colorMode": "value", "graphMode": "area", "justifyMode": "center" }
+    }
+  ],
+  "links": [],
+  "liveNow": false
+}
