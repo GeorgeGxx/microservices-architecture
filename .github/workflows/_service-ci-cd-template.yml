@@ -10,11 +10,26 @@ on:
       service-type:
         required: true
         type: string
-        description: 'Type: spring-boot, react, or cosmo-router'
+        description: 'Type: spring-boot, react, cosmo-router, or python'
       service-dir:
         required: true
         type: string
         description: 'Directory path relative to root'
+      dockerfile-path:
+        required: false
+        type: string
+        default: ''
+        description: 'Optional custom Dockerfile path (e.g. mlops/Dockerfile.forecast)'
+      context-dir:
+        required: false
+        type: string
+        default: ''
+        description: 'Optional custom build context directory'
+      helm-values-key:
+        required: false
+        type: string
+        default: ''
+        description: 'Optional custom Helm values path (e.g. mlops.forecast, defaults to inputs.service-name)'
       runner-type:
         required: false
         type: string
@@ -40,6 +55,26 @@ on:
         type: boolean
         default: false
         description: 'Wait for SonarQube / SonarCloud Quality Gate result (fails step if Quality Gate fails)'
+      post-deploy-enabled:
+        required: false
+        type: boolean
+        default: false
+        description: 'Explicitly enable runtime post-deployment validation tests'
+      base-url:
+        required: false
+        type: string
+        default: ''
+        description: 'Base URL for API contract test suite (defaults to vars.DEVSECOPS_BASE_URL)'
+      frontend-url:
+        required: false
+        type: string
+        default: ''
+        description: 'Frontend URL for DAST/smoke test suite (defaults to vars.DEVSECOPS_FRONTEND_URL)'
+      keycloak-url:
+        required: false
+        type: string
+        default: ''
+        description: 'Keycloak URL for IAM validation (defaults to vars.DEVSECOPS_KEYCLOAK_URL)'
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -129,6 +164,26 @@ jobs:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage/
           retention-days: 7
+
+      # Python / MLOps (PySpark / FastAPI / Auto-train)
+      - name: Set up Python 3.12
+        if: inputs.service-type == 'python'
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: Install Python Dependencies & Run Unit Tests
+        if: inputs.service-type == 'python'
+        env:
+          PYTHONPATH: ${{ github.workspace }}/${{ inputs.service-dir }}
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f "${{ inputs.service-dir }}/requirements.txt" ]; then
+            pip install -r "${{ inputs.service-dir }}/requirements.txt"
+          fi
+          if [ -d "${{ inputs.service-dir }}/tests" ]; then
+            python -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+          fi
 
   # ==========================================================
   # STEP 2: 🔍 SAST & Secret Scanning (Security) — Runs in parallel with Unit Tests
@@ -312,8 +367,8 @@ jobs:
       - name: Build Docker Image & Export to OCI Tarball
         uses: docker/build-push-action@v7
         with:
-          context: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.' }}
-          file: ${{ (inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir) }}
+          context: ${{ inputs.context-dir != '' && inputs.context-dir || ((inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.') }}
+          file: ${{ inputs.dockerfile-path != '' && inputs.dockerfile-path || ((inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir)) }}
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
           outputs: type=docker,dest=/tmp/${{ inputs.service-name }}-image.tar
           cache-from: type=gha
@@ -392,8 +447,9 @@ jobs:
 
       - name: Render Helm Manifests
         run: |
+          HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
           helm template microservices ./helm/microservices-umbrella \
-            --set ${{ inputs.service-name }}.image.tag=${{ github.sha }} \
+            --set ${HELM_KEY}.image.tag=${{ github.sha }} \
             > rendered-manifests.yaml
 
       - name: Cache Conftest Binary
@@ -521,20 +577,21 @@ jobs:
         run: |
           echo "Connecting to ArgoCD for $APP_NAME in namespace $TARGET_NS..."
           IMAGE_DIGEST="${{ needs.push-dockerhub.outputs.image-digest }}"
+          HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
             if [ -n "$IMAGE_DIGEST" ]; then
-              argocd app set "$APP_NAME" --helm-set ${{ inputs.service-name }}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
+              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             else
-              argocd app set "$APP_NAME" --helm-set ${{ inputs.service-name }}.image.digest= --helm-set ${{ inputs.service-name }}.image.tag=${{ github.sha }} --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
+              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag=${{ github.sha }} --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             fi
             argocd app sync "$APP_NAME" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             argocd app wait "$APP_NAME" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             echo "Successfully synchronized and validated $APP_NAME via ArgoCD."
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             echo "Using direct cluster fallback for $TARGET_ENV..."
-            IMAGE_REF_ARGS=(--set ${{ inputs.service-name }}.image.digest= --set ${{ inputs.service-name }}.image.tag=${{ github.sha }})
+            IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest= --set ${HELM_KEY}.image.tag=${{ github.sha }})
             if [ -n "$IMAGE_DIGEST" ]; then
-              IMAGE_REF_ARGS=(--set ${{ inputs.service-name }}.image.digest="$IMAGE_DIGEST")
+              IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest="$IMAGE_DIGEST")
             fi
             helm upgrade --install microservices ./helm/microservices-umbrella \
               --namespace "$TARGET_NS" \
@@ -555,13 +612,13 @@ jobs:
   post-deployment-validation:
     name: "🧪 Post-deployment API, SLO and DAST - ${{ inputs.service-name }}"
     needs: gitops-argocd-sync
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.DEVSECOPS_POST_DEPLOY_ENABLED == 'true'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.DEVSECOPS_POST_DEPLOY_ENABLED == 'true') || inputs.post-deploy-enabled == true
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 30
     env:
-      BASE_URL: ${{ vars.DEVSECOPS_BASE_URL }}
-      FRONTEND_URL: ${{ vars.DEVSECOPS_FRONTEND_URL }}
-      KEYCLOAK_URL: ${{ vars.DEVSECOPS_KEYCLOAK_URL }}
+      BASE_URL: ${{ inputs.base-url != '' && inputs.base-url || vars.DEVSECOPS_BASE_URL }}
+      FRONTEND_URL: ${{ inputs.frontend-url != '' && inputs.frontend-url || vars.DEVSECOPS_FRONTEND_URL }}
+      KEYCLOAK_URL: ${{ inputs.keycloak-url != '' && inputs.keycloak-url || vars.DEVSECOPS_KEYCLOAK_URL }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7

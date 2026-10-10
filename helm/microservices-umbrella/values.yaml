@@ -300,6 +300,7 @@ mlops:
     image:
       repository: georgegxx/demand-forecast
       tag: "1.0.0"
+      digest: ""
       pullPolicy: IfNotPresent
     resources:
       requests:
