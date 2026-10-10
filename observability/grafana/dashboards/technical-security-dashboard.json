@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 32,
+  "version": 33,
   "tags": [
     "spring-boot",
     "java21",
