@@ -5,14 +5,12 @@ on:
     branches: [ develop ]
     paths:
       - 'mlops/**'
-      - 'helm/microservices-umbrella/templates/mlops.yaml'
       - '.github/workflows/service-mlops.yml'
       - '.github/workflows/_service-ci-cd-template.yml'
   pull_request:
     branches: [ develop ]
     paths:
       - 'mlops/**'
-      - 'helm/microservices-umbrella/templates/mlops.yaml'
       - '.github/workflows/service-mlops.yml'
       - '.github/workflows/_service-ci-cd-template.yml'
   workflow_dispatch:
