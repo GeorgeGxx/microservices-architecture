@@ -39,6 +39,15 @@ on:
           - plan
           - apply
           - drift-detection
+      data_plane:
+        description: 'Production cluster scope (all includes shared infrastructure)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - primary
+          - secondary
 
 concurrency:
   group: terraform-aws-${{ github.ref }}
@@ -137,6 +146,7 @@ jobs:
       pull-requests: write
     outputs:
       target_env: ${{ steps.resolve-env.outputs.target_env }}
+      data_plane: ${{ steps.resolve-env.outputs.data_plane }}
       s3_bucket: ${{ steps.resolve-env.outputs.s3_bucket }}
       dynamo_table: ${{ steps.resolve-env.outputs.dynamo_table }}
       var_file: ${{ steps.resolve-env.outputs.var_file }}
@@ -155,13 +165,23 @@ jobs:
             TARGET_ENV="prod"
           fi
 
+          DATA_PLANE="all"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$TARGET_ENV" = "prod" ]; then
+            DATA_PLANE="${{ github.event.inputs.data_plane }}"
+          fi
+          if [ "$TARGET_ENV" != "prod" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.data_plane }}" != "all" ]; then
+            echo "::error::Data-plane targeting is available only for the prod environment."
+            exit 1
+          fi
+
           echo "target_env=$TARGET_ENV" >> $GITHUB_OUTPUT
+          echo "data_plane=$DATA_PLANE" >> $GITHUB_OUTPUT
           echo "var_file=$TARGET_ENV/terraform.tfvars" >> $GITHUB_OUTPUT
-          # Match terraform/environments/aws/versions.tf and platform.ps1:
+          # Match terraform/environments/aws/versions.tf and platform-multicloud.ps1 (-Provider aws):
           # one durable backend per provider, isolated by the Terraform workspace.
           echo "s3_bucket=georgegxx-msa-tfstate-prod" >> $GITHUB_OUTPUT
           echo "dynamo_table=georgegxx-msa-tflock-prod" >> $GITHUB_OUTPUT
-          echo "Resolved target environment: $TARGET_ENV"
+          echo "Resolved target environment: $TARGET_ENV; data plane: $DATA_PLANE"
 
       - name: Configure AWS Credentials (IAM Key / OIDC fallback)
         uses: aws-actions/configure-aws-credentials@v6
@@ -202,13 +222,23 @@ jobs:
           TF_VAR_db_master_password: ${{ secrets.DB_MASTER_PASSWORD }}
         run: |
           cd ${{ env.TF_WORKING_DIR }}
+          TARGET_ENV="${{ steps.resolve-env.outputs.target_env }}"
           VAR_FILE="${{ steps.resolve-env.outputs.var_file }}"
-          PLAN_FLAGS="-no-color -out=tfplan"
+          DATA_PLANE="${{ steps.resolve-env.outputs.data_plane }}"
+          PLAN_ARGS=(-no-color -out=tfplan)
           if [ -f "$VAR_FILE" ]; then
-            PLAN_FLAGS="$PLAN_FLAGS -var-file=$VAR_FILE"
+            PLAN_ARGS+=("-var-file=$VAR_FILE")
+          fi
+          if [ "$TARGET_ENV" = "prod" ]; then
+            case "$DATA_PLANE" in
+              all) ;;
+              primary) PLAN_ARGS+=("-target=module.eks" "-target=module.irsa_lb_controller") ;;
+              secondary) PLAN_ARGS+=("-target=module.eks_dp2") ;;
+              *) echo "::error::Unsupported production data plane '$DATA_PLANE'."; exit 1 ;;
+            esac
           fi
           test -n "$TF_VAR_db_master_password" || { echo "::error::DB_MASTER_PASSWORD secret is required."; exit 1; }
-          terraform plan $PLAN_FLAGS
+          terraform plan "${PLAN_ARGS[@]}"
 
       - name: FinOps Architecture Estimate and Optional Budget Gate
         env:
@@ -228,16 +258,16 @@ jobs:
         run: |
           terraform show -json "${TF_WORKING_DIR}/tfplan" > "$RUNNER_TEMP/tfplan.json"
           if [ -n "$FINOPS_MAX_MONTHLY_DELTA_USD" ]; then
-            python scripts/terraform-cost-delta.py "$RUNNER_TEMP/tfplan.json" --max-monthly-delta-usd "$FINOPS_MAX_MONTHLY_DELTA_USD"
+            python scripts/local-cost-estimator.py --plan-delta "$RUNNER_TEMP/tfplan.json" --max-monthly-delta-usd "$FINOPS_MAX_MONTHLY_DELTA_USD"
           else
-            python scripts/terraform-cost-delta.py "$RUNNER_TEMP/tfplan.json"
+            python scripts/local-cost-estimator.py --plan-delta "$RUNNER_TEMP/tfplan.json"
             echo "Terraform delta ceiling is not configured; mapped resource changes are informational. Set repository variable FINOPS_MAX_MONTHLY_DELTA_USD to enable the increase gate."
           fi
 
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v7
         with:
-          name: tfplan-${{ steps.resolve-env.outputs.target_env }}
+          name: tfplan-${{ steps.resolve-env.outputs.target_env }}-${{ steps.resolve-env.outputs.data_plane }}
           path: |
             ${{ env.TF_WORKING_DIR }}/tfplan
           # Plan files can embed sensitive values; keep them briefly in this private run.
@@ -278,7 +308,7 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
         with:
-          name: tfplan-dev
+          name: tfplan-dev-all
           path: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Init
@@ -337,7 +367,7 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
         with:
-          name: tfplan-staging
+          name: tfplan-staging-all
           path: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Init
@@ -396,7 +426,7 @@ jobs:
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
         with:
-          name: tfplan-prod
+          name: tfplan-prod-${{ needs.tf-plan.outputs.data_plane }}
           path: ${{ env.TF_WORKING_DIR }}
 
       - name: Terraform Init

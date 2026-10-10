@@ -7,15 +7,15 @@ useDefault = true
 [allowlist]
 description = "Global allowlist for dummy/test values, local configs, and bootstrap scripts"
 paths = [
-  '''(?i)devsecops/.*\.rego$''',
+  '''(?i).*/devsecops/.*\.rego$''',
   '''(?i).*\.example\.env$''',
   '''(?i).*\.env.*''',
   '''(?i).*values.*\.yaml$''',
-  '''(?i)scripts/devsecops/.*''',
-  '''(?i)k8s/minikube/.*''',
-  '''(?i)terraform/.*\.tfvars.*''',
+  '''(?i).*/scripts/devsecops/.*''',
+  '''(?i).*/k8s/minikube/.*''',
+  '''(?i).*/terraform/.*\.tfvars.*''',
   '''(?i).*execution-config\.json$''',
-  '''(?i)cosmo-router/.*'''
+  '''(?i).*/cosmo-router/.*'''
 ]
 regexes = [
   '''(?i)dummy.*''',
