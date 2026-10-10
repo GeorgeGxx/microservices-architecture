@@ -199,7 +199,7 @@ spec:
                 - ALL
           command:
             - python
-            - /app/stream_orders_to_parquet.py
+            - /app/capture_orders.py
           args:
             - --bootstrap-servers
             - kafka.data.svc.cluster.local:9092
@@ -285,7 +285,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: forecast-api
-          image: "{{ .Values.mlops.forecast.image.repository }}:{{ .Values.mlops.forecast.image.tag }}"
+          image: "{{ .Values.mlops.forecast.image.repository }}{{ if .Values.mlops.forecast.image.digest }}@{{ .Values.mlops.forecast.image.digest }}{{ else }}:{{ .Values.mlops.forecast.image.tag }}{{ end }}"
           imagePullPolicy: {{ .Values.mlops.forecast.image.pullPolicy | default "IfNotPresent" }}
           securityContext:
             allowPrivilegeEscalation: false
