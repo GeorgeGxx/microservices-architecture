@@ -1,0 +1,536 @@
+{{- if .Values.mlops.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mlops-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  MLFLOW_TRACKING_URI: "http://mlflow:5000"
+  MLFLOW_EXPERIMENT_NAME: "inventory-demand-forecast"
+  MLOPS_SALES_PATH: "/data/sales_parquet"
+  KEYCLOAK_ISSUER: "http://localhost:8181/realms/microservices-realm"
+  KEYCLOAK_JWKS_URI: "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/protocol/openid-connect/certs"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlops-sales-data
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mlops.training.storage.salesData | default "5Gi" }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-data
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mlops.mlflow.storage.data | default "1Gi" }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mlflow-artifacts
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.mlops.mlflow.storage.artifacts | default "5Gi" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlflow
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  ports:
+    - name: http-mlflow
+      port: 5000
+      targetPort: 5000
+  selector:
+    app: mlflow
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlflow
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mlflow
+  template:
+    metadata:
+      labels:
+        app: mlflow
+    spec:
+      serviceAccountName: mlflow-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mlflow
+          image: "{{ .Values.mlops.mlflow.image.repository }}:{{ .Values.mlops.mlflow.image.tag }}"
+          imagePullPolicy: {{ .Values.mlops.mlflow.image.pullPolicy | default "IfNotPresent" }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - mlflow
+          args:
+            - server
+            - --host
+            - 0.0.0.0
+            - --port
+            - "5000"
+            - --workers
+            - "1"
+            - --backend-store-uri
+            - sqlite:////mlflow-data/mlflow.db
+            - --artifacts-destination
+            - /mlflow-artifacts
+          env:
+            - name: MLFLOW_SERVER_ALLOWED_HOSTS
+              value: "mlflow:5000,mlflow.dev.svc.cluster.local:5000,localhost:5000,127.0.0.1:5000"
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: http
+              containerPort: 5000
+          resources:
+            requests:
+              cpu: {{ .Values.mlops.mlflow.resources.requests.cpu | default "200m" }}
+              memory: {{ .Values.mlops.mlflow.resources.requests.memory | default "1Gi" }}
+            limits:
+              cpu: {{ .Values.mlops.mlflow.resources.limits.cpu | default "1" }}
+              memory: {{ .Values.mlops.mlflow.resources.limits.memory | default "3Gi" }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: mlflow-data
+              mountPath: /mlflow-data
+            - name: mlflow-artifacts
+              mountPath: /mlflow-artifacts
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: mlflow-data
+          persistentVolumeClaim:
+            claimName: mlflow-data
+        - name: mlflow-artifacts
+          persistentVolumeClaim:
+            claimName: mlflow-artifacts
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-sales-capture
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demand-sales-capture
+  template:
+    metadata:
+      labels:
+        app: demand-sales-capture
+    spec:
+      serviceAccountName: demand-sales-capture-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: stream-orders
+          image: "{{ .Values.mlops.training.image.repository }}:{{ .Values.mlops.training.image.tag }}"
+          imagePullPolicy: {{ .Values.mlops.training.image.pullPolicy | default "IfNotPresent" }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          command:
+            - python
+            - /app/stream_orders_to_parquet.py
+          args:
+            - --bootstrap-servers
+            - kafka.data.svc.cluster.local:9092
+            - --topic
+            - orders-topic
+            - --output
+            - /data/sales_parquet
+            - --checkpoint-location
+            - /data/checkpoints/sales_parquet
+          env:
+            - name: MLFLOW_TRACKING_URI
+              valueFrom:
+                configMapKeyRef:
+                  name: mlops-config
+                  key: MLFLOW_TRACKING_URI
+            - name: MLFLOW_EXPERIMENT_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: mlops-config
+                  key: MLFLOW_EXPERIMENT_NAME
+            - name: MLOPS_SALES_PATH
+              value: /data/sales_parquet
+            - name: MLOPS_TRAINING_STATE_PATH
+              value: /data/checkpoints/auto-training/last-successful-input.sha256
+            - name: MLOPS_MIN_PARTITIONS
+              value: "{{ .Values.mlops.training.minPartitions | default 9 }}"
+            - name: MLOPS_AUTO_TRAIN_INTERVAL_SEC
+              value: "{{ .Values.mlops.training.autoTrainIntervalSec | default 20 }}"
+            - name: HOME
+              value: /tmp
+            - name: SPARK_LOCAL_IP
+              value: 127.0.0.1
+          resources:
+            requests:
+              cpu: {{ .Values.mlops.training.resources.requests.cpu | default "1" }}
+              memory: {{ .Values.mlops.training.resources.requests.memory | default "2Gi" }}
+              ephemeral-storage: 1Gi
+            limits:
+              cpu: {{ .Values.mlops.training.resources.limits.cpu | default "4" }}
+              memory: {{ .Values.mlops.training.resources.limits.memory | default "4Gi" }}
+              ephemeral-storage: 2Gi
+          volumeMounts:
+            - name: sales-data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sales-data
+          persistentVolumeClaim:
+            claimName: mlops-sales-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demand-forecast-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  template:
+    metadata:
+      labels:
+        app: demand-forecast-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8005"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: demand-forecast-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: forecast-api
+          image: "{{ .Values.mlops.forecast.image.repository }}:{{ .Values.mlops.forecast.image.tag }}"
+          imagePullPolicy: {{ .Values.mlops.forecast.image.pullPolicy | default "IfNotPresent" }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: mlops-config
+          env:
+            - name: HOME
+              value: /tmp
+          ports:
+            - name: http
+              containerPort: 8005
+          resources:
+            requests:
+              cpu: {{ .Values.mlops.forecast.resources.requests.cpu | default "100m" }}
+              memory: {{ .Values.mlops.forecast.resources.requests.memory | default "256Mi" }}
+              ephemeral-storage: 128Mi
+            limits:
+              cpu: {{ .Values.mlops.forecast.resources.limits.cpu | default "1" }}
+              memory: {{ .Values.mlops.forecast.resources.limits.memory | default "768Mi" }}
+              ephemeral-storage: 256Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 20
+          volumeMounts:
+            - name: sales-data
+              mountPath: /data
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: sales-data
+          persistentVolumeClaim:
+            claimName: mlops-sales-data
+        - name: tmp
+          emptyDir:
+            sizeLimit: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demand-forecast-service
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  ports:
+    - name: http
+      port: 8005
+      targetPort: 8005
+  selector:
+    app: demand-forecast-service
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: demand-model-training-scheduler
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  schedule: "17 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 1800
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: demand-model-training
+        spec:
+          serviceAccountName: demand-training-sa
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: train
+              image: "{{ .Values.mlops.training.image.repository }}:{{ .Values.mlops.training.image.tag }}"
+              imagePullPolicy: {{ .Values.mlops.training.image.pullPolicy | default "IfNotPresent" }}
+              command:
+                - python
+                - /app/train_demand_model.py
+                - --auto
+              env:
+                - name: MLFLOW_TRACKING_URI
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mlops-config
+                      key: MLFLOW_TRACKING_URI
+                - name: MLFLOW_EXPERIMENT_NAME
+                  valueFrom:
+                    configMapKeyRef:
+                      name: mlops-config
+                      key: MLFLOW_EXPERIMENT_NAME
+                - name: MLOPS_SALES_PATH
+                  value: /data/sales_parquet
+                - name: MLOPS_TRAINING_STATE_PATH
+                  value: /data/checkpoints/auto-training/last-successful-input.sha256
+                - name: HOME
+                  value: /tmp
+                - name: SPARK_LOCAL_IP
+                  value: 127.0.0.1
+              resources:
+                requests:
+                  cpu: {{ .Values.mlops.training.resources.requests.cpu | default "1" }}
+                  memory: {{ .Values.mlops.training.resources.requests.memory | default "2Gi" }}
+                limits:
+                  cpu: {{ .Values.mlops.training.resources.limits.cpu | default "4" }}
+                  memory: {{ .Values.mlops.training.resources.limits.memory | default "4Gi" }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: sales-data
+                  mountPath: /data
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: sales-data
+              persistentVolumeClaim:
+                claimName: mlops-sales-data
+            - name: tmp
+              emptyDir:
+                sizeLimit: 1Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mlops-forecast-traffic
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app: demand-forecast-service
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: frontend
+      ports:
+        - protocol: TCP
+          port: 8005
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              environment: observability
+      ports:
+        - protocol: TCP
+          port: 8005
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mlops-tracking-traffic
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app: mlflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - demand-forecast-service
+                  - demand-model-training
+                  - demand-sales-capture
+      ports:
+        - protocol: TCP
+          port: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-spark-package-downloads
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchLabels:
+      app: demand-sales-capture
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - protocol: TCP
+          port: 443
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: demand-forecast-service
+  labels:
+    release: kube-prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+spec:
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      relabelings:
+        - sourceLabels:
+            - __meta_kubernetes_pod_label_app
+          targetLabel: service
+{{- end }}

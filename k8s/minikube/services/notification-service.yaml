@@ -29,6 +29,7 @@ spec:
         prometheus.io/port: "8002"
         prometheus.io/path: "/actuator/notification/prometheus"
     spec:
+      serviceAccountName: notification-service-sa
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:

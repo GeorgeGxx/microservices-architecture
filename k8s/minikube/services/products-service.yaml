@@ -29,6 +29,7 @@ spec:
         prometheus.io/port: "8004"
         prometheus.io/path: "/actuator/products/prometheus"
     spec:
+      serviceAccountName: products-service-sa
       automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:

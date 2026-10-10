@@ -54,13 +54,13 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service)
           - source_labels: [__meta_kubernetes_pod_label_app, __meta_kubernetes_pod_container_port_number]
             action: keep
-            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002)
+            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002|demand-forecast-service;8005)
           - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|forecast-api)
           - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_container_port_number]
             regex: (.+);(.+)
             replacement: $1:$2
@@ -85,6 +85,10 @@ data:
             target_label: __metrics_path__
             regex: products-service
             replacement: /actuator/products/prometheus
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: __metrics_path__
+            regex: demand-forecast-service
+            replacement: /metrics
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: job
           - source_labels: [__meta_kubernetes_pod_label_app]

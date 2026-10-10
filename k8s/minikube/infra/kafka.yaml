@@ -1,20 +1,4 @@
 apiVersion: v1
-kind: Secret
-metadata:
-  name: kafka-jaas-secret
-  namespace: data
-type: Opaque
-stringData:
-  kafka_server_jaas.conf: |
-    KafkaServer {
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="admin"
-        password="admin-secret"
-        user_admin="admin-secret"
-        user_app="microservices-kafka-secret";
-    };
----
-apiVersion: v1
 kind: Service
 metadata:
   name: kafka
@@ -24,9 +8,6 @@ spec:
     - name: tcp-kafka
       port: 9092
       targetPort: 9092
-    - name: tcp-kafka-sasl
-      port: 9094
-      targetPort: 9094
     - name: tcp-controller
       port: 9093
       targetPort: 9093
@@ -57,10 +38,6 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
-      volumes:
-        - name: kafka-jaas
-          secret:
-            secretName: kafka-jaas-secret
       containers:
         - name: kafka
           image: confluentinc/cp-kafka:7.8.0
@@ -76,7 +53,6 @@ spec:
           ports:
             - containerPort: 9092
             - containerPort: 9093
-            - containerPort: 9094
           env:
             - name: CLUSTER_ID
               value: "GKDx6mu6RsOTU1ErbSukuQ"
@@ -89,19 +65,15 @@ spec:
             - name: KAFKA_CONTROLLER_QUORUM_VOTERS
               value: "1@127.0.0.1:9093"
             - name: KAFKA_LISTENERS
-              value: "PLAINTEXT://0.0.0.0:9092,SASL_PLAINTEXT://0.0.0.0:9094,CONTROLLER://0.0.0.0:9093"
+              value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
             - name: KAFKA_ADVERTISED_LISTENERS
-              value: "PLAINTEXT://kafka.data.svc.cluster.local:9092,SASL_PLAINTEXT://kafka.data.svc.cluster.local:9094"
+              value: "PLAINTEXT://kafka.data.svc.cluster.local:9092"
             - name: KAFKA_CONTROLLER_LISTENER_NAMES
               value: "CONTROLLER"
             - name: KAFKA_INTER_BROKER_LISTENER_NAME
               value: "PLAINTEXT"
             - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
-              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,SASL_PLAINTEXT:SASL_PLAINTEXT"
-            - name: KAFKA_SASL_ENABLED_MECHANISMS
-              value: "PLAIN"
-            - name: KAFKA_OPTS
-              value: "-Djava.security.auth.login.config=/etc/kafka/secrets/kafka_server_jaas.conf"
+              value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
             - name: KAFKA_LOG_DIRS
               value: "/var/lib/kafka/data"
             - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
@@ -117,9 +89,6 @@ spec:
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
-            - name: kafka-jaas
-              mountPath: /etc/kafka/secrets
-              readOnly: true
           resources:
             requests:
               cpu: "200m"

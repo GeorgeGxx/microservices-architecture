@@ -127,7 +127,7 @@ spec:
           port: 4318
         - protocol: TCP
           port: 3100
-    # Allow egress to 'data' namespace (PostgreSQL: 5432, Redis: 6379, Kafka: 9092/9094)
+    # Allow egress to 'data' namespace (PostgreSQL: 5432, Redis: 6379, Kafka: 9092)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -139,8 +139,6 @@ spec:
           port: 6379
         - protocol: TCP
           port: 9092
-        - protocol: TCP
-          port: 9094
     # Allow egress to 'auth' namespace (Keycloak: 8181)
     - to:
         - namespaceSelector:
@@ -186,6 +184,12 @@ spec:
         - protocol: TCP
           port: 8004
         - protocol: TCP
+          port: 8005
+        - protocol: TCP
           port: 8080
         - protocol: TCP
           port: 9090
+        - protocol: TCP
+          port: 15020
+        - protocol: TCP
+          port: 15090

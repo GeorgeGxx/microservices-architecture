@@ -1,0 +1,282 @@
+# ==============================================================================
+# Kubernetes RBAC Hardening Template
+# Multi-Environment Support: dev, staging, prod
+# Principle of Least Privilege: Dedicated ServiceAccounts, Roles & RoleBindings
+# ==============================================================================
+
+{{- $env := .Values.global.environment | default "dev" }}
+
+---
+# ------------------------------------------------------------------------------
+# 1. Dedicated ServiceAccounts per Workload
+# ------------------------------------------------------------------------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cosmo-router-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: cosmo-router
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: frontend-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: orders-service-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: orders-service
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: products-service-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: products-service
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory-service-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: inventory-service
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: notification-service-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: notification-service
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+{{- if .Values.mlops.enabled }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mlflow-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: mlflow
+    app.kubernetes.io/part-of: mlops
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-sales-capture-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: demand-sales-capture
+    app.kubernetes.io/part-of: mlops
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-forecast-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: demand-forecast
+    app.kubernetes.io/part-of: mlops
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demand-training-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: demand-training
+    app.kubernetes.io/part-of: mlops
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
+{{- end }}
+
+---
+# ------------------------------------------------------------------------------
+# 2. Workload Role (Zero cluster API privileges)
+# ------------------------------------------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: microservice-workload-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules: []
+
+---
+# ------------------------------------------------------------------------------
+# 3. Environment Operator & CI/CD RBAC
+# ------------------------------------------------------------------------------
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $env }}-developer-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: ["", "apps", "batch"]
+    resources:
+      - pods
+      - pods/log
+      - pods/status
+      - pods/portforward
+      - services
+      - deployments
+      - cronjobs
+      - jobs
+      - replicasets
+    verbs: ["get", "list", "watch"]
+  {{- if eq $env "dev" }}
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  {{- end }}
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["podmonitors", "servicemonitors"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $env }}-viewer-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "monitoring.coreos.com"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $env }}-cicd-deployer-role
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "monitoring.coreos.com"]
+    resources:
+      - pods
+      - services
+      - endpoints
+      - persistentvolumeclaims
+      - configmaps
+      - secrets
+      - deployments
+      - replicasets
+      - cronjobs
+      - jobs
+      - networkpolicies
+      - podmonitors
+      - servicemonitors
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $env }}-developers-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+subjects:
+  - kind: Group
+    name: "{{ $env }}-developers"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: {{ $env }}-developer-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $env }}-viewers-binding
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+subjects:
+  - kind: Group
+    name: "{{ $env }}-viewers"
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: {{ $env }}-viewer-role
+  apiGroup: rbac.authorization.k8s.io

@@ -47,11 +47,8 @@ configMap:
     INVENTORY_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-inventory:5432/ms_inventory"
     ORDERS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-orders:5432/ms_orders"
     PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products:5432/ms_products"
-    KAFKA_BOOTSTRAP_SERVERS: "kafka:9094"
-    KAFKA_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
-    KAFKA_SASL_MECHANISM: "PLAIN"
-    SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "SASL_PLAINTEXT"
-    SPRING_KAFKA_PROPERTIES_SASL_MECHANISM: "PLAIN"
+    KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+    KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
     ARGOCD_VERSION: "3.5.3"
     ARGOCD_HELM_CHART_VERSION: "10.9.2"
     GATEKEEPER_VERSION: "3.23.0"
@@ -70,8 +67,6 @@ secret:
     POSTGRES_PASSWORD: "admin"
     REDIS_PASSWORD: "admin"
     KEYCLOAK_CLIENT_SECRET: "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
-    KAFKA_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
-    SPRING_KAFKA_PROPERTIES_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"app\" password=\"microservices-kafka-secret\";"
 
 prometheusRule:
   enabled: true
@@ -96,6 +91,9 @@ alertmanagerConfig:
 
 # Per-subchart overrides (mirrors each chart's own values.yaml keys)
 cosmo-router:
+  serviceAccount:
+    create: false
+    name: "cosmo-router-sa"
   resources:
     requests:
       cpu: 100m
@@ -131,6 +129,9 @@ cosmo-router:
     minAvailable: 1
 
 inventory-service:
+  serviceAccount:
+    create: false
+    name: "inventory-service-sa"
   resources:
     requests:
       cpu: 400m
@@ -158,6 +159,9 @@ inventory-service:
     minAvailable: 1
 
 notification-service:
+  serviceAccount:
+    create: false
+    name: "notification-service-sa"
   resources:
     requests:
       cpu: 400m
@@ -192,6 +196,9 @@ notification-service:
     minAvailable: 1
 
 orders-service:
+  serviceAccount:
+    create: false
+    name: "orders-service-sa"
   resources:
     requests:
       cpu: 400m
@@ -219,6 +226,9 @@ orders-service:
     minAvailable: 1
 
 products-service:
+  serviceAccount:
+    create: false
+    name: "products-service-sa"
   resources:
     requests:
       cpu: 400m
@@ -252,3 +262,49 @@ frontend:
     tag: "1.0.0"
     digest: ""
     pullPolicy: IfNotPresent
+
+mlops:
+  enabled: true
+  mlflow:
+    image:
+      repository: georgegxx/mlflow
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+    storage:
+      data: 1Gi
+      artifacts: 5Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 3Gi
+  training:
+    image:
+      repository: georgegxx/mlops-training
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+    storage:
+      salesData: 5Gi
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 4Gi
+    minPartitions: 9
+    autoTrainIntervalSec: 20
+  forecast:
+    image:
+      repository: georgegxx/demand-forecast
+      tag: "1.0.0"
+      pullPolicy: IfNotPresent
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 768Mi

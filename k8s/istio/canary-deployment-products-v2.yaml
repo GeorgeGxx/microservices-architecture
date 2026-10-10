@@ -24,7 +24,7 @@ spec:
     spec:
       containers:
         - name: products-service
-          # platform.ps1 sets this to the immutable candidate tag supplied by the operator.
+          # platform-minikube.ps1 sets this to the immutable candidate tag supplied by the operator.
           image: georgegxx/products-service:canary
           imagePullPolicy: IfNotPresent
           ports:
