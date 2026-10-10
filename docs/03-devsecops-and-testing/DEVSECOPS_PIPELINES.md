@@ -161,6 +161,7 @@ gh workflow run service-products.yml --ref develop
 gh workflow run service-notifications.yml --ref develop
 gh workflow run service-frontend.yml --ref develop
 gh workflow run service-inventory.yml --ref develop
+gh workflow run service-mlops.yml --ref develop
 gh run list --limit 5
 ```
 
