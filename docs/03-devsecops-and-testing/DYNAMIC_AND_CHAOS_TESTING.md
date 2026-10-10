@@ -216,4 +216,14 @@ Acquires a Keycloak token with the confidential `microservices_client` and perfo
 python scripts/testing/diagnose.py orders-readonly
 ```
 
+### 8. 🧪 MLOps Unit & Model Governance Suite (`mlops/tests/`)
+Validates the inference API resilience, caching TTLs, Champion vs. Challenger model promotion rules, SHA-256 partition fingerprinting, and Kafka streaming deduplication (15 automated tests):
+```powershell
+$env:PYTHONPATH = "mlops"
+python -m unittest discover -s mlops/tests -v
+```
+* **Timing & Lifecycle Stage:** Executed automatically during Stage 1 (Unit Testing) in GitHub Actions (`_service-ci-cd-template.yml`) on every PR/push touching `mlops/**`, and locally before building MLOps container images.
+* **Objective:** Verifies that candidate models degrading RMSE are rejected as challengers, that MLflow service restarts trigger graceful fallback without 503 errors, and that API metrics gauges are exposed to Prometheus.
+
 ---
+
