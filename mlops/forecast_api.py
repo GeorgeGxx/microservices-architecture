@@ -105,19 +105,15 @@ def require_admin(
     }
     try:
         signing_key = jwks_client(jwks_uri).get_signing_key_from_jwt(credentials.credentials)
-        unverified = jwt.decode(
-            credentials.credentials,
-            options={"verify_signature": False, "verify_exp": False},
-        )
-        token_issuer = unverified.get("iss", "").rstrip("/")
-        expected_issuer = token_issuer if token_issuer in allowed_issuers else issuer
         claims = jwt.decode(
             credentials.credentials,
             signing_key.key,
             algorithms=["RS256"],
-            issuer=expected_issuer,
             options={"verify_aud": False},
         )
+        token_issuer = str(claims.get("iss", "")).rstrip("/")
+        if token_issuer not in allowed_issuers:
+            raise HTTPException(status_code=401, detail="Invalid token issuer")
     except (jwt.PyJWTError, jwt.PyJWKClientError) as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired access token") from exc
 
