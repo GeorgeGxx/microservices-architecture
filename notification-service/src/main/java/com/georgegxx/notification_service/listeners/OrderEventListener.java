@@ -53,7 +53,7 @@ public class OrderEventListener {
 
         // Modern Java 21 Record Pattern deconstruction
         switch (orderEvent) {
-            case OrderEvent(var orderNum, var items, var status, var customer, var address, var tracking, var total, var uId, var uName) -> {
+            case OrderEvent(var orderNum, var items, var status, var customer, var address, var tracking, var total, var uId, var uName, var occurredAt, var orderCreatedAt, var lineItems) -> {
                 String redisKey = NOTIFICATION_IDEMPOTENCY_PREFIX + orderNum + ":" + status;
                 Boolean isFirstTime = this.redisTemplate.opsForValue().setIfAbsent(redisKey, "PROCESSED", Objects.requireNonNull(NOTIFICATION_TTL));
 
