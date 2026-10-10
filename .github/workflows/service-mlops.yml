@@ -33,9 +33,7 @@ jobs:
       dockerfile-path: mlops/Dockerfile.forecast
       context-dir: mlops
       helm-values-key: mlops.forecast
-      post-deploy-enabled: true
-      base-url: 'http://localhost:5173'
-      keycloak-url: 'http://localhost:8181'
+      post-deploy-enabled: false
     secrets: inherit
 
   # ==========================================================
