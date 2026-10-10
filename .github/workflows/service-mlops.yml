@@ -14,14 +14,55 @@ on:
       - 'helm/microservices-umbrella/templates/mlops.yaml'
       - '.github/workflows/service-mlops.yml'
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      dockerhub-owner:
+        required: false
+        type: string
+        default: 'georgegxx'
+        description: 'Docker Hub organization or username for MLOps images'
+      registry-tag:
+        required: false
+        type: string
+        default: '1.0.0'
+        description: 'Semantic version tag for built MLOps images'
+      argocd-server:
+        required: false
+        type: string
+        default: 'localhost:8088'
+        description: 'ArgoCD server host for GitOps sync'
+      post-deploy-enabled:
+        required: false
+        type: boolean
+        default: false
+        description: 'Whether to trigger Postman/Newman contract test verification'
+      base-url:
+        required: false
+        type: string
+        default: 'http://localhost:5173'
+        description: 'Base URL for API contract test suite'
+      keycloak-url:
+        required: false
+        type: string
+        default: 'http://localhost:8181'
+        description: 'Keycloak IAM URL for OAuth2 authentication gate'
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
+      ARGOCD_SERVER:
+        required: false
+      ARGOCD_AUTH_TOKEN:
+        required: false
 
 concurrency:
   group: mlops-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  DOCKERHUB_OWNER: 'georgegxx'
-  REGISTRY_TAG: '1.0.0'
+  DOCKERHUB_OWNER: ${{ inputs.dockerhub-owner || 'georgegxx' }}
+  REGISTRY_TAG: ${{ inputs.registry-tag || '1.0.0' }}
 
 jobs:
   # ==========================================================
@@ -260,7 +301,7 @@ jobs:
 
       - name: Trigger ArgoCD Sync & Health Wait
         env:
-          ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || 'localhost:8088' }}
+          ARGOCD_SERVER: ${{ inputs.argocd-server || secrets.ARGOCD_SERVER || 'localhost:8088' }}
           ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
         run: |
           APP_NAME="microservices-dev"
@@ -285,12 +326,12 @@ jobs:
   post-deployment-validation:
     name: "🧪 8. Post-deployment API Contract Validation (Newman)"
     needs: argocd-gitops-sync
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.DEVSECOPS_POST_DEPLOY_ENABLED == 'true'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop' && vars.DEVSECOPS_POST_DEPLOY_ENABLED == 'true') || inputs.post-deploy-enabled == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      BASE_URL: ${{ vars.DEVSECOPS_BASE_URL || 'http://localhost:5173' }}
-      KEYCLOAK_URL: ${{ vars.DEVSECOPS_KEYCLOAK_URL || 'http://localhost:8181' }}
+      BASE_URL: ${{ inputs.base-url || vars.DEVSECOPS_BASE_URL || 'http://localhost:5173' }}
+      KEYCLOAK_URL: ${{ inputs.keycloak-url || vars.DEVSECOPS_KEYCLOAK_URL || 'http://localhost:8181' }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
