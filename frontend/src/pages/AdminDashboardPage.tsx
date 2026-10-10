@@ -33,6 +33,7 @@ import { ProductQRModal } from '../components/ProductQRModal';
 import { getOrderStatusPresentation } from '../utils/orderFulfillment';
 import { sortOrdersNewestFirst } from '../utils/orderProcessing';
 import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
+import { DemandForecastPanel } from '../components/DemandForecastPanel';
 
 // Popular 1-Click Hardware Presets for Rapid Admin Upload
 const HARDWARE_PRESETS = [
@@ -97,7 +98,7 @@ export const AdminDashboardPage: React.FC = () => {
   const { formatPrice } = useCurrency();
   const { showToast } = useNotifications();
 
-  const [activeTab, setActiveTab] = useState<'catalog' | 'inventory' | 'orders'>('catalog');
+  const [activeTab, setActiveTab] = useState<'catalog' | 'inventory' | 'orders' | 'forecast'>('catalog');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [inventories, setInventories] = useState<InventoryItem[]>([]);
@@ -564,6 +565,7 @@ export const AdminDashboardPage: React.FC = () => {
           { id: 'catalog', label: `Catalog & Item Upload (${products.length})`, icon: Plus },
           { id: 'inventory', label: `Stock & Allocations (${inventories.length})`, icon: Package },
           { id: 'orders', label: `Orders Oversight (${orders.length})`, icon: Clock },
+          { id: 'forecast', label: 'Demand Forecast · 7 Days', icon: TrendingUp },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1381,6 +1383,8 @@ export const AdminDashboardPage: React.FC = () => {
           )}
         </div>
       )}
+
+      {activeTab === 'forecast' && <DemandForecastPanel />}
 
       {/* QR Code Label Modal */}
       {selectedQRProduct && (
