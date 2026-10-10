@@ -67,7 +67,7 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **Grafana Alloy** | `3300` | DaemonSet | DaemonSet | Telemetry & log collector (v1.19.1) |
 | **Redis & Exporter** | `6379` / `9121` | ClusterIP `6379` / `9121` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
 | **PostgreSQL Databases** | Compose host ports `5431`–`5434` → container `5432` | Four ClusterIP Services on `5432` in `data`/`auth` | RDS / Flexible / Cloud SQL | Separate DB per service; host ports are distinct in Compose |
-| **Apache Kafka Broker** | `9094` (SASL) / `9092` / `29092` | ClusterIP `9092`, `9093`, `9094` | KRaft Broker / Strimzi Operator | KRaft broker (SASL PLAIN, Topic: `orders-topic`) |
+| **Apache Kafka Broker** | `9092` / `29092` (host access) | ClusterIP `9092` (client), `9093` (controller) | KRaft Broker / Strimzi Operator | KRaft broker (PLAINTEXT, Topic: `orders-topic`) |
 | **KEDA Operator & Metrics** | N/A (In-Cluster) | ClusterIP | Kubernetes Operator | Event-Driven Autoscaler v2.21.0 (Kafka Lag & Prometheus RPS) |
 
 ---
@@ -105,7 +105,7 @@ The platform provides enterprise-grade secret management across **4 distinct arc
 * **Manual Re-seed / Entropy Sync:**
   ```powershell
   # Generate high-entropy CSPRNG secrets and sync Vault KV-v2
-  pwsh .\platform.ps1 secrets
+  pwsh .\platform-minikube.ps1 secrets
   ```
 * **Pros & Cons:**
   * ✅ **Pros:** Instant cold boot (~3s), zero network friction, completely offline capability, zero external dependencies.
@@ -178,7 +178,7 @@ The platform provides enterprise-grade secret management across **4 distinct arc
 * **`VAULT_ENABLED` Environment Variable Setting:**
   * **`VAULT_ENABLED=false`**. The application does not make network calls to Vault; it sources or reads the file rendered by the sidecar.
 * **Environment Configurations:**
-  * **Minikube:** Manifests in [`k8s/minikube/vault/`](../../k8s/minikube/vault/) with RBAC. Configure isolated service policies through `.\platform.ps1 vault -VaultAction k8s-auth`; the `products-service-vault-demo` uses its dedicated `products-service-role`.
+  * **Minikube:** Manifests in [`k8s/minikube/vault/`](../../k8s/minikube/vault/) with RBAC. Configure isolated service policies through `.\platform-minikube.ps1 vault -VaultAction k8s-auth`; the `products-service-vault-demo` uses its dedicated `products-service-role`.
   * **AWS EKS:** Helm values in [`k8s/eks/vault/vault-helm-values-eks.yaml`](../../k8s/eks/vault/vault-helm-values-eks.yaml) featuring **AWS KMS Auto-Unseal** and **IRSA** (IAM Roles for Service Accounts).
   * **Azure AKS:** Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](../../k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
   * **Google Cloud GKE:** Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](../../k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
@@ -213,7 +213,7 @@ The platform provides enterprise-grade secret management across **4 distinct arc
    * Keep **`VAULT_ENABLED: "false"`** in your Helm chart values ([`helm/microservices-umbrella/values.yaml`](../../helm/microservices-umbrella/values.yaml#L46)).
    * Allow the cluster operator (External Secrets Operator or Azure Key Vault CSI Provider) to sync secrets to `microservices-secrets`. This delivers the fastest deployment rollouts, zero cold-start penalty, and highest resilience against transient network blips.
 2. **Developing Locally:**
-   * Run `.\platform.ps1 up` (starts Minikube and seeds Vault automatically).
+   * Run `.\platform-minikube.ps1 up` (starts Minikube and seeds Vault automatically).
    * If working with plain Docker Compose, run `docker compose up -d` (the ephemeral `vault-init` container prepares everything with zero manual setup).
 3. **When to use `VAULT_ENABLED: "true"`:**
    * Only toggle `VAULT_ENABLED: "true"` when you are specifically testing Spring Cloud Vault's programmatic lease renewals or running microservices outside Kubernetes.
@@ -578,6 +578,7 @@ flowchart TD
 * **Dynamic Storefront API LED:** The brand indicator in the navbar checks a lightweight `products { sku }` GraphQL query every 30 seconds. 🟢 means the browser → frontend Nginx → Cosmo Router → Products subgraph path is responding; 🟠 means the check is in progress; 🔴 means that path is unavailable. This indicator does not claim to represent every service or the Kubernetes cluster; use Grafana and Kubernetes health probes for platform-wide status.
 * **Modern Live Sync Indicator:** The `/admin` operations console auto-synchronizes catalog inventory, warehouse stock levels, and order states every 4 seconds or on manual click with a glassmorphism `● LIVE SYNC` widget.
 * **Separation of Concerns (Grafana Observability):** Complex infrastructure telemetry (Kubernetes cluster nodes, KRaft partition lags, and Istio Envoy service mesh mTLS traffic) is strictly delegated to Grafana LGTM dashboards (Port 3000) and Kiali (Port 20001), keeping the frontend clean, focused, and free of redundant telemetry docks.
+* **Demand Forecasting (MLOps in Minikube & Compose):** The `ADMIN`-only Demand Forecast tab displays daily per-SKU estimates for the next seven days with source provenance (`captured-sales` vs. `synthetic`) and historical date ranges. A FastAPI service (`georgegxx/demand-forecast:1.0.0`) loads the latest validated model from MLflow (`georgegxx/mlflow:1.0.0`) and validates Keycloak JWTs server-side. PySpark Structured Streaming (`georgegxx/mlops-training:1.0.0`) ingests delivered Kafka order events into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`), triggering automated dynamic re-training whenever new multi-day sales are registered. Fully integrated in Minikube (`dev` namespace) with OPA Gatekeeper/Conftest-compliant `:1.0.0` image tags, Istio sidecars, Prometheus metrics, and automated Newman API test coverage. See the [Local MLOps workflow](../../README.md#local-mlops-workflow).
 
 ### 5. 🔔 Customer-Centric Notification Center (Zero-Jargon)
 * **Buyer-Oriented Messaging:** Removed internal architecture jargon (such as *"Saga orchestrator"*, *"distributed compensation"*, *"Kafka stream active"*).
@@ -644,10 +645,10 @@ graph LR
 ```
 
 ### 1. 🚇 Resilient Port-Forward Tunneling Automation (`supervise-tunnels.py`)
-* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Cosmo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../../scripts/supervise-tunnels.py) or `.\platform.ps1 tunnels`:
+* **Zero-Drop Background Supervision:** Exposes and maintains active connections to **Cosmo Router Gateway** (`:8080`), **Keycloak IAM** (`:8181`), **Frontend** (`:5173`), **Vault** (`:8200`), and **Grafana** (`:3000`) using [`scripts/supervise-tunnels.py`](../../scripts/supervise-tunnels.py) or `.\platform-minikube.ps1 tunnels`:
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
-  .\platform.ps1 tunnels
+  .\platform-minikube.ps1 tunnels
   # Direct script execution:
   python scripts/supervise-tunnels.py
   ```
@@ -760,4 +761,61 @@ spec:
 
 > [!NOTE]
 > In local Minikube, these constraints are intentionally omitted from development manifests because Minikube provisions a single node with no cloud zones. Enforcing `whenUnsatisfiable: DoNotSchedule` locally would cause secondary replicas to remain permanently trapped in `Pending` state. In cloud staging and production clusters with 3+ availability zones, these constraints provide automated multi-datacenter high availability.
+
+---
+
+## 🛡️ Kubernetes RBAC Hardening & Multi-Environment Least-Privilege Security Model
+
+To protect against container escape, privilege escalation, and lateral movement across workloads, the Kubernetes runtime enforces strict **Role-Based Access Control (RBAC)** across all environments: **`dev` (Minikube)**, **`staging` (Cloud)**, and **`prod` (Multi-Cloud)**:
+
+```mermaid
+flowchart TD
+    subgraph K8sEnvs["Namespaces: dev • staging • prod (Least-Privilege Security Boundaries)"]
+        subgraph Workloads["Microservice Workloads & MLOps"]
+            SA_CR["cosmo-router-sa"] --> Pod_CR["Pod: cosmo-router"]
+            SA_FE["frontend-sa"] --> Pod_FE["Pod: frontend"]
+            SA_ORD["orders-service-sa"] --> Pod_ORD["Pod: orders-service"]
+            SA_PRD["products-service-sa"] --> Pod_PRD["Pod: products-service"]
+            SA_INV["inventory-service-sa"] --> Pod_INV["Pod: inventory-service"]
+            SA_NTF["notification-service-sa"] --> Pod_NTF["Pod: notification-service"]
+            SA_MLF["mlflow-sa"] --> Pod_MLF["Pod: mlflow"]
+            SA_MLP["demand-sales-capture-sa"] --> Pod_MLP["Pod: demand-sales-capture"]
+            SA_FC["demand-forecast-sa"] --> Pod_FC["Pod: demand-forecast-service"]
+            SA_TRN["demand-training-sa"] --> Pod_TRN["Job/CronJob: demand-training"]
+        end
+
+        subgraph Roles["Declarative K8s Roles"]
+            Role_Workload["Role: microservice-workload-role<br/>(rules: [] - Zero K8s API Access)"]
+            Role_Dev["Role: dev-developer-role<br/>(logs, port-forward, exec, patch restart)"]
+            Role_CICD["Role: dev-cicd-deployer-role<br/>(Scoped CRUD for Helm / ArgoCD)"]
+            Role_View["Role: dev-viewer-role<br/>(Read-only telemetry & inspection)"]
+        end
+
+        subgraph Hardening["Admission & Runtime Hardening"]
+            Gate["OPA Conftest Gate<br/>• Deny default ServiceAccount<br/>• Deny unpinned :latest tags<br/>• Enforce resource limits"]
+            Token["automountServiceAccountToken: false<br/>(Zero secret projection into container)"]
+        end
+    end
+```
+
+### 1. Dedicated Workload ServiceAccounts
+- Every microservice and MLOps component runs under an isolated, dedicated `ServiceAccount` (`cosmo-router-sa`, `frontend-sa`, `orders-service-sa`, `products-service-sa`, `inventory-service-sa`, `notification-service-sa`, `mlflow-sa`, `demand-sales-capture-sa`, `demand-forecast-sa`, `demand-training-sa`).
+- **`automountServiceAccountToken: false`** is enforced across all Deployments, Jobs, and CronJobs. Containers cannot make unauthenticated or authenticated calls to the Kubernetes API server (`https://kubernetes.default.svc`).
+- The `default` ServiceAccount in the `dev` namespace is completely bypassed.
+
+### 2. Namespace-Scoped Developer & Deployer Roles
+- **`dev-developer-role`**: Grants engineers scoped debugging permissions (`pods/log`, `pods/portforward`, `pods/exec`, `deployments: patch` for rollout restarts) without cluster-admin or secret modification rights.
+- **`dev-viewer-role`**: Read-only inspection role for audit and monitoring personas.
+- **`dev-cicd-deployer-role`**: Scoped deployment role for automated GitHub Actions and ArgoCD GitOps synchronizations.
+
+### 3. Shift-Left Policy Gate (OPA Conftest)
+All Kubernetes manifests and Helm charts undergo pre-commit policy enforcement in [`.github/workflows/service-mlops.yml`](../../.github/workflows/service-mlops.yml) and [`platform-minikube.ps1`](../../platform-minikube.ps1) via [`devsecops/policies/conftest/kubernetes.rego`](../../devsecops/policies/conftest/kubernetes.rego):
+```rego
+# Deny Deployments using the default ServiceAccount
+deny contains msg if {
+  input.kind == "Deployment"
+  not input.spec.template.spec.serviceAccountName
+  msg := sprintf("Deployment '%v' does not define an explicit serviceAccountName. Running under the 'default' ServiceAccount is prohibited.", [input.metadata.name])
+}
+```
 

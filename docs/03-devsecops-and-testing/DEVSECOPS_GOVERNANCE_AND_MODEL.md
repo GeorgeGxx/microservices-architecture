@@ -176,7 +176,7 @@ classDiagram
 - **Key Responsibilities:**
   - Maintain Terraform code across Minikube, AWS EKS, Azure AKS, and GCP GKE.
   - Standardize Helm charts, KEDA scaling policies, and Istio service mesh configs.
-  - Empower developers with automated local tooling (`platform.ps1`).
+  - Empower developers with automated, platform-specific local tooling (`platform-minikube.ps1`).
 
 ### 2. SRE (Site Reliability Engineer)
 - **Mission:** Bridge software engineering and operations to ensure SLO compliance, resilience, and operational excellence.

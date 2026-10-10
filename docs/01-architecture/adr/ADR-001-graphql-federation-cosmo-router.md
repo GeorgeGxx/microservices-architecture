@@ -67,6 +67,6 @@ Chosen option: **Option 2 (WunderGraph Cosmo Router)**.
 
 ## 🛡️ Security & Operational Validation
 * Verified in automated CI/CD via:
-  - `platform.ps1 smoke`: Probes Cosmo Router Supergraph root `/graphql` with HTTP 200 within 50ms.
-  - `platform.ps1 contract`: Newman test suite executes 20 federated queries and mutations.
-  - `platform.ps1 performance`: k6 benchmark validates p95 latency < 200ms under 25 concurrent VUs.
+  - `platform-minikube.ps1 smoke`: Probes Cosmo Router Supergraph root `/graphql` with HTTP 200 within 50ms.
+  - `platform-minikube.ps1 contract`: Newman test suite executes 20 federated queries and mutations.
+  - `platform-minikube.ps1 performance`: k6 benchmark validates p95 latency < 200ms under 25 concurrent VUs.

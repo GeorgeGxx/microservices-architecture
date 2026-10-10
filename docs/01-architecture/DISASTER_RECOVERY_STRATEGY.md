@@ -107,7 +107,7 @@ sequenceDiagram
     SRE->>DB: Execute Read-Replica Promotion to Standalone Master
     DB-->>SRE: DB Promoted (Read-Write Mode Active)
     K8s->>K8s: KEDA Detects Traffic Ingress -> Autoscales Pods from 25% to 100%
-    SRE->>K8s: Run platform.ps1 smoke & contract validation
+    SRE->>K8s: Run the selected platform entrypoint smoke & contract validation
     K8s-->>SRE: Verification: 100% Gates Passed
     SRE->>SRE: DR Failover Complete (Total Elapsed Time < 12 minutes)
 ```
@@ -130,11 +130,9 @@ sequenceDiagram
    kubectl scale deployment orders-service --replicas=4 -n dev
    ```
 5. **Post-Failover Verification:**
-   Run smoke and contract verification against the DR endpoint:
-   ```powershell
-   .\platform.ps1 smoke -Environment prod
-   .\platform.ps1 contract -Environment prod
-   ```
+   Run the repository's smoke and contract verification jobs against the DR
+   endpoint from CI. Cloud provider entrypoints manage infrastructure and
+   GitOps operations, not local application test runners.
 
 ---
 

@@ -59,5 +59,5 @@ The repository organizes Terraform into a clean modular architecture:
 * `terraform/environments/gcp/`: GKE, VPC, Cloud SQL, and GCS backend.
 
 ### Positive Consequences
-* **Single Tooling:** The platform CLI (`platform.ps1`) drives Terraform seamlessly across all 4 environments.
+* **Decoupled entrypoints:** `platform-multicloud.ps1` (`-Provider aws|azure|gcp`) drives Terraform across cloud providers without cascading scripts; `platform-minikube.ps1` manages the local zero-cost cluster.
 * **Shift-Left IaC Security:** Validated in CI/CD using Checkov and Trivy before any infrastructure changes are applied.

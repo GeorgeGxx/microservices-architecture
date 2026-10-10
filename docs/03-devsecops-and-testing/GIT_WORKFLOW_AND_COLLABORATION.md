@@ -292,7 +292,7 @@ A purged secret is still considered compromised. Execute immediate rotation:
 vault kv put secret/microservices/config POSTGRES_PASSWORD="new_complex_password"
 
 # Re-apply Kubernetes secret in Minikube/Cluster:
-.\platform.ps1 up
+.\platform-minikube.ps1 up
 ```
 
 ---
@@ -345,4 +345,3 @@ git push origin develop
 # 5. Clean up temporary hotfix branch:
 git branch -d hotfix/fix-jwt-replay
 ```
-

@@ -115,11 +115,11 @@ foreach ($provider in @('aws', 'azure', 'gcp')) {
 ```
 
 Each provider root uses the same workspace names: `dev`, `staging`, and `prod`.
-AWS uses one S3 bucket and DynamoDB lock table across those workspaces; the
-GitHub workflow and `platform.ps1` must use the same bucket/table pair. Azure
-uses one Blob container with lease locking, and GCP uses one GCS bucket with
-native state locking. Before running Azure/GCP cloud commands, provision their
-state stores and copy/fill the ignored partial-backend files:
+- **AWS (S3 Backend):** Uses `bucket`, `key`, and `dynamodb_table` alongside native S3 object lockfiles (`use_lockfile = true`, introduced in Terraform 1.10+). This gives double-guarded distributed concurrency control across GitHub Actions and `platform-multicloud.ps1 -Provider aws`.
+- **Azure (Azurerm Backend):** Uses Azure Blob Storage with automated, native **Blob Leases**. The lease is acquired upon state read/write and released automatically without needing external lock tables or auxiliary parameters.
+- **Google Cloud (GCS Backend):** Uses Google Cloud Storage with automated, native **Generation Preconditions** (`x-goog-if-generation-match: 0`). Atomic object creation and locking are built directly into GCS without requiring third-party state locks.
+
+Before running Azure/GCP cloud commands, provision their state stores and copy/fill the ignored partial-backend files:
 
 ```powershell
 Copy-Item terraform/backend-config/azure.hcl.example terraform/backend-config/azure.hcl

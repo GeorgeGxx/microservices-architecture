@@ -24,7 +24,7 @@ We require a secret management architecture that:
 1. **Zero Secret Footprint in Git:** No secret must ever be committed to the repository (enforced via Gitleaks).
 2. **Granular Access Control:** Each microservice can only read its own domain secrets (least-privilege policy).
 3. **Multi-Cloud Agility:** Consistent API across Minikube, AWS, Azure, and GCP.
-4. **Developer Velocity:** Automatic initialization in local development via CLI tooling (`platform.ps1`).
+4. **Developer Velocity:** Automatic initialization in local development via CLI tooling (`platform-minikube.ps1`).
 
 ---
 
@@ -55,7 +55,7 @@ Chosen option: **Option 2 (HashiCorp Vault)**.
 
 ### Positive Consequences
 * **Service-Level Isolation:** Microservices authenticate via Kubernetes ServiceAccount tokens. `products-service` is granted read-only access to `secret/data/microservices/products` and cannot read order or payment secrets.
-* **Automated Local Seeding:** In Minikube, `Initialize-LocalVault` in `platform.ps1` automatically unseals Vault, enables KV-v2, and populates credentials parsed dynamically from `.env`.
+* **Automated Local Seeding:** In Minikube, `Initialize-LocalVault` in `platform-minikube.ps1` automatically unseals Vault, enables KV-v2, and populates credentials parsed dynamically from `.env`.
 * **Zero Leak Risk:** Gitleaks pre-commit hooks ensure raw secrets cannot enter Git history.
 
 ### Negative Consequences / Trade-offs
