@@ -1,25 +1,28 @@
 name: Microservices Architecture - Terraform AWS Infrastructure Pipeline
 
+# Note: Automatic push, pull_request, and cron drift detection triggers are temporarily disabled
+# until AWS remote state bucket (georgegxx-msa-tfstate-prod) is provisioned.
+# To trigger manually: use the 'Run workflow' button in GitHub Actions.
 on:
-  push:
-    branches: [ develop, staging, master, main ]
-    paths:
-      - 'terraform/**'
-      - 'argocd/**'
-      - 'helm/values/opencost-*.yaml'
-      - 'helm/values/prometheus-cloud.yaml'
-      - 'scripts/validate-opencost.sh'
-  pull_request:
-    branches: [ develop, staging, master, main ]
-    paths:
-      - 'terraform/**'
-      - 'argocd/**'
-      - 'helm/values/opencost-*.yaml'
-      - 'helm/values/prometheus-cloud.yaml'
-      - 'scripts/validate-opencost.sh'
-  schedule:
-    - cron: '0 6 * * 1' # Monday 6:00 AM UTC - Automated Drift Detection
   workflow_dispatch:
+  # push:
+  #   branches: [ develop, staging, master, main ]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'argocd/**'
+  #     - 'helm/values/opencost-*.yaml'
+  #     - 'helm/values/prometheus-cloud.yaml'
+  #     - 'scripts/validate-opencost.sh'
+  # pull_request:
+  #   branches: [ develop, staging, master, main ]
+  #   paths:
+  #     - 'terraform/**'
+  #     - 'argocd/**'
+  #     - 'helm/values/opencost-*.yaml'
+  #     - 'helm/values/prometheus-cloud.yaml'
+  #     - 'scripts/validate-opencost.sh'
+  # schedule:
+  #   - cron: '0 6 * * 1' # Monday 6:00 AM UTC - Automated Drift Detection
     inputs:
       environment:
         description: 'Target AWS Terraform workspace'
