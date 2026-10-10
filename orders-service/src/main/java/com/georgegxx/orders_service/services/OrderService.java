@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.georgegxx.orders_service.clients.InventoryClient;
 import com.georgegxx.orders_service.clients.ProductsClient;
 
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -52,6 +53,9 @@ public class OrderService implements org.springframework.beans.factory.Initializ
     private static final double STALE_PRICE_WARN_THRESHOLD = 0.01; // 1%
     private static final String INVENTORY_SERVICE = "inventory-service";
     private static final String STATUS_TAG = "status";
+    private static final Set<String> FUNNEL_CATEGORIES = Set.of(
+            "Electronics", "Peripherals", "Computers", "Displays", "General");
+    private static final Set<String> FUNNEL_STEPS = Set.of("SHIPPING", "DELIVERY", "PAYMENT");
 
     // Database-backed Persistent Metric State Holders
     private final AtomicLong dbCompletedOrders = new AtomicLong(0);
@@ -66,11 +70,6 @@ public class OrderService implements org.springframework.beans.factory.Initializ
     private final Map<String, AtomicReference<Double>> dbRevenueByCohort = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> dbBasketSizes = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> dbPipelineOrders = new ConcurrentHashMap<>();
-
-    // Conversion Funnel Metric State Holders (Cart Abandonment & Funnel Progression)
-    private final Map<String, AtomicLong> dbCartAdditions = new ConcurrentHashMap<>();
-    private final AtomicLong dbCheckoutStarted = new AtomicLong(0);
-    private final Map<String, AtomicLong> dbCheckoutSteps = new ConcurrentHashMap<>();
 
     @Override
     public void afterPropertiesSet() {
@@ -97,25 +96,25 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 this.inventoryCircuitBreaker.getCircuitBreakerConfig().getSlidingWindowSize());
 
         // Register Database-Backed Gauges in Micrometer / Prometheus
-        Gauge.builder("ecommerce_orders_total", this.dbCompletedOrders, AtomicLong::get)
+        Gauge.builder("ecommerce_orders", this.dbCompletedOrders, AtomicLong::get)
                 .tag(STATUS_TAG, "COMPLETED")
                 .description("Total completed orders aligned with PostgreSQL database")
                 .register(this.meterRegistry);
 
-        Gauge.builder("ecommerce_orders_total", this.dbCancelledOrders, AtomicLong::get)
+        Gauge.builder("ecommerce_orders", this.dbCancelledOrders, AtomicLong::get)
                 .tag(STATUS_TAG, "CANCELLED")
                 .description("Total cancelled orders aligned with PostgreSQL database")
                 .register(this.meterRegistry);
 
-        Gauge.builder("ecommerce_revenue_usd_total", this.dbRevenueUsd, AtomicReference::get)
-                .description("Total net revenue in USD aligned with PostgreSQL database")
+        Gauge.builder("ecommerce_revenue_usd", this.dbRevenueUsd, AtomicReference::get)
+                .description("All-time delivered merchandise value in USD aligned with PostgreSQL database; excludes cancelled, tax, and shipping amounts")
                 .register(this.meterRegistry);
 
-        Gauge.builder("ecommerce_revenue_cancelled_usd_total", this.dbCancelledRevenueUsd, AtomicReference::get)
+        Gauge.builder("ecommerce_revenue_cancelled_usd", this.dbCancelledRevenueUsd, AtomicReference::get)
                 .description("Total cancelled revenue in USD aligned with PostgreSQL database")
                 .register(this.meterRegistry);
 
-        Gauge.builder("ecommerce_items_sold_total", this.dbItemsSold, AtomicLong::get)
+        Gauge.builder("ecommerce_items_sold", this.dbItemsSold, AtomicLong::get)
                 .description("Total physical units sold aligned with PostgreSQL database")
                 .register(this.meterRegistry);
 
@@ -123,9 +122,9 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         List.of("LAPTOP-PRO", "000001", "000002", "000003", "000004").forEach(sku ->
             this.dbSkuSales.computeIfAbsent(sku, s -> {
                 AtomicLong val = new AtomicLong(0);
-                Gauge.builder("ecommerce_sku_sales_total", val, AtomicLong::get)
+                Gauge.builder("ecommerce_sku_sales", val, AtomicLong::get)
                         .tag("sku", s)
-                        .description("Units sold per SKU aligned with PostgreSQL database")
+                        .description("Units in delivered orders per SKU aligned with PostgreSQL database")
                         .register(this.meterRegistry);
                 return val;
             })
@@ -155,7 +154,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         List.of("single_item", "2_3_items", "bulk_4_plus").forEach(range ->
             this.dbBasketSizes.computeIfAbsent(range, r -> {
                 AtomicLong val = new AtomicLong(0);
-                Gauge.builder("ecommerce_order_basket_size_total", val, AtomicLong::get)
+                Gauge.builder("ecommerce_order_basket_size", val, AtomicLong::get)
                         .tag("size_range", r)
                         .description("Order count distribution based on items in cart")
                         .register(this.meterRegistry);
@@ -175,33 +174,6 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             })
         );
 
-        // Pre-register Conversion Funnel Gauges (aligned with DB baselines & live events)
-        List.of("Electronics", "Peripherals", "Computers", "Displays", "General").forEach(cat ->
-            this.dbCartAdditions.computeIfAbsent(cat, c -> {
-                AtomicLong val = new AtomicLong(0);
-                Gauge.builder("ecommerce_cart_additions_total", val, AtomicLong::get)
-                        .tag("category", c)
-                        .description("Total cart additions aligned with business funnel")
-                        .register(this.meterRegistry);
-                return val;
-            })
-        );
-
-        Gauge.builder("ecommerce_checkout_started_total", this.dbCheckoutStarted, AtomicLong::get)
-                .description("Total checkout started events aligned with business funnel")
-                .register(this.meterRegistry);
-
-        List.of("SHIPPING", "DELIVERY", "PAYMENT").forEach(step ->
-            this.dbCheckoutSteps.computeIfAbsent(step, s -> {
-                AtomicLong val = new AtomicLong(0);
-                Gauge.builder("ecommerce_checkout_step_reached_total", val, AtomicLong::get)
-                        .tag("step", s)
-                        .description("Total checkout step events aligned with business funnel")
-                        .register(this.meterRegistry);
-                return val;
-            })
-        );
-
         // Immediately synchronize metrics from PostgreSQL on container startup
         syncDatabaseMetrics();
     }
@@ -216,8 +188,11 @@ public class OrderService implements org.springframework.beans.factory.Initializ
 
             List<Order> activeOrders = partitionedOrders.getOrDefault(true, Collections.emptyList());
             List<Order> cancelledOrders = partitionedOrders.getOrDefault(false, Collections.emptyList());
+            List<Order> deliveredOrders = activeOrders.stream()
+                    .filter(order -> order.getOrderStatus() == OrderStatus.DELIVERED)
+                    .toList();
 
-            double revenue = activeOrders.stream()
+            double revenue = deliveredOrders.stream()
                     .filter(o -> o.getOrderItems() != null)
                     .flatMap(o -> o.getOrderItems().stream())
                     .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0))
@@ -229,13 +204,13 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                     .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0))
                     .sum();
 
-            long items = activeOrders.stream()
+            long items = deliveredOrders.stream()
                     .filter(o -> o.getOrderItems() != null)
                     .flatMap(o -> o.getOrderItems().stream())
                     .mapToLong(i -> i.getQuantity() != null ? i.getQuantity() : 0)
                     .sum();
 
-            this.dbCompletedOrders.set(activeOrders.size());
+            this.dbCompletedOrders.set(deliveredOrders.size());
             this.dbCancelledOrders.set(cancelledOrders.size());
             this.dbRevenueUsd.set(revenue);
             this.dbCancelledRevenueUsd.set(cancelledRev);
@@ -243,7 +218,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
 
             // Per-SKU sales distribution aggregation
             Map<String, Long> skuCounts = new HashMap<>();
-            activeOrders.stream()
+            deliveredOrders.stream()
                     .filter(o -> o.getOrderItems() != null)
                     .flatMap(o -> o.getOrderItems().stream())
                     .filter(item -> item.getSku() != null)
@@ -256,9 +231,9 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             skuCounts.forEach((sku, count) ->
                 this.dbSkuSales.computeIfAbsent(sku, s -> {
                     AtomicLong val = new AtomicLong(0);
-                    Gauge.builder("ecommerce_sku_sales_total", val, AtomicLong::get)
+                    Gauge.builder("ecommerce_sku_sales", val, AtomicLong::get)
                             .tag("sku", s)
-                            .description("Units sold per SKU aligned with PostgreSQL database")
+                            .description("Units in delivered orders per SKU aligned with PostgreSQL database")
                             .register(this.meterRegistry);
                     return val;
                 }).set(count)
@@ -267,7 +242,7 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             // 1. Customer Loyalty Cohort Aggregation (O(1) Bounded Cardinality)
             Map<String, Long> userOrderCounts = new HashMap<>();
             Map<String, Double> userSpending = new HashMap<>();
-            activeOrders.forEach(o -> {
+            deliveredOrders.forEach(o -> {
                 String u = (o.getUserId() != null && !o.getUserId().isBlank()) ? o.getUserId() : o.getUsername();
                 if (u != null && !u.isBlank() && !"guest".equalsIgnoreCase(u)) {
                     userOrderCounts.merge(u, 1L, Long::sum);
@@ -336,31 +311,8 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                 this.dbPipelineOrders.computeIfAbsent(status, k -> new AtomicLong(0)).set(pipelineCounts.getOrDefault(status, 0L))
             );
 
-            // 4. Conversion Funnel Baseline Alignment
-            long completed = activeOrders.size();
-            if (completed > 0) {
-                // E-commerce standard: ~68% cart abandonment rate (32% order conversion rate)
-                long baselineCartAdditions = Math.max((long) (completed / 0.32), completed + 50);
-                long perCategory = Math.max(baselineCartAdditions / Math.max(this.dbCartAdditions.size(), 1), 1L);
-                this.dbCartAdditions.values().forEach(v -> {
-                    if (v.get() < perCategory) {
-                        v.set(perCategory);
-                    }
-                });
-
-                long baselineCheckoutStarted = (long) (completed / 0.50);
-                if (this.dbCheckoutStarted.get() < baselineCheckoutStarted) {
-                    this.dbCheckoutStarted.set(baselineCheckoutStarted);
-                }
-
-                long baselinePaymentStep = (long) (completed / 0.75);
-                this.dbCheckoutSteps.computeIfAbsent("PAYMENT", k -> new AtomicLong(0)).updateAndGet(curr -> Math.max(curr, baselinePaymentStep));
-                this.dbCheckoutSteps.computeIfAbsent("SHIPPING", k -> new AtomicLong(0)).updateAndGet(curr -> Math.max(curr, baselineCheckoutStarted));
-                this.dbCheckoutSteps.computeIfAbsent("DELIVERY", k -> new AtomicLong(0)).updateAndGet(curr -> Math.max(curr, baselinePaymentStep));
-            }
-
             log.info("Synchronized business metrics with PostgreSQL DB: {} completed orders, ${} revenue USD, {} units sold, {} loyalty cohorts updated",
-                    activeOrders.size(), revenue, items, this.dbOrdersByCohort.size());
+                    deliveredOrders.size(), revenue, items, this.dbOrdersByCohort.size());
         } catch (Exception e) {
             log.error("Error syncing metrics from PostgreSQL database: {}", e.getMessage(), e);
         }
@@ -434,11 +386,6 @@ public class OrderService implements org.springframework.beans.factory.Initializ
             String cardBrand = (savedOrder.getPaymentMethod() != null && !savedOrder.getPaymentMethod().isBlank())
                     ? savedOrder.getPaymentMethod() : "Visa";
             this.meterRegistry.counter("ecommerce_payment_brand_total", "brand", cardBrand).increment();
-
-            // Advance conversion funnel progression on successful order
-            this.dbCartAdditions.computeIfAbsent("General", k -> new AtomicLong(0)).incrementAndGet();
-            this.dbCheckoutStarted.incrementAndGet();
-            this.dbCheckoutSteps.computeIfAbsent("PAYMENT", k -> new AtomicLong(0)).incrementAndGet();
 
             OrderResponse orderResponse = mapOrderToOrderResponse(savedOrder);
 
@@ -565,7 +512,10 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         savedOrder.getTrackingNumber(),
                         savedOrder.getTotalAmount(),
                         savedOrder.getUserId(),
-                        savedOrder.getUsername()
+                        savedOrder.getUsername(),
+                        Instant.now(),
+                        getOrderCreatedAt(savedOrder),
+                        mapEventItems(savedOrder)
                 )
         );
         CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", savedOrder.getOrderNumber(), payload);
@@ -588,7 +538,10 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         cancelledOrder.getTrackingNumber(),
                         cancelledOrder.getTotalAmount(),
                         cancelledOrder.getUserId(),
-                        cancelledOrder.getUsername()
+                        cancelledOrder.getUsername(),
+                        Instant.now(),
+                        getOrderCreatedAt(cancelledOrder),
+                        mapEventItems(cancelledOrder)
                 )
         );
         CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send("orders-topic", cancelledOrder.getOrderNumber(), payload);
@@ -739,10 +692,25 @@ public class OrderService implements org.springframework.beans.factory.Initializ
                         order.getTrackingNumber(),
                         order.getTotalAmount(),
                         order.getUserId(),
-                        order.getUsername()
+                        order.getUsername(),
+                        Instant.now(),
+                        getOrderCreatedAt(order),
+                        mapEventItems(order)
                 )
         );
         this.kafkaTemplate.send("orders-topic", order.getOrderNumber(), payload);
+    }
+
+    private List<OrderEvent.LineItem> mapEventItems(Order order) {
+        return Optional.ofNullable(order.getOrderItems())
+                .orElseGet(List::of)
+                .stream()
+                .map(item -> new OrderEvent.LineItem(item.getSku(), item.getQuantity()))
+                .toList();
+    }
+
+    private Instant getOrderCreatedAt(Order order) {
+        return Optional.ofNullable(order.getCreatedAt()).orElseGet(Instant::now);
     }
 
     public OrderResponse mapOrderToOrderResponse(Order order) {
@@ -810,29 +778,20 @@ public class OrderService implements org.springframework.beans.factory.Initializ
         if (request == null || request.getEventType() == null) return;
         switch (request.getEventType().toUpperCase()) {
             case "CART_ADD" -> {
-                String cat = (request.getCategory() != null && !request.getCategory().isBlank()) ? request.getCategory() : "General";
-                this.dbCartAdditions.computeIfAbsent(cat, c -> {
-                    AtomicLong val = new AtomicLong(0);
-                    Gauge.builder("ecommerce_cart_additions_total", val, AtomicLong::get)
-                            .tag("category", c)
-                            .description("Total cart additions aligned with business funnel")
-                            .register(this.meterRegistry);
-                    return val;
-                }).incrementAndGet();
+                String requestedCategory = request.getCategory() == null ? "" : request.getCategory().trim();
+                String category = FUNNEL_CATEGORIES.stream()
+                        .filter(allowed -> allowed.equalsIgnoreCase(requestedCategory))
+                        .findFirst()
+                        .orElse("General");
+                this.meterRegistry.counter("ecommerce_funnel_events", "event_type", "cart_add", "category", category, "step", "").increment();
             }
             case "CHECKOUT_START" -> {
-                this.dbCheckoutStarted.incrementAndGet();
+                this.meterRegistry.counter("ecommerce_funnel_events", "event_type", "checkout_start", "category", "", "step", "").increment();
             }
             case "CHECKOUT_STEP" -> {
-                String step = (request.getStep() != null && !request.getStep().isBlank()) ? request.getStep().toUpperCase() : "PAYMENT";
-                this.dbCheckoutSteps.computeIfAbsent(step, s -> {
-                    AtomicLong val = new AtomicLong(0);
-                    Gauge.builder("ecommerce_checkout_step_reached_total", val, AtomicLong::get)
-                            .tag("step", s)
-                            .description("Total checkout step events aligned with business funnel")
-                            .register(this.meterRegistry);
-                    return val;
-                }).incrementAndGet();
+                String requestedStep = request.getStep() == null ? "" : request.getStep().trim().toUpperCase(Locale.ROOT);
+                String step = FUNNEL_STEPS.contains(requestedStep) ? requestedStep : "OTHER";
+                this.meterRegistry.counter("ecommerce_funnel_events", "event_type", "checkout_step", "category", "", "step", step).increment();
             }
             default -> log.debug("Ignored unrecognized funnel event: {}", request.getEventType());
         }

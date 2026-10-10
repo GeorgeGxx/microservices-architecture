@@ -256,7 +256,9 @@ class OrderServiceTest {
                         .build();
         orderService.recordFunnelEvent(stepEvent);
 
-        assertNotNull(meterRegistry.find("ecommerce_checkout_started_total").gauge());
+        assertNotNull(meterRegistry.find("ecommerce_funnel_events")
+                .tag("event_type", "checkout_start")
+                .counter());
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.georgegxx.orders_service.model.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.util.*;
 
 /**
@@ -28,6 +29,9 @@ public class Order {
     @Column(nullable = false, unique = true)
     private String orderNumber;
 
+    @Column(name = "created_at", updatable = false)
+    private Instant createdAt;
+
     // User Identity (Keycloak Authentication)
     @Column(name = "user_id")
     private String userId;
@@ -43,6 +47,13 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItems> orderItems = new ArrayList<>();
+
+    @PrePersist
+    private void setCreatedAtIfMissing() {
+        if (createdAt == null) {
+            createdAt = Instant.now();
+        }
+    }
 
     // Recipient & Shipping Information
     private String customerName;
