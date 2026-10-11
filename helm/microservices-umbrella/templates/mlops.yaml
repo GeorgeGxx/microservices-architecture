@@ -241,6 +241,26 @@ spec:
               cpu: {{ .Values.mlops.training.resources.limits.cpu | default "4" }}
               memory: {{ .Values.mlops.training.resources.limits.memory | default "4Gi" }}
               ephemeral-storage: 2Gi
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os, sys; sys.exit(0 if os.path.exists('/app/capture_orders.py') else 1)"
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import os, sys; sys.exit(0 if os.path.exists('/app/capture_orders.py') else 1)"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 2
           volumeMounts:
             - name: sales-data
               mountPath: /data
