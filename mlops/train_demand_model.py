@@ -69,11 +69,8 @@ def evaluate_champion_candidate(
     candidate_rmse: float, prior_rmse: float | None, tolerance: float = 0.02
 ) -> tuple[bool, str]:
     """Determine whether a candidate model qualifies as champion."""
-    if prior_rmse is None:
-        return True, "PROMOTED_INITIAL_BASELINE"
-    if candidate_rmse <= (prior_rmse * (1.0 + tolerance)):
-        return True, "PROMOTED_IMPROVED_OR_COMPARABLE"
-    return False, "REJECTED_DEGRADED"
+    from model_invariants import evaluate_champion_safety_gate
+    return evaluate_champion_safety_gate(candidate_rmse, prior_rmse, tolerance=tolerance)
 
 
 def sample_sales(spark: SparkSession, days: int = 240) -> DataFrame:
