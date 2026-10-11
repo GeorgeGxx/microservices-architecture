@@ -398,6 +398,8 @@ All three CI providers use the same project keys so results converge into the sa
 | Inventory | `msa-inventory-service` |
 | Notifications | `msa-notification-service` |
 | Novashop storefront | `msa-frontend` |
+| Demand Forecast (MLOps) | `msa-demand-forecast` |
+| MLOps Training Engine | `msa-mlops-training` |
 
 Configure these values in each CI provider before enabling Sonar analysis:
 
@@ -405,7 +407,7 @@ Configure these values in each CI provider before enabling Sonar analysis:
 - `SONAR_ORGANIZATION`: SonarQube Cloud organization key (plain variable).
 - `SONAR_HOST_URL`: optional; defaults to `https://sonarcloud.io` (GitHub secret, Azure pipeline variable, or Bitbucket repository/deployment variable).
 
-Without `SONAR_TOKEN`, each pipeline skips the Sonar step and continues. With a token configured, a missing organization key or a failed Quality Gate fails the pipeline. The scanners wait for the Quality Gate result. Spring projects import JaCoCo XML from `target/site/jacoco/jacoco.xml`. The React scan currently performs static analysis only; configure LCOV generation/import separately if frontend coverage is added. Create/import the matching projects in the SonarQube Cloud organization, and install/authorize SonarQube Cloud's GitHub App if PR decoration is desired.
+Without `SONAR_TOKEN`, each pipeline skips the Sonar step and continues. With a token configured, a missing organization key or a failed Quality Gate fails the pipeline. The scanners wait for the Quality Gate result. Spring projects import JaCoCo XML from `target/site/jacoco/jacoco.xml`. Python MLOps services import coverage reports generated via `coverage.py` (`coverage run` + `coverage xml`) from `coverage.xml` via `-Dsonar.python.coverage.reportPaths=coverage.xml`. The React scan currently performs static analysis only; configure LCOV generation/import separately if frontend coverage is added. Create/import the matching projects in the SonarQube Cloud organization, and install/authorize SonarQube Cloud's GitHub App if PR decoration is desired.
 
 ### 1. GitHub Actions ➔ AWS Cloud
 Located in `.github/workflows/`:

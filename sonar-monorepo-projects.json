@@ -18,5 +18,13 @@
   {
     "projectKey": "msa-frontend",
     "projectName": "Novashop Storefront"
+  },
+  {
+    "projectKey": "msa-demand-forecast",
+    "projectName": "Demand Forecast Service"
+  },
+  {
+    "projectKey": "msa-mlops-training",
+    "projectName": "MLOps Training Engine"
   }
 ]

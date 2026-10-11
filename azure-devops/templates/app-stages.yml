@@ -254,10 +254,59 @@ stages:
                 if [ -f "${{ parameters.serviceDir }}/requirements.txt" ]; then
                   pip install -r "${{ parameters.serviceDir }}/requirements.txt"
                 fi
+                pip install coverage
                 if [ -d "${{ parameters.serviceDir }}/tests" ]; then
-                  python -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
+                  coverage run --source=${{ parameters.serviceDir }} -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
+                  coverage xml -o ${{ parameters.serviceDir }}/coverage.xml
                 fi
-              displayName: "Python Unit Tests & Discovery"
+              displayName: "Python Unit Tests & Coverage"
+
+            - task: PublishCodeCoverageResults@2
+              condition: succeededOrFailed()
+              displayName: "Publish Python Code Coverage"
+              inputs:
+                summaryFileLocation: '${{ parameters.serviceDir }}/coverage.xml'
+
+            - task: JavaToolInstaller@0
+              displayName: "Set up Java for Sonar Scanner"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              inputs:
+                versionSpec: '21'
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+
+            - task: NodeTool@0
+              displayName: "Set up Node.js for Sonar Scanner"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              inputs:
+                versionSpec: '22.x'
+
+            - script: |
+                set -euo pipefail
+                if [ -z "$SONAR_TOKEN" ] || [ "$SONAR_TOKEN" = '$(SONAR_TOKEN)' ]; then
+                  echo "SonarQube Cloud token is not configured; skipping Python analysis."
+                  exit 0
+                fi
+                if [ -z "$SONAR_ORGANIZATION" ] || [ "$SONAR_ORGANIZATION" = '$(SONAR_ORGANIZATION)' ]; then
+                  echo "SONAR_ORGANIZATION must match the SonarQube Cloud organization key."
+                  exit 1
+                fi
+                cd ${{ parameters.serviceDir }}
+                npx --yes sonar-scanner \
+                  -Dsonar.projectKey=msa-${{ parameters.serviceName }} \
+                  -Dsonar.projectName="MSA ${{ parameters.serviceName }}" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
+                  -Dsonar.sources=. \
+                  -Dsonar.tests=tests \
+                  -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/** \
+                  -Dsonar.python.coverage.reportPaths=coverage.xml \
+                  -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
+              displayName: "SonarQube Cloud Python Analysis & Quality Gate"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              env:
+                SONAR_TOKEN: $(SONAR_TOKEN)
+                SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
 
   # ==========================================================
   # STAGE 2: SAST, secrets & governance
