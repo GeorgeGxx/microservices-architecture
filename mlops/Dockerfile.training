@@ -17,7 +17,7 @@ WORKDIR /app
 COPY requirements.container.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY train_demand_model.py generate_sample_sales.py capture_orders.py ./
+COPY train_demand_model.py generate_sample_sales.py capture_orders.py model_invariants.py data_contracts.py feature_engineering.py ./
 COPY container_train.sh ./
 RUN chmod 0555 /app/container_train.sh
 
