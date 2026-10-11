@@ -16,6 +16,7 @@ definitions:
     - step: &unit-tests
         name: '1. Unit tests and coverage'
         caches: [maven, npm, sonar]
+        services: [docker]
         script:
           - |
             set -euo pipefail
@@ -40,6 +41,9 @@ definitions:
               else
                 echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
               fi
+            elif [ "$SERVICE_NAME" = "demand-forecast" ] || [ "$SERVICE_NAME" = "mlops-training" ] || [ "${SERVICE_DIR:-}" = "mlops" ]; then
+              echo "Executing Python MLOps Unit Tests..."
+              docker run --rm -v "$PWD:/workspace" -w /workspace -e PYTHONPATH=/workspace/mlops python:3.12-slim bash -c "pip install --no-cache-dir -r mlops/requirements.txt && python -m unittest discover -s mlops/tests -v"
             else
               SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
               test -f "$SERVICE_DIR/pom.xml" || { echo "Unknown Spring service: $SERVICE_DIR"; exit 1; }
@@ -80,6 +84,10 @@ definitions:
             mkdir -p artifacts/images artifacts/sbom
             if [ "$SERVICE_NAME" = "frontend" ]; then
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f frontend/Dockerfile frontend
+            elif [ "$SERVICE_NAME" = "demand-forecast" ]; then
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile.forecast mlops
+            elif [ "$SERVICE_NAME" = "mlops-training" ]; then
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile.training mlops
             else
               test -f "$SERVICE_DIR/Dockerfile" || { echo "Missing Dockerfile: $SERVICE_DIR"; exit 1; }
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f "$SERVICE_DIR/Dockerfile" .
@@ -109,7 +117,14 @@ definitions:
           - bash scripts/validate-opencost.sh
           - curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz | tar -xz -C /usr/local/bin conftest
           - helm dependency update helm/microservices-umbrella
-          - helm template microservices ./helm/microservices-umbrella --set "${SERVICE_NAME:-products-service}.image.tag=${BITBUCKET_COMMIT:0:12}" > /tmp/rendered.yaml
+          - |
+            HELM_SET_KEY="${SERVICE_NAME:-products-service}"
+            if [ "$HELM_SET_KEY" = "demand-forecast" ]; then
+              HELM_SET_KEY="mlops.forecast"
+            elif [ "$HELM_SET_KEY" = "mlops-training" ]; then
+              HELM_SET_KEY="mlops.training"
+            fi
+            helm template microservices ./helm/microservices-umbrella --set "${HELM_SET_KEY}.image.tag=${BITBUCKET_COMMIT:0:12}" > /tmp/rendered.yaml
           - conftest test /tmp/rendered.yaml --policy devsecops/policies/conftest/
         artifacts:
           - helm/charts/cosmo-router/files/**
@@ -189,14 +204,23 @@ definitions:
               exit "$result"
             }
             trap rollback_on_error ERR
+            HELM_SET_KEY="${SERVICE_NAME}"
+            DEPLOYMENT_NAME="${SERVICE_NAME}"
+            if [ "$SERVICE_NAME" = "demand-forecast" ]; then
+              HELM_SET_KEY="mlops.forecast"
+              DEPLOYMENT_NAME="demand-forecast-service"
+            elif [ "$SERVICE_NAME" = "mlops-training" ]; then
+              HELM_SET_KEY="mlops.training"
+              DEPLOYMENT_NAME="demand-sales-capture"
+            fi
             helm upgrade --install microservices "$CHART_REPOSITORY" \
               --version "$CHART_VERSION" \
               --namespace "$NAMESPACE" --create-namespace --reuse-values \
-              --set "${SERVICE_NAME}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
-              --set "${SERVICE_NAME}.image.tag=${IMAGE_TAG}" \
+              --set "${HELM_SET_KEY}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
+              --set "${HELM_SET_KEY}.image.tag=${IMAGE_TAG}" \
               --set global.environment="$SPRING_PROFILE" \
               --wait --timeout 8m --atomic
-            kubectl rollout status "deployment/${SERVICE_NAME}" --namespace "$NAMESPACE" --timeout=5m
+            kubectl rollout status "deployment/${DEPLOYMENT_NAME}" --namespace "$NAMESPACE" --timeout=5m
     - step: &api-contract
         name: '9. API contract smoke tests'
         image: node:22-slim
@@ -408,7 +432,7 @@ pipelines:
       - variables:
           - name: SERVICE_NAME
             default: products-service
-            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service]
+            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service, cosmo-router, demand-forecast, mlops-training]
           - name: GKE_INGRESS_URL
       - step: *unit-tests
       - step: *sast

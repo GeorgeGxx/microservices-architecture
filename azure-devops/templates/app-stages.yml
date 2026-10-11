@@ -28,12 +28,24 @@ parameters:
     type: string
   - name: serviceDir
     type: string
-  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'cosmo-router'
+  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'cosmo-router' | 'python'
     type: string
     default: 'spring-boot'
   - name: servicePort
     type: number
     default: 8080
+  - name: dockerfilePath       # optional override for Dockerfile location
+    type: string
+    default: ''
+  - name: contextDir           # optional override for docker build context directory
+    type: string
+    default: ''
+  - name: helmValuesKey        # optional override for umbrella values key (e.g. mlops.forecast)
+    type: string
+    default: ''
+  - name: deploymentName       # optional override for k8s deployment name in rollout status
+    type: string
+    default: ''
   - name: ingressUrl           # fallback when the Istio ingress IP cannot be resolved
     type: string
     default: ''
@@ -228,6 +240,25 @@ stages:
                 SONAR_TOKEN: $(SONAR_TOKEN)
                 SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
 
+          - ${{ if eq(parameters.serviceType, 'python') }}:
+            - task: UsePythonVersion@0
+              displayName: "Set up Python 3.12"
+              inputs:
+                versionSpec: '3.12'
+                addToPath: true
+
+            - script: |
+                set -euo pipefail
+                export PYTHONPATH="$(Build.SourcesDirectory)/${{ parameters.serviceDir }}"
+                python -m pip install --upgrade pip
+                if [ -f "${{ parameters.serviceDir }}/requirements.txt" ]; then
+                  pip install -r "${{ parameters.serviceDir }}/requirements.txt"
+                fi
+                if [ -d "${{ parameters.serviceDir }}/tests" ]; then
+                  python -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
+                fi
+              displayName: "Python Unit Tests & Discovery"
+
   # ==========================================================
   # STAGE 2: SAST, secrets & governance
   # ==========================================================
@@ -296,12 +327,19 @@ stages:
               set -euo pipefail
               export DOCKER_BUILDKIT=1
               IMAGE_LOCAL="local/${{ parameters.serviceName }}:$(Build.SourceVersion)"
-              # Frontends build with their own dir as context; backends use the repo root (multi-module).
-              if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ]; then
-                docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t $IMAGE_LOCAL -f ${{ parameters.serviceDir }}/Dockerfile ${{ parameters.serviceDir }}
-              else
-                docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t $IMAGE_LOCAL -f ${{ parameters.serviceDir }}/Dockerfile .
+              DOCKERFILE="${{ parameters.dockerfilePath }}"
+              if [ -z "$DOCKERFILE" ]; then
+                DOCKERFILE="${{ parameters.serviceDir }}/Dockerfile"
               fi
+              CONTEXT="${{ parameters.contextDir }}"
+              if [ -z "$CONTEXT" ]; then
+                if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ] || [ "${{ parameters.serviceType }}" = "python" ]; then
+                  CONTEXT="${{ parameters.serviceDir }}"
+                else
+                  CONTEXT="."
+                fi
+              fi
+              docker build --build-arg BUILDKIT_INLINE_CACHE=1 -t $IMAGE_LOCAL -f "$DOCKERFILE" "$CONTEXT"
               mkdir -p $(Pipeline.Workspace)/images
               docker save $IMAGE_LOCAL -o $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
             displayName: "Build OCI Image (BuildKit)"
@@ -376,8 +414,10 @@ stages:
 
           - script: |
               set -euo pipefail
+              HELM_KEY="${{ parameters.helmValuesKey }}"
+              if [ -z "$HELM_KEY" ]; then HELM_KEY="${{ parameters.serviceName }}"; fi
               helm template ${{ parameters.helmRelease }} ${{ parameters.helmChartPath }} \
-                --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) > rendered-manifests.yaml
+                --set ${HELM_KEY}.image.tag=$(Build.SourceVersion) > rendered-manifests.yaml
 
               curl -sSfL https://github.com/open-policy-agent/conftest/releases/download/v${{ parameters.conftestVersion }}/conftest_${{ parameters.conftestVersion }}_Linux_x86_64.tar.gz -o conftest.tar.gz
               tar xzf conftest.tar.gz conftest
@@ -459,6 +499,8 @@ stages:
                     servicePort: ${{ parameters.servicePort }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
+                    helmValuesKey: ${{ parameters.helmValuesKey }}
+                    deploymentName: ${{ parameters.deploymentName }}
 
   - stage: RollbackDev
     displayName: "🔄 Rollback Dev - ${{ parameters.serviceName }}"
@@ -505,6 +547,8 @@ stages:
                     servicePort: ${{ parameters.servicePort }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
+                    helmValuesKey: ${{ parameters.helmValuesKey }}
+                    deploymentName: ${{ parameters.deploymentName }}
 
       # Output variables of DEPLOYMENT jobs need a different (and fragile) path across
       # stages. A regular job right after the deployment exposes it with the documented syntax:
@@ -749,6 +793,8 @@ stages:
                     servicePort: ${{ parameters.servicePort }}
                     helmRelease: ${{ parameters.helmRelease }}
                     helmVersion: ${{ parameters.helmVersion }}
+                    helmValuesKey: ${{ parameters.helmValuesKey }}
+                    deploymentName: ${{ parameters.deploymentName }}
                     verifyRollout: true
 
                 - ${{ if and(eq(parameters.canaryEnabled, true), ne(parameters.canaryVirtualServicePath, '')) }}:

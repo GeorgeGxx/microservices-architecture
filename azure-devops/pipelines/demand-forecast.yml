@@ -1,0 +1,48 @@
+name: MSA-Demand-Forecast-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/demand-forecast.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/demand-forecast.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: demand-forecast
+      serviceDir: mlops
+      serviceType: python
+      servicePort: 8005
+      dockerfilePath: mlops/Dockerfile.forecast
+      contextDir: mlops
+      helmValuesKey: mlops.forecast
+      deploymentName: demand-forecast-service
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure
+      canaryEnabled: false
+      canaryVirtualServicePath: ''
