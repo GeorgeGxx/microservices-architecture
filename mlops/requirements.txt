@@ -59,7 +59,7 @@ prettytable==3.18.0
 prometheus-client==0.22.1
 propcache==0.5.4
 protobuf==6.33.6
-PyJWT[crypto]==2.10.1
+PyJWT[crypto]==2.15.0
 py4j==0.10.9.9
 pyarrow==25.0.1
 pyasn1==0.6.4
