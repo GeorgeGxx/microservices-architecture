@@ -7,8 +7,6 @@ import com.georgegxx.orders_service.model.entities.Order;
 import com.georgegxx.orders_service.model.entities.OrderItems;
 import com.georgegxx.orders_service.model.enums.OrderStatus;
 import com.georgegxx.orders_service.repositories.OrderRepository;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -60,8 +58,9 @@ class OrderServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         circuitBreakerRegistry = CircuitBreakerRegistry.ofDefaults();
+        SendResult<String, String> sendResult = mock();
         lenient().when(kafkaTemplate.send(anyString(), anyString(), anyString()))
-                .thenReturn(CompletableFuture.completedFuture(mock(SendResult.class)));
+            .thenReturn(CompletableFuture.completedFuture(sendResult));
 
         orderService = new OrderService(
                 orderRepository,
