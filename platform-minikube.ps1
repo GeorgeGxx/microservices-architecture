@@ -793,28 +793,31 @@ stringData:
             Invoke-MinikubeMlopsDeployment
 
             Write-Host "`n🚀 Deploying Microservices & React Frontend via Helm..." -ForegroundColor Yellow
-            # Ensure pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
-            $preAppliedResources = @(
-                @{ Kind = "networkpolicy"; Names = @("allow-backing-infra-egress", "allow-dns-resolution", "allow-ingress-gateway-traffic", "allow-microservices-east-west", "allow-mlops-forecast-traffic", "allow-mlops-tracking-traffic", "allow-observability-scraping", "allow-spark-package-downloads", "default-deny-ingress") },
-                @{ Kind = "serviceaccount"; Names = @("cosmo-router-sa", "frontend-sa", "orders-service-sa", "products-service-sa", "inventory-service-sa", "notification-service-sa", "mlflow-sa", "demand-sales-capture-sa", "demand-forecast-sa", "demand-training-sa") },
-                @{ Kind = "role"; Names = @("dev-developer-role", "dev-viewer-role", "dev-cicd-deployer-role", "microservice-workload-role") },
-                @{ Kind = "rolebinding"; Names = @("dev-developers-binding", "dev-viewers-binding") },
-                @{ Kind = "secret"; Names = @("microservices-secrets") },
-                @{ Kind = "configmap"; Names = @("mlops-config") },
-                @{ Kind = "pvc"; Names = @("mlflow-artifacts", "mlflow-data", "mlops-sales-data") },
-                @{ Kind = "service"; Names = @("mlflow", "demand-forecast-service") },
-                @{ Kind = "deployment"; Names = @("mlflow", "demand-sales-capture", "demand-forecast-service") },
-                @{ Kind = "cronjob"; Names = @("demand-model-training-scheduler") }
-            )
-            foreach ($resGroup in $preAppliedResources) {
-                foreach ($resName in $resGroup.Names) {
-                    if (kubectl get $resGroup.Kind $resName -n dev --no-headers 2>$null) {
-                        kubectl annotate $resGroup.Kind $resName -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>$null | Out-Null
-                        kubectl label $resGroup.Kind $resName -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
-                    }
+            $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
+            # Ensure any pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
+            Write-Host "  ▶ Reconciling Helm ownership metadata for pre-existing resources..." -ForegroundColor White
+            $renderedYaml = & helm template microservices $resolvedUmbrellaDir --namespace dev --values $minikubeValues --include-crds 2>$null
+            $currentKind = ""
+            $inMetadata = $false
+            $renderedResources = [System.Collections.Generic.List[PSObject]]::new()
+            foreach ($line in ($renderedYaml -split "\r?\n")) {
+                if ($line -match "^kind:\s*(\S+)") {
+                    $currentKind = $matches[1]
+                    $inMetadata = $false
+                } elseif ($line -match "^metadata:") {
+                    $inMetadata = $true
+                } elseif ($inMetadata -and $line -match "^\s+name:\s*(\S+)") {
+                    $resName = $matches[1] -replace "[\""'`]", ""
+                    $renderedResources.Add([pscustomobject]@{ Kind = $currentKind; Name = $resName })
+                    $inMetadata = $false
                 }
             }
-            $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
+            foreach ($r in $renderedResources) {
+                if (kubectl get $($r.Kind) $($r.Name) -n dev --no-headers 2>$null) {
+                    kubectl annotate $($r.Kind) $($r.Name) -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>&1 | Out-Null
+                    kubectl label $($r.Kind) $($r.Name) -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
+                }
+            }
             & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev `
                 --set secret.data.KEYCLOAK_ADMIN="$keycloakAdmin" `
                 --set secret.data.KEYCLOAK_ADMIN_PASSWORD="$keycloakPass" `
