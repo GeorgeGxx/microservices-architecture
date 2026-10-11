@@ -1,0 +1,54 @@
+name: MSA-MLOps-$(Date:yyyyMMdd)$(Rev:.r)
+
+# =============================================================================
+# MLOps Demand Forecasting & Model Serving Pipeline
+# Deploys the primary inference microservice (demand-forecast) and can be
+# targeted by Azure Pipelines pointing to azure-devops/pipelines/mlops.yml.
+# =============================================================================
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/mlops.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/mlops.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: demand-forecast
+      serviceDir: mlops
+      serviceType: python
+      servicePort: 8005
+      dockerfilePath: mlops/Dockerfile.forecast
+      contextDir: mlops
+      helmValuesKey: mlops.forecast
+      deploymentName: demand-forecast-service
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure
+      canaryEnabled: false
+      canaryVirtualServicePath: ''

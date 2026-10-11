@@ -29,6 +29,12 @@ parameters:
     type: string
   - name: helmVersion
     type: string
+  - name: helmValuesKey
+    type: string
+    default: ''
+  - name: deploymentName
+    type: string
+    default: ''
   - name: verifyRollout        # extra kubectl rollout check (used in production)
     type: boolean
     default: false
@@ -67,14 +73,17 @@ steps:
         [[ "$CHART_REPOSITORY" == oci://ghcr.io/*/microservices-umbrella ]] || { echo "Invalid umbrella chart OCI repository: $CHART_REPOSITORY"; exit 1; }
         printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
 
+        HELM_KEY="${{ parameters.helmValuesKey }}"
+        if [ -z "$HELM_KEY" ]; then HELM_KEY="${{ parameters.serviceName }}"; fi
+
         helm upgrade --install ${{ parameters.helmRelease }} "$CHART_REPOSITORY" \
           --version "$CHART_VERSION" \
           --reuse-values \
           --namespace ${{ parameters.namespace }} \
           --create-namespace \
-          --set ${{ parameters.serviceName }}.image.repository=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }} \
-          --set ${{ parameters.serviceName }}.image.tag=$(Build.SourceVersion) \
-          --set ${{ parameters.serviceName }}.service.port=${{ parameters.servicePort }} \
+          --set ${HELM_KEY}.image.repository=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }} \
+          --set ${HELM_KEY}.image.tag=$(Build.SourceVersion) \
+          --set ${HELM_KEY}.service.port=${{ parameters.servicePort }} \
           --set global.environment=${{ parameters.envName }} \
           --set configMap.data.SPRING_PROFILES_ACTIVE=${{ parameters.springProfile }} \
           --wait --timeout 5m \
@@ -89,5 +98,7 @@ steps:
         scriptLocation: inlineScript
         inlineScript: |
           set -euo pipefail
-          kubectl rollout status deployment/${{ parameters.helmRelease }}-${{ parameters.serviceName }} \
+          DEPLOY_NAME="${{ parameters.deploymentName }}"
+          if [ -z "$DEPLOY_NAME" ]; then DEPLOY_NAME="${{ parameters.helmRelease }}-${{ parameters.serviceName }}"; fi
+          kubectl rollout status deployment/${DEPLOY_NAME} \
             -n ${{ parameters.namespace }} --timeout=2m
