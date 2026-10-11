@@ -11,9 +11,10 @@ RUN pip install --no-cache-dir \
     "pyarrow==25.0.1" \
     "skops==0.16.0" \
     "PyJWT[crypto]==2.10.1" \
-    "prometheus-client==0.22.1"
+    "prometheus-client==0.22.1" \
+    "pydantic==2.14.0"
 
-COPY forecast_api.py ./forecast_api.py
+COPY forecast_api.py model_invariants.py data_contracts.py feature_engineering.py ./
 
 USER 65532:65532
 
