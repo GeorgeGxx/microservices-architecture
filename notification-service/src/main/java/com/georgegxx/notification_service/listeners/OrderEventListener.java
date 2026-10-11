@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.function.Predicate;
 
 @Component
 @RequiredArgsConstructor
@@ -31,7 +30,7 @@ public class OrderEventListener {
         Timer.Sample sample = Timer.start(this.meterRegistry);
         try {
             Optional.ofNullable(message)
-                    .filter(Predicate.not(String::isBlank))
+                    .filter(value -> value != null && !value.isBlank())
                     .map(raw -> JsonUtils.fromJson(raw, OrderEvent.class))
                     .filter(event -> event.orderNumber() != null)
                     .ifPresentOrElse(
