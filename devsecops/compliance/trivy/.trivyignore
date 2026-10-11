@@ -1,4 +1,13 @@
 # Trivy Ignore Allowlist - Enterprise Risk Acceptance Registry
-# Format: CVE-ID  # Justification / Service / Expiration Date
+# Format: CVE-ID or Rule-ID  # Justification / Service / Expiration Date
 # Example:
 # CVE-2023-XXXXX # Suppressed pending upstream Spring Boot 3.4.x patch
+
+# Accepted operational risks for Kubernetes RBAC:
+# KSV-0053: Developer pods/exec permitted exclusively in dev environment for interactive container debugging
+KSV-0053
+AVD-KSV-0053
+
+# KSV-0056: CI/CD Deployer role requires service and networkpolicy management to reconcile Helm chart resources
+KSV-0056
+AVD-KSV-0056
