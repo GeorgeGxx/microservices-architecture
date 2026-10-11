@@ -26,3 +26,8 @@ devsecops/dast/zap/zap.yaml
 .venv-ml/
 .venv/
 mlops/data/
+.coverage*
+coverage.xml
+**/coverage.xml
+.scannerwork/
+**/.scannerwork/

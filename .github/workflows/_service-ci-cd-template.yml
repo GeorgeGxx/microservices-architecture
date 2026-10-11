@@ -172,7 +172,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Python Dependencies & Run Unit Tests
+      - name: Install Python Dependencies & Run Unit Tests with Coverage
         if: inputs.service-type == 'python'
         env:
           PYTHONPATH: ${{ github.workspace }}/${{ inputs.service-dir }}
@@ -181,9 +181,19 @@ jobs:
           if [ -f "${{ inputs.service-dir }}/requirements.txt" ]; then
             pip install -r "${{ inputs.service-dir }}/requirements.txt"
           fi
+          pip install coverage
           if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            python -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+            coverage run --source=${{ inputs.service-dir }} -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+            coverage xml -o ${{ inputs.service-dir }}/coverage.xml
           fi
+
+      - name: Upload Python Coverage Artifact
+        if: inputs.service-type == 'python' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage.xml
+          retention-days: 7
 
   # ==========================================================
   # STEP 2: 🔍 SAST & Secret Scanning (Security) — Runs in parallel with Unit Tests
@@ -347,6 +357,52 @@ jobs:
             -Dsonar.sources=src \
             -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+
+      # Python / MLOps Sonar Analysis
+      - name: Download Python Coverage Artifacts
+        if: inputs.service-type == 'python'
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}
+
+      - name: Set up Java for Python Sonar Scanner
+        if: inputs.service-type == 'python'
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js for Python Sonar Scanner
+        if: inputs.service-type == 'python'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Sonar Analysis (Python MLOps)
+        if: inputs.service-type == 'python'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          npx --yes sonar-scanner \
+            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
+            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.sources=. \
+            -Dsonar.tests=tests \
+            -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/** \
+            -Dsonar.python.coverage.reportPaths=coverage.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
   # ==========================================================
