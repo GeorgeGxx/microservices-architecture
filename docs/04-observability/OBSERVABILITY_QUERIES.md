@@ -17,6 +17,7 @@
 | **Grafana Tempo** | [http://localhost:3200](http://localhost:3200) | `3200` | Distributed tracing & OTLP span store |
 | **OTel Collector** | `http://localhost:4317` (gRPC) / `4318` (HTTP) | `4317` / `4318` | OpenTelemetry telemetry ingestion pipeline |
 | **Grafana Alloy (Compose)** | `http://localhost:3300` | `3300` | Collector/agent UI and telemetry shipping; it is **not** a Grafana query datasource |
+| **Demand Forecast API** | [http://localhost:8005/docs](http://localhost:8005/docs) | `8005` | FastAPI MLOps inference engine (`/metrics`, `/health`, `/docs`) |
 
 Grafana queries data from Prometheus, Loki, and Tempo. Alloy collects container/pod logs and ships them to Loki; the OpenTelemetry Collector forwards traces to Tempo. For Docker Compose the datasource URLs are service DNS names (`prometheus:9090`, `loki:3100`, `tempo:3200`). In Minikube, Grafana uses the Kubernetes service URLs provisioned in `k8s/minikube/infra/grafana-datasources.yaml`.
 
@@ -221,6 +222,64 @@ sum by (status) (rate(notification_events_processed_total[1m]))
 Measures unconsumed messages pending in partitions:
 ```promql
 sum by (topic, consumergroup) (kafka_consumergroup_lag)
+```
+
+---
+
+### 🧪 MLOps & Demand Forecasting Telemetry (FastAPI & PySpark)
+
+The Demand Forecast service (`demand-forecast-service`) exposes Prometheus metrics on port `8005` via `prometheus-fastapi-instrumentator`. Queries use `service="demand-forecast-service"` and scalar aggregations (`max()`, `min()`) for seamless compatibility across Docker Compose and Minikube.
+
+#### 🟢 Forecast API Availability
+Monitors runtime liveness of the FastAPI prediction server:
+```promql
+max(up{service="demand-forecast-service"}) or vector(0)
+```
+
+#### ⏱️ Hours Since Last Successful Forecast
+Measures operational freshness of inference batches. Warns if inference has not run recently:
+```promql
+(time() - max(demand_forecast_last_success_unixtime{service="demand-forecast-service"})) / 3600
+```
+
+#### 📅 Age of Latest Observed Sales Date (Days)
+Evaluates latency of sales data streaming into the Parquet dataset via PySpark Structured Streaming:
+```promql
+(time() - max(demand_forecast_latest_observed_sales_unixtime{service="demand-forecast-service"})) / 86400
+```
+
+#### ⚡ Forecast API Request Throughput (req/s)
+Rate of HTTP requests handled by the FastAPI application:
+```promql
+sum(rate(http_requests_total{service="demand-forecast-service"}[1m])) or vector(0)
+```
+
+#### ⏱️ HTTP Request Latency P95 (seconds)
+95th percentile response latency for prediction and health endpoints:
+```promql
+histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="demand-forecast-service"}[5m])))
+```
+
+#### ❌ HTTP 5xx Server Error Rate
+Rate of internal errors in forecasting algorithms or dependencies:
+```promql
+sum(rate(http_requests_total{service="demand-forecast-service",status=~"5.."}[1m])) or vector(0)
+```
+
+#### 🎯 Model Evaluation Metrics: RMSE & MAE
+Tracks prediction quality recorded by the active MLflow-trained model:
+```promql
+# Active Model RMSE
+min(demand_forecast_model_rmse{service="demand-forecast-service"})
+
+# Active Model MAE
+min(demand_forecast_model_mae{service="demand-forecast-service"})
+```
+
+#### ⌛ Model Age (Days Since Training)
+Tracks freshness of the serialized machine learning model:
+```promql
+(time() - max(demand_forecast_model_created_unixtime{service="demand-forecast-service"})) / 86400
 ```
 
 ---
@@ -454,3 +513,7 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | **Detect Database Pool Exhaustion**| PromQL | `hikaricp_connections_active / hikaricp_connections_max > 0.85` |
 | **DDoS / Rate-Limit Blocks** | LogQL | `sum(rate({service="frontend"} \| json \| status="429" [1m]))` |
 | **Identify Top Blocked Peer IPs** | LogQL | `topk(5, sum by (peer_ip) (count_over_time({service="frontend"} \| json \| status="429" [15m])))` |
+| **Forecast API Down** | PromQL | `max(up{service="demand-forecast-service"}) == 0` |
+| **Forecast Stale (>24h)** | PromQL | `(time() - max(demand_forecast_last_success_unixtime{service="demand-forecast-service"})) / 3600 > 24` |
+| **Forecast API P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="demand-forecast-service"}[5m])))` |
+| **Model Quality Degradation** | PromQL | `min(demand_forecast_model_rmse{service="demand-forecast-service"})` |
