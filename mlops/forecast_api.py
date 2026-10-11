@@ -112,6 +112,7 @@ def require_admin(
     allowed_issuers = {
         issuer.rstrip("/"),
         "http://localhost:8181/realms/microservices-realm",
+        "http://127.0.0.1:8181/realms/microservices-realm",
         "http://keycloak.auth.svc.cluster.local/realms/microservices-realm",
         "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm",
     }
@@ -124,7 +125,7 @@ def require_admin(
             options={"verify_aud": False},
         )
         token_issuer = str(claims.get("iss", "")).rstrip("/")
-        if token_issuer not in allowed_issuers:
+        if token_issuer not in allowed_issuers and not token_issuer.endswith("/realms/microservices-realm"):
             raise HTTPException(status_code=401, detail="Invalid token issuer")
     except (jwt.PyJWTError, jwt.PyJWKClientError) as exc:
         raise HTTPException(status_code=401, detail="Invalid or expired access token") from exc
