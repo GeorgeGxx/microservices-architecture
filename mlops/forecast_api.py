@@ -17,6 +17,7 @@ import pandas as pd
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from mlflow import MlflowClient
+from model_invariants import clamp_predictions
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
     REGISTRY,
@@ -316,7 +317,7 @@ def _forecast_product(
                 "day_of_year": prediction_date.timetuple().tm_yday,
             }]
         )
-        units = max(0.0, float(model.predict(features)[0]))
+        units = float(clamp_predictions(model.predict(features))[0])
         predictions.append({"date": prediction_date.isoformat(), "units": round(units, 1)})
         observed_dates.append(prediction_date)
         observed_values.append(units)
