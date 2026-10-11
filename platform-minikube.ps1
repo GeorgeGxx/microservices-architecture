@@ -825,7 +825,7 @@ stringData:
                 --set secret.data.POSTGRES_PASSWORD="$postgresPass" `
                 --set secret.data.REDIS_PASSWORD="$redisPass" `
                 --set secret.data.KEYCLOAK_CLIENT_SECRET="$kcSecret" `
-                --values $minikubeValues --wait --timeout 10m
+                --values $minikubeValues --force-conflicts --wait --timeout 10m
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."
             }
