@@ -832,10 +832,15 @@ function Invoke-LocalContractChecks {
     $baseUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'BASE_URL' -LocalDefault 'http://127.0.0.1:5173'
     $keycloakUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'KEYCLOAK_URL' -LocalDefault 'http://127.0.0.1:8181'
     Push-Location $root
+    $origNodeOptions = $env:NODE_OPTIONS
     try {
-        & npx --yes newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
+        $env:NODE_OPTIONS = if ($origNodeOptions) { "$origNodeOptions --no-deprecation" } else { "--no-deprecation" }
+        & npx --yes --loglevel=error newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
         if ($LASTEXITCODE -ne 0) { throw "Newman contract suite failed (exit $LASTEXITCODE)." }
-    } finally { Pop-Location }
+    } finally {
+        $env:NODE_OPTIONS = $origNodeOptions
+        Pop-Location
+    }
 }
 
 function Invoke-LocalPerformanceChecks {
