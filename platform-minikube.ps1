@@ -793,10 +793,26 @@ stringData:
             Invoke-MinikubeMlopsDeployment
 
             Write-Host "`n🚀 Deploying Microservices & React Frontend via Helm..." -ForegroundColor Yellow
-            $existingDevSecret = kubectl get secret microservices-secrets -n dev --no-headers 2>$null
-            if ($existingDevSecret) {
-                kubectl annotate secret microservices-secrets -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>$null | Out-Null
-                kubectl label secret microservices-secrets -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
+            # Ensure pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
+            $preAppliedResources = @(
+                @{ Kind = "networkpolicy"; Names = @("allow-backing-infra-egress", "allow-dns-resolution", "allow-ingress-gateway-traffic", "allow-microservices-east-west", "allow-mlops-forecast-traffic", "allow-mlops-tracking-traffic", "allow-observability-scraping", "allow-spark-package-downloads", "default-deny-ingress") },
+                @{ Kind = "serviceaccount"; Names = @("cosmo-router-sa", "frontend-sa", "orders-service-sa", "products-service-sa", "inventory-service-sa", "notification-service-sa", "mlflow-sa", "demand-sales-capture-sa", "demand-forecast-sa", "demand-training-sa") },
+                @{ Kind = "role"; Names = @("dev-developer-role", "dev-viewer-role", "dev-cicd-deployer-role", "microservice-workload-role") },
+                @{ Kind = "rolebinding"; Names = @("dev-developers-binding", "dev-viewers-binding") },
+                @{ Kind = "secret"; Names = @("microservices-secrets") },
+                @{ Kind = "configmap"; Names = @("mlops-config") },
+                @{ Kind = "pvc"; Names = @("mlflow-artifacts", "mlflow-data", "mlops-sales-data") },
+                @{ Kind = "service"; Names = @("mlflow", "demand-forecast-service") },
+                @{ Kind = "deployment"; Names = @("mlflow", "demand-sales-capture", "demand-forecast-service") },
+                @{ Kind = "cronjob"; Names = @("demand-model-training-scheduler") }
+            )
+            foreach ($resGroup in $preAppliedResources) {
+                foreach ($resName in $resGroup.Names) {
+                    if (kubectl get $resGroup.Kind $resName -n dev --no-headers 2>$null) {
+                        kubectl annotate $resGroup.Kind $resName -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>$null | Out-Null
+                        kubectl label $resGroup.Kind $resName -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>$null | Out-Null
+                    }
+                }
             }
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
             & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev `
