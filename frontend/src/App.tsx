@@ -11,8 +11,10 @@ import { CommandPalette } from './components/CommandPalette';
 import { QrScannerModal } from './components/QrScannerModal';
 
 import { CatalogPage } from './pages/CatalogPage';
-import { OrdersPage } from './pages/OrdersPage';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
+
+// Code-splitting for heavy non-initial views
+const OrdersPage = React.lazy(() => import('./pages/OrdersPage').then(m => ({ default: m.OrdersPage })));
+const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
 
 import { Product, Order } from './types';
 import { fetchProducts } from './services/graphql';
@@ -133,13 +135,27 @@ export const App: React.FC = () => {
         )}
 
         {activeTab === 'orders' && (
-          <OrdersPage
-            onOpenReceipt={(o) => setReceiptOrder(o)}
-            onNavigateToCatalog={() => setActiveTab('catalog')}
-          />
+          <React.Suspense fallback={
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          }>
+            <OrdersPage
+              onOpenReceipt={(o) => setReceiptOrder(o)}
+              onNavigateToCatalog={() => setActiveTab('catalog')}
+            />
+          </React.Suspense>
         )}
 
-        {activeTab === 'admin' && <AdminDashboardPage />}
+        {activeTab === 'admin' && (
+          <React.Suspense fallback={
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          }>
+            <AdminDashboardPage />
+          </React.Suspense>
+        )}
       </main>
 
       {/* Sliding Drawers */}
