@@ -3,6 +3,7 @@ package com.georgegxx.inventory_service.services;
 import com.georgegxx.inventory_service.model.dtos.*;
 import com.georgegxx.inventory_service.model.entities.Inventory;
 import com.georgegxx.inventory_service.repositories.InventoryRepository;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.annotation.PostConstruct;
@@ -37,6 +38,7 @@ public class InventoryService {
     private final AtomicLong totalStockState = new AtomicLong(0);
     private final Map<String, AtomicLong> skuStockState = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> skuLowStockIndicator = new ConcurrentHashMap<>();
+    private Counter stockDecrementsCounter;
 
     /**
      * Initializes Prometheus metrics on application startup and syncs state from the database.
@@ -44,8 +46,14 @@ public class InventoryService {
     @PostConstruct
     public void initMetrics() {
         // Register gauge for warehouse-wide total stock count
-        Gauge.builder("ecommerce_inventory_stock_total", this.totalStockState, value -> value.get())
+        Gauge.builder("ecommerce_inventory_stock_total", this.totalStockState,
+                atomicLong -> atomicLong != null ? atomicLong.doubleValue() : 0.0)
                 .description("Total available stock across all products in warehouse")
+                .register(this.meterRegistry);
+
+        // Pre-register counter for stock decrements to optimize throughput and memory allocations
+        this.stockDecrementsCounter = Counter.builder("inventory_stock_decrements_total")
+                .description("Total stock units decremented across orders")
                 .register(this.meterRegistry);
 
         // Perform initial synchronization of stock counts from the database
@@ -64,7 +72,6 @@ public class InventoryService {
      * Reads all inventory records from the database, computes aggregate total units,
      * and initializes or updates in-memory metric gauges for every SKU.
      */
-    @Transactional(readOnly = true)
     public synchronized void syncMetricsFromDatabase() {
         List<Inventory> all = this.inventoryRepository.findAll();
         long total = 0;
@@ -162,14 +169,20 @@ public class InventoryService {
 
         // Acquire pessimistic write lock on existing inventory record, or create a new one
         Optional<Inventory> existingOpt = this.inventoryRepository.findBySkuWithLock(sku);
-        long oldQty = existingOpt.map(inventory -> inventory.getQuantity()).orElse(0L);
-        Inventory inventory = existingOpt.map(existing -> {
-            existing.setQuantity(safeQty);
-            return existing;
-        }).orElseGet(() -> Inventory.builder()
-                .sku(sku)
-                .quantity(safeQty)
-                .build());
+        long oldQty;
+        Inventory inventory;
+        if (existingOpt.isPresent()) {
+            inventory = existingOpt.get();
+            Long currentQty = inventory.getQuantity();
+            oldQty = currentQty != null ? currentQty : 0L;
+            inventory.setQuantity(safeQty);
+        } else {
+            oldQty = 0L;
+            inventory = Inventory.builder()
+                    .sku(sku)
+                    .quantity(safeQty)
+                    .build();
+        }
 
         // Persist the updated stock entity
         Inventory saved = this.inventoryRepository.save(inventory);
@@ -283,18 +296,25 @@ public class InventoryService {
 
         // 3. Safely discount stock and calculate total deducted units
         long totalUnitsDeducted = 0;
+        double totalUnitsDeductedMetric = 0.0;
         for (Inventory inv : lockedInventory) {
             long reqQty = requestedQuantities.get(inv.getSku());
             long newQty = inv.getQuantity() - reqQty;
             inv.setQuantity(newQty);
             totalUnitsDeducted += reqQty;
+            totalUnitsDeductedMetric += reqQty;
             updateSkuGaugeState(inv.getSku(), newQty);
         }
 
         // 4. Persist updated quantities and refresh in-memory / cache states
         this.inventoryRepository.saveAll(lockedInventory);
         this.totalStockState.addAndGet(-totalUnitsDeducted);
-        this.meterRegistry.counter("inventory_stock_decrements_total").increment(totalUnitsDeducted);
+        if (this.stockDecrementsCounter != null) {
+            this.stockDecrementsCounter.increment(totalUnitsDeductedMetric);
+        } else {
+            this.meterRegistry.counter("inventory_stock_decrements_total")
+                    .increment(totalUnitsDeductedMetric);
+        }
         evictInventoryCaches(requestedQuantities.keySet());
 
         return new BaseResponse(null);

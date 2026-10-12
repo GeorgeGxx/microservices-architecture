@@ -221,12 +221,12 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("cancelOrder single parameter defaults to admin execution")
-    void testCancelOrderSingleParam() {
+    @DisplayName("cancelOrder with admin privileges cancels order without user id matching")
+    void testCancelOrderAsAdmin() {
         when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        OrderResponse response = orderService.cancelOrder(1L);
+        OrderResponse response = orderService.cancelOrder(1L, null, true);
 
         assertNotNull(response);
         assertEquals(OrderStatus.CANCELLED, response.orderStatus());

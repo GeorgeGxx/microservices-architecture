@@ -94,11 +94,11 @@ class IdempotencyManagerTest {
     @Test
     @DisplayName("checkOrLock when existing record is IN_PROGRESS should throw IdempotencyConflictException")
     void testCheckOrLockInProgressConflict() {
-        IdempotencyRecord record = IdempotencyRecord.builder()
+        IdempotencyRecord idempotencyRecord = IdempotencyRecord.builder()
                 .status("IN_PROGRESS")
                 .createdAt(Instant.now())
                 .build();
-        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(record));
+        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(idempotencyRecord));
 
         assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-prog", new OrderRequest()))
                 .isInstanceOf(IdempotencyConflictException.class);
@@ -112,14 +112,14 @@ class IdempotencyManagerTest {
         String hash = idempotencyManager.calculateHash(req);
 
         OrderResponse cachedResp = sampleResponse();
-        IdempotencyRecord record = IdempotencyRecord.builder()
+        IdempotencyRecord idempotencyRecord = IdempotencyRecord.builder()
                 .status("COMPLETED")
                 .requestHash(hash)
                 .responseJson(JsonUtils.toJson(cachedResp))
                 .createdAt(Instant.now())
                 .build();
 
-        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(record));
+        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(idempotencyRecord));
 
         Optional<OrderResponse> result = idempotencyManager.checkOrLock("key-hit", req);
 
@@ -134,13 +134,13 @@ class IdempotencyManagerTest {
         OrderRequest req = new OrderRequest();
         req.setCustomerName("Alice");
 
-        IdempotencyRecord record = IdempotencyRecord.builder()
+        IdempotencyRecord idempotencyRecord = IdempotencyRecord.builder()
                 .status("COMPLETED")
                 .requestHash("different-hash-12345")
                 .createdAt(Instant.now())
                 .build();
 
-        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(record));
+        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(idempotencyRecord));
 
         assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-mismatch", req))
                 .isInstanceOf(IdempotencyPayloadMismatchException.class);

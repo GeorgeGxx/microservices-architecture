@@ -12,6 +12,7 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.*;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +26,7 @@ import java.util.List;
 @RequestMapping("/api/order")
 @RequiredArgsConstructor
 @Validated
+@Slf4j
 @Tag(name = "Orders Management", description = "Endpoints for creating and retrieving purchase orders with Redis idempotency")
 public class OrderController {
 
@@ -113,7 +115,6 @@ public class OrderController {
         return this.orderService.deliverOrder(id);
     }
 
-    @SuppressWarnings("unchecked")
     private boolean isUserAdmin(Jwt jwt) {
         if (jwt == null) return false;
         Object realmAccess = jwt.getClaims().get("realm_access");
@@ -131,6 +132,13 @@ public class OrderController {
             Jwt jwt,
             String idempotencyKey,
             Throwable throwable) {
+        String user = jwt != null ? jwt.getSubject() : "anonymous";
+        log.warn("Circuit Breaker triggered in placeOrder fallback for idempotencyKey: {}, user: {}, customer: {}, error: {}",
+                idempotencyKey,
+                user,
+                orderRequest != null ? orderRequest.getCustomerEmail() : "unknown",
+                throwable != null ? throwable.getMessage() : "unspecified");
+
         rethrowIfBusinessException(throwable);
         if (throwable != null) {
             rethrowIfBusinessException(throwable.getCause());
