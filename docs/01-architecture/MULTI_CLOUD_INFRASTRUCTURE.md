@@ -250,3 +250,27 @@ To allow GitHub Actions to deploy to AWS without static access keys:
    ```
 
 ---
+
+## 🔍 AWS Active Resource Discovery Tool (`scripts/cloud/aws/aws_active_resources_list.py`)
+
+For multi-region governance, auditing active workloads, and verifying decommissioned environments across an AWS account, the platform provides a standalone Boto3 scanner:
+
+```bash
+# Query a single service in a specific region
+python scripts/cloud/aws/aws_active_resources_list.py us-east-1 ec2
+
+# Query all regions for a service
+python scripts/cloud/aws/aws_active_resources_list.py all ec2 [profile]
+
+# Scan matrix across all 12 services and regions (tabular summary)
+python scripts/cloud/aws/aws_active_resources_list.py all all [profile]
+python scripts/cloud/aws/aws_active_resources_list.py us-east-1 all [profile]
+```
+
+Supported services:
+- **Regional (9):** `ec2`, `vpc`, `lambda`, `glue` (jobs & crawlers), `cloudformation`, `kms`, `sns`, `sqs`, `ebs`.
+- **Global (3):** `s3`, `iam`, `route53` (queried once globally).
+
+Outputs a concise ASCII table indicating active resources (`✓`), empty state (`-`), un-enabled regions (`opt`), or permission/network errors (`ERR`), followed by an execution summary.
+
+---
