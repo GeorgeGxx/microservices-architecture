@@ -6,14 +6,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
 public class SseNotificationHub {
 
-    private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
+    private final Set<SseEmitter> emitters = ConcurrentHashMap.newKeySet();
 
     public SseEmitter registerClient() {
         SseEmitter emitter = new SseEmitter(180_000L); // 3 minutes timeout

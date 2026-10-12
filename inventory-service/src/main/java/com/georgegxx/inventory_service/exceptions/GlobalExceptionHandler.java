@@ -19,6 +19,11 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private static final String TIMESTAMP = "timestamp";
+    private static final String STATUS = "status";
+    private static final String ERROR = "error";
+    private static final String MESSAGE = "message";
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
@@ -41,10 +46,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({org.springframework.security.access.AccessDeniedException.class, org.springframework.security.authorization.AuthorizationDeniedException.class})
     public ResponseEntity<Map<String, Object>> handleAccessDenied(Exception ex) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.FORBIDDEN.value());
-        body.put("error", "Forbidden");
-        body.put("message", "Access denied: insufficient permissions to perform this operation.");
+        body.put(TIMESTAMP, Instant.now().toString());
+        body.put(STATUS, HttpStatus.FORBIDDEN.value());
+        body.put(ERROR, "Forbidden");
+        body.put(MESSAGE, "Access denied: insufficient permissions to perform this operation.");
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
     }
@@ -52,10 +57,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthentication(org.springframework.security.core.AuthenticationException ex) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.UNAUTHORIZED.value());
-        body.put("error", "Unauthorized");
-        body.put("message", "Authentication required or token expired.");
+        body.put(TIMESTAMP, Instant.now().toString());
+        body.put(STATUS, HttpStatus.UNAUTHORIZED.value());
+        body.put(ERROR, "Unauthorized");
+        body.put(MESSAGE, "Authentication required or token expired.");
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
     }
@@ -65,19 +70,19 @@ public class GlobalExceptionHandler {
         log.error("Unhandled exception occurred in Inventory Service", ex);
 
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
-        body.put("error", "Internal Server Error");
-        body.put("message", "An unexpected error occurred. Please contact support with the timestamp reference.");
+        body.put(TIMESTAMP, Instant.now().toString());
+        body.put(STATUS, HttpStatus.INTERNAL_SERVER_ERROR.value());
+        body.put(ERROR, "Internal Server Error");
+        body.put(MESSAGE, "An unexpected error occurred. Please contact support with the timestamp reference.");
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     private Map<String, Object> errorBody(HttpStatus status, String error, Object detail) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("timestamp", Instant.now().toString());
-        body.put("status", status.value());
-        body.put("error", error);
+        body.put(TIMESTAMP, Instant.now().toString());
+        body.put(STATUS, status.value());
+        body.put(ERROR, error);
         body.put("detail", detail);
         return body;
     }

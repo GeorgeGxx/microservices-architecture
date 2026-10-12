@@ -37,10 +37,13 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleValidation(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Validation Failed");
-        Map<?, ?> detail = (Map<?, ?>) response.getBody().get("detail");
-        assertThat(detail.get("sku")).isEqualTo("must not be blank");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Validation Failed");
+        assertThat(response.getBody()).extractingByKey("detail")
+                .isInstanceOf(Map.class)
+                .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+                .containsEntry("sku", "must not be blank");
     }
 
     @Test
@@ -57,9 +60,12 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleConstraintViolation(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Validation Failed");
-        assertThat(response.getBody().get("detail").toString()).contains("sku: Invalid SKU format");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Validation Failed");
+        assertThat(response.getBody()).extractingByKey("detail")
+                .asString()
+                .contains("sku: Invalid SKU format");
     }
 
     @Test
@@ -70,8 +76,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Forbidden");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Forbidden");
     }
 
     @Test
@@ -82,8 +89,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAuthentication(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Unauthorized");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Unauthorized");
     }
 
     @Test
@@ -94,7 +102,8 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleUnexpected(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Internal Server Error");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Internal Server Error");
     }
 }

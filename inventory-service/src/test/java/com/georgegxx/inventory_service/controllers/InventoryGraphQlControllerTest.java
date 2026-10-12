@@ -46,7 +46,7 @@ class InventoryGraphQlControllerTest {
         InventoryResponse resp = graphQlController.inventory("SKU-NONE");
 
         assertThat(resp.getSku()).isEqualTo("SKU-NONE");
-        assertThat(resp.getQuantity()).isEqualTo(0L);
+        assertThat(resp.getQuantity()).isZero();
         assertThat(resp.getIsInStock()).isFalse();
     }
 

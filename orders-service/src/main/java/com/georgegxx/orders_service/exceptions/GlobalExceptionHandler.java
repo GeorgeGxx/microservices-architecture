@@ -3,12 +3,12 @@ package com.georgegxx.orders_service.exceptions;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.slf4j.*;
 import org.springframework.http.*;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Global exception handler for orders-service.
@@ -27,12 +27,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> fieldErrors = ex.getBindingResult().getFieldErrors().stream()
-                .collect(Collectors.toMap(
-                        fe -> fe.getField(),
-                        fe -> fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "invalid value",
-                        (a, b) -> a
-                ));
+        Map<String, String> fieldErrors = new HashMap<>();
+        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
+            if (fe != null) {
+                String field = fe.getField();
+                String message = fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "invalid value";
+                fieldErrors.putIfAbsent(field, message);
+            }
+        }
 
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(TIMESTAMP, Instant.now().toString());
@@ -75,7 +77,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IdempotencyPayloadMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleIdempotencyPayloadMismatch(IdempotencyPayloadMismatchException ex) {
-        return buildErrorResponse(HttpStatus.UNPROCESSABLE_ENTITY, "Unprocessable Entity", ex.getMessage());
+        return buildErrorResponse(HttpStatus.UNPROCESSABLE_CONTENT, "Unprocessable Entity", ex.getMessage());
     }
 
     @ExceptionHandler({CallNotPermittedException.class, ServiceUnavailableException.class})

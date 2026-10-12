@@ -22,7 +22,8 @@ public class SecurityConfig {
     // Chain 1: Actuator (health, prometheus) -> public, no JWT required.
     @Bean
     @Order(1)
-    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .securityMatcher("/actuator/**")
@@ -33,7 +34,8 @@ public class SecurityConfig {
     // Chain 2: rest of the API -> protected by Keycloak JWT.
     @Bean
     @Order(2)
-    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(request -> request

@@ -8,7 +8,8 @@ import java.util.*;
 
 @Entity
 @Table(name = "product", indexes = {
-        @Index(name = "idx_product_sku", columnList = "sku", unique = true)
+        @Index(name = "idx_product_sku", columnList = "sku", unique = true),
+        @Index(name = "idx_product_category_status", columnList = "category, status")
 })
 @Data
 @AllArgsConstructor

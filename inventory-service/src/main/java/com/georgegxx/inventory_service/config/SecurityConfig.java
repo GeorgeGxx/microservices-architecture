@@ -5,6 +5,7 @@ import org.springframework.context.annotation.*;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.core.GrantedAuthority;
@@ -15,12 +16,14 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     // Chain 1: Actuator (health, prometheus) -> public, no JWT required.
     @Bean
     @Order(1)
-    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .securityMatcher("/actuator/**")
@@ -31,7 +34,8 @@ public class SecurityConfig {
     // Chain 2: rest of the API -> protected by Keycloak JWT (except internal stock checks).
     @Bean
     @Order(2)
-    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(request -> request

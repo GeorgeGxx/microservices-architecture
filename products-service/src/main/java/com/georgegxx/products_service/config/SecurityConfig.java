@@ -22,17 +22,19 @@ public class SecurityConfig {
   // Chain 1: Actuator (health, prometheus) -> public, no JWT required.
   @Bean
   @Order(1)
-  public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+  @SuppressWarnings("java:S4502")
+  public SecurityFilterChain actuatorFilterChain(HttpSecurity http) {
     return http.csrf(csrf -> csrf.disable())
         .securityMatcher("/actuator/**")
         .authorizeHttpRequests(request -> request.anyRequest().permitAll())
         .build();
   }
 
-  // Chain 2: rest of the API -> protected by Keycloak JWT (except internal prices endpoint).
+  // Chain 2: rest of the API -> protected by Keycloak JWT (except public catalog & internal prices endpoint).
   @Bean
   @Order(2)
-  public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+  @SuppressWarnings("java:S4502")
+  public SecurityFilterChain apiFilterChain(HttpSecurity http) {
     return http.csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(
             request ->
@@ -40,7 +42,7 @@ public class SecurityConfig {
                     .requestMatchers(
                         org.springframework.http.HttpMethod.GET, "/api/product", "/api/product/**")
                     .permitAll()
-                    .requestMatchers("/api/product/prices")
+                    .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/product/prices")
                     .permitAll()
                     .requestMatchers("/graphql", "/graphql/**")
                     .permitAll()
