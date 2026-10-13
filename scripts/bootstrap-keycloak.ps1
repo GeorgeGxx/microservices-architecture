@@ -23,8 +23,7 @@ $ErrorActionPreference = "Stop"
 # Auto-resolve default realm-export.json path if not explicitly provided
 if (-not $RealmExportPath) {
     $candidates = @(
-        (Join-Path $PSScriptRoot "..\docs\reference\iam\realm-export.json"),
-        (Join-Path $PSScriptRoot "..\docs\realm-export.json")
+        (Join-Path $PSScriptRoot "..\docs\reference\iam\realm-export.json")
     )
     foreach ($cand in $candidates) {
         if (Test-Path $cand) {
