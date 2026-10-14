@@ -69,18 +69,18 @@ public class OrderService implements InitializingBean {
     private static final Set<String> FUNNEL_STEPS = Set.of("SHIPPING", "DELIVERY", "PAYMENT");
 
     // Database-backed Persistent Metric State Holders
-    private final AtomicLong dbCompletedOrders = new AtomicLong(0);
-    private final AtomicLong dbCancelledOrders = new AtomicLong(0);
-    private final DoubleAdder dbRevenueUsd = new DoubleAdder();
-    private final DoubleAdder dbCancelledRevenueUsd = new DoubleAdder();
-    private final AtomicLong dbItemsSold = new AtomicLong(0);
-    private final Map<String, AtomicLong> dbSkuSales = new ConcurrentHashMap<>();
+    private AtomicLong dbCompletedOrders = new AtomicLong(0);
+    private AtomicLong dbCancelledOrders = new AtomicLong(0);
+    private DoubleAdder dbRevenueUsd = new DoubleAdder();
+    private DoubleAdder dbCancelledRevenueUsd = new DoubleAdder();
+    private AtomicLong dbItemsSold = new AtomicLong(0);
+    private Map<String, AtomicLong> dbSkuSales = new ConcurrentHashMap<>();
 
     // Customer Retention & Cohort Metric State Holders (O(1) Bounded Cardinality)
-    private final Map<String, AtomicLong> dbOrdersByCohort = new ConcurrentHashMap<>();
-    private final Map<String, AtomicReference<Double>> dbRevenueByCohort = new ConcurrentHashMap<>();
-    private final Map<String, AtomicLong> dbBasketSizes = new ConcurrentHashMap<>();
-    private final Map<String, AtomicLong> dbPipelineOrders = new ConcurrentHashMap<>();
+    private Map<String, AtomicLong> dbOrdersByCohort = new ConcurrentHashMap<>();
+    private Map<String, AtomicReference<Double>> dbRevenueByCohort = new ConcurrentHashMap<>();
+    private Map<String, AtomicLong> dbBasketSizes = new ConcurrentHashMap<>();
+    private Map<String, AtomicLong> dbPipelineOrders = new ConcurrentHashMap<>();
 
     @Override
     public void afterPropertiesSet() {
