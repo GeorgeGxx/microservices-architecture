@@ -1,7 +1,7 @@
 # Local minikube: images built directly into minikube's docker daemon
 # (see scripts/deploy-minikube.sh), no external registry needed.
 global:
-  environment: local
+  environment: dev
   # Vault Integration Options (Choose Option A or Option B, or leave disabled for native K8s secrets)
   vault:
     enabled: false # Set to true to enable Vault integration
