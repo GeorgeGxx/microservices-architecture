@@ -16,12 +16,121 @@ This document formalizes the **Enterprise DevSecOps Operating Model & Governance
 
 ```mermaid
 flowchart LR
-    A["1. Strategy & Portfolio<br/>(WSJF, ROI, MVP)"] --> B["2. Arch & Threat Modeling<br/>(STRIDE, 4+1, IaC Design)"]
-    B --> C["3. Agile Construction<br/>(TDD, GitFlow, Pre-commit)"]
-    C --> D["4. Automated Gates<br/>(SAST, DAST, Newman, k6)"]
+    A["1. Strategy & Portfolio<br/>(WSJF, ROI, MVP)"] --> B["2. Arch & Threat Modeling<br/>(STRIDE, Schema-First, IaC)"]
+    B --> C["3. Agile Construction<br/>(TDD, Pre-commit, PR Gates)"]
+    C --> D["4. Automated Assurance<br/>(SAST, DAST, Newman, k6)"]
     D --> E["5. GitOps & Release<br/>(ArgoCD, Istio Canary, Helm)"]
-    E --> F["6. Observability & SRE<br/>(SLOs, OTel, ServiceNow, Incidents)"]
-    F -.->|"Feedback Loop to Backlog"| A
+    E --> F["6. Observability & SRE<br/>(SLOs, LGTM Stack, Feedback)"]
+    F -.->|"Closed-Loop Feedback"| A
+```
+
+---
+
+## 📐 Unified DevSecOps & S-SDLC Lifecycle Workflow
+
+This workflow evolves traditional SDLC phases (such as manual design review boards, isolated testing blocks, and committee sign-off gates) into a **continuous, policy-driven Shift-Left and Shift-Right engineering pipeline** fully integrated into the microservices architecture.
+
+### 👥 Six Multi-Disciplinary Stakeholder Personas
+The operating model coordinates six distinct cross-functional roles across the entire platform lifecycle:
+
+* 🔵 **Business / Product Owner (PO):** Defines value streams, functional acceptance criteria (Given-When-Then), releases authorization, and sprint priority.
+* 🟢 **Team Leads / Solution Architecture:** Governs Architecture Decision Records (ADRs), non-functional requirements (NFRs), schema design, and code quality benchmarks.
+* 🔴 **Developers:** Implements Test-Driven Development (TDD), clean code, pre-commit hygiene, atomic feature branches, and database migrations (Flyway).
+* 🟡 **Cybersecurity / SecOps:** Conducts threat modeling (STRIDE / abuse cases), enforces security quality gates, manages CVE triage, and audits runtime security posture.
+* 🟠 **Testers / QA Automation:** Engineers automated API contract tests (Newman), integration suites, and resilience/load benchmarks (k6).
+* 🔘 **Infrastructure / DevOps / SRE:** Provisions immutable IaC (Terraform), Helm charts, GitOps delivery (ArgoCD), service mesh (Istio), and telemetry collection (OTel, Grafana Alloy, Prometheus, Loki, Tempo).
+
+### 🚀 Evolution from Traditional Committee Gates to Continuous Quality Gates
+
+| Traditional Workflow Characteristic | DevSecOps & S-SDLC Evolution in Microservices Architecture | Implementation / Gate in Project |
+| :--- | :--- | :--- |
+| **Manual Committee Review 1 (Pre-Build)** | Replaced by **Definition of Ready (DoR)** with schema-first validation and peer-approved ADRs for breaking changes. | [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md) (DoR checklist) |
+| **Vague "Tools Review" at end of Code** | Decomposed into continuous **Shift-Left automated gates** at Pre-commit (Gitleaks) and Pull Request (JaCoCo $\ge$ 80%, SonarQube SAST, Trivy SCA & Secrets, Checkov IaC). | [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) & [DoD Level 1](./QUALITY_GATES_AND_DOD.md) |
+| **Manual Committee Review 2 (Pre-Testing)** | Replaced by **Automated Pull Request Validation & Branch Protection Rules** for merge into `develop`. | GitHub Actions branch protection & mandatory peer approval |
+| **Isolated "Automation Stress Security" block** | Integrated into continuous **DoD Level 2 Staging Gate** via ArgoCD: Postman/Newman contract verification, Cosmo Router federation checks, k6 load testing, and OWASP ZAP DAST. | [`devsecops/testing/`](../../devsecops/testing/) & [`devsecops/dast/zap/`](../../devsecops/dast/zap/) |
+| **IaC as a static deployment overlay** | **Declarative GitOps & Admission Control:** Terraform in `terraform/`, Helm in `helm/`, ArgoCD in `argocd/`, validated statically with Conftest/Rego and dynamically with OPA Gatekeeper. | [`devsecops/policies/`](../../devsecops/policies/) & [`argocd/`](../../argocd/) |
+| **Manual Production CAB** | Replaced by **Progressive Canary Rollouts (Istio 10% $\rightarrow$ 100%)** with automated health checks, error-budget guardrails, and instant rollback. | Istio VirtualService + Prometheus SLO alert gates |
+| **Linear "Fix & Refactor"** | **Closed-Loop Feedback:** Telemetry in Grafana Tempo (distributed traces), Loki (logs), and Prometheus (metrics) automatically correlates errors into RCA post-mortems and regression tests. | [OBSERVABILITY_QUERIES.md](../04-observability/OBSERVABILITY_QUERIES.md) |
+
+### 🔄 End-to-End DevSecOps & S-SDLC Lifecycle Diagram
+
+```mermaid
+flowchart TD
+    classDef biz fill:#e1f5fe,stroke:#0288d1,stroke-width:2px;
+    classDef lead fill:#e8f8f5,stroke:#26a69a,stroke-width:2px;
+    classDef dev fill:#ffebee,stroke:#e53935,stroke-width:2px;
+    classDef sec fill:#fffde7,stroke:#fbc02d,stroke-width:2px;
+    classDef qa fill:#fff3e0,stroke:#fb8c00,stroke-width:2px;
+    classDef ops fill:#eceff1,stroke:#546e7a,stroke-width:2px;
+    classDef gate fill:#ede7f6,stroke:#5e35b1,stroke-width:2px,stroke-dasharray: 5 5;
+
+    subgraph Phase1 ["1. Strategic Conception & Threat Modeling (Shift-Left)"]
+        US["📋 User Story & Value Stream<br/>• Business Value & Functional Criteria<br/>• Evil User Stories & Abuse Cases"]:::biz
+        TD["📐 Technical Design & Architecture<br/>• Schema-First (GraphQL / Async Events)<br/>• Non-destructive DB Plan (Expand/Contract)<br/>• Threat Modeling (STRIDE / PASTA)"]:::lead
+        TC["🧪 Contract & BDD Test Cases<br/>• Gherkin / Acceptance Test Suites<br/>• API Consumer Contracts"]:::qa
+        DoR{"🚦 Automated DoR Quality Gate<br/>• Pre-validated Schema & ADR Approved<br/>• Zero breaking contract drift"]:::gate
+        
+        US --> TD
+        TD <--> TC
+        TD --> DoR
+        DoR -.->|"Alternative Flows / Scope Rework"| US
+    end
+
+    subgraph Phase2 ["2. Secure Agile Construction & Component Gates"]
+        TDD["💻 Test-Driven Development (TDD)<br/>• Unit tests written first<br/>• Clean Architecture & SOLID standards"]:::dev
+        CODE["🔨 Implementation & Pre-commit<br/>• Local linting & formatting<br/>• Gitleaks secret detection hook"]:::dev
+        PR["👥 Peer Review & Pull Request<br/>• Code review by Tech Leads<br/>• Conventional Commits verification"]:::lead
+        DoD1{"🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage >= 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Lint (Checkov & Conftest Rego)"]:::gate
+        BUILD["📦 Immutable Container Build<br/>• Multi-stage non-root distroless build<br/>• Trivy image scan & Cosign signature"]:::ops
+
+        DoR -->|Ready for Sprint| TDD
+        TDD --> CODE
+        CODE --> PR
+        PR --> DoD1
+        DoD1 -->|"Automated Gate Pass"| BUILD
+        DoD1 -.->|"Fix & Refactor Loop"| CODE
+    end
+
+    subgraph Phase3 ["3. Staging Dynamic Validation & Integration Gates"]
+        GITOPS_DEV["🔄 GitOps Sync to Staging<br/>• ArgoCD automated deployment<br/>• Ephemeral staging cluster sync"]:::ops
+        DYNAMIC_TESTS["⚡ Dynamic Assurance Suite<br/>• API Contract Tests (Postman / Newman)<br/>• Cosmo Router Federated Composition<br/>• Resilience & Stress Load Testing (k6)<br/>• DAST Security Vulnerability Scan (OWASP ZAP)"]:::qa
+        UAT["👔 Business UAT & Acceptance<br/>• End-to-end user workflow sign-off"]:::biz
+        DoD2{"🟡 DoD Level 2 Gate (Integration Pass)<br/>• 20/20 Newman contract tests<br/>• Zero High/Critical OWASP ZAP alerts<br/>• k6 p95 < 2000ms & error rate < 2%"]:::gate
+
+        BUILD --> GITOPS_DEV
+        GITOPS_DEV --> DYNAMIC_TESTS
+        DYNAMIC_TESTS --> DoD2
+        DoD2 -->|Healthy Verification| UAT
+        DYNAMIC_TESTS -.->|"Replicate & Fix Loop"| TDD
+    end
+
+    subgraph Phase4 ["4. Progressive Production Delivery & Policy Gates"]
+        GITOPS_PROD["🚀 GitOps Release to Production<br/>• ArgoCD sync with Git tag vX.Y.Z<br/>• OPA Gatekeeper Admission Controller"]:::ops
+        CANARY["🔀 Progressive Canary Traffic Shift<br/>• Istio Service Mesh (10% -> 50% -> 100%)<br/>• Automated SLO error budget monitoring"]:::ops
+        PROD_LIVE["🌐 Live Multi-Cloud Cluster<br/>• Zero-Trust mTLS encryption<br/>• Keycloak JWT & Sealed Secrets/Vault"]:::ops
+        DoD3{"🔴 DoD Level 3 Gate (Production Verification)<br/>• Zero SLO regression during Canary<br/>• Verified automated rollback plan"]:::gate
+
+        UAT --> GITOPS_PROD
+        GITOPS_PROD --> DoD3
+        DoD3 --> CANARY
+        CANARY --> PROD_LIVE
+        DoD3 -.->|"Emergency Auto-Rollback"| GITOPS_PROD
+    end
+
+    subgraph Phase5 ["5. Observability, Resiliencia & Closed-Loop Feedback"]
+        OBS["📊 Full-Stack LGTM Telemetry<br/>• Grafana Tempo (Distributed TraceQL)<br/>• Grafana Loki (Centralized LogQL)<br/>• Prometheus (Golden Signals & PromQL)"]:::ops
+        RUNTIME_SEC["🛡️ Runtime Security & Audit<br/>• Anomaly triggers & SIEM monitoring"]:::sec
+        POSTMORTEM["🔍 RCA & Blameless Post-Mortem<br/>• ServiceNow / Incident bridge<br/>• Automated regression test creation"]:::lead
+        BACKLOG["📋 Backlog Prioritization & Technical Debt<br/>• Preventive security & hardening stories"]:::biz
+
+        PROD_LIVE --> OBS
+        PROD_LIVE --> RUNTIME_SEC
+        OBS --> POSTMORTEM
+        RUNTIME_SEC --> POSTMORTEM
+        POSTMORTEM -.->|"Regression Test Added to Newman / k6"| TC
+        POSTMORTEM -.->|"Preventive Debt / Threat Fix"| BACKLOG
+        BACKLOG -.->|"Next Sprint Refinement"| US
+    end
 ```
 
 ---
@@ -31,12 +140,12 @@ flowchart LR
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Biz as Business / PO
-    actor Arch as Enterprise & Solution Arch
-    actor Sec as Cybersecurity Lead
-    actor Dev as Dev Team & Tech Lead
-    actor CI as CI/CD Pipeline (Automated)
-    actor Ops as SRE / Platform / Observability
+    actor Biz as Business / PO (🔵)
+    actor Arch as Enterprise & Solution Arch (🟢)
+    actor Sec as Cybersecurity Lead (🟡)
+    actor Dev as Dev Team & Tech Lead (🔴)
+    actor CI as CI/CD Pipeline (Automated ⚙️)
+    actor Ops as SRE / Platform / Observability (🔘)
     actor ITSM as ServiceNow / Incident Mgmt
 
     rect rgb(240, 248, 255)
@@ -75,7 +184,7 @@ sequenceDiagram
 
     rect rgb(245, 240, 255)
     Note over Ops,ITSM: Phase 5: Continuous Reliability & Feedback Loop
-    Ops->>Ops: Distributed Tracing (Jaeger) & Metrics (Prometheus/Grafana)
+    Ops->>Ops: Distributed Tracing (Grafana Tempo) & Metrics (Prometheus/Grafana)
     Ops->>ITSM: Anomaly Trigger / PagerAlert
     ITSM->>Dev: P1/P2 Incident Root-Cause Analysis (Blameless Post-Mortem)
     Dev->>Biz: Preventive Technical Debt Stories added to Backlog
@@ -92,7 +201,7 @@ The following RACI matrix specifies organizational accountability across the mul
 - **C (Consulted):** Subject matter expert providing inputs, review, or validation.
 - **I (Informed):** Kept updated on progress, outcomes, or releases.
 
-| Lifecycle Stage | Activity / Milestone | Business / PO | Enterprise / Solution Arch | Tech Lead (Fabric) | Dev Team | QA / Automation | SecOps / CyberSec | Platform / DevOps | SRE / Observability | Incident / Support | Automated CI/CD |
+| Lifecycle Stage | Activity / Milestone | Business / PO 🔵 | Solution Arch 🟢 | Tech Lead 🟢 | Dev Team 🔴 | QA / Automation 🟠 | SecOps / CyberSec 🟡 | Platform / DevOps 🔘 | SRE / Observability 🔘 | Incident / Support | Automated CI/CD ⚙️ |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | **1. Strategy & Conception** | Business Need & Value Stream | **A / R** | C | I | I | I | I | I | I | I | - |
 | | Technical Feasibility & MVP | C | **A** | R | C | I | C | C | I | - | - |
@@ -189,7 +298,7 @@ classDiagram
 - **Mission:** Provide unified visibility across telemetry signals (distributed traces, metrics, structured logs).
 - **Key Responsibilities:**
   - Standardize OpenTelemetry instrumentations in GraphQL Router and Java/Go microservices.
-  - Maintain Prometheus, Grafana, and Jaeger dashboards.
+  - Maintain Prometheus, Grafana, and Grafana Tempo dashboards.
   - Configure dynamic alert thresholds to prevent alert fatigue.
 
 ### 4. Incident Manager & Support (L1/L2/L3)
