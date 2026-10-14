@@ -35,9 +35,9 @@ public class InventoryService {
     private final ObjectProvider<InventoryService> self;
 
     // In-memory metrics state (enables O(1) reads with zero SQL queries during Prometheus scrapes)
-    private final AtomicLong totalStockState = new AtomicLong(0);
-    private final Map<String, AtomicLong> skuStockState = new ConcurrentHashMap<>();
-    private final Map<String, AtomicLong> skuLowStockIndicator = new ConcurrentHashMap<>();
+    private AtomicLong totalStockState = new AtomicLong(0);
+    private Map<String, AtomicLong> skuStockState = new ConcurrentHashMap<>();
+    private Map<String, AtomicLong> skuLowStockIndicator = new ConcurrentHashMap<>();
     private Counter stockDecrementsCounter;
 
     /**
