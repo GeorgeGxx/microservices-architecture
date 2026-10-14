@@ -68,7 +68,7 @@ flowchart TD
         US["📋 User Story & Value Stream<br/>• Business Value & Functional Criteria<br/>• Evil User Stories & Abuse Cases"]:::biz
         TD["📐 Technical Design & Architecture<br/>• Schema-First (GraphQL / Async Events)<br/>• Non-destructive DB Plan (Expand/Contract)<br/>• Threat Modeling (STRIDE / PASTA)"]:::lead
         TC["🧪 Contract & BDD Test Cases<br/>• Gherkin / Acceptance Test Suites<br/>• API Consumer Contracts"]:::qa
-        DoR{"🚦 Automated DoR Quality Gate<br/>• Pre-validated Schema & ADR Approved<br/>• Zero breaking contract drift"]:::gate
+        DoR(["🚦 Automated DoR Quality Gate<br/>• Pre-validated Schema & ADR Approved<br/>• Zero breaking contract drift"]):::gate
         
         US --> TD
         TD <--> TC
@@ -80,7 +80,7 @@ flowchart TD
         TDD["💻 Test-Driven Development (TDD)<br/>• Unit tests written first<br/>• Clean Architecture & SOLID standards"]:::dev
         CODE["🔨 Implementation & Pre-commit<br/>• Local linting & formatting<br/>• Gitleaks secret detection hook"]:::dev
         PR["👥 Peer Review & Pull Request<br/>• Code review by Tech Leads<br/>• Conventional Commits verification"]:::lead
-        DoD1{"🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage >= 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Lint (Checkov & Conftest Rego)"]:::gate
+        DoD1(["🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage &ge; 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Lint (Checkov & Conftest Rego)"]):::gate
         BUILD["📦 Immutable Container Build<br/>• Multi-stage non-root distroless build<br/>• Trivy image scan & Cosign signature"]:::ops
 
         DoR -->|Ready for Sprint| TDD
@@ -95,7 +95,7 @@ flowchart TD
         GITOPS_DEV["🔄 GitOps Sync to Staging<br/>• ArgoCD automated deployment<br/>• Ephemeral staging cluster sync"]:::ops
         DYNAMIC_TESTS["⚡ Dynamic Assurance Suite<br/>• API Contract Tests (Postman / Newman)<br/>• Cosmo Router Federated Composition<br/>• Resilience & Stress Load Testing (k6)<br/>• DAST Security Vulnerability Scan (OWASP ZAP)"]:::qa
         UAT["👔 Business UAT & Acceptance<br/>• End-to-end user workflow sign-off"]:::biz
-        DoD2{"🟡 DoD Level 2 Gate (Integration Pass)<br/>• 20/20 Newman contract tests<br/>• Zero High/Critical OWASP ZAP alerts<br/>• k6 p95 < 2000ms & error rate < 2%"]:::gate
+        DoD2(["🟡 DoD Level 2 Gate (Integration Pass)<br/>• 20/20 Newman contract tests<br/>• Zero High/Critical OWASP ZAP alerts<br/>• k6 p95 &lt; 2000ms & error rate &lt; 2%"]):::gate
 
         BUILD --> GITOPS_DEV
         GITOPS_DEV --> DYNAMIC_TESTS
@@ -108,7 +108,7 @@ flowchart TD
         GITOPS_PROD["🚀 GitOps Release to Production<br/>• ArgoCD sync with Git tag vX.Y.Z<br/>• OPA Gatekeeper Admission Controller"]:::ops
         CANARY["🔀 Progressive Canary Traffic Shift<br/>• Istio Service Mesh (10% -> 50% -> 100%)<br/>• Automated SLO error budget monitoring"]:::ops
         PROD_LIVE["🌐 Live Multi-Cloud Cluster<br/>• Zero-Trust mTLS encryption<br/>• Keycloak JWT & Sealed Secrets/Vault"]:::ops
-        DoD3{"🔴 DoD Level 3 Gate (Production Verification)<br/>• Zero SLO regression during Canary<br/>• Verified automated rollback plan"]:::gate
+        DoD3(["🔴 DoD Level 3 Gate (Production Verification)<br/>• Zero SLO regression during Canary<br/>• Verified automated rollback plan"]):::gate
 
         UAT --> GITOPS_PROD
         GITOPS_PROD --> DoD3

@@ -258,7 +258,7 @@ flowchart TD
     Leak["Accidental Secret Commit (.env / token)"] --> Check{"Pushed to Remote?"}
     Check -- No --> Soft["1. git reset --soft HEAD~1<br/>2. git restore --staged .env<br/>3. Re-commit clean"]
     Check -- Yes --> Purge["Emergency History Purge & Credential Rotation"]
-    Purge --> Step1["Step 1: Stop Tracking & Ignore<br/>git rm --cached .env<br/>echo '.env' >> .gitignore"]
+    Purge --> Step1["Step 1: Stop Tracking and Ignore<br/>git rm --cached .env<br/>echo '.env' to .gitignore"]
     Purge --> Step2["Step 2: Deep History Purge<br/>pip install git-filter-repo<br/>git filter-repo --path .env --invert-paths"]
     Purge --> Step3["Step 3: Revoke & Rotate Credentials<br/>• Rotate Vault secret<br/>• Regenerate K8s microservices-secrets<br/>• Invalidate Keycloak/DB passwords"]
 ```
