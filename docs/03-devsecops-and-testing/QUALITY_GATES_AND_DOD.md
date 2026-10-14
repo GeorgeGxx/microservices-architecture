@@ -16,7 +16,7 @@ In a distributed, event-driven microservices architecture composed of independen
 3. **Premature Deployments:** Merging incomplete specifications or untested cross-service dependencies.
 4. **Lack of Automated Observability:** Missing tracing spans (`traceparent`), metrics, or health probes.
 
-To prevent these failure modes, this project implements a **Decoupled Quality Gate Model** synchronized with our **Hybrid Trunk-Based with Environment Promotion** branching strategy (defined in [GIT_WORKFLOW_AND_COLLABORATION.md](./GIT_WORKFLOW_AND_COLLABORATION.md)).
+To prevent these failure modes, this project implements a **Decoupled Quality Gate Model** synchronized with our **DevSecOps Operating Model** (defined in [DEVSECOPS_GOVERNANCE_AND_MODEL.md](./DEVSECOPS_GOVERNANCE_AND_MODEL.md)) and our **Hybrid Trunk-Based with Environment Promotion** branching strategy (defined in [GIT_WORKFLOW_AND_COLLABORATION.md](./GIT_WORKFLOW_AND_COLLABORATION.md)).
 
 ```mermaid
 flowchart TD
