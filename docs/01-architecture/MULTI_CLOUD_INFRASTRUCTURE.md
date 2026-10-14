@@ -199,55 +199,60 @@ terraform/
 
 ---
 
-## ☁️ AWS Production-Environment Reference Suite (`docs/reference/aws-eks/`)
+## ☁️ Active AWS Production-Environment Architecture
 
-This documentation-only directory holds example templates that illustrate a production-oriented **Amazon Web Services (AWS)** environment. They provide context for discussion and adaptation; they are not deployed platform components or maintained as active deployment definitions.
+The platform provides a fully production-grade, hardened **Amazon Web Services (AWS)** deployment topology that is actively maintained and integrated across our IaC, Helm, GitOps, and CI/CD pipelines.
 
-> [!NOTE]
-> **Reference only:** These files use the `.example` extension and are intentionally located outside `.github/workflows/` and ArgoCD application paths. GitHub Actions will not trigger them and ArgoCD will not reconcile them automatically.
+### Active AWS Platform Components
 
-### Included Reference Architecture Templates
+* **Terraform Infrastructure as Code ([`terraform/environments/aws/`](../../terraform/environments/aws/)):**
+  * Modular multi-environment workspaces: `dev`, `staging`, and `prod`.
+  * Backed by production-grade modules in [`terraform/modules/aws/`](../../terraform/modules/aws/):
+    * **VPC & Networking:** Multi-AZ public/private subnets, NAT Gateways, Route Tables.
+    * **EKS Cluster:** Managed node groups, IMDSv2 enforced, encrypted secrets with AWS KMS.
+    * **IAM & Zero-Trust:** GitHub Actions OIDC identity federation (zero static access keys) and IRSA (IAM Roles for Service Accounts).
+    * **Ingress & Security:** AWS Load Balancer Controller (ALB), ACM TLS certificates, AWS WAFv2 WebACL.
+    * **Storage:** EBS CSI Driver with high-IOPS `gp3` storage class.
+    * **Frontend & CDN:** S3 bucket with Origin Access Control (OAC) and CloudFront TLS 1.3 distribution.
+    * **FinOps:** Native AWS budget alert policies (`finops.tf`).
 
-* **[github-actions-eks-pipeline.yml.example](../reference/aws-eks/github-actions-eks-pipeline.yml.example):**
-  * **Dynamic S3 `.tfstate` Discovery:** Queries remote Terraform S3 state and DynamoDB lock to automatically extract EKS cluster name, ECR URLs, ALB ingress endpoints, frontend S3 bucket, and CloudFront distribution ID.
-  * **Zero-Trust IAM OIDC:** Uses `aws-actions/configure-aws-credentials@v4` with web identity federation (zero static keys).
-  * **Frontend SPA Deployment (React 19):** S3 sync with immutable caching headers (`max-age=31536000, immutable`), `no-cache` for `index.html`, and atomic CloudFront CDN invalidation (`/*`).
-  * **Amazon ECR Hardening:** Immutable tagging with Trivy vulnerability scanning gates.
-  * **Automated Rollbacks:** Dedicated `rollback-staging-eks` job and canary health check auto-rollback.
-* **[argocd-application-eks.yaml.example](../reference/aws-eks/argocd-application-eks.yaml.example):**
-  * Declarative GitOps Application manifest for external AWS EKS clusters.
-  * Configures **AWS Load Balancer Controller (ALB)** with ACM TLS certificate ARN, AWS WAFv2 WebACL ARN, and SSL redirection.
-  * Injects **IRSA (IAM Roles for Service Accounts)** role ARN, **EBS CSI `gp3`** storage class, and **External Secrets Operator (ESO)** AWS Secrets Manager parameters.
-* **[argocd-applicationset-eks.yaml.example](../reference/aws-eks/argocd-applicationset-eks.yaml.example):**
-  * Multi-environment matrix automating both `staging` (automated sync) and `prod` (manual gate with canary routing).
+* **Hardened Helm Values ([`helm/values/`](../../helm/values/)):**
+  * [`values-eks-dev.yaml`](../../helm/values/values-eks-dev.yaml), [`values-eks-staging.yaml`](../../helm/values/values-eks-staging.yaml), and [`values-eks-prod.yaml`](../../helm/values/values-eks-prod.yaml).
+  * Injects ALB Ingress annotations, ACM certificate ARNs, and External Secrets Operator (ESO) integration with AWS Secrets Manager.
 
-### 🛠️ AWS Blueprint Step-by-Step Activation Guide
+* **GitOps Continuous Delivery ([`argocd/`](../../argocd/)):**
+  * Multi-environment declarative applications ([`application-dev.yaml`](../../argocd/application-dev.yaml), [`application-staging.yaml`](../../argocd/application-staging.yaml), [`application-prod.yaml`](../../argocd/application-prod.yaml)) configured with automated self-healing, prune policies, and health monitoring.
 
-#### 1. AWS IAM OIDC Configuration (Zero-Trust)
-To allow GitHub Actions to deploy to AWS without static access keys:
-1. Create an OpenID Connect (OIDC) identity provider in AWS IAM with provider URL `https://token.actions.githubusercontent.com` and audience `sts.amazonaws.com`.
-2. Create an IAM Role (e.g., `GitHubActions-EKS-Deployer`) with an assume role policy trusting `repo:GeorgeGxx/microservices-architecture:*`.
-3. Add the ARN as a repository secret: `AWS_ROLE_ARN`.
+* **Automated CI/CD Delivery ([`.github/workflows/`](../../.github/workflows/)):**
+  * [`.github/workflows/terraform-aws.yml`](../../.github/workflows/terraform-aws.yml) for automated Terraform plan/apply workflows.
+  * [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) for automated service build, Trivy vulnerability scan, ECR push, and GitOps sync.
 
-#### 2. Frontend S3 & CloudFront Setup
-* Configure an S3 Bucket with **Origin Access Control (OAC)** enabled so that direct public HTTP access to the bucket is blocked.
-* CloudFront serves all traffic over HTTPS with TLS 1.3.
-* During CI/CD, hashed bundles (`*.js`, `*.css`) are uploaded with `max-age=31536000, immutable`, while `index.html` is uploaded with `no-cache` to ensure instant updates.
+### 🛠️ AWS Deployment & Operational Workflow
 
-#### 3. Deploying to Amazon EKS via GitHub Actions
-1. Copy `github-actions-eks-pipeline.yml.example` to `.github/workflows/aws-eks-pipeline.yml`.
-2. Commit and push to Git. The workflow can now be triggered manually via the **Actions** tab or configured for automated push/merge triggers.
+#### 1. Zero-Trust AWS IAM OIDC Authentication
+GitHub Actions assumes roles via AWS STS Web Identity Tokens:
+* Audience: `sts.amazonaws.com`
+* Provider URL: `https://token.actions.githubusercontent.com`
+* Repository Secret: `AWS_ROLE_ARN`
 
-#### 4. Deploying to Amazon EKS via ArgoCD
-1. Register your AWS EKS cluster in ArgoCD:
-   ```bash
-   aws eks update-kubeconfig --region us-east-1 --name msa-aws-prod-eks
-   argocd cluster add <cluster-context> --name aws-eks-prod
-   ```
-2. Apply the application manifest:
-   ```bash
-   kubectl apply -f ./docs/reference/aws-eks/argocd-application-eks.yaml.example
-   ```
+#### 2. Provisioning Infrastructure via Multi-Cloud CLI
+Deploy AWS VPC, EKS, ECR, and supporting services using [`platform-multicloud.ps1`](../../platform-multicloud.ps1):
+```bash
+# Validate and provision AWS staging infrastructure
+./platform-multicloud.ps1 apply-infra -Provider aws -Environment staging
+
+# Apply Kubernetes workloads through Helm
+./platform-multicloud.ps1 apply-workloads -Provider aws -Environment staging
+
+# Trigger ArgoCD GitOps reconciliation
+./platform-multicloud.ps1 sync-argocd -Provider aws -Environment staging
+```
+
+#### 3. Post-Deployment Verification & Security Gates
+Following deployment, automated test suites execute against the live AWS EKS endpoint:
+* Newman API contract test suite (23/23 endpoints pass).
+* k6 resilience & SLO load benchmark (p95 < 200 ms).
+* OWASP ZAP baseline dynamic application security scan (DAST).
 
 ---
 
