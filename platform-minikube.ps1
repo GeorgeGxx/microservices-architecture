@@ -705,6 +705,8 @@ function Invoke-MinikubePlatform {
             $rbacManifest = Join-Path $root "k8s\minikube\rbac\dev-rbac.yaml"
             if (Test-Path $rbacManifest) {
                 kubectl apply -f $rbacManifest 2>$null | Out-Null
+                kubectl annotate -f $rbacManifest -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>&1 | Out-Null
+                kubectl label -f $rbacManifest -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
                 Write-Host "  [OK] Hardened RBAC ServiceAccounts & Roles applied to dev namespace." -ForegroundColor Green
             }
 
@@ -797,7 +799,12 @@ stringData:
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
             # Ensure any pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
             Write-Host "  ▶ Reconciling Helm ownership metadata for pre-existing resources..." -ForegroundColor White
-            $renderedYaml = & helm template microservices $resolvedUmbrellaDir --namespace dev --values $minikubeValues --include-crds 2>$null
+            $rbacManifest = Join-Path $root "k8s\minikube\rbac\dev-rbac.yaml"
+            if (Test-Path $rbacManifest) {
+                kubectl annotate -f $rbacManifest -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>&1 | Out-Null
+                kubectl label -f $rbacManifest -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
+            }
+            $renderedYaml = & helm template microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev --values $minikubeValues --include-crds 2>$null
             $currentKind = ""
             $inMetadata = $false
             $renderedResources = [System.Collections.Generic.List[PSObject]]::new()
