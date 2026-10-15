@@ -1832,7 +1832,7 @@ switch ($Command) {
 
     { $_ -in @("diagrams", "sync-diagrams") } {
         Show-Banner "Synchronize Architecture Blueprint (docs/Diagrams.drawio)"
-        Write-Host "Regenerating docs/Diagrams.drawio across all 13 architectural tabs..." -ForegroundColor White
+        Write-Host "Regenerating docs/Diagrams.drawio across all 15 architectural tabs..." -ForegroundColor White
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
