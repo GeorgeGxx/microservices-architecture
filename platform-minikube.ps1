@@ -590,14 +590,20 @@ function Invoke-MinikubePlatform {
             # Existing clusters therefore need an explicit, idempotent enable;
             # KEDA CPU triggers and Kubernetes HPAs otherwise remain unhealthy.
             Write-Host "  ▶ Ensuring Minikube metrics-server is enabled for HPA/KEDA CPU metrics..." -ForegroundColor White
-            minikube addons enable metrics-server
-            if ($LASTEXITCODE -ne 0) {
-                throw "Could not enable Minikube metrics-server. KEDA CPU scalers cannot become healthy without the resource metrics API."
+            $isMetricsAvailable = ((kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath="{.status.conditions[0].status}" 2>$null) -eq 'True')
+            if (-not $isMetricsAvailable) {
+                minikube addons enable metrics-server
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Could not enable Minikube metrics-server. KEDA CPU scalers cannot become healthy without the resource metrics API."
+                }
+                Write-Host "  ▶ Waiting for metrics-server deployment and initial scrape cycle (up to 240s)..." -ForegroundColor White
+                kubectl rollout status deployment/metrics-server -n kube-system --timeout=180s 2>$null | Out-Null
+                kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=240s
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Minikube metrics-server did not publish v1beta1.metrics.k8s.io within 240 seconds. Check `kubectl get pods -n kube-system` before retrying Helm."
+                }
             }
-            kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=120s
-            if ($LASTEXITCODE -ne 0) {
-                throw "Minikube metrics-server did not publish v1beta1.metrics.k8s.io within 120 seconds. Check `kubectl get pods -n kube-system` before retrying Helm."
-            }
+            Write-Host "  [OK] Resource metrics API (v1beta1.metrics.k8s.io) is healthy and active." -ForegroundColor Green
 
             if ($BuildImages) {
                 Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + React)..." -ForegroundColor Yellow
