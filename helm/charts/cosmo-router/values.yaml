@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/wundergraph/cosmo/router
-  tag: "0.353.0"
+  tag: "0.358.0"
   digest: ""
   pullPolicy: IfNotPresent
 

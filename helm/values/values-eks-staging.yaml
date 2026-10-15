@@ -11,7 +11,7 @@ configMap:
 cosmo-router:
   image:
     repository: "ghcr.io/wundergraph/cosmo/router"
-    tag: "0.353.0"
+    tag: "0.358.0"
   trafficShaping:
     circuitBreaker:
       enabled: true

@@ -310,7 +310,7 @@ spec:
     metadata:
       labels:
         app: cosmo-router
-        version: "0.353.0"
+        version: "0.358.0"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9090"
@@ -354,7 +354,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: cosmo-router
-          image: ghcr.io/wundergraph/cosmo/router:0.353.0
+          image: ghcr.io/wundergraph/cosmo/router:0.358.0
           imagePullPolicy: IfNotPresent
           env:
             - name: CONFIG_PATH

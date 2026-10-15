@@ -295,7 +295,7 @@ sequenceDiagram
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
 2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/realms/**`, `/resources/**`, `/admin/**`, and `/js/**` directly to Keycloak. The React client uses the local forwarded Keycloak port on loopback and the shared Istio origin in ingress deployments.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
-4. **Federated GraphQL Gateway:** **Cosmo Router 0.353.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router Hardening & Gateway Capabilities](#-cosmo-router-hardening--gateway-capabilities).
+4. **Federated GraphQL Gateway:** **Cosmo Router 0.358.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router Hardening & Gateway Capabilities](#-cosmo-router-hardening--gateway-capabilities).
 5. **Core Microservices Subgraphs (East-West):** Cosmo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
 6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `cosmo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
 
@@ -631,7 +631,7 @@ graph LR
     end
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
-        APIGW["🚪 Cosmo Router 0.353.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
+        APIGW["🚪 Cosmo Router 0.358.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
         Keycloak["🔐 Keycloak 26.7.4 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
