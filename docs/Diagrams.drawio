@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="13" type="device">
+<mxfile host="Electron" pages="15" type="device">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
@@ -951,6 +951,217 @@
         </mxCell>
         <mxCell id="lifecycle_feedback_label" parent="1" value="&lt;b&gt;↶ CONTINUOUS CLOSED-LOOP FEEDBACK:&lt;/b&gt; Incident learning, Grafana Tempo TraceQL anomalies, and preventive backlog stories automatically feed regression tests and subsequent architecture cycles." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#C4B5FD;strokeWidth=1.5;fontColor=#4C1D95;fontSize=12;align=center;verticalAlign=middle;" vertex="1">
           <mxGeometry x="360" y="820" width="1200" height="55" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_graphql_supergraph_hardening" name="14. GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t14" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;GRAPHQL SUPERGRAPH - 6-LAYER DEFENSE-IN-DEPTH ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;WunderGraph Cosmo Router • Apollo Federation v2 • Keycloak JWKS • K8s Hardening • Zero-Trust L3/L4 Network Policies&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c14_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="100" width="260" height="740" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_spa" parent="1" value="&lt;b&gt;React 19 SPA Storefront&lt;/b&gt;&lt;br&gt;Vite/Tunnel :5173 • Nginx :8080&lt;br&gt;Federated GraphQL Client&lt;br&gt;Unified Query Dispatch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="70" y="160" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_client_req" parent="1" value="&lt;b&gt;Single GraphQL Operation&lt;/b&gt;&lt;br&gt;&lt;code&gt;query { products { sku name isInStock } }&lt;/code&gt;&lt;br&gt;&lt;br&gt;&lt;code&gt;mutation { placeOrder(...) }&lt;/code&gt;&lt;br&gt;+ Bearer JWT (Keycloak)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
+          <mxGeometry x="70" y="260" width="220" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_attack_sim" parent="1" value="&lt;b&gt;Malicious Traffic Vector&lt;/b&gt;&lt;br&gt;• Circular DoS queries&lt;br&gt;• Field-stuffing bloat&lt;br&gt;• Alias batching attacks&lt;br&gt;• Unauthenticated calls" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;dashed=1;" vertex="1">
+          <mxGeometry x="70" y="380" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="c14_l6" parent="1" value="&lt;b&gt;🛡️ LAYER 6: ZERO-TRUST L3/L4 NETWORK POLICIES&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="340" y="100" width="290" height="740" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_ingress" parent="1" value="&lt;b&gt;Istio Gateway / Ingress&lt;/b&gt;&lt;br&gt;Port 8080 (TCP Ingress)&lt;br&gt;matchLabels: app=cosmo-router&lt;br&gt;STRICT L3/L4 Allow-list" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
+          <mxGeometry x="365" y="160" width="240" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_netpol_rules" parent="1" value="&lt;b&gt;NetworkPolicy Enforcement&lt;/b&gt;&lt;br&gt;• Ingress: Only from frontend / istio-system on :8080&lt;br&gt;• Egress: Only to subgraphs (:8001-:8004), Keycloak (:8181) &amp;amp; OTel (:4318)&lt;br&gt;• All other lateral ports BLOCKED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#312E81;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="365" y="260" width="240" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="c14_cosmo" parent="1" value="&lt;b&gt;🔒 LAYER 5: K8S POD &amp;amp; CONTAINER HARDENING (WunderGraph Cosmo Router 0.353.0)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Distroless UID/GID 65532 • readOnlyRootFilesystem: true • allowPrivilegeEscalation: false • drop: [ALL] • seccomp: RuntimeDefault • automountServiceAccountToken: false&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="660" y="100" width="750" height="740" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_l4" parent="1" value="&lt;b&gt;🚦 LAYER 4: Traffic Shaping &amp;amp; Strict CORS&lt;/b&gt;&lt;br&gt;• max_request_body_size: 1MB • max_header_bytes: 1MiB (prevents buffer overflow &amp;amp; memory exhaustion)&lt;br&gt;• Strict CORS: localhost:5173 / 127.0.0.1:5173 whitelist • Allow: GET, POST, OPTIONS&lt;br&gt;• Connection pooling: 64 max_conns_per_host • Timeouts: 3s dial, 20s request" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="685" y="160" width="700" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_l1" parent="1" value="&lt;b&gt;🔑 LAYER 1: Edge JWT Authentication (Keycloak OIDC)&lt;/b&gt;&lt;br&gt;• Cryptographic verification against Keycloak JWKS certs (/realms/microservices-realm/protocol/openid-connect/certs)&lt;br&gt;• Enforce RS256 algorithm • Fail-closed posture: on_error: reject for expired, invalid or tampered tokens&lt;br&gt;• Controlled propagation: Bearer token, W3C traceparent (OTel Tempo), and X-Idempotency-Key" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="685" y="255" width="700" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_l3" parent="1" value="&lt;b&gt;🛡️ LAYER 3: GraphQL AST &amp;amp; DoS Mitigation (Complexity Engine)&lt;/b&gt;&lt;br&gt;• maxDepth: 12 (blocks infinite circular recursive nesting attacks)&lt;br&gt;• maxTotalFields: 250 (mitigates query bloat / field-stuffing exhaustion)&lt;br&gt;• maxRootFields: 12 &amp;amp; maxRootFieldAliases: 5 (stops alias batching &amp;amp; rate-limit bypass)&lt;br&gt;• Parser limits: depth 40, total fields 500 • Introspection &amp;amp; Playground: DISABLED in Production Helm values" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="685" y="350" width="700" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_l2" parent="1" value="&lt;b&gt;⚡ LAYER 2: Pre-Fetch Field-Level Authorization&lt;/b&gt;&lt;br&gt;• Hybrid model: catalog queries public (require_authentication: false), orders protected (@authenticated)&lt;br&gt;• enable_pre_fetch_field_authorization: true&lt;br&gt;• Evaluates AST permissions BEFORE compiling execution plan or dispatching sub-queries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="685" y="455" width="700" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_engine" parent="1" value="&lt;b&gt;🧩 Apollo Federation v2 Execution Engine&lt;/b&gt;&lt;br&gt;• Deterministic execution-config.json compiled offline via wgc router compose&lt;br&gt;• Ultra-low latency Go runtime planner (sub-millisecond query planning)&lt;br&gt;• Concurrent entity resolution across subgraphs using @key(fields: &quot;sku&quot;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="685" y="550" width="700" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_kill" parent="1" value="&lt;b&gt;🛑 FAIL-CLOSED EDGE KILL-SWITCH:&lt;/b&gt; Malicious, oversized, unauthenticated, or complex AST queries terminated immediately at the router.&lt;br&gt;Returns HTTP 401 Unauthorized / 400 Bad Request — Zero CPU, Memory or DB load on downstream microservices." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=10;align=center;" vertex="1">
+          <mxGeometry x="685" y="645" width="700" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c14_sub" parent="1" value="&lt;b&gt;📦 SHIELDED SUBGRAPHS &amp;amp; PLATFORM&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="1440" y="100" width="430" height="740" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_prod" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;Catalog &amp;amp; Pricing • Subgraph SDL&lt;br&gt;Entity: &lt;code&gt;Product @key(fields: &quot;sku&quot;)&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1465" y="160" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_inv" parent="1" value="&lt;b&gt;Inventory Service (:8001)&lt;/b&gt;&lt;br&gt;Stock Levels &amp;amp; Reservations&lt;br&gt;Entity: &lt;code&gt;Product @key(fields: &quot;sku&quot;)&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1465" y="240" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_ord" parent="1" value="&lt;b&gt;Orders Service (:8003)&lt;/b&gt;&lt;br&gt;Saga Orchestration &amp;amp; Checkout&lt;br&gt;Operations: &lt;code&gt;@authenticated&lt;/code&gt; required" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1465" y="320" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_kc" parent="1" value="&lt;b&gt;Keycloak 26 (IAM :8181)&lt;/b&gt;&lt;br&gt;JWKS Public Key Certs (/certs)&lt;br&gt;microservices-realm OIDC Provider" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;" vertex="1">
+          <mxGeometry x="1465" y="405" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n14_otel" parent="1" value="&lt;b&gt;OpenTelemetry Collector (:4318)&lt;/b&gt;&lt;br&gt;Distributed Traces (Grafana Tempo)&lt;br&gt;Metrics Exporter (Prometheus)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;" vertex="1">
+          <mxGeometry x="1465" y="490" width="380" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="c14_summary" parent="1" value="&lt;b&gt;🎯 DEFENSE-IN-DEPTH GUARANTEE:&lt;/b&gt; Unified entry point for Apollo Federation v2 with Zero-Trust network policies, distroless runtime hardening, edge JWT validation, GraphQL AST complexity limits, and pre-fetch field authorization. Clients execute single federated queries while downstream microservices remain completely shielded from DoS, recursion exploits, and unauthorized traversal." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="50" y="860" width="1820" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_1" parent="1" value="POST /graphql" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="n14_client_req" target="n14_ingress">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_2" parent="1" value="TCP 8080 Allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n14_ingress" target="n14_l4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_3" parent="1" value="Sanitized HTTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n14_l4" target="n14_l1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_4" parent="1" value="JWKS Certs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EC4899;strokeWidth=1.5;dashed=1;" edge="1" source="n14_l1" target="n14_kc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_5" parent="1" value="Claims OK" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n14_l1" target="n14_l3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_6" parent="1" value="AST Checked" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n14_l3" target="n14_l2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_7" parent="1" value="Authorized" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n14_l2" target="n14_engine">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_8" parent="1" value="Invalid AST / Auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;dashed=1;" edge="1" source="n14_l2" target="n14_kill">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_9" parent="1" value="Entity Query (@key)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n14_engine" target="n14_prod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_10" parent="1" value="Entity Query (@key)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n14_engine" target="n14_inv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_11" parent="1" value="Propagate Bearer JWT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n14_engine" target="n14_ord">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14_12" parent="1" value="Export OTLP Spans" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284C7;strokeWidth=1.5;dashed=1;" edge="1" source="n14_engine" target="n14_otel">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_graphql_supergraph_seq" name="15. Sequence - GraphQL Supergraph Request Lifecycle &amp; Edge Protection">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t15" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;SEQUENCE: GRAPHQL SUPERGRAPH REQUEST LIFECYCLE &amp;amp; FAIL-CLOSED EDGE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Chronological execution flow • Pre-fetch field authorization kill-switch • Parallel Apollo Federation v2 entity resolution&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_client" parent="1" value="&lt;b&gt;1. Client / SPA&lt;/b&gt;&lt;br&gt;(React 19 Frontend)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="80" y="100" width="160" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_ingress" parent="1" value="&lt;b&gt;2. L6: NetPol / Ingress&lt;/b&gt;&lt;br&gt;(Port 8080 Allow-list)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
+          <mxGeometry x="340" y="100" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_cosmo" parent="1" value="&lt;b&gt;3. Cosmo Router&lt;/b&gt;&lt;br&gt;(L5/L4/L3/L2 Gateway)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
+          <mxGeometry x="640" y="100" width="220" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_kc" parent="1" value="&lt;b&gt;4. Keycloak IAM&lt;/b&gt;&lt;br&gt;(JWKS Public Certs :8181)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
+          <mxGeometry x="960" y="100" width="190" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_prod" parent="1" value="&lt;b&gt;5. Products Subgraph&lt;/b&gt;&lt;br&gt;(Port 8004 • @key: sku)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1240" y="100" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_inv" parent="1" value="&lt;b&gt;6. Inventory Subgraph&lt;/b&gt;&lt;br&gt;(Port 8001 • @key: sku)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1470" y="100" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="p15_ord" parent="1" value="&lt;b&gt;7. Orders Subgraph&lt;/b&gt;&lt;br&gt;(Port 8003 • @authenticated)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="1700" y="100" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_client" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="160" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_ingress" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="430" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_cosmo" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="750" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_kc" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="1055" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_prod" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="1325" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_inv" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="1555" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="l15_ord" parent="1" value="" style="shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;" vertex="1">
+          <mxGeometry x="1785" y="150" width="10" height="770" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_1" parent="1" value="1. Client dispatches POST /graphql (query { products { sku name price isInStock } }) + Bearer JWT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="160" y="175" width="270" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_2" parent="1" value="2. Layer 6 NetPol admits TCP 8080 traffic into Cosmo Router from frontend namespace" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="430" y="220" width="320" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_3" parent="1" value="3. Layer 4: Traffic Shaping &amp;amp; CORS verification (body &amp;lt;= 1MB, allowed origins: localhost:5173)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="265" width="320" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_4" parent="1" value="4. Layer 1: Verify token signature against cached Keycloak JWKS certs (RS256 enforced)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="310" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_5" parent="1" value="5. Keycloak confirms token validity; Cosmo extracts claims (sub, roles, username)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="355" width="305" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_6" parent="1" value="6. Layer 3: AST inspection verifies depth &amp;lt;= 12, total fields &amp;lt;= 250, root aliases &amp;lt;= 5" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="400" width="320" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_7" parent="1" value="7. Layer 2: Pre-Fetch Field Auth checks @authenticated directives across operation targets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="445" width="320" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_fail_box" parent="1" value="&lt;b&gt;❌ FAIL-CLOSED FORK: UNAUTHORIZED OR MALICIOUS AST DETECTED&lt;/b&gt;&lt;br&gt;8a. Immediate HTTP 401 / 400 rejection sent to client. Request killed at router edge.&lt;br&gt;&lt;b&gt;Result:&lt;/b&gt; Zero execution plan created. Subgraphs and PostgreSQL databases experience 0 CPU/RAM impact." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="160" y="495" width="590" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_auth_box" parent="1" value="&lt;b&gt;✅ AUTHORIZED PATH: PARALLEL APOLLO FEDERATION v2 RESOLUTION&lt;/b&gt;&lt;br&gt;Cosmo Router queries execution-config.json and constructs parallel execution plan across subgraphs." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;align=left;spacingLeft=15;" vertex="1">
+          <mxGeometry x="750" y="570" width="1035" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_8" parent="1" value="8b. Concurrent query to Products Subgraph (resolve base product fields: sku, name, price)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="630" width="575" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_9" parent="1" value="9b. Products Service returns catalog records [{ sku: 'SKU-001', name: 'Laptop', price: 1200 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="675" width="575" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_10" parent="1" value="10b. Concurrent query to Inventory Subgraph resolving Product entity by @key(fields: 'sku')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="720" width="805" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_11" parent="1" value="11b. Inventory Service returns stock data [{ sku: 'SKU-001', isInStock: true, quantity: 45 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="750" y="765" width="805" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_12" parent="1" value="12. Cosmo Router merges entity partials into unified GraphQL response in Go memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="430" y="810" width="320" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_13" parent="1" value="13. HTTP 200 OK delivered to React 19 Client with full data payload (p95 latency &amp;lt; 20ms)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+          <mxGeometry x="160" y="855" width="590" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="s15_summary" parent="1" value="&lt;b&gt;🎯 DETERMINISTIC EDGE PROTECTION:&lt;/b&gt; By compiling subgraphs into a deterministic execution plan, Cosmo Router acts as a cryptographic, semantic, and network firewall. Downstream microservices focus purely on domain logic without worrying about DoS recursion, query inflation, or unauthorized calls." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="80" y="915" width="1790" height="50" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

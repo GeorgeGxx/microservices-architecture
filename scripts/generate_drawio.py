@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
-    root_mxfile = ET.Element("mxfile", host="Electron", pages="13", type="device")
+    root_mxfile = ET.Element("mxfile", host="Electron", pages="15", type="device")
 
     # Helper function to create page
     def create_page(page_id, page_name):
@@ -499,10 +499,122 @@ def build_drawio_xml():
     add_edge(r13, "lifecycle_feedback", "1", "", lifecycle_edge_style + "strokeColor=#8B5CF6;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=1;", "phase5_delivery", "phase1_delivery", [(1692, 785), (220, 785)])
     add_node(r13, "lifecycle_feedback_label", "1", "<b>↶ CONTINUOUS CLOSED-LOOP FEEDBACK:</b> Incident learning, Grafana Tempo TraceQL anomalies, and preventive backlog stories automatically feed regression tests and subsequent architecture cycles.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F3FF;strokeColor=#C4B5FD;strokeWidth=1.5;fontColor=#4C1D95;fontSize=12;align=center;verticalAlign=middle;", 360, 820, 1200, 55)
 
+    # =========================================================================
+    # PAGE 14: GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture
+    # =========================================================================
+    r14 = create_page("page_graphql_supergraph_hardening", "14. GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture")
+    add_node(r14, "t14", "1", "<b style='font-size:22px;color:#1E293B;'>GRAPHQL SUPERGRAPH - 6-LAYER DEFENSE-IN-DEPTH ARCHITECTURE</b><br><span style='font-size:13px;color:#64748B;'>WunderGraph Cosmo Router • Apollo Federation v2 • Keycloak JWKS • K8s Hardening • Zero-Trust L3/L4 Network Policies</span>", title_style, 250, 25, 1420, 55)
+
+    # Zone 1: Client Layer
+    add_node(r14, "c14_client", "1", "<b>🌐 CLIENT LAYER</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 50, 100, 260, 740)
+    add_node(r14, "n14_spa", "1", "<b>React 19 SPA Storefront</b><br>Vite/Tunnel :5173 • Nginx :8080<br>Federated GraphQL Client<br>Unified Query Dispatch", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 70, 160, 220, 80)
+    add_node(r14, "n14_client_req", "1", "<b>Single GraphQL Operation</b><br><code>query { products { sku name isInStock } }</code><br><br><code>mutation { placeOrder(...) }</code><br>+ Bearer JWT (Keycloak)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 70, 260, 220, 95)
+    add_node(r14, "n14_attack_sim", "1", "<b>Malicious Traffic Vector</b><br>• Circular DoS queries<br>• Field-stuffing bloat<br>• Alias batching attacks<br>• Unauthenticated calls", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;dashed=1;", 70, 380, 220, 90)
+
+    # Zone 2: Layer 6 Network Policy Perimeter
+    add_node(r14, "c14_l6", "1", "<b>🛡️ LAYER 6: ZERO-TRUST L3/L4 NETWORK POLICIES</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 340, 100, 290, 740)
+    add_node(r14, "n14_ingress", "1", "<b>Istio Gateway / Ingress</b><br>Port 8080 (TCP Ingress)<br>matchLabels: app=cosmo-router<br>STRICT L3/L4 Allow-list", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;", 365, 160, 240, 80)
+    add_node(r14, "n14_netpol_rules", "1", "<b>NetworkPolicy Enforcement</b><br>• Ingress: Only from frontend / istio-system on :8080<br>• Egress: Only to subgraphs (:8001-:8004), Keycloak (:8181) &amp; OTel (:4318)<br>• All other lateral ports BLOCKED", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#312E81;fontSize=10;align=left;spacingLeft=10;", 365, 260, 240, 120)
+
+    # Zone 3: Layers 5, 4, 1, 3, 2 - Cosmo Router Pod Sandbox
+    add_node(r14, "c14_cosmo", "1", "<b>🔒 LAYER 5: K8S POD &amp; CONTAINER HARDENING (WunderGraph Cosmo Router 0.353.0)</b><br><span style='font-size:10px;color:#64748B;'>Distroless UID/GID 65532 • readOnlyRootFilesystem: true • allowPrivilegeEscalation: false • drop: [ALL] • seccomp: RuntimeDefault • automountServiceAccountToken: false</span>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;", 660, 100, 750, 740)
+    
+    # Layer 4
+    add_node(r14, "n14_l4", "1", "<b>🚦 LAYER 4: Traffic Shaping &amp; Strict CORS</b><br>• max_request_body_size: 1MB • max_header_bytes: 1MiB (prevents buffer overflow &amp; memory exhaustion)<br>• Strict CORS: localhost:5173 / 127.0.0.1:5173 whitelist • Allow: GET, POST, OPTIONS<br>• Connection pooling: 64 max_conns_per_host • Timeouts: 3s dial, 20s request", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;align=left;spacingLeft=15;", 685, 160, 700, 75)
+
+    # Layer 1
+    add_node(r14, "n14_l1", "1", "<b>🔑 LAYER 1: Edge JWT Authentication (Keycloak OIDC)</b><br>• Cryptographic verification against Keycloak JWKS certs (/realms/microservices-realm/protocol/openid-connect/certs)<br>• Enforce RS256 algorithm • Fail-closed posture: on_error: reject for expired, invalid or tampered tokens<br>• Controlled propagation: Bearer token, W3C traceparent (OTel Tempo), and X-Idempotency-Key", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;align=left;spacingLeft=15;", 685, 255, 700, 75)
+
+    # Layer 3
+    add_node(r14, "n14_l3", "1", "<b>🛡️ LAYER 3: GraphQL AST &amp; DoS Mitigation (Complexity Engine)</b><br>• maxDepth: 12 (blocks infinite circular recursive nesting attacks)<br>• maxTotalFields: 250 (mitigates query bloat / field-stuffing exhaustion)<br>• maxRootFields: 12 &amp; maxRootFieldAliases: 5 (stops alias batching &amp; rate-limit bypass)<br>• Parser limits: depth 40, total fields 500 • Introspection &amp; Playground: DISABLED in Production Helm values", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=15;", 685, 350, 700, 85)
+
+    # Layer 2
+    add_node(r14, "n14_l2", "1", "<b>⚡ LAYER 2: Pre-Fetch Field-Level Authorization</b><br>• Hybrid model: catalog queries public (require_authentication: false), orders protected (@authenticated)<br>• enable_pre_fetch_field_authorization: true<br>• Evaluates AST permissions BEFORE compiling execution plan or dispatching sub-queries", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;align=left;spacingLeft=15;", 685, 455, 700, 75)
+
+    # Execution Engine
+    add_node(r14, "n14_engine", "1", "<b>🧩 Apollo Federation v2 Execution Engine</b><br>• Deterministic execution-config.json compiled offline via wgc router compose<br>• Ultra-low latency Go runtime planner (sub-millisecond query planning)<br>• Concurrent entity resolution across subgraphs using @key(fields: \"sku\")", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=15;", 685, 550, 700, 75)
+
+    # Fail-Closed Edge Drop
+    add_node(r14, "n14_kill", "1", "<b>🛑 FAIL-CLOSED EDGE KILL-SWITCH:</b> Malicious, oversized, unauthenticated, or complex AST queries terminated immediately at the router.<br>Returns HTTP 401 Unauthorized / 400 Bad Request — Zero CPU, Memory or DB load on downstream microservices.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=10;align=center;", 685, 645, 700, 50)
+
+    # Zone 4: Downstream Subgraphs & Platform Services
+    add_node(r14, "c14_sub", "1", "<b>📦 SHIELDED SUBGRAPHS &amp; PLATFORM</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1440, 100, 430, 740)
+    add_node(r14, "n14_prod", "1", "<b>Products Service (:8004)</b><br>Catalog &amp; Pricing • Subgraph SDL<br>Entity: <code>Product @key(fields: \"sku\")</code>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1465, 160, 380, 65)
+    add_node(r14, "n14_inv", "1", "<b>Inventory Service (:8001)</b><br>Stock Levels &amp; Reservations<br>Entity: <code>Product @key(fields: \"sku\")</code>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1465, 240, 380, 65)
+    add_node(r14, "n14_ord", "1", "<b>Orders Service (:8003)</b><br>Saga Orchestration &amp; Checkout<br>Operations: <code>@authenticated</code> required", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;", 1465, 320, 380, 65)
+    add_node(r14, "n14_kc", "1", "<b>Keycloak 26 (IAM :8181)</b><br>JWKS Public Key Certs (/certs)<br>microservices-realm OIDC Provider", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;", 1465, 405, 380, 65)
+    add_node(r14, "n14_otel", "1", "<b>OpenTelemetry Collector (:4318)</b><br>Distributed Traces (Grafana Tempo)<br>Metrics Exporter (Prometheus)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;", 1465, 490, 380, 65)
+
+    # Bottom Summary Banner
+    add_node(r14, "c14_summary", "1", "<b>🎯 DEFENSE-IN-DEPTH GUARANTEE:</b> Unified entry point for Apollo Federation v2 with Zero-Trust network policies, distroless runtime hardening, edge JWT validation, GraphQL AST complexity limits, and pre-fetch field authorization. Clients execute single federated queries while downstream microservices remain completely shielded from DoS, recursion exploits, and unauthorized traversal.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;", 50, 860, 1820, 60)
+
+    # Edges
+    add_edge(r14, "e14_1", "1", "POST /graphql", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=2;", "n14_client_req", "n14_ingress")
+    add_edge(r14, "e14_2", "1", "TCP 8080 Allow", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#6366F1;strokeWidth=2;", "n14_ingress", "n14_l4")
+    add_edge(r14, "e14_3", "1", "Sanitized HTTP", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;", "n14_l4", "n14_l1")
+    add_edge(r14, "e14_4", "1", "JWKS Certs", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EC4899;strokeWidth=1.5;dashed=1;", "n14_l1", "n14_kc")
+    add_edge(r14, "e14_5", "1", "Claims OK", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n14_l1", "n14_l3")
+    add_edge(r14, "e14_6", "1", "AST Checked", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;", "n14_l3", "n14_l2")
+    add_edge(r14, "e14_7", "1", "Authorized", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "n14_l2", "n14_engine")
+    add_edge(r14, "e14_8", "1", "Invalid AST / Auth", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;dashed=1;", "n14_l2", "n14_kill")
+    add_edge(r14, "e14_9", "1", "Entity Query (@key)", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "n14_engine", "n14_prod")
+    add_edge(r14, "e14_10", "1", "Entity Query (@key)", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "n14_engine", "n14_inv")
+    add_edge(r14, "e14_11", "1", "Propagate Bearer JWT", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;", "n14_engine", "n14_ord")
+    add_edge(r14, "e14_12", "1", "Export OTLP Spans", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#0284C7;strokeWidth=1.5;dashed=1;", "n14_engine", "n14_otel")
+
+    # =========================================================================
+    # PAGE 15: Sequence - GraphQL Supergraph Request Lifecycle & Edge Protection
+    # =========================================================================
+    r15 = create_page("page_graphql_supergraph_seq", "15. Sequence - GraphQL Supergraph Request Lifecycle & Edge Protection")
+    add_node(r15, "t15", "1", "<b style='font-size:22px;color:#1E293B;'>SEQUENCE: GRAPHQL SUPERGRAPH REQUEST LIFECYCLE &amp; FAIL-CLOSED EDGE</b><br><span style='font-size:13px;color:#64748B;'>Chronological execution flow • Pre-fetch field authorization kill-switch • Parallel Apollo Federation v2 entity resolution</span>", title_style, 250, 25, 1420, 55)
+
+    # Participants
+    add_node(r15, "p15_client", "1", "<b>1. Client / SPA</b><br>(React 19 Frontend)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;", 80, 100, 160, 50)
+    add_node(r15, "p15_ingress", "1", "<b>2. L6: NetPol / Ingress</b><br>(Port 8080 Allow-list)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;", 340, 100, 180, 50)
+    add_node(r15, "p15_cosmo", "1", "<b>3. Cosmo Router</b><br>(L5/L4/L3/L2 Gateway)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;", 640, 100, 220, 50)
+    add_node(r15, "p15_kc", "1", "<b>4. Keycloak IAM</b><br>(JWKS Public Certs :8181)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 960, 100, 190, 50)
+    add_node(r15, "p15_prod", "1", "<b>5. Products Subgraph</b><br>(Port 8004 • @key: sku)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1240, 100, 170, 50)
+    add_node(r15, "p15_inv", "1", "<b>6. Inventory Subgraph</b><br>(Port 8001 • @key: sku)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1470, 100, 170, 50)
+    add_node(r15, "p15_ord", "1", "<b>7. Orders Subgraph</b><br>(Port 8003 • @authenticated)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;", 1700, 100, 170, 50)
+
+    # Lifelines
+    add_node(r15, "l15_client", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 160, 150, 10, 770)
+    add_node(r15, "l15_ingress", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 430, 150, 10, 770)
+    add_node(r15, "l15_cosmo", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 750, 150, 10, 770)
+    add_node(r15, "l15_kc", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 1055, 150, 10, 770)
+    add_node(r15, "l15_prod", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 1325, 150, 10, 770)
+    add_node(r15, "l15_inv", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 1555, 150, 10, 770)
+    add_node(r15, "l15_ord", "1", "", "shape=line;strokeWidth=2;strokeColor=#CBD5E1;direction=south;", 1785, 150, 10, 770)
+
+    # Sequence Steps
+    add_node(r15, "s15_1", "1", "1. Client dispatches POST /graphql (query { products { sku name price isInStock } }) + Bearer JWT", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 160, 175, 270, 32)
+    add_node(r15, "s15_2", "1", "2. Layer 6 NetPol admits TCP 8080 traffic into Cosmo Router from frontend namespace", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;fontSize=10;align=left;spacingLeft=8;", 430, 220, 320, 32)
+    add_node(r15, "s15_3", "1", "3. Layer 4: Traffic Shaping &amp; CORS verification (body &lt;= 1MB, allowed origins: localhost:5173)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 750, 265, 320, 32)
+    add_node(r15, "s15_4", "1", "4. Layer 1: Verify token signature against cached Keycloak JWKS certs (RS256 enforced)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;", 750, 310, 305, 32)
+    add_node(r15, "s15_5", "1", "5. Keycloak confirms token validity; Cosmo extracts claims (sub, roles, username)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;", 750, 355, 305, 32)
+    add_node(r15, "s15_6", "1", "6. Layer 3: AST inspection verifies depth &lt;= 12, total fields &lt;= 250, root aliases &lt;= 5", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;", 750, 400, 320, 32)
+    add_node(r15, "s15_7", "1", "7. Layer 2: Pre-Fetch Field Auth checks @authenticated directives across operation targets", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;fontSize=10;align=left;spacingLeft=8;", 750, 445, 320, 32)
+
+    # Fail-Closed Box
+    add_node(r15, "s15_fail_box", "1", "<b>❌ FAIL-CLOSED FORK: UNAUTHORIZED OR MALICIOUS AST DETECTED</b><br>8a. Immediate HTTP 401 / 400 rejection sent to client. Request killed at router edge.<br><b>Result:</b> Zero execution plan created. Subgraphs and PostgreSQL databases experience 0 CPU/RAM impact.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=10;align=left;spacingLeft=15;", 160, 495, 590, 60)
+
+    # Authorized Branch
+    add_node(r15, "s15_auth_box", "1", "<b>✅ AUTHORIZED PATH: PARALLEL APOLLO FEDERATION v2 RESOLUTION</b><br>Cosmo Router queries execution-config.json and constructs parallel execution plan across subgraphs.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;align=left;spacingLeft=15;", 750, 570, 1035, 45)
+
+    add_node(r15, "s15_8", "1", "8b. Concurrent query to Products Subgraph (resolve base product fields: sku, name, price)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 750, 630, 575, 32)
+    add_node(r15, "s15_9", "1", "9b. Products Service returns catalog records [{ sku: 'SKU-001', name: 'Laptop', price: 1200 }]", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 750, 675, 575, 32)
+    add_node(r15, "s15_10", "1", "10b. Concurrent query to Inventory Subgraph resolving Product entity by @key(fields: 'sku')", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 750, 720, 805, 32)
+    add_node(r15, "s15_11", "1", "11b. Inventory Service returns stock data [{ sku: 'SKU-001', isInStock: true, quantity: 45 }]", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;", 750, 765, 805, 32)
+    add_node(r15, "s15_12", "1", "12. Cosmo Router merges entity partials into unified GraphQL response in Go memory", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;", 430, 810, 320, 32)
+    add_node(r15, "s15_13", "1", "13. HTTP 200 OK delivered to React 19 Client with full data payload (p95 latency &lt; 20ms)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=10;align=left;spacingLeft=8;", 160, 855, 590, 32)
+
+    # Bottom Summary Banner
+    add_node(r15, "s15_summary", "1", "<b>🎯 DETERMINISTIC EDGE PROTECTION:</b> By compiling subgraphs into a deterministic execution plan, Cosmo Router acts as a cryptographic, semantic, and network firewall. Downstream microservices focus purely on domain logic without worrying about DoS recursion, query inflation, or unauthorized calls.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;", 80, 915, 1790, 50)
+
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)
     tree.write("docs/Diagrams.drawio", encoding="utf-8", xml_declaration=True)
-    print("Successfully generated docs/Diagrams.drawio in English with 13 comprehensive tabs!")
+    print("Successfully generated docs/Diagrams.drawio in English with 15 comprehensive tabs!")
 
 if __name__ == "__main__":
     build_drawio_xml()
