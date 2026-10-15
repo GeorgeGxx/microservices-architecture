@@ -40,7 +40,7 @@ graph TB
     end
 
     subgraph Gateway["🚪 Ingress & Federated Gateway"]
-        ROUTER["Cosmo Router 0.353.0 (Go)<br/>(Port 8080 • Federation 2.3/2.5 • GraphQL Playground)"]
+        ROUTER["Cosmo Router 0.358.0 (Go)<br/>(Port 8080 • Federation 2.3/2.5 • GraphQL Playground)"]
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
@@ -187,7 +187,7 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 
 | Service / Workload / Version | Port(s) | Credentials / Auth | K8s Right-Sizing (Req / Lim) | Architectural Role |
 | :--- | :---: | :--- | :--- | :--- |
-| **Cosmo Router Gateway**<br>`v0.353.0` | `8080` (`/graphql`)<br>`9090` (Metrics) | Keycloak JWKS JWT validation, authenticated order fields, bounded complexity | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | GraphQL Federation v2 edge router & subgraph composition gateway |
+| **Cosmo Router Gateway**<br>`v0.358.0` | `8080` (`/graphql`)<br>`9090` (Metrics) | Keycloak JWKS JWT validation, authenticated order fields, bounded complexity | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | GraphQL Federation v2 edge router & subgraph composition gateway |
 | **Products Service**<br>`Spring Boot 4.0.8` | `8004` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Catalog management, stock sync & product federation subgraph |
 | **Orders Service**<br>`Spring Boot 4.0.8` | `8003` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Order lifecycle, DHL tracking, funnel telemetry & Saga coordinator |
 | **Inventory Service**<br>`Spring Boot 4.0.8` | `8001` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Stock reservation, low-stock alerts & inventory federation subgraph |
@@ -224,7 +224,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | Service / Interface | Direct Local Access URL (localhost) | Minikube NodePort Access | Protocol / Tool | Scope, Capabilities & Swagger Docs |
 | :--- | :--- | :--- | :--- | :--- |
 | 🛒 **Frontend Storefront SPA** | [http://localhost:5173](http://localhost:5173) | `http://$(minikube ip):30080` | HTTP / React 19 + Tailwind v4 | Customer Storefront, POS scanner, 7-day forecast cards, Keycloak login & telemetry |
-| 🚀 **Cosmo Router Gateway** | [http://localhost:8080](http://localhost:8080) (or `/graphql`) | Internal ClusterIP (`:8080` via port-forward) | GraphQL / Cosmo Router 0.353.0 | Unified GraphQL Playground, schema introspection & federated Supergraph query execution |
+| 🚀 **Cosmo Router Gateway** | [http://localhost:8080](http://localhost:8080) (or `/graphql`) | Internal ClusterIP (`:8080` via port-forward) | GraphQL / Cosmo Router 0.358.0 | Unified GraphQL Playground, schema introspection & federated Supergraph query execution |
 | 📖 **Products Swagger UI** | [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html) | Internal ClusterIP (`:8004` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Catalog REST APIs (`/api/product/**`, `/v3/api-docs`) |
 | 📖 **Orders Swagger UI** | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html) | Internal ClusterIP (`:8003` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Orders, DHL tracking, idempotency & `/api/order/funnel` |
 | 📖 **Inventory Swagger UI** | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | Internal ClusterIP (`:8001` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Stock reservation, decrement/rollback & `/api/inventory/**` |
@@ -411,7 +411,7 @@ microservices-architecture/
 │   └── templates/                  # Compose stack & multi-DB initialization
 ├── argocd/                         # GitOps Applications & ApplicationSet definitions
 ├── azure-devops/                   # Azure DevOps Pipeline YAML files
-├── cosmo-router/                   # Cosmo Router 0.353.0 (Port 8080 • Federation v2)
+├── cosmo-router/                   # Cosmo Router 0.358.0 (Port 8080 • Federation v2)
 ├── devsecops/                      # Centralized DevSecOps Hub
 │   ├── compliance/trivy/           # Trivy container scanner configuration
 │   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles

@@ -211,7 +211,7 @@ services:
   ### Cosmo Router Federation v2 gateway - http://localhost:8080/graphql
   cosmo-router:
     container_name: cosmo-router
-    image: ghcr.io/wundergraph/cosmo/router:0.353.0
+    image: ghcr.io/wundergraph/cosmo/router:0.358.0
     ports:
       - "${COSMO_ROUTER_PORT:-${GATEWAY_PORT:-8080}}:8080"
     volumes:
