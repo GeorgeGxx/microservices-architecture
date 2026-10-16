@@ -393,14 +393,20 @@ The retirement command verifies the stable image and readiness before it removes
 
 A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly and trains only when $\ge 9$ valid date partitions exist and the SHA-256 dataset fingerprint has changed.
 
-### 6. 🛑 Cluster Teardown & Resource Cleanup
-Clean up all background tunnels, port-forwards, and stop or purge the Minikube cluster:
+### 6. 🛑 Cluster Teardown, Pause & Fast Resume
+
 ```powershell
-# Stop and pause the Minikube cluster (preserves storage and state):
+# 1. Stop and pause the Minikube cluster (preserves storage, database state, and volumes):
 .\platform-minikube.ps1 down
 
-# Or completely purge Minikube cluster and all persistent volumes:
-.\platform-minikube.ps1 down -DeleteCluster
+# 2. Fast-resume the cluster in < 30 seconds (bypassing Terraform, Gatekeeper, and Helm packaging):
+.\platform-minikube.ps1 start                       # Standard resume with Istio mesh
+.\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight mode
+.\platform-minikube.ps1 start -DeployCanary -CanaryImageTag v2.1  # Fast resume with canary
+.\platform-minikube.ps1 up -Fast                    # Equivalent to start
+
+# 3. Completely purge Minikube cluster, VM, volumes, and state:
+.\platform-minikube.ps1 down -Destroy
 ```
 
 ### Useful commands

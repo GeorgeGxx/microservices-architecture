@@ -33,16 +33,32 @@ does not replace, the provider's CI security gates.
 ## Minikube
 
 ```powershell
+# Full initial platform bootstrap (Terraform, Gatekeeper, Helm, Keycloak realm bootstrap)
 .\platform-minikube.ps1 up
-.\platform-minikube.ps1 mlops
+.\platform-minikube.ps1 up -WithoutIstio                  # Lightweight native K8s mode
+
+# Fast platform resume (< 30s) bypassing Terraform, Gatekeeper, Helm build, and FinOps
+.\platform-minikube.ps1 start                            # Resumes cluster, pods & tunnels
+.\platform-minikube.ps1 start -WithoutIstio              # Fast resume in lightweight mode
+.\platform-minikube.ps1 start -DeployCanary -CanaryImageTag v2.1 # Fast resume with canary
+.\platform-minikube.ps1 up -Fast                         # Equivalent to start
+
+# Workload and DevSecOps commands
+.\platform-minikube.ps1 mlops                            # Deploy/refresh MLflow & MLOps
 .\platform-minikube.ps1 canary -Action rollout -Namespace dev
-.\platform-minikube.ps1 doctor
-.\platform-minikube.ps1 down
+.\platform-minikube.ps1 doctor                           # Deep cluster health diagnostics
+.\platform-minikube.ps1 urls                             # Active local tunnels & credentials
+
+# Teardown and pause
+.\platform-minikube.ps1 down                             # Safe pause (preserves DB/cluster state)
+.\platform-minikube.ps1 down -Destroy                    # Complete purge of VM, volumes & state
 ```
 
 For recommended host capacity and Minikube defaults, see the canonical
 [local resource profile](./LOCAL_DEPLOYMENT.md#-prerequisites).
 `-WithoutIstio` selects the smaller no-mesh profile.
+`-Fast` (or `start`/`resume`) bypasses redundant infrastructure re-runs, bringing existing
+workloads and tunnels back online in under 30 seconds.
 
 `mlops` deploys the local MLflow tracking service, Kafka-to-Parquet capture,
 forecast API, and scheduled model-training workload. It expects the Minikube

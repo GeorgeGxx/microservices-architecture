@@ -334,11 +334,20 @@ To deploy the entire production-grade stack on Minikube with **Istio Service Mes
 # 3. Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
 .\platform-minikube.ps1 doctor -Environment dev
 
-# 4 Check all pods running
+# 4. Check all pods running
 kubectl get pods -A
 kubectl get pods -n dev # observability, auth, data, ..
 
-# 5. Destroy the entire stack:
+# 5. Pause cluster (preserves storage, database state, and volumes):
+.\platform-minikube.ps1 down
+
+# 6. Fast-resume stack in < 30 seconds (bypassing Terraform, Gatekeeper, and Helm packaging):
+.\platform-minikube.ps1 start                       # Default with Istio
+.\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight mode
+.\platform-minikube.ps1 start -DeployCanary -CanaryImageTag v2.1  # Fast resume with canary active
+.\platform-minikube.ps1 up -Fast                    # Equivalent to start
+
+# 7. Complete purge when no longer needed:
 .\platform-minikube.ps1 down -Destroy
 ```
 
