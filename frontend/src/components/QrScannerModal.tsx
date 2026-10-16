@@ -29,12 +29,10 @@ import {
   AlertCircle,
   ScanLine,
   Volume2,
-  ShieldAlert,
   Truck,
   Package,
   Plus,
-  FileText,
-  Info
+  FileText
 } from 'lucide-react';
 
 interface QrScannerModalProps {
@@ -59,11 +57,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'camera' | 'file' | 'manual'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
-  const [isInitializingCamera, setIsInitializingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
-  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
-  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
 
@@ -83,12 +78,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-
-  // Check if browser context is secure (HTTPS or localhost)
-  const isSecureOrigin = typeof window !== 'undefined' && (
-    window.isSecureContext ||
-    ['localhost', '127.0.0.1'].includes(window.location.hostname)
-  );
+  const isStartingCameraRef = useRef(false);
 
   // Audio Beep generator (1900Hz POS confirmation tone)
   const playPosBeep = () => {
@@ -118,46 +108,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     } catch {}
   };
 
-  // Human-readable camera error diagnostic
-  const mapCameraError = (err: unknown): string => {
-    if (err instanceof DOMException) {
-      switch (err.name) {
-        case 'NotAllowedError':
-        case 'PermissionDeniedError':
-          return 'Camera permission was denied. Please allow camera permissions in your browser URL bar.';
-        case 'NotFoundError':
-        case 'DevicesNotFoundError':
-          return 'No camera device was detected on your hardware.';
-        case 'NotReadableError':
-        case 'TrackStartError':
-          return 'The camera is currently in use by another application (Zoom, Teams, etc.). Please close it and retry.';
-        case 'OverconstrainedError':
-          return 'Camera does not support the requested video format. Retrying with basic settings...';
-        case 'SecurityError':
-          return 'Camera access blocked due to insecure context (HTTPS or localhost is required).';
-        default:
-          return err.message || 'Unable to access camera device.';
-      }
-    }
-    if (err instanceof Error) return err.message;
-    return 'Camera access failed. Check browser permissions or try File Upload.';
-  };
-
-  // Discover connected camera devices
-  const enumerateCameras = useCallback(async () => {
-    if (!navigator.mediaDevices?.enumerateDevices) return;
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
-      setAvailableCameras(videoInputs);
-      if (videoInputs.length > 0 && !selectedCameraId) {
-        setSelectedCameraId(videoInputs[0].deviceId);
-      }
-    } catch {}
-  }, [selectedCameraId]);
-
   // Microservices correlation: Process any decoded payload
-  const handleCodeDetected = useCallback(async (rawCode: string, source: string) => {
+  const handleCodeDetected = useCallback(async (rawCode: string) => {
     const rawClean = rawCode.trim();
     if (!rawClean) return;
 
@@ -197,7 +149,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       setMatchedProduct(null);
       setLiveInventory(null);
 
-      // Correlation with orders-service
       showToast('Order Code Verified', `Scanned receipt #${orderCode}`, 'order');
       void recordFunnelTelemetry({ eventType: 'QR_ORDER_SCANNED', step: orderCode }, user?.token);
 
@@ -208,11 +159,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             o.orderNumber.toUpperCase() === orderCode.toUpperCase() ||
             String(o.id) === orderCode
         );
-        if (foundOrder) {
-          setMatchedOrder(foundOrder);
-        } else {
-          setMatchedOrder(null);
-        }
+        setMatchedOrder(foundOrder || null);
       } catch {
         setMatchedOrder(null);
       }
@@ -225,7 +172,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       setIsOrderCode(false);
       setMatchedOrder(null);
 
-      // Find in memory catalog or construct fallback from JSON payload
       const found = products.find(
         (p) =>
           p.sku.toUpperCase() === targetSku.toUpperCase() ||
@@ -267,7 +213,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         setIsFetchingInventory(false);
       }
 
-      // Telemetry correlation with Spring microservices funnel
       void recordFunnelTelemetry(
         { eventType: 'QR_PRODUCT_SCANNED', sku: productResolved.sku, category: productResolved.category },
         user?.token
@@ -275,7 +220,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     }
   }, [products, user?.token, showToast]);
 
-  // 1. Hardware USB / Bluetooth HID barcode reader listener (<45ms keystroke interval)
+  // 1. Hardware USB / Bluetooth HID barcode reader listener (<45ms interval)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -295,7 +240,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
       if (e.key === 'Enter') {
         if (buffer.length >= 3) {
-          void handleCodeDetected(buffer, 'HARDWARE_USB');
+          void handleCodeDetected(buffer);
           buffer = '';
           e.preventDefault();
         } else {
@@ -315,85 +260,87 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [isOpen, handleCodeDetected]);
 
-  // Multi-tier Camera stream resolver
-  const obtainCameraStream = async (
-    preferredFacing: 'environment' | 'user',
-    cameraId?: string
-  ): Promise<MediaStream> => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      if (!isSecureOrigin) {
-        throw new Error(
-          'Camera access requires a Secure Context (HTTPS or http://localhost). Over insecure HTTP, browsers disable the WebCam API for security. Please use the Upload File tab or access via http://localhost.'
-        );
-      }
-      throw new Error('Camera API (getUserMedia) is not supported on this browser or platform.');
+  // Helper to stop camera and scan interval cleanly
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
     }
-
-    // Tier 1: Selected Device ID or Ideal Resolution + Facing Mode
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: cameraId
-          ? { deviceId: { exact: cameraId } }
-          : {
-              facingMode: { ideal: preferredFacing },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-        audio: false,
-      };
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (tier1Err: unknown) {
-      if (tier1Err instanceof DOMException && tier1Err.name === 'NotAllowedError') {
-        throw tier1Err;
-      }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
-
-    // Tier 2: Selected Device ID or Basic Facing Mode (without resolution constraints)
-    try {
-      const constraints: MediaStreamConstraints = {
-        video: cameraId
-          ? { deviceId: { exact: cameraId } }
-          : { facingMode: { ideal: preferredFacing } },
-        audio: false,
-      };
-      return await navigator.mediaDevices.getUserMedia(constraints);
-    } catch (tier2Err: unknown) {
-      if (tier2Err instanceof DOMException && tier2Err.name === 'NotAllowedError') {
-        throw tier2Err;
-      }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
+    setIsCameraActive(false);
+    setTorchOn(false);
+    setHasTorch(false);
+  }, []);
 
-    // Tier 3: Universal Fallback (any connected camera stream)
-    return await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: false,
-    });
-  };
+  // 2. Camera controller with resilient fallback
+  const startCamera = useCallback(async () => {
+    if (isStartingCameraRef.current) return;
+    isStartingCameraRef.current = true;
 
-  // 2. Camera controller
-  const startCamera = async () => {
     stopCamera();
     setCameraError(null);
-    setIsInitializingCamera(true);
 
     try {
-      const stream = await obtainCameraStream(facingMode, selectedCameraId || undefined);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera API is not supported on this browser or origin (requires HTTPS or localhost).');
+      }
+
+      let stream: MediaStream | null = null;
+
+      // Attempt 1: Standard ideal facingMode + 720p
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: facingMode },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+          audio: false,
+        });
+      } catch (err: unknown) {
+        if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+          throw err;
+        }
+      }
+
+      // Attempt 2: Basic ideal facingMode without resolution constraints
+      if (!stream) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facingMode } },
+            audio: false,
+          });
+        } catch (err: unknown) {
+          if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+            throw err;
+          }
+        }
+      }
+
+      // Attempt 3: Universal fallback ({ video: true })
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+      }
+
       streamRef.current = stream;
 
-      if (videoRef.current) {
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.muted = true;
-        videoRef.current.srcObject = stream;
-
-        try {
-          await videoRef.current.play();
-        } catch {
-          // Handled safely without failing stream attachment
-        }
-
+      const video = videoRef.current;
+      if (video) {
+        video.setAttribute('playsinline', 'true');
+        video.muted = true;
+        video.srcObject = stream;
+        await video.play().catch(() => {});
         setIsCameraActive(true);
 
-        // Torch support detection
         const track = stream.getVideoTracks()[0];
         if (track && 'getCapabilities' in track) {
           const caps = (track.getCapabilities as () => { torch?: boolean })?.();
@@ -401,14 +348,12 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         }
       }
 
-      await enumerateCameras();
-
-      // Universal Hybrid Frame Scanner (BarcodeDetector + jsQR fallback)
+      // Hybrid Frame Scanner loop (BarcodeDetector + jsQR)
       scanIntervalRef.current = setInterval(async () => {
-        const video = videoRef.current;
-        if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+        const vid = videoRef.current;
+        if (!vid || vid.readyState < 2 || vid.videoWidth === 0) return;
 
-        // Try native BarcodeDetector if available
+        // 1. Native BarcodeDetector
         if ('BarcodeDetector' in window) {
           try {
             const detector = new (window as unknown as {
@@ -418,22 +363,22 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             }).BarcodeDetector({
               formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
             });
-            const barcodes = await detector.detect(video);
+            const barcodes = await detector.detect(vid);
             if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-              void handleCodeDetected(barcodes[0].rawValue, 'CAMERA');
+              void handleCodeDetected(barcodes[0].rawValue);
               return;
             }
           } catch {}
         }
 
-        // Robust jsQR canvas decoding
+        // 2. jsQR software fallback
         try {
           if (!offscreenCanvasRef.current) {
             offscreenCanvasRef.current = document.createElement('canvas');
           }
           const canvas = offscreenCanvasRef.current;
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
+          const vw = vid.videoWidth;
+          const vh = vid.videoHeight;
 
           if (vw > 0 && vh > 0) {
             const scale = Math.min(1, 640 / Math.max(vw, vh));
@@ -444,39 +389,26 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             canvas.height = targetH;
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
             if (ctx) {
-              ctx.drawImage(video, 0, 0, targetW, targetH);
+              ctx.drawImage(vid, 0, 0, targetW, targetH);
               const imgData = ctx.getImageData(0, 0, targetW, targetH);
               const qr = jsQR(imgData.data, targetW, targetH, {
                 inversionAttempts: 'attemptBoth',
               });
               if (qr && qr.data) {
-                void handleCodeDetected(qr.data, 'CAMERA');
+                void handleCodeDetected(qr.data);
               }
             }
           }
         } catch {}
       }, 250);
     } catch (err: unknown) {
-      setCameraError(mapCameraError(err));
+      const msg = err instanceof Error ? err.message : 'Camera access permission denied';
+      setCameraError(msg);
       setIsCameraActive(false);
     } finally {
-      setIsInitializingCamera(false);
+      isStartingCameraRef.current = false;
     }
-  };
-
-  const stopCamera = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    setIsCameraActive(false);
-    setTorchOn(false);
-    setHasTorch(false);
-  };
+  }, [facingMode, handleCodeDetected, stopCamera]);
 
   const toggleTorch = async () => {
     if (!streamRef.current) return;
@@ -495,17 +427,25 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
   const flipCamera = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
-    setSelectedCameraId('');
   };
 
+  // Mount/unmount lifecycle for camera tab
   useEffect(() => {
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+
     if (isOpen && activeTab === 'camera') {
-      void startCamera();
+      timerId = setTimeout(() => {
+        void startCamera();
+      }, 100);
     } else {
       stopCamera();
     }
-    return () => stopCamera();
-  }, [isOpen, activeTab, facingMode, selectedCameraId]);
+
+    return () => {
+      if (timerId) clearTimeout(timerId);
+      stopCamera();
+    };
+  }, [isOpen, activeTab, facingMode, startCamera, stopCamera]);
 
   // 3. File image decoding (jsQR + BarcodeDetector)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -520,7 +460,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         img.onload = async () => {
           let found = false;
 
-          // 1. Try native BarcodeDetector
+          // Native BarcodeDetector
           if ('BarcodeDetector' in window) {
             try {
               const detector = new (window as unknown as {
@@ -532,13 +472,13 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               });
               const codes = await detector.detect(img);
               if (codes && codes.length > 0 && codes[0].rawValue) {
-                void handleCodeDetected(codes[0].rawValue, 'FILE');
+                void handleCodeDetected(codes[0].rawValue);
                 found = true;
               }
             } catch {}
           }
 
-          // 2. Robust jsQR canvas decoding
+          // jsQR canvas decoding
           if (!found) {
             try {
               const canvas = document.createElement('canvas');
@@ -552,18 +492,18 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   inversionAttempts: 'attemptBoth',
                 });
                 if (qr && qr.data) {
-                  void handleCodeDetected(qr.data, 'FILE');
+                  void handleCodeDetected(qr.data);
                   found = true;
                 }
               }
             } catch {}
           }
 
-          // 3. Filename heuristic fallback
+          // Filename match fallback
           if (!found) {
             const nameMatch = file.name.match(/(LAPTOP-[A-Za-z0-9-]+|KEYBOARD-[A-Za-z0-9-]+|MOUSE-[A-Za-z0-9-]+|ORD-[A-Za-z0-9-]+)/i);
             if (nameMatch) {
-              void handleCodeDetected(nameMatch[0], 'FILE');
+              void handleCodeDetected(nameMatch[0]);
             } else {
               showToast('No Code Detected', 'Could not detect a valid QR or Barcode in this image.', 'system');
             }
@@ -581,7 +521,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
-      void handleCodeDetected(manualInput.trim(), 'MANUAL');
+      void handleCodeDetected(manualInput.trim());
       setManualInput('');
     }
   };
@@ -656,7 +596,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                WebCam stream, image upload & USB/Bluetooth HID with live Spring telemetry
+                WebCam video scan, image upload & USB/Bluetooth HID listener
               </p>
             </div>
           </div>
@@ -667,16 +607,6 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
-
-        {/* Insecure Context Warning if running on unencrypted IP */}
-        {!isSecureOrigin && (
-          <div className="px-5 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
-            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
-            <span>
-              <strong>Insecure Network Origin:</strong> Direct camera stream requires HTTPS or localhost. Switch to the <strong>Upload File</strong> tab or enter the code in <strong>Manual / HID</strong>.
-            </span>
-          </div>
-        )}
 
         {/* Mode Selector Tabs */}
         <div className="flex border-b border-slate-800 bg-slate-950/40 p-1.5 gap-1.5">
@@ -742,36 +672,17 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   </div>
                 )}
 
-                {/* Loading indicator */}
-                {isInitializingCamera && (
-                  <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-2 text-indigo-400">
-                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                    <span className="text-xs font-medium text-slate-300">Initializing Camera Stream...</span>
-                  </div>
-                )}
-
-                {/* Camera Error Display */}
-                {cameraError && !isInitializingCamera && (
+                {/* Camera Error Display (Clean & Non-Redundant) */}
+                {cameraError && (
                   <div className="p-6 text-center text-slate-400 max-w-xs z-10">
                     <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
                     <p className="text-xs font-semibold text-rose-400">{cameraError}</p>
-                    <p className="text-[11px] text-slate-500 mt-2">
-                      Check permissions or switch to <strong>Upload File</strong> to scan saved QR codes or receipts.
-                    </p>
-                    <div className="flex gap-2 justify-center mt-3">
-                      <button
-                        onClick={() => void startCamera()}
-                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition"
-                      >
-                        Retry Camera
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('file')}
-                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition"
-                      >
-                        Use File
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => void startCamera()}
+                      className="mt-3 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition"
+                    >
+                      Retry Camera
+                    </button>
                   </div>
                 )}
 
@@ -802,26 +713,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 )}
               </div>
 
-              {/* Camera selection dropdown if multiple cameras detected */}
-              {availableCameras.length > 1 && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-slate-400 shrink-0">Select Camera:</span>
-                  <select
-                    value={selectedCameraId}
-                    onChange={(e) => setSelectedCameraId(e.target.value)}
-                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
-                  >
-                    {availableCameras.map((cam, idx) => (
-                      <option key={cam.deviceId || idx} value={cam.deviceId}>
-                        {cam.label || `Camera ${idx + 1}`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-                <span>Hold a QR code or barcode steadily in front of the lens</span>
+                <span>Hold a QR code or barcode in front of the camera lens</span>
                 <span className="flex items-center gap-1 text-indigo-400">
                   <Volume2 className="w-3 h-3" /> POS Beep ON
                 </span>
@@ -835,7 +728,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               <label className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition bg-slate-950/40 hover:bg-indigo-500/5 group">
                 <Upload className="w-10 h-10 text-slate-500 group-hover:text-indigo-400 mb-2 transition" />
                 <span className="text-sm font-semibold text-slate-200">
-                  {isProcessingFile ? 'Decoding Image with jsQR...' : 'Click to upload or drag QR Image'}
+                  {isProcessingFile ? 'Analyzing Image...' : 'Click to upload or drag QR Image'}
                 </span>
                 <span className="text-xs text-slate-500 mt-1">PNG, JPG, SVG, WebP up to 10MB</span>
                 <input
@@ -846,11 +739,8 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 />
               </label>
 
-              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
-                <Info className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
-                <span>
-                  <strong>Tip:</strong> You can upload downloaded invoice QR codes or label photos generated from the catalog.
-                </span>
+              <div className="text-xs text-slate-500 leading-relaxed">
+                💡 <strong>Tip:</strong> You can upload downloaded invoice QR codes or label photos.
               </div>
             </div>
           )}
@@ -895,7 +785,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                     <button
                       key={p.sku}
                       type="button"
-                      onClick={() => void handleCodeDetected(p.sku, 'PRESET')}
+                      onClick={() => void handleCodeDetected(p.sku)}
                       className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-mono border border-slate-700/60"
                     >
                       {p.sku}
