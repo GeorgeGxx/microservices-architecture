@@ -200,6 +200,7 @@ export const App: React.FC = () => {
           onClose={() => setIsQrScannerOpen(false)}
           products={products}
           onNavigateToOrders={() => setActiveTab('orders')}
+          onOpenReceipt={(o) => setReceiptOrder(o)}
         />
       )}
     </div>

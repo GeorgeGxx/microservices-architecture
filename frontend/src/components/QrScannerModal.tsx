@@ -1,8 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Product } from '../types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import jsQR from 'jsqr';
+import { Product, Order } from '../types';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import {
+  fetchInventoryBySku,
+  updateStockQuantity,
+  recordFunnelTelemetry,
+  InventoryDetailResponse
+} from '../services/api';
+import {
+  fetchOrders,
+  submitShipOrder,
+  submitDeliverOrder
+} from '../services/graphql';
 import {
   X,
   Camera,
@@ -15,7 +28,13 @@ import {
   CheckCircle2,
   AlertCircle,
   ScanLine,
-  Volume2
+  Volume2,
+  ShieldAlert,
+  Truck,
+  Package,
+  Plus,
+  FileText,
+  Info
 } from 'lucide-react';
 
 interface QrScannerModalProps {
@@ -23,6 +42,7 @@ interface QrScannerModalProps {
   onClose: () => void;
   products: Product[];
   onNavigateToOrders?: () => void;
+  onOpenReceipt?: (order: Order) => void;
 }
 
 export const QrScannerModal: React.FC<QrScannerModalProps> = ({
@@ -30,38 +50,56 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   onClose,
   products,
   onNavigateToOrders,
+  onOpenReceipt,
 }) => {
+  const { user } = useAuth();
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
   const { showToast } = useNotifications();
 
   const [activeTab, setActiveTab] = useState<'camera' | 'file' | 'manual'>('camera');
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isInitializingCamera, setIsInitializingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+
   const [manualInput, setManualInput] = useState('');
   const [scannedCode, setScannedCode] = useState<string | null>(null);
   const [matchedProduct, setMatchedProduct] = useState<Product | null>(null);
+  const [matchedOrder, setMatchedOrder] = useState<Order | null>(null);
+  const [liveInventory, setLiveInventory] = useState<InventoryDetailResponse | null>(null);
+  const [isFetchingInventory, setIsFetchingInventory] = useState(false);
+  const [isUpdatingStock, setIsUpdatingStock] = useState(false);
+  const [isFulfillingOrder, setIsFulfillingOrder] = useState(false);
   const [isOrderCode, setIsOrderCode] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const scanIntervalRef = useRef<any>(null);
+  const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Check if browser context is secure (HTTPS or localhost)
+  const isSecureOrigin = typeof window !== 'undefined' && (
+    window.isSecureContext ||
+    ['localhost', '127.0.0.1'].includes(window.location.hostname)
+  );
 
   // Audio Beep generator (1900Hz POS confirmation tone)
   const playPosBeep = () => {
     try {
       if (!audioCtxRef.current) {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (AudioCtx) audioCtxRef.current = new AudioCtx();
       }
       if (audioCtxRef.current) {
         if (audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
+          void audioCtxRef.current.resume();
         }
         const osc = audioCtxRef.current.createOscillator();
         const gain = audioCtxRef.current.createGain();
@@ -80,44 +118,164 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     } catch {}
   };
 
-  // Process any decoded code
-  const handleCodeDetected = (code: string, source: string) => {
-    const clean = code.trim();
-    if (!clean) return;
+  // Human-readable camera error diagnostic
+  const mapCameraError = (err: unknown): string => {
+    if (err instanceof DOMException) {
+      switch (err.name) {
+        case 'NotAllowedError':
+        case 'PermissionDeniedError':
+          return 'Camera permission was denied. Please allow camera permissions in your browser URL bar.';
+        case 'NotFoundError':
+        case 'DevicesNotFoundError':
+          return 'No camera device was detected on your hardware.';
+        case 'NotReadableError':
+        case 'TrackStartError':
+          return 'The camera is currently in use by another application (Zoom, Teams, etc.). Please close it and retry.';
+        case 'OverconstrainedError':
+          return 'Camera does not support the requested video format. Retrying with basic settings...';
+        case 'SecurityError':
+          return 'Camera access blocked due to insecure context (HTTPS or localhost is required).';
+        default:
+          return err.message || 'Unable to access camera device.';
+      }
+    }
+    if (err instanceof Error) return err.message;
+    return 'Camera access failed. Check browser permissions or try File Upload.';
+  };
+
+  // Discover connected camera devices
+  const enumerateCameras = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter((d) => d.kind === 'videoinput');
+      setAvailableCameras(videoInputs);
+      if (videoInputs.length > 0 && !selectedCameraId) {
+        setSelectedCameraId(videoInputs[0].deviceId);
+      }
+    } catch {}
+  }, [selectedCameraId]);
+
+  // Microservices correlation: Process any decoded payload
+  const handleCodeDetected = useCallback(async (rawCode: string, source: string) => {
+    const rawClean = rawCode.trim();
+    if (!rawClean) return;
 
     playPosBeep();
-    setScannedCode(clean);
+    setScannedCode(rawClean);
 
-    const cleanUpper = clean.toUpperCase();
+    // 1. Intelligent parsing: JSON receipt/label vs raw string
+    let parsedSku: string | null = null;
+    let parsedOrderNum: string | null = null;
+    let fallbackName: string | null = null;
+    let fallbackPrice: number | null = null;
 
-    // Check if Order receipt code
-    if (cleanUpper.startsWith('ORD-')) {
+    try {
+      const json = JSON.parse(rawClean);
+      if (json && typeof json === 'object') {
+        if (json.sku) parsedSku = String(json.sku).trim();
+        if (json.orderNumber) parsedOrderNum = String(json.orderNumber).trim();
+        if (json.name) fallbackName = String(json.name).trim();
+        if (typeof json.price === 'number') fallbackPrice = json.price;
+      }
+    } catch {
+      // Raw string format
+    }
+
+    if (!parsedSku && !parsedOrderNum) {
+      if (rawClean.toUpperCase().startsWith('ORD-')) {
+        parsedOrderNum = rawClean;
+      } else {
+        parsedSku = rawClean;
+      }
+    }
+
+    // 2. Scenario A: ORDER RECEIPT
+    if (parsedOrderNum) {
+      const orderCode = parsedOrderNum;
       setIsOrderCode(true);
       setMatchedProduct(null);
-      showToast('Order Code Verified', `Scanned receipt #${clean}`, 'order');
+      setLiveInventory(null);
+
+      // Correlation with orders-service
+      showToast('Order Code Verified', `Scanned receipt #${orderCode}`, 'order');
+      void recordFunnelTelemetry({ eventType: 'QR_ORDER_SCANNED', step: orderCode }, user?.token);
+
+      try {
+        const userOrders = await fetchOrders(user?.token);
+        const foundOrder = userOrders.find(
+          (o) =>
+            o.orderNumber.toUpperCase() === orderCode.toUpperCase() ||
+            String(o.id) === orderCode
+        );
+        if (foundOrder) {
+          setMatchedOrder(foundOrder);
+        } else {
+          setMatchedOrder(null);
+        }
+      } catch {
+        setMatchedOrder(null);
+      }
       return;
     }
 
-    setIsOrderCode(false);
+    // 3. Scenario B: PRODUCT CATALOG & INVENTORY
+    if (parsedSku) {
+      const targetSku = parsedSku;
+      setIsOrderCode(false);
+      setMatchedOrder(null);
 
-    // Look for matching product by SKU or Name or ID
-    const found = products.find(
-      (p) =>
-        p.sku.toUpperCase() === cleanUpper ||
-        p.name.toUpperCase().includes(cleanUpper) ||
-        (p.id && String(p.id).toUpperCase() === cleanUpper)
-    );
+      // Find in memory catalog or construct fallback from JSON payload
+      const found = products.find(
+        (p) =>
+          p.sku.toUpperCase() === targetSku.toUpperCase() ||
+          p.name.toUpperCase().includes(targetSku.toUpperCase()) ||
+          (p.id && String(p.id).toUpperCase() === targetSku.toUpperCase())
+      );
 
-    if (found) {
-      setMatchedProduct(found);
-      showToast('Product Identified', `${found.name} (${found.sku})`, 'stock');
-    } else {
-      setMatchedProduct(null);
-      showToast('Code Scanned', `Code: ${clean} (No matching SKU in catalog)`, 'info');
+      const productResolved: Product = found || {
+        id: 'pos-scanned',
+        sku: targetSku.toUpperCase(),
+        name: fallbackName || `Scanned Item (${targetSku})`,
+        price: fallbackPrice ?? 0,
+        status: true,
+        category: 'POS Scanned',
+        quantity: 0,
+        isInStock: false,
+      };
+
+      setMatchedProduct(productResolved);
+
+      // Correlation with inventory-service (Authoritative real-time stock lookup)
+      setIsFetchingInventory(true);
+      try {
+        const invDetail = await fetchInventoryBySku(productResolved.sku, user?.token);
+        setLiveInventory(invDetail);
+        if (invDetail) {
+          showToast(
+            'Product & Stock Synced',
+            `${productResolved.name} | Live Stock: ${invDetail.quantity} units`,
+            'stock'
+          );
+        } else {
+          showToast('Product Identified', `${productResolved.name} (${productResolved.sku})`, 'stock');
+        }
+      } catch {
+        setLiveInventory(null);
+        showToast('Product Identified', `${productResolved.name} (${productResolved.sku})`, 'stock');
+      } finally {
+        setIsFetchingInventory(false);
+      }
+
+      // Telemetry correlation with Spring microservices funnel
+      void recordFunnelTelemetry(
+        { eventType: 'QR_PRODUCT_SCANNED', sku: productResolved.sku, category: productResolved.category },
+        user?.token
+      );
     }
-  };
+  }, [products, user?.token, showToast]);
 
-  // 1. Hardware USB / Bluetooth HID barcode reader listener (<45ms interval)
+  // 1. Hardware USB / Bluetooth HID barcode reader listener (<45ms keystroke interval)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -137,7 +295,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
       if (e.key === 'Enter') {
         if (buffer.length >= 3) {
-          handleCodeDetected(buffer, 'HARDWARE_USB');
+          void handleCodeDetected(buffer, 'HARDWARE_USB');
           buffer = '';
           e.preventDefault();
         } else {
@@ -155,64 +313,154 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isOpen, products]);
+  }, [isOpen, handleCodeDetected]);
+
+  // Multi-tier Camera stream resolver
+  const obtainCameraStream = async (
+    preferredFacing: 'environment' | 'user',
+    cameraId?: string
+  ): Promise<MediaStream> => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      if (!isSecureOrigin) {
+        throw new Error(
+          'Camera access requires a Secure Context (HTTPS or http://localhost). Over insecure HTTP, browsers disable the WebCam API for security. Please use the Upload File tab or access via http://localhost.'
+        );
+      }
+      throw new Error('Camera API (getUserMedia) is not supported on this browser or platform.');
+    }
+
+    // Tier 1: Selected Device ID or Ideal Resolution + Facing Mode
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: cameraId
+          ? { deviceId: { exact: cameraId } }
+          : {
+              facingMode: { ideal: preferredFacing },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+        audio: false,
+      };
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (tier1Err: unknown) {
+      if (tier1Err instanceof DOMException && tier1Err.name === 'NotAllowedError') {
+        throw tier1Err;
+      }
+    }
+
+    // Tier 2: Selected Device ID or Basic Facing Mode (without resolution constraints)
+    try {
+      const constraints: MediaStreamConstraints = {
+        video: cameraId
+          ? { deviceId: { exact: cameraId } }
+          : { facingMode: { ideal: preferredFacing } },
+        audio: false,
+      };
+      return await navigator.mediaDevices.getUserMedia(constraints);
+    } catch (tier2Err: unknown) {
+      if (tier2Err instanceof DOMException && tier2Err.name === 'NotAllowedError') {
+        throw tier2Err;
+      }
+    }
+
+    // Tier 3: Universal Fallback (any connected camera stream)
+    return await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+  };
 
   // 2. Camera controller
   const startCamera = async () => {
     stopCamera();
     setCameraError(null);
+    setIsInitializingCamera(true);
+
     try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setCameraError('Camera API is not supported on this browser/device.');
-        return;
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: facingMode },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-        audio: false,
-      });
-
+      const stream = await obtainCameraStream(facingMode, selectedCameraId || undefined);
       streamRef.current = stream;
+
       if (videoRef.current) {
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.muted = true;
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+
+        try {
+          await videoRef.current.play();
+        } catch {
+          // Handled safely without failing stream attachment
+        }
+
         setIsCameraActive(true);
 
-        // Torch support
+        // Torch support detection
         const track = stream.getVideoTracks()[0];
         if (track && 'getCapabilities' in track) {
-          const caps = (track.getCapabilities as any)();
-          setHasTorch(!!caps?.torch);
+          const caps = (track.getCapabilities as () => { torch?: boolean })?.();
+          setHasTorch(Boolean(caps?.torch));
         }
       }
 
-      // Frame scanner loop
-      scanIntervalRef.current = setInterval(async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2) return;
+      await enumerateCameras();
 
-        try {
-          if ('BarcodeDetector' in window) {
-            const detector = new (window as any).BarcodeDetector({
+      // Universal Hybrid Frame Scanner (BarcodeDetector + jsQR fallback)
+      scanIntervalRef.current = setInterval(async () => {
+        const video = videoRef.current;
+        if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+
+        // Try native BarcodeDetector if available
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new (window as unknown as {
+              BarcodeDetector: new (opts: { formats: string[] }) => {
+                detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
+              };
+            }).BarcodeDetector({
               formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
             });
-            const barcodes = await detector.detect(videoRef.current);
-            if (barcodes && barcodes.length > 0) {
-              const detected = barcodes[0].rawValue;
-              if (detected) {
-                handleCodeDetected(detected, 'CAMERA');
+            const barcodes = await detector.detect(video);
+            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+              void handleCodeDetected(barcodes[0].rawValue, 'CAMERA');
+              return;
+            }
+          } catch {}
+        }
+
+        // Robust jsQR canvas decoding
+        try {
+          if (!offscreenCanvasRef.current) {
+            offscreenCanvasRef.current = document.createElement('canvas');
+          }
+          const canvas = offscreenCanvasRef.current;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+
+          if (vw > 0 && vh > 0) {
+            const scale = Math.min(1, 640 / Math.max(vw, vh));
+            const targetW = Math.floor(vw * scale);
+            const targetH = Math.floor(vh * scale);
+
+            canvas.width = targetW;
+            canvas.height = targetH;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, targetW, targetH);
+              const imgData = ctx.getImageData(0, 0, targetW, targetH);
+              const qr = jsQR(imgData.data, targetW, targetH, {
+                inversionAttempts: 'attemptBoth',
+              });
+              if (qr && qr.data) {
+                void handleCodeDetected(qr.data, 'CAMERA');
               }
             }
           }
         } catch {}
-      }, 350);
+      }, 250);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Camera access permission denied';
-      setCameraError(msg);
+      setCameraError(mapCameraError(err));
       setIsCameraActive(false);
+    } finally {
+      setIsInitializingCamera(false);
     }
   };
 
@@ -236,7 +484,9 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     if (!track) return;
     try {
       const next = !torchOn;
-      await (track as any).applyConstraints({
+      await (track as MediaStreamTrack & {
+        applyConstraints: (c: { advanced: Array<{ torch?: boolean }> }) => Promise<void>;
+      }).applyConstraints({
         advanced: [{ torch: next }],
       });
       setTorchOn(next);
@@ -245,66 +495,145 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
   const flipCamera = () => {
     setFacingMode((prev) => (prev === 'environment' ? 'user' : 'environment'));
+    setSelectedCameraId('');
   };
 
   useEffect(() => {
     if (isOpen && activeTab === 'camera') {
-      startCamera();
+      void startCamera();
     } else {
       stopCamera();
     }
     return () => stopCamera();
-  }, [isOpen, activeTab, facingMode]);
+  }, [isOpen, activeTab, facingMode, selectedCameraId]);
 
-  // 3. File image decoding
+  // 3. File image decoding (jsQR + BarcodeDetector)
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    setIsProcessing(true);
+    setIsProcessingFile(true);
     try {
       const reader = new FileReader();
-      reader.onload = async (ev) => {
+      reader.onload = (ev) => {
         const img = new Image();
         img.onload = async () => {
           let found = false;
+
+          // 1. Try native BarcodeDetector
           if ('BarcodeDetector' in window) {
             try {
-              const detector = new (window as any).BarcodeDetector({
+              const detector = new (window as unknown as {
+                BarcodeDetector: new (opts: { formats: string[] }) => {
+                  detect: (source: HTMLImageElement) => Promise<Array<{ rawValue: string }>>;
+                };
+              }).BarcodeDetector({
                 formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
               });
               const codes = await detector.detect(img);
-              if (codes && codes.length > 0) {
-                handleCodeDetected(codes[0].rawValue, 'FILE');
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                void handleCodeDetected(codes[0].rawValue, 'FILE');
                 found = true;
               }
             } catch {}
           }
 
+          // 2. Robust jsQR canvas decoding
           if (!found) {
-            // Check filename or sample code
-            const nameMatch = file.name.match(/(LAPTOP-PRO|KEYBOARD-MECH|MOUSE-WIRELESS|ORD-[A-Za-z0-9-]+)/i);
+            try {
+              const canvas = document.createElement('canvas');
+              canvas.width = img.width;
+              canvas.height = img.height;
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              if (ctx) {
+                ctx.drawImage(img, 0, 0);
+                const imgData = ctx.getImageData(0, 0, img.width, img.height);
+                const qr = jsQR(imgData.data, img.width, img.height, {
+                  inversionAttempts: 'attemptBoth',
+                });
+                if (qr && qr.data) {
+                  void handleCodeDetected(qr.data, 'FILE');
+                  found = true;
+                }
+              }
+            } catch {}
+          }
+
+          // 3. Filename heuristic fallback
+          if (!found) {
+            const nameMatch = file.name.match(/(LAPTOP-[A-Za-z0-9-]+|KEYBOARD-[A-Za-z0-9-]+|MOUSE-[A-Za-z0-9-]+|ORD-[A-Za-z0-9-]+)/i);
             if (nameMatch) {
-              handleCodeDetected(nameMatch[0], 'FILE');
+              void handleCodeDetected(nameMatch[0], 'FILE');
             } else {
               showToast('No Code Detected', 'Could not detect a valid QR or Barcode in this image.', 'system');
             }
           }
-          setIsProcessing(false);
+          setIsProcessingFile(false);
         };
         img.src = ev.target?.result as string;
       };
       reader.readAsDataURL(file);
     } catch {
-      setIsProcessing(false);
+      setIsProcessingFile(false);
     }
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualInput.trim()) {
-      handleCodeDetected(manualInput.trim(), 'MANUAL');
+      void handleCodeDetected(manualInput.trim(), 'MANUAL');
       setManualInput('');
+    }
+  };
+
+  // Microservice Action: Quick Stock Increment for Admin
+  const handleQuickAdjustStock = async (delta: number) => {
+    if (!matchedProduct || isUpdatingStock) return;
+    const currentQty = liveInventory?.quantity ?? matchedProduct.quantity ?? 0;
+    const newQty = Math.max(0, currentQty + delta);
+
+    setIsUpdatingStock(true);
+    try {
+      await updateStockQuantity(matchedProduct.sku, newQty, user?.token);
+      setLiveInventory((prev) => (prev ? { ...prev, quantity: newQty, isInStock: newQty > 0 } : null));
+      showToast('Inventory Updated', `SKU ${matchedProduct.sku} set to ${newQty} units.`, 'stock');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update stock';
+      showToast('Stock Update Failed', msg, 'system');
+    } finally {
+      setIsUpdatingStock(false);
+    }
+  };
+
+  // Microservice Action: Ship Order (Orders Service Mutation)
+  const handleShipOrder = async () => {
+    if (!matchedOrder || isFulfillingOrder) return;
+    setIsFulfillingOrder(true);
+    try {
+      const updated = await submitShipOrder(matchedOrder.id, user?.token);
+      setMatchedOrder(updated);
+      showToast('Order Shipped', `Order #${updated.orderNumber} marked as SHIPPED.`, 'order');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to ship order';
+      showToast('Shipping Failed', msg, 'system');
+    } finally {
+      setIsFulfillingOrder(false);
+    }
+  };
+
+  // Microservice Action: Deliver Order (Orders Service Mutation)
+  const handleDeliverOrder = async () => {
+    if (!matchedOrder || isFulfillingOrder) return;
+    setIsFulfillingOrder(true);
+    try {
+      const updated = await submitDeliverOrder(matchedOrder.id, user?.token);
+      setMatchedOrder(updated);
+      showToast('Order Delivered', `Order #${updated.orderNumber} marked as DELIVERED.`, 'order');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to mark delivery';
+      showToast('Delivery Failed', msg, 'system');
+    } finally {
+      setIsFulfillingOrder(false);
     }
   };
 
@@ -321,13 +650,13 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white flex items-center gap-2">
-                Agnostic QR & Barcode Scanner
+                Agnostic QR & Barcode POS
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  POS Engine
+                  Microservices POS
                 </span>
               </h3>
               <p className="text-xs text-slate-400">
-                WebCam video scan, image upload & USB/Bluetooth HID listener
+                WebCam stream, image upload & USB/Bluetooth HID with live Spring telemetry
               </p>
             </div>
           </div>
@@ -338,6 +667,16 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Insecure Context Warning if running on unencrypted IP */}
+        {!isSecureOrigin && (
+          <div className="px-5 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
+            <ShieldAlert className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>
+              <strong>Insecure Network Origin:</strong> Direct camera stream requires HTTPS or localhost. Switch to the <strong>Upload File</strong> tab or enter the code in <strong>Manual / HID</strong>.
+            </span>
+          </div>
+        )}
 
         {/* Mode Selector Tabs */}
         <div className="flex border-b border-slate-800 bg-slate-950/40 p-1.5 gap-1.5">
@@ -390,7 +729,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   className="w-full h-full object-cover"
                 />
 
-                {/* Cyber Scanner Reticle & Laser */}
+                {/* Laser Overlay */}
                 {isCameraActive && (
                   <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
                     <div className="relative w-56 h-56 border-2 border-dashed border-indigo-400/60 rounded-2xl flex items-center justify-center">
@@ -398,34 +737,50 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                       <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-indigo-400" />
                       <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-indigo-400" />
                       <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-indigo-400" />
-                      {/* Animated Laser Bar */}
                       <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent shadow-[0_0_12px_#6366f1] animate-bounce" />
                     </div>
                   </div>
                 )}
 
-                {cameraError && (
-                  <div className="p-6 text-center text-slate-400 max-w-xs">
-                    <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
-                    <p className="text-xs font-medium text-rose-400">{cameraError}</p>
-                    <p className="text-[11px] text-slate-500 mt-1">
-                      Check your browser camera permissions or try the File Upload tab.
-                    </p>
-                    <button
-                      onClick={startCamera}
-                      className="mt-3 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-white"
-                    >
-                      Retry Camera
-                    </button>
+                {/* Loading indicator */}
+                {isInitializingCamera && (
+                  <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center gap-2 text-indigo-400">
+                    <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs font-medium text-slate-300">Initializing Camera Stream...</span>
                   </div>
                 )}
 
-                {/* Camera Control Overlays */}
+                {/* Camera Error Display */}
+                {cameraError && !isInitializingCamera && (
+                  <div className="p-6 text-center text-slate-400 max-w-xs z-10">
+                    <AlertCircle className="w-8 h-8 text-rose-500 mx-auto mb-2" />
+                    <p className="text-xs font-semibold text-rose-400">{cameraError}</p>
+                    <p className="text-[11px] text-slate-500 mt-2">
+                      Check permissions or switch to <strong>Upload File</strong> to scan saved QR codes or receipts.
+                    </p>
+                    <div className="flex gap-2 justify-center mt-3">
+                      <button
+                        onClick={() => void startCamera()}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-bold text-white transition"
+                      >
+                        Retry Camera
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('file')}
+                        className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 transition"
+                      >
+                        Use File
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Camera Controls */}
                 {isCameraActive && (
-                  <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                  <div className="absolute bottom-3 right-3 flex items-center gap-2 z-10">
                     {hasTorch && (
                       <button
-                        onClick={toggleTorch}
+                        onClick={() => void toggleTorch()}
                         className={`p-2 rounded-xl backdrop-blur-md transition ${
                           torchOn
                             ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
@@ -446,10 +801,29 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Camera selection dropdown if multiple cameras detected */}
+              {availableCameras.length > 1 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-slate-400 shrink-0">Select Camera:</span>
+                  <select
+                    value={selectedCameraId}
+                    onChange={(e) => setSelectedCameraId(e.target.value)}
+                    className="flex-1 px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500"
+                  >
+                    {availableCameras.map((cam, idx) => (
+                      <option key={cam.deviceId || idx} value={cam.deviceId}>
+                        {cam.label || `Camera ${idx + 1}`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div className="flex items-center justify-between text-[11px] text-slate-400 px-1">
-                <span>Hold a QR code or barcode in front of the camera lens</span>
+                <span>Hold a QR code or barcode steadily in front of the lens</span>
                 <span className="flex items-center gap-1 text-indigo-400">
-                  <Volume2 className="w-3 h-3" /> 1900Hz Audio Beep ON
+                  <Volume2 className="w-3 h-3" /> POS Beep ON
                 </span>
               </div>
             </div>
@@ -461,19 +835,22 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               <label className="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition bg-slate-950/40 hover:bg-indigo-500/5 group">
                 <Upload className="w-10 h-10 text-slate-500 group-hover:text-indigo-400 mb-2 transition" />
                 <span className="text-sm font-semibold text-slate-200">
-                  {isProcessing ? 'Analyzing Image...' : 'Click to upload or drag QR Image'}
+                  {isProcessingFile ? 'Decoding Image with jsQR...' : 'Click to upload or drag QR Image'}
                 </span>
                 <span className="text-xs text-slate-500 mt-1">PNG, JPG, SVG, WebP up to 10MB</span>
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={handleFileUpload}
+                  onChange={(e) => void handleFileUpload(e)}
                   className="hidden"
                 />
               </label>
 
-              <div className="text-xs text-slate-500 leading-relaxed">
-                💡 <strong>Tip:</strong> You can upload downloaded invoice QR codes or label photos.
+              <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-400 flex items-start gap-2">
+                <Info className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" />
+                <span>
+                  <strong>Tip:</strong> You can upload downloaded invoice QR codes or label photos generated from the catalog.
+                </span>
               </div>
             </div>
           )}
@@ -484,7 +861,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-start gap-2.5">
                 <Keyboard className="w-4 h-4 mt-0.5 flex-shrink-0 text-indigo-400" />
                 <div>
-                  <strong>Hardware Scanner Active:</strong> Connect any USB or Bluetooth laser barcode reader. Simply point and pull the trigger; it will instantly decode into this modal.
+                  <strong>Hardware Scanner Active:</strong> Connect any USB or Bluetooth laser barcode reader. Point and pull the trigger; it will instantly decode into this modal.
                 </div>
               </div>
 
@@ -497,7 +874,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                     type="text"
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
-                    placeholder="e.g. LAPTOP-PRO or ORD-98234-A7"
+                    placeholder="e.g. LAPTOP-PRO-01 or ORD-12345"
                     className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                   />
                   <button
@@ -518,7 +895,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                     <button
                       key={p.sku}
                       type="button"
-                      onClick={() => handleCodeDetected(p.sku, 'PRESET')}
+                      onClick={() => void handleCodeDetected(p.sku, 'PRESET')}
                       className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-mono border border-slate-700/60"
                     >
                       {p.sku}
@@ -529,70 +906,183 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </div>
           )}
 
-          {/* Scanned Result Card */}
+          {/* Scanned Result Card with Microservices Correlation */}
           {scannedCode && (
-            <div className="pt-3 border-t border-slate-800 animate-in fade-in">
-              <div className="flex items-center justify-between text-xs mb-2">
+            <div className="pt-3 border-t border-slate-800 animate-in fade-in space-y-3">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-400">Decoded Payload:</span>
-                <span className="font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20">
+                <span className="font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 max-w-[260px] truncate">
                   {scannedCode}
                 </span>
               </div>
 
+              {/* PRODUCT RESULT with LIVE INVENTORY CORRELATION */}
               {matchedProduct && (
-                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={matchedProduct.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'}
-                      alt={matchedProduct.name}
-                      className="w-12 h-12 rounded-xl object-cover border border-slate-800"
-                    />
-                    <div>
-                      <h4 className="text-xs font-bold text-white line-clamp-1">
-                        {matchedProduct.name}
-                      </h4>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs font-black text-indigo-400">
-                          {formatPrice(matchedProduct.price)}
-                        </span>
-                        <span className="text-[10px] text-emerald-400 font-mono">
-                          Stock: {matchedProduct.quantity ?? 10}
-                        </span>
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={matchedProduct.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'}
+                        alt={matchedProduct.name}
+                        className="w-12 h-12 rounded-xl object-cover border border-slate-800 shrink-0"
+                      />
+                      <div>
+                        <h4 className="text-xs font-bold text-white line-clamp-1">
+                          {matchedProduct.name}
+                        </h4>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs font-black text-indigo-400">
+                            {formatPrice(matchedProduct.price)}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            SKU: {matchedProduct.sku}
+                          </span>
+                        </div>
                       </div>
                     </div>
+
+                    <button
+                      onClick={() => {
+                        addToCart(matchedProduct, 1);
+                        showToast('Added to Cart', `${matchedProduct.name} added from POS QR!`, 'order');
+                        onClose();
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition active:scale-95 shrink-0"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      Add to Cart
+                    </button>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      addToCart(matchedProduct, 1);
-                      showToast('Added to Cart', `${matchedProduct.name} added from QR code!`, 'order');
-                      onClose();
-                    }}
-                    className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-xs shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition active:scale-95"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    Add to Cart
-                  </button>
+                  {/* Microservice Live Stock Status from inventory-service */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="text-slate-400">PostgreSQL Live Stock:</span>
+                      {isFetchingInventory ? (
+                        <span className="text-[11px] text-slate-500 animate-pulse">Syncing stock...</span>
+                      ) : (
+                        <span className={`font-mono font-bold px-2 py-0.5 rounded-md text-[11px] ${
+                          (liveInventory?.quantity ?? matchedProduct.quantity ?? 0) > 0
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {liveInventory?.quantity ?? matchedProduct.quantity ?? 0} units available
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Admin Quick Stock Increment Action */}
+                    {user?.isAdmin && (
+                      <button
+                        onClick={() => void handleQuickAdjustStock(1)}
+                        disabled={isUpdatingStock}
+                        className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium flex items-center gap-1 transition"
+                        title="Increment stock in inventory-service"
+                      >
+                        <Plus className="w-3 h-3 text-emerald-400" />
+                        {isUpdatingStock ? 'Saving...' : '+1 Stock'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
+              {/* ORDER RESULT with ORDERS-SERVICE FULFILLMENT CORRELATION */}
               {isOrderCode && (
-                <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-indigo-300 text-xs">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Order Receipt verified: <strong>{scannedCode}</strong></span>
+                <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>Order Verified: <strong className="font-mono text-white">{scannedCode}</strong></span>
+                    </div>
+                    {matchedOrder && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {matchedOrder.orderStatus}
+                      </span>
+                    )}
                   </div>
-                  {onNavigateToOrders && (
-                    <button
-                      onClick={() => {
-                        onNavigateToOrders();
-                        onClose();
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold flex items-center gap-1"
-                    >
-                      Track Order <ExternalLink className="w-3 h-3" />
-                    </button>
+
+                  {matchedOrder && (
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 text-slate-300">
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Customer</span>
+                        <span className="font-medium truncate block">{matchedOrder.customerName || 'Customer'}</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Total</span>
+                        <span className="font-bold text-indigo-400 font-mono">
+                          {formatPrice(matchedOrder.totalAmount ?? 0)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Tracking Reference</span>
+                        <span className="font-mono text-[11px] truncate block text-slate-400">
+                          {matchedOrder.trackingNumber || 'Pending'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 block">Carrier</span>
+                        <span className="truncate block text-slate-400">
+                          {matchedOrder.carrier || 'DHL Express'}
+                        </span>
+                      </div>
+                    </div>
                   )}
+
+                  {/* Microservice Mutation Actions */}
+                  <div className="flex items-center gap-2 pt-1">
+                    {/* Admin Fulfillment Step: Ship */}
+                    {user?.isAdmin && matchedOrder && matchedOrder.orderStatus === 'PROCESSING' && (
+                      <button
+                        onClick={() => void handleShipOrder()}
+                        disabled={isFulfillingOrder}
+                        className="flex-1 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        {isFulfillingOrder ? 'Fulfilling...' : 'Ship Order'}
+                      </button>
+                    )}
+
+                    {/* Admin Fulfillment Step: Deliver */}
+                    {user?.isAdmin && matchedOrder && matchedOrder.orderStatus === 'SHIPPED' && (
+                      <button
+                        onClick={() => void handleDeliverOrder()}
+                        disabled={isFulfillingOrder}
+                        className="flex-1 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {isFulfillingOrder ? 'Fulfilling...' : 'Confirm Delivery'}
+                      </button>
+                    )}
+
+                    {/* View Receipt in Modal */}
+                    {matchedOrder && onOpenReceipt && (
+                      <button
+                        onClick={() => {
+                          onOpenReceipt(matchedOrder);
+                          onClose();
+                        }}
+                        className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium flex items-center justify-center gap-1.5 transition"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                        Receipt
+                      </button>
+                    )}
+
+                    {/* Navigate to Order History */}
+                    {onNavigateToOrders && (
+                      <button
+                        onClick={() => {
+                          onNavigateToOrders();
+                          onClose();
+                        }}
+                        className="px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center gap-1 transition"
+                      >
+                        Track <ExternalLink className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

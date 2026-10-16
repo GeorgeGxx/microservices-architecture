@@ -125,3 +125,44 @@ export async function updateStockQuantity(sku: string, quantity: number, token?:
     throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to adjust stock'));
   }
 }
+
+export interface InventoryDetailResponse {
+  id?: number;
+  sku: string;
+  quantity: number;
+  isInStock?: boolean;
+}
+
+export async function fetchInventoryBySku(sku: string, token?: string): Promise<InventoryDetailResponse | null> {
+  const headers = await createHeaders(token);
+  const res = await fetch(`/api/inventory/detail/${encodeURIComponent(sku)}`, {
+    headers,
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to fetch inventory detail'));
+  }
+  return res.json();
+}
+
+export interface FunnelTelemetryPayload {
+  eventType: string;
+  sku?: string;
+  category?: string;
+  step?: string;
+}
+
+export async function recordFunnelTelemetry(payload: FunnelTelemetryPayload, token?: string): Promise<void> {
+  try {
+    const headers = await createHeaders(token, true);
+    await fetch('/api/order/funnel', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Non-blocking telemetry
+  }
+}
+

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { Order } from '../types';
 import { useCurrency } from '../context/CurrencyContext';
-import { X, Printer, PackageCheck, Copy, Check, Truck } from 'lucide-react';
+import { X, Printer, PackageCheck, Copy, Check, Truck, QrCode, Download } from 'lucide-react';
 
 interface ReceiptModalProps {
   order: Order | null;
@@ -10,7 +11,30 @@ interface ReceiptModalProps {
 
 export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) => {
   const { formatPrice } = useCurrency();
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (showQr && order && canvasRef.current) {
+      const qrPayload = JSON.stringify({
+        orderNumber: order.orderNumber,
+        id: order.id,
+        customer: order.customerName,
+        total: order.totalAmount,
+        trackingNumber: order.trackingNumber,
+      });
+
+      QRCode.toCanvas(canvasRef.current, qrPayload, {
+        width: 180,
+        margin: 2,
+        color: {
+          dark: '#0f172a',
+          light: '#ffffff',
+        },
+      });
+    }
+  }, [showQr, order]);
 
   if (!order) return null;
 
@@ -25,6 +49,16 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadQr = () => {
+    if (canvasRef.current) {
+      const url = canvasRef.current.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.download = `QR-${order.orderNumber}.png`;
+      a.href = url;
+      a.click();
+    }
   };
 
   return (
@@ -68,6 +102,37 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
             </button> : <span className="text-slate-500">Not assigned</span>}
           </div>
           <p className="mt-2 text-[10px] text-slate-500">Demo reference only; no live carrier tracking is connected.</p>
+        </div>
+
+        {/* QR Code Section Toggle */}
+        <div className="mb-5">
+          <button
+            type="button"
+            onClick={() => setShowQr((prev) => !prev)}
+            className="w-full py-2 px-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/50 text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center justify-center gap-2 transition"
+          >
+            <QrCode className="w-4 h-4" />
+            {showQr ? 'Hide Receipt QR Barcode' : 'Show Receipt QR Barcode (POS Scannable)'}
+          </button>
+
+          {showQr && (
+            <div className="mt-3 p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col items-center justify-center animate-in fade-in">
+              <div className="bg-white p-3 rounded-xl mb-3 shadow-inner">
+                <canvas ref={canvasRef} className="block" />
+              </div>
+              <p className="text-[11px] text-slate-400 text-center mb-2">
+                Scan this QR with the POS Camera or scanner to fulfill or track this order.
+              </p>
+              <button
+                type="button"
+                onClick={handleDownloadQr}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium flex items-center gap-1.5 transition"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Download Receipt QR
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Customer & Shipping Details */}
