@@ -220,6 +220,6 @@ type Order @key(fields: "id") {
 ## 🧪 Contract Testing & Automated Verification
 
 API contracts are continuously verified in CI/CD pipelines via:
-* **Newman Automated Contract Suite:** [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) executes 20 requests and 47 assertions covering both public and authenticated flows.
+* **Newman Automated Contract Suite:** [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) executes 23 requests and 47 assertions covering both public and authenticated flows.
 * **SpringDoc Swagger UI:** Available locally at `http://localhost:<port>/swagger-ui.html` and `http://localhost:<port>/v3/api-docs` on every microservice.
 * **Cosmo Supergraph Execution Config:** Stored in [`helm/charts/cosmo-router/files/execution-config.json`](../../helm/charts/cosmo-router/files/execution-config.json).
