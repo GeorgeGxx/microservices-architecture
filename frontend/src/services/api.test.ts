@@ -94,5 +94,112 @@ describe('fetchInventoryBySku', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('throws on non-404 error response', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 500,
+      text: async () => 'Database error',
+    } as Response);
+
+    try {
+      const { fetchInventoryBySku } = await import('./api');
+      await expect(fetchInventoryBySku('FAIL-SKU')).rejects.toThrow('Database error');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe('Product and Stock API Mutations', () => {
+  it('creates product via POST /api/product', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 201,
+    } as Response);
+
+    try {
+      const { createProduct } = await import('./api');
+      await expect(createProduct({ sku: 'NEW-SKU-01', name: 'New Item', price: 99, status: true }, 'token')).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('updates product via PUT /api/product/{sku}', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    try {
+      const { updateProduct } = await import('./api');
+      await expect(updateProduct('NEW-SKU-01', { sku: 'NEW-SKU-01', name: 'Updated Name', price: 110, status: true }, 'token')).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('deletes product via DELETE /api/product/{sku}', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 204,
+    } as Response);
+
+    try {
+      const { deleteProduct } = await import('./api');
+      await expect(deleteProduct('SKU-TO-DELETE', 'token')).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('adjusts stock quantity via PUT /api/inventory/{sku}', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    try {
+      const { updateStockQuantity } = await import('./api');
+      await expect(updateStockQuantity('SKU-1', 25, 'token')).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('saves or updates stock via POST /api/inventory', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+    } as Response);
+
+    try {
+      const { saveOrUpdateStock } = await import('./api');
+      await expect(saveOrUpdateStock({ sku: 'SKU-1', quantity: 50 }, 'token')).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('records funnel telemetry without throwing on network failure', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => {
+      throw new Error('Network error');
+    };
+
+    try {
+      const { recordFunnelTelemetry } = await import('./api');
+      await expect(recordFunnelTelemetry({ eventType: 'CHECKOUT_START' })).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 

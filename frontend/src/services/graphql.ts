@@ -30,7 +30,7 @@ export async function executeGraphQL<T>(
 
   const controller = timeoutMs ? new AbortController() : undefined;
   const timeoutId = controller && timeoutMs
-    ? window.setTimeout(() => controller.abort(), timeoutMs)
+    ? setTimeout(() => controller.abort(), timeoutMs)
     : undefined;
 
   try {
@@ -65,7 +65,7 @@ export async function executeGraphQL<T>(
     }
     throw error;
   } finally {
-    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 }
 

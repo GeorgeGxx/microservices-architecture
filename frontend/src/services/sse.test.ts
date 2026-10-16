@@ -31,3 +31,69 @@ describe('order status SSE contract', () => {
     });
   });
 });
+
+describe('SSEService live connection management', () => {
+  it('connects and receives general and order notifications', async () => {
+    class MockEventSource {
+      listeners: Record<string, ((event: any) => void)[]> = {};
+      onopen: (() => void) | null = null;
+      onmessage: ((event: any) => void) | null = null;
+      onerror: (() => void) | null = null;
+      closed = false;
+
+      constructor(public url: string) {}
+
+      addEventListener(type: string, cb: (event: any) => void) {
+        this.listeners[type] = this.listeners[type] || [];
+        this.listeners[type].push(cb);
+      }
+
+      close() {
+        this.closed = true;
+      }
+    }
+
+    (globalThis as any).EventSource = MockEventSource;
+
+    const { sseService } = await import('./sse');
+    const received: any[] = [];
+    const unsubscribe = sseService.subscribe((n) => received.push(n));
+
+    const activeInstance = (sseService as any).eventSource as MockEventSource;
+    expect(activeInstance).toBeTruthy();
+
+    // Trigger onopen
+    activeInstance.onopen?.();
+
+    // Trigger JSON message
+    activeInstance.onmessage?.({
+      data: JSON.stringify({ title: 'Welcome', message: 'Hello user', orderNumber: 'ORD-123' }),
+    });
+    expect(received.length).toBe(1);
+    expect(received[0].title).toBe('Welcome');
+
+    // Trigger raw text message fallback
+    activeInstance.onmessage?.({ data: 'Plain text alert' });
+    expect(received.length).toBe(2);
+    expect(received[1].title).toBe('System Notification');
+
+    // Trigger ORDER_NOTIFICATION
+    const orderReceived: any[] = [];
+    const unsubOrder = sseService.subscribeOrderStatus((ev) => orderReceived.push(ev));
+    const orderListener = activeInstance.listeners['ORDER_NOTIFICATION']?.[0];
+    orderListener?.({
+      data: JSON.stringify({ orderNumber: 'ORD-999', orderStatus: 'DELIVERED' }),
+    });
+    expect(orderReceived.length).toBe(1);
+    expect(orderReceived[0].orderNumber).toBe('ORD-999');
+
+    // Test error handler and reconnect
+    activeInstance.onerror?.();
+    expect(activeInstance.closed).toBe(true);
+
+    // Unsubscribe all
+    unsubscribe();
+    unsubOrder();
+  });
+});
+
