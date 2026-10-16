@@ -57,6 +57,36 @@ spec:
             port:
               number: 8003
 
+    # 1.3 Products Catalog API -> Routed to Products Service
+    - match:
+        - uri:
+            prefix: /api/product
+      route:
+        - destination:
+            host: products-service.dev.svc.cluster.local
+            port:
+              number: 8004
+
+    # 1.4 Inventory Management API -> Routed to Inventory Service
+    - match:
+        - uri:
+            prefix: /api/inventory
+      route:
+        - destination:
+            host: inventory-service.dev.svc.cluster.local
+            port:
+              number: 8001
+
+    # 1.5 MLOps Demand Forecast API -> Routed to Demand Forecast Service
+    - match:
+        - uri:
+            prefix: /api/forecast
+      route:
+        - destination:
+            host: demand-forecast-service.dev.svc.cluster.local
+            port:
+              number: 8005
+
     # 2. Keycloak Auth requests -> Routed to Keycloak
     - match:
         - uri:
