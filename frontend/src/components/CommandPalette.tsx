@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Product } from '../types';
 import { Search, ShoppingBag, Package, LayoutDashboard, LogIn, LogOut, X, ScanLine } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
@@ -39,14 +39,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   if (!isOpen) return null;
 
-  const filteredProducts = products
-    .filter(
+  const normalizedQuery = query.trim().toLowerCase();
+
+  // Sort newest items first (so newly created manual products are immediately visible)
+  const filteredProducts = useMemo(() => {
+    const list = [...products].reverse();
+    if (!normalizedQuery) {
+      return list;
+    }
+    return list.filter(
       (p) =>
-        p.name.toLowerCase().includes(query.toLowerCase()) ||
-        p.sku.toLowerCase().includes(query.toLowerCase()) ||
-        (p.category && p.category.toLowerCase().includes(query.toLowerCase()))
-    )
-    .slice(0, 5);
+        p.name.toLowerCase().includes(normalizedQuery) ||
+        p.sku.toLowerCase().includes(normalizedQuery) ||
+        (p.category && p.category.toLowerCase().includes(normalizedQuery)) ||
+        (p.description && p.description.toLowerCase().includes(normalizedQuery))
+    );
+  }, [products, normalizedQuery]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
@@ -70,31 +78,62 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Results List */}
         <div className="max-h-96 overflow-y-auto p-2 space-y-1">
           {/* Matching Products */}
-          {filteredProducts.length > 0 && (
+          {filteredProducts.length > 0 ? (
             <div className="mb-2">
-              <span className="text-[11px] font-semibold text-slate-500 px-3 uppercase tracking-wider block py-1">
-                Products
-              </span>
-              {filteredProducts.map((p) => (
-                <button
-                  key={p.sku}
-                  onClick={() => {
-                    onSelectProduct(p);
-                    onClose();
-                  }}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-slate-800 text-slate-200 transition group"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <img src={p.imageUrl} alt="" className="w-6 h-6 rounded object-cover" />
-                    <span className="text-xs font-medium text-slate-200 group-hover:text-indigo-400 truncate max-w-xs">
-                      {p.name}
+              <div className="flex items-center justify-between px-3 py-1">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Products
+                </span>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+              <div className="max-h-56 overflow-y-auto space-y-1 pr-1 scrollbar-thin">
+                {filteredProducts.map((p) => (
+                  <button
+                    key={p.sku}
+                    onClick={() => {
+                      onSelectProduct(p);
+                      onClose();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-left hover:bg-slate-800 text-slate-200 transition group"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt=""
+                          className="w-7 h-7 rounded-lg object-cover shrink-0 bg-slate-800 border border-slate-700/60"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-7 h-7 rounded-lg bg-slate-800 border border-slate-700/60 flex items-center justify-center shrink-0 text-slate-400">
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-medium text-slate-200 group-hover:text-indigo-400 truncate block">
+                          {p.name}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400 truncate block">
+                          {p.sku} {p.category ? `• ${p.category}` : ''}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-slate-300 ml-2 shrink-0">
+                      ${p.price.toFixed(2)}
                     </span>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-slate-400">${p.price.toFixed(2)}</span>
-                </button>
-              ))}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
+          ) : query.trim() ? (
+            <div className="px-3 py-3 text-center">
+              <p className="text-xs text-slate-400">No products found matching "{query}"</p>
+            </div>
+          ) : null}
 
           {/* Quick Navigation Commands */}
           <div>
