@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -188,5 +189,31 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody())
                 .isNotNull()
                 .containsEntry("error", "Internal Server Error");
+    }
+
+    @Test
+    @DisplayName("handleCompletionException should unwrap cause and return 409 for InsufficientStockException")
+    void testHandleCompletionException_InsufficientStock() {
+        CompletionException ex = new CompletionException(new InsufficientStockException("Out of stock"));
+
+        ResponseEntity<Map<String, Object>> response = handler.handleCompletionException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Insufficient Inventory Stock");
+    }
+
+    @Test
+    @DisplayName("handleCompletionException should unwrap cause and return 503 for ServiceUnavailableException")
+    void testHandleCompletionException_ServiceUnavailable() {
+        CompletionException ex = new CompletionException(new ServiceUnavailableException("Inventory degraded"));
+
+        ResponseEntity<Map<String, Object>> response = handler.handleCompletionException(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Service Temporarily Unavailable");
     }
 }

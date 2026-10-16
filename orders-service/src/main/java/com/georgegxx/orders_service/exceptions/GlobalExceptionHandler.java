@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletionException;
 
 /**
  * Global exception handler for orders-service.
@@ -95,6 +96,36 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
     public ResponseEntity<Map<String, Object>> handleAuthentication(org.springframework.security.core.AuthenticationException ex) {
         return buildErrorResponse(HttpStatus.UNAUTHORIZED, "Unauthorized", "Authentication required or token expired.");
+    }
+
+    @ExceptionHandler(CompletionException.class)
+    public ResponseEntity<Map<String, Object>> handleCompletionException(CompletionException ex) {
+        Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+        if (cause instanceof InsufficientStockException ise) {
+            return handleInsufficientStock(ise);
+        }
+        if (cause instanceof ServiceUnavailableException sue) {
+            return handleCircuitBreakerTripped(sue);
+        }
+        if (cause instanceof CallNotPermittedException cnpe) {
+            return handleCircuitBreakerTripped(cnpe);
+        }
+        if (cause instanceof IllegalArgumentException iae) {
+            return handleBusinessConflict(iae);
+        }
+        if (cause instanceof IllegalStateException ise) {
+            return handleIllegalState(ise);
+        }
+        if (cause instanceof IdempotencyConflictException ice) {
+            return handleIdempotencyConflict(ice);
+        }
+        if (cause instanceof IdempotencyPayloadMismatchException ipme) {
+            return handleIdempotencyPayloadMismatch(ipme);
+        }
+        if (cause instanceof OrderNotFoundException onfe) {
+            return handleOrderNotFound(onfe);
+        }
+        return handleUnexpected(ex);
     }
 
     @ExceptionHandler(Exception.class)
