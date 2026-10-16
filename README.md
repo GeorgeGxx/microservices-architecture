@@ -178,6 +178,10 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 | **10** | *Resiliency, Secrets, Canary & Alerts* | Resilience4j circuit breakers, Istio Canary traffic shifting (10% to 100%), Alertmanager rules, and chaos resilience simulation. |
 | **11** | *Multi-Cloud IaC & CLI Automation Suite* | Independent Minikube, AWS, Azure, and GCP CLI entrypoints, multi-cloud Terraform workspaces, OpenCost monitoring, and FinOps budgeting. |
 | **12** | *Multi-Cloud CI/CD & Recovery Architecture* | Cross-cloud delivery matrix: GitHub Actions (12-stage DevSecOps flow + ArgoCD GitOps), Azure DevOps (14-stage AKS delivery), Bitbucket Pipelines (14-stage GKE delivery), and 4-tier disaster recovery. |
+| **13** | *The 5-Phase End-to-End Delivery Lifecycle* | Enterprise DevSecOps governance, Shift-Left threat modeling, automated Level 1/2/3 Quality Gates, and continuous SRE closed-loop telemetry feedback. |
+| **14** | *GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture* | Edge protection, depth limiting (≤12), alias restriction (≤5), @authenticated pre-fetch field kill-switch, JWKS RS256 validation, and NetPol isolation. |
+| **15** | *Sequence - GraphQL Supergraph Request Lifecycle & Edge Protection* | Chronological request lifecycle from React 19 client to Cosmo Router gateway, fail-closed validation forks, and parallel Apollo Federation v2 entity resolution. |
+| **16** | *Agnostic POS QR Scanner & Omnichannel Architecture* | Omnichannel retail cashier workflow, dual-engine BarcodeDetector + jsQR decoding, camera race-condition lock, Nginx Permissions-Policy, PostgreSQL row locks, and live POS order fulfillment. |
 
 ---
 
@@ -455,7 +459,7 @@ microservices-architecture/
 │   ├── liferay-pipeline/           # Reference CI/CD pipelines for Liferay DXP deployments
 │   │   ├── README.md
 │   │   └── .gitlab-ci.yml
-│   └── Diagrams.drawio             # 🎨 13-Page Comprehensive Architectural Blueprint (Draw.io)
+│   └── Diagrams.drawio             # 🎨 16-Page Comprehensive Architectural Blueprint (Draw.io)
 ├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
 ├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
 ├── inventory-service/              # Stock allocation & verification (Port 8001)
@@ -479,7 +483,7 @@ microservices-architecture/
 │   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
 │   ├── build-all.py                # Concurrent Java & React container image compiler
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
-│   ├── generate_drawio.py          # Programmatic 13-page architectural diagram generator
+│   ├── generate_drawio.py          # Programmatic 16-page architectural diagram generator
 │   ├── generate_postman_collection.py # Programmatic Postman Collection v2.1 generator
 │   ├── local-cost-estimator.py     # Unified FinOps suite (architecture estimates, Terraform plan-delta, K8s right-sizing)
 │   ├── manage-cloudflare-tunnels.ps1 # Cloudflare Zero Trust tunnel manager and DNS record sync

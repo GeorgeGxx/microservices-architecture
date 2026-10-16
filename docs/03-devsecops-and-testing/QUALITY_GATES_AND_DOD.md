@@ -223,6 +223,8 @@ Copy and paste the template below when opening a Pull Request targeting `develop
   - [ ] `notification-service`
   - [ ] `cosmo-router`
   - [ ] `frontend`
+  - [ ] `demand-forecast`
+  - [ ] `mlops-training`
   - [ ] `k8s` / `helm` / `argocd`
   - [ ] `terraform`
 - **Change Category:** [ ] `feat` [ ] `fix` [ ] `refactor` [ ] `perf` [ ] `docs` [ ] `chore`
@@ -238,8 +240,8 @@ Copy and paste the template below when opening a Pull Request targeting `develop
 ---
 
 ### 🛡️ Definition of Done (DoD) - Level 1 (Required for `develop` Merge)
-- [ ] **Compilation & Tests:** All unit and service integration tests pass (`mvn clean test` / `npm run test`).
-- [ ] **Test Coverage:** JaCoCo / code coverage meets or exceeds the **80%** threshold.
+- [ ] **Compilation & Tests:** All unit and service integration tests pass (`mvn clean test` / `npm run test` / `pytest`).
+- [ ] **Test Coverage:** Polyglot line coverage (JaCoCo, Vitest LCOV, Coverage.py) meets or exceeds the **80%** threshold.
 - [ ] **Shift-Left Security:**
   - [ ] Gitleaks secret detection passed (0 credentials or private tokens).
   - [ ] Semgrep & Trivy static scans report zero Critical/High unaddressed issues.

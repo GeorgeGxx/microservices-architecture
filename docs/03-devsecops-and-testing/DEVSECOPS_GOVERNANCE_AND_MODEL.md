@@ -95,7 +95,7 @@ flowchart TD
         GITOPS_DEV["🔄 GitOps Sync to Staging<br/>• ArgoCD automated deployment<br/>• Ephemeral staging cluster sync"]:::ops
         DYNAMIC_TESTS["⚡ Dynamic Assurance Suite<br/>• API Contract Tests (Postman / Newman)<br/>• Cosmo Router Federated Composition<br/>• Resilience & Stress Load Testing (k6)<br/>• DAST Security Vulnerability Scan (OWASP ZAP)"]:::qa
         UAT["👔 Business UAT & Acceptance<br/>• End-to-end user workflow sign-off"]:::biz
-        DoD2(["🟡 DoD Level 2 Gate (Integration Pass)<br/>• 20/20 Newman contract tests<br/>• Zero High/Critical OWASP ZAP alerts<br/>• k6 p95 &lt; 2000ms & error rate &lt; 2%"]):::gate
+        DoD2(["🟡 DoD Level 2 Gate (Integration Pass)<br/>• 23/23 Newman contract tests<br/>• Zero High/Critical OWASP ZAP alerts<br/>• k6 p95 &lt; 2000ms & error rate &lt; 2%"]):::gate
 
         BUILD --> GITOPS_DEV
         GITOPS_DEV --> DYNAMIC_TESTS
@@ -176,7 +176,7 @@ sequenceDiagram
     rect rgb(255, 245, 245)
     Note over CI,Ops: Phase 4: Staging Validation & Promotion
     CI->>Ops: Deploy to Staging (Helm / ArgoCD)
-    CI->>CI: 5. Newman API Contract Check (20/20 Pass)
+    CI->>CI: 5. Newman API Contract Check (23/23 Pass)
     CI->>CI: 6. k6 Load & SLO Benchmark (p95 < 200ms)
     CI->>CI: 7. OWASP ZAP Baseline DAST
     CI->>Ops: Promote to Production (Istio Canary 10% -> 100%)
