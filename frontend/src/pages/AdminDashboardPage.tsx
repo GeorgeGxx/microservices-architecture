@@ -93,7 +93,11 @@ const HARDWARE_PRESETS = [
   },
 ];
 
-export const AdminDashboardPage: React.FC = () => {
+export interface AdminDashboardPageProps {
+  onCatalogChange?: () => void;
+}
+
+export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalogChange }) => {
   const { user, login } = useAuth();
   const { formatPrice } = useCurrency();
   const { showToast } = useNotifications();
@@ -174,7 +178,10 @@ export const AdminDashboardPage: React.FC = () => {
         fetchInventories(user?.token),
       ]);
 
-      if (prodRes.status === 'fulfilled') setProducts(prodRes.value || []);
+      if (prodRes.status === 'fulfilled') {
+        setProducts(prodRes.value || []);
+        onCatalogChange?.();
+      }
       if (ordRes.status === 'fulfilled') setOrders(ordRes.value || []);
       if (invRes.status === 'fulfilled') setInventories(invRes.value || []);
     } catch {
@@ -182,7 +189,7 @@ export const AdminDashboardPage: React.FC = () => {
     } finally {
       refreshInProgress.current = false;
     }
-  }, [user?.token]);
+  }, [user?.token, onCatalogChange]);
 
   useEffect(() => {
     void loadDashboardData();

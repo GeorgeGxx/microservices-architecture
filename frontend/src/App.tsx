@@ -82,6 +82,13 @@ export const App: React.FC = () => {
     if (activeTab === 'catalog') void loadProducts();
   }, [activeTab, loadProducts]);
 
+  // Reload catalog when CommandPalette is opened to guarantee newest items are present
+  useEffect(() => {
+    if (isCommandPaletteOpen) {
+      void loadProducts();
+    }
+  }, [isCommandPaletteOpen, loadProducts]);
+
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -153,7 +160,7 @@ export const App: React.FC = () => {
               <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
           }>
-            <AdminDashboardPage />
+            <AdminDashboardPage onCatalogChange={() => void loadProducts()} />
           </React.Suspense>
         )}
       </main>
