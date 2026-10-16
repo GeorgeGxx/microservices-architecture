@@ -17,7 +17,6 @@ import {
   Ban,
   Clock,
   Truck,
-  XCircle,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -95,6 +94,40 @@ const HARDWARE_PRESETS = [
 
 export interface AdminDashboardPageProps {
   onCatalogChange?: () => void;
+}
+
+function getProductSubmitButtonText(isCompressing: boolean, isSubmitting: boolean, isEditing: boolean): string {
+  if (isCompressing) return 'Optimizing image...';
+  if (isSubmitting) return 'Saving to Database...';
+  if (isEditing) return 'Save Product Changes';
+  return 'Create Product & Allocate Stock';
+}
+
+function getInventoryCardClasses(isOut: boolean, isLow: boolean): string {
+  if (isOut) return 'bg-rose-950/20 border-rose-900/40';
+  if (isLow) return 'bg-amber-950/20 border-amber-900/40';
+  return 'bg-slate-950/60 border-slate-800';
+}
+
+function getInventoryBadgeMeta(isOut: boolean, isLow: boolean): { className: string; label: string } {
+  if (isOut) return { className: 'bg-rose-500/10 text-rose-400 border border-rose-500/20', label: 'OUT OF STOCK' };
+  if (isLow) return { className: 'bg-amber-500/10 text-amber-400 border border-amber-500/20', label: 'LOW STOCK' };
+  return { className: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20', label: 'IN STOCK' };
+}
+
+function getStatusToneClass(tone: string): string {
+  switch (tone) {
+    case 'emerald':
+      return 'bg-emerald-500/10 text-emerald-400';
+    case 'blue':
+      return 'bg-blue-500/10 text-blue-400';
+    case 'rose':
+      return 'bg-rose-500/10 text-rose-400';
+    case 'amber':
+      return 'bg-amber-500/10 text-amber-400';
+    default:
+      return 'bg-slate-500/10 text-slate-400';
+  }
 }
 
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalogChange }) => {
@@ -204,7 +237,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
   }, [loadDashboardData]);
 
   // Check RBAC
-  if (!user || !user.isAdmin) {
+  if (!user?.isAdmin) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center animate-in fade-in">
         <div className="glass-card p-10 rounded-3xl border border-slate-800 space-y-4">
@@ -289,7 +322,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       return;
     }
 
-    if (!/^[A-Z0-9\-]{6,20}$/.test(skuClean)) {
+    if (!/^[A-Z0-9-]{6,20}$/.test(skuClean)) {
       showToast('Validation Error', 'SKU must be 6-20 characters using uppercase letters, digits, and hyphens (e.g. LAPTOP-PRO-01).', 'system');
       return;
     }
@@ -478,7 +511,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
     (p) =>
       p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
       p.sku.toLowerCase().includes(productSearch.toLowerCase()) ||
-      (p.category && p.category.toLowerCase().includes(productSearch.toLowerCase()))
+      Boolean(p.category?.toLowerCase().includes(productSearch.toLowerCase()))
   );
 
   const filteredInventory = inventories.filter((i) =>
@@ -488,8 +521,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
   const filteredOrders = sortOrdersNewestFirst(orders).filter(
     (o) =>
       o.orderNumber.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      (o.customerName && o.customerName.toLowerCase().includes(orderSearch.toLowerCase())) ||
-      (o.trackingNumber && o.trackingNumber.toLowerCase().includes(orderSearch.toLowerCase()))
+      Boolean(o.customerName?.toLowerCase().includes(orderSearch.toLowerCase())) ||
+      Boolean(o.trackingNumber?.toLowerCase().includes(orderSearch.toLowerCase()))
   );
 
   // Paginated slices
@@ -627,7 +660,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
             </div>
 
             {pendingStockInitializations.length > 0 && (
-              <div role="status" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-3">
+              <output className="block rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-3">
                 <p className="text-xs font-semibold text-amber-200">Catalog items created without their initial inventory:</p>
                 {pendingStockInitializations.map((pendingItem) => (
                   <div key={pendingItem.sku} className="flex flex-wrap items-center justify-between gap-2">
@@ -642,7 +675,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                     </button>
                   </div>
                 ))}
-              </div>
+              </output>
             )}
 
             {/* 1-Click Hardware Presets Bar */}
@@ -666,10 +699,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
 
             <form onSubmit={handleCreateProduct} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label htmlFor="admin-product-sku" className="block text-xs font-bold text-slate-300 mb-1">
                   Product SKU <span className="text-rose-400">*</span>
                 </label>
                 <input
+                  id="admin-product-sku"
                   type="text"
                   required
                   readOnly={Boolean(editingProduct)}
@@ -678,7 +712,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                     setProductForm({ ...productForm, sku: e.target.value.toUpperCase() })
                   }
                   placeholder="e.g. LAPTOP-PRO-01"
-                  pattern="^[A-Za-z0-9\-]{6,20}$"
+                  pattern="^[A-Za-z0-9-]{6,20}$"
                   title="SKU must be 6-20 uppercase alphanumeric or hyphen characters (e.g. LAPTOP-PRO-01)"
                   minLength={6}
                   maxLength={20}
@@ -690,10 +724,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label htmlFor="admin-product-name" className="block text-xs font-bold text-slate-300 mb-1">
                   Product Name <span className="text-rose-400">*</span>
                 </label>
                 <input
+                  id="admin-product-name"
                   type="text"
                   required
                   maxLength={150}
@@ -706,32 +741,34 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label htmlFor="admin-product-price" className="block text-xs font-bold text-slate-300 mb-1">
                     Price (USD) <span className="text-rose-400">*</span>
                   </label>
                   <input
+                    id="admin-product-price"
                     type="number"
                     step="0.01"
                     min="0.01"
                     required
                     value={productForm.price}
                     onChange={(e) =>
-                      setProductForm({ ...productForm, price: parseFloat(e.target.value) || 0 })
+                      setProductForm({ ...productForm, price: Number.parseFloat(e.target.value) || 0 })
                     }
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                   />
                 </div>
                 {!editingProduct && <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
+                  <label htmlFor="admin-product-stock" className="block text-xs font-bold text-slate-300 mb-1">
                     Initial Stock <span className="text-rose-400">*</span>
                   </label>
                   <input
+                    id="admin-product-stock"
                     type="number"
                     min="0"
                     required
                     value={productForm.initialStock}
                     onChange={(e) =>
-                      setProductForm({ ...productForm, initialStock: parseInt(e.target.value, 10) || 0 })
+                      setProductForm({ ...productForm, initialStock: Number.parseInt(e.target.value, 10) || 0 })
                     }
                     className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                   />
@@ -739,10 +776,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label htmlFor="admin-product-category" className="block text-xs font-bold text-slate-300 mb-1">
                   Category
                 </label>
                 <select
+                  id="admin-product-category"
                   value={productForm.category}
                   onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
@@ -757,7 +795,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-2">Product Image</label>
+                <div className="block text-xs font-bold text-slate-300 mb-2">Product Image</div>
                 <div className="flex flex-wrap items-center gap-3 mb-3">
                   <button
                     type="button"
@@ -811,10 +849,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                     }}
                   />
                 </div>
-                <label className="mb-1 block text-[11px] font-semibold text-slate-400">
+                <label htmlFor="admin-product-image-url" className="mb-1 block text-[11px] font-semibold text-slate-400">
                   Or paste an image URL
                 </label>
                 <input
+                  id="admin-product-image-url"
                   type="text"
                   inputMode="url"
                   pattern="https?://.+"
@@ -849,10 +888,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               )}
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">
+                <label htmlFor="admin-product-description" className="block text-xs font-bold text-slate-300 mb-1">
                   Description
                 </label>
                 <textarea
+                  id="admin-product-description"
                   rows={2}
                   value={productForm.description}
                   onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
@@ -867,7 +907,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                 className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 disabled:opacity-50 text-white font-bold text-xs shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition active:scale-95"
               >
                 {editingProduct ? <Edit2 className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                {isCompressingImage ? 'Optimizing image...' : isSubmittingProduct ? 'Saving to Database...' : editingProduct ? 'Save Product Changes' : 'Create Product & Allocate Stock'}
+                {getProductSubmitButtonText(isCompressingImage, isSubmittingProduct, Boolean(editingProduct))}
               </button>
               {editingProduct && (
                 <button type="button" onClick={resetProductForm} className="w-full py-2 text-xs text-slate-400 hover:text-white">Cancel editing</button>
@@ -1042,8 +1082,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
 
             <form onSubmit={handleSaveInventory} className="flex flex-col sm:flex-row gap-3 items-end">
               <div className="flex-1 w-full">
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Target SKU</label>
+                <label htmlFor="admin-inventory-sku" className="block text-xs font-semibold text-slate-400 mb-1">Target SKU</label>
                 <input
+                  id="admin-inventory-sku"
                   type="text"
                   required
                   value={inventoryForm.sku}
@@ -1056,14 +1097,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               </div>
 
               <div className="w-full sm:w-48">
-                <label className="block text-xs font-semibold text-slate-400 mb-1">Quantity (Units)</label>
+                <label htmlFor="admin-inventory-qty" className="block text-xs font-semibold text-slate-400 mb-1">Quantity (Units)</label>
                 <input
+                  id="admin-inventory-qty"
                   type="number"
                   min="0"
                   required
                   value={inventoryForm.quantity}
                   onChange={(e) =>
-                    setInventoryForm({ ...inventoryForm, quantity: parseInt(e.target.value, 10) || 0 })
+                    setInventoryForm({ ...inventoryForm, quantity: Number.parseInt(e.target.value, 10) || 0 })
                   }
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                 />
@@ -1109,30 +1151,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               {paginatedInventory.map((item) => {
                 const isOut = item.quantity === 0 || !item.isInStock;
                 const isLow = item.quantity > 0 && item.quantity < 10;
+                const badge = getInventoryBadgeMeta(isOut, isLow);
 
                 return (
                   <div
                     key={item.sku}
-                    className={`p-4 rounded-2xl border transition-all ${
-                      isOut
-                        ? 'bg-rose-950/20 border-rose-900/40'
-                        : isLow
-                        ? 'bg-amber-950/20 border-amber-900/40'
-                        : 'bg-slate-950/60 border-slate-800'
-                    }`}
+                    className={`p-4 rounded-2xl border transition-all ${getInventoryCardClasses(isOut, isLow)}`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-mono text-xs font-bold text-white">{item.sku}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isOut
-                            ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                            : isLow
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        }`}
-                      >
-                        {isOut ? 'OUT OF STOCK' : isLow ? 'LOW STOCK' : 'IN STOCK'}
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badge.className}`}>
+                        {badge.label}
                       </span>
                     </div>
 
@@ -1285,17 +1314,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                       </td>
                       <td className="py-3 pr-2">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            statusPresentation.tone === 'emerald'
-                              ? 'bg-emerald-500/10 text-emerald-400'
-                              : statusPresentation.tone === 'blue'
-                              ? 'bg-blue-500/10 text-blue-400'
-                              : statusPresentation.tone === 'rose'
-                              ? 'bg-rose-500/10 text-rose-400'
-                              : statusPresentation.tone === 'amber'
-                              ? 'bg-amber-500/10 text-amber-400'
-                              : 'bg-slate-500/10 text-slate-400'
-                          }`}
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${getStatusToneClass(statusPresentation.tone)}`}
                         >
                           {statusPresentation.label}
                         </span>
@@ -1304,7 +1323,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                         <div className="flex flex-wrap gap-1">
                           {ord.orderItems?.map((it, idx) => (
                             <span
-                              key={idx}
+                              key={it.id || `${it.sku}-${idx}`}
                               className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] font-mono text-slate-300"
                             >
                               {it.quantity}x {it.sku}

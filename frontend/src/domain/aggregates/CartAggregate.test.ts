@@ -37,8 +37,8 @@ describe('CartAggregate', () => {
     const cart = new CartAggregate();
     const updated = cart.addItem(p1, 2);
 
-    expect(cart.items.length).toBe(0);
-    expect(updated.items.length).toBe(1);
+    expect(cart.items).toHaveLength(0);
+    expect(updated.items).toHaveLength(1);
     expect(updated.itemCount).toBe(2);
     expect(updated.subtotalAmount).toBe(80);
     expect(updated.shippingAmount).toBe(9.99); // Subtotal < 100
@@ -70,18 +70,18 @@ describe('CartAggregate', () => {
   it('removes item if updated quantity is zero or negative', () => {
     const cart = new CartAggregate().addItem(p1, 2);
     const updatedZero = cart.updateQuantity(p1.sku, 0);
-    expect(updatedZero.items.length).toBe(0);
+    expect(updatedZero.items).toHaveLength(0);
 
     const updatedNegative = cart.updateQuantity(p1.sku, -1);
-    expect(updatedNegative.items.length).toBe(0);
+    expect(updatedNegative.items).toHaveLength(0);
   });
 
   it('removes item by SKU', () => {
     const cart = new CartAggregate().addItem(p1, 1).addItem(p2, 1);
-    expect(cart.items.length).toBe(2);
+    expect(cart.items).toHaveLength(2);
 
     const updated = cart.removeItem(p1.sku);
-    expect(updated.items.length).toBe(1);
+    expect(updated.items).toHaveLength(1);
     expect(updated.items[0].product.sku).toBe(p2.sku);
   });
 
@@ -96,7 +96,7 @@ describe('CartAggregate', () => {
   it('clears all items cleanly', () => {
     const cart = new CartAggregate().addItem(p1, 2).addItem(p2, 1);
     const cleared = cart.clear();
-    expect(cleared.items.length).toBe(0);
+    expect(cleared.items).toHaveLength(0);
     expect(cleared.itemCount).toBe(0);
   });
 
@@ -111,7 +111,7 @@ describe('CartAggregate', () => {
   it('ignores updateQuantity for SKUs not present in the cart', () => {
     const cart = new CartAggregate().addItem(p1, 1);
     const unchanged = cart.updateQuantity('NON-EXISTENT-SKU', 5);
-    expect(unchanged.items.length).toBe(1);
+    expect(unchanged.items).toHaveLength(1);
     expect(unchanged.items[0].product.sku).toBe(p1.sku);
   });
 });

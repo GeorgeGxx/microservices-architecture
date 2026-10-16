@@ -28,6 +28,16 @@ interface CheckoutModalProps {
   onOrderSuccess: (order: Order) => void;
 }
 
+function getCheckoutStepClass(isActive: boolean, isCompleted: boolean): string {
+  if (isActive) {
+    return 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30';
+  }
+  if (isCompleted) {
+    return 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30';
+  }
+  return 'bg-slate-100 dark:bg-slate-800 text-slate-400';
+}
+
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, onOrderSuccess }) => {
   const { cart, total, clearCart } = useCart();
   const { formatPrice } = useCurrency();
@@ -200,7 +210,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             { id: 'CUSTOMER_INFO', label: '1. Shipping', icon: MapPin },
             { id: 'DELIVERY_TIER', label: '2. Delivery', icon: Truck },
             { id: 'PAYMENT', label: '3. Payment', icon: CreditCard },
-          ].map((s, idx) => {
+          ].map((s) => {
             const Icon = s.icon;
             const isActive = currentStep === s.id;
             const isCompleted =
@@ -208,15 +218,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               (s.id === 'DELIVERY_TIER' && currentStep === 'PAYMENT');
 
             return (
-              <div key={idx} className="flex items-center gap-2">
+              <div key={s.id} className="flex items-center gap-2">
                 <div
-                  className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${
-                    isActive
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30'
-                      : isCompleted
-                      ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                  }`}
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold transition-all ${getCheckoutStepClass(isActive, isCompleted)}`}
                 >
                   {isCompleted ? <CheckCircle2 className="w-4 h-4" /> : <Icon className="w-3.5 h-3.5" />}
                 </div>
@@ -246,10 +250,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="space-y-4 animate-in fade-in">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="checkout-customer-name" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Full Name
                   </label>
                   <input
+                    id="checkout-customer-name"
                     type="text"
                     required
                     value={formData.customerName}
@@ -258,10 +263,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="checkout-customer-email" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Email Address
                   </label>
                   <input
+                    id="checkout-customer-email"
                     type="email"
                     required
                     value={formData.customerEmail}
@@ -272,10 +278,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label htmlFor="checkout-shipping-address" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Shipping Address
                 </label>
                 <input
+                  id="checkout-shipping-address"
                   type="text"
                   required
                   value={formData.shippingAddress}
@@ -287,10 +294,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="checkout-city" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     City
                   </label>
                   <input
+                    id="checkout-city"
                     type="text"
                     required
                     value={formData.city}
@@ -299,10 +307,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="checkout-postal-code" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     ZIP Code
                   </label>
                   <input
+                    id="checkout-postal-code"
                     type="text"
                     required
                     value={formData.postalCode}
@@ -311,10 +320,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  <label htmlFor="checkout-phone" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                     Phone
                   </label>
                   <input
+                    id="checkout-phone"
                     type="text"
                     required
                     value={formData.phone}
@@ -338,9 +348,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
           {/* STEP 2: Delivery Method */}
           {currentStep === 'DELIVERY_TIER' && (
             <div className="space-y-4 animate-in fade-in">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              <div className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                 Select Shipping Carrier Service
-              </label>
+              </div>
 
               <div className="space-y-3">
                 {[
@@ -357,10 +367,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     badge: 'Economy',
                   },
                 ].map((tier) => (
-                  <div
+                  <button
+                    type="button"
                     key={tier.id}
                     onClick={() => setFormData({ ...formData, deliveryMethod: tier.id })}
-                    className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-start justify-between ${
+                    className={`w-full text-left p-4 rounded-2xl border cursor-pointer transition-all flex items-start justify-between ${
                       formData.deliveryMethod === tier.id
                         ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30'
                         : 'border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40'
@@ -378,7 +389,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{tier.desc}</p>
                     </div>
                     <Truck className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0" />
-                  </div>
+                  </button>
                 ))}
               </div>
 
@@ -417,10 +428,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
           {currentStep === 'PAYMENT' && (
             <div className="space-y-4 animate-in fade-in">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                <label htmlFor="checkout-payment-method" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
                   Simulated payment outcome
                 </label>
                 <select
+                  id="checkout-payment-method"
                   required
                   value={formData.paymentMethod}
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}

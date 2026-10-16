@@ -23,6 +23,34 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+async function attemptCompressionTier(
+  bitmap: ImageBitmap,
+  file: File,
+  maxDimension: number,
+  quality: number
+): Promise<string | null> {
+  const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Image compression is not available in this browser.');
+
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  let blob = await canvasToBlob(canvas, 'image/webp', quality);
+  if (blob.type !== 'image/webp') {
+    // Older browsers may not encode WebP; preserve PNG transparency when applicable.
+    blob = await canvasToBlob(canvas, file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
+  }
+  canvas.width = 0;
+  canvas.height = 0;
+
+  if (blob.size <= MAX_COMPRESSED_IMAGE_BYTES) {
+    return blobToDataUrl(blob);
+  }
+  return null;
+}
+
 export async function compressProductImage(file: File): Promise<string> {
   if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
     throw new Error('Choose a JPEG, PNG, or WebP image.');
@@ -39,25 +67,14 @@ export async function compressProductImage(file: File): Promise<string> {
   }
 
   try {
-    for (const [maxDimension, quality] of [[800, 0.82], [640, 0.72], [512, 0.62]] as const) {
-      const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) throw new Error('Image compression is not available in this browser.');
+    const tier1 = await attemptCompressionTier(bitmap, file, 800, 0.82);
+    if (tier1) return tier1;
 
-      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      let blob = await canvasToBlob(canvas, 'image/webp', quality);
-      if (blob.type !== 'image/webp') {
-        // Older browsers may not encode WebP; preserve PNG transparency when applicable.
-        blob = await canvasToBlob(canvas, file.type === 'image/png' ? 'image/png' : 'image/jpeg', quality);
-      }
-      canvas.width = 0;
-      canvas.height = 0;
+    const tier2 = await attemptCompressionTier(bitmap, file, 640, 0.72);
+    if (tier2) return tier2;
 
-      if (blob.size <= MAX_COMPRESSED_IMAGE_BYTES) return await blobToDataUrl(blob);
-    }
+    const tier3 = await attemptCompressionTier(bitmap, file, 512, 0.62);
+    if (tier3) return tier3;
   } finally {
     bitmap.close();
   }

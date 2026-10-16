@@ -51,7 +51,7 @@ describe('order fulfillment GraphQL mutations', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     const catalog = await fetchProducts();
-    expect(catalog.length).toBe(2);
+    expect(catalog).toHaveLength(2);
     expect(catalog[0]).toMatchObject({ sku: 'LAPTOP-PRO', quantity: 8, isInStock: true });
     expect(catalog[1]).toMatchObject({ sku: 'MOUSE-01', quantity: 0, isInStock: false });
   });

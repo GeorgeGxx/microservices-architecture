@@ -98,9 +98,9 @@ export const DemandForecastPanel: React.FC = () => {
           </div>
 
           {forecast.dataSource === 'synthetic' && (
-            <div role="status" className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-xs text-sky-100">
+            <output className="block rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-xs text-sky-100">
               Synthetic demo data. These estimates are for validating the workflow and are not operational purchasing advice.
-            </div>
+            </output>
           )}
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

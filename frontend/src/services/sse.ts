@@ -36,8 +36,8 @@ export function parseOrderStatusEvent(data: string): OrderStatusEvent | null {
 
 class SSEService {
   private eventSource: EventSource | null = null;
-  private listeners: Set<NotificationListener> = new Set();
-  private orderStatusListeners: Set<(event: OrderStatusEvent) => void> = new Set();
+  private readonly listeners: Set<NotificationListener> = new Set();
+  private readonly orderStatusListeners: Set<(event: OrderStatusEvent) => void> = new Set();
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
   connect() {
@@ -54,7 +54,7 @@ class SSEService {
         try {
           const raw = JSON.parse(event.data);
           const notification: AppNotification = {
-            id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            id: `notif-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
             title: raw.title || 'Order Event Update',
             message: raw.message || (raw.orderNumber ? `Order #${raw.orderNumber} status changed to ${raw.orderStatus || 'updated'}` : event.data),
             type: raw.type || 'order',

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
 
@@ -76,12 +76,17 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   };
 
-  const isInWishlist = (sku: string) => (user ? wishlist.includes(sku) : false);
+  const isInWishlist = useCallback((sku: string) => (user ? wishlist.includes(sku) : false), [user, wishlist]);
 
-  const clearWishlist = () => setWishlist([]);
+  const clearWishlist = useCallback(() => setWishlist([]), []);
+
+  const contextValue = useMemo<WishlistContextType>(
+    () => ({ wishlist, toggleWishlist, isInWishlist, clearWishlist }),
+    [wishlist, toggleWishlist, isInWishlist, clearWishlist]
+  );
 
   return (
-    <WishlistContext.Provider value={{ wishlist, toggleWishlist, isInWishlist, clearWishlist }}>
+    <WishlistContext.Provider value={contextValue}>
       {children}
     </WishlistContext.Provider>
   );
