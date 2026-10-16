@@ -40,10 +40,10 @@ describe('GraphQLOrderRepository', () => {
 
     const spy = vi.spyOn(graphqlService, 'submitPlaceOrder').mockResolvedValue(mockOrder);
 
-    const result = await repo.placeOrder(input, 'test-token', 'idempotency-key-1');
+    const result = await repo.placeOrder(input, 'mock-jwt', 'mock-uuid-1');
 
     expect(result).toEqual(mockOrder);
-    expect(spy).toHaveBeenCalledWith(input, 'test-token', 'idempotency-key-1');
+    expect(spy).toHaveBeenCalledWith(input, 'mock-jwt', 'mock-uuid-1');
     spy.mockRestore();
   });
 

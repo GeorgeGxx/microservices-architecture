@@ -15,11 +15,15 @@ paths = [
   '''(?i).*/k8s/minikube/.*''',
   '''(?i).*/terraform/.*\.tfvars.*''',
   '''(?i).*execution-config\.json$''',
-  '''(?i).*/cosmo-router/.*'''
+  '''(?i).*/cosmo-router/.*''',
+  '''(?i).*\.test\.(ts|tsx|js|jsx)$''',
+  '''(?i).*Test\.java$'''
 ]
 regexes = [
   '''(?i)dummy.*''',
-  '''(?i)test-token''',
+  '''(?i)test-token.*''',
+  '''(?i)mock-.*''',
+  '''(?i)idempotency-key.*''',
   '''(?i)CHANGE_ME''',
   '''(?i)admin''',
   '''(?i)mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu''',
