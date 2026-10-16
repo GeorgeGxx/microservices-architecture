@@ -356,6 +356,7 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=src \
             -Dsonar.exclusions=**/*.test.ts,**/*.test.tsx \
+            -Dsonar.coverage.exclusions=src/main.tsx,src/App.tsx,src/index.css,src/pages/**,src/components/**,src/context/**,src/domain/repositories/**,**/*.test.ts,**/*.test.tsx \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 

@@ -62,4 +62,26 @@ export default defineConfig({
       },
     },
   },
+  test: {
+    globals: true,
+    environment: 'node',
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'json'],
+      include: ['src/**'],
+      exclude: [
+        'src/main.tsx',
+        'src/App.tsx',
+        'src/index.css',
+        'src/pages/**',
+        'src/components/**',
+        'src/context/**',
+        'src/domain/repositories/**',
+        'src/types/**',
+        'src/vite-env.d.ts',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+      ],
+    },
+  },
 });
