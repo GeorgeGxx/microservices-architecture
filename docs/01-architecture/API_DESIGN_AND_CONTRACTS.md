@@ -105,15 +105,87 @@ All microservices implement **RFC 7807 Problem Details** via a centralized `Glob
 }
 ```
 
+### Validation Error Payload (`400 Bad Request`):
+When input constraints fail (`@Valid` / `MethodArgumentNotValidException`), all microservices return structured field violations with an aggregated human-readable summary string:
+
+```json
+{
+  "timestamp": "2026-10-15T22:00:00Z",
+  "status": 400,
+  "error": "Validation Failed",
+  "message": "sku: sku must match ^[A-Z0-9\\-]{6,20}$; name: name cannot exceed 150 characters",
+  "fields": {
+    "sku": "sku must match ^[A-Z0-9\\-]{6,20}$",
+    "name": "name cannot exceed 150 characters"
+  }
+}
+```
+
+* **Client Resiliency:** The React frontend extracts violations via `extractApiErrorMessage()`, surfacing precise field-level feedback directly in notification toasts rather than masking errors with generic titles.
+* **Catalog Validation Regex Rules:**
+  * **Product SKU:** `^[A-Z0-9\-]{6,20}$` (strictly 6 to 20 uppercase alphanumeric or hyphen characters).
+  * **Product Name:** `^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9.,'\-()\"/&+%:#!*[\\] ]+$` (allows standard tech product punctuation such as quotes, slashes, plus, and brackets while preventing XSS vectors; max 150 characters).
+
 ### HTTP Status Code Mapping:
 | HTTP Status | Exception Class | RFC 7807 Title | Scenario |
 | :---: | :--- | :--- | :--- |
-| **400 Bad Request** | `MethodArgumentNotValidException` | Validation Failed | Missing mandatory fields (e.g. empty SKU or quantity $\le 0$). |
+| **400 Bad Request** | `MethodArgumentNotValidException` | Validation Failed | Field constraint violations (`fields` map + `message` summary). |
 | **401 Unauthorized** | `AuthenticationException` | Unauthorized | Missing or expired JWT bearer token. |
 | **403 Forbidden** | `AccessDeniedException` | Forbidden | Standard user attempting to cancel another customer's order. |
 | **404 Not Found** | `ProductNotFoundException`, `OrderNotFoundException` | Resource Not Found | Target entity does not exist in domain repository. |
 | **409 Conflict** | `InsufficientStockException` | Domain Conflict | Concurrency collision or insufficient warehouse inventory. |
 | **503 Service Unavailable** | `ServiceUnavailableException` | Downstream Outage | Circuit breaker open on downstream dependency. |
+
+---
+
+## 📷 Agnostic POS QR & Barcode Scanner Architecture
+
+The storefront integrates an enterprise **Point-of-Sale (POS) Scanner Engine** designed for omnichannel operations (WebCam streaming, image upload/dropzone, and hardware USB/Bluetooth laser readers):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin as Store Associate / Admin
+    participant Scanner as POS Modal (React 19 + jsQR)
+    participant Products as products-service (:8004)
+    participant Inventory as inventory-service (:8001)
+    participant Orders as orders-service (:8003)
+    participant Router as Cosmo Router (:8080)
+
+    Admin->>Scanner: Point camera or scan label / receipt
+    alt BarcodeDetector Available
+        Scanner->>Scanner: Native hardware decoding
+    else Browser Fallback
+        Scanner->>Scanner: Offscreen canvas + jsQR software decoding
+    end
+    
+    alt Scanned SKU / Product Label
+        Scanner->>Inventory: GET /api/inventory/detail/{sku}
+        Inventory-->>Scanner: 200 OK (PostgreSQL live stock units)
+        Scanner->>Scanner: Display live stock & Add to Cart
+        opt Admin Stock Correction
+            Admin->>Scanner: Click '+1 Stock'
+            Scanner->>Inventory: PUT /api/inventory/{sku}?quantity={newQty}
+            Inventory-->>Scanner: 200 OK (Stock updated)
+        end
+    else Scanned Order Receipt (ORD-*)
+        Scanner->>Router: GraphQL query { orders { ... } }
+        Router->>Orders: Federated query
+        Orders-->>Scanner: Order details (STATUS, items, tracking)
+        opt Admin Order Fulfillment
+            Admin->>Scanner: Click 'Ship Order'
+            Scanner->>Router: mutation { shipOrder(id: $id) }
+            Router->>Orders: Update status -> SHIPPED & publish Kafka event
+        end
+    end
+    Scanner--)Orders: Async Telemetry POST /api/order/funnel (QR_SCAN_RESOLVED)
+```
+
+### Key Capabilities:
+1. **Universal Dual-Engine Decoding:** Native `BarcodeDetector` API supplemented with pure TypeScript `jsQR` offscreen canvas processing, guaranteeing 100% scanning support across Chrome, Firefox, Edge, Safari, iOS, and Android.
+2. **Authoritative Stock Verification:** Queries `GET /api/inventory/detail/{sku}` directly against PostgreSQL to prevent stale client cache anomalies.
+3. **In-Modal POS Fulfillment:** Administrators can trigger order fulfillment (`shipOrder`, `deliverOrder`) directly from the scanner view upon reading shipping labels or order receipts.
+4. **Security Header Alignment:** Serves `Permissions-Policy: camera=(self), microphone=(), geolocation=()` via Nginx, allowing WebCam access for the storefront origin while restricting unauthorized third-party embeds.
 
 ---
 
