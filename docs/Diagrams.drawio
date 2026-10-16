@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="15" type="device">
+<mxfile host="Electron" pages="16" type="device">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
@@ -11,7 +11,7 @@
         <mxCell id="c_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="60" y="110" width="340" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="n_spa" parent="1" value="&lt;b&gt;React 19 SPA Storefront&lt;/b&gt;&lt;br&gt;Vite/tunnel :5173 • Nginx container :8080&lt;br&gt;20 req/s per peer • burst 30&lt;br&gt;JSON 429 access logs → Loki&lt;br&gt;Keycloak RBAC • Real-Time SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
+        <mxCell id="n_spa" parent="1" value="&lt;b&gt;React 19 SPA Storefront&lt;/b&gt;&lt;br&gt;Vite/tunnel :5173 • Nginx container :8080&lt;br&gt;Agnostic POS QR/Barcode Engine (Dual jsQR/Native)&lt;br&gt;Permissions-Policy: camera=(self) • Keycloak RBAC&lt;br&gt;Real-Time Kafka SSE • JSON 429 → Loki" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
           <mxGeometry x="90" y="170" width="280" height="95" as="geometry" />
         </mxCell>
         <mxCell id="n_traffic" parent="1" value="&lt;b&gt;Traffic Simulator&lt;/b&gt;&lt;br&gt;simulate.py (traffic)&lt;br&gt;Load &amp; E2E Purchase Flow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;" vertex="1">
@@ -35,13 +35,13 @@
         <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 4.0.8 / Java 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="860" y="110" width="520" height="780" as="geometry" />
         </mxCell>
-        <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache&lt;br&gt;Base64 Image Upload • RFC 7807" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="170" width="220" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="350" width="220" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • Lock/Deduct" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • Lock/Deduct&lt;br&gt;Live POS Stock Check &amp; +1 Adjustment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="530" width="220" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
@@ -684,7 +684,7 @@
         <mxCell id="app_dbs" parent="1" value="&lt;b&gt;💾 Persistence &amp; Streams&lt;/b&gt;&lt;br&gt;PostgreSQL (Products, Orders, Inv, KC)&lt;br&gt;Apache Kafka 7.8 (Port 9092 PLAINTEXT)&lt;br&gt;Redis Cache Cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=11;" vertex="1">
           <mxGeometry x="1440" y="480" width="240" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="ops_box" parent="1" value="&lt;b&gt;⚙️ MINIKUBE PLATFORM CLI &amp; OPERATIONAL LIFECYCLE&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Unified Orchestrator:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 up&lt;/code&gt; (Minikube, Istio, ArgoCD, Prometheus, Vault, Keycloak, Apps &amp; Tunnels).&lt;br&gt;• &lt;b&gt;Health Doctor:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 doctor&lt;/code&gt; (Deep diagnostics of pods, NodePorts, and active Gatekeeper OPA policies).&lt;br&gt;• &lt;b&gt;Live Workload Costs:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 cost&lt;/code&gt; (OpenCost allocation for the current Kubernetes context); &lt;code&gt;.\platform-minikube.ps1 finops&lt;/code&gt; provides offline illustrative estimates.&lt;br&gt;• &lt;b&gt;Endpoints Table:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 urls&lt;/code&gt; (Formatted table of active services and credentials).&lt;br&gt;• &lt;b&gt;Teardown &amp; Purge:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 down [-DeleteCluster]&lt;/code&gt; (Releases 8 CPUs &amp; 16 GiB RAM, or cleans 40 GB disk)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+        <mxCell id="ops_box" parent="1" value="&lt;b&gt;⚙️ MINIKUBE PLATFORM CLI &amp; OPERATIONAL LIFECYCLE&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Unified Orchestrator:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 up&lt;/code&gt; (Minikube, Istio, ArgoCD, Prometheus, Vault, Keycloak, Apps &amp; Tunnels; options: &lt;code&gt;-WithoutIstio&lt;/code&gt;, &lt;code&gt;-SkipScans&lt;/code&gt;).&lt;br&gt;• &lt;b&gt;Fast Resume (&amp;lt; 30s):&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 start&lt;/code&gt; or &lt;code&gt;up -Fast&lt;/code&gt; (Resumes pods, NodePorts &amp; tunnels bypassing redundant scans and Helm re-runs).&lt;br&gt;• &lt;b&gt;Health Doctor &amp; Endpoints:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 doctor&lt;/code&gt; (Pod, NodePort &amp; OPA health); &lt;code&gt;.\platform-minikube.ps1 urls&lt;/code&gt; (Active service endpoints &amp; credentials).&lt;br&gt;• &lt;b&gt;Teardown &amp; Purge:&lt;/b&gt; &lt;code&gt;.\platform-minikube.ps1 down&lt;/code&gt; (Safe pause) or &lt;code&gt;down -Destroy&lt;/code&gt; (Purges VM, volumes &amp; cluster state)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="60" y="590" width="1780" height="85" as="geometry" />
         </mxCell>
       </root>
@@ -1162,6 +1162,143 @@
         </mxCell>
         <mxCell id="s15_summary" parent="1" value="&lt;b&gt;🎯 DETERMINISTIC EDGE PROTECTION:&lt;/b&gt; By compiling subgraphs into a deterministic execution plan, Cosmo Router acts as a cryptographic, semantic, and network firewall. Downstream microservices focus purely on domain logic without worrying about DoS recursion, query inflation, or unauthorized calls." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="80" y="915" width="1790" height="50" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_pos_qr_omnichannel" name="16. Agnostic POS QR Scanner &amp; Omnichannel Architecture">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t16" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;AGNOSTIC POS QR SCANNER &amp;amp; OMNICHANNEL STOREFRONT ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;React 19 • Dual-Engine BarcodeDetector + jsQR • Spring Microservices Correlation • PostgreSQL TEXT Persist &amp;amp; Redis • DevSecOps Permissions-Policy&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c16_input" parent="1" value="&lt;b&gt;📷 CAPTURE &amp;amp; INPUT MODALITIES&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="100" width="310" height="750" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_cam" parent="1" value="&lt;b&gt;Live WebCam Stream (getUserMedia)&lt;/b&gt;&lt;br&gt;• Multi-tier lens fallback: ideal 720p ➔ unconstrained ➔ any&lt;br&gt;• 100ms mount lock (prevents DOM camera driver races)&lt;br&gt;• Zero async re-renders during active frame streaming&lt;br&gt;• Flip camera lens toggle (environment vs user)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="160" width="270" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_file" parent="1" value="&lt;b&gt;File Dropzone &amp;amp; Image Upload&lt;/b&gt;&lt;br&gt;• Drag &amp;amp; drop or click to upload QR / Barcodes&lt;br&gt;• Supports PNG, JPG, WEBP, AVIF formats&lt;br&gt;• Clean separation: Dedicated tab without UI redundancy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="305" width="270" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_laser" parent="1" value="&lt;b&gt;Hardware POS Barcode Reader&lt;/b&gt;&lt;br&gt;• USB &amp;amp; Bluetooth HID laser scanner input&lt;br&gt;• Rapid keyboard emulation buffer detection&lt;br&gt;• Omnichannel retail cashier workflow" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="430" width="270" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_receipt" parent="1" value="&lt;b&gt;Order Receipt QR Generator (ReceiptModal)&lt;/b&gt;&lt;br&gt;• Dynamic client-side rendering via QRCode.toCanvas&lt;br&gt;• Encodes Order ID, fulfillment tokens &amp;amp; timestamp&lt;br&gt;• Customer download (.png) &amp;amp; printable physical receipt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#92400E;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="555" width="270" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="c16_engine" parent="1" value="&lt;b&gt;⚙️ CLIENT ENGINE &amp;amp; NGINX HARDENING&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="390" y="100" width="330" height="750" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_nginx" parent="1" value="&lt;b&gt;Nginx DevSecOps Security Gate&lt;/b&gt;&lt;br&gt;• &lt;code&gt;Permissions-Policy: camera=(self)...&lt;/code&gt;&lt;br&gt;• Authorizes origin WebCam access (fixes NotAllowedError)&lt;br&gt;• Restricts unauthorized third-party embeds &amp;amp; iframes&lt;br&gt;• Strict Content-Security-Policy &amp;amp; HSTS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="410" y="160" width="290" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_dual" parent="1" value="&lt;b&gt;Universal Dual-Engine Decoder (QrScannerModal)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Tier 1 (Native):&lt;/b&gt; BarcodeDetector API (GPU/Chrome/Edge)&lt;br&gt;• &lt;b&gt;Tier 2 (Software):&lt;/b&gt; jsQR offscreen canvas (Firefox/Safari)&lt;br&gt;• Universal coverage: 100% desktop, tablet &amp;amp; mobile browsers&lt;br&gt;• Polyglot formats: QR_CODE, EAN_13, CODE_128" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="410" y="305" width="290" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_payload" parent="1" value="&lt;b&gt;Intelligent Payload Classifier&lt;/b&gt;&lt;br&gt;• &lt;b&gt;SKU Pattern:&lt;/b&gt; ^[A-Z0-9\-]{6,20}$ ➔ Product Inventory&lt;br&gt;• &lt;b&gt;Order Pattern:&lt;/b&gt; ORD-* or JSON ➔ Order Fulfillment&lt;br&gt;• Direct dispatch to Spring microservices or GraphQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="410" y="460" width="290" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_cart" parent="1" value="&lt;b&gt;React 19 Context &amp;amp; Toast Feedback&lt;/b&gt;&lt;br&gt;• Instant Add to Cart / Optimistic UI updates&lt;br&gt;• In-modal Admin POS actions (Stock +1, Ship, Deliver)&lt;br&gt;• Transparent RFC 7807 error toasts (no error masking)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="410" y="595" width="290" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="c16_edge" parent="1" value="&lt;b&gt;🛡️ EDGE ROUTER &amp;amp; IAM SECURITY&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="750" y="100" width="300" height="750" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_router" parent="1" value="&lt;b&gt;Cosmo Router 0.358.0 (Gateway)&lt;/b&gt;&lt;br&gt;• Port 8080 (/graphql)&lt;br&gt;• Apollo Federation v2 query planner&lt;br&gt;• JWT Bearer validation &amp;amp; claims pass-through&lt;br&gt;• Subgraph dispatch to Orders &amp;amp; Products" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="770" y="170" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_keycloak" parent="1" value="&lt;b&gt;Keycloak 26 IAM (:8181)&lt;/b&gt;&lt;br&gt;• Realm: microservices-realm&lt;br&gt;• OIDC / OAuth2 signed JWTs (JWKS)&lt;br&gt;• Role Enforcement: ROLE_ADMIN vs ROLE_CUSTOMER&lt;br&gt;• Protects POS Admin stock &amp;amp; fulfillment mutations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="770" y="325" width="260" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_funnel_gw" parent="1" value="&lt;b&gt;Audit &amp;amp; Telemetry Gateway&lt;/b&gt;&lt;br&gt;• Reverse proxy to Orders Funnel API&lt;br&gt;• Sub-second non-blocking dispatch&lt;br&gt;• Zero impact on cashier scanning latency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=1.5;fontColor=#334155;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="770" y="480" width="260" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="c16_spring" parent="1" value="&lt;b&gt;📦 SPRING MICROSERVICES CORRELATION (Java 21 / Spring Boot 4.0.8)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="1080" y="100" width="380" height="750" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_inv_svc" parent="1" value="&lt;b&gt;Inventory Service (:8001)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Authoritative Stock Lookup:&lt;/b&gt; GET /api/inventory/detail/{sku}&lt;br&gt;  Direct query against PostgreSQL (prevents stale client cache)&lt;br&gt;• &lt;b&gt;Live POS Adjustment:&lt;/b&gt; PUT /api/inventory/{sku}?quantity={qty}&lt;br&gt;  Instant +1 stock correction directly from cashier scanner modal" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1100" y="160" width="340" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_ord_svc" parent="1" value="&lt;b&gt;Orders Service (:8003)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Live Order Verification:&lt;/b&gt; Resolves order status, items, address&lt;br&gt;• &lt;b&gt;Omnichannel POS Fulfillment:&lt;/b&gt;&lt;br&gt;  mutation { shipOrder(id) } ➔ SHIPPED&lt;br&gt;  mutation { deliverOrder(id) } ➔ DELIVERED&lt;br&gt;• &lt;b&gt;Audit Telemetry Ingestion:&lt;/b&gt; POST /api/order/funnel&lt;br&gt;  Captures QR_PRODUCT_SCANNED &amp;amp; QR_ORDER_SCANNED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1100" y="315" width="340" height="155" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_prod_svc" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Image Upload Handling:&lt;/b&gt; Compressed base64 Data URL (≤ 256KiB)&lt;br&gt;• &lt;b&gt;Strict Field Validation:&lt;/b&gt; SKU &amp;amp; Name regex patterns&lt;br&gt;• &lt;b&gt;RFC 7807 Exception Aggregator:&lt;/b&gt; GlobalExceptionHandler joins field errors into 'message' &amp;amp; 'fields' map for client transparency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1100" y="500" width="340" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_notif_svc" parent="1" value="&lt;b&gt;Notification Service (:8002)&lt;/b&gt;&lt;br&gt;• Consumes Kafka fulfillment events&lt;br&gt;• Dispatches customer delivery notification &amp;amp; SSE update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1100" y="665" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="c16_data" parent="1" value="&lt;b&gt;💾 PERSISTENCE, CACHE &amp;amp; EVENT STREAM&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="1490" y="100" width="380" height="750" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_db_inv" parent="1" value="&lt;b&gt;db-inventory (PostgreSQL :5431)&lt;/b&gt;&lt;br&gt;• Table: inventory (sku, quantity, reserved)&lt;br&gt;• Transactional row-level lock (Pessimistic write)&lt;br&gt;• Atomic updates prevent race conditions" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1510" y="160" width="340" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_db_ord" parent="1" value="&lt;b&gt;db-orders (PostgreSQL :5432)&lt;/b&gt;&lt;br&gt;• Table: orders &amp;amp; order_items&lt;br&gt;• Stateful transitions: CONFIRMED ➔ SHIPPED ➔ DELIVERED" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1510" y="285" width="340" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_db_prod" parent="1" value="&lt;b&gt;db-products (PostgreSQL :5433)&lt;/b&gt;&lt;br&gt;• Column: TEXT imageUrl (unbounded text field)&lt;br&gt;• Enforces SKU uniqueness constraint" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1510" y="410" width="340" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_redis" parent="1" value="&lt;b&gt;Redis 8.8 (products-cache :6379)&lt;/b&gt;&lt;br&gt;• Sub-millisecond catalog caching&lt;br&gt;• Cache eviction on product create/update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1510" y="530" width="340" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_kafka" parent="1" value="&lt;b&gt;Apache Kafka 7.8 KRaft (:9092)&lt;/b&gt;&lt;br&gt;• Topic: orders-topic (order-shipped, order-delivered)&lt;br&gt;• Topic: order-funnel-topic (scanner audit &amp;amp; telemetry)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1510" y="640" width="340" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_cam_dual" parent="1" value="Video Frames" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_cam" target="n16_dual">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_file_dual" parent="1" value="Image Bitmap" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_file" target="n16_dual">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_laser_dual" parent="1" value="HID Buffer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_laser" target="n16_dual">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_dual_payload" parent="1" value="Decoded String" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=2;fontSize=10;" edge="1" source="n16_dual" target="n16_payload">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_payload_inv" parent="1" value="GET /api/inventory/detail/{sku}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;fontSize=10;" edge="1" source="n16_payload" target="n16_inv_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_cart_adjust" parent="1" value="Admin PUT +1 Stock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_cart" target="n16_inv_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_payload_router" parent="1" value="GraphQL Order Ops" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=2;fontSize=10;" edge="1" source="n16_payload" target="n16_router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_router_ord" parent="1" value="shipOrder / deliverOrder" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=2;fontSize=10;" edge="1" source="n16_router" target="n16_ord_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_payload_funnel" parent="1" value="Telemetry (non-blocking)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748B;strokeWidth=1.5;strokeDasharray=3 3;fontSize=10;" edge="1" source="n16_payload" target="n16_funnel_gw">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_funnel_ord" parent="1" value="POST /api/order/funnel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#64748B;strokeWidth=1.5;strokeDasharray=3 3;fontSize=10;" edge="1" source="n16_funnel_gw" target="n16_ord_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_inv_db" parent="1" value="Atomic Lock" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_inv_svc" target="n16_db_inv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_ord_db" parent="1" value="Stateful Update" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_ord_svc" target="n16_db_ord">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_ord_kafka" parent="1" value="Publish Fulfillment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_ord_svc" target="n16_kafka">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_prod_db" parent="1" value="TEXT Base64" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_prod_svc" target="n16_db_prod">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_prod_redis" parent="1" value="Cache Evict / Put" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_prod_svc" target="n16_redis">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e16_kafka_notif" parent="1" value="Consume Event" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;fontSize=10;" edge="1" source="n16_kafka" target="n16_notif_svc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n16_legend" parent="1" value="&lt;b&gt;🎯 ENTERPRISE OMNICHANNEL SCANNER &amp;amp; HARDENED LIFECYCLE:&lt;/b&gt; Eliminates camera race conditions by combining a 100ms mount lock with a tiered native BarcodeDetector / jsQR software fallback. Nginx Permissions-Policy &lt;code&gt;camera=(self)&lt;/code&gt; guarantees browser camera activation while blocking unauthorized iframe embedding. Bidirectional correlation directly queries authoritative PostgreSQL inventory and drives live POS order fulfillment through federated GraphQL mutations." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="50" y="870" width="1820" height="75" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
