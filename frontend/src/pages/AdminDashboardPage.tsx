@@ -277,13 +277,25 @@ export const AdminDashboardPage: React.FC = () => {
       showToast('Product Update Failed', 'The catalog response did not include a product ID, so this item cannot be updated safely.', 'system');
       return;
     }
-    if (!productForm.sku || !productForm.name || productForm.price <= 0) {
+    const skuClean = productForm.sku.toUpperCase().trim();
+    const nameClean = productForm.name.trim();
+
+    if (!skuClean || !nameClean || productForm.price <= 0) {
       showToast('Validation Error', 'SKU, name, and positive price are required.', 'system');
       return;
     }
 
+    if (!/^[A-Z0-9\-]{6,20}$/.test(skuClean)) {
+      showToast('Validation Error', 'SKU must be 6-20 characters using uppercase letters, digits, and hyphens (e.g. LAPTOP-PRO-01).', 'system');
+      return;
+    }
+
+    if (nameClean.length > 150) {
+      showToast('Validation Error', 'Product name cannot exceed 150 characters.', 'system');
+      return;
+    }
+
     setIsSubmittingProduct(true);
-    const skuClean = productForm.sku.toUpperCase().trim();
 
     const payload = {
       sku: skuClean,
@@ -656,6 +668,10 @@ export const AdminDashboardPage: React.FC = () => {
                     setProductForm({ ...productForm, sku: e.target.value.toUpperCase() })
                   }
                   placeholder="e.g. LAPTOP-PRO-01"
+                  pattern="^[A-Za-z0-9\-]{6,20}$"
+                  title="SKU must be 6-20 uppercase alphanumeric or hyphen characters (e.g. LAPTOP-PRO-01)"
+                  minLength={6}
+                  maxLength={20}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 read-only:text-slate-500 text-white text-xs font-mono focus:border-indigo-500 focus:outline-none"
                 />
                 <span className="text-[10px] text-slate-500 mt-1 block">
@@ -670,6 +686,7 @@ export const AdminDashboardPage: React.FC = () => {
                 <input
                   type="text"
                   required
+                  maxLength={150}
                   value={productForm.name}
                   onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
                   placeholder="e.g. Laptop Lenovo IdeaPad 3"

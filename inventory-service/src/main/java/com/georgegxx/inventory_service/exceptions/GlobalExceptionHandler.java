@@ -32,7 +32,12 @@ public class GlobalExceptionHandler {
                         fe -> fe.getDefaultMessage() != null ? fe.getDefaultMessage() : "invalid value",
                         (a, b) -> a
                 ));
-        return ResponseEntity.badRequest().body(errorBody(HttpStatus.BAD_REQUEST, "Validation Failed", fieldErrors));
+        String message = fieldErrors.entrySet().stream()
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining("; "));
+        Map<String, Object> body = errorBody(HttpStatus.BAD_REQUEST, "Validation Failed", fieldErrors);
+        body.put(MESSAGE, message.isEmpty() ? "Validation Failed" : message);
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(ConstraintViolationException.class)

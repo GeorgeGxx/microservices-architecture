@@ -21,7 +21,7 @@ public class ProductRequest {
     @NotBlank(message = "name is required")
     @Size(max = 150, message = "name cannot exceed 150 characters")
     @Pattern(
-        regexp = "^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9.,'\\-() ]+$",
+        regexp = "^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9.,'\\-()\"/&+%:#!*[\\] ]+$",
         message = "name contains invalid characters"
     )
     private String name;

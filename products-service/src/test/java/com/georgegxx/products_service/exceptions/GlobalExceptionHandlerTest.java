@@ -35,6 +35,7 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().get("error")).isEqualTo("Validation Failed");
+        assertThat(response.getBody().get("message")).isEqualTo("name: name is required");
         Map<?, ?> fields = (Map<?, ?>) response.getBody().get("fields");
         assertThat(fields.get("name")).isEqualTo("name is required");
     }

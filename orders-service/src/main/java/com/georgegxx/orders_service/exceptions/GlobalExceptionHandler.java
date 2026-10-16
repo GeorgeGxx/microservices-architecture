@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.CompletionException;
+import java.util.stream.Collectors;
 
 /**
  * Global exception handler for orders-service.
@@ -37,10 +38,15 @@ public class GlobalExceptionHandler {
             }
         }
 
+        String message = fieldErrors.entrySet().stream()
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining("; "));
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(TIMESTAMP, Instant.now().toString());
         body.put(STATUS, HttpStatus.BAD_REQUEST.value());
         body.put(ERROR, "Validation Failed");
+        body.put(MESSAGE, message.isEmpty() ? "Validation Failed" : message);
         body.put("fields", fieldErrors);
 
         return ResponseEntity.badRequest().body(body);

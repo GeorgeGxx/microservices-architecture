@@ -27,10 +27,15 @@ public class GlobalExceptionHandler {
                         (a, b) -> a
                 ));
 
+        String message = fieldErrors.entrySet().stream()
+                .map(e -> e.getKey() + ": " + e.getValue())
+                .collect(Collectors.joining("; "));
+
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("timestamp", Instant.now().toString());
         body.put("status", HttpStatus.BAD_REQUEST.value());
         body.put("error", "Validation Failed");
+        body.put("message", message.isEmpty() ? "Validation Failed" : message);
         body.put("fields", fieldErrors);
 
         return ResponseEntity.badRequest().body(body);
