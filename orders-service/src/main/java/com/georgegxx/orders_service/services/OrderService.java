@@ -249,6 +249,16 @@ public class OrderService implements InitializingBean {
                         return val;
                     }).addAndGet(qty);
                 });
+
+        // Update Customer Loyalty Cohort metrics for delivered orders
+        try {
+            List<Order> deliveredOrders = this.orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED);
+            if (deliveredOrders != null && !deliveredOrders.isEmpty()) {
+                syncCustomerLoyaltyCohortMetrics(deliveredOrders);
+            }
+        } catch (Exception e) {
+            log.warn("Non-fatal: Failed to refresh loyalty cohort metrics upon delivery: {}", e.getMessage());
+        }
     }
 
     public synchronized void syncDatabaseMetrics() {
@@ -491,6 +501,10 @@ public class OrderService implements InitializingBean {
 
             // Release idempotency lock in Redis so client can retry cleanly
             this.idempotencyManager.releaseLock(idempotencyKey);
+
+            if (ex instanceof CompletionException completionException && completionException.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
 
             throw ex;
         }

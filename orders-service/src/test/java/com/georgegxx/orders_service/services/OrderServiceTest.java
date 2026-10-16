@@ -2,6 +2,9 @@ package com.georgegxx.orders_service.services;
 
 import com.georgegxx.orders_service.clients.InventoryClient;
 import com.georgegxx.orders_service.clients.ProductsClient;
+import com.georgegxx.orders_service.exceptions.InsufficientStockException;
+import com.georgegxx.orders_service.model.dtos.OrderItemsRequest;
+import com.georgegxx.orders_service.model.dtos.OrderRequest;
 import com.georgegxx.orders_service.model.dtos.OrderResponse;
 import com.georgegxx.orders_service.model.entities.Order;
 import com.georgegxx.orders_service.model.entities.OrderItems;
@@ -110,11 +113,12 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("deliverOrder updates order status to DELIVERED and publishes event")
+    @DisplayName("deliverOrder updates order status to DELIVERED, publishes event, and updates loyalty cohorts")
     void testDeliverOrder() {
         sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
         when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED)).thenReturn(List.of(sampleOrder));
 
         OrderResponse response = orderService.deliverOrder(1L);
 
@@ -122,6 +126,36 @@ class OrderServiceTest {
         assertEquals(OrderStatus.DELIVERED, response.orderStatus());
         verify(orderRepository).save(sampleOrder);
         verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
+
+        // Assert customer loyalty cohort gauge is updated in real time upon delivery
+        assertEquals(1.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "first_time").gauge().value());
+        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "repeat").gauge().value());
+        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "loyal_vip").gauge().value());
+    }
+
+    @Test
+    @DisplayName("delivering multiple orders updates repeat and loyal_vip loyalty cohorts")
+    void testDeliverOrder_UpdatesRepeatAndVipCohorts() {
+        sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
+        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // User "user-123" has 2 delivered orders -> repeat cohort
+        Order secondOrder = Order.builder()
+                .id(2L)
+                .orderNumber("ORD-TEST-002")
+                .orderStatus(OrderStatus.DELIVERED)
+                .userId("user-123")
+                .totalAmount(50.0)
+                .build();
+        when(orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED))
+                .thenReturn(List.of(sampleOrder, secondOrder));
+
+        orderService.deliverOrder(1L);
+
+        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "first_time").gauge().value());
+        assertEquals(2.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "repeat").gauge().value());
+        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "loyal_vip").gauge().value());
     }
 
     @Test
@@ -315,5 +349,29 @@ class OrderServiceTest {
         verify(inventoryClient).decrementStock(any());
         verify(kafkaTemplate).send(eq("orders-topic"), anyString(), anyString());
         verify(idempotencyManager).saveCompleted(eq("key-new"), eq(req), any(OrderResponse.class));
+    }
+
+    @Test
+    @DisplayName("placeOrder unwraps CompletionException and throws InsufficientStockException when stock check fails")
+    void testPlaceOrder_InsufficientStock_ThrowsInsufficientStockException() {
+        OrderItemsRequest item = OrderItemsRequest.builder()
+                .sku("000001")
+                .price(199.99)
+                .quantity(5L)
+                .build();
+        OrderRequest req = new OrderRequest();
+        req.setOrderItems(List.of(item));
+
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
+        when(inventoryClient.checkStock(any()))
+                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(new String[]{"Item out of stock"}));
+
+        assertThrows(InsufficientStockException.class, () ->
+                orderService.placeOrder(req, "key-fail-stock", "user-123", "johndoe")
+        );
+
+        verify(idempotencyManager).releaseLock("key-fail-stock");
     }
 }
