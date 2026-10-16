@@ -51,21 +51,21 @@ export const ProductQRModal: React.FC<ProductQRModalProps> = ({ product, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
-      <div className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-6 text-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+      <div className="relative w-full max-w-sm bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 sm:p-6 text-center">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
         >
           <X className="w-4 h-4" />
         </button>
 
-        <h3 className="text-lg font-bold text-white mb-1">Product Barcode Label</h3>
-        <p className="text-xs text-slate-400 mb-4">{product.name}</p>
+        <h3 className="text-base sm:text-lg font-bold text-white mb-1">Product Barcode Label</h3>
+        <p className="text-xs text-slate-400 mb-4 truncate px-2">{product.name}</p>
 
         {/* QR Canvas */}
-        <div className="bg-white p-4 rounded-xl inline-block shadow-inner mb-4">
-          <canvas ref={canvasRef} className="mx-auto block" />
+        <div className="bg-white p-3 sm:p-4 rounded-xl inline-block shadow-inner mb-4 max-w-full">
+          <canvas ref={canvasRef} className="mx-auto block max-w-full h-auto" />
         </div>
 
         <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3 mb-4 text-left">
