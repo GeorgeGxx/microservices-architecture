@@ -105,35 +105,38 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   const hasActiveFilters = Boolean(searchQuery || favoritesOnly || selectedCategory !== 'All' || inStockOnly || maxPrice < 3000);
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
-      {/* Hero Banner with Modern Glassmorphism */}
-      <div className="relative overflow-hidden rounded-3xl glass-card p-8 md:p-12 border border-slate-800">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-96 h-96 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
+    <div className="space-y-6 animate-in fade-in duration-300">
+      {/* Compact Hero Banner with Optimized Distribution */}
+      <div className="relative overflow-hidden rounded-2xl glass-card px-6 py-5 md:px-8 md:py-6 border border-slate-800">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 -mb-10 -ml-10 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-2xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Spring Boot 4.0.8 & Apollo Federation 2.3 Supergraph</span>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-5">
+          <div className="space-y-2 max-w-3xl">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span>Spring Boot 4.0.8 & Apollo Federation 2.3 Supergraph</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-snug">
+              Precision Electronics & Enterprise Catalog
+            </h1>
+            <p className="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-2xl">
+              Live federated multi-service inventory orchestration with sub-millisecond GC pauses and zero blocking queries.
+            </p>
           </div>
-          <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight mb-4">
-            Precision Electronics & Enterprise Catalog
-          </h1>
-          <p className="text-slate-400 text-sm md:text-base leading-relaxed mb-6">
-            Live federated multi-service inventory orchestration with sub-millisecond GC pauses and zero blocking queries.
-          </p>
-          <div className="flex flex-wrap items-center gap-6 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
-              <span>Real-Time Subgraph Sync</span>
+
+          <div className="flex flex-wrap lg:flex-col xl:flex-row items-start lg:items-end xl:items-center gap-2 sm:gap-2.5 text-xs">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 shadow-sm">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span className="whitespace-nowrap font-medium">Real-Time Subgraph Sync</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-indigo-400" />
-              <span>Strict OTel Distributed Tracing</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 shadow-sm">
+              <CheckCircle className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="whitespace-nowrap font-medium">Strict OTel Distributed Tracing</span>
             </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-amber-400" />
-              <span>Carrier Reference on Orders</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300 shadow-sm">
+              <CheckCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="whitespace-nowrap font-medium">Carrier Reference on Orders</span>
             </div>
           </div>
         </div>
