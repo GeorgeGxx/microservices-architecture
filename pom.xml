@@ -34,6 +34,10 @@
 		<maven.compiler.target>21</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<springdoc.version>3.1.0</springdoc.version>
+		<!-- SonarCloud & Quality Gate Properties -->
+		<sonar.java.binaries>target/classes</sonar.java.binaries>
+		<sonar.java.test.binaries>target/test-classes</sonar.java.test.binaries>
+		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
 	</properties>
 
 	<modules>
@@ -76,6 +80,35 @@
 	</dependencyManagement>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<version>3.14.1</version>
+					<configuration>
+						<parameters>true</parameters>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>3.5.2</version>
+					<configuration>
+						<argLine>@{argLine} -XX:+TieredCompilation -XX:TieredStopAtLevel=1</argLine>
+						<includes>
+							<include>**/*Test.java</include>
+							<include>**/*Tests.java</include>
+						</includes>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.sonarsource.scanner.maven</groupId>
+					<artifactId>sonar-maven-plugin</artifactId>
+					<version>5.2.0.4988</version>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<plugin>
 				<groupId>org.jacoco</groupId>
@@ -115,9 +148,13 @@
 							</rules>
 							<excludes>
 								<exclude>**/dto/**</exclude>
+								<exclude>**/dtos/**</exclude>
+								<exclude>**/model/dtos/**</exclude>
 								<exclude>**/entities/**</exclude>
+								<exclude>**/model/entities/**</exclude>
 								<exclude>**/config/**</exclude>
 								<exclude>**/utils/DataLoader.*</exclude>
+								<exclude>**/*Application.*</exclude>
 							</excludes>
 						</configuration>
 					</execution>
