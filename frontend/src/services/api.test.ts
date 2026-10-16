@@ -59,3 +59,40 @@ describe('extractApiErrorMessage', () => {
     expect(emptyResult).toBe('Server Error [HTTP 500]');
   });
 });
+
+describe('fetchInventoryBySku', () => {
+  it('returns parsed inventory detail when response is ok', async () => {
+    const mockDetail = { id: 1, sku: 'LAPTOP-PRO-01', quantity: 15, isInStock: true };
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => mockDetail,
+    } as Response);
+
+    try {
+      const { fetchInventoryBySku } = await import('./api');
+      const result = await fetchInventoryBySku('LAPTOP-PRO-01');
+      expect(result).toEqual(mockDetail);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('returns null on 404 status', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 404,
+    } as Response);
+
+    try {
+      const { fetchInventoryBySku } = await import('./api');
+      const result = await fetchInventoryBySku('NON-EXISTENT');
+      expect(result).toBeNull();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
