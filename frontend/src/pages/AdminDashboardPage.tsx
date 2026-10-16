@@ -178,10 +178,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
         fetchInventories(user?.token),
       ]);
 
-      if (prodRes.status === 'fulfilled') {
-        setProducts(prodRes.value || []);
-        onCatalogChange?.();
-      }
+      if (prodRes.status === 'fulfilled') setProducts(prodRes.value || []);
       if (ordRes.status === 'fulfilled') setOrders(ordRes.value || []);
       if (invRes.status === 'fulfilled') setInventories(invRes.value || []);
     } catch {
@@ -189,7 +186,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
     } finally {
       refreshInProgress.current = false;
     }
-  }, [user?.token, onCatalogChange]);
+  }, [user?.token]);
 
   useEffect(() => {
     void loadDashboardData();
@@ -323,6 +320,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
         showToast('Product Updated', `${payload.name} was updated in products-service.`, 'order');
         resetProductForm();
         await loadDashboardData();
+        onCatalogChange?.();
         return;
       }
 
@@ -343,6 +341,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       }
 
       await loadDashboardData();
+      onCatalogChange?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to register product';
       showToast(editingProduct ? 'Product Update Failed' : 'Product Creation Failed', msg, 'system');
@@ -361,6 +360,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       showToast('Inventory Initialized', `${pendingItem.sku} now has ${pendingItem.quantity} units.`, 'stock');
       setPendingStockInitializations((pending) => pending.filter((item) => item.sku !== pendingItem.sku));
       await loadDashboardData();
+      onCatalogChange?.();
     } catch (err: unknown) {
       showToast('Inventory Retry Failed', err instanceof Error ? err.message : 'Could not initialize inventory.', 'system');
     } finally {
@@ -375,6 +375,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       await deleteProduct(id, user?.token);
       showToast('Product Removed', `Product ${name} has been removed.`, 'system');
       await loadDashboardData();
+      onCatalogChange?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not delete product';
       showToast('Delete Failed', msg, 'system');
@@ -391,6 +392,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       setInventories((prev) =>
         prev.map((i) => (i.sku === sku ? { ...i, quantity: nextQty, isInStock: nextQty > 0 } : i))
       );
+      onCatalogChange?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Stock update failed';
       showToast('Update Failed', msg, 'system');
@@ -420,6 +422,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
       );
       setInventoryForm({ sku: '', quantity: 50 });
       await loadDashboardData();
+      onCatalogChange?.();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Could not allocate inventory';
       showToast('Inventory Error', msg, 'system');

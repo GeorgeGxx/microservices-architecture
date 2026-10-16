@@ -37,24 +37,25 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const normalizedQuery = query.trim().toLowerCase();
 
-  // Sort newest items first (so newly created manual products are immediately visible)
+  // Must declare all hooks BEFORE any early return (React Rules of Hooks)
   const filteredProducts = useMemo(() => {
-    const list = [...products].reverse();
+    if (!isOpen) return [];
+    const list = [...(products || [])].reverse();
     if (!normalizedQuery) {
       return list;
     }
     return list.filter(
       (p) =>
-        p.name.toLowerCase().includes(normalizedQuery) ||
-        p.sku.toLowerCase().includes(normalizedQuery) ||
+        (p.name && p.name.toLowerCase().includes(normalizedQuery)) ||
+        (p.sku && p.sku.toLowerCase().includes(normalizedQuery)) ||
         (p.category && p.category.toLowerCase().includes(normalizedQuery)) ||
         (p.description && p.description.toLowerCase().includes(normalizedQuery))
     );
-  }, [products, normalizedQuery]);
+  }, [products, normalizedQuery, isOpen]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
@@ -123,7 +124,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       </div>
                     </div>
                     <span className="text-xs font-mono font-bold text-slate-300 ml-2 shrink-0">
-                      ${p.price.toFixed(2)}
+                      ${typeof p.price === 'number' ? p.price.toFixed(2) : Number(p.price || 0).toFixed(2)}
                     </span>
                   </button>
                 ))}
