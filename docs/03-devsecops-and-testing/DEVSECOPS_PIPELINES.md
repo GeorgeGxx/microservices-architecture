@@ -89,7 +89,15 @@ The Minikube entrypoint handles local-cluster validation; the multi-cloud entryp
 # Commit/push the values change, wait for ArgoCD + stable Deployment Ready, then retire:
 .\platform-minikube.ps1 canary -Action retire -Namespace dev
 
-# 3. Multi-Cloud Terraform Planning & Deployment
+# 3. Fast Resume & Resource Teardown
+.\platform-minikube.ps1 down             # Safe pause (preserves database, volumes, and state)
+.\platform-minikube.ps1 start            # Fast resume in < 30s (bypasses Terraform & Gatekeeper)
+.\platform-minikube.ps1 start -WithoutIstio # Fast resume in lightweight mode
+.\platform-minikube.ps1 start -DeployCanary -CanaryImageTag "<immutable-image-tag>" # Fast resume with canary
+.\platform-minikube.ps1 up -Fast         # Equivalent to start
+.\platform-minikube.ps1 down -Destroy    # Complete purge of VM, volumes & state
+
+# 4. Multi-Cloud Terraform Planning & Deployment
 .\platform-multicloud.ps1 plan -Provider aws -Environment staging
 .\platform-multicloud.ps1 apply -Provider aws -Environment staging
 
