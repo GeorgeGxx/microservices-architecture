@@ -30,32 +30,32 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2 max-h-[90vh] overflow-y-auto">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-10 p-2 text-slate-400 hover:text-white bg-slate-950/60 rounded-full border border-slate-800 transition"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 p-2 text-slate-400 hover:text-white bg-slate-950/60 rounded-full border border-slate-800 transition"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Product Media */}
-        <div className="relative bg-slate-950 flex items-center justify-center p-6 border-b md:border-b-0 md:border-r border-slate-800">
+        <div className="relative bg-slate-950 flex items-center justify-center p-4 sm:p-6 border-b md:border-b-0 md:border-r border-slate-800">
           <img
             src={product.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'}
             alt={product.name}
-            className="w-full h-72 md:h-80 object-contain rounded-xl"
+            className="w-full h-56 sm:h-72 md:h-80 object-contain rounded-xl"
           />
           {product.isBestSeller && (
-            <span className="absolute top-4 left-4 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+            <span className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
               ⭐ Best Seller
             </span>
           )}
         </div>
 
         {/* Product Details */}
-        <div className="p-6 md:p-8 flex flex-col justify-between space-y-4">
+        <div className="p-4 sm:p-6 md:p-8 flex flex-col justify-between space-y-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -168,18 +168,18 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
             </div>
 
             {/* Guarantees */}
-            <div className="grid grid-cols-3 gap-2 pt-2 text-[11px] text-slate-500">
-              <div className="flex items-center gap-1.5">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 pt-2 text-[10px] sm:text-[11px] text-slate-500">
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                 <Truck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                <span>DHL Express</span>
+                <span className="truncate">DHL Express</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>2-Year Warranty</span>
+                <span className="truncate">2-Yr Warranty</span>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                 <RefreshCw className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                <span>30-Day Return</span>
+                <span className="truncate">30-Day Return</span>
               </div>
             </div>
           </div>

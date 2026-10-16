@@ -13,12 +13,12 @@ export const NotificationDrawer: React.FC = () => {
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
         onClick={() => setIsDrawerOpen(false)}
       />
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-slate-900 border-l border-slate-800 p-6 flex flex-col shadow-2xl">
+      <div className="fixed inset-y-0 right-0 max-w-full flex sm:pl-10 pl-0">
+        <div className="w-full sm:w-screen sm:max-w-md bg-slate-900 border-l border-slate-800 p-4 sm:p-6 flex flex-col shadow-2xl">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-indigo-400" />
-              <h3 className="text-lg font-bold text-white">Live Event Notifications</h3>
+              <h3 className="text-base sm:text-lg font-bold text-white">Live Event Notifications</h3>
             </div>
             <div className="flex items-center gap-2">
               <button

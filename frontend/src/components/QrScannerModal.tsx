@@ -580,68 +580,68 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in">
       <div className="relative w-full max-w-lg bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+        <div className="p-3.5 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
               <ScanLine className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5 sm:gap-2">
                 Agnostic QR & Barcode POS
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden xs:inline">
                   Microservices POS
                 </span>
               </h3>
-              <p className="text-xs text-slate-400">
+              <p className="text-[11px] sm:text-xs text-slate-400">
                 WebCam video scan, image upload & USB/Bluetooth HID listener
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition"
+            className="p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition shrink-0"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Mode Selector Tabs */}
-        <div className="flex border-b border-slate-800 bg-slate-950/40 p-1.5 gap-1.5">
+        <div className="flex border-b border-slate-800 bg-slate-950/40 p-1 sm:p-1.5 gap-1">
           <button
             onClick={() => setActiveTab('camera')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
+            className={`flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition ${
               activeTab === 'camera'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
             }`}
           >
-            <Camera className="w-3.5 h-3.5" />
-            Camera Scanner
+            <Camera className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Camera</span>
           </button>
           <button
             onClick={() => setActiveTab('file')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
+            className={`flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition ${
               activeTab === 'file'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
             }`}
           >
-            <Upload className="w-3.5 h-3.5" />
-            Upload File
+            <Upload className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Upload File</span>
           </button>
           <button
             onClick={() => setActiveTab('manual')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
+            className={`flex-1 py-2 px-1.5 sm:px-3 rounded-xl text-[11px] sm:text-xs font-semibold flex items-center justify-center gap-1.5 sm:gap-2 transition ${
               activeTab === 'manual'
                 ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
             }`}
           >
-            <Keyboard className="w-3.5 h-3.5" />
-            Manual / HID
+            <Keyboard className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Manual / HID</span>
           </button>
         </div>
 
