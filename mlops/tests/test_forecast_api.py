@@ -89,6 +89,205 @@ class ForecastApiTests(unittest.TestCase):
             self.assertEqual(run_id, fake_run_id)
             self.assertEqual(created, fake_created)
 
+    def test_require_admin_missing_or_invalid_bearer(self) -> None:
+        from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api.require_admin(None)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+        invalid_scheme = HTTPAuthorizationCredentials(scheme="Basic", credentials="abc")
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api.require_admin(invalid_scheme)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    @patch("forecast_api.jwks_client")
+    @patch("jwt.decode")
+    def test_require_admin_valid_token(self, mock_jwt_decode, mock_jwks_client) -> None:
+        from fastapi.security import HTTPAuthorizationCredentials
+
+        mock_jwk = MagicMock()
+        mock_jwk.key = "fake-key"
+        mock_client = MagicMock()
+        mock_client.get_signing_key_from_jwt.return_value = mock_jwk
+        mock_jwks_client.return_value = mock_client
+
+        mock_jwt_decode.return_value = {
+            "iss": "http://localhost:8181/realms/microservices-realm",
+            "realm_access": {"roles": ["ADMIN", "USER"]},
+        }
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="token123")
+        claims = forecast_api.require_admin(creds)
+        self.assertIn("ADMIN", claims["realm_access"]["roles"])
+
+    @patch("forecast_api.jwks_client")
+    @patch("jwt.decode")
+    def test_require_admin_forbidden_when_not_admin(self, mock_jwt_decode, mock_jwks_client) -> None:
+        from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
+        mock_jwk = MagicMock()
+        mock_jwk.key = "fake-key"
+        mock_client = MagicMock()
+        mock_client.get_signing_key_from_jwt.return_value = mock_jwk
+        mock_jwks_client.return_value = mock_client
+
+        mock_jwt_decode.return_value = {
+            "iss": "http://localhost:8181/realms/microservices-realm",
+            "realm_access": {"roles": ["USER"]},
+        }
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="token123")
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api.require_admin(creds)
+        self.assertEqual(ctx.exception.status_code, 403)
+
+    def test_clean_and_aggregate_sales_validations(self) -> None:
+        from fastapi import HTTPException
+
+        bad_df = pd.DataFrame([{"wrong_col": 1}])
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api._clean_and_aggregate_sales(bad_df, "test")
+        self.assertEqual(ctx.exception.status_code, 422)
+
+        empty_df = pd.DataFrame(columns=["date", "product_id", "units_sold"])
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api._clean_and_aggregate_sales(empty_df, "test")
+        self.assertEqual(ctx.exception.status_code, 422)
+
+        valid_df = pd.DataFrame([
+            {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": 5, "order_number": "SYNTH-1"},
+            {"date": "2026-10-02", "product_id": "SKU-A", "units_sold": 7, "order_number": "SYNTH-2"},
+        ])
+        agg, source = forecast_api._clean_and_aggregate_sales(valid_df, "real_sales")
+        self.assertEqual(source, "synthetic")
+        self.assertEqual(len(agg), 2)
+
+    def test_get_forecast_endpoint(self) -> None:
+        fake_model = MagicMock(spec=RandomForestRegressor)
+        fake_model.predict.return_value = np.array([12.0])
+        created = datetime(2026, 10, 15, tzinfo=timezone.utc)
+
+        start = date(2026, 9, 1)
+        rows = [
+            {"date": start + timedelta(days=i), "sku": "SKU-1", "units_sold": 10.0}
+            for i in range(12)
+        ]
+        history = pd.DataFrame(rows)
+
+        with patch("forecast_api.load_latest_model", return_value=(fake_model, "run-99", created)):
+            with patch("forecast_api._daily_history", return_value=(history, "synthetic", date(2026, 9, 1), date(2026, 9, 12))):
+                result = forecast_api.get_forecast({})
+                self.assertEqual(result["modelRunId"], "run-99")
+                self.assertEqual(result["dataSource"], "synthetic")
+                self.assertEqual(result["horizonDays"], 7)
+                self.assertEqual(len(result["products"]), 1)
+                self.assertEqual(result["products"][0]["sku"], "SKU-1")
+
+    def test_read_sales_file(self) -> None:
+        from fastapi import HTTPException
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_path = Path(temp_dir) / "test.csv"
+            pd.DataFrame([{"date": "2026-10-01", "product_id": "SKU-1", "units_sold": 10}]).to_csv(csv_path, index=False)
+            df = forecast_api._read_sales_file(csv_path)
+            self.assertEqual(len(df), 1)
+
+            parquet_path = Path(temp_dir) / "test.parquet"
+            pd.DataFrame([{"date": "2026-10-01", "product_id": "SKU-1", "units_sold": 10}]).to_parquet(parquet_path, index=False)
+            df_pq = forecast_api._read_sales_file(parquet_path)
+            self.assertEqual(len(df_pq), 1)
+
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api._read_sales_file(Path(temp_dir) / "missing.csv")
+            self.assertEqual(ctx.exception.status_code, 503)
+
+    def test_get_path_mtime(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            p = Path(temp_dir) / "file.txt"
+            p.write_text("hello")
+            self.assertGreater(forecast_api._get_path_mtime(p), 0.0)
+            self.assertEqual(forecast_api._get_path_mtime(Path(temp_dir) / "does_not_exist"), 0.0)
+
+    def test_load_latest_model_experiment_none(self) -> None:
+        from fastapi import HTTPException
+        mock_client = MagicMock()
+        mock_client.get_experiment_by_name.return_value = None
+        with patch("forecast_api.MlflowClient", return_value=mock_client):
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api.load_latest_model()
+            self.assertEqual(ctx.exception.status_code, 503)
+
+    def test_load_latest_model_champion_found(self) -> None:
+        mock_client = MagicMock()
+        mock_exp = MagicMock()
+        mock_exp.experiment_id = "exp-123"
+        mock_client.get_experiment_by_name.return_value = mock_exp
+
+        logged_model = MagicMock()
+        logged_model.name = "demand-forecast"
+        logged_model.status.name = "READY"
+        logged_model.source_run_id = "run-champ"
+        logged_model.model_uri = "models:/demand-forecast/1"
+        logged_model.creation_timestamp = 1760000000000
+
+        run = MagicMock()
+        run.info.status = "FINISHED"
+        run.info.run_id = "run-champ"
+        run.data.tags = {"model_role": "champion"}
+        run.data.metrics = {"rmse": 2.1, "mae": 1.5}
+
+        mock_client.search_logged_models.return_value = [logged_model]
+        mock_client.get_run.return_value = run
+
+        fake_model = MagicMock(spec=RandomForestRegressor)
+        with patch("forecast_api.MlflowClient", return_value=mock_client):
+            with patch("forecast_api._load_model", return_value=fake_model):
+                model, run_id, created = forecast_api.load_latest_model()
+                self.assertIs(model, fake_model)
+                self.assertEqual(run_id, "run-champ")
+
+    @patch("forecast_api.jwks_client")
+    @patch("jwt.decode")
+    def test_require_admin_invalid_issuer(self, mock_jwt_decode, mock_jwks_client) -> None:
+        from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
+        mock_jwk = MagicMock()
+        mock_jwk.key = "fake-key"
+        mock_client = MagicMock()
+        mock_client.get_signing_key_from_jwt.return_value = mock_jwk
+        mock_jwks_client.return_value = mock_client
+
+        mock_jwt_decode.return_value = {
+            "iss": "http://malicious-issuer.com/realms/other",
+            "realm_access": {"roles": ["ADMIN"]},
+        }
+        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="token123")
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api.require_admin(creds)
+        self.assertEqual(ctx.exception.status_code, 401)
+
+    def test_load_latest_model_fallback_to_active_when_empty(self) -> None:
+        fake_model = MagicMock(spec=RandomForestRegressor)
+        fake_created = datetime.now(timezone.utc)
+        forecast_api._ACTIVE_MODEL_ENTRY = (fake_model, "active-run", fake_created, 0.0)
+
+        mock_client = MagicMock()
+        mock_client.get_experiment_by_name.return_value = None
+        with patch("forecast_api.MlflowClient", return_value=mock_client):
+            model, run_id, _ = forecast_api.load_latest_model()
+            self.assertIs(model, fake_model)
+            self.assertEqual(run_id, "active-run")
+
+    def test_clean_sales_empty_after_negative_filter(self) -> None:
+        from fastapi import HTTPException
+        negative_df = pd.DataFrame([
+            {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": -5},
+        ])
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api._clean_and_aggregate_sales(negative_df, "test")
+        self.assertEqual(ctx.exception.status_code, 422)
+
 
 if __name__ == "__main__":
     unittest.main()

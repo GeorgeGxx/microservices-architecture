@@ -13,6 +13,21 @@ class DataContractViolation(ValueError):
     pass
 
 
+def _validate_event_items(items: Any) -> None:
+    if not isinstance(items, list) or len(items) == 0:
+        raise DataContractViolation("Event 'items' must be a non-empty list")
+
+    for idx, item in enumerate(items):
+        if not isinstance(item, dict):
+            raise DataContractViolation(f"Item at index {idx} must be a dictionary")
+        sku = item.get("sku")
+        if not sku or not isinstance(sku, str) or not sku.strip():
+            raise DataContractViolation(f"Item at index {idx} has invalid 'sku'")
+        quantity = item.get("quantity")
+        if not isinstance(quantity, (int, float)) or quantity <= 0:
+            raise DataContractViolation(f"Item at index {idx} must have positive quantity (got {quantity})")
+
+
 def validate_order_event(event: dict[str, Any]) -> bool:
     """Validate incoming Kafka order events before ingestion into the sales dataset."""
     if not isinstance(event, dict):
@@ -31,25 +46,11 @@ def validate_order_event(event: dict[str, Any]) -> bool:
         raise DataContractViolation("Event missing required 'orderCreatedAt' timestamp string")
 
     try:
-        # Validate ISO 8601 parsing
         datetime.fromisoformat(created_at.replace("Z", "+00:00"))
     except ValueError as exc:
         raise DataContractViolation(f"Invalid 'orderCreatedAt' timestamp format: {created_at}") from exc
 
-    items = event.get("items")
-    if not isinstance(items, list) or len(items) == 0:
-        raise DataContractViolation("Event 'items' must be a non-empty list")
-
-    for idx, item in enumerate(items):
-        if not isinstance(item, dict):
-            raise DataContractViolation(f"Item at index {idx} must be a dictionary")
-        sku = item.get("sku")
-        if not sku or not isinstance(sku, str) or not sku.strip():
-            raise DataContractViolation(f"Item at index {idx} has invalid 'sku'")
-        quantity = item.get("quantity")
-        if not isinstance(quantity, (int, float)) or quantity <= 0:
-            raise DataContractViolation(f"Item at index {idx} must have positive quantity (got {quantity})")
-
+    _validate_event_items(event.get("items"))
     return True
 
 

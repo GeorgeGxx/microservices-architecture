@@ -60,6 +60,7 @@ def generate_bounded_forecast(
         # Apply gentle day-of-week modulation if weekend
         day_val = bounded_val * (1.15 if target_date.weekday() in (4, 5) else 1.0)
         forecasts.append({
+            "sku": sku,
             "date": target_date.isoformat(),
             "predictedUnits": round(max(0.0, day_val), 1),
         })
