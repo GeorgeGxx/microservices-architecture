@@ -27,6 +27,32 @@ export interface InventoryPayload {
   quantity: number;
 }
 
+export function extractApiErrorMessage(errorText: string, status: number, defaultPrefix: string): string {
+  try {
+    const parsed = JSON.parse(errorText);
+    if (parsed.fields && typeof parsed.fields === 'object') {
+      const fieldList = Object.entries(parsed.fields)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+      if (fieldList) return fieldList;
+    }
+    if (parsed.detail) {
+      if (typeof parsed.detail === 'object') {
+        const detailList = Object.entries(parsed.detail)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ');
+        if (detailList) return detailList;
+      }
+      return String(parsed.detail);
+    }
+    if (parsed.message) return parsed.message;
+    if (parsed.error) return parsed.error;
+    return JSON.stringify(parsed);
+  } catch {
+    return errorText || `${defaultPrefix} [HTTP ${status}]`;
+  }
+}
+
 export async function createProduct(payload: CreateProductPayload, token?: string): Promise<void> {
   const headers = await createHeaders(token, true);
 
@@ -38,12 +64,7 @@ export async function createProduct(payload: CreateProductPayload, token?: strin
 
   if (!res.ok) {
     const errorText = await res.text();
-    let msg = `Failed to create product [HTTP ${res.status}]`;
-    try {
-      const parsed = JSON.parse(errorText);
-      msg = parsed.message || parsed.error || JSON.stringify(parsed);
-    } catch {}
-    throw new Error(msg);
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to create product'));
   }
 }
 
@@ -58,7 +79,7 @@ export async function updateProduct(id: string | number, payload: CreateProductP
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Failed to update product [HTTP ${res.status}]: ${errorText}`);
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to update product'));
   }
 }
 
@@ -72,7 +93,7 @@ export async function deleteProduct(id: string | number, token?: string): Promis
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Failed to delete product [HTTP ${res.status}]: ${errorText}`);
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to delete product'));
   }
 }
 
@@ -87,12 +108,7 @@ export async function saveOrUpdateStock(payload: InventoryPayload, token?: strin
 
   if (!res.ok) {
     const errorText = await res.text();
-    let msg = `Failed to update inventory [HTTP ${res.status}]`;
-    try {
-      const parsed = JSON.parse(errorText);
-      msg = parsed.message || parsed.error || JSON.stringify(parsed);
-    } catch {}
-    throw new Error(msg);
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to update inventory'));
   }
 }
 
@@ -106,6 +122,6 @@ export async function updateStockQuantity(sku: string, quantity: number, token?:
 
   if (!res.ok) {
     const errorText = await res.text();
-    throw new Error(`Failed to adjust stock [HTTP ${res.status}]: ${errorText}`);
+    throw new Error(extractApiErrorMessage(errorText, res.status, 'Failed to adjust stock'));
   }
 }

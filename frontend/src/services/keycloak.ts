@@ -1,21 +1,24 @@
 import Keycloak from 'keycloak-js';
 import { UserProfile } from '../types';
 
+const isBrowser = typeof window !== 'undefined';
 const localFrontendHosts = new Set(['localhost', '127.0.0.1']);
-const isLocalFrontend = localFrontendHosts.has(window.location.hostname);
+const isLocalFrontend = isBrowser && localFrontendHosts.has(window.location.hostname);
 
 const keycloakConfig = {
   // Local Compose/Minikube uses the dedicated forwarded Keycloak port. Behind
   // the shared Istio host, /realms, /resources, /admin, and /js are routed to
   // Keycloak at the origin root; there is no /auth context path.
-  url: isLocalFrontend
-    ? `${window.location.protocol}//${window.location.hostname}:8181`
-    : window.location.origin,
+  url: isBrowser
+    ? (isLocalFrontend
+        ? `${window.location.protocol}//${window.location.hostname}:8181`
+        : window.location.origin)
+    : 'http://localhost:8181',
   realm: 'microservices-realm',
   clientId: 'microservices_frontend',
 };
 
-export const keycloak = new Keycloak(keycloakConfig);
+export const keycloak = isBrowser ? new Keycloak(keycloakConfig) : ({} as Keycloak);
 
 let isInitialized = false;
 let tokenRefreshInProgress: Promise<boolean> | null = null;
