@@ -136,6 +136,7 @@ jobs:
           name: surefire-${{ inputs.service-name }}
           path: |
             ${{ inputs.service-dir }}/target/classes/
+            ${{ inputs.service-dir }}/target/test-classes/
             ${{ inputs.service-dir }}/target/surefire-reports/
             ${{ inputs.service-dir }}/target/site/jacoco/
           retention-days: 7
@@ -300,6 +301,8 @@ jobs:
             -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.java.binaries=target/classes \
+            -Dsonar.java.test.binaries=target/test-classes \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
@@ -395,6 +398,12 @@ jobs:
           fi
           : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
           cd "${{ inputs.service-dir }}"
+          EXCLUSIONS="tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py"
+          if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
+            EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py"
+          elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
+            EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,forecast_api.py"
+          fi
           npx --yes sonar-scanner \
             -Dsonar.projectKey=msa-${{ inputs.service-name }} \
             -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
@@ -402,7 +411,7 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=. \
             -Dsonar.tests=tests \
-            -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py \
+            -Dsonar.exclusions="$EXCLUSIONS" \
             -Dsonar.coverage.exclusions=generate_sample_sales.py,test_tdd.py \
             -Dsonar.python.coverage.reportPaths=coverage.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
