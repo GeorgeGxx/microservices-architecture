@@ -32,23 +32,8 @@ interface NavbarProps {
   isFavoritesFilterActive?: boolean;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({
-  activeTab,
-  setActiveTab,
-  searchQuery,
-  setSearchQuery,
-  onOpenCommandPalette,
-  onOpenQrScanner,
-  onToggleFavoritesFilter,
-  isFavoritesFilterActive = false,
-}) => {
-  const { itemCount, setIsCartOpen } = useCart();
-  const { unreadCount, setIsDrawerOpen, showToast } = useNotifications();
-  const { wishlist } = useWishlist();
-  const { user, login, logout } = useAuth();
+function useStorefrontHealthStatus(): StorefrontHealth {
   const [storefrontHealth, setStorefrontHealth] = useState<StorefrontHealth>('checking');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -81,6 +66,27 @@ export const Navbar: React.FC<NavbarProps> = ({
     };
   }, []);
 
+  return storefrontHealth;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  activeTab,
+  setActiveTab,
+  searchQuery,
+  setSearchQuery,
+  onOpenCommandPalette,
+  onOpenQrScanner,
+  onToggleFavoritesFilter,
+  isFavoritesFilterActive = false,
+}) => {
+  const { itemCount, setIsCartOpen } = useCart();
+  const { unreadCount, setIsDrawerOpen, showToast } = useNotifications();
+  const { wishlist } = useWishlist();
+  const { user, login, logout } = useAuth();
+  const storefrontHealth = useStorefrontHealthStatus();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
   const healthLabel = {
     checking: 'Checking storefront API',
     healthy: 'Cosmo Router and Products subgraph reachable',
@@ -110,13 +116,14 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         {/* Brand / Logo */}
         <div className="flex items-center gap-3 sm:gap-6 shrink-0">
-          <div
+          <button
+            type="button"
             onClick={() => {
               setActiveTab('catalog');
               setSearchQuery('');
               setIsMobileMenuOpen(false);
             }}
-            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group"
+            className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group border-none bg-transparent p-0 text-left"
           >
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-500 p-0.5 shadow-lg shadow-indigo-500/25 group-hover:scale-105 transition-transform flex items-center justify-center shrink-0">
               <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
@@ -124,6 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div>
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1 sm:gap-1.5">
                 NOVASHOP
+                {' '}
                 <span className="relative flex h-2 w-2" role="img" aria-label={healthLabel} title={healthLabel}>
                   {storefrontHealth === 'healthy' && (
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -135,7 +143,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 FEDERATION v2
               </span>
             </div>
-          </div>
+          </button>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1">
@@ -338,7 +346,6 @@ export const Navbar: React.FC<NavbarProps> = ({
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
-              autoFocus
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);

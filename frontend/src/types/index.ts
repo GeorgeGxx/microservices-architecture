@@ -46,7 +46,7 @@ export interface Order {
   orderNumber: string;
   userId?: string;
   username?: string;
-  orderStatus: 'PLACED' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | string;
+  orderStatus: 'PLACED' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | (string & {});
   orderItems: OrderLineItem[];
   customerName?: string;
   customerEmail?: string;

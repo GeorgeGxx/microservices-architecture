@@ -85,27 +85,30 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cart = useMemo(() => [...aggregate.items], [aggregate]);
 
+  const contextValue = useMemo<CartContextType>(
+    () => ({
+      cart,
+      aggregate,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+      subtotal: aggregate.subtotalAmount,
+      shipping: aggregate.shippingAmount,
+      tax: aggregate.taxAmount,
+      total: aggregate.totalAmount,
+      itemCount: aggregate.itemCount,
+      qualifiesForFreeShipping: aggregate.qualifiesForFreeShipping,
+      remainingForFreeShipping: aggregate.remainingForFreeShipping,
+      freeShippingProgressPercent: aggregate.freeShippingProgressPercent,
+      isCartOpen,
+      setIsCartOpen,
+    }),
+    [cart, aggregate, isCartOpen]
+  );
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        aggregate,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        subtotal: aggregate.subtotalAmount,
-        shipping: aggregate.shippingAmount,
-        tax: aggregate.taxAmount,
-        total: aggregate.totalAmount,
-        itemCount: aggregate.itemCount,
-        qualifiesForFreeShipping: aggregate.qualifiesForFreeShipping,
-        remainingForFreeShipping: aggregate.remainingForFreeShipping,
-        freeShippingProgressPercent: aggregate.freeShippingProgressPercent,
-        isCartOpen,
-        setIsCartOpen,
-      }}
-    >
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   );

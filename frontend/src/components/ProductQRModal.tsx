@@ -35,7 +35,9 @@ export const ProductQRModal: React.FC<ProductQRModalProps> = ({ product, onClose
   if (!product) return null;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(product.sku);
+    void navigator.clipboard.writeText(product.sku).catch(() => {
+      // Ignore clipboard error
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

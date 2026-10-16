@@ -373,9 +373,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
         // 2. jsQR software fallback
         try {
-          if (!offscreenCanvasRef.current) {
-            offscreenCanvasRef.current = document.createElement('canvas');
-          }
+          offscreenCanvasRef.current ??= document.createElement('canvas');
           const canvas = offscreenCanvasRef.current;
           const vw = vid.videoWidth;
           const vh = vid.videoHeight;
@@ -394,7 +392,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               const qr = jsQR(imgData.data, targetW, targetH, {
                 inversionAttempts: 'attemptBoth',
               });
-              if (qr && qr.data) {
+              if (qr?.data) {
                 void handleCodeDetected(qr.data);
               }
             }
@@ -448,7 +446,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   }, [isOpen, activeTab, facingMode, startCamera, stopCamera]);
 
   // 3. File image decoding (jsQR + BarcodeDetector)
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -491,7 +489,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 const qr = jsQR(imgData.data, img.width, img.height, {
                   inversionAttempts: 'attemptBoth',
                 });
-                if (qr && qr.data) {
+                if (qr?.data) {
                   void handleCodeDetected(qr.data);
                   found = true;
                 }
@@ -501,7 +499,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
 
           // Filename match fallback
           if (!found) {
-            const nameMatch = file.name.match(/(LAPTOP-[A-Za-z0-9-]+|KEYBOARD-[A-Za-z0-9-]+|MOUSE-[A-Za-z0-9-]+|ORD-[A-Za-z0-9-]+)/i);
+            const nameMatch = file.name.match(/(?:LAPTOP|KEYBOARD|MOUSE|ORD)-[A-Z0-9-]+/i);
             if (nameMatch) {
               void handleCodeDetected(nameMatch[0]);
             } else {
@@ -590,7 +588,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5 sm:gap-2">
-                Agnostic QR & Barcode POS
+                Agnostic QR & Barcode POS{' '}
                 <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden xs:inline">
                   Microservices POS
                 </span>
@@ -756,11 +754,12 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
               </div>
 
               <form onSubmit={handleManualSubmit} className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">
+                <label htmlFor="qr-manual-entry" className="block text-xs font-semibold text-slate-300">
                   Manual SKU or Order ID Entry
                 </label>
                 <div className="flex gap-2">
                   <input
+                    id="qr-manual-entry"
                     type="text"
                     value={manualInput}
                     onChange={(e) => setManualInput(e.target.value)}
@@ -923,7 +922,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                   {/* Microservice Mutation Actions */}
                   <div className="flex items-center gap-2 pt-1">
                     {/* Admin Fulfillment Step: Ship */}
-                    {user?.isAdmin && matchedOrder && matchedOrder.orderStatus === 'PROCESSING' && (
+                    {user?.isAdmin && matchedOrder?.orderStatus === 'PROCESSING' && (
                       <button
                         onClick={() => void handleShipOrder()}
                         disabled={isFulfillingOrder}
@@ -935,7 +934,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                     )}
 
                     {/* Admin Fulfillment Step: Deliver */}
-                    {user?.isAdmin && matchedOrder && matchedOrder.orderStatus === 'SHIPPED' && (
+                    {user?.isAdmin && matchedOrder?.orderStatus === 'SHIPPED' && (
                       <button
                         onClick={() => void handleDeliverOrder()}
                         disabled={isFulfillingOrder}

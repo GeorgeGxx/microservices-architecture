@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
 import { AppNotification } from '../types';
 import { sseService } from '../services/sse';
 import { canUserReceiveNotification } from '../utils/notificationAudience';
@@ -90,7 +90,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     }
     recentToastKeys.current.set(toastKey, now + 5000);
 
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const id = `toast-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const newToast: Toast = { id, title, message, type };
     setToasts((prev) => [...prev, newToast]);
 
@@ -122,19 +122,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const unreadCount = user ? notifications.filter((n) => !n.read).length : 0;
 
+  const contextValue = useMemo(
+    () => ({
+      notifications,
+      toasts,
+      unreadCount,
+      markAllAsRead,
+      removeToast,
+      showToast,
+      isDrawerOpen,
+      setIsDrawerOpen,
+    }),
+    [notifications, toasts, unreadCount, isDrawerOpen]
+  );
+
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        toasts,
-        unreadCount,
-        markAllAsRead,
-        removeToast,
-        showToast,
-        isDrawerOpen,
-        setIsDrawerOpen,
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   );

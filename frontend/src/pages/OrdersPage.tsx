@@ -8,13 +8,11 @@ import {
   XCircle,
   FileText,
   Ban,
-  ExternalLink,
   ChevronDown,
   ChevronUp,
   MapPin,
   Calendar,
-  AlertCircle,
-  Lock
+  AlertCircle
 } from 'lucide-react';
 import { Pagination } from '../components/ui/Pagination';
 import { Order } from '../types';
@@ -153,8 +151,6 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
     paginatedOrders,
     totalOrders,
     totalPages,
-    startIndex,
-    endIndex,
   } = useMemo(() => {
     return processOrders(effectiveOrders, {
       searchTerm,
@@ -330,11 +326,11 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
       )}
 
       {/* Loading Skeleton */}
-      {loading ? (
+      {loading && (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div
-              key={i}
+              key={`order-skeleton-${i}`}
               className="glass-card rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800/80 animate-pulse space-y-4"
             >
               <div className="flex items-center justify-between">
@@ -345,8 +341,10 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
             </div>
           ))}
         </div>
-      ) : totalOrders === 0 ? (
-        /* Empty State */
+      )}
+
+      {/* Empty State */}
+      {!loading && totalOrders === 0 && (
         <div className="glass-card rounded-2xl border border-slate-200/80 dark:border-slate-800/80 p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto mb-4">
             <Package className="w-8 h-8" />
@@ -366,8 +364,10 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
             Explore Catalog
           </button>
         </div>
-      ) : (
-        /* Orders List (Sorted Newest-First and Paginated) */
+      )}
+
+      {/* Orders List (Sorted Newest-First and Paginated) */}
+      {!loading && totalOrders > 0 && (
         <div className="space-y-4">
           {paginatedOrders.map((order) => {
             const isExpanded = expandedOrders[order.id];
@@ -492,7 +492,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
                       <div className="space-y-2">
                         {order.orderItems?.map((item, idx) => (
                           <div
-                            key={idx}
+                            key={item.id || `${item.sku}-${idx}`}
                             className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 text-xs"
                           >
                             <div className="flex items-center gap-3">

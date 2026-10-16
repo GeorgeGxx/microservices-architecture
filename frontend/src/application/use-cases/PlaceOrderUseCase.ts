@@ -31,7 +31,7 @@ export class PlaceOrderUseCase {
       throw new Error('Cart cannot be empty to place an order.');
     }
 
-    if (!request.customerEmail || !request.customerEmail.includes('@')) {
+    if (!request.customerEmail?.includes('@')) {
       throw new Error('Please provide a valid email address.');
     }
 

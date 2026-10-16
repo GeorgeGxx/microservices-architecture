@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useMemo } from 'react';
 
 export type Currency = 'USD';
 
@@ -23,8 +23,13 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return `$${(amountInUSD || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const contextValue = useMemo<CurrencyContextType>(
+    () => ({ currency, setCurrency, formatPrice }),
+    [currency]
+  );
+
   return (
-    <CurrencyContext.Provider value={{ currency, setCurrency, formatPrice }}>
+    <CurrencyContext.Provider value={contextValue}>
       {children}
     </CurrencyContext.Provider>
   );

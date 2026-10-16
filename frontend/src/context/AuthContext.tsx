@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { UserProfile } from '../types';
 import { initKeycloak, getUserProfile, login, logout } from '../services/keycloak';
 
@@ -27,21 +27,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .then(() => {
         setUser(getUserProfile());
       })
+      .catch((err) => {
+        console.error('Keycloak initialization failed:', err);
+      })
       .finally(() => {
         setIsLoading(false);
       });
   }, []);
 
+  const contextValue = useMemo(
+    () => ({
+      user,
+      isAuthenticated: !!user,
+      isLoading,
+      login,
+      logout,
+    }),
+    [user, isLoading]
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated: !!user,
-        isLoading,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

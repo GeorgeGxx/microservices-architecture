@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import { Product } from '../../types';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useCart } from '../../context/CartContext';
@@ -46,24 +46,24 @@ export const ProductCard: React.FC<ProductCardProps> & {
 
   const isFavorited = isInWishlist(product.sku);
   const isInStock = product.isInStock !== false && (product.quantity === undefined || product.quantity > 0);
+  const contextValue = useMemo<ProductCardContextType>(
+    () => ({
+      product,
+      isInStock,
+      isFavorited,
+      toggleFavorite: () => toggleWishlist(product.sku),
+      onOpenQuickView,
+      onOpenQR,
+    }),
+    [product, isInStock, isFavorited, toggleWishlist, onOpenQuickView, onOpenQR]
+  );
 
   return (
-    <ProductCardContext.Provider
-      value={{
-        product,
-        isInStock,
-        isFavorited,
-        toggleFavorite: () => toggleWishlist(product.sku),
-        onOpenQuickView,
-        onOpenQR,
-      }}
-    >
+    <ProductCardContext.Provider value={contextValue}>
       <div
         className={`glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800/80 flex flex-col justify-between group hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all duration-300 ${className}`}
       >
-        {children ? (
-          children
-        ) : (
+        {children ?? (
           <>
             <ProductCard.Image />
             <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
@@ -127,15 +127,16 @@ ProductCard.Image = function ProductCardImage() {
 
       {/* Quick View Overlay on hover */}
       {onOpenQuickView && (
-        <div
+        <button
+          type="button"
           onClick={() => onOpenQuickView(product)}
-          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+          className="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer border-0 w-full h-full text-left"
         >
           <span className="px-3 py-1.5 rounded-xl bg-white/95 dark:bg-slate-900/95 text-slate-900 dark:text-white text-xs font-bold shadow-lg flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
             <Eye className="w-3.5 h-3.5 text-indigo-500" />
             Quick View
           </span>
-        </div>
+        </button>
       )}
     </div>
   );
@@ -155,11 +156,18 @@ ProductCard.Category = function ProductCardCategory() {
 ProductCard.Title = function ProductCardTitle() {
   const { product, onOpenQuickView } = useProductCardContext();
   return (
-    <h3
-      onClick={() => onOpenQuickView?.(product)}
-      className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors"
-    >
-      {product.name}
+    <h3 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2">
+      {onOpenQuickView ? (
+        <button
+          type="button"
+          onClick={() => onOpenQuickView(product)}
+          className="text-left font-bold text-sm text-slate-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-pointer transition-colors p-0 border-0 bg-transparent"
+        >
+          {product.name}
+        </button>
+      ) : (
+        product.name
+      )}
     </h3>
   );
 };

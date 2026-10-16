@@ -5,7 +5,7 @@ export class Money {
   public readonly currency: CurrencyCode;
 
   constructor(amount: number, currency: CurrencyCode = 'USD') {
-    if (isNaN(amount) || amount < 0) {
+    if (Number.isNaN(amount) || amount < 0) {
       this.amount = 0;
     } else {
       this.amount = Math.round(amount * 100) / 100;
@@ -25,7 +25,7 @@ export class Money {
     return new Money(this.amount * factor, 'USD');
   }
 
-  public convertTo(_targetCurrency: CurrencyCode = 'USD'): Money {
+  public convertTo(_targetCurrency: CurrencyCode = 'USD'): this {
     return this;
   }
 

@@ -42,7 +42,9 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
 
   const handleCopyTracking = () => {
     if (!tracking) return;
-    navigator.clipboard.writeText(tracking);
+    void navigator.clipboard.writeText(tracking).catch(() => {
+      // Ignore clipboard error
+    });
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -94,7 +96,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
           <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-800/80 text-xs">
             <span className="text-slate-400">Tracking reference:</span>
             {tracking ? <button
-              onClick={() => void handleCopyTracking()}
+              onClick={() => handleCopyTracking()}
               className="flex items-center gap-1 text-slate-200 font-mono text-[11px] bg-slate-900 px-2 py-1 rounded hover:bg-slate-800 transition"
             >
               {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}

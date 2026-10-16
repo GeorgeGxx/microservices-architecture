@@ -9,8 +9,10 @@ export const NotificationDrawer: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div
-        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+      <button
+        type="button"
+        aria-label="Close notifications backdrop"
+        className="absolute inset-0 w-full h-full bg-slate-950/60 backdrop-blur-sm transition-opacity border-none cursor-default p-0"
         onClick={() => setIsDrawerOpen(false)}
       />
       <div className="fixed inset-y-0 right-0 max-w-full flex sm:pl-10 pl-0">

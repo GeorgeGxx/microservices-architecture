@@ -56,7 +56,7 @@ export class CartAggregate {
 
   public addItem(product: Product, quantity = 1): CartAggregate {
     const existingIndex = this._items.findIndex((item) => item.product.sku === product.sku);
-    const availableStock = product.quantity !== undefined ? product.quantity : 999;
+    const availableStock = product.quantity ?? 999;
 
     let updated: CartItem[];
 
@@ -81,7 +81,7 @@ export class CartAggregate {
 
     const updated = this._items.map((item) => {
       if (item.product.sku === sku) {
-        const availableStock = item.product.quantity !== undefined ? item.product.quantity : 999;
+        const availableStock = item.product.quantity ?? 999;
         return { ...item, quantity: Math.min(availableStock, quantity) };
       }
       return item;

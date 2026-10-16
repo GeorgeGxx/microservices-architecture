@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product } from '../types';
-import { useCurrency } from '../context/CurrencyContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { ProductCard } from '../components/ui/ProductCard';
@@ -36,13 +35,12 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   onOpenQuickView,
   onOpenQR,
 }) => {
-  const { formatPrice } = useCurrency();
   const { wishlist, isInWishlist } = useWishlist();
   const { user, login } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [inStockOnly, setInStockOnly] = useState(false);
-  const [maxPrice, setMaxPrice] = useState<number>(3000);
+  const [maxPrice] = useState<number>(3000);
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
 
   // Pagination states
@@ -70,8 +68,8 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
         const matchesSearch = searchQuery
           ? p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
             p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-            (p.category && p.category.toLowerCase().includes(searchQuery.toLowerCase()))
+            Boolean(p.description?.toLowerCase().includes(searchQuery.toLowerCase())) ||
+            Boolean(p.category?.toLowerCase().includes(searchQuery.toLowerCase()))
           : true;
 
         const matchesFavorites = favoritesOnly ? isInWishlist(p.sku) : true;
@@ -294,11 +292,11 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
       </div>
 
       {/* Product Grid */}
-      {isLoading ? (
+      {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
+          {[...new Array(8)].map((_, i) => (
             <div
-              key={i}
+              key={`catalog-skel-${i}`}
               className="glass-card rounded-2xl p-4 border border-slate-800 space-y-4 animate-pulse"
             >
               <div className="w-full h-48 bg-slate-800/50 rounded-xl" />
@@ -308,7 +306,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
             </div>
           ))}
         </div>
-      ) : filteredProducts.length === 0 ? (
+      )}
+
+      {!isLoading && filteredProducts.length === 0 && (
         <div className="text-center py-24 glass-card rounded-3xl border border-slate-800">
           <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
           <h3 className="text-lg font-bold text-slate-300">No matching products found</h3>
@@ -327,7 +327,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
             Reset All Filters
           </button>
         </div>
-      ) : (
+      )}
+
+      {!isLoading && filteredProducts.length > 0 && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {paginatedProducts.map((product) => (
@@ -341,18 +343,16 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
           </div>
 
           {/* Full Pagination Toolbar */}
-          {filteredProducts.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              totalItems={filteredProducts.length}
-              pageSizeOptions={[8, 12, 24, 48]}
-              itemLabel="products"
-              onPageChange={setCurrentPage}
-              onPageSizeChange={setPageSize}
-            />
-          )}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={filteredProducts.length}
+            pageSizeOptions={[8, 12, 24, 48]}
+            itemLabel="products"
+            onPageChange={setCurrentPage}
+            onPageSizeChange={setPageSize}
+          />
         </div>
       )}
     </div>

@@ -48,10 +48,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     }
     return list.filter(
       (p) =>
-        (p.name && p.name.toLowerCase().includes(normalizedQuery)) ||
-        (p.sku && p.sku.toLowerCase().includes(normalizedQuery)) ||
-        (p.category && p.category.toLowerCase().includes(normalizedQuery)) ||
-        (p.description && p.description.toLowerCase().includes(normalizedQuery))
+        Boolean(p.name?.toLowerCase().includes(normalizedQuery)) ||
+        Boolean(p.sku?.toLowerCase().includes(normalizedQuery)) ||
+        Boolean(p.category?.toLowerCase().includes(normalizedQuery)) ||
+        Boolean(p.description?.toLowerCase().includes(normalizedQuery))
     );
   }, [products, normalizedQuery, isOpen]);
 
@@ -65,7 +65,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
           <Search className="w-5 h-5 text-slate-400 shrink-0 mr-2 sm:mr-3" />
           <input
             type="text"
-            autoFocus
             placeholder="Type a command or search products..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -79,7 +78,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         {/* Results List */}
         <div className="max-h-96 overflow-y-auto p-2 space-y-1">
           {/* Matching Products */}
-          {filteredProducts.length > 0 ? (
+          {filteredProducts.length > 0 && (
             <div className="mb-2">
               <div className="flex items-center justify-between px-3 py-1">
                 <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -130,11 +129,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                 ))}
               </div>
             </div>
-          ) : query.trim() ? (
+          )}
+
+          {filteredProducts.length === 0 && query.trim() !== '' && (
             <div className="px-3 py-3 text-center">
               <p className="text-xs text-slate-400">No products found matching "{query}"</p>
             </div>
-          ) : null}
+          )}
 
           {/* Quick Navigation Commands */}
           <div>

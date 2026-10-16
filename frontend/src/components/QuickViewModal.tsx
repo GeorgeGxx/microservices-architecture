@@ -71,9 +71,9 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
             {/* Ratings */}
             <div className="flex items-center gap-2 mb-3">
               <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => (
+                {[...new Array(5)].map((_, i) => (
                   <Star
-                    key={i}
+                    key={`star-${i}`}
                     className={`w-4 h-4 ${
                       i < Math.floor(product.rating || 4.8) ? 'fill-current' : 'text-slate-700'
                     }`}

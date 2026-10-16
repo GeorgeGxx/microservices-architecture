@@ -69,12 +69,12 @@ describe('SSEService live connection management', () => {
     activeInstance.onmessage?.({
       data: JSON.stringify({ title: 'Welcome', message: 'Hello user', orderNumber: 'ORD-123' }),
     });
-    expect(received.length).toBe(1);
+    expect(received).toHaveLength(1);
     expect(received[0].title).toBe('Welcome');
 
     // Trigger raw text message fallback
     activeInstance.onmessage?.({ data: 'Plain text alert' });
-    expect(received.length).toBe(2);
+    expect(received).toHaveLength(2);
     expect(received[1].title).toBe('System Notification');
 
     // Trigger ORDER_NOTIFICATION
@@ -84,7 +84,7 @@ describe('SSEService live connection management', () => {
     orderListener?.({
       data: JSON.stringify({ orderNumber: 'ORD-999', orderStatus: 'DELIVERED' }),
     });
-    expect(orderReceived.length).toBe(1);
+    expect(orderReceived).toHaveLength(1);
     expect(orderReceived[0].orderNumber).toBe('ORD-999');
 
     // Test error handler and reconnect

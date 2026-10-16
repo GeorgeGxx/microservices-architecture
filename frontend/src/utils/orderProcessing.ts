@@ -72,8 +72,8 @@ export function processOrders(
   const filtered = inverted.filter((order) => {
     const matchesSearch = normalizedSearch
       ? order.orderNumber.toLowerCase().includes(normalizedSearch) ||
-        (order.customerName && order.customerName.toLowerCase().includes(normalizedSearch)) ||
-        (order.trackingNumber && order.trackingNumber.toLowerCase().includes(normalizedSearch))
+        Boolean(order.customerName?.toLowerCase().includes(normalizedSearch)) ||
+        Boolean(order.trackingNumber?.toLowerCase().includes(normalizedSearch))
       : true;
 
     const matchesStatus =

@@ -9,6 +9,57 @@ interface OrderLivePipelineProps {
   initialStatus: string;
 }
 
+function getStageIcon(stageStatus: string) {
+  if (stageStatus === 'PLACED') return Clock;
+  if (stageStatus === 'SHIPPED') return Truck;
+  return CheckCircle2;
+}
+
+function getStepCircleClasses(isComplete: boolean, isCurrent: boolean): string {
+  if (isComplete) {
+    return 'scale-100 bg-emerald-500 text-white shadow-[0_0_18px_rgba(16,185,129,0.3)]';
+  }
+  if (isCurrent) {
+    return 'scale-110 bg-indigo-600 text-white shadow-[0_0_0_5px_rgba(99,102,241,0.15),0_0_22px_rgba(99,102,241,0.35)]';
+  }
+  return 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500';
+}
+
+function getStepTitleClasses(isPending: boolean, isComplete: boolean): string {
+  if (isPending) return 'text-slate-400 dark:text-slate-500';
+  if (isComplete) return 'text-emerald-600 dark:text-emerald-400';
+  return 'text-indigo-600 dark:text-indigo-300';
+}
+
+function getBadgeMeta(currentIndex: number) {
+  if (currentIndex === 2) {
+    return {
+      className: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+      Icon: CheckCircle2,
+      label: 'Delivered',
+    };
+  }
+  if (currentIndex === 1) {
+    return {
+      className: 'border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300',
+      Icon: Truck,
+      label: 'In transit',
+    };
+  }
+  if (currentIndex === 0) {
+    return {
+      className: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+      Icon: Clock,
+      label: 'Placed',
+    };
+  }
+  return {
+    className: 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300',
+    Icon: Clock,
+    label: 'Awaiting status',
+  };
+}
+
 export const OrderLivePipeline: React.FC<OrderLivePipelineProps> = ({
   orderNumber,
   carrier,
@@ -19,6 +70,8 @@ export const OrderLivePipeline: React.FC<OrderLivePipelineProps> = ({
   const isCancelled = status === 'CANCELLED';
   const currentIndex = getOrderFulfillmentStageIndex(status);
   const progress = currentIndex < 0 ? 0 : (currentIndex / (ORDER_FULFILLMENT_STAGES.length - 1)) * 100;
+  const badge = getBadgeMeta(currentIndex);
+  const BadgeIcon = badge.Icon;
 
   return (
     <section
@@ -63,24 +116,18 @@ export const OrderLivePipeline: React.FC<OrderLivePipelineProps> = ({
             />
             <ol className="relative grid grid-cols-3 gap-1">
               {ORDER_FULFILLMENT_STAGES.map(({ status: stageStatus, title, detail }, index) => {
-                const Icon = stageStatus === 'PLACED' ? Clock : stageStatus === 'SHIPPED' ? Truck : CheckCircle2;
+                const Icon = getStageIcon(stageStatus);
                 const isComplete = currentIndex > index;
                 const isCurrent = currentIndex === index;
                 const isPending = currentIndex < index;
+                const circleClasses = getStepCircleClasses(isComplete, isCurrent);
+                const titleClasses = getStepTitleClasses(isPending, isComplete);
                 return (
                   <li key={stageStatus} aria-current={isCurrent ? 'step' : undefined} className="flex min-w-0 flex-col items-center text-center">
-                    <span className={`relative z-10 mb-3 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white transition-[transform,background-color,box-shadow] duration-500 dark:ring-slate-900 ${
-                      isComplete
-                        ? 'scale-100 bg-emerald-500 text-white shadow-[0_0_18px_rgba(16,185,129,0.3)]'
-                        : isCurrent
-                        ? 'scale-110 bg-indigo-600 text-white shadow-[0_0_0_5px_rgba(99,102,241,0.15),0_0_22px_rgba(99,102,241,0.35)]'
-                        : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-                    }`}>
+                    <span className={`relative z-10 mb-3 flex h-8 w-8 items-center justify-center rounded-full ring-4 ring-white transition-[transform,background-color,box-shadow] duration-500 dark:ring-slate-900 ${circleClasses}`}>
                       {isComplete ? <Check className="h-4 w-4" /> : <Icon className={`h-4 w-4 ${isCurrent && stageStatus === 'SHIPPED' ? 'motion-safe:animate-pulse' : ''}`} />}
                     </span>
-                    <span className={`text-[11px] font-bold transition-colors duration-500 ${
-                      isPending ? 'text-slate-400 dark:text-slate-500' : isComplete ? 'text-emerald-600 dark:text-emerald-400' : 'text-indigo-600 dark:text-indigo-300'
-                    }`}>{title}</span>
+                    <span className={`text-[11px] font-bold transition-colors duration-500 ${titleClasses}`}>{title}</span>
                     <span className="mt-1 max-w-32 text-[10px] leading-relaxed text-slate-500 dark:text-slate-400">{detail}</span>
                   </li>
                 );
@@ -88,15 +135,9 @@ export const OrderLivePipeline: React.FC<OrderLivePipelineProps> = ({
             </ol>
           </div>
           <div className="mt-5 flex justify-center">
-            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${
-              currentIndex === 2
-                ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
-                : currentIndex === 1
-                ? 'border-indigo-500/20 bg-indigo-500/10 text-indigo-600 dark:text-indigo-300'
-                : 'border-amber-500/20 bg-amber-500/10 text-amber-700 dark:text-amber-300'
-            }`}>
-              {currentIndex === 1 ? <Truck className="h-3 w-3" /> : currentIndex === 2 ? <CheckCircle2 className="h-3 w-3" /> : <Clock className="h-3 w-3" />}
-              {currentIndex === 1 ? 'In transit' : currentIndex === 2 ? 'Delivered' : currentIndex === 0 ? 'Placed' : 'Awaiting status'}
+            <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${badge.className}`}>
+              <BadgeIcon className="h-3 w-3" />
+              {badge.label}
             </span>
           </div>
         </div>

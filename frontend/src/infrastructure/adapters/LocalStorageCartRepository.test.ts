@@ -55,9 +55,9 @@ describe('LocalStorageCartRepository', () => {
 
   it('clears stored cart items', () => {
     repo.save(sampleItems);
-    expect(repo.load().length).toBe(1);
+    expect(repo.load()).toHaveLength(1);
     repo.clear();
-    expect(repo.load().length).toBe(0);
+    expect(repo.load()).toHaveLength(0);
   });
 
   it('returns empty array when JSON.parse fails', () => {
