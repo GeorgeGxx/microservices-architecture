@@ -417,6 +417,15 @@ The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and
    * Automatically generates a cryptographically secure client UUIDv4 (`X-Idempotency-Key`) per transaction, preventing duplicate charges upon multiple clicks or transient network retries.
 7. **Real-Time Event-Driven Subscriptions (SSE):**
    * Background EventSource connection streaming live Kafka notifications from `notification-service` (`/api/notifications/subscribe`) directly to toast alerts and the slide-out drawer without HTTP polling.
+8. **Agnostic POS QR & Barcode Scanner Engine ([`QrScannerModal.tsx`](../../frontend/src/components/QrScannerModal.tsx)):**
+   * **Universal Dual-Engine Decoding:** Employs browser-native `BarcodeDetector` when available, seamlessly falling back to a pure TypeScript `jsQR` offscreen canvas decoder for 100% device and browser coverage.
+   * **Multi-Tier Camera Fallback:** Graceful degradation on WebCam initialization (ideal 720p facing lens ➔ unconstrained facing lens ➔ universal video) with zero DOM race conditions.
+   * **Bi-directional Spring Microservices Correlation:**
+     * **Inventory Service:** Authoritative live stock lookup (`GET /api/inventory/detail/{sku}`) and direct admin stock adjustment (`PUT /api/inventory/{sku}?quantity=...`).
+     * **Orders Service:** Instant receipt validation, live status tracking, and warehouse fulfillment mutations (`shipOrder`, `deliverOrder`).
+     * **Audit Funnel:** Non-blocking telemetry ingestion to `POST /api/order/funnel` (`QR_PRODUCT_SCANNED`, `QR_ORDER_SCANNED`).
+   * **Order Receipt Scannable QR ([`ReceiptModal.tsx`](../../frontend/src/components/ReceiptModal.tsx)):** Instant QR rendering and download for customer receipts.
+   * **DevSecOps Header Hardening:** Configured `Permissions-Policy: camera=(self), microphone=(), geolocation=()` in Nginx to permit storefront WebCam streaming while blocking unauthorized third-party iframe injection.
 
 ---
 
@@ -461,6 +470,7 @@ flowchart LR
 ### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
 * **JPA Entity Schema ([`Product.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to $256\text{ KiB}$ to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
 * **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](../../products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
+* **Input Validation & Field-Level Transparency:** [`ProductRequest.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) validates mandatory SKU pattern (`^[A-Z0-9\-]{6,20}$`) and safe product name punctuation (`^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9.,'\-()\"/&+%:#!*[\\] ]+$`, max 150 chars). The centralized `GlobalExceptionHandler` aggregates field violations into the `message` and `fields` response map, preventing error masking in client toasts.
 * **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through the products service.
 
 ### 3. 🎨 High-Fidelity Storefront Visual Integration
