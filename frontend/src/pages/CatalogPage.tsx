@@ -4,13 +4,12 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useAuth } from '../context/AuthContext';
 import { ProductCard } from '../components/ui/ProductCard';
+import { Pagination } from '../components/ui/Pagination';
 import {
   Sparkles,
   SlidersHorizontal,
   CheckCircle,
   AlertCircle,
-  ChevronLeft,
-  ChevronRight,
   Heart,
   X,
   Tag,
@@ -343,74 +342,16 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 
           {/* Full Pagination Toolbar */}
           {filteredProducts.length > 0 && (
-            <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                <span>
-                  Showing <strong className="text-white">{(currentPage - 1) * pageSize + 1}</strong> to{' '}
-                  <strong className="text-white">
-                    {Math.min(currentPage * pageSize, filteredProducts.length)}
-                  </strong>{' '}
-                  of <strong className="text-white">{filteredProducts.length}</strong> products
-                </span>
-                <div className="flex items-center gap-1.5 ml-1">
-                  <span className="text-slate-500">Per page:</span>
-                  {[8, 12, 24, 48].map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => {
-                        setPageSize(size);
-                        setCurrentPage(1);
-                      }}
-                      className={`px-2 py-1 rounded-lg text-xs font-mono font-semibold transition ${
-                        pageSize === size
-                          ? 'bg-indigo-600 text-white shadow-sm'
-                          : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40 transition"
-                    title="Previous Page"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setCurrentPage(p)}
-                        className={`w-8 h-8 rounded-xl text-xs font-bold font-mono transition ${
-                          currentPage === p
-                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25'
-                            : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-white disabled:opacity-40 transition"
-                    title="Next Page"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={filteredProducts.length}
+              pageSizeOptions={[8, 12, 24, 48]}
+              itemLabel="products"
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+            />
           )}
         </div>
       )}

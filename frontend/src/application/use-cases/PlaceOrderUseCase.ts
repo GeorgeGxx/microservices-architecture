@@ -1,17 +1,10 @@
 import { Order, PlaceOrderInput, CartItem } from '../../types';
 import { IOrderRepository } from '../../domain/repositories/IOrderRepository';
 import { orderRepository } from '../../infrastructure/adapters/GraphQLOrderRepository';
+import { CheckoutContextData } from './CheckoutFSM';
 
-export interface PlaceOrderRequest {
+export interface PlaceOrderRequest extends CheckoutContextData {
   items: ReadonlyArray<CartItem>;
-  customerName: string;
-  customerEmail: string;
-  shippingAddress: string;
-  city: string;
-  postalCode: string;
-  phone: string;
-  deliveryMethod: string;
-  paymentMethod: string;
 }
 
 export function createIdempotencyKey(): string {
