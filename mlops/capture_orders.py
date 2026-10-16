@@ -105,7 +105,7 @@ def run_python_capture(
             try:
                 event = json.loads(message.value.decode("utf-8"))
                 rows_written += _append_order_row(resolved_output, event, seen_orders)
-            except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            except (KeyError, TypeError, ValueError) as exc:
                 print(f"Skipping invalid order event at partition={message.partition}, offset={message.offset}: {exc}", flush=True)
             if max_messages and records_read >= max_messages:
                 break
@@ -144,10 +144,11 @@ def run_spark_capture(
         ]))),
     ])
 
+    ivy_dir = os.getenv("SPARK_IVY_DIR", str(Path.home() / ".ivy2"))
     spark = (SparkSession.builder.appName("orders-kafka-to-parquet")
              .master("local[*]")
              .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.9")
-             .config("spark.jars.ivy", "/tmp/.ivy2")
+             .config("spark.jars.ivy", ivy_dir)
              .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     try:

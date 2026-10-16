@@ -8,17 +8,18 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends openjdk-17-jre-headless \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN printf 'mlops:x:10001:10001:MLops:/tmp:/usr/sbin/nologin\n' >> /etc/passwd \
+    && rm -rf /var/lib/apt/lists/* \
+    && printf 'mlops:x:10001:10001:MLops:/tmp:/usr/sbin/nologin\n' >> /etc/passwd \
     && printf 'mlops:x:10001:\n' >> /etc/group
 
 WORKDIR /app
 COPY requirements.container.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --only-binary :all: -r requirements.txt
 
 COPY train_demand_model.py generate_sample_sales.py capture_orders.py model_invariants.py data_contracts.py feature_engineering.py ./
 COPY container_train.sh ./
 RUN chmod 0555 /app/container_train.sh
+
+USER mlops:mlops
 
 ENTRYPOINT ["/app/container_train.sh"]

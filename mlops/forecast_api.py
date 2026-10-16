@@ -8,7 +8,7 @@ from datetime import date, datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 from time import perf_counter
-from typing import Any
+from typing import Annotated, Any
 
 import jwt
 import mlflow
@@ -97,7 +97,7 @@ def _load_model(model_uri: str) -> RandomForestRegressor:
 
 
 def require_admin(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)] = None,
 ) -> dict[str, Any]:
     """Validate the Keycloak access token and require the ADMIN realm role."""
     if credentials is None or credentials.scheme.lower() != "bearer":
@@ -141,6 +141,29 @@ _ACTIVE_MODEL_ENTRY: tuple[RandomForestRegressor, str, datetime, float] | None =
 MODEL_CACHE_TTL_SEC = float(os.getenv("MLOPS_MODEL_CACHE_TTL_SEC", "60.0"))
 
 
+def _select_champion_or_best_model(client: MlflowClient, experiment_id: str) -> tuple[Any, Any] | None:
+    logged_models = client.search_logged_models(
+        experiment_ids=[experiment_id],
+        order_by=[{"field_name": "creation_time", "ascending": False}],
+        max_results=100,
+    )
+    valid_models: list[tuple[Any, Any]] = []
+    for logged_model in logged_models:
+        if (
+            logged_model.name != "demand-forecast"
+            or logged_model.status.name != "READY"
+            or not logged_model.source_run_id
+        ):
+            continue
+        run = client.get_run(logged_model.source_run_id)
+        if run.info.status != "FINISHED":
+            continue
+        valid_models.append((logged_model, run))
+        if run.data.tags.get("model_role") == "champion":
+            return logged_model, run
+    return valid_models[0] if valid_models else None
+
+
 def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
     global _ACTIVE_MODEL_ENTRY
     now_mono = perf_counter()
@@ -160,39 +183,13 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
                 return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
             raise HTTPException(status_code=503, detail="No trained demand model is available yet")
 
-        logged_models = client.search_logged_models(
-            experiment_ids=[experiment.experiment_id],
-            order_by=[{"field_name": "creation_time", "ascending": False}],
-            max_results=100,
-        )
-
-        chosen_logged_model = None
-        chosen_run = None
-        valid_models: list[tuple[Any, Any]] = []
-
-        for logged_model in logged_models:
-            if (
-                logged_model.name != "demand-forecast"
-                or logged_model.status.name != "READY"
-                or not logged_model.source_run_id
-            ):
-                continue
-            run = client.get_run(logged_model.source_run_id)
-            if run.info.status != "FINISHED":
-                continue
-            valid_models.append((logged_model, run))
-            if run.data.tags.get("model_role") == "champion":
-                chosen_logged_model, chosen_run = logged_model, run
-                break
-
-        if not chosen_logged_model and valid_models:
-            chosen_logged_model, chosen_run = valid_models[0]
-
-        if not chosen_logged_model or not chosen_run:
+        selected = _select_champion_or_best_model(client, experiment.experiment_id)
+        if not selected:
             if _ACTIVE_MODEL_ENTRY is not None:
                 return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
             raise HTTPException(status_code=503, detail="No successfully completed demand model is available")
 
+        chosen_logged_model, chosen_run = selected
         model = _load_model(chosen_logged_model.model_uri)
         created = datetime.fromtimestamp(
             chosen_logged_model.creation_timestamp / 1000, tz=timezone.utc
@@ -229,26 +226,16 @@ def _get_path_mtime(path: Path) -> float:
         return 0.0
 
 
-def _daily_history() -> tuple[pd.DataFrame, str, date, date]:
-    global _DAILY_HISTORY_CACHE
-    if not SALES_DATA_PATH.exists():
-        raise HTTPException(status_code=503, detail=f"Sales data is missing: {SALES_DATA_PATH.name}")
-
-    now_mono = perf_counter()
-    current_mtime = _get_path_mtime(SALES_DATA_PATH)
-    if _DAILY_HISTORY_CACHE is not None:
-        cached_df, cached_source, cached_min, cached_max, cached_at, cached_mtime = _DAILY_HISTORY_CACHE
-        if now_mono - cached_at < HISTORY_CACHE_TTL_SEC and cached_mtime == current_mtime:
-            return cached_df, cached_source, cached_min, cached_max
-
+def _read_sales_file(path: Path) -> pd.DataFrame:
     try:
-        if SALES_DATA_PATH.is_dir() or SALES_DATA_PATH.suffix.lower() == ".parquet":
-            sales = pd.read_parquet(SALES_DATA_PATH)
-        else:
-            sales = pd.read_csv(SALES_DATA_PATH)
-    except (OSError, ValueError, ImportError, pd.errors.ParserError) as exc:
+        if path.is_dir() or path.suffix.lower() == ".parquet":
+            return pd.read_parquet(path)
+        return pd.read_csv(path)
+    except (OSError, ValueError, ImportError) as exc:
         raise HTTPException(status_code=503, detail="Could not read the sales data") from exc
 
+
+def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.DataFrame, str]:
     required = {"date", "product_id", "units_sold"}
     if not required.issubset(sales.columns):
         raise HTTPException(status_code=422, detail="Sales data requires date, product_id, and units_sold columns")
@@ -272,12 +259,28 @@ def _daily_history() -> tuple[pd.DataFrame, str, date, date]:
         .rename(columns={"product_id": "sku"})
     )
     source = "captured-sales"
-    if "synthetic" in SALES_DATA_PATH.stem.lower():
+    if "synthetic" in file_stem.lower():
         source = "synthetic"
-    elif "order_number" in sales.columns:
-        all_synthetic = sales["order_number"].astype(str).str.startswith("SYNTH-").all()
-        if all_synthetic:
-            source = "synthetic"
+    elif "order_number" in sales.columns and sales["order_number"].astype(str).str.startswith("SYNTH-").all():
+        source = "synthetic"
+
+    return aggregated, source
+
+
+def _daily_history() -> tuple[pd.DataFrame, str, date, date]:
+    global _DAILY_HISTORY_CACHE
+    if not SALES_DATA_PATH.exists():
+        raise HTTPException(status_code=503, detail=f"Sales data is missing: {SALES_DATA_PATH.name}")
+
+    now_mono = perf_counter()
+    current_mtime = _get_path_mtime(SALES_DATA_PATH)
+    if _DAILY_HISTORY_CACHE is not None:
+        cached_df, cached_source, cached_min, cached_max, cached_at, cached_mtime = _DAILY_HISTORY_CACHE
+        if now_mono - cached_at < HISTORY_CACHE_TTL_SEC and cached_mtime == current_mtime:
+            return cached_df, cached_source, cached_min, cached_max
+
+    sales = _read_sales_file(SALES_DATA_PATH)
+    aggregated, source = _clean_and_aggregate_sales(sales, SALES_DATA_PATH.stem)
 
     min_date = min(aggregated["date"])
     max_date = max(aggregated["date"])
@@ -305,7 +308,7 @@ def _forecast_product(
     observed_values = daily.to_numpy(dtype=float).tolist()
     predictions: list[dict[str, Any]] = []
 
-    for offset in range(1, HORIZON_DAYS + 1):
+    for _ in range(1, HORIZON_DAYS + 1):
         prediction_date = observed_dates[-1] + timedelta(days=1)
         # pyspark.sql.functions.dayofweek numbers Sunday=1 through Saturday=7.
         spark_day_of_week = ((prediction_date.weekday() + 1) % 7) + 1
@@ -336,8 +339,16 @@ def health() -> dict[str, str]:
     return {"status": "UP"}
 
 
-@app.get("/api/forecast")
-def get_forecast(_: dict[str, Any] = Depends(require_admin)) -> dict[str, Any]:
+@app.get(
+    "/api/forecast",
+    responses={
+        401: {"description": "Unauthorized - Missing or invalid Bearer token"},
+        403: {"description": "Forbidden - ADMIN role required"},
+        422: {"description": "Unprocessable Entity - Invalid sales data"},
+        503: {"description": "Service Unavailable - Model or sales data unavailable"},
+    },
+)
+def get_forecast(_: Annotated[dict[str, Any], Depends(require_admin)]) -> dict[str, Any]:
     """Return daily SKU predictions for seven days after the last observed date."""
     model, run_id, model_created_at = load_latest_model()
     history, source, first_date, last_date = _daily_history()

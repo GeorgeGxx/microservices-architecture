@@ -183,7 +183,7 @@ jobs:
           fi
           pip install coverage
           if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            coverage run --source=${{ inputs.service-dir }} -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+            coverage run --source=${{ inputs.service-dir }} --omit="*/generate_sample_sales.py,*/test_tdd.py,*/tests/*" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
             coverage xml -o ${{ inputs.service-dir }}/coverage.xml
           fi
 
@@ -402,7 +402,8 @@ jobs:
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=. \
             -Dsonar.tests=tests \
-            -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/** \
+            -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py \
+            -Dsonar.coverage.exclusions=generate_sample_sales.py,test_tdd.py \
             -Dsonar.python.coverage.reportPaths=coverage.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 

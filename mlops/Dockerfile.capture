@@ -5,7 +5,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp
 
 WORKDIR /app
-RUN pip install --no-cache-dir "kafka-python==2.3.2" "python-snappy==0.7.3"
+RUN pip install --no-cache-dir --only-binary :all: "kafka-python==2.3.2" "python-snappy==0.7.3"
 COPY capture_orders.py ./
+
+USER 65532:65532
 
 ENTRYPOINT ["python", "/app/capture_orders.py", "--engine", "python"]

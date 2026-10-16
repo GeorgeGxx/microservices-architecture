@@ -26,7 +26,13 @@ def build_daily_spine(df: pd.DataFrame) -> pd.DataFrame:
         date_range = [min_date + timedelta(days=i) for i in range((max_date - min_date).days + 1)]
         spine = pd.DataFrame({"date": date_range, "product_id": product_id})
 
-        merged = pd.merge(spine, group[["date", "product_id", "units_sold"]], on=["date", "product_id"], how="left")
+        merged = pd.merge(
+            spine,
+            group[["date", "product_id", "units_sold"]],
+            on=["date", "product_id"],
+            how="left",
+            validate="1:1",
+        )
         merged["units_sold"] = merged["units_sold"].fillna(0.0).astype(float)
         result_frames.append(merged)
 
@@ -52,7 +58,7 @@ def add_calendar_features(df: pd.DataFrame) -> pd.DataFrame:
 
     result = df.copy()
     dates = pd.to_datetime(result["date"])
-    result["day_of_week"] = dates.dt.dayofweek  # 0=Monday, 6=Sunday
+    result["day_of_week"] = dates.dt.dayofweek
     result["day_of_year"] = dates.dt.dayofyear
     result["is_weekend"] = result["day_of_week"].isin([5, 6])
     return result
