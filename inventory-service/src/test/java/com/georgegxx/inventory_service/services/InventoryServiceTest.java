@@ -237,4 +237,93 @@ class InventoryServiceTest {
 
         verify(inventoryRepository).findAll();
     }
+
+    @Test
+    @DisplayName("getAllInventory returns mapped inventory responses")
+    void testGetAllInventory() {
+        when(inventoryRepository.findAll()).thenReturn(List.of(
+                Inventory.builder().id(1L).sku("SKU-1").quantity(10L).build(),
+                Inventory.builder().id(2L).sku("SKU-2").quantity(20L).build()
+        ));
+
+        List<InventoryResponse> all = inventoryService.getAllInventory();
+
+        assertEquals(2, all.size());
+        assertEquals("SKU-1", all.get(0).getSku());
+        assertEquals("SKU-2", all.get(1).getSku());
+    }
+
+    @Test
+    @DisplayName("initMetrics and registerAllSkuGauges configure gauges and metrics properly")
+    void testInitMetricsAndRegisterAllSkuGauges() {
+        when(inventoryRepository.findAll()).thenReturn(List.of(
+                Inventory.builder().id(1L).sku("SKU-LOW").quantity(2L).build()
+        ));
+
+        inventoryService.initMetrics();
+        inventoryService.registerAllSkuGauges();
+
+        assertNotNull(meterRegistry.find("ecommerce_inventory_stock_total").gauge());
+        assertNotNull(meterRegistry.find("ecommerce_inventory_sku_stock").tag("sku", "SKU-LOW").gauge());
+        assertNotNull(meterRegistry.find("ecommerce_inventory_low_stock_gauge").tag("sku", "SKU-LOW").gauge());
+    }
+
+    @Test
+    @DisplayName("areInStock, decrementStock and incrementStock handle null or empty lists safely")
+    void testNullOrEmptyOperations() {
+        BaseResponse areNull = inventoryService.areInStock(null);
+        assertNotNull(areNull);
+        assertFalse(areNull.hasErrors());
+
+        BaseResponse areEmpty = inventoryService.areInStock(Collections.emptyList());
+        assertNotNull(areEmpty);
+        assertFalse(areEmpty.hasErrors());
+
+        BaseResponse decNull = inventoryService.decrementStock(null);
+        assertNotNull(decNull);
+        assertFalse(decNull.hasErrors());
+
+        BaseResponse decEmpty = inventoryService.decrementStock(Collections.emptyList());
+        assertNotNull(decEmpty);
+        assertFalse(decEmpty.hasErrors());
+
+        BaseResponse incNull = inventoryService.incrementStock(null);
+        assertNotNull(incNull);
+        assertFalse(incNull.hasErrors());
+
+        BaseResponse incEmpty = inventoryService.incrementStock(Collections.emptyList());
+        assertNotNull(incEmpty);
+        assertFalse(incEmpty.hasErrors());
+    }
+
+    @Test
+    @DisplayName("updateStock handles null quantity and existing null quantity entity")
+    void testUpdateStock_NullQuantities() {
+        Inventory existingNullQty = Inventory.builder().id(1L).sku("SKU-NULL-QTY").quantity(null).build();
+        when(inventoryRepository.findBySkuWithLock("SKU-NULL-QTY")).thenReturn(Optional.of(existingNullQty));
+        when(inventoryRepository.save(any(Inventory.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        InventoryResponse response = inventoryService.updateStock("SKU-NULL-QTY", null);
+
+        assertEquals("SKU-NULL-QTY", response.getSku());
+        assertEquals(0L, response.getQuantity());
+    }
+
+    @Test
+    @DisplayName("areInStock filters null items, null skus and sums duplicate items")
+    void testAreInStock_DuplicateAndNullItems() {
+        List<OrderItemsRequest> items = new ArrayList<>();
+        items.add(null);
+        items.add(OrderItemsRequest.builder().sku(null).quantity(5L).build());
+        items.add(OrderItemsRequest.builder().sku("SKU-DUP").quantity(2L).build());
+        items.add(OrderItemsRequest.builder().sku("SKU-DUP").quantity(3L).build());
+
+        when(inventoryRepository.findBySkuIn(anyCollection())).thenReturn(List.of(
+                Inventory.builder().id(1L).sku("SKU-DUP").quantity(10L).build()
+        ));
+
+        BaseResponse response = inventoryService.areInStock(items);
+        assertNotNull(response);
+        assertFalse(response.hasErrors());
+    }
 }

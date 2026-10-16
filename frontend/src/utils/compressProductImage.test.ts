@@ -60,4 +60,66 @@ describe('compressProductImage utility', () => {
     expect(result).toBe('data:image/webp;base64,mockedbase64content');
     expect(mockBitmap.close).toHaveBeenCalled();
   });
+
+  it('throws if 2d canvas context is unavailable', async () => {
+    const file = new File(['valid'], 'photo.png', { type: 'image/png' });
+    const mockBitmap = { width: 100, height: 100, close: vi.fn() };
+    (globalThis as any).createImageBitmap = vi.fn().mockResolvedValue(mockBitmap);
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue(null),
+    };
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    await expect(compressProductImage(file)).rejects.toThrow('Image compression is not available in this browser.');
+    expect(mockBitmap.close).toHaveBeenCalled();
+  });
+
+  it('falls back to png when webp is not generated', async () => {
+    const file = new File(['valid'], 'photo.png', { type: 'image/png' });
+    const mockBitmap = { width: 400, height: 400, close: vi.fn() };
+    (globalThis as any).createImageBitmap = vi.fn().mockResolvedValue(mockBitmap);
+
+    let callCount = 0;
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue({ drawImage: vi.fn() }),
+      toBlob: vi.fn((cb) => {
+        callCount++;
+        // First call simulates browser rejecting webp, returning image/png
+        cb(new Blob(['fallback'], { type: callCount === 1 ? 'image/other' : 'image/png' }));
+      }),
+    };
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    (globalThis as any).FileReader = class {
+      result = 'data:image/png;base64,fallbackpng';
+      onload: (() => void) | null = null;
+      readAsDataURL() { this.onload?.(); }
+    };
+
+    const result = await compressProductImage(file);
+    expect(result).toBe('data:image/png;base64,fallbackpng');
+  });
+
+  it('throws error when image exceeds maximum allowed size even after lowest tier', async () => {
+    const file = new File(['valid'], 'huge.jpg', { type: 'image/jpeg' });
+    const mockBitmap = { width: 400, height: 400, close: vi.fn() };
+    (globalThis as any).createImageBitmap = vi.fn().mockResolvedValue(mockBitmap);
+
+    const hugeBlob = new Blob(['x'.repeat(300 * 1024)], { type: 'image/webp' });
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: vi.fn().mockReturnValue({ drawImage: vi.fn() }),
+      toBlob: vi.fn((cb) => cb(hugeBlob)),
+    };
+    (globalThis as any).document = { createElement: vi.fn().mockReturnValue(mockCanvas) };
+
+    await expect(compressProductImage(file)).rejects.toThrow('The image is still too large after compression. Choose a smaller image.');
+    expect(mockBitmap.close).toHaveBeenCalled();
+  });
 });

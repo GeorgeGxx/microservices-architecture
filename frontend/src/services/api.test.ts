@@ -201,5 +201,26 @@ describe('Product and Stock API Mutations', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it('throws descriptive error on failure for createProduct, updateProduct, deleteProduct, and stock adjustments', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: 'Action failed on server' }),
+    } as Response);
+
+    try {
+      const { createProduct, updateProduct, deleteProduct, saveOrUpdateStock, updateStockQuantity } = await import('./api');
+      
+      await expect(createProduct({ sku: 'ERR-1', name: 'Error item', price: 10, status: true })).rejects.toThrow('Action failed on server');
+      await expect(updateProduct('ERR-1', { sku: 'ERR-1', name: 'Error item', price: 10, status: true })).rejects.toThrow('Action failed on server');
+      await expect(deleteProduct('ERR-1')).rejects.toThrow('Action failed on server');
+      await expect(saveOrUpdateStock({ sku: 'ERR-1', quantity: 0 })).rejects.toThrow('Action failed on server');
+      await expect(updateStockQuantity('ERR-1', -5)).rejects.toThrow('Action failed on server');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 

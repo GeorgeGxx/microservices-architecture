@@ -374,4 +374,22 @@ class OrderServiceTest {
 
         verify(idempotencyManager).releaseLock("key-fail-stock");
     }
+
+    @Test
+    @DisplayName("shipOrder and deliverOrder update status and publish events")
+    void testShipAndDeliverOrder() {
+        Order order = Order.builder()
+                .id(7L)
+                .orderNumber("ORD-LOGISTICS")
+                .orderStatus(OrderStatus.PLACED)
+                .build();
+        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderResponse shipped = orderService.shipOrder(7L);
+        assertEquals(OrderStatus.SHIPPED, shipped.orderStatus());
+
+        OrderResponse delivered = orderService.deliverOrder(7L);
+        assertEquals(OrderStatus.DELIVERED, delivered.orderStatus());
+    }
 }

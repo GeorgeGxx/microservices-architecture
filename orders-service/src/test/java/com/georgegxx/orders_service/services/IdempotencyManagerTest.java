@@ -171,4 +171,53 @@ class IdempotencyManagerTest {
         assertThat(idempotencyManager.calculateHash(null)).isEmpty();
         assertThat(idempotencyManager.calculateHash(new OrderRequest())).isNotEmpty();
     }
+
+    @Test
+    @DisplayName("saveCompleted and releaseLock should ignore null or blank inputs")
+    void testNullOrBlankInputs() {
+        idempotencyManager.saveCompleted(null, new OrderRequest(), sampleResponse());
+        idempotencyManager.saveCompleted("   ", new OrderRequest(), sampleResponse());
+        idempotencyManager.saveCompleted("key", new OrderRequest(), null);
+
+        idempotencyManager.releaseLock(null);
+        idempotencyManager.releaseLock("   ");
+
+        verify(valueOperations, never()).set(anyString(), anyString(), any(Duration.class));
+        verify(redisTemplate, never()).delete(anyString());
+    }
+
+    @Test
+    @DisplayName("checkOrLock catches general Redis exceptions and proceeds safely")
+    void testCheckOrLockRedisExceptionGracefulFallback() {
+        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("Redis timeout"));
+
+        Optional<OrderResponse> result = idempotencyManager.checkOrLock("key-timeout", new OrderRequest());
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("saveCompleted and releaseLock handle Redis exceptions without rethrowing")
+    void testRedisExceptionsDuringSaveAndRelease() {
+        doThrow(new RuntimeException("Redis error")).when(valueOperations).set(anyString(), anyString(), any(Duration.class));
+        doThrow(new RuntimeException("Redis error")).when(redisTemplate).delete(anyString());
+
+        idempotencyManager.saveCompleted("key-err", new OrderRequest(), sampleResponse());
+        idempotencyManager.releaseLock("key-err");
+    }
+
+    @Test
+    @DisplayName("checkOrLock with unknown status returns empty")
+    void testCheckOrLockUnknownStatus() {
+        IdempotencyRecord record = IdempotencyRecord.builder()
+                .status("UNKNOWN_STATE")
+                .createdAt(Instant.now())
+                .build();
+        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(record));
+        when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
+
+        Optional<OrderResponse> result = idempotencyManager.checkOrLock("key-unknown", new OrderRequest());
+
+        assertThat(result).isEmpty();
+    }
 }

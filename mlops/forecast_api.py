@@ -259,9 +259,9 @@ def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.
         .rename(columns={"product_id": "sku"})
     )
     source = "captured-sales"
-    if "synthetic" in file_stem.lower():
-        source = "synthetic"
-    elif "order_number" in sales.columns and sales["order_number"].astype(str).str.startswith("SYNTH-").all():
+    if "synthetic" in file_stem.lower() or (
+        "order_number" in sales.columns and sales["order_number"].astype(str).str.startswith("SYNTH-").all()
+    ):
         source = "synthetic"
 
     return aggregated, source

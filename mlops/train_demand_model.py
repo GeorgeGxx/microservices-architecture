@@ -107,7 +107,7 @@ def read_sales(spark: SparkSession, input_csv: str | None, input_parquet: str | 
             csv_path = Path(input_csv).resolve()
             frame = spark.read.option("header", True).option("inferSchema", True).csv(str(csv_path))
         else:
-            parquet_path = Path(input_parquet or "").resolve()
+            parquet_path = Path(input_parquet).resolve()
             partition_pattern = str(parquet_path / "date=*")
             import glob
             if glob.glob(partition_pattern):
