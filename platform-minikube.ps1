@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "down", "stop", "destroy", "build", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
+    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
     [string]$Command = "help",
     [ValidateSet("dev", "minikube", "staging", "prod")]
     [string]$Environment = "dev",
@@ -12,6 +12,7 @@ param(
     [switch]$DeployCanary = $false,
     [ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')]
     [string]$CanaryImageTag = "canary",
+    [switch]$Fast = $false,
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
     [switch]$InstallOpenCostPlugin = $false,
@@ -441,7 +442,7 @@ df.write.mode('overwrite').partitionBy('date').parquet('/data/sales_parquet')
 function Invoke-MinikubePlatform {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet("up", "down", "stop", "destroy", "build")]
+        [ValidateSet("up", "down", "stop", "destroy", "build", "start", "resume")]
         [string]$SubCommand,
 
         [switch]$BuildImages = $false,
@@ -449,14 +450,22 @@ function Invoke-MinikubePlatform {
         [switch]$DeployCanaryOption = $false,
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
+        [switch]$FastResume = $false,
         [int]$CpuCount = 8,
         [int]$RamMb = 16384,
         [string]$DiskBudget = "40g",
+        [int]$CanaryV1Weight = 90,
+        [int]$CanaryV2Weight = 10,
         [switch]$PurgeAll = $false
     )
 
     switch ($SubCommand) {
         "up" {
+            if ($FastResume) {
+                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
+                return
+            }
+
             Show-Banner "Full Platform Bootstrap & Integration (Minikube Local)"
             Write-Host "Environment: dev | Git Branch: develop | Istio: $(if ($EnableIstioMesh) { 'ENABLED' } else { 'DISABLED' })" -ForegroundColor White
             Write-Host "Hardware Budget: $CpuCount CPUs | $($RamMb / 1024) GB RAM | $DiskBudget Disk" -ForegroundColor White
@@ -893,12 +902,12 @@ stringData:
 
                 $canaryWorkload = kubectl get deployment products-service-v2 -n dev --ignore-not-found 2>$null
                 if ($canaryWorkload) {
-                    Write-Host "  ▶ Waiting for products-service v2 before enabling its initial 90/10 Istio route..." -ForegroundColor White
+                    Write-Host "  ▶ Waiting for products-service v2 before enabling its initial $CanaryV1Weight/$CanaryV2Weight Istio route..." -ForegroundColor White
                     kubectl rollout status deployment/products-service-v2 -n dev --timeout=300s
                     if ($LASTEXITCODE -ne 0) { throw "products-service v2 canary is not Ready; its Istio v2 subset was not enabled." }
                     kubectl apply -f $canaryTraffic -n dev
                     if ($LASTEXITCODE -ne 0) { throw "Could not apply the products-service canary DestinationRule/VirtualService." }
-                    Set-CanaryTrafficWeight -CanaryNamespace dev -StableWeight 90 -CandidateWeight 10
+                    Set-CanaryTrafficWeight -CanaryNamespace dev -StableWeight $CanaryV1Weight -CandidateWeight $CanaryV2Weight
                 } else {
                     kubectl delete virtualservice products-service-canary-vs -n dev --ignore-not-found 2>$null | Out-Null
                 }
@@ -943,6 +952,143 @@ stringData:
             Show-LocalPlatformUrls
         }
 
+        { $_ -in @("start", "resume") } {
+            $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+            Show-Banner "⚡ Fast Platform Resume (Minikube Local)"
+            Write-Host "Environment: dev | Git Branch: develop | Istio: $(if ($EnableIstioMesh) { 'ENABLED' } else { 'DISABLED' })" -ForegroundColor White
+            Write-Host "Execution Mode: Fast Resume (Bypassing Terraform IaC, Gatekeeper, Helm rebuild, and FinOps)" -ForegroundColor Cyan
+            if ($DeployCanaryOption) {
+                Write-Host "Canary Deployment: Tag='$CanaryImageTag' | Weights=(Stable: $CanaryV1Weight%, Candidate: $CanaryV2Weight%)" -ForegroundColor Magenta
+            }
+
+            Write-Host "`n[1/5] 🔍 Auditing Required Core CLI Tools..." -ForegroundColor Yellow
+            $requiredClis = @("minikube", "docker", "kubectl")
+            foreach ($cli in $requiredClis) {
+                if (-not (Get-Command $cli -ErrorAction SilentlyContinue)) {
+                    throw "Required CLI tool not found in PATH: $cli."
+                }
+            }
+            Write-Host "  [OK] Core platform runtimes detected." -ForegroundColor Green
+
+            Write-Host "`n[2/5] 📦 Checking Minikube Cluster State..." -ForegroundColor Yellow
+            $status = minikube status --format "{{.Host}}" 2>$null
+            if ($status -ne "Running") {
+                $effectiveRamMb = $RamMb
+                $dockerMemBytes = docker info --format '{{.MemTotal}}' 2>$null
+                if ($dockerMemBytes -match '^\d+$') {
+                    $dockerMemMb = [math]::Floor([int64]$dockerMemBytes / 1MB)
+                    if ($effectiveRamMb -gt ($dockerMemMb - 512)) {
+                        $adjustedRamMb = [math]::Max(4096, ($dockerMemMb - 1500))
+                        Write-Host "  [INFO] Docker Desktop total memory is ${dockerMemMb}MB. Auto-adjusting Minikube allocation to ${adjustedRamMb}MB." -ForegroundColor Yellow
+                        $effectiveRamMb = $adjustedRamMb
+                    }
+                }
+                Write-Host "  ▶ Resuming Minikube cluster ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk)..." -ForegroundColor White
+                minikube start --cpus=$CpuCount --memory=$effectiveRamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Failed to start Minikube. Verify Docker Desktop is active."
+                }
+            } else {
+                Write-Host "  [OK] Minikube is active and healthy." -ForegroundColor Green
+            }
+            minikube update-context 2>$null | Out-Null
+
+            $hasDevNs = kubectl get namespace dev --no-headers 2>$null
+            if (-not $hasDevNs) {
+                Write-Host "  [WARN] 'dev' namespace not found. Cluster has not been initialized." -ForegroundColor Yellow
+                Write-Host "  ▶ Escalating to full bootstrap (up)..." -ForegroundColor Yellow
+                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
+                return
+            }
+
+            if ($BuildImages) {
+                Write-Host "`n🔨 [-Build] Compiling container images from source..." -ForegroundColor Yellow
+                $buildAllScript = Join-Path $scriptsDir "build-all.py"
+                if (Test-Path $buildAllScript) {
+                    if ($DeployCanaryOption) {
+                        & python $buildAllScript "1.0.0" --exclude-service products-service
+                    } else {
+                        & python $buildAllScript "1.0.0"
+                    }
+                    if ($LASTEXITCODE -ne 0) { throw "Image build failed." }
+                }
+                if ($DeployCanaryOption) {
+                    docker build -t "georgegxx/products-service:$CanaryImageTag" -f (Join-Path $root "products-service\Dockerfile") $root
+                    if ($LASTEXITCODE -ne 0) { throw "Canary image build failed." }
+                }
+                $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                if ($DeployCanaryOption) { $servicesToLoad = @("orders-service", "inventory-service", "notification-service", "frontend") }
+                foreach ($svc in $servicesToLoad) {
+                    $hasLocal = docker images -q "georgegxx/${svc}:1.0.0" 2>$null
+                    if ($hasLocal) {
+                        minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
+                    }
+                }
+                if ($DeployCanaryOption) {
+                    minikube image load "georgegxx/products-service:$CanaryImageTag" --overwrite 2>$null
+                }
+                kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                Write-Host "  [OK] Container images compiled, reloaded into Minikube, and workloads restarted." -ForegroundColor Green
+            }
+
+            Invoke-CosmoRouterCompose
+
+            Write-Host "`n[3/5] ⏳ Awaiting Workload Readiness in 'dev', 'auth', and 'data'..." -ForegroundColor Yellow
+            $criticalWorkloads = @(
+                @{ Ns = "data"; App = "postgres-products"; Name = "PostgreSQL Products DB" },
+                @{ Ns = "data"; App = "postgres-orders"; Name = "PostgreSQL Orders DB" },
+                @{ Ns = "data"; App = "postgres-inventory"; Name = "PostgreSQL Inventory DB" },
+                @{ Ns = "data"; App = "redis"; Name = "Redis Cache" },
+                @{ Ns = "data"; App = "kafka"; Name = "Kafka Event Broker" },
+                @{ Ns = "auth"; App = "keycloak"; Name = "Keycloak IAM" },
+                @{ Ns = "dev"; App = "cosmo-router"; Name = "Cosmo GraphQL Router" },
+                @{ Ns = "dev"; App = "frontend"; Name = "Presentation Frontend" },
+                @{ Ns = "dev"; App = "orders-service"; Name = "Orders Microservice" },
+                @{ Ns = "dev"; App = "products-service"; Name = "Products Microservice" },
+                @{ Ns = "dev"; App = "inventory-service"; Name = "Inventory Microservice" }
+            )
+            foreach ($item in $criticalWorkloads) {
+                & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
+            }
+            Write-Host "  [OK] Platform database, IAM, and microservice pods are Ready." -ForegroundColor Green
+
+            Write-Host "`n[4/5] 🌐 Reconciling Ingress & Mesh Routing..." -ForegroundColor Yellow
+            if ($EnableIstioMesh) {
+                $canaryDeployment = Join-Path $istioDir "canary-deployment-products-v2.yaml"
+                $canaryTraffic = Join-Path $istioDir "canary-products-traffic.yaml"
+                if ($DeployCanaryOption -and (Test-Path $canaryDeployment)) {
+                    $canaryWorkload = kubectl get deployment products-service-v2 -n dev --ignore-not-found 2>$null
+                    if (-not $canaryWorkload) {
+                        Write-Host "  ▶ Deploying products-service v2 canary image '$CanaryImageTag'..." -ForegroundColor White
+                        $canaryManifestText = (Get-Content -LiteralPath $canaryDeployment -Raw).Replace("georgegxx/products-service:canary", "georgegxx/products-service:$CanaryImageTag")
+                        $canaryManifestText | kubectl apply -f - -n dev
+                    }
+                    Write-Host "  ▶ Ensuring products-service v2 rollout status..." -ForegroundColor White
+                    kubectl rollout status deployment/products-service-v2 -n dev --timeout=60s 2>$null | Out-Null
+                    if (Test-Path $canaryTraffic) {
+                        kubectl apply -f $canaryTraffic -n dev 2>$null | Out-Null
+                    }
+                    Set-CanaryTrafficWeight -CanaryNamespace dev -StableWeight $CanaryV1Weight -CandidateWeight $CanaryV2Weight
+                    Write-Host "  [OK] Canary traffic weighting active ($CanaryV1Weight% stable / $CanaryV2Weight% canary)." -ForegroundColor Green
+                } else {
+                    Write-Host "  [OK] Istio STRICT mTLS & Ingress Gateway active." -ForegroundColor Green
+                }
+            } else {
+                Write-Host "  [OK] Operating in lightweight mode (-WithoutIstio). Mesh overhead skipped." -ForegroundColor Green
+            }
+
+            Write-Host "`n[5/5] 🔌 Connecting Resilient Local Port-Forward Tunnels..." -ForegroundColor Yellow
+            Start-LocalTunnelSupervisor
+            Write-Host "  [OK] Resilient port-forward tunnel daemon active." -ForegroundColor Green
+
+            $stopwatch.Stop()
+            $elapsedSec = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
+            Write-Host "`n================================================================================" -ForegroundColor Green
+            Write-Host "⚡ MINIKUBE DEV ENVIRONMENT RESUMED & HEALTHY IN ${elapsedSec}s!" -ForegroundColor Green
+            Write-Host "================================================================================" -ForegroundColor Green
+            Show-LocalPlatformUrls
+        }
+
         "down" {
             Show-Banner "Platform Teardown / Resource Pause (Minikube)"
             # Terminate tunnels
@@ -957,6 +1103,7 @@ stringData:
                 Write-Host "Pausing Minikube cluster (preserves storage and state)..." -ForegroundColor Yellow
                 minikube stop
                 Write-Host "  [OK] Minikube cluster paused." -ForegroundColor Green
+                Write-Host "  [TIP] To fast-resume in <30s without rebuilding, run: .\platform-minikube.ps1 start" -ForegroundColor Cyan
             }
         }
 

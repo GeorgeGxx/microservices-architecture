@@ -1487,8 +1487,8 @@ if ($Platform -ne "minikube" -and $Environment -ne "prod" -and $Command -in @("p
 if ($Platform -ne "minikube" -and $Environment -eq "minikube") {
     throw "'-Environment minikube' is local-only. Choose dev, staging, or prod for cloud platforms."
 }
-if ($Platform -eq "minikube" -and $Command -in @("up", "bootstrap", "apply") -and $Environment -notin @("dev", "minikube")) {
-    throw "Minikube bootstrap deploys the dev environment only; use -Environment dev or minikube."
+if ($Platform -eq "minikube" -and $Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Environment -notin @("dev", "minikube")) {
+    throw "Minikube bootstrap/resume deploys the dev environment only; use -Environment dev or minikube."
 }
 if ($Platform -ne "minikube" -and $Command -in @("down", "stop")) {
     throw "'$Command' is not a cloud teardown command. No resources were changed; use 'destroy' explicitly if you intend to remove cloud infrastructure."
@@ -1499,11 +1499,11 @@ if ($Platform -ne "minikube" -and $Command -eq "build") {
 if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Install -or $AutoApprove -or $Destroy -or $LockId)) {
     throw "'build' accepts no deployment flags. Run 'up -Platform minikube' for deployment options."
 }
-if ($Command -in @("up", "bootstrap", "apply") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
+if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
-    throw "Build, canary, scan, Istio, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'."
+if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
+    throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
@@ -1533,9 +1533,12 @@ if ($InstallOpenCostPlugin -and ($Command -ne "tools" -or $Platform -ne "minikub
 if ($Action -and $Command -notin @("canary", "cloudflare")) {
     throw "-Action is valid only with 'canary' or 'cloudflare'."
 }
-$canaryOptionsChanged = ($Namespace -ne "dev") -or ($V1Weight -ne 90) -or ($V2Weight -ne 10) -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
+$canaryOptionsChanged = ($Namespace -ne "dev") -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
 if ($canaryOptionsChanged -and $Command -ne "canary") {
-    throw "-Namespace, traffic weights, and rollout steps are valid only with 'canary'."
+    throw "-Namespace and rollout steps are valid only with 'canary'."
+}
+if (($V1Weight -ne 90 -or $V2Weight -ne 10) -and ($Command -ne "canary" -and -not $DeployCanary)) {
+    throw "Traffic weights are valid only with 'canary' or when specifying -DeployCanary."
 }
 if ($Command -eq "canary") {
     if ($Platform -ne "minikube" -or $Namespace -ne "dev") { throw "The managed canary workflow currently supports only Minikube namespace 'dev'." }
@@ -1551,9 +1554,17 @@ if ($LockId -and ($Command -ne "unlock" -or $Platform -eq "minikube")) {
 switch ($Command) {
     { $_ -in @("up", "bootstrap") } {
         if ($Platform -eq "minikube") {
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove -DataPlane $DataPlane
+        }
+    }
+
+    { $_ -in @("start", "resume") } {
+        if ($Platform -eq "minikube") {
+            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
+        } else {
+            throw "'$Command' is supported only for -Platform minikube to resume a paused local cluster."
         }
     }
 
@@ -1847,7 +1858,7 @@ switch ($Command) {
         Write-Host "  .\platform-$Platform.ps1 <command> [-Environment dev|staging|prod] [provider options]`n" -ForegroundColor White
         Write-Host "COMMANDS:" -ForegroundColor Cyan
         $providerCommands = if ($Platform -eq "minikube") {
-            @("up", "bootstrap", "down", "stop", "destroy", "build", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls")
+            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls")
         } else {
             switch ($Platform) {
                 "aws" { @("plan", "apply", "destroy", "doctor", "verify", "status", "unlock", "security-scan", "sync-argocd", "tools", "help") }
@@ -1856,8 +1867,8 @@ switch ($Command) {
         }
         Write-Host "  $($providerCommands -join ' | ')"
         if ($Platform -eq "minikube") {
-            Write-Host "  Minikube capabilities: resource-sized cluster lifecycle, Istio/Gatekeeper bootstrap, MLOps, canary, Vault, and local image builds."
-            Write-Host "  Capacity options: -Cpus, -MemoryMb, -DiskSize; use -WithoutIstio for a smaller local cluster."
+            Write-Host "  Minikube capabilities: resource-sized cluster lifecycle, fast-resume (<30s), Istio/Gatekeeper bootstrap, MLOps, canary, Vault, and local image builds."
+            Write-Host "  Capacity options: -Cpus, -MemoryMb, -DiskSize; use -WithoutIstio for a smaller local cluster; use -Fast to bypass Terraform."
         } else {
             $providerDetails = switch ($Platform) {
                 "aws" { "AWS IAM/STS preflight; EKS lifecycle; S3 remote state with lock table." }
@@ -1885,6 +1896,7 @@ switch ($Command) {
             }
         }
         if ($Platform -eq "minikube") {
+            Write-Host "  start / resume      Fast platform resume (<30s) bypassing Terraform, Gatekeeper and Helm re-build"
             Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
             Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
             Write-Host "  security-scan       Run the configured Gitleaks, TFLint, Trivy, and Conftest checks"
@@ -1896,7 +1908,11 @@ switch ($Command) {
         Write-Host "EXAMPLES:" -ForegroundColor Cyan
         if ($Platform -eq "minikube") {
             Write-Host "  .\platform-minikube.ps1 up"
-            Write-Host "  .\platform-minikube.ps1 up -Cpus 8 -MemoryMb 16384"
+            Write-Host "  .\platform-minikube.ps1 start                       # Fast resume (<30s) bypassing Terraform"
+            Write-Host "  .\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight mode"
+            Write-Host "  .\platform-minikube.ps1 start -DeployCanary         # Fast resume with canary active"
+            Write-Host "  .\platform-minikube.ps1 up -Fast                    # Equivalent to start"
+            Write-Host "  .\platform-minikube.ps1 down                        # Safe pause (preserves DB & cluster state)"
             Write-Host "  .\platform-minikube.ps1 mlops"
             Write-Host "  .\platform-minikube.ps1 canary -Action rollout"
         } else {
