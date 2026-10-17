@@ -1109,7 +1109,7 @@ stringData:
                 Write-Host "Pausing Minikube cluster (preserves storage and state)..." -ForegroundColor Yellow
                 minikube stop
                 Write-Host "  [OK] Minikube cluster paused." -ForegroundColor Green
-                Write-Host "  [TIP] To fast-resume in <30s without rebuilding, run: .\platform-minikube.ps1 start" -ForegroundColor Cyan
+                Write-Host "  [TIP] To fast-resume in <30s without rebuilding, run: .\platform-minikube.ps1 up -Fast" -ForegroundColor Cyan
             }
         }
 
