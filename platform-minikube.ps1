@@ -781,9 +781,10 @@ stringData:
             kubectl apply -f "$infraDir\redis.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka-exporter.yaml" -n data 2>$null
-            Write-Host "  ▶ Waiting for Kafka broker and initializing topic 'orders-topic'..." -ForegroundColor White
+            Write-Host "  ▶ Waiting for Kafka broker and initializing topics 'orders-topic' & 'orders-topic.DLT'..." -ForegroundColor White
             kubectl wait --namespace data --for=condition=ready pod -l app=kafka --timeout=180s 2>$null | Out-Null
             kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic 2>$null | Out-Null
+            kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic.DLT 2>$null | Out-Null
             kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth 2>$null
             kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
             if (Test-Path "$infraDir\dev-infra-bridges.yaml") { kubectl apply -f "$infraDir\dev-infra-bridges.yaml" 2>$null }
