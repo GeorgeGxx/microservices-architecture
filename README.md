@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/Spring%20Boot-4.0.8-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.0.8" />
   <img src="https://img.shields.io/badge/React-19%20SPA-blue.svg?style=for-the-badge&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS v4" />
-  <img src="https://img.shields.io/badge/Keycloak-26.7.4-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
+  <img src="https://img.shields.io/badge/Keycloak-26.8.1-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
   <img src="https://img.shields.io/badge/Istio-Service%20Mesh-466BB0.svg?style=for-the-badge&logo=istio" alt="Istio" />
   <img src="https://img.shields.io/badge/HashiCorp-Vault-black.svg?style=for-the-badge&logo=vault" alt="Vault" />
   <img src="https://img.shields.io/badge/KEDA-v2.21.0-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.21.0" />
@@ -35,7 +35,7 @@ graph TB
     end
 
     subgraph Security["🔐 Identity & Secrets"]
-        KC["Keycloak 26.7.4<br/>(OIDC • PKCE • Port 8181)"]
+        KC["Keycloak 26.8.1<br/>(OIDC • PKCE • Port 8181)"]
         VAULT["HashiCorp Vault<br/>(KV-v2 • Transit • Port 8200)"]
     end
 
@@ -197,7 +197,7 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 | **Inventory Service**<br>`Spring Boot 4.0.8` | `8001` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Stock reservation, low-stock alerts & inventory federation subgraph |
 | **Notification Service**<br>`Spring Boot 4.0.8` | `8002` | SSE stream & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Real-time SSE dispatch & transactional messaging service |
 | **React Frontend SPA**<br>`React 19 / Nginx` | `5173` | `admin_user` / `admin`<br>`basic_user` / `password` | CPU: `50m` / `200m`<br>Mem: `64Mi` / `128Mi`<br>Storage: `256Mi` | Modernized Storefront UI, POS barcode scanner & telemetry client |
-| **Keycloak IAM**<br>`v26.7.4` | `8181` / `9000` | `admin` / `admin` | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | OIDC / OAuth2 identity provider & JWT issuer (JVM heap tuned) |
+| **Keycloak IAM**<br>`v26.8.1` | `8181` / `9000` | `admin` / `admin` | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | OIDC / OAuth2 identity provider & JWT issuer (JVM heap tuned) |
 | **HashiCorp Vault**<br>`v2.0.4` | `8200` | Root Token: `root` | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard | Dynamic secrets engine, KV-v2 engine & KMS envelope encryption |
 | **Apache Kafka Broker**<br>`KRaft v7.8.0` | `9092` / `29092` | PLAINTEXT (local development) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Distributed event log & asynchronous EDA streaming backbone |
 | **Kafka Exporter**<br>`v1.9` | `9308` | *(No auth required)* | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Kafka consumer group lag and partition telemetry scraper |

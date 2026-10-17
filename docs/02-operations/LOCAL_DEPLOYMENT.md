@@ -267,7 +267,7 @@ npm run dev
   - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
   - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order`.
   - 📄 **Responsive Pagination:** Full pagination controls with items-per-page selectors and page counters across both the public product catalog and administrative data tables, featuring non-clipping mobile wrapping.
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.7.4 with automatic JWT token management, role validation, and route guards.
+- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.8.1 with automatic JWT token management, role validation, and route guards.
 
 ---
 
