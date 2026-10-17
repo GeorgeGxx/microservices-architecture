@@ -788,11 +788,16 @@ stringData:
             kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
             if (Test-Path "$infraDir\dev-infra-bridges.yaml") { kubectl apply -f "$infraDir\dev-infra-bridges.yaml" 2>$null }
 
+            # Ensure Keycloak database is ready before awaiting Keycloak server startup.
+            Write-Host "  ▶ Waiting for Keycloak PostgreSQL database..." -ForegroundColor White
+            & kubectl wait --namespace auth --for=condition=ready pod -l app=db-keycloak --timeout=300s
+            if ($LASTEXITCODE -ne 0) { throw "Keycloak PostgreSQL (db-keycloak) did not become Ready." }
+
             # Cosmo Router fetches its JWKS document during startup. Bootstrap
             # the realm before Helm creates the router, otherwise Keycloak
             # returns 404 and the router enters CrashLoopBackOff.
             Write-Host "  ▶ Waiting for Keycloak before bootstrapping its realm..." -ForegroundColor White
-            & kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=300s
+            & kubectl wait --namespace auth --for=condition=ready pod -l app=keycloak --timeout=360s
             if ($LASTEXITCODE -ne 0) { throw "Keycloak did not become Ready; skipping Cosmo Router deployment because its JWKS endpoint is required at startup." }
 
             $keycloakBootstrapScript = Join-Path $scriptsDir "bootstrap-keycloak.ps1"
