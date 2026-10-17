@@ -25,6 +25,7 @@ data:
   PRODUCTS_SPRING_DATASOURCE_JDBC_URL: "jdbc:postgresql://db-products.data.svc.cluster.local:5432/ms_products"
   KAFKA_BOOTSTRAP_SERVERS: "kafka.data.svc.cluster.local:9092"
   KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
+  SPRING_KAFKA_PROPERTIES_SECURITY_PROTOCOL: "PLAINTEXT"
 
   # Redis (Cache / Rate Limiter)
   REDIS_HOST: "redis.data.svc.cluster.local"
