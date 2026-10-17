@@ -221,7 +221,7 @@ def build_drawio_xml():
     add_node(r6, "k_script_auth", "1", "<b>platform-minikube.ps1 vault</b><br>k8s-auth: scoped service policies<br>istio-pki: guarded CA setup/rotation", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=1.5;fontColor=#581C87;fontSize=10;", 80, 340, 240, 70)
 
     add_node(r6, "ns_auth", "1", "<b>🛡️ NAMESPACE: auth</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 360, 110, 300, 420)
-    add_node(r6, "k_kc_pod", "1", "<b>Deployment: keycloak</b><br>Keycloak 26.7.4 (IdP)<br>Port 8181 (HTTP) & 9000 (Metrics)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 380, 160, 260, 70)
+    add_node(r6, "k_kc_pod", "1", "<b>Deployment: keycloak</b><br>Keycloak 26.8.1 (IdP)<br>Port 8181 (HTTP) & 9000 (Metrics)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;", 380, 160, 260, 70)
     add_node(r6, "k_db_kc", "1", "<b>StatefulSet: db-keycloak</b><br>PostgreSQL 18 (Port 5432)<br>Dedicated IAM database", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;", 380, 250, 260, 70)
 
     add_node(r6, "ns_data", "1", "<b>💾 NAMESPACE: data (Stateful & Exporters)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 680, 110, 380, 420)

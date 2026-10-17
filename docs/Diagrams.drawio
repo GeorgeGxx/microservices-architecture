@@ -408,7 +408,7 @@
         <mxCell id="ns_auth" parent="1" value="&lt;b&gt;🛡️ NAMESPACE: auth&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="360" y="110" width="300" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_kc_pod" parent="1" value="&lt;b&gt;Deployment: keycloak&lt;/b&gt;&lt;br&gt;Keycloak 26.7.4 (IdP)&lt;br&gt;Port 8181 (HTTP) &amp; 9000 (Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
+        <mxCell id="k_kc_pod" parent="1" value="&lt;b&gt;Deployment: keycloak&lt;/b&gt;&lt;br&gt;Keycloak 26.8.1 (IdP)&lt;br&gt;Port 8181 (HTTP) &amp; 9000 (Metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;" vertex="1">
           <mxGeometry x="380" y="160" width="260" height="70" as="geometry" />
         </mxCell>
         <mxCell id="k_db_kc" parent="1" value="&lt;b&gt;StatefulSet: db-keycloak&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (Port 5432)&lt;br&gt;Dedicated IAM database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=10;" vertex="1">

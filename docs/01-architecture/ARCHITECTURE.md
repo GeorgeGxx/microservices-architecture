@@ -72,7 +72,7 @@ Port numbers are scoped to their listener: container ports belong to individual 
 
 ---
 
-## 🔐 Identity & Access Management (Keycloak 26.7.4)
+## 🔐 Identity & Access Management (Keycloak 26.8.1)
 
 - **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in React 19 SPA.
 - **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
@@ -642,7 +642,7 @@ graph LR
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
         APIGW["🚪 Cosmo Router 0.358.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
-        Keycloak["🔐 Keycloak 26.7.4 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
+        Keycloak["🔐 Keycloak 26.8.1 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end
 
