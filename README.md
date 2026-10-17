@@ -215,8 +215,8 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 | **Grafana Alloy**<br>`v1.19.1` | `3300` | *(No auth required)* | CPU: `50m` / `200m`<br>Mem: `64Mi` / `256Mi`<br>Storage: `256Mi` | OpenTelemetry & Prometheus-compatible log & telemetry collector forwarding container logs to Loki |
 | **OpenTelemetry Collector**<br>`Contrib v0.159` | `4317` (gRPC)<br>`4318` (HTTP) | *(OTLP Ingestion)* | CPU: `100m` / `400m`<br>Mem: `128Mi` / `512Mi` | Trace & metric pipeline processor forwarding to Tempo & Prometheus |
 | **OpenCost FinOps**<br>`v2.5.32` | `7000` (UI)<br>`9003` (API) | *(No auth required)* | UI: `25m` / `150m`, `64Mi` / `192Mi`<br>Exporter: `50m` / `300m`, `192Mi` / `512Mi` | Real-time Kubernetes cloud cost allocation & budget tracking |
-| **Kiali Dashboard**<br>`v2.31.0` | `20001` | *(No auth required)* | CPU: `150m` / `600m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `1Gi` | Istio service mesh topology, traffic health & mTLS inspection |
-| **Istio Ingress Gateway**<br>`v1.31.1` | `80` / `443` | Mesh mTLS & RBAC | CPU: `100m` / `500m`<br>Mem: `128Mi` / `512Mi` | Envoy perimeter ingress & traffic management gateway |
+| **Kiali Dashboard**<br>`v2.33.0` | `20001` | *(No auth required)* | CPU: `150m` / `600m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `1Gi` | Istio service mesh topology, traffic health & mTLS inspection |
+| **Istio Ingress Gateway**<br>`v1.31.2` | `80` / `443` | Mesh mTLS & RBAC | CPU: `100m` / `500m`<br>Mem: `128Mi` / `512Mi` | Envoy perimeter ingress & traffic management gateway |
 | **OPA Gatekeeper**<br>`v3.23.0` | `8888` / `8443` | Admission webhook TLS certs | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi` | Kubernetes admission controller enforcing enterprise governance |
 
 > 📘 **Cosmo Router Capabilities:** Security, complexity limits, observability, resilience settings, and deferred capabilities are tracked in [docs/01-architecture/ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md#-cosmo-router-hardening--gateway-capabilities).
@@ -240,7 +240,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Pre-provisioned dashboards for microservices, Istio mesh, JVM metrics, Loki logs & Tempo traces (`admin`/`admin`) |
 | 🎯 **Prometheus TSDB** | [http://localhost:9090](http://localhost:9090) (or `/targets`) | Internal ClusterIP (`:9090` via port-forward) | HTTP / Prometheus 3.14.0 | Target scrape status inspection, PromQL expression evaluation & alerting rules |
 | 🔍 **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | Internal DaemonSet (`:3300` via port-forward) | HTTP / Grafana Alloy 1.19.1 | Interactive telemetry pipeline visualizer, component dependency graph, log agent state & `/metrics` |
-| 🕸️ **Kiali Service Mesh** | [http://localhost:20001/kiali](http://localhost:20001/kiali) | `http://$(minikube ip):32001/kiali` | HTTP / Kiali 2.31.0 | Real-time Istio visual service graph, mutual TLS traffic status & canary route split verification |
+| 🕸️ **Kiali Service Mesh** | [http://localhost:20001/kiali](http://localhost:20001/kiali) | `http://$(minikube ip):32001/kiali` | HTTP / Kiali 2.33.0 | Real-time Istio visual service graph, mutual TLS traffic status & canary route split verification |
 | 🐙 **ArgoCD GitOps Console** | [https://localhost:8088](https://localhost:8088) | `https://$(minikube ip):30443` (HTTP NodePort: `30088`) | HTTPS / ArgoCD 2.13 | Declarative GitOps deployment sync, application health status & automated drift reconciliation |
 | 💰 **OpenCost FinOps UI** | [http://localhost:7000](http://localhost:7000) | Internal ClusterIP (`:7000` via port-forward) | HTTP / OpenCost 2.5.32 | Real-time Kubernetes container compute/memory cost breakdown and allocation telemetry |
 

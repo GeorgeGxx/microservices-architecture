@@ -179,7 +179,7 @@ metadata:
     app: kiali
     app.kubernetes.io/name: kiali
     app.kubernetes.io/instance: kiali
-    app.kubernetes.io/version: "v2.31.0"
+    app.kubernetes.io/version: "v2.33.0"
 spec:
   replicas: 1
   selector:
@@ -191,13 +191,13 @@ spec:
         app: kiali
         app.kubernetes.io/name: kiali
         app.kubernetes.io/instance: kiali
-        app.kubernetes.io/version: "v2.31.0"
+        app.kubernetes.io/version: "v2.33.0"
         sidecar.istio.io/inject: "false"
     spec:
       serviceAccountName: kiali
       containers:
         - name: kiali
-          image: quay.io/kiali/kiali:v2.31.0
+          image: quay.io/kiali/kiali:v2.33.0
           imagePullPolicy: IfNotPresent
           command:
             - "/opt/kiali/kiali"

@@ -17,7 +17,7 @@
 | Node.js & npm | 22+ | React 19 + Tailwind v4 frontend |
 | kubectl | 1.37.0 | Kubernetes / Minikube deployment |
 | Minikube | 1.39.0 | Local Kubernetes deployment |
-| Istioctl | 1.31.1 | Service mesh install & Kiali dashboard |
+| Istioctl | 1.31.2 | Service mesh install & Kiali dashboard |
 | Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
 | Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
 | PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
