@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 33,
+  "version": 34,
   "tags": [
     "spring-boot",
     "java21",
@@ -20,6 +20,30 @@
     "ddos",
     "sre",
     "observability"
+  ],
+  "links": [
+    {
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": false,
+      "tags": [],
+      "targetBlank": true,
+      "title": "⚡ Alloy Live Web UI (Port 3300)",
+      "tooltip": "Open native Grafana Alloy component graph and pipeline state",
+      "type": "link",
+      "url": "http://localhost:3300/"
+    },
+    {
+      "icon": "dashboard",
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "🔍 Alloy Pipeline Dashboard",
+      "tooltip": "Switch to Grafana Alloy Telemetry & Log Collector Pipeline Dashboard",
+      "type": "link",
+      "url": "/d/grafana-alloy"
+    }
   ],
   "templating": {
     "list": [

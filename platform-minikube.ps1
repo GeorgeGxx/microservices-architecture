@@ -924,6 +924,10 @@ stringData:
                 kubectl label configmap grafana-dashboard-business grafana_dashboard=1 -n observability --overwrite 2>$null | Out-Null
                 kubectl create configmap grafana-dashboard-technical --from-file=technical-security-dashboard.json="$dashboardsDir\technical-security-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null | Out-Null
                 kubectl label configmap grafana-dashboard-technical grafana_dashboard=1 -n observability --overwrite 2>$null | Out-Null
+                if (Test-Path "$dashboardsDir\grafana-alloy-dashboard.json") {
+                    kubectl create configmap grafana-dashboard-alloy --from-file=grafana-alloy-dashboard.json="$dashboardsDir\grafana-alloy-dashboard.json" -n observability --dry-run=client -o yaml | kubectl apply -f - 2>$null | Out-Null
+                    kubectl label configmap grafana-dashboard-alloy grafana_dashboard=1 -n observability --overwrite 2>$null | Out-Null
+                }
             }
 
             Write-Host "  ▶ Awaiting pod readiness for Keycloak, Cosmo Router and Frontend..." -ForegroundColor White

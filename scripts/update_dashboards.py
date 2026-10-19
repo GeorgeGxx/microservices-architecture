@@ -12,6 +12,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 biz_path = r'observability/grafana/dashboards/business-operations-dashboard.json'
 tech_path = r'observability/grafana/dashboards/technical-security-dashboard.json'
+alloy_path = r'observability/grafana/dashboards/grafana-alloy-dashboard.json'
 
 # =========================================================================
 def build_business_dashboard():
@@ -822,7 +823,7 @@ def push_dashboards(grafana_url: str = None) -> int:
         return 1
 
     headers = {"Content-Type": "application/json", "Authorization": authorization}
-    for path in [biz_path, tech_path]:
+    for path in [biz_path, tech_path, alloy_path]:
         try:
             with open(path, "r", encoding="utf-8") as dashboard_file:
                 dashboard = json.load(dashboard_file)
