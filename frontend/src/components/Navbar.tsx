@@ -272,7 +272,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Live Notification Bell - Restricted strictly to Signed-In Users */}
           {user && (
             <button
-              onClick={() => setIsDrawerOpen(true)}
+              onClick={() => {
+                setIsCartOpen(false);
+                setIsDrawerOpen(true);
+              }}
               title="Live Event Notifications"
               className="relative p-1.5 sm:p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800/70 border border-slate-800 transition"
             >
@@ -285,21 +288,23 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
           )}
 
-          {/* Cart is available only after signing in */}
-          {user && (
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition transform active:scale-95"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              <span className="hidden sm:inline">Cart</span>
-              {itemCount > 0 && (
-                <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-full font-mono text-[10px] font-bold">
-                  {itemCount}
-                </span>
-              )}
-            </button>
-          )}
+          {/* Universal Shopping Cart Drawer Trigger */}
+          <button
+            onClick={() => {
+              setIsDrawerOpen(false);
+              setIsCartOpen(true);
+            }}
+            title="Shopping Cart"
+            className="flex items-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-semibold text-xs shadow-md shadow-indigo-500/20 transition transform active:scale-95"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span className="hidden sm:inline">Cart</span>
+            {itemCount > 0 && (
+              <span className="bg-white/20 text-white px-1.5 py-0.5 rounded-full font-mono text-[10px] font-bold">
+                {itemCount}
+              </span>
+            )}
+          </button>
 
           {/* User Account / Keycloak Authentication */}
           {user ? (

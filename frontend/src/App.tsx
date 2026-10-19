@@ -166,7 +166,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Sliding Drawers */}
-      {user && <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />}
+      <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
       <NotificationDrawer />
 
       {/* Modals */}

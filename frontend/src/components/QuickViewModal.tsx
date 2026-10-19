@@ -107,43 +107,32 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
           </div>
 
           <div className="space-y-4 pt-2 border-t border-slate-800">
-            {/* Cart actions require an authenticated user. */}
+            {/* Cart actions */}
             <div className="flex items-center gap-3">
-              {user ? (
-                <>
-                  <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-                    >
-                      -
-                    </button>
-                    <span className="w-8 text-center text-sm font-bold text-white">{quantity}</span>
-                    <button
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
-                    >
-                      +
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={handleAddToCart}
-                    disabled={!isInStock}
-                    className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    Add to Cart
-                  </button>
-                </>
-              ) : (
+              <div className="flex items-center bg-slate-950 border border-slate-800 rounded-xl p-1">
                 <button
-                  onClick={login}
-                  className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
                 >
-                  Sign in to Buy
+                  -
                 </button>
-              )}
+                <span className="w-8 text-center text-sm font-bold text-white">{quantity}</span>
+                <button
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800"
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+                className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2 transition"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                {isInStock ? 'Add to Cart' : 'Out of Stock'}
+              </button>
 
               <button
                 onClick={() => toggleWishlist(product.sku)}

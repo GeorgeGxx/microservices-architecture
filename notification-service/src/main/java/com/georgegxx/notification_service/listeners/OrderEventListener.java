@@ -25,7 +25,7 @@ public class OrderEventListener {
     private static final String NOTIFICATION_IDEMPOTENCY_PREFIX = "notification:processed:";
     private static final Duration NOTIFICATION_TTL = Duration.ofDays(7);
 
-    @KafkaListener(topics = "orders-topic", groupId = "notification-group")
+    @KafkaListener(topics = "orders-topic", groupId = "${spring.kafka.consumer.group-id:notification-group}")
     public void handleOrdersNotifications(String message) {
         Timer.Sample sample = Timer.start(this.meterRegistry);
         try {
