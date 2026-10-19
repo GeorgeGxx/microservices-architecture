@@ -957,26 +957,48 @@ def build_technical_dashboard():
     {
         "id": 606,
         "type": "timeseries",
-        "title": "⚠️ Alloy Pipeline Drops & Parsing Errors",
-        "description": "Tracks any JSON parsing errors or target drops occurring inside the Alloy collector pipeline.",
+        "title": "⏱️ Loki Push Duration & Ingestion Latency (ms)",
+        "description": "Round-trip batch submission latency from Alloy to Loki (P95 / P50) and pipeline drops, verifying real-time log ingestion performance.",
         "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "short",
+                "unit": "ms",
                 "color": {"mode": "palette-classic"},
                 "custom": {
                     "drawStyle": "line",
+                    "lineInterpolation": "smooth",
                     "lineWidth": 2,
-                    "fillOpacity": 20
+                    "fillOpacity": 15,
+                    "gradientMode": "opacity"
+                },
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 50},
+                        {"color": "#ef4444", "value": 200}
+                    ]
                 }
             }
         },
-        "targets": [{
-            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
-            "legendFormat": "Parsing Errors"
-        }]
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "(histogram_quantile(0.95, sum by (le) (rate(loki_write_request_duration_seconds_bucket[1m]))) * 1000) or vector(0)",
+                "legendFormat": "P95 Push Latency (ms)"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "(histogram_quantile(0.50, sum by (le) (rate(loki_write_request_duration_seconds_bucket[1m]))) * 1000) or vector(0)",
+                "legendFormat": "P50 Median Latency (ms)"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(rate(loki_write_batch_retries_total[1m])) or sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
+                "legendFormat": "Batch Retries / Drops"
+            }
+        ]
     }
 ]
 
