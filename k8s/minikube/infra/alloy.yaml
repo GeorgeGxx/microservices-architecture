@@ -80,6 +80,9 @@ kind: Service
 metadata:
   name: alloy
   namespace: observability
+  labels:
+    app: alloy
+    release: prometheus
 spec:
   type: NodePort
   selector:
@@ -89,6 +92,30 @@ spec:
       port: 3300
       targetPort: 3300
       nodePort: 30330
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: alloy
+  namespace: observability
+  labels:
+    app: alloy
+    release: prometheus
+spec:
+  jobLabel: app
+  selector:
+    matchLabels:
+      app: alloy
+  endpoints:
+    - port: http-metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      path: /metrics
+      relabelings:
+        - targetLabel: job
+          replacement: alloy
+        - targetLabel: service
+          replacement: alloy
 ---
 apiVersion: apps/v1
 kind: DaemonSet

@@ -919,7 +919,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "time() - max(process_start_time_seconds{job=\"alloy\"})",
+          "expr": "(time() - max(process_start_time_seconds{job=\"alloy\"})) or vector(0)",
           "legendFormat": "Process Uptime"
         }
       ]
@@ -1043,7 +1043,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(rate(process_cpu_seconds_total{job=\"alloy\"}[1m]) * 100, 0)",
+          "expr": "clamp_min(rate(process_cpu_seconds_total{job=\"alloy\"}[1m]) * 100, 0) or vector(0)",
           "legendFormat": "CPU Saturation"
         }
       ]
@@ -1081,7 +1081,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(rate(loki_source_docker_target_entries_total[1m])) or sum(rate(loki_source_file_read_lines_total[1m])) or vector(0)",
+          "expr": "sum(rate(loki_write_sent_entries_total[1m])) or sum(rate(loki_source_file_read_lines_total[1m])) or sum(rate(loki_source_docker_target_entries_total[1m])) or vector(0)",
           "legendFormat": "Forwarded Log Lines/sec"
         }
       ]
@@ -1155,7 +1155,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(rate(loki_write_batch_retries_total[1m])) or sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
+          "expr": "sum(rate(loki_write_batch_retries_total[1m])) or sum(rate(loki_write_dropped_entries_total[1m])) or sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
           "legendFormat": "Batch Retries / Drops"
         }
       ]
