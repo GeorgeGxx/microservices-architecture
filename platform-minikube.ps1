@@ -83,11 +83,12 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
-    Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                  │ Open           │" -ForegroundColor White
+    Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
     Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
-    Write-Host "│ 🐙 ArgoCD GitOps Server      │ http://localhost:8088                     │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 🐙 ArgoCD GitOps Server      │ http://localhost:8088                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 📊 Alloy Collector UI        │ http://localhost:3300                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
