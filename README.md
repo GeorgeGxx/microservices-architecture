@@ -237,7 +237,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | 🧪 **MLflow Tracking UI** | [http://localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 2.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
 | 🔑 **Keycloak Admin Console** | [http://localhost:8181](http://localhost:8181) | `http://$(minikube ip):30181` | HTTP / OIDC OAuth2 | Realm administration, user provisioning (`admin_user`, `basic_user`), client scopes & JWT keys |
 | 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.0.4 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
-| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Pre-provisioned dashboards for business KPIs, SRE technical ops, MLOps, and Alloy telemetry pipelines (`admin`/`admin`) |
+| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Pre-provisioned dashboards for business KPIs, SRE technical ops (with unified Alloy telemetry pipeline), and MLOps (`admin`/`admin`) |
 | 🎯 **Prometheus TSDB** | [http://localhost:9090](http://localhost:9090) (or `/targets`) | Internal ClusterIP (`:9090` via port-forward) | HTTP / Prometheus 3.14.0 | Target scrape status inspection, PromQL expression evaluation & alerting rules |
 | 🔍 **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | `http://$(minikube ip):30330` (or `:3300` via tunnel) | HTTP / Grafana Alloy 1.19.1 | Interactive telemetry pipeline visualizer, component dependency graph, log agent state & `/metrics` |
 | 🕸️ **Kiali Service Mesh** | [http://localhost:20001/kiali](http://localhost:20001/kiali) | `http://$(minikube ip):32001/kiali` | HTTP / Kiali 2.33.0 | Real-time Istio visual service graph, mutual TLS traffic status & canary route split verification |
@@ -274,7 +274,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 ### 📊 Full-Stack Observability (LGTM Stack)
 * **Pre-Provisioned Grafana Dashboards:**
   1. `🏢 Business Intelligence & Inventory Operations` (all-time delivered merchandise-value/order/AOV snapshots, cancelled orders, live SKU stock risks, observed funnel activity, and cohort retention).
-  2. `🛡️ Technical, Infrastructure & Security Operations (SRE)` (Golden signals, P95 latency, circuit breaker states, HikariCP pools, JVM Heap, threat level).
+  2. `🛡️ Technical, Infrastructure & Security Operations (SRE)` (Golden signals, P95 latency, circuit breaker states, HikariCP pools, JVM Heap, threat level, and unified Grafana Alloy log-forwarding pipeline).
   3. `MLOps Forecast Service · Operations` (Forecast API availability, request rate, p95 latency, 5xx ratio, last successful forecast, and sales-data freshness; no duplicate experiment or inventory business charts).
 * **Deep Telemetry Correlation:** One-click drill-down in Grafana Explore linking Tempo distributed spans $\leftrightarrow$ Loki structured logs $\leftrightarrow$ Prometheus metrics.
 

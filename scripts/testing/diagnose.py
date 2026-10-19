@@ -37,7 +37,7 @@ SERVICE_ENDPOINTS = {
     "inventory-service": "http://127.0.0.1:8001",
     "notification-service": "http://127.0.0.1:8002",
 }
-GRAFANA_DASHBOARDS = ["business-operations", "technical-security", "grafana-alloy"]
+GRAFANA_DASHBOARDS = ["business-operations", "technical-security"]
 
 
 # ==============================================================================
