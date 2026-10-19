@@ -911,7 +911,7 @@
         },
         "colorMode": "value",
         "graphMode": "none",
-        "textMode": "auto"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -973,7 +973,7 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -1035,7 +1035,7 @@
         },
         "colorMode": "value",
         "graphMode": "area",
-        "textMode": "auto"
+        "textMode": "value"
       },
       "targets": [
         {
@@ -1043,7 +1043,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(rate(process_cpu_seconds_total{job=\"alloy\"}[1m]) * 100, 0) or vector(0)",
+          "expr": "clamp_min(max(rate(process_cpu_seconds_total{job=\"alloy\"}[1m])) * 100, 0) or vector(0)",
           "legendFormat": "CPU Saturation"
         }
       ]
