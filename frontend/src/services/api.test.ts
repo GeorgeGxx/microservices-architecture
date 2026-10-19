@@ -202,6 +202,39 @@ describe('Product and Stock API Mutations', () => {
     }
   });
 
+  it('dispatches funnel telemetry events with proper headers and body', async () => {
+    const originalFetch = globalThis.fetch;
+    let recordedUrl = '';
+    let recordedMethod = '';
+    let recordedBody = '';
+
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      recordedUrl = String(input);
+      recordedMethod = init?.method || '';
+      recordedBody = String(init?.body || '');
+      return { ok: true, status: 202 } as Response;
+    }) as typeof fetch;
+
+    try {
+      const { recordFunnelTelemetry } = await import('./api');
+      await recordFunnelTelemetry({
+        eventType: 'CART_ADD',
+        sku: 'TEST-SKU',
+        category: 'Electronics',
+      });
+
+      expect(recordedUrl).toBe('/api/order/funnel');
+      expect(recordedMethod).toBe('POST');
+      expect(JSON.parse(recordedBody)).toEqual({
+        eventType: 'CART_ADD',
+        sku: 'TEST-SKU',
+        category: 'Electronics',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('throws descriptive error on failure for createProduct, updateProduct, deleteProduct, and stock adjustments', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => ({
