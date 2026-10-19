@@ -16,7 +16,7 @@
 | **Grafana Loki** | [http://localhost:3100](http://localhost:3100) | `3100` | High-throughput centralized log indexing |
 | **Grafana Tempo** | [http://localhost:3200](http://localhost:3200) | `3200` | Distributed tracing & OTLP span store |
 | **OTel Collector** | `http://localhost:4317` (gRPC) / `4318` (HTTP) | `4317` / `4318` | OpenTelemetry telemetry ingestion pipeline |
-| **Grafana Alloy (Compose)** | `http://localhost:3300` | `3300` | Collector/agent UI and telemetry shipping; it is **not** a Grafana query datasource |
+| **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | `3300` / NodePort `30330` | Interactive pipeline visualizer, component graph, log agent state & `/metrics` |
 | **Demand Forecast API** | [http://localhost:8005/docs](http://localhost:8005/docs) | `8005` | FastAPI MLOps inference engine (`/metrics`, `/health`, `/docs`) |
 
 Grafana queries data from Prometheus, Loki, and Tempo. Alloy collects container/pod logs and ships them to Loki; the OpenTelemetry Collector forwards traces to Tempo. For Docker Compose the datasource URLs are service DNS names (`prometheus:9090`, `loki:3100`, `tempo:3200`). In Minikube, Grafana uses the Kubernetes service URLs provisioned in `k8s/minikube/infra/grafana-datasources.yaml`.
@@ -322,17 +322,53 @@ over a 15-minute window. With no matching events, the peer-IP query returns a
 `No blocked peers` series instead of an empty result. Run the authenticated
 `simulate.py --scenario ddos` against the local frontend edge to produce real
 Nginx 429 logs; synthetic `X-Forwarded-For` values do not create separate
-network peers.
+### ⚡ Grafana Alloy Collector Telemetry & Pipeline Health
+
+#### 🟢 Alloy Collector Daemon Uptime & Health
+Verifies that the Grafana Alloy daemon target is scraped successfully by Prometheus TSDB:
+```promql
+up{job="alloy"}
+```
+
+#### ⚙️ Pipeline Components Controller Health
+Total active pipeline components in `healthy` status managed by Alloy controller:
+```promql
+sum(alloy_component_controller_running_components{job="alloy", health_type="healthy"})
+```
+
+#### 💻 Alloy CPU Utilization Rate
+Calculates CPU time rate consumed by the Alloy process:
+```promql
+rate(process_cpu_seconds_total{job="alloy"}[1m]) * 100
+```
+
+#### 🧠 Alloy Resident Memory (RSS) vs Container Limit (256MB)
+Monitors real memory consumption against the 256MB Docker/Kubernetes boundary:
+```promql
+process_resident_memory_bytes{job="alloy"}
+```
+
+#### 📥 Container Log Ingestion Rate (lines/second)
+Tracks live log ingestion throughput captured from Docker socket or Kubernetes pod logs:
+```promql
+sum(rate(loki_source_docker_target_entries_total{job="alloy"}[1m])) or sum(rate(loki_source_file_read_lines_total{job="alloy"}[1m]))
+```
 
 ---
 
 ## 📜 2. LogQL Queries (Grafana Loki & Alloy v1.19.1)
 
-LogQL (*Log Query Language*) allows searching, filtering, and calculating metrics over logs collected by Grafana Alloy from Docker containers and Kubernetes pods.
+LogQL (*Log Query Language*) allows searching, filtering, and calculating metrics over logs collected by Grafana Alloy from Docker containers and Kubernetes pods. Alloy's pipeline includes multiline exception aggregation (`stage.multiline`) and structured JSON parsing (`stage.json`), promoting `level` to an indexed label without elevating cardinality.
 
 ### 🔍 Real-Time Error Hunting & Exception Triage
 
-#### 🚨 Global Microservices Error Stream
+#### 🎯 High-Performance Indexed Error Filter (via Alloy `level` label)
+Queries Loki using the indexed `level` label promoted by Alloy pipeline stages:
+```logql
+{service=~".+", level=~"(?i)ERROR|FATAL"}
+```
+
+#### 🚨 Global Microservices Error Stream (Text & Regex)
 Streams all logs containing `ERROR` or Java stacktrace exceptions across all services:
 ```logql
 {service=~".+"} |~ "(?i)ERROR|Exception"

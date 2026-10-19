@@ -78,3 +78,12 @@ spec:
           annotations:
             summary: "Redis Exporter Unreachable"
             description: "The Redis Prometheus exporter target is down or unreachable."
+
+        - alert: AlloyCollectorDown
+          expr: up{job="alloy"} == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Grafana Alloy Telemetry Collector Unreachable"
+            description: "The Grafana Alloy daemon target is down or failing health probes."

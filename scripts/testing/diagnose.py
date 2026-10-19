@@ -29,6 +29,7 @@ DEFAULT_PROMETHEUS = "http://127.0.0.1:9090"
 DEFAULT_GRAFANA = "http://127.0.0.1:3000"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 DEFAULT_FRONTEND = "http://127.0.0.1:5173"
+DEFAULT_ALLOY = "http://127.0.0.1:3300"
 
 SERVICE_ENDPOINTS = {
     "products-service": "http://127.0.0.1:8004",
@@ -36,7 +37,7 @@ SERVICE_ENDPOINTS = {
     "inventory-service": "http://127.0.0.1:8001",
     "notification-service": "http://127.0.0.1:8002",
 }
-GRAFANA_DASHBOARDS = ["business-operations", "technical-security"]
+GRAFANA_DASHBOARDS = ["business-operations", "technical-security", "grafana-alloy"]
 
 
 # ==============================================================================
@@ -182,11 +183,47 @@ def verify_grafana(grafana_url: str):
             print(f"  [\033[93mWARN\033[0m] Grafana dashboard '{uid}' check: {e}")
 
 
-def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, prometheus_url: str = DEFAULT_PROMETHEUS, grafana_url: str = DEFAULT_GRAFANA) -> int:
+def verify_alloy(alloy_url: str):
+    """Verify Grafana Alloy interactive dashboard, health probes, and runtime metrics."""
+    print("\n\033[96m[4/4] ⚡ VERIFYING GRAFANA ALLOY COLLECTOR & DASHBOARD UI\033[0m")
+    # 1. Check Root UI / Interactive Graph
+    try:
+        req = urllib.request.Request(alloy_url, headers={"User-Agent": "Alloy-Diagnose/1.0"})
+        with urllib.request.urlopen(req, timeout=4) as resp:
+            content = resp.read(300).decode("utf-8", errors="ignore")
+            if "<!doctype html>" in content.lower() or resp.status == 200:
+                print(f"  [\033[92mOK\033[0m] Grafana Alloy Web UI active at {alloy_url} (HTTP {resp.status})")
+    except Exception as e:
+        print(f"  [\033[93mWARN\033[0m] Grafana Alloy Web UI at {alloy_url}: {e}")
+
+    # 2. Check Metrics endpoint & healthy components
+    try:
+        metrics_url = f"{alloy_url}/metrics"
+        with urllib.request.urlopen(metrics_url, timeout=4) as resp:
+            data = resp.read().decode("utf-8", errors="ignore")
+            running = 0
+            version = "unknown"
+            for line in data.splitlines():
+                if "alloy_build_info" in line and "version=" in line:
+                    for part in line.split(","):
+                        if "version=" in part:
+                            version = part.split('"')[1]
+                if "alloy_component_controller_running_components" in line and 'health_type="healthy"' in line and not line.startswith("#"):
+                    try:
+                        running = int(float(line.split()[-1]))
+                    except ValueError:
+                        pass
+            print(f"  [\033[92mOK\033[0m] Alloy Agent {version}: {running} healthy pipeline components actively running.")
+    except Exception as e:
+        print(f"  [\033[93mWARN\033[0m] Grafana Alloy metrics check: {e}")
+
+
+def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, prometheus_url: str = DEFAULT_PROMETHEUS, grafana_url: str = DEFAULT_GRAFANA, alloy_url: str = DEFAULT_ALLOY) -> int:
     """Execute component verifications based on target selection."""
     gw = normalize_loopback(router_url)
     prom = normalize_loopback(prometheus_url)
     graf = normalize_loopback(grafana_url)
+    alloy = normalize_loopback(alloy_url)
 
     print("\n\033[96m================================================================================\033[0m")
     print(" \033[96m🔍 PLATFORM ECOSYSTEM VERIFICATION\033[0m")
@@ -199,6 +236,8 @@ def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, pr
         verify_metrics(prom)
     if target in ("all", "grafana"):
         verify_grafana(graf)
+    if target in ("all", "alloy"):
+        verify_alloy(alloy)
 
     print("\n\033[92m✨ Verification routine finished.\033[0m\n")
     return 0
@@ -385,12 +424,13 @@ def main():
     subparsers = parser.add_subparsers(dest="suite", required=True)
 
     components = subparsers.add_parser(
-        "components", help="Check Router/Swagger, Prometheus series, or Grafana dashboards"
+        "components", help="Check Router/Swagger, Prometheus series, Grafana dashboards, or Alloy"
     )
-    components.add_argument("--target", choices=["all", "swagger", "metrics", "grafana"], default="all")
+    components.add_argument("--target", choices=["all", "swagger", "metrics", "grafana", "alloy"], default="all")
     components.add_argument("--router-url", default=os.getenv("COSMO_ROUTER_URL", DEFAULT_ROUTER_URL))
     components.add_argument("--prometheus-url", default=os.getenv("PROMETHEUS_URL", DEFAULT_PROMETHEUS))
     components.add_argument("--grafana-url", default=os.getenv("GRAFANA_URL", DEFAULT_GRAFANA))
+    components.add_argument("--alloy-url", default=os.getenv("ALLOY_URL", DEFAULT_ALLOY))
 
     telemetry = subparsers.add_parser(
         "telemetry", help="Run JVM, observed-funnel, Vault, or custom PromQL diagnostics"
@@ -417,6 +457,7 @@ def main():
             router_url=args.router_url,
             prometheus_url=args.prometheus_url,
             grafana_url=args.grafana_url,
+            alloy_url=args.alloy_url,
         )
 
     if args.suite == "telemetry":

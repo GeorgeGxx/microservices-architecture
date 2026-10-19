@@ -35,7 +35,32 @@ discovery.relabel "docker_logs" {
 loki.source.docker "docker_logs" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.relabel.docker_logs.output
+  forward_to = [loki.process.docker_logs.receiver]
+}
+
+loki.process "docker_logs" {
   forward_to = [loki.write.endpoint.receiver]
+
+  stage.multiline {
+    firstline     = "^(?:\\d{4}-\\d{2}-\\d{2}|\\{|[A-Z]{3,5}\\s|\\[)"
+    max_wait_time = "3s"
+    max_lines     = 500
+  }
+
+  stage.json {
+    expressions = {
+      level   = "level",
+      traceId = "traceId",
+      spanId  = "spanId",
+      status  = "status",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
 }
 
 loki.write "endpoint" {

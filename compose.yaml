@@ -624,7 +624,7 @@ services:
     networks:
       - spring
 
-  ### Grafana Alloy (Telemetry & Log Agent)
+  ### Grafana Alloy (Telemetry & Log Agent) - http://localhost:3300
   alloy:
     container_name: alloy
     image: "grafana/alloy:${ALLOY_VERSION}"
@@ -641,6 +641,14 @@ services:
     ports:
       - "3300:3300" # Alloy UI & Metrics
     restart: unless-stopped
+    cpus: 0.5
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/3300' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       - loki
     networks:
