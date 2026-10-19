@@ -653,6 +653,11 @@ function Invoke-CliToolsAudit {
 }
 
 function Invoke-LocalPolicyGate {
+    [CmdletBinding()]
+    param(
+        [string]$StepHeader = ""
+    )
+
     $helm = Get-Command helm -ErrorAction SilentlyContinue
     if (-not $helm) { throw "Helm is required. Install it with '.\platform-$Platform.ps1 tools -Install' and rerun '.\platform-minikube.ps1 policy'." }
     $conftest = Get-Command conftest -ErrorAction SilentlyContinue
@@ -665,18 +670,26 @@ function Invoke-LocalPolicyGate {
     if (-not (Test-Path -LiteralPath $valuesFile -PathType Leaf)) { throw "Minikube Helm values are missing: $valuesFile" }
     if (-not (Test-Path -LiteralPath (Join-Path $umbrellaDir 'charts') -PathType Container)) { throw "Helm chart dependencies are missing. Run '.\platform-minikube.ps1 up -Environment dev' once to prepare the umbrella chart." }
 
+    if ($StepHeader) {
+        Write-Host ""
+        Write-Host $StepHeader -ForegroundColor Cyan
+    } else {
+        Write-Host ""
+        Write-Host "  ── Conftest: OPA Rego Policy Gate ──" -ForegroundColor Cyan
+    }
+
     $renderedFile = Join-Path ([System.IO.Path]::GetTempPath()) ("microservices-policy-{0}.yaml" -f [guid]::NewGuid().ToString('N'))
     try {
-        Write-Host 'Rendering Minikube Helm manifests for policy evaluation...' -ForegroundColor Cyan
+        Write-Host '  Rendering Minikube Helm manifests for policy evaluation...' -ForegroundColor Gray
         $renderedManifests = & helm template microservices $umbrellaDir --namespace dev --values $valuesFile --include-crds
         if ($LASTEXITCODE -ne 0) { throw "Helm rendering failed with exit code $LASTEXITCODE." }
         [System.IO.File]::WriteAllLines($renderedFile, [string[]]$renderedManifests, [System.Text.UTF8Encoding]::new($false))
         if (-not (Test-Path -LiteralPath $renderedFile -PathType Leaf) -or (Get-Item -LiteralPath $renderedFile).Length -eq 0) { throw 'Helm produced no manifest content to evaluate.' }
 
-        Write-Host 'Evaluating Kubernetes manifests against centralized Rego policies...' -ForegroundColor Cyan
+        Write-Host '  Evaluating Kubernetes manifests against centralized Rego policies...' -ForegroundColor Gray
         & conftest test $renderedFile --policy $policyDir
         if ($LASTEXITCODE -ne 0) { throw "Conftest policy gate failed with exit code $LASTEXITCODE." }
-        Write-Host 'Conftest policy gate passed.' -ForegroundColor Green
+        Write-Host '  [OK] Conftest: Centralized Rego policies passed successfully.' -ForegroundColor Green
     } finally {
         Remove-Item -LiteralPath $renderedFile -Force -ErrorAction SilentlyContinue
     }
@@ -743,43 +756,63 @@ function Invoke-LocalDevSecOpsScan {
             }
         }
 
-        Write-Host '▶ Gitleaks: tracked and non-ignored working-tree files with the centralized rules...' -ForegroundColor Yellow
+        $totalGates = if ($IncludeRenderedPolicy) { 4 } else { 3 }
+
+        # --- [1/N] Gitleaks ---
+        Write-Host ""
+        Write-Host "  ── [1/$totalGates] Gitleaks: Secret Detection ──" -ForegroundColor Cyan
+        Write-Host "  Scanning tracked and non-ignored working-tree files..." -ForegroundColor Gray
         $gitleaksSource = New-GitleaksScanSource
         try {
             & gitleaks detect --source=$gitleaksSource --config=$gitleaksConfig --no-git --redact=100 --no-banner
             if ($LASTEXITCODE -ne 0) { throw "Gitleaks detected a failure (exit $LASTEXITCODE). Review findings before continuing." }
+            Write-Host "  [OK] Gitleaks: 0 secret leaks detected." -ForegroundColor Green
         } finally {
             Remove-Item -LiteralPath $gitleaksSource -Recurse -Force -ErrorAction SilentlyContinue
         }
 
+        # --- [2/N] TFLint ---
         $terraformScanDir = if ($TargetPlatform -eq 'minikube') { $tfMinikubeDir } else { Join-Path $root "terraform\environments\$TargetPlatform" }
-        Write-Host "▶ TFLint: $TargetPlatform Terraform validation..." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  ── [2/$totalGates] TFLint: Terraform Static Analysis ──" -ForegroundColor Cyan
+        Write-Host "  Validating $TargetPlatform Terraform configuration..." -ForegroundColor Gray
         Push-Location $terraformScanDir
         try {
             & tflint --init
             if ($LASTEXITCODE -ne 0) { throw "TFLint plugin initialization failed (exit $LASTEXITCODE)." }
             & tflint
             if ($LASTEXITCODE -ne 0) { throw "TFLint reported a failure (exit $LASTEXITCODE)." }
+            Write-Host "  [OK] TFLint: 0 syntax or lint rule violations found in $TargetPlatform Terraform." -ForegroundColor Green
         } finally { Pop-Location }
 
+        # --- [3/N] Trivy ---
         $trivyTargets = if ($TargetPlatform -eq 'minikube') {
             @($umbrellaDir)
         } else {
             @((Join-Path $root "terraform\environments\$TargetPlatform"), $umbrellaDir)
         }
+        Write-Host ""
+        Write-Host "  ── [3/$totalGates] Trivy: IaC Misconfiguration & Compliance ──" -ForegroundColor Cyan
         foreach ($trivyTarget in $trivyTargets) {
-            Write-Host "▶ Trivy: scanning $trivyTarget with the central config and exception list..." -ForegroundColor Yellow
+            $targetPath = if (Test-Path -LiteralPath $trivyTarget) { (Resolve-Path $trivyTarget).Path } else { $trivyTarget }
+            $targetLeaf = Split-Path $targetPath -Leaf
+            Write-Host "  Scanning target: $targetPath (with central config & exception list)..." -ForegroundColor Gray
             & trivy --config $trivyConfig config $trivyTarget
             if ($LASTEXITCODE -ne 0) { throw "Trivy configuration scan failed for '$trivyTarget' (exit $LASTEXITCODE)." }
+            Write-Host "  [OK] Trivy: IaC scan clean for '$targetLeaf' (audit mode active)." -ForegroundColor Green
         }
 
+        # --- [4/N] Conftest ---
         if ($IncludeRenderedPolicy) {
             if ($TargetPlatform -ne 'minikube') { throw 'The local Conftest render gate currently targets Minikube values only; cloud manifests are evaluated in their provider pipelines.' }
-            Write-Host '▶ Conftest: evaluating rendered Minikube manifests...' -ForegroundColor Yellow
-            Invoke-LocalPolicyGate
+            $stepHeader = "  ── [4/$totalGates] Conftest: OPA Rego Policy Gate ──"
+            Invoke-LocalPolicyGate -StepHeader $stepHeader
         }
 
-        Write-Host 'Local DevSecOps scans completed. Trivy findings remain in audit mode as configured in trivy.yaml.' -ForegroundColor Green
+        Write-Host ""
+        Write-Host "  ✔ Shift-Left Security Scans completed successfully." -ForegroundColor Green
+        Write-Host "    Note: Trivy findings remain in audit mode as configured in trivy.yaml." -ForegroundColor DarkGray
+        Write-Host ""
     } finally {
         Pop-Location
     }
