@@ -16,6 +16,7 @@ interface NotificationContextType {
   toasts: Toast[];
   unreadCount: number;
   markAllAsRead: () => void;
+  clearNotifications: () => void;
   removeToast: (id: string) => void;
   showToast: (title: string, message: string, type?: Toast['type']) => void;
   isDrawerOpen: boolean;
@@ -27,6 +28,7 @@ const NotificationContext = createContext<NotificationContextType>({
   toasts: [],
   unreadCount: 0,
   markAllAsRead: () => {},
+  clearNotifications: () => {},
   removeToast: () => {},
   showToast: () => {},
   isDrawerOpen: false,
@@ -120,6 +122,18 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
+  const clearNotifications = () => {
+    setNotifications([]);
+    seenOrderEvents.current.clear();
+    if (user) {
+      try {
+        localStorage.removeItem(`novashop_notifications_${user.username}`);
+      } catch {
+        // Handled safely
+      }
+    }
+  };
+
   const unreadCount = user ? notifications.filter((n) => !n.read).length : 0;
 
   const contextValue = useMemo(
@@ -128,6 +142,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       toasts,
       unreadCount,
       markAllAsRead,
+      clearNotifications,
       removeToast,
       showToast,
       isDrawerOpen,

@@ -3,6 +3,7 @@ import { CartItem, Product } from '../types';
 import { CartAggregate } from '../domain/aggregates/CartAggregate';
 import { cartStorage } from '../infrastructure/adapters/LocalStorageCartRepository';
 import { useAuth } from './AuthContext';
+import { useNotifications } from './NotificationContext';
 
 interface CartContextType {
   cart: CartItem[];
@@ -43,7 +44,8 @@ const CartContext = createContext<CartContextType>({
 });
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
+  const { showToast, setIsDrawerOpen } = useNotifications();
   const [aggregate, setAggregate] = useState<CartAggregate>(() => {
     const saved = cartStorage.load();
     return new CartAggregate(saved);
@@ -56,18 +58,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cartStorage.save(aggregate.items);
   }, [aggregate]);
 
-  useEffect(() => {
-    if (!isLoading && !user) {
-      setAggregate((prev) => prev.clear());
-      setIsCartOpen(false);
-      cartStorage.clear();
-    }
-  }, [isLoading, user]);
-
   const addToCart = (product: Product, quantity: number = 1) => {
-    if (!user) return;
+    if (quantity <= 0) return;
     setAggregate((prev) => prev.addItem(product, quantity));
+    setIsDrawerOpen(false);
     setIsCartOpen(true);
+    showToast('Added to Cart', `${product.name} (x${quantity}) added to your shopping cart.`, 'order');
   };
 
   const removeFromCart = (sku: string) => {

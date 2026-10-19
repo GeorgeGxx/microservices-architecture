@@ -1,9 +1,9 @@
 import React from 'react';
 import { useNotifications } from '../context/NotificationContext';
-import { X, Bell, CheckCheck, Package, AlertCircle } from 'lucide-react';
+import { X, Bell, CheckCheck, Trash2, Package, AlertCircle } from 'lucide-react';
 
 export const NotificationDrawer: React.FC = () => {
-  const { notifications, isDrawerOpen, setIsDrawerOpen, markAllAsRead } = useNotifications();
+  const { notifications, isDrawerOpen, setIsDrawerOpen, markAllAsRead, clearNotifications } = useNotifications();
 
   if (!isDrawerOpen) return null;
 
@@ -23,13 +23,24 @@ export const NotificationDrawer: React.FC = () => {
               <h3 className="text-base sm:text-lg font-bold text-white">Live Event Notifications</h3>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={markAllAsRead}
-                title="Mark all as read"
-                className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-slate-800 transition"
-              >
-                <CheckCheck className="w-4 h-4" />
-              </button>
+              {notifications.length > 0 && (
+                <>
+                  <button
+                    onClick={markAllAsRead}
+                    title="Mark all as read"
+                    className="p-1.5 text-slate-400 hover:text-indigo-400 rounded-lg hover:bg-slate-800 transition"
+                  >
+                    <CheckCheck className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={clearNotifications}
+                    title="Clear all notifications"
+                    className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-slate-800 transition"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </>
+              )}
               <button
                 onClick={() => setIsDrawerOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
@@ -72,6 +83,17 @@ export const NotificationDrawer: React.FC = () => {
                   </div>
                 </div>
               ))
+            )}
+            {notifications.length > 0 && (
+              <div className="pt-3 border-t border-slate-800/80 flex justify-center">
+                <button
+                  onClick={clearNotifications}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-rose-400 hover:bg-slate-800/70 rounded-lg transition"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Clear notification history
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -19,7 +19,7 @@ spring:
       "[security.protocol]": ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
     consumer:
       group-id: ${NOTIFICATION_KAFKA_GROUP_ID:notification-service}
-      auto-offset-reset: earliest
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
       enable-auto-commit: false        # Prevents message loss if processing fails.
       max-poll-records: 50             # Controls batch size per poll
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer

@@ -39,4 +39,25 @@ describe('live order notification audience', () => {
     expect(canUserReceiveNotification(user(), { ...notification, userId: undefined })).toBe(true);
     expect(canUserReceiveNotification(user({ username: 'other_user' }), { ...notification, userId: undefined })).toBe(false);
   });
+
+  it('allows clearing notification history from localStorage', () => {
+    const store: Record<string, string> = {};
+    const mockStorage = {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => { store[key] = value; },
+      removeItem: (key: string) => { delete store[key]; },
+      clear: () => { Object.keys(store).forEach((k) => delete store[k]); },
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      writable: true,
+      configurable: true,
+    });
+
+    const storageKey = 'novashop_notifications_test_shopper';
+    globalThis.localStorage.setItem(storageKey, JSON.stringify([notification]));
+    expect(globalThis.localStorage.getItem(storageKey)).not.toBeNull();
+    globalThis.localStorage.removeItem(storageKey);
+    expect(globalThis.localStorage.getItem(storageKey)).toBeNull();
+  });
 });
