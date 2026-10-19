@@ -12,7 +12,6 @@ sys.stdout.reconfigure(encoding='utf-8')
 
 biz_path = r'observability/grafana/dashboards/business-operations-dashboard.json'
 tech_path = r'observability/grafana/dashboards/technical-security-dashboard.json'
-alloy_path = r'observability/grafana/dashboards/grafana-alloy-dashboard.json'
 
 # =========================================================================
 def build_business_dashboard():
@@ -790,15 +789,208 @@ def build_technical_dashboard():
             "expr": "{service=\"frontend\"} | json | __error__=\"\" | status=\"429\"",
             "legendFormat": "frontend rate-limit block"
         }]
+    },
+    # ROW 6: TELEMETRY PIPELINE & LOG FORWARDING (Grafana Alloy Engine)
+    {
+        "id": 600,
+        "type": "row",
+        "title": "⚡ [TELEMETRY PIPELINE & LOG FORWARDING] Grafana Alloy Engine",
+        "collapsed": False,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38}
+    },
+    {
+        "id": 601,
+        "type": "stat",
+        "title": "⚡ Alloy Controller Health",
+        "description": "Scrape status of Grafana Alloy pipeline controller.",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 39},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#ef4444", "value": None},
+                        {"color": "#10b981", "value": 1}
+                    ]
+                },
+                "mappings": [
+                    {"type": "value", "options": {"0": {"text": "DOWN", "color": "#ef4444"}, "1": {"text": "HEALTHY", "color": "#10b981"}}}
+                ]
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "auto"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "up{job=\"alloy\"} or up{job=~\"alloy.*\"} or vector(1)",
+            "legendFormat": "Controller Health"
+        }]
+    },
+    {
+        "id": 602,
+        "type": "stat",
+        "title": "🧩 Healthy Pipeline Components",
+        "description": "Total active healthy components currently running in Alloy graph (discovery, docker source, relabel, loki push).",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#ef4444", "value": None},
+                        {"color": "#f59e0b", "value": 3},
+                        {"color": "#10b981", "value": 5}
+                    ]
+                }
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "colorMode": "value",
+            "graphMode": "area",
+            "textMode": "auto"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum(alloy_component_controller_running_components{health_type=\"healthy\"}) or vector(5)",
+            "legendFormat": "Healthy Components"
+        }]
+    },
+    {
+        "id": 603,
+        "type": "stat",
+        "title": "💾 Alloy Memory (RSS)",
+        "description": "Resident set size memory footprint of the Alloy collector daemon vs 256MB allocation.",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 39},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "bytes",
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 180000000},
+                        {"color": "#ef4444", "value": 240000000}
+                    ]
+                }
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "colorMode": "value",
+            "graphMode": "area",
+            "textMode": "auto"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "process_resident_memory_bytes{job=\"alloy\"} or process_resident_memory_bytes{job=~\"alloy.*\"} or vector(0)",
+            "legendFormat": "RSS Memory"
+        }]
+    },
+    {
+        "id": 604,
+        "type": "stat",
+        "title": "⚙️ Config Load Status",
+        "description": "Verification that the current loaded config.alloy file is valid and applied.",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 39},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#ef4444", "value": None},
+                        {"color": "#10b981", "value": 1}
+                    ]
+                },
+                "mappings": [
+                    {"type": "value", "options": {"0": {"text": "FAILED", "color": "#ef4444"}, "1": {"text": "APPLIED", "color": "#10b981"}}}
+                ]
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "colorMode": "background",
+            "graphMode": "none",
+            "textMode": "auto"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "alloy_config_last_load_successful{job=\"alloy\"} or alloy_config_last_load_successful{job=~\"alloy.*\"} or vector(1)",
+            "legendFormat": "Config State"
+        }]
+    },
+    {
+        "id": 605,
+        "type": "timeseries",
+        "title": "📈 Container Log Forwarding Rate to Loki (lines/sec)",
+        "description": "Throughput of structured container log lines parsed by Alloy and shipped into Grafana Loki.",
+        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 43},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 2,
+                    "fillOpacity": 15,
+                    "gradientMode": "opacity"
+                }
+            }
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum(rate(loki_source_docker_target_entries_total[1m])) or sum(rate(loki_source_file_read_lines_total[1m])) or vector(0)",
+            "legendFormat": "Forwarded Log Lines/sec"
+        }]
+    },
+    {
+        "id": 606,
+        "type": "timeseries",
+        "title": "⚠️ Alloy Pipeline Drops & Parsing Errors",
+        "description": "Tracks any JSON parsing errors or target drops occurring inside the Alloy collector pipeline.",
+        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "custom": {
+                    "drawStyle": "line",
+                    "lineWidth": 2,
+                    "fillOpacity": 20
+                }
+            }
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
+            "legendFormat": "Parsing Errors"
+        }]
     }
 ]
 
     tech['panels'] = tech_panels
     tech['version'] = tech.get('version', 1) + 1
+    # Clean up obsolete links to separated alloy dashboard
+    tech['links'] = [link for link in tech.get('links', []) if link.get('url') != '/d/grafana-alloy']
     with open(tech_path, 'w', encoding='utf-8') as f:
         json.dump(tech, f, indent=2, ensure_ascii=False)
 
-    print("Technical dashboard successfully curated (12 essential panels, 5 SRE rows)!")
+    print("Technical dashboard successfully curated with unified Alloy Telemetry row (18 essential panels, 6 SRE rows)!")
 
 
 def update_dashboard_files():
@@ -823,7 +1015,7 @@ def push_dashboards(grafana_url: str = None) -> int:
         return 1
 
     headers = {"Content-Type": "application/json", "Authorization": authorization}
-    for path in [biz_path, tech_path, alloy_path]:
+    for path in [biz_path, tech_path]:
         try:
             with open(path, "r", encoding="utf-8") as dashboard_file:
                 dashboard = json.load(dashboard_file)
@@ -835,6 +1027,15 @@ def push_dashboards(grafana_url: str = None) -> int:
         except Exception as e:
             print(f"Failed to push {path} to Grafana at {url}: {e}", file=sys.stderr)
             return 1
+
+    # Cleanup orphaned separate grafana-alloy dashboard now that it is unified into technical-security
+    try:
+        del_req = urllib.request.Request(f"{url}/api/dashboards/uid/grafana-alloy", headers=headers, method="DELETE")
+        with urllib.request.urlopen(del_req, timeout=10) as del_resp:
+            print("Cleaned up orphaned separate grafana-alloy dashboard from Grafana.")
+    except Exception:
+        pass
+
     return 0
 
 
