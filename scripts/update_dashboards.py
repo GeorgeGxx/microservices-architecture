@@ -828,27 +828,25 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "up{job=\"alloy\"} or up{job=~\"alloy.*\"} or vector(1)",
+            "expr": "max(up{job=\"alloy\"}) or vector(1)",
             "legendFormat": "Controller Health"
         }]
     },
     {
         "id": 602,
         "type": "stat",
-        "title": "🧩 Healthy Pipeline Components",
-        "description": "Total active healthy components currently running in Alloy graph (discovery, docker source, relabel, loki push).",
+        "title": "⏱️ Collector Uptime",
+        "description": "Elapsed running time of the Alloy daemon process since last startup.",
         "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "short",
+                "unit": "s",
                 "color": {"mode": "thresholds"},
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                        {"color": "#ef4444", "value": None},
-                        {"color": "#f59e0b", "value": 3},
-                        {"color": "#10b981", "value": 5}
+                        {"color": "#38bdf8", "value": None}
                     ]
                 }
             }
@@ -856,13 +854,13 @@ def build_technical_dashboard():
         "options": {
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
             "colorMode": "value",
-            "graphMode": "area",
+            "graphMode": "none",
             "textMode": "auto"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(alloy_component_controller_running_components{health_type=\"healthy\"}) or vector(5)",
-            "legendFormat": "Healthy Components"
+            "expr": "time() - max(process_start_time_seconds{job=\"alloy\"})",
+            "legendFormat": "Process Uptime"
         }]
     },
     {
@@ -880,8 +878,8 @@ def build_technical_dashboard():
                     "mode": "absolute",
                     "steps": [
                         {"color": "#10b981", "value": None},
-                        {"color": "#f59e0b", "value": 180000000},
-                        {"color": "#ef4444", "value": 240000000}
+                        {"color": "#f59e0b", "value": 200000000},
+                        {"color": "#ef4444", "value": 268435456}
                     ]
                 }
             }
@@ -894,42 +892,41 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "process_resident_memory_bytes{job=\"alloy\"} or process_resident_memory_bytes{job=~\"alloy.*\"} or vector(0)",
+            "expr": "max(process_resident_memory_bytes{job=\"alloy\"}) or vector(0)",
             "legendFormat": "RSS Memory"
         }]
     },
     {
         "id": 604,
         "type": "stat",
-        "title": "⚙️ Config Load Status",
-        "description": "Verification that the current loaded config.alloy file is valid and applied.",
+        "title": "⚡ Collector CPU Usage",
+        "description": "Current processor saturation percentage used by the Alloy log collector.",
         "gridPos": {"h": 4, "w": 6, "x": 18, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
+                "unit": "percent",
                 "color": {"mode": "thresholds"},
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                        {"color": "#ef4444", "value": None},
-                        {"color": "#10b981", "value": 1}
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 50},
+                        {"color": "#ef4444", "value": 80}
                     ]
-                },
-                "mappings": [
-                    {"type": "value", "options": {"0": {"text": "FAILED", "color": "#ef4444"}, "1": {"text": "APPLIED", "color": "#10b981"}}}
-                ]
+                }
             }
         },
         "options": {
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
-            "colorMode": "background",
-            "graphMode": "none",
+            "colorMode": "value",
+            "graphMode": "area",
             "textMode": "auto"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "alloy_config_last_load_successful{job=\"alloy\"} or alloy_config_last_load_successful{job=~\"alloy.*\"} or vector(1)",
-            "legendFormat": "Config State"
+            "expr": "clamp_min(rate(process_cpu_seconds_total{job=\"alloy\"}[1m]) * 100, 0)",
+            "legendFormat": "CPU Saturation"
         }]
     },
     {
