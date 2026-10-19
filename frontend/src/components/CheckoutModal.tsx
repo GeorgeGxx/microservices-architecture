@@ -7,6 +7,7 @@ import { createIdempotencyKey, placeOrderUseCase } from '../application/use-case
 import { CheckoutStateMachine, CheckoutStep } from '../application/use-cases/CheckoutFSM';
 import { Order } from '../types';
 import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
+import { recordFunnelTelemetry } from '../services/api';
 import confetti from 'canvas-confetti';
 import {
   X,
@@ -73,7 +74,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     setCurrentStep('CUSTOMER_INFO');
     setIsLoading(false);
     setStepError(null);
-  }, [fsm, isOpen]);
+
+    void recordFunnelTelemetry({ eventType: 'CHECKOUT_START' }, user?.token);
+  }, [fsm, isOpen, user?.token]);
 
   if (!isOpen) return null;
 
@@ -82,6 +85,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     if (success) {
       setCurrentStep(fsm.step);
       setStepError(null);
+      if (target === 'DELIVERY_TIER') {
+        void recordFunnelTelemetry({ eventType: 'CHECKOUT_STEP', step: 'DELIVERY' }, user?.token);
+      } else if (target === 'PAYMENT') {
+        void recordFunnelTelemetry({ eventType: 'CHECKOUT_STEP', step: 'PAYMENT' }, user?.token);
+      }
     } else {
       setStepError(fsm.errorMessage);
     }

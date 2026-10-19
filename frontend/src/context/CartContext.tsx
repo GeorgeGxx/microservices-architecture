@@ -4,6 +4,7 @@ import { CartAggregate } from '../domain/aggregates/CartAggregate';
 import { cartStorage } from '../infrastructure/adapters/LocalStorageCartRepository';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
+import { recordFunnelTelemetry } from '../services/api';
 
 interface CartContextType {
   cart: CartItem[];
@@ -64,6 +65,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsDrawerOpen(false);
     setIsCartOpen(true);
     showToast('Added to Cart', `${product.name} (x${quantity}) added to your shopping cart.`, 'order');
+
+    void recordFunnelTelemetry(
+      {
+        eventType: 'CART_ADD',
+        sku: product.sku,
+        category: product.category || 'General',
+      },
+      user?.token
+    );
   };
 
   const removeFromCart = (sku: string) => {
