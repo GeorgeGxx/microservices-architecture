@@ -956,8 +956,8 @@ def build_technical_dashboard():
     {
         "id": 602,
         "type": "stat",
-        "title": "🔄 Alloy Container Restarts (24h)",
-        "description": "Kubernetes container restart count over the last 24 hours. A rising count is a stronger production signal than process uptime because it surfaces repeated collector crashes.",
+        "title": "🔄 Alloy Restarts (24h)",
+        "description": "Uses Kubernetes container restart counters in Minikube and changes in Alloy's process start time in Docker Compose. Compose requires a stable Alloy scrape target; a new Prometheus installation needs two samples before it can detect a restart.",
         "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -982,7 +982,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"observability\",container=\"alloy\"}[24h]))",
+            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"observability\",container=\"alloy\"}[24h])) or sum(changes(process_start_time_seconds{job=\"alloy\"}[24h]))",
             "legendFormat": "Restarts in 24h"
         }]
     },
