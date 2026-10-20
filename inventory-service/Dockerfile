@@ -3,6 +3,9 @@ FROM bellsoft/liberica-openjdk-alpine:21 AS builder
 
 WORKDIR /app
 
+COPY ./docker/healthcheck/HttpHealthcheck.java /app/healthcheck-src/HttpHealthcheck.java
+RUN mkdir -p /app/healthcheck && javac --release 21 -d /app/healthcheck /app/healthcheck-src/HttpHealthcheck.java
+
 # 1) Parent pom.xml first -> better cache
 COPY pom.xml .
 
@@ -40,6 +43,10 @@ COPY --from=builder --chown=nonroot:nonroot \
     /app/extracted/application/ \
     ./
 
+COPY --from=builder --chown=nonroot:nonroot /app/healthcheck/ /app/healthcheck/
+
 USER nonroot
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["java", "-cp", "/app/healthcheck", "HttpHealthcheck", "http://127.0.0.1:8001/actuator/inventory/health"]
 
 ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:+ExitOnOutOfMemoryError", "-XX:MaxRAMPercentage=75.0", "-Djava.security.egd=file:/dev/./urandom", "-jar", "application.jar"]

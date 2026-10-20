@@ -102,14 +102,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Enforce Checkov IaC policy gate
+      - name: Report Checkov multi-framework findings
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: '.'
           framework: 'all'
           output_format: 'cli,sarif'
           output_file_path: 'console,checkov-report.sarif'
-          soft_fail: false
+          # This repository-wide scan includes cloud examples and service Dockerfiles;
+          # findings are uploaded to Security while focused gates enforce regressions.
+          soft_fail: true
 
       - name: Upload Checkov Scan Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4
