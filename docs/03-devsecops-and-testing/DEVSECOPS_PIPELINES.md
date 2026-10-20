@@ -214,11 +214,12 @@ devsecops/
 
 #### ⚙️ Security Operating Modes: Audit vs. Enforce
 
-| Tool | Current Mode (Audit / Soft-Gate) | Maturity Mode (Enforce / Hard-Gate) |
+| Tool | Current Mode | Next maturity step |
 | :--- | :--- | :--- |
-| **Trivy** | The shared config applies severity and `.trivyignore`; local/GitHub report without blocking, Bitbucket blocks HIGH/CRITICAL, and Azure blocks on protected branches. | Use reviewed exceptions and the same config while moving audit/advisory gates to blocking. |
+| **Trivy** | GitHub blocks fixed CRITICAL findings in source and built images; HIGH findings are reported as advisory. The shared config applies severity and `.trivyignore`. | Agree on a time-bound HIGH remediation policy and reviewed exceptions before making HIGH blocking. |
 | **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
-| **Conftest (OPA)** | Blocking on privileged containers, missing memory/CPU limits, ':latest' image tags, and default ServiceAccount usage (enforces least-privilege RBAC). | Extended blocking (enforces mandatory labels, network policies, and non-root users). |
+| **Checkov** | Blocking for the configured IaC scan jobs. | Triage baseline findings and keep exception ownership and expiry explicit. |
+| **Conftest (OPA)** | Blocking on privileged containers, missing CPU/memory limits, untagged or latest-style images, and default/missing ServiceAccounts across Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs. Missing health probes are reported as warnings. | Extend coverage to organization-specific admission controls and validate them against every rendered target. |
 | **OWASP ZAP** | Fails on rules marked `FAIL` in `rules.tsv`; advisory on `WARN`. | Strict blocking on security headers and CSP violations. |
 
 #### 🚀 Deployment & Operations Guide: 100% Local Enterprise DevSecOps on Minikube
@@ -240,9 +241,9 @@ kubectl get nodes
 
 ##### 🐳 2. Docker Hub Authentication & Secrets Configuration
 
-Container images are standardized under the Docker Hub namespace `georgegxx/<service>:1.0.0`.
+Container images are published under `georgegxx/<service>:<git-sha>`; the registry-returned digest is used for deployment. Mutable `latest` and overwritten `1.0.0` aliases are not pushed.
 
-1. To enable automated image publishing upon passing all CI and Staging Quality Gates, ensure your GitHub repository has the following secrets configured (**Settings** -> **Secrets and variables** -> **Actions**):
+1. To enable automated image publishing and digest-based deployment after all blocking CI gates pass, ensure your GitHub repository has the following secrets configured (**Settings** -> **Secrets and variables** -> **Actions**):
    * `DOCKERHUB_USERNAME`: `georgegxx`
    * `DOCKERHUB_TOKEN`: `<your-dockerhub-access-token>`
 
@@ -331,10 +332,10 @@ The reusable service workflow currently has seven numbered job groups, followed 
 1. **🧪 Unit/build verification**: Maven tests and JaCoCo for Spring services, or npm build for the web frontend.
 2. **🔍 SAST and secrets**: Gitleaks, Semgrep and Checkov. Optional SonarQube Cloud analysis runs with unit/build verification.
 3. **⚙️ Image and SBOM**: BuildKit produces an image archive and Trivy generates CycloneDX SBOM.
-4. **🧰 Container scan**: Trivy audits critical/high findings in soft-gate mode (`exit-code: 0`).
+4. **🧰 Container scan**: Trivy blocks fixed CRITICAL vulnerabilities in the source and built image; HIGH findings are reported as advisory until the project sets an agreed remediation threshold.
 5. **🧾 Policy gate**: Helm renders the chart and Conftest evaluates Rego policies.
-6. **📦 Registry publish**: Publishes the immutable commit tag when Docker Hub credentials are configured; local evaluation can continue without pushing.
-7. **🐙 GitOps delivery**: Attempts ArgoCD sync/health verification, or a direct Helm path when a cluster is reachable. Configure the runner and credentials for the intended target before relying on this job as a deployment gate.
+6. **📦 Registry publish**: Publishes the Git SHA tag and captures the registry digest. If registry credentials are absent, the deployment job is skipped instead of reporting a false delivery.
+7. **🐙 GitOps delivery**: Sets the deployment image to the captured digest, then checks ArgoCD sync/health or uses a direct Helm path when a cluster is reachable. Configure the runner and credentials for the intended target before relying on this job as a deployment gate.
 
 The reusable GitHub workflow includes a runtime validation stage (`🧪 Post-deployment API, SLO and DAST`) that executes Newman API tests, storefront smoke checks, k6 load/SLO checks, and OWASP ZAP security audits after a `develop` push.
 
@@ -377,16 +378,9 @@ If tunnels or public URLs are already established, you can toggle the stage dire
   ```
   *(Requires `DEVSECOPS_BASE_URL`, `DEVSECOPS_FRONTEND_URL`, and `DEVSECOPS_KEYCLOAK_URL` to point to the active public tunnel endpoints).*
 
-##### 🎯 7. Transitioning to Maturity Mode (Strict Enforce / Hard-Gate)
+##### 🎯 7. Extending the Blocking Security Gates
 
-When you are ready to enforce strict blocking in production:
-
-1. **Trivy**: Update `devsecops/compliance/trivy/trivy.yaml` and the gate policy in the relevant workflow:
-   ```yaml
-   exit-code: '1' # Fails builds on unpatched critical vulnerabilities
-   ```
-2. **ZAP DAST**: Review `devsecops/dast/zap/rules.tsv`; ZAP consumes this same policy file in the local command and CI stages.
-3. **Risk Exceptions**: Document any accepted CVE in `devsecops/compliance/trivy/.trivyignore`.
+Fixed CRITICAL Trivy findings and Checkov findings already block the configured GitHub workflows. To make HIGH Trivy findings blocking, change both source and image scan steps in `.github/workflows/security-scan.yml` and `.github/workflows/_service-ci-cd-template.yml` to include `HIGH,CRITICAL` with `exit-code: '1'`, then review `.trivyignore` exceptions and the expected pipeline impact. ZAP continues to fail `FAIL` rules and report `WARN` rules from `devsecops/dast/zap/rules.tsv`; promote a `WARN` only after verifying it against the local and CI test targets.
 
 ---
 

@@ -3,17 +3,19 @@
 > [!TIP]
 > 🧭 **[Enterprise Platform Hub](../../README.md)** > **01. Architecture** > `DISASTER_RECOVERY_STRATEGY.md`
 
-This document defines the formal **Business Continuity and Disaster Recovery (BCDR)** strategy for the microservices platform, aligned with **ISO 22301** (Business Continuity Management) and **NIST SP 800-34** (Contingency Planning for Federal Information Systems).
+This document defines the target **Business Continuity and Disaster Recovery (BCDR)** architecture for the microservices platform, informed by **ISO 22301** (Business Continuity Management) and **NIST SP 800-34** (Contingency Planning for Federal Information Systems). These are design objectives; they are not a claim of certified compliance or measured production recovery performance.
 
 ---
 
 ## 🎯 Executive Summary & Objectives
 
-The platform guarantees service availability against catastrophic failures—such as regional cloud outages, physical datacenter destruction, ransomware encryption, or accidental administrative state loss.
+The target architecture is designed to improve service recovery during catastrophic failures such as regional cloud outages, ransomware incidents, or accidental administrative state loss.
 
 ### Target Service Level Objectives (SLOs)
 * **High Availability (HA):** 99.95% uptime across Multi-AZ intra-region infrastructure.
 * **Disaster Recovery (DR):** Cross-region **Warm Standby** architecture ensuring failover within minutes.
+
+The current local Minikube backup implementation writes PostgreSQL dumps to a cluster-local PVC and verifies checksum plus isolated restores. It does not provide cross-region replication, off-cluster immutable storage, or measured RTO/RPO. Treat the objectives and topology below as targets until cloud resources, failover automation, and scheduled GameDays are implemented and measured.
 
 ---
 

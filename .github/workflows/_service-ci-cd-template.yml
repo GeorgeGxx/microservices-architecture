@@ -234,12 +234,13 @@ jobs:
       - name: Run Checkov Scanner
         run: |
           if command -v checkov &>/dev/null; then
-            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact
           elif command -v docker &>/dev/null; then
-            docker run --rm -v "$GITHUB_WORKSPACE:/work:ro" bridgecrew/checkov -d "/work/${{ inputs.service-dir }}" --framework dockerfile,kubernetes,helm --compact || true
+            docker run --rm -v "$GITHUB_WORKSPACE:/work:ro" bridgecrew/checkov -d "/work/${{ inputs.service-dir }}" --framework dockerfile,kubernetes,helm --compact
           else
-            python3 -m pip install --upgrade pip && pip install checkov
-            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact || true
+            python3 -m pip install --upgrade pip
+            pip install checkov
+            checkov -d ${{ inputs.service-dir }} --framework dockerfile,kubernetes,helm --compact
           fi
 
   # ==========================================================
@@ -466,7 +467,7 @@ jobs:
 
   # ==========================================================
   # STEP 4: 🧰 Container Image Scan (Trivy) — Calibrated
-  #   Uses devsecops/compliance/trivy/ config in Audit / Soft-Gate mode
+  #   Blocks fixed CRITICAL findings; reports HIGH findings as advisory.
   # ==========================================================
   image-scan:
     name: "🧰 4. Image Scan (Trivy) - ${{ inputs.service-name }}"
@@ -483,16 +484,26 @@ jobs:
           name: image-${{ inputs.service-name }}
           path: /tmp
 
-      - name: Trivy Container Vulnerability Scan (Calibrated Soft-Gate)
+      - name: Block on fixed CRITICAL image vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'image'
           input: /tmp/${{ inputs.service-name }}-image.tar
           trivy-config: devsecops/compliance/trivy/trivy.yaml
           format: 'table'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
           ignore-unfixed: true
-          # Calibrated to 0 for audit mode. Change to 1 for strict blocking enforce mode
+          exit-code: '1'
+
+      - name: Report HIGH image vulnerability findings (advisory)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'image'
+          input: /tmp/${{ inputs.service-name }}-image.tar
+          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          format: 'table'
+          severity: 'HIGH'
+          ignore-unfixed: true
           exit-code: '0'
 
   # ==========================================================
@@ -553,6 +564,7 @@ jobs:
     needs: [build-container, image-scan, compliance-check]
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
+      image-published: ${{ steps.registry-push.outputs.published }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
@@ -571,19 +583,11 @@ jobs:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
           DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
-          RELEASE_TAG="${{ env.IMAGE_NAME }}:1.0.0"
+          set -euo pipefail
           SHA_TAG="${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          LATEST_TAG="${{ env.IMAGE_NAME }}:latest"
-          
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $RELEASE_TAG
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $SHA_TAG
-          docker tag ${{ env.IMAGE_NAME }}:${{ github.sha }} $LATEST_TAG
-          
-          # Attempt login and push to Docker Hub (graceful fallback if secrets not configured)
+
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push $RELEASE_TAG
-            set -o pipefail
             docker push "$SHA_TAG" 2>&1 | tee /tmp/docker-push.log
             IMAGE_DIGEST="$(sed -n 's/.*digest: \(sha256:[0-9a-f]*\).*/\1/p' /tmp/docker-push.log | tail -n 1)"
             if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -591,10 +595,11 @@ jobs:
               exit 1
             fi
             echo "digest=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
-            docker push $LATEST_TAG
-            echo "Successfully pushed certified image to Docker Hub: $RELEASE_TAG, $SHA_TAG and $LATEST_TAG"
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "Published $SHA_TAG; deployment will use the immutable digest $IMAGE_DIGEST."
           else
-            echo "::notice::DOCKERHUB_TOKEN / DOCKER_PASSWORD secret not set — image tagged locally ($RELEASE_TAG) for Minikube evaluation."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Registry credentials are not configured; deployment is skipped because no image was published."
           fi
 
   # ==========================================================
@@ -606,6 +611,7 @@ jobs:
   gitops-argocd-sync:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"
     needs: push-dockerhub
+    if: needs.push-dockerhub.outputs.image-published == 'true'
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:

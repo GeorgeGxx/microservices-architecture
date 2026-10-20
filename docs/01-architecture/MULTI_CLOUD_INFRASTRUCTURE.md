@@ -225,7 +225,7 @@ The platform provides a fully production-grade, hardened **Amazon Web Services (
 
 * **Automated CI/CD Delivery ([`.github/workflows/`](../../.github/workflows/)):**
   * [`.github/workflows/terraform-aws.yml`](../../.github/workflows/terraform-aws.yml) for automated Terraform plan/apply workflows.
-  * [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) for automated service build, Trivy vulnerability scan, ECR push, and GitOps sync.
+  * [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) for automated service build, blocking CRITICAL image scan, Git SHA image publication to Docker Hub, digest-based GitOps deployment, and conditional post-deployment checks. The current reusable workflow does not publish to ECR; registry-specific cloud promotion remains a separate configuration task.
 
 ### 🛠️ AWS Deployment & Operational Workflow
 

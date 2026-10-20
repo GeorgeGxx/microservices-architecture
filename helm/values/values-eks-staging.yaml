@@ -27,7 +27,7 @@ cosmo-router:
 inventory-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/inventory-service"
-    tag: "1.0.0" # Replace with the immutable commit SHA selected for this release.
+    tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
   replicaCount: 2
   resources:
     requests:
@@ -40,7 +40,7 @@ inventory-service:
 notification-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/notification-service"
-    tag: "1.0.0" # Replace with the immutable commit SHA selected for this release.
+    tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
   replicaCount: 2
   resources:
     requests:
@@ -53,7 +53,7 @@ notification-service:
 orders-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/orders-service"
-    tag: "1.0.0" # Replace with the immutable commit SHA selected for this release.
+    tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
   replicaCount: 2
   resources:
     requests:
@@ -66,7 +66,7 @@ orders-service:
 products-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/products-service"
-    tag: "1.0.0" # Replace with the immutable commit SHA selected for this release.
+    tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
   replicaCount: 2
   resources:
     requests:
@@ -79,7 +79,7 @@ products-service:
 frontend:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/frontend"
-    tag: "1.0.0" # Replace with the immutable commit SHA selected for this release.
+    tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
   replicaCount: 2
   resources:
     requests:

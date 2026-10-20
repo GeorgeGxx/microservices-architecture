@@ -787,6 +787,12 @@ stringData:
             kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic 2>$null | Out-Null
             kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic.DLT 2>$null | Out-Null
             kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth 2>$null
+            $bcdrBackupManifest = Join-Path $root "k8s\common\bcdr\database-backup-cronjob.yaml"
+            if (Test-Path $bcdrBackupManifest) {
+                Write-Host "  ▶ Configuring persistent PostgreSQL backups and weekly isolated restore verification..." -ForegroundColor White
+                kubectl apply -f $bcdrBackupManifest
+                if ($LASTEXITCODE -ne 0) { throw "Could not install the PostgreSQL backup/restore verification jobs." }
+            }
             kubectl apply -f "$infraDir\keycloak.yaml" -n auth 2>$null
             if (Test-Path "$infraDir\dev-infra-bridges.yaml") { kubectl apply -f "$infraDir\dev-infra-bridges.yaml" 2>$null }
 

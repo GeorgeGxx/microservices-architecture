@@ -382,7 +382,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "🌐 Core Microservices Online",
         "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
-        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -413,7 +413,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "⏱️ Global P95 Response Latency",
         "description": "Overall 95th percentile response time across all microservice endpoints.",
-        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -444,7 +444,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "🚨 Edge Security Attack Status & Threat Level",
         "description": "Count of actual HTTP 429 responses logged by frontend Nginx. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec. The value is a rolling one-minute rate and returns to green after traffic stops.",
-        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
         "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
             "defaults": {
@@ -475,7 +475,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "⚡ Resilience4j Circuit Breakers Health",
         "description": "State of circuit breakers protecting inter-service communication (2 = CLOSED / HEALTHY, 1 = HALF_OPEN, 0 = OPEN).",
-        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -508,6 +508,38 @@ def build_technical_dashboard():
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
             "expr": "clamp_min(2 - 2 * (max(resilience4j_circuitbreaker_state{state=\"open\"}) or vector(0)) - (max(resilience4j_circuitbreaker_state{state=\"half_open\"}) or vector(0)), 0)",
             "legendFormat": "Circuit Breakers"
+        }]
+    },
+    {
+        "id": 105,
+        "type": "stat",
+        "title": "🎯 Availability SLO Burn",
+        "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. Green is below 1x burn; red starts at the 14.4x multi-window alert threshold. No traffic or missing telemetry shows No data.",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "decimals": 2,
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 1},
+                        {"color": "#ef4444", "value": 14.4}
+                    ]
+                }
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "textMode": "value", "colorMode": "background", "graphMode": "none", "noValue": "No data"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "microservices:http_error_ratio:rate5m / 0.005",
+            "legendFormat": "{{service}} (x budget burn)"
         }]
     },
 

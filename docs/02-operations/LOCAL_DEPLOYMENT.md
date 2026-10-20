@@ -68,6 +68,25 @@ Cloud cluster entries managed by the cloud ApplicationSets must carry these Argo
 
 Docker Compose does not install OpenCost: it can run the application containers but does not provide Kubernetes workload allocation data.
 
+### PostgreSQL backup and restore drills
+
+The Minikube bootstrap installs `k8s/common/bcdr/database-backup-cronjob.yaml` in the `data` namespace. It stores custom-format dumps for Keycloak, inventory, orders, and products on the `postgres-bcdr-backups` PVC every six hours, keeps a rolling seven-day window, and runs an isolated checksum plus restore verification weekly. The restore job does not connect to or modify the source databases.
+
+```powershell
+# Check the durable backup claim and scheduled jobs
+kubectl get pvc,cronjobs -n data
+
+# Run a backup immediately and inspect its logs
+kubectl create job --from=cronjob/postgres-bcdr-backup "postgres-bcdr-backup-manual-$(Get-Date -Format yyyyMMddHHmmss)" -n data
+kubectl get jobs -n data --sort-by=.metadata.creationTimestamp
+
+# Run an isolated restore verification immediately
+kubectl create job --from=cronjob/postgres-bcdr-restore-verification "postgres-bcdr-restore-manual-$(Get-Date -Format yyyyMMddHHmmss)" -n data
+kubectl get jobs -n data --sort-by=.metadata.creationTimestamp
+```
+
+Use `kubectl logs -n data job/<job-name>` to confirm each database passed. The PVC survives pod restarts but is still inside the Minikube cluster; deleting the cluster deletes these local backups. For cloud disaster recovery, configure the existing Velero schedule with an encrypted off-cluster object-storage location and verify a restore into a separate cluster. The local PVC alone is not an offsite backup.
+
 ### FinOps controls and workload sizing
 
 - **Live Kubernetes allocation:** `.\platform-minikube.ps1 cost` uses OpenCost through the optional Krew plugin. Cloud billing remains unavailable until provider billing exports and credentials are connected.

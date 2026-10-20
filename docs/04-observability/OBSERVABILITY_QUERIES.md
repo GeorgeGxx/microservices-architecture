@@ -27,6 +27,22 @@ Grafana queries data from Prometheus, Loki, and Tempo. Alloy collects container/
 
 PromQL (*Prometheus Query Language*) queries monitor golden signals, business conversion funnels, database connection pools, JVM performance, and security thresholds.
 
+### Availability SLO and Error Budget
+
+The initial service objective is **99.5% successful HTTP requests** for the four Spring services, excluding Actuator endpoints. The paired 5-minute and 1-hour alert fires when both 5xx ratios exceed 7.2% (14.4x burn against the 0.5% error budget). This is an early operational objective, not a customer contract; review it against measured traffic before production adoption. Low or absent traffic produces no ratio series and is handled separately by target availability alerts.
+
+```promql
+# Current per-service 5xx ratio (5-minute window)
+microservices:http_error_ratio:rate5m
+
+# Remaining error-budget burn condition used by the alert
+(microservices:http_error_ratio:rate5m > 0.072)
+and
+(microservices:http_error_ratio:rate1h > 0.072)
+```
+
+The alert includes the `slo="availability"` and `objective="99.5%"` labels and a repository runbook pointer. The recording rules are installed for Docker Compose, Minikube Prometheus, and the Kubernetes PrometheusRule chart.
+
 ### 💼 E-Commerce Business Intelligence & Revenue KPIs
 
 #### 🛒 Observed Funnel Event Activity (selected range)
