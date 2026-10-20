@@ -6,12 +6,12 @@ resource "azurerm_kubernetes_cluster" "this" {
   kubernetes_version  = var.kubernetes_version
 
   default_node_pool {
-    name                = "system"
-    vm_size             = var.node_vm_size
-    vnet_subnet_id      = var.subnet_id
-    node_count          = var.node_count
-    min_count           = var.enable_auto_scaling ? var.min_count : null
-    max_count           = var.enable_auto_scaling ? var.max_count : null
+    name                 = "system"
+    vm_size              = var.node_vm_size
+    vnet_subnet_id       = var.subnet_id
+    node_count           = var.node_count
+    min_count            = var.enable_auto_scaling ? var.min_count : null
+    max_count            = var.enable_auto_scaling ? var.max_count : null
     auto_scaling_enabled = var.enable_auto_scaling
   }
 
