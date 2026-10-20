@@ -352,6 +352,68 @@ def build_business_dashboard():
                 "legendFormat": "Net Revenue ($ USD)"
             }
         ]
+    },
+    {
+        "id": 40,
+        "type": "row",
+        "title": "🔮 [DEMAND FORECAST READINESS & MODEL QUALITY] Forecast Data for Inventory Decisions",
+        "collapsed": False,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}
+    },
+    {
+        "id": 41,
+        "type": "stat",
+        "title": "🕒 Age of Latest Successful Forecast",
+        "description": "Elapsed time since the forecast API last returned a successful forecast. No data means no successful forecast has been recorded yet or telemetry is unavailable.",
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 30},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 72}]}}},
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Forecast age"}]
+    },
+    {
+        "id": 42,
+        "type": "stat",
+        "title": "🗓️ Age of Latest Sales Data",
+        "description": "Age of the newest sales date included in forecast input data. A stale source can make current forecasts less useful for replenishment decisions.",
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 30},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {"defaults": {"unit": "d", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 2}, {"color": "#ef4444", "value": 7}]}}},
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Sales data age"}]
+    },
+    {
+        "id": 43,
+        "type": "stat",
+        "title": "🧠 Age of Active Forecast Model",
+        "description": "Time since the active demand model was trained. Review this with sales-data freshness and model error before relying on forecasts.",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 30},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 48}]}}},
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Model age"}]
+    },
+    {
+        "id": 44,
+        "type": "stat",
+        "title": "📏 Active Model RMSE",
+        "description": "Root mean squared forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 30},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "RMSE"}]
+    },
+    {
+        "id": 45,
+        "type": "stat",
+        "title": "📏 Active Model MAE",
+        "description": "Mean absolute forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 30},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "MAE"}]
     }
 ]
 
@@ -362,19 +424,26 @@ def build_business_dashboard():
     with open(biz_path, 'w', encoding='utf-8') as f:
         json.dump(biz, f, indent=2, ensure_ascii=False)
 
-    print("Business dashboard successfully curated (10 high-value panels, 4 rows)!")
+    print("Business dashboard successfully curated (15 high-value panels, 5 rows)!")
 
 
 def build_technical_dashboard():
     with open(tech_path, 'r', encoding='utf-8') as f:
         tech = json.load(f)
 
+    # Keep the technical service filter in sync with the SRE request panels.
+    for variable in tech.get("templating", {}).get("list", []):
+        if variable.get("name") == "service":
+            service_query = 'label_values(up{service=~"cosmo-router|orders-service|products-service|inventory-service|notification-service|demand-forecast-service"}, service)'
+            variable["definition"] = service_query
+            variable.setdefault("query", {})["query"] = service_query
+
     tech_panels = [
-    # ROW 1: GLOBAL HEALTH & GOLDEN SIGNALS (Top 4 Vital Signs)
+    # ROW 1: GLOBAL HEALTH & GOLDEN SIGNALS (Top 6 Vital Signs)
     {
         "id": 100,
         "type": "row",
-        "title": "🟢 [GLOBAL SYSTEM HEALTH & GOLDEN SIGNALS] Core Microservices Health & Status",
+        "title": "🟢 [GLOBAL SYSTEM HEALTH & GOLDEN SIGNALS] Application & Forecast Service Health",
         "collapsed": False,
         "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0}
     },
@@ -514,9 +583,9 @@ def build_technical_dashboard():
     {
         "id": 105,
         "type": "stat",
-        "title": "🎯 Availability SLO Burn",
-        "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. An available service with no request traffic shows 0x; a down or missing target remains No data. Red starts at the 14.4x multi-window alert threshold.",
-        "gridPos": {"h": 4, "w": 8, "x": 16, "y": 1},
+        "title": "🎯 Availability SLO Burn (Worst Service)",
+        "description": "Single value showing the highest 5-minute 5xx ratio divided by the 0.5% error budget across the core services and demand forecast API. Health checks are excluded from the forecast API ratio. Red starts at the 14.4x multi-window alert threshold.",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -539,9 +608,28 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service\"} == 1) * 0)",
-            "legendFormat": "{{service}} (x budget burn)"
+            "expr": "max((microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service\"} == 1) * 0) or ((sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\",status=~\"5..\"}[5m])) or on (service) (max by (service) (up{service=\"demand-forecast-service\"} == 1) * 0)) / clamp_min(sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\"}[5m])), 1e-9) / 0.005))",
+            "legendFormat": "Worst service (x budget burn)"
         }]
+    },
+    {
+        "id": 106,
+        "type": "stat",
+        "title": "🔮 Forecast API Availability",
+        "description": "Prometheus scrape health for the demand forecast API: UP means its metrics endpoint is reachable; DOWN or No data means forecasting telemetry is unavailable.",
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "min": 0,
+                "max": 1,
+                "color": {"mode": "thresholds"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}, {"color": "#10b981", "value": 1}]},
+                "mappings": [{"type": "value", "options": {"0": {"text": "DOWN", "color": "#ef4444"}, "1": {"text": "UP", "color": "#10b981"}}}]
+            }
+        },
+        "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "background", "graphMode": "none", "noValue": "No data"},
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "max(up{service=\"demand-forecast-service\"}) or vector(0)", "legendFormat": "Forecast API"}]
     },
 
     # ROW 2: HTTP TRAFFIC, LATENCY & ERRORS (2 Golden Signal Visuals)
@@ -556,7 +644,7 @@ def build_technical_dashboard():
         "id": 201,
         "type": "timeseries",
         "title": "📈 HTTP Request Rate by Microservice & Status (RPS)",
-        "description": "Real-time throughput and HTTP status code distribution (2xx success vs 4xx/5xx errors).",
+        "description": "Real-time throughput and HTTP status code distribution (2xx success vs 4xx/5xx errors), including demand forecast API traffic when selected.",
         "gridPos": {"h": 7, "w": 12, "x": 0, "y": 6},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -574,7 +662,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_status_code) (rate(router_http_requests_total{service=~\"$service\",wg_subgraph_name=\"\"}[1m]))",
+            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_status_code) (rate(router_http_requests_total{service=~\"$service\",wg_subgraph_name=\"\"}[1m])) or sum by (service, status) (rate(demand_forecast_http_requests_total{service=~\"$service\",path!=\"/health\"}[1m]))",
             "legendFormat": "{{service}} ({{status}}{{http_status_code}})"
         }]
     },
@@ -582,7 +670,7 @@ def build_technical_dashboard():
         "id": 202,
         "type": "timeseries",
         "title": "⏱️ P95 Latency by Microservice (ms)",
-        "description": "95th percentile response times per microservice to detect latency degradation.",
+        "description": "95th percentile response times per microservice to detect latency degradation. Forecast API health-check requests are excluded.",
         "gridPos": {"h": 7, "w": 12, "x": 12, "y": 6},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -600,7 +688,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m])))",
+            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m]))) or (histogram_quantile(0.95, sum by (le, service) (rate(demand_forecast_http_request_duration_seconds_bucket{service=~\"$service\",path!=\"/health\"}[5m]))) * 1000)",
             "legendFormat": "{{service}} (P95)"
         }]
     },
@@ -834,8 +922,8 @@ def build_technical_dashboard():
     {
         "id": 601,
         "type": "stat",
-        "title": "⚡ Alloy Controller Health",
-        "description": "Scrape status of Grafana Alloy pipeline controller.",
+        "title": "⚡ Alloy Scrape Target Health",
+        "description": "Prometheus scrape health for Alloy. A value of 1 means the metrics endpoint is reachable; 0 means scrapes are failing. No data means the target is missing.",
         "gridPos": {"h": 4, "w": 6, "x": 0, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -868,18 +956,20 @@ def build_technical_dashboard():
     {
         "id": 602,
         "type": "stat",
-        "title": "⏱️ Collector Uptime",
-        "description": "Elapsed running time of the Alloy daemon process since last startup. No data means the target is unavailable.",
+        "title": "🔄 Alloy Container Restarts (24h)",
+        "description": "Kubernetes container restart count over the last 24 hours. A rising count is a stronger production signal than process uptime because it surfaces repeated collector crashes.",
         "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "s",
+                "unit": "short",
                 "color": {"mode": "thresholds"},
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
-                        {"color": "#38bdf8", "value": None}
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 1},
+                        {"color": "#ef4444", "value": 3}
                     ]
                 }
             }
@@ -892,8 +982,8 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "time() - max(process_start_time_seconds{job=\"alloy\"})",
-            "legendFormat": "Process Uptime"
+            "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"observability\",container=\"alloy\"}[24h]))",
+            "legendFormat": "Restarts in 24h"
         }]
     },
     {
@@ -955,36 +1045,11 @@ def build_technical_dashboard():
         }]
     },
     {
-        "id": 605,
-        "type": "timeseries",
-        "title": "📈 Entries Sent to Loki (entries/sec)",
-        "description": "Collector-side delivery throughput Alloy reports as sent to Loki; this does not guarantee end-to-end indexing latency.",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 43},
-        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-        "fieldConfig": {
-            "defaults": {
-                "unit": "short",
-                "custom": {
-                    "drawStyle": "line",
-                    "lineInterpolation": "smooth",
-                    "lineWidth": 2,
-                    "fillOpacity": 15,
-                    "gradientMode": "opacity"
-                }
-            }
-        },
-        "targets": [{
-            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m]))",
-            "legendFormat": "Entries sent to Loki/sec"
-        }]
-    },
-    {
         "id": 606,
         "type": "timeseries",
         "title": "⏱️ Loki Push Request Duration (ms)",
         "description": "P95 and median duration of Alloy HTTP push requests to Loki. This measures request duration, not end-to-end ingestion latency.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
+        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 43},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1023,9 +1088,9 @@ def build_technical_dashboard():
     {
         "id": 607,
         "type": "timeseries",
-        "title": "⚠️ Alloy Delivery Retries & Dropped Logs",
-        "description": "Retry, dropped-entry, and Docker parsing-error rates reported by Alloy. Missing series remain No data, not zero.",
-        "gridPos": {"h": 7, "w": 24, "x": 0, "y": 50},
+        "title": "📨 Alloy Log Flow to Loki",
+        "description": "Log pipeline activity: entries successfully delivered to Loki and source lines read by Alloy, both as events per second. A live flow line confirms the pipeline is active while the adjacent panel tracks delivery failures.",
+        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1033,17 +1098,40 @@ def build_technical_dashboard():
                 "color": {"mode": "palette-classic"},
                 "custom": {
                     "drawStyle": "line",
-                    "lineInterpolation": "smooth",
+                    "lineInterpolation": "linear",
                     "lineWidth": 2,
-                    "fillOpacity": 15,
+                    "fillOpacity": 10,
                     "gradientMode": "opacity"
                 }
             }
         },
         "targets": [
-            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_batch_retries_total{job=\"alloy\"}[5m]))", "legendFormat": "Batch retries/sec"},
-            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_dropped_entries_total{job=\"alloy\"}[5m]))", "legendFormat": "Dropped entries/sec"},
-            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_source_docker_target_parsing_errors_total{job=\"alloy\"}[5m]))", "legendFormat": "Docker parsing errors/sec"}
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m]))", "legendFormat": "Entries delivered to Loki/sec"},
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_source_file_read_lines_total{job=\"alloy\"}[5m]))", "legendFormat": "Log lines read by Alloy/sec"}
+        ]
+    },
+    {
+        "id": 608,
+        "type": "timeseries",
+        "title": "⚠️ Alloy Delivery Failures (Rolling 15m)",
+        "description": "Rolling 15-minute counts of retried batches and dropped log entries grouped by drop reason. The bar view makes intermittent failures visible; zero means no failures were recorded in that window, while No data means the metric is unavailable.",
+        "gridPos": {"h": 7, "w": 24, "x": 0, "y": 50},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "custom": {
+                    "drawStyle": "bars",
+                    "lineWidth": 1,
+                    "fillOpacity": 70,
+                    "gradientMode": "opacity"
+                }
+            }
+        },
+        "targets": [
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(increase(loki_write_batch_retries_total{job=\"alloy\"}[15m]))", "legendFormat": "Retried batches / 15m"},
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum by (reason) (increase(loki_write_dropped_entries_total{job=\"alloy\"}[15m]))", "legendFormat": "Dropped: {{reason}} / 15m"}
         ]
     }
 ]
@@ -1056,11 +1144,11 @@ def build_technical_dashboard():
     with open(tech_path, 'w', encoding='utf-8') as f:
         json.dump(tech, f, indent=2, ensure_ascii=False)
 
-    print("Technical dashboard successfully curated with unified Alloy telemetry and delivery diagnostics.")
+    print("Technical dashboard successfully curated with SRE, forecast API, security, and Alloy telemetry.")
 
 
 def update_dashboard_files():
-    """Build and write both business and technical dashboard JSON files."""
+    """Build and write the business and technical audience-focused dashboards."""
     build_business_dashboard()
     build_technical_dashboard()
 
@@ -1094,13 +1182,22 @@ def push_dashboards(grafana_url: str = None) -> int:
             print(f"Failed to push {path} to Grafana at {url}: {e}", file=sys.stderr)
             return 1
 
-    # Cleanup orphaned separate grafana-alloy dashboard now that it is unified into technical-security
-    try:
-        del_req = urllib.request.Request(f"{url}/api/dashboards/uid/grafana-alloy", headers=headers, method="DELETE")
-        with urllib.request.urlopen(del_req, timeout=10) as del_resp:
-            print("Cleaned up orphaned separate grafana-alloy dashboard from Grafana.")
-    except Exception:
-        pass
+    # Remove dashboards that are now consolidated into the two audience-focused views.
+    for uid, title in (
+        ("grafana-alloy", "standalone Alloy"),
+        ("mlops-forecast-operations", "standalone MLOps operations"),
+    ):
+        try:
+            del_req = urllib.request.Request(f"{url}/api/dashboards/uid/{uid}", headers=headers, method="DELETE")
+            with urllib.request.urlopen(del_req, timeout=10):
+                print(f"Removed obsolete {title} dashboard from Grafana.")
+        except urllib.error.HTTPError as error:
+            if error.code != 404:
+                print(f"Could not remove obsolete {title} dashboard: HTTP {error.code}.", file=sys.stderr)
+                return 1
+        except Exception as error:
+            print(f"Could not remove obsolete {title} dashboard: {error}.", file=sys.stderr)
+            return 1
 
     return 0
 

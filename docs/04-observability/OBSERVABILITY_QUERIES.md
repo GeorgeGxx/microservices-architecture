@@ -244,7 +244,7 @@ sum by (topic, consumergroup) (kafka_consumergroup_lag)
 
 ### 🧪 MLOps & Demand Forecasting Telemetry (FastAPI & PySpark)
 
-The Demand Forecast service (`demand-forecast-service`) exposes Prometheus metrics on port `8005` via `prometheus-fastapi-instrumentator`. Queries use `service="demand-forecast-service"` and scalar aggregations (`max()`, `min()`) for seamless compatibility across Docker Compose and Minikube.
+The Demand Forecast service (`demand-forecast-service`) exposes Prometheus metrics on port `8005` using the Prometheus Python client. Dashboard views are split by audience: API availability, request rate, latency, and SLO impact are in **Microservices Architecture · Technical & Security Operations (SRE)**; sales-data freshness, active-model age, and RMSE/MAE are in **E-Commerce Business Intelligence & Inventory Operations**. MLflow remains the source for full experiment and model-registry details.
 
 #### 🟢 Forecast API Availability
 Monitors runtime liveness of the FastAPI prediction server:
@@ -252,50 +252,55 @@ Monitors runtime liveness of the FastAPI prediction server:
 max(up{service="demand-forecast-service"}) or vector(0)
 ```
 
-#### ⏱️ Hours Since Last Successful Forecast
-Measures operational freshness of inference batches. Warns if inference has not run recently:
+#### ⏱️ Age of Latest Successful Forecast (Hours)
+Measures how long it has been since the API returned a successful forecast. This is shown with business inventory indicators:
 ```promql
 (time() - max(demand_forecast_last_success_unixtime{service="demand-forecast-service"})) / 3600
 ```
 
 #### 📅 Age of Latest Observed Sales Date (Days)
-Evaluates latency of sales data streaming into the Parquet dataset via PySpark Structured Streaming:
+Evaluates freshness of the sales data consumed by the forecasting model:
 ```promql
-(time() - max(demand_forecast_latest_observed_sales_unixtime{service="demand-forecast-service"})) / 86400
+(time() - max(demand_forecast_last_observed_sale_unixtime{service="demand-forecast-service"})) / 86400
 ```
 
-#### ⚡ Forecast API Request Throughput (req/s)
-Rate of HTTP requests handled by the FastAPI application:
+#### ⚡ Forecast API Request Throughput (Requests/Minute)
+The technical dashboard includes forecast traffic in the shared per-service HTTP throughput panel. Health checks are excluded:
 ```promql
-sum(rate(http_requests_total{service="demand-forecast-service"}[1m])) or vector(0)
+sum(rate(demand_forecast_http_requests_total{service="demand-forecast-service",path!="/health"}[5m])) * 60
 ```
 
-#### ⏱️ HTTP Request Latency P95 (seconds)
-95th percentile response latency for prediction and health endpoints:
+#### ⏱️ Forecast API Request Latency P95 (Milliseconds)
+The technical dashboard adds this series to the per-service P95 panel. Health checks are excluded so frequent probes do not hide slower forecast requests:
 ```promql
-histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="demand-forecast-service"}[5m])))
+histogram_quantile(0.95, sum by (le) (rate(demand_forecast_http_request_duration_seconds_bucket{service="demand-forecast-service",path!="/health"}[5m]))) * 1000
 ```
 
-#### ❌ HTTP 5xx Server Error Rate
-Rate of internal errors in forecasting algorithms or dependencies:
+#### ❌ Forecast API 5xx Ratio and SLO Burn
+The SRE dashboard includes this ratio in the single worst-service availability SLO burn value. Health checks are excluded; available services without request traffic contribute zero burn:
 ```promql
-sum(rate(http_requests_total{service="demand-forecast-service",status=~"5.."}[1m])) or vector(0)
+(
+  sum by (service) (rate(demand_forecast_http_requests_total{service="demand-forecast-service",path!="/health",status=~"5.."}[5m]))
+  or on (service) (max by (service) (up{service="demand-forecast-service"} == 1) * 0)
+)
+/
+clamp_min(sum by (service) (rate(demand_forecast_http_requests_total{service="demand-forecast-service",path!="/health"}[5m])), 1e-9)
 ```
 
 #### 🎯 Model Evaluation Metrics: RMSE & MAE
 Tracks prediction quality recorded by the active MLflow-trained model:
 ```promql
-# Active Model RMSE
-min(demand_forecast_model_rmse{service="demand-forecast-service"})
+# Active Model RMSE (shown in its own dashboard stat)
+max(demand_forecast_model_rmse{service="demand-forecast-service"})
 
-# Active Model MAE
-min(demand_forecast_model_mae{service="demand-forecast-service"})
+# Active Model MAE (shown in its own dashboard stat)
+max(demand_forecast_model_mae{service="demand-forecast-service"})
 ```
 
-#### ⌛ Model Age (Days Since Training)
-Tracks freshness of the serialized machine learning model:
+#### ⌛ Active Model Age (Hours Since Training)
+Tracks age of the model currently served by the forecast API:
 ```promql
-(time() - max(demand_forecast_model_created_unixtime{service="demand-forecast-service"})) / 86400
+max(demand_forecast_model_age_seconds{service="demand-forecast-service"}) / 3600
 ```
 
 ---
