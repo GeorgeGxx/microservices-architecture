@@ -208,6 +208,12 @@ def main() -> int:
         default=os.getenv("MLFLOW_EXPERIMENT_NAME", "inventory-demand-forecast"),
     )
     parser.add_argument(
+        "--max-staleness-days",
+        type=int,
+        default=int(os.getenv("MLOPS_MAX_SALES_STALENESS_DAYS", "7")),
+        help="Maximum allowed age in days of latest sales record before failing the quality gate (default: 7)",
+    )
+    parser.add_argument(
         "--auto",
         action="store_true",
         help="Check dataset readiness (partitions >= 9 and sha256 drift) before training",
@@ -251,7 +257,7 @@ def main() -> int:
 
         quality = validate_spark_sales_dataframe(
             sales,
-            max_staleness_days=int(os.getenv("MLOPS_MAX_SALES_STALENESS_DAYS", "7")),
+            max_staleness_days=args.max_staleness_days,
             min_history_days=int(os.getenv("MLOPS_MIN_HISTORY_DAYS", "8")),
             max_units_per_row=float(os.getenv("MLOPS_MAX_UNITS_PER_ROW", "50000")),
         )
