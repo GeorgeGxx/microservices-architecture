@@ -1,6 +1,6 @@
 mlflow==3.17.0
 numpy==2.5.3
-pyspark==3.5.9
+pyspark==4.2.0
 scikit-learn==1.9.1
 setuptools==84.0.0
 kafka-python==2.3.2

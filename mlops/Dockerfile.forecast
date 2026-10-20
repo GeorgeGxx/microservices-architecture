@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir --only-binary :all: \
     "prometheus-client==0.22.1" \
     "pyarrow==25.0.1" \
     "pydantic==2.14.0" \
-    "pyjwt[crypto]==2.10.1" \
+    "pyjwt[crypto]==2.15.0" \
     "scikit-learn==1.9.1" \
     "skops==0.16.0" \
     "uvicorn==0.54.0"

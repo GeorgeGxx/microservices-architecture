@@ -17,6 +17,8 @@ WORKDIR /app
 #checkov:skip=CKV_DOCKER_2: Batch workload health is reported by Kubernetes Job completion status.
 COPY requirements.container.txt ./requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: --no-binary pyspark -r requirements.txt
+COPY patch_spark_jars.py ./
+RUN python patch_spark_jars.py && rm patch_spark_jars.py
 
 COPY train_demand_model.py generate_sample_sales.py capture_orders.py model_invariants.py data_contracts.py feature_engineering.py ./
 COPY container_train.sh ./
