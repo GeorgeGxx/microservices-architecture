@@ -267,6 +267,68 @@ class ForecastApiTests(unittest.TestCase):
             forecast_api.require_admin(creds)
         self.assertEqual(ctx.exception.status_code, 401)
 
+    @patch("forecast_api.jwks_client")
+    @patch("jwt.decode", side_effect=forecast_api.jwt.InvalidTokenError("expired"))
+    def test_require_admin_rejects_invalid_jwt_signature(self, mock_jwt_decode, mock_jwks_client) -> None:
+        from fastapi import HTTPException
+        from fastapi.security import HTTPAuthorizationCredentials
+
+        mock_jwks_client.return_value.get_signing_key_from_jwt.return_value.key = "fake-key"
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="expired-token")
+        with self.assertRaises(HTTPException) as ctx:
+            forecast_api.require_admin(credentials)
+        self.assertEqual(ctx.exception.status_code, 401)
+        self.assertEqual(ctx.exception.detail, "Invalid or expired access token")
+
+    def test_select_champion_skips_unready_and_unfinished_models(self) -> None:
+        client = MagicMock()
+        wrong_name = MagicMock(name="wrong-model")
+        wrong_name.name = "other-model"
+        pending = MagicMock(name="pending-model")
+        pending.name = "demand-forecast"
+        pending.status.name = "PENDING"
+        no_source = MagicMock(name="no-source-model")
+        no_source.name = "demand-forecast"
+        no_source.status.name = "READY"
+        no_source.source_run_id = None
+        unfinished = MagicMock(name="unfinished-model")
+        unfinished.name = "demand-forecast"
+        unfinished.status.name = "READY"
+        unfinished.source_run_id = "unfinished-run"
+        finished = MagicMock(name="finished-model")
+        finished.name = "demand-forecast"
+        finished.status.name = "READY"
+        finished.source_run_id = "finished-run"
+        finished_run = MagicMock()
+        finished_run.info.status = "FINISHED"
+        finished_run.data.tags = {"model_role": "challenger"}
+        client.search_logged_models.return_value = [wrong_name, pending, no_source, unfinished, finished]
+        client.get_run.side_effect = [MagicMock(info=MagicMock(status="FAILED")), finished_run]
+
+        selected = forecast_api._select_champion_or_best_model(client, "experiment-1")
+
+        self.assertEqual(selected, (finished, finished_run))
+        self.assertEqual(client.get_run.call_count, 2)
+
+    def test_load_latest_model_without_usable_candidate_returns_503(self) -> None:
+        from fastapi import HTTPException
+
+        client = MagicMock()
+        client.get_experiment_by_name.return_value.experiment_id = "exp-1"
+        client.search_logged_models.return_value = []
+        with patch("forecast_api.MlflowClient", return_value=client):
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api.load_latest_model()
+        self.assertEqual(ctx.exception.status_code, 503)
+
+    def test_load_latest_model_error_without_cached_model_returns_503(self) -> None:
+        from fastapi import HTTPException
+
+        with patch("forecast_api.MlflowClient", side_effect=RuntimeError("offline")):
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api.load_latest_model()
+        self.assertEqual(ctx.exception.status_code, 503)
+
     def test_load_latest_model_fallback_to_active_when_empty(self) -> None:
         fake_model = MagicMock(spec=RandomForestRegressor)
         fake_created = datetime.now(timezone.utc)
@@ -287,6 +349,23 @@ class ForecastApiTests(unittest.TestCase):
         with self.assertRaises(HTTPException) as ctx:
             forecast_api._clean_and_aggregate_sales(negative_df, "test")
         self.assertEqual(ctx.exception.status_code, 422)
+
+    def test_daily_history_missing_sales_file_returns_503(self) -> None:
+        from fastapi import HTTPException
+
+        missing_file = Path("definitely-missing-sales.csv")
+        with patch.object(forecast_api, "SALES_DATA_PATH", missing_file):
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api._daily_history()
+        self.assertEqual(ctx.exception.status_code, 503)
+
+    def test_read_sales_file_reports_unreadable_input(self) -> None:
+        from fastapi import HTTPException
+
+        with patch("forecast_api.pd.read_csv", side_effect=OSError("permission denied")):
+            with self.assertRaises(HTTPException) as ctx:
+                forecast_api._read_sales_file(Path("sales.csv"))
+        self.assertEqual(ctx.exception.status_code, 503)
 
 
 if __name__ == "__main__":

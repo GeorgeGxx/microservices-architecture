@@ -184,7 +184,7 @@ jobs:
           fi
           pip install coverage
           if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            coverage run --source=${{ inputs.service-dir }} --omit="*/generate_sample_sales.py,*/test_tdd.py,*/tests/*" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+            coverage run --source=${{ inputs.service-dir }} --omit="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
             coverage xml -o ${{ inputs.service-dir }}/coverage.xml
           fi
 
