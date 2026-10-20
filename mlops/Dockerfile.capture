@@ -10,4 +10,6 @@ COPY capture_orders.py ./
 
 USER 65532:65532
 
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["python", "-c", "import os; os.kill(1, 0)"]
+
 ENTRYPOINT ["python", "/app/capture_orders.py", "--engine", "python"]
