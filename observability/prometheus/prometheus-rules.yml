@@ -166,3 +166,60 @@ groups:
           summary: "{{ $labels.service }} is consuming its availability error budget rapidly"
           description: "The 5-minute and 1-hour 5xx ratios exceed 7.2%, a 14.4x burn rate against the 99.5% availability objective. Check recent deployments, downstream dependencies, and the service runbook."
           runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#availability-slo-and-error-budget"
+
+  - name: microservices-mlops-alerts
+    interval: 30s
+    rules:
+      - alert: MLOpsForecastServiceDown
+        expr: up{job=~"demand-forecast.*",service="demand-forecast-service"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          category: mlops
+        annotations:
+          summary: "Demand Forecast Service is down"
+          description: "Prometheus has not scraped the demand forecast inference API for 3 minutes."
+
+      - alert: MLOpsModelStale
+        expr: demand_forecast_model_age_seconds > 604800
+        for: 15m
+        labels:
+          severity: warning
+          category: mlops
+        annotations:
+          summary: "Active Demand Forecast Model is Stale (> 7 days)"
+          description: "The active model was trained {{ $value | humanizeDuration }} ago. Retraining may have stalled or auto-training interval failed."
+          runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
+
+      - alert: MLOpsDataFreshnessLag
+        expr: (time() - demand_forecast_last_observed_sale_unixtime) > 259200
+        for: 30m
+        labels:
+          severity: warning
+          category: mlops
+        annotations:
+          summary: "Sales Input Dataset Freshness Lag (> 3 days)"
+          description: "The latest observed sale date in the feature store is more than 3 days old. Check demand-sales-capture pipeline and Kafka consumer lag."
+          runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
+
+      - alert: MLOpsHighModelRMSE
+        expr: demand_forecast_model_rmse > 15.0
+        for: 10m
+        labels:
+          severity: warning
+          category: mlops
+        annotations:
+          summary: "Demand Forecast Model Degradation (High RMSE)"
+          description: "Active demand forecast model RMSE is {{ $value }}, exceeding the acceptable operational ceiling of 15.0."
+          runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
+
+      - alert: MLOpsNoActiveModel
+        expr: absent(demand_forecast_model_rmse) == 1
+        for: 10m
+        labels:
+          severity: critical
+          category: mlops
+        annotations:
+          summary: "No Active Demand Model Registered in MLflow"
+          description: "The demand-forecast-service does not export an active model RMSE metric. No trained champion model is serving predictions."
+          runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"

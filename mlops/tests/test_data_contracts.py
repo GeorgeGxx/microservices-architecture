@@ -99,6 +99,43 @@ class DataContractsTests(unittest.TestCase):
         with self.assertRaises(DataContractViolation):
             validate_sales_dataframe(df)
 
+    def test_validate_data_quality_and_freshness_success(self) -> None:
+        from data_contracts import validate_data_quality_and_freshness
+        # 10 days of data ending today
+        today = date(2026, 10, 20)
+        rows = [
+            {"date": date(2026, 10, 11) + pd.Timedelta(days=i), "product_id": "SKU-A", "units_sold": 5 + i}
+            for i in range(10)
+        ]
+        df = pd.DataFrame(rows)
+        report = validate_data_quality_and_freshness(df, max_staleness_days=7, min_history_days=8, reference_date=today)
+        self.assertTrue(report["passed"])
+        self.assertEqual(len(report["violations"]), 0)
+        self.assertEqual(report["staleness_days"], 0)
+
+    def test_validate_data_quality_freshness_violation(self) -> None:
+        from data_contracts import validate_data_quality_and_freshness
+        # Stale data from 30 days ago
+        today = date(2026, 10, 20)
+        rows = [
+            {"date": date(2026, 9, 1), "product_id": "SKU-A", "units_sold": 10.0}
+        ]
+        df = pd.DataFrame(rows)
+        report = validate_data_quality_and_freshness(df, max_staleness_days=7, reference_date=today)
+        self.assertFalse(report["passed"])
+        self.assertTrue(any("freshness violation" in v for v in report["violations"]))
+
+    def test_validate_data_quality_outlier_violation(self) -> None:
+        from data_contracts import validate_data_quality_and_freshness
+        today = date(2026, 10, 20)
+        rows = [
+            {"date": today, "product_id": "SKU-A", "units_sold": 999999.0}
+        ]
+        df = pd.DataFrame(rows)
+        report = validate_data_quality_and_freshness(df, max_staleness_days=7, reference_date=today)
+        self.assertFalse(report["passed"])
+        self.assertTrue(any("outlier" in v for v in report["violations"]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,215 @@
+# 🚀 Production Release Criteria & Operational Governance Framework
+
+> [!TIP]
+> 🧭 **[Enterprise Platform Hub](../../README.md)** > **02. Operations** > `RELEASE_CRITERIA_AND_GOVERNANCE.md`
+
+> Enterprise engineering standard for production release qualification across microservices, MLOps engines, and edge routing. Defines explicit Service Level Objectives (SLOs), actionable alert definitions, compute resource limits, automated rollback triggers, and runtime version evidence verification.
+
+---
+
+## 📌 Executive Summary & Operational Tenets
+
+In a distributed, event-driven microservices architecture, observability must not be confined to post-incident metric visualization. Instead, observability metrics and telemetry bounds form the **enforceable contract for production releases**.
+
+### Core Operational Tenets:
+1. **No Deployment Without Measurable SLOs:** Every microservice must publish availability, error budget burn, and latency distributions via Micrometer / Prometheus metrics.
+2. **Deterministic Version & Build Evidence:** Every deployed pod must expose immutable provenance (git commit SHA, build timestamp, semver tag) via its `/info` Actuator endpoint and OpenTelemetry resource attributes.
+3. **Hard Cgroup Resource Isolation:** Unbounded memory and CPU configurations are strictly prohibited. JVM heaps must be explicitly anchored between 50% and 70% of pod container limits to prevent cgroup `OOMKilled` termination cascades.
+4. **Automated Rollback-on-Failure:** Deployment pipelines enforce automated rollback upon Kubernetes readiness failure (`--atomic`) or Istio canary error budget breach (> 1% 5xx).
+
+```mermaid
+flowchart TD
+    subgraph ReleaseGate ["🎯 Pre-Release Quality & Provenance Gate"]
+        Build["Immutable Image Build<br/>Tag: ${COMMIT:0:12}"]
+        SBOM["CycloneDX SBOM + Trivy Scan"]
+        OPA["Conftest OPA Policy Check"]
+        Info["Actuator /info Metadata Baked"]
+    end
+
+    subgraph CanaryDeploy ["🐥 Canary Rollout Phase (Istio / Helm)"]
+        Canary10["Route 10% Traffic to Canary Pods"]
+        MonitorSLO{"SLO & Health Probe Check<br/>P95 < Threshold & 5xx < 1%"}
+        Rollback["Automated Atomic Rollback<br/>helm rollback / revert traffic"]
+        Promote["Promote Canary: 25% -> 50% -> 100%"]
+    end
+
+    subgraph RuntimeObs ["📈 Continuous Production Observability"]
+        Prom["Prometheus SLO Recording Rules"]
+        Loki["LogQL Error & Audit Indexing"]
+        Tempo["TraceQL Span Correlation"]
+        Alert["Actionable PagerDuty Alerts"]
+    end
+
+    Build --> SBOM --> OPA --> Info --> Canary10
+    Canary10 --> MonitorSLO
+    MonitorSLO -->|Breach| Rollback
+    MonitorSLO -->|Healthy| Promote
+    Promote --> RuntimeObs
+    RuntimeObs --> Prom
+    RuntimeObs --> Alert
+```
+
+---
+
+## 📊 Comprehensive Per-Service Release Specification Matrix
+
+| Service | Primary Stack & Port | Availability Target (30d) | Latency Objective (P95) | CPU Request / Limit | Memory Request / Limit | JVM Heap (-Xms / -Xmx) | Rollback Trigger | Version Evidence Verification |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| **`cosmo-router`** | Rust / WGC (`8080`) | **99.95%** | **< 150 ms** | 100m / 500m | 128Mi / 512Mi | N/A (Compiled Rust binary) | Error rate > 2% or 3 failed `/health` probes | `GET /health` + header `wgc-router-version` |
+| **`orders-service`** | Spring Boot 3.4 (`8003`) | **99.90%** | **< 350 ms** | 250m / 1000m | 512Mi / 1024Mi | `-Xms256m -Xmx600m` | 5xx ratio > 1% in canary or DB pool drop | `GET /actuator/orders/info` |
+| **`products-service`** | Spring Boot 3.4 (`8004`) | **99.90%** | **< 200 ms** | 200m / 800m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | P95 > 500ms or 3 consecutive probe failures | `GET /actuator/products/info` |
+| **`inventory-service`** | Spring Boot 3.4 (`8001`) | **99.90%** | **< 200 ms** | 200m / 800m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | Redis connectivity loss or 5xx > 1% | `GET /actuator/inventory/info` |
+| **`notification-service`** | Spring Boot 3.4 (`8002`) | **99.50%** | **< 500 ms** | 150m / 500m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | Kafka consumer lag > 1000 msgs for 15m | `GET /actuator/notification/info` |
+| **`frontend`** | React 19 / Nginx (`5173`) | **99.95%** | **< 100 ms** | 50m / 250m | 64Mi / 256Mi | N/A (Static asset server) | Nginx 5xx > 1% or healthz timeout | `GET /healthz` + meta tag version |
+| **`demand-forecast-service`** | FastAPI / Python (`8005`) | **99.50%** | **< 800 ms** | 250m / 1000m | 512Mi / 1536Mi | N/A (Uvicorn / scikit-learn) | Model age > 7d or RMSE > 15.0 | `GET /health` + `GET /api/forecast` metadata |
+| **`demand-sales-capture`** | PySpark 4.2 Streaming | **99.50%** | N/A (Stream) | 500m / 2000m | 1024Mi / 2048Mi | Driver: `-Xms512m -Xmx1200m` | Query crash loop or checkpoint corruption | Pod logs + Spark UI `/jobs` |
+
+---
+
+## 🔍 Detailed Service Criteria Specifications
+
+### 1. `cosmo-router` (GraphQL Supergraph Gateway)
+* **Function:** Federated GraphQL execution engine and entry point for external traffic.
+* **SLOs:**
+  * **Availability:** $\ge 99.95\%$ across 30 days.
+  * **Latency:** P95 $\le 150\text{ ms}$, P99 $\le 400\text{ ms}$.
+* **Resource Bounds:**
+  * Request: `100m` CPU, `128Mi` RAM.
+  * Limit: `500m` CPU, `512Mi` RAM.
+* **Actionable Alerts:**
+  * `CosmoRouterDown`: Target unreachable for $> 3\text{ minutes}$ (Critical).
+  * `CosmoRouterHighErrorRate`: Supergraph 5xx failure rate $> 5\%$ for $> 5\text{ minutes}$ (Warning).
+  * `CosmoRouterHighLatency`: P95 request duration $> 1000\text{ ms}$ for $> 5\text{ minutes}$ (Warning).
+* **Rollback Trigger:** Automatic Helm rollback if readiness probe (`/health`) fails 3 times with 10s timeout, or Istio canary reports $> 2\%$ 5xx during the 10-minute traffic shift.
+* **Version Evidence:** Header `wgc-router-version` and Cosmo execution config hash in logs.
+
+---
+
+### 2. `orders-service` (Spring Boot 3.4)
+* **Function:** Mission-critical transactional checkout, order placement, status lifecycle, and Kafka event publishing.
+* **SLOs:**
+  * **Availability:** $\ge 99.90\%$ across 30 days.
+  * **Latency:** P95 $\le 350\text{ ms}$, P99 $\le 800\text{ ms}$.
+  * **Error Budget:** 5-minute burn rate threshold $= 7.2\%$ (14.4x normal consumption).
+* **Resource Bounds:**
+  * Request: `250m` CPU, `512Mi` RAM.
+  * Limit: `1000m` CPU, `1024Mi` RAM.
+  * JVM Heap: `-Xms256m -Xmx600m` (Preserves $\sim 424\text{ Mi}$ headroom for Metaspace, threads, Netty buffers).
+* **Actionable Alerts:**
+  * `ServiceDown`: Pod unreachable for $> 3\text{ minutes}$ (Critical).
+  * `MicroserviceAvailabilityErrorBudgetBurn`: 5m & 1h error ratios $> 7.2\%$ (Critical).
+  * `HighLatency`: P95 HTTP duration $> 1.0\text{ second}$ for $> 5\text{ minutes}$ (Warning).
+  * `HikariPoolExhaustion`: Active connection ratio $> 85\%$ for $> 2\text{ minutes}$ (Warning).
+* **Rollback Trigger:** Readiness probe failure (`/actuator/orders/health/readiness`), uncaught `SQLException` spike $> 3\%$, or circuit breaker open state.
+* **Version Evidence:**
+  * Query endpoint: `GET /actuator/orders/info`
+  * Expected JSON payload:
+    ```json
+    {
+      "app": {
+        "name": "orders-service",
+        "description": "Transactional Order Management Service"
+      },
+      "build": {
+        "version": "1.0.0",
+        "artifact": "orders-service",
+        "time": "2026-10-20T10:00:00Z"
+      },
+      "git": {
+        "commit": {
+          "id": "3dc45b7a1209",
+          "time": "2026-10-20T09:45:00Z"
+        },
+        "branch": "develop"
+      }
+    }
+    ```
+
+---
+
+### 3. `products-service` & `inventory-service` (Spring Boot 3.4)
+* **Function:** Product catalog indexing, pricing, inventory reservation, and Redis cache synchronization.
+* **SLOs:**
+  * **Availability:** $\ge 99.90\%$.
+  * **Latency:** P95 $\le 200\text{ ms}$, P99 $\le 500\text{ ms}$.
+* **Resource Bounds:**
+  * Request: `200m` CPU, `384Mi` RAM.
+  * Limit: `800m` CPU, `768Mi` RAM.
+  * JVM Heap: `-Xms192m -Xmx450m`.
+* **Actionable Alerts:**
+  * `RedisExporterDown`: Redis cluster/instance unreachable for $> 2\text{ minutes}$ (Critical).
+  * `HighHeapUsage`: JVM memory utilization $> 75\%$ for $> 10\text{ minutes}$ (Warning).
+* **Rollback Trigger:** Inability to obtain database connection or unhandled Redis command timeouts during canary warm-up.
+* **Version Evidence:** `GET /actuator/products/info` and `GET /actuator/inventory/info`.
+
+---
+
+### 4. `notification-service` (Spring Boot 3.4 / Kafka Consumer)
+* **Function:** Asynchronous customer order dispatch notification, email dispatch, and dead-letter queue (DLT) processing.
+* **SLOs:**
+  * **Availability:** $\ge 99.50\%$.
+  * **Processing Lag:** Consumer offset lag $\le 100\text{ messages}$ under normal traffic.
+* **Resource Bounds:**
+  * Request: `150m` CPU, `384Mi` RAM.
+  * Limit: `500m` CPU, `768Mi` RAM.
+  * JVM Heap: `-Xms192m -Xmx450m`.
+* **Actionable Alerts:**
+  * `KafkaConsumerHighLag`: Partition lag $> 1000$ messages for $> 15\text{ minutes}$ (Warning).
+  * `KafkaDLTSpike`: More than 5 messages sent to `orders-topic.DLT` within $1\text{ minute}$ (Critical).
+* **Rollback Trigger:** Container CrashLoopBackOff or partition revocation storm.
+* **Version Evidence:** `GET /actuator/notification/info`.
+
+---
+
+### 5. `demand-forecast-service` (FastAPI MLOps Inference)
+* **Function:** Machine learning inference API exposing 7-day SKU demand forecasts based on active champion model from MLflow.
+* **SLOs:**
+  * **Availability:** $\ge 99.50\%$.
+  * **Latency:** P95 $\le 800\text{ ms}$, P99 $\le 1500\text{ ms}$.
+* **Resource Bounds:**
+  * Request: `250m` CPU, `512Mi` RAM.
+  * Limit: `1000m` CPU, `1536Mi` RAM.
+* **Actionable Alerts:**
+  * `MLOpsModelStale`: Active model trained $> 7\text{ days}$ ago without retraining (Warning).
+  * `MLOpsDataFreshnessLag`: Input sales dataset contains no events in the last $> 3\text{ days}$ (Warning).
+  * `MLOpsHighModelRMSE`: Model RMSE $> 15.0$ units (Warning).
+  * `MLOpsNoActiveModel`: No registered model serving predictions (Critical).
+* **Rollback Trigger:** Data contract schema violation or MLflow artifact fetch exception returning HTTP 503.
+* **Version Evidence:**
+  * Response body from `GET /api/forecast`:
+    ```json
+    {
+      "horizonDays": 7,
+      "dataSource": "captured-sales",
+      "modelRunId": "b18b4e7243c9429188e734c264d85206",
+      "modelCreatedAt": "2026-10-20T10:00:00Z"
+    }
+    ```
+
+---
+
+## 🛡️ Release Qualification & Rollback Protocol
+
+Before promoting any container image to staging or production, the release operator or automated CI/CD pipeline must execute the standard qualification sequence:
+
+```powershell
+# 1. Run Data Quality & Freshness Gate
+python mlops/data_contracts.py --input-parquet /data/sales_parquet --max-staleness-days 7
+
+# 2. Run Full End-to-End User Journey Verification
+python scripts/testing/test-e2e-journey.py --router-url http://127.0.0.1:8080 --forecast-url http://127.0.0.1:8005
+
+# 3. Verify Version Evidence Across Services
+Invoke-RestMethod -Uri "http://localhost:8003/actuator/orders/info" | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:8004/actuator/products/info" | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:8001/actuator/inventory/info" | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:8002/actuator/notification/info" | ConvertTo-Json
+Invoke-RestMethod -Uri "http://localhost:8005/health" | ConvertTo-Json
+
+# 4. Execute BCDR Backup & Recovery Drill
+.\scripts\bcdr-simulation.ps1 -Action VerifyBackups -Component All
+```
+
+### Automated Rollback Actions:
+* **Helm Deployment Failure:** All deployments specify `--atomic --timeout 5m`. If any container fails to pass its readiness probe within 5 minutes, Helm automatically purges the new ReplicaSet and rolls back to the prior stable revision.
+* **Istio Canary Degradation:** During progressive traffic rollouts (`10% -> 25% -> 50% -> 100%`), if Prometheus indicates `MicroserviceAvailabilityErrorBudgetBurn` or P95 latency exceeds the service SLO threshold, the traffic VirtualService immediately snaps back to `100% stable / 0% canary`.

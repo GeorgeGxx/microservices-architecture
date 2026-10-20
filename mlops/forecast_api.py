@@ -339,6 +339,18 @@ def health() -> dict[str, str]:
     return {"status": "UP"}
 
 
+@app.get("/info")
+def info() -> dict[str, Any]:
+    return {
+        "service": "demand-forecast-service",
+        "version": "1.0.0",
+        "git_commit": os.getenv("GIT_COMMIT", "dev"),
+        "environment": os.getenv("ENVIRONMENT", "dev"),
+        "tracking_uri": TRACKING_URI,
+        "experiment_name": EXPERIMENT_NAME,
+    }
+
+
 @app.get(
     "/api/forecast",
     responses={

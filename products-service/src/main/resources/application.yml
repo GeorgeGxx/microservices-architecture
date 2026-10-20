@@ -86,6 +86,15 @@ management:
       show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
       probes:
         enabled: true
+    info:
+      enabled: true
+  info:
+    env:
+      enabled: true
+    git:
+      mode: full
+    build:
+      mode: full
   # Enable only if you migrate from Prometheus scraper to OTLP Push for metrics:
   otlp:
     metrics:

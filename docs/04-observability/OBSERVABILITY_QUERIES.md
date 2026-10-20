@@ -598,3 +598,28 @@ Isolates end-to-end distributed traces for specific GraphQL queries or mutations
 | **Forecast Stale (>24h)** | PromQL | `(time() - max(demand_forecast_last_success_unixtime{service="demand-forecast-service"})) / 3600 > 24` |
 | **Forecast API P95 Latency** | PromQL | `histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{service="demand-forecast-service"}[5m])))` |
 | **Model Quality Degradation** | PromQL | `min(demand_forecast_model_rmse{service="demand-forecast-service"})` |
+
+---
+
+## 🧠 MLOps & Demand Forecast Alerting Guidelines (#mlops-alerts)
+
+To prevent unmonitored model drift or silent failure of the PySpark pipeline, the platform registers automated alert rules:
+
+```promql
+# 1. Model Staleness Alert (Model older than 7 days)
+demand_forecast_model_age_seconds > 604800
+
+# 2. Input Dataset Freshness Lag (No new sales data recorded for > 3 days)
+(time() - demand_forecast_last_observed_sale_unixtime) > 259200
+
+# 3. Model Accuracy Degradation (RMSE exceeds 15 units)
+demand_forecast_model_rmse > 15.0
+
+# 4. Absence of Registered Model
+absent(demand_forecast_model_rmse) == 1
+```
+
+### Remediation Playbook:
+1. **Model Staleness:** Check if `demand-sales-capture` is running and appending records to `/data/sales_parquet`. If auto-training is scheduled, verify `train_demand_model.py` execution logs in MLflow UI (`http://localhost:5000`).
+2. **Data Freshness Lag:** Inspect Kafka `orders-topic` partitions and consumer group `mlops-demand-history-v1` lag. If orders are placed but not DELIVERED, fulfillment status updates are required to trigger ML capture.
+3. **High RMSE:** Execute data quality audit with `python mlops/data_contracts.py --input-parquet /data/sales_parquet` to check for sudden volume anomalies or negative unit quantities.
