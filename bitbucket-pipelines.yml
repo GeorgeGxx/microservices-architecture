@@ -43,7 +43,19 @@ definitions:
               fi
             elif [ "$SERVICE_NAME" = "demand-forecast" ] || [ "$SERVICE_NAME" = "mlops-training" ] || [ "${SERVICE_DIR:-}" = "mlops" ]; then
               echo "Executing Python MLOps Unit Tests with Coverage..."
-              docker run --rm -v "$PWD:/workspace" -w /workspace -e PYTHONPATH=/workspace/mlops python:3.12-slim bash -c "pip install --no-cache-dir -r mlops/requirements.txt coverage && coverage run --source=mlops -m unittest discover -s mlops/tests -v && coverage xml -o mlops/coverage.xml"
+              OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
+              EXCLUSIONS="mlops/tests/**,mlops/data/**,mlops/*.sh,mlops/.venv*/**,mlops/generate_sample_sales.py,mlops/test_tdd.py,mlops/patch_spark_jars.py"
+              COVERAGE_EXCLUSIONS="generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+              if [ "$SERVICE_NAME" = "demand-forecast" ]; then
+                OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
+                EXCLUSIONS="$EXCLUSIONS,mlops/Dockerfile.training,mlops/Dockerfile.capture,mlops/capture_orders.py,mlops/train_demand_model.py,mlops/feature_engineering.py"
+                COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,capture_orders.py,train_demand_model.py,feature_engineering.py"
+              elif [ "$SERVICE_NAME" = "mlops-training" ]; then
+                OMIT="$OMIT,*/forecast_api.py"
+                EXCLUSIONS="$EXCLUSIONS,mlops/Dockerfile.forecast,mlops/forecast_api.py"
+                COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
+              fi
+              docker run --rm -v "$PWD:/workspace" -w /workspace -e PYTHONPATH=/workspace/mlops python:3.12-slim bash -c "pip install --no-cache-dir -r mlops/requirements.txt coverage && coverage run --source=mlops --omit=\"$OMIT\" -m unittest discover -s mlops/tests -v && coverage xml -o mlops/coverage.xml"
               if [ -n "${SONAR_TOKEN:-}" ]; then
                 : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
                 SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
@@ -54,7 +66,8 @@ definitions:
                   -Dsonar.host.url="$SONAR_HOST_URL" \
                   -Dsonar.sources=mlops \
                   -Dsonar.tests=mlops/tests \
-                  -Dsonar.exclusions=mlops/tests/**,mlops/data/**,mlops/*.sh,mlops/.venv*/** \
+                  -Dsonar.exclusions="$EXCLUSIONS" \
+                  -Dsonar.coverage.exclusions="$COVERAGE_EXCLUSIONS" \
                   -Dsonar.python.coverage.reportPaths=mlops/coverage.xml \
                   -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
               else

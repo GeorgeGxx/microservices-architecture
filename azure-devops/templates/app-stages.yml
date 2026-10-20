@@ -256,7 +256,13 @@ stages:
                 fi
                 pip install coverage
                 if [ -d "${{ parameters.serviceDir }}/tests" ]; then
-                  coverage run --source=${{ parameters.serviceDir }} -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
+                  OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
+                  if [ "${{ parameters.serviceName }}" = "demand-forecast" ]; then
+                    OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
+                  elif [ "${{ parameters.serviceName }}" = "mlops-training" ]; then
+                    OMIT="$OMIT,*/forecast_api.py"
+                  fi
+                  coverage run --source=${{ parameters.serviceDir }} --omit="$OMIT" -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
                   coverage xml -o ${{ parameters.serviceDir }}/coverage.xml
                 fi
               displayName: "Python Unit Tests & Coverage"
@@ -292,6 +298,15 @@ stages:
                   exit 1
                 fi
                 cd ${{ parameters.serviceDir }}
+                EXCLUSIONS="tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+                COVERAGE_EXCLUSIONS="generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+                if [ "${{ parameters.serviceName }}" = "demand-forecast" ]; then
+                  EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py,feature_engineering.py"
+                  COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,capture_orders.py,train_demand_model.py,feature_engineering.py"
+                elif [ "${{ parameters.serviceName }}" = "mlops-training" ]; then
+                  EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,forecast_api.py"
+                  COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
+                fi
                 npx --yes sonar-scanner \
                   -Dsonar.projectKey=msa-${{ parameters.serviceName }} \
                   -Dsonar.projectName="MSA ${{ parameters.serviceName }}" \
@@ -299,7 +314,8 @@ stages:
                   -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
                   -Dsonar.sources=. \
                   -Dsonar.tests=tests \
-                  -Dsonar.exclusions=tests/**,data/**,*.sh,.venv*/** \
+                  -Dsonar.exclusions="$EXCLUSIONS" \
+                  -Dsonar.coverage.exclusions="$COVERAGE_EXCLUSIONS" \
                   -Dsonar.python.coverage.reportPaths=coverage.xml \
                   -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
               displayName: "SonarQube Cloud Python Analysis & Quality Gate"

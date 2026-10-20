@@ -43,6 +43,16 @@ class ModelInvariantsTests(unittest.TestCase):
         self.assertFalse(is_valid)
         self.assertIn("NaN", msg)
 
+        inf_preds = np.array([10.0, np.inf, 14.0, 11.2, 9.8, 15.0, 13.1])
+        is_valid_inf, msg_inf = validate_model_predictions(inf_preds, expected_len=7)
+        self.assertFalse(is_valid_inf)
+        self.assertIn("infinite", msg_inf)
+
+        neg_preds = np.array([10.0, -2.0, 14.0, 11.2, 9.8, 15.0, 13.1])
+        is_valid_neg, msg_neg = validate_model_predictions(neg_preds, expected_len=7)
+        self.assertFalse(is_valid_neg)
+        self.assertIn("negative", msg_neg)
+
     def test_generate_bounded_forecast_produces_continuous_future_dates(self) -> None:
         fake_model = MagicMock(spec=RandomForestRegressor)
         fake_model.predict.return_value = np.array([10.5])
@@ -62,6 +72,22 @@ class ModelInvariantsTests(unittest.TestCase):
             expected_date = last_known_date + timedelta(days=i + 1)
             self.assertEqual(item["date"], expected_date.isoformat())
             self.assertGreaterEqual(item["predictedUnits"], 0.0)
+
+    def test_generate_bounded_forecast_fallback_on_exception_or_none_model(self) -> None:
+        last_known_date = date(2026, 10, 10)
+        # Model raises exception
+        bad_model = MagicMock()
+        bad_model.predict.side_effect = RuntimeError("inference failed")
+        res_exc = generate_bounded_forecast(bad_model, "SKU-01", last_known_date, [10.0, 20.0], 3)
+        self.assertEqual(len(res_exc), 3)
+
+        # Model has no predict
+        res_no_predict = generate_bounded_forecast(object(), "SKU-01", last_known_date, [10.0, 20.0], 3)
+        self.assertEqual(len(res_no_predict), 3)
+
+        # Empty recent_lags
+        res_empty_lags = generate_bounded_forecast(object(), "SKU-01", last_known_date, [], 3)
+        self.assertEqual(len(res_empty_lags), 3)
 
     def test_evaluate_champion_safety_gate_strict_thresholds(self) -> None:
         # Initial baseline without prior model
