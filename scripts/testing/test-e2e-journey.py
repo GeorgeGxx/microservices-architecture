@@ -24,6 +24,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import sys
@@ -79,6 +80,9 @@ class E2EJourneyRunner:
         keycloak_url: str,
         forecast_url: str,
         kafka_bootstrap: str,
+        sales_csv: Path,
+        sales_parquet: Path,
+        capture_timeout: int = 90,
         timeout: int = 15,
         verbose: bool = False,
     ):
@@ -86,6 +90,9 @@ class E2EJourneyRunner:
         self.keycloak_url = keycloak_url.rstrip("/")
         self.forecast_url = forecast_url.rstrip("/")
         self.kafka_bootstrap = kafka_bootstrap
+        self.sales_csv = sales_csv
+        self.sales_parquet = sales_parquet
+        self.capture_timeout = capture_timeout
         self.timeout = timeout
         self.verbose = verbose
         self.jwt_token: str = ""
@@ -343,9 +350,10 @@ class E2EJourneyRunner:
             consumer = KafkaConsumer(
                 "orders-topic",
                 bootstrap_servers=self.kafka_bootstrap.split(","),
+                group_id=f"e2e-verification-{uuid.uuid4()}",
                 auto_offset_reset="earliest",
                 enable_auto_commit=False,
-                consumer_timeout_ms=5000,
+                consumer_timeout_ms=15000,
             )
             found = False
             for msg in consumer:
@@ -359,28 +367,42 @@ class E2EJourneyRunner:
             consumer.close()
             if found:
                 return True, f"Found DELIVERED event for {self.order_number} in Kafka topic"
-            return True, f"Kafka cluster reachable at {self.kafka_bootstrap}; event published asynchronously"
+            return False, f"Kafka is reachable, but no event for {self.order_number} appeared within 15 seconds"
         except ImportError:
-            # Fallback if kafka-python is not installed in current env
-            return True, "Kafka event verification passed (kafka-python driver optional in test client)"
+            return False, "kafka-python is required for Kafka event verification; install mlops/requirements.txt"
         except Exception as exc:
-            # If kafka port is unreachable from outside container, still report state
-            return True, f"Kafka verified via Orders Service publisher ({exc})"
+            return False, f"Kafka event verification failed at {self.kafka_bootstrap}: {exc}"
 
     # -------------------------------------------------------------------------
     # STEP 7: Verify Sales Capture Ingestion
     # -------------------------------------------------------------------------
     def _verify_sales_capture(self) -> Tuple[bool, str]:
-        # Check sales.csv or sales_parquet directory on disk or in shared volume
-        sales_csv = Path("mlops/data/sales.csv")
-        parquet_dir = Path("/data/sales_parquet")
-        local_parquet = Path("mlops/data/sales_parquet")
+        deadline = time.monotonic() + self.capture_timeout
+        while time.monotonic() < deadline:
+            if self.sales_csv.is_file():
+                try:
+                    with self.sales_csv.open(newline="", encoding="utf-8") as sales_file:
+                        if any(row.get("order_number") == self.order_number for row in csv.DictReader(sales_file)):
+                            return True, f"Order {self.order_number} persisted in {self.sales_csv.as_posix()}"
+                except (OSError, csv.Error) as exc:
+                    return False, f"Could not inspect sales CSV {self.sales_csv}: {exc}"
 
-        if sales_csv.exists() and sales_csv.stat().st_size > 0:
-            return True, f"Sales record persisted in {sales_csv.as_posix()}"
-        if parquet_dir.exists() or local_parquet.exists():
-            return True, "Sales Parquet dataset available for downstream feature store"
-        return True, "Sales capture pipeline listener active and verified"
+            if self.sales_parquet.is_dir():
+                try:
+                    import pandas as pd
+
+                    captured = pd.read_parquet(self.sales_parquet, columns=["order_number"])
+                    if captured["order_number"].astype(str).eq(self.order_number).any():
+                        return True, f"Order {self.order_number} persisted in {self.sales_parquet.as_posix()}"
+                except ImportError:
+                    return False, "pandas and pyarrow are required to verify Parquet capture; use the MLOps venv"
+                except (OSError, ValueError) as exc:
+                    return False, f"Could not inspect sales Parquet {self.sales_parquet}: {exc}"
+            time.sleep(2)
+        return False, (
+            f"Order {self.order_number} did not appear in CSV or Parquet capture within "
+            f"{self.capture_timeout}s; check demand-sales-capture and its shared data volume"
+        )
 
     # -------------------------------------------------------------------------
     # STEP 8: Verify Demand Forecast API
@@ -407,11 +429,10 @@ class E2EJourneyRunner:
                 horizon = data.get("horizonDays")
                 products = data.get("products", [])
                 run_id = data.get("modelRunId")
+                if horizon != 7 or not products or not run_id:
+                    return False, f"Forecast response is incomplete: horizon={horizon}, products={len(products)}, run_id={run_id}"
                 return True, f"Forecast generated for {len(products)} SKUs (Horizon: {horizon}d, Run ID: {run_id})"
         except urllib.error.HTTPError as he:
-            if he.code == 503:
-                # Service is UP but training run has not been completed yet; still healthy endpoint
-                return True, f"Forecast API responsive (HTTP 503: Model awaiting initial training dataset)"
             err_msg = he.read().decode("utf-8", errors="replace")
             return False, f"Forecast API error HTTP {he.code}: {err_msg}"
         except Exception as exc:
@@ -441,6 +462,9 @@ def main() -> None:
     parser.add_argument("--keycloak-url", default=os.getenv("DEVSECOPS_KEYCLOAK_URL", "http://127.0.0.1:8181"))
     parser.add_argument("--forecast-url", default=os.getenv("DEVSECOPS_FORECAST_URL", "http://127.0.0.1:8005"))
     parser.add_argument("--kafka-bootstrap", default=os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:29092,localhost:9092"))
+    parser.add_argument("--sales-csv", type=Path, default=Path("mlops/data/sales.csv"))
+    parser.add_argument("--sales-parquet", type=Path, default=Path("mlops/data/sales_parquet"))
+    parser.add_argument("--capture-timeout", type=int, default=90)
     parser.add_argument("--timeout", type=int, default=15)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
@@ -450,6 +474,9 @@ def main() -> None:
         keycloak_url=args.keycloak_url,
         forecast_url=args.forecast_url,
         kafka_bootstrap=args.kafka_bootstrap,
+        sales_csv=args.sales_csv,
+        sales_parquet=args.sales_parquet,
+        capture_timeout=args.capture_timeout,
         timeout=args.timeout,
         verbose=args.verbose,
     )

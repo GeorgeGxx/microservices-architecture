@@ -165,7 +165,7 @@ sequenceDiagram
 PostgreSQL databases (`ms_orders`, `ms_products`, `ms_inventory`, `ms_keycloak`) store bounded context state.
 
 #### 1. Live Backup Generation (Custom Format)
-```bash
+```powershell
 # Docker Compose:
 docker compose exec -T db-orders pg_dump --no-owner --no-privileges --format=custom -U postgres -d ms_orders -f /tmp/ms_orders.dump
 docker compose cp db-orders:/tmp/ms_orders.dump backups/local-drills/ms_orders.dump
@@ -259,12 +259,13 @@ docker compose cp mlflow:/tmp/mlflow-artifacts.tar.gz backups/local-drills/mlflo
 # Verify SQLite table structure and run integrity
 python -c "import sqlite3; conn = sqlite3.connect('backups/local-drills/mlflow-backup.sqlite'); c = conn.cursor(); c.execute('PRAGMA integrity_check;'); print('Integrity:', c.fetchone()[0]); c.execute('SELECT count(*) FROM runs;'); print('Registered MLflow Runs:', c.fetchone()[0]); conn.close()"
 
-# Verify artifacts archive integrity
-tar -tzf backups/local-drills/mlflow-artifacts.tar.gz | head -n 10
+# The unified drill extracts the archive to an isolated directory and compares
+# SHA-256 manifests against the source artifact store.
+pwsh -File .\scripts\bcdr-simulation.ps1 -Action VerifyBackups -Component MLflow
 ```
 
 #### 3. Automated Unified BCDR Drill Execution
-To execute all recovery drills in a single automated pass and receive an SRE audit table:
+To execute the supported local drills in one pass and receive an SRE audit table:
 ```powershell
 # Run against local Docker Compose (PostgreSQL, Kafka, MLflow)
 .\scripts\bcdr-simulation.ps1 -Action VerifyBackups -Component All
@@ -272,6 +273,8 @@ To execute all recovery drills in a single automated pass and receive an SRE aud
 # Run against Kubernetes cluster
 .\scripts\bcdr-simulation.ps1 -Action SimulateFailover -Component All -Environment dev
 ```
+
+The Compose Kafka drill exports topic and consumer-group diagnostics, then restores up to 100 retained `orders-topic` records into a temporary topic and compares the replayed payloads. It requires at least one retained record. The MLflow drill restores the SQLite backup to a temporary file, checks SQLite integrity, extracts the artifact archive to an isolated directory, and compares SHA-256 manifests. These local checks verify backup contents; they do not measure production RPO/RTO or perform cross-region failover.
 
 ---
 

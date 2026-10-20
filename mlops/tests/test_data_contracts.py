@@ -136,6 +136,17 @@ class DataContractsTests(unittest.TestCase):
         self.assertFalse(report["passed"])
         self.assertTrue(any("outlier" in v for v in report["violations"]))
 
+    def test_validate_data_quality_short_history_fails_gate(self) -> None:
+        from data_contracts import validate_data_quality_and_freshness
+        today = date(2026, 10, 20)
+        df = pd.DataFrame([
+            {"date": date(2026, 10, 19), "product_id": "SKU-A", "units_sold": 3},
+            {"date": today, "product_id": "SKU-A", "units_sold": 4},
+        ])
+        report = validate_data_quality_and_freshness(df, reference_date=today)
+        self.assertFalse(report["passed"])
+        self.assertTrue(any("minimum required" in item for item in report["violations"]))
+
 
 if __name__ == "__main__":
     unittest.main()

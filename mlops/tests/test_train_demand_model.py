@@ -325,6 +325,7 @@ class TrainDemandModelTests(unittest.TestCase):
             parquet_path = Path(temp_dir) / "sales"
             with (
                 patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+                patch("data_contracts.validate_spark_sales_dataframe", return_value={"passed": True, "rows_count": 100, "min_date": "2026-01-01", "max_date": "2026-10-20", "staleness_days": 0, "violations": []}),
                 patch("train_demand_model.read_sales", return_value=sales),
                 patch("train_demand_model._check_auto_training_readiness", return_value=(True, state_path, "fingerprint-123", str(parquet_path))),
                 patch("train_demand_model._query_prior_champion_rmse", return_value=None),
@@ -344,6 +345,7 @@ class TrainDemandModelTests(unittest.TestCase):
         sales.columns = ["date", "product_id"]
         with (
             patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("data_contracts.validate_spark_sales_dataframe", return_value={"passed": True, "rows_count": 100, "min_date": "2026-01-01", "max_date": "2026-10-20", "staleness_days": 0, "violations": []}),
             patch("train_demand_model.read_sales", return_value=sales),
             patch("sys.argv", ["train_demand_model.py"]),
         ):
@@ -370,6 +372,7 @@ class TrainDemandModelTests(unittest.TestCase):
         sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies(empty_train=True)
         with (
             patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("data_contracts.validate_spark_sales_dataframe", return_value={"passed": True, "rows_count": 100, "min_date": "2026-01-01", "max_date": "2026-10-20", "staleness_days": 0, "violations": []}),
             patch("train_demand_model.read_sales", return_value=sales),
             patch("sys.argv", ["train_demand_model.py"]),
         ):

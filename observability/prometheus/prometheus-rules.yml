@@ -171,7 +171,7 @@ groups:
     interval: 30s
     rules:
       - alert: MLOpsForecastServiceDown
-        expr: up{job=~"demand-forecast.*",service="demand-forecast-service"} == 0
+        expr: up{service="demand-forecast-service"} == 0
         for: 3m
         labels:
           severity: critical
@@ -214,12 +214,12 @@ groups:
           runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
 
       - alert: MLOpsNoActiveModel
-        expr: absent(demand_forecast_model_rmse) == 1
+        expr: (demand_forecast_model_check_performed == 1) and (demand_forecast_model_available == 0)
         for: 10m
         labels:
           severity: critical
           category: mlops
         annotations:
-          summary: "No Active Demand Model Registered in MLflow"
-          description: "The demand-forecast-service does not export an active model RMSE metric. No trained champion model is serving predictions."
+          summary: "Demand Forecast API has no usable model loaded"
+          description: "The API attempted to load a model but has no usable model available. Check MLflow registration, artifact access, and the forecast service logs."
           runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
