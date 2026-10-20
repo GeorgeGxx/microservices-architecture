@@ -160,6 +160,121 @@ sequenceDiagram
 
 ---
 
+### Runbook 3: PostgreSQL Data Backup, Checksum & Isolated Restore
+
+PostgreSQL databases (`ms_orders`, `ms_products`, `ms_inventory`, `ms_keycloak`) store bounded context state.
+
+#### 1. Live Backup Generation (Custom Format)
+```bash
+# Docker Compose:
+docker compose exec -T db-orders pg_dump --no-owner --no-privileges --format=custom -U postgres -d ms_orders -f /tmp/ms_orders.dump
+docker compose cp db-orders:/tmp/ms_orders.dump backups/local-drills/ms_orders.dump
+
+# Kubernetes (e.g. Orders Pod):
+kubectl exec -n data db-orders-0 -c postgres -- pg_dump -U postgres -d ms_orders --no-owner --no-privileges --format=custom --file=/tmp/ms_orders.dump
+kubectl cp data/db-orders-0:/tmp/ms_orders.dump backups/bcdr-drill/ms_orders.dump -c postgres
+```
+
+#### 2. Integrity Verification & Isolated Drill Restore
+```bash
+# Verify archive TOC integrity
+pg_restore --list backups/local-drills/ms_orders.dump
+
+# Isolated restore into temporary database
+docker compose exec -T db-orders psql -U postgres -d postgres -c "CREATE DATABASE restore_drill_test;"
+docker compose cp backups/local-drills/ms_orders.dump db-orders:/tmp/restore_drill.dump
+docker compose exec -T db-orders pg_restore --exit-on-error --no-owner --no-privileges -U postgres -d restore_drill_test /tmp/restore_drill.dump
+
+# Validate table count parity between production and restored drill database
+docker compose exec -T db-orders psql -U postgres -d restore_drill_test -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+docker compose exec -T db-orders dropdb -U postgres --force restore_drill_test
+```
+
+---
+
+### Runbook 4: Apache Kafka Topic Metadata, Offset & Replay Recovery
+
+Kafka stores in-flight business events (`orders-topic`, `orders-topic.DLT`).
+
+#### 1. Topic Definition & Consumer Group Offset Backup
+```bash
+# Export topic definitions and partition configurations
+docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --describe > backups/local-drills/kafka-topics-metadata.txt
+
+# Export active consumer group offsets
+docker compose exec -T kafka kafka-consumer-groups --bootstrap-server localhost:9092 --all-groups --describe > backups/local-drills/kafka-consumer-groups.txt
+
+# Dump unconsumed/recent messages from orders-topic
+docker compose exec -T kafka kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic orders-topic \
+  --from-beginning \
+  --max-messages 500 \
+  --timeout-ms 5000 > backups/local-drills/orders-topic-messages.jsonl
+```
+
+#### 2. Kafka Topic Disaster Restoration & Replay Drill
+```bash
+# 1. Recreate topic if missing or corrupted
+docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --create \
+  --topic orders-topic \
+  --partitions 3 \
+  --replication-factor 1 \
+  --if-not-exists
+
+# 2. Replay messages into an isolated recovery drill topic
+docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --create \
+  --topic orders-topic-drill-restore --partitions 1 --replication-factor 1
+
+# 3. Stream backed up events to restore topic
+cat backups/local-drills/orders-topic-messages.jsonl | docker compose exec -T kafka \
+  kafka-console-producer --bootstrap-server localhost:9092 --topic orders-topic-drill-restore
+
+# 4. Verify message count and payload integrity
+docker compose exec -T kafka kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic orders-topic-drill-restore \
+  --from-beginning --max-messages 1 --timeout-ms 5000
+```
+
+---
+
+### Runbook 5: MLOps MLflow Tracking & Artifact Store Recovery
+
+MLflow maintains model experiments, hyperparameters, and serialized PySpark / scikit-learn models.
+
+#### 1. Atomic Online Backup of MLflow SQLite Database & Artifacts
+```bash
+# Atomic online SQLite snapshot without taking MLflow offline
+docker compose exec -T mlflow python -c "import sqlite3; s = sqlite3.connect('/mlflow-data/mlflow.db'); b = sqlite3.connect('/tmp/mlflow-backup.sqlite'); s.backup(b); b.close(); s.close()"
+docker compose cp mlflow:/tmp/mlflow-backup.sqlite backups/local-drills/mlflow-backup.sqlite
+
+# Archive artifact store directory
+docker compose exec -T mlflow tar -czf /tmp/mlflow-artifacts.tar.gz -C /mlflow-artifacts .
+docker compose cp mlflow:/tmp/mlflow-artifacts.tar.gz backups/local-drills/mlflow-artifacts.tar.gz
+```
+
+#### 2. Integrity Check & Isolated Drill Restoration
+```bash
+# Verify SQLite table structure and run integrity
+python -c "import sqlite3; conn = sqlite3.connect('backups/local-drills/mlflow-backup.sqlite'); c = conn.cursor(); c.execute('PRAGMA integrity_check;'); print('Integrity:', c.fetchone()[0]); c.execute('SELECT count(*) FROM runs;'); print('Registered MLflow Runs:', c.fetchone()[0]); conn.close()"
+
+# Verify artifacts archive integrity
+tar -tzf backups/local-drills/mlflow-artifacts.tar.gz | head -n 10
+```
+
+#### 3. Automated Unified BCDR Drill Execution
+To execute all recovery drills in a single automated pass and receive an SRE audit table:
+```powershell
+# Run against local Docker Compose (PostgreSQL, Kafka, MLflow)
+.\scripts\bcdr-simulation.ps1 -Action VerifyBackups -Component All
+
+# Run against Kubernetes cluster
+.\scripts\bcdr-simulation.ps1 -Action SimulateFailover -Component All -Environment dev
+```
+
+---
+
 ## 💾 Kubernetes State Protection with Velero
 
 While all application configurations and deployments are stored declaratively in Git (GitOps via ArgoCD), stateful PersistentVolumeClaims (PVCs) and dynamically generated Secrets/Certificates are backed up via **Velero**:
