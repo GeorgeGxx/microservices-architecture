@@ -226,7 +226,7 @@ docker compose up -d --force-recreate demand-forecast-service
 #### 5. View the forecast and monitor operations
 Sign in as `admin_user` and navigate to **Admin Console → Demand Forecast · 7 Days**. The API requires the Keycloak `ADMIN` role, loads the latest successfully logged model from MLflow, and returns 7 daily estimates per SKU with data provenance.
  
-MLflow provides training run and metric comparison at <http://localhost:5000>. Grafana's **MLOps Forecast Service · Operations** dashboard monitors API availability, request rate, p95 latency, 5xx ratio, and data freshness.
+MLflow provides training-run and metric comparison at <http://localhost:5000>. Grafana has two dashboards: **Microservices Architecture · Technical & Security Operations (SRE)** covers forecast API availability, traffic, latency, and its contribution to the availability SLO; **E-Commerce Business Intelligence & Inventory Operations** covers forecast freshness, active model age, and RMSE/MAE alongside inventory indicators.
  
 ---
 

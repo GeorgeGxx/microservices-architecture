@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 34,
+  "version": 37,
   "tags": [
     "business",
     "ecommerce",
@@ -700,6 +700,299 @@
           },
           "expr": "sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
           "legendFormat": "Net Revenue ($ USD)"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "🔮 [DEMAND FORECAST READINESS & MODEL QUALITY] Forecast Data for Inventory Decisions",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
+    },
+    {
+      "id": 41,
+      "type": "stat",
+      "title": "🕒 Age of Latest Successful Forecast",
+      "description": "Elapsed time since the forecast API last returned a successful forecast. No data means no successful forecast has been recorded yet or telemetry is unavailable.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 24
+              },
+              {
+                "color": "#ef4444",
+                "value": 72
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "noValue": "No data"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0)",
+          "legendFormat": "Forecast age"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "🗓️ Age of Latest Sales Data",
+      "description": "Age of the newest sales date included in forecast input data. A stale source can make current forecasts less useful for replenishment decisions.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 2
+              },
+              {
+                "color": "#ef4444",
+                "value": 7
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "noValue": "No data"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0)",
+          "legendFormat": "Sales data age"
+        }
+      ]
+    },
+    {
+      "id": 43,
+      "type": "stat",
+      "title": "🧠 Age of Active Forecast Model",
+      "description": "Time since the active demand model was trained. Review this with sales-data freshness and model error before relying on forecasts.",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 24
+              },
+              {
+                "color": "#ef4444",
+                "value": 48
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area",
+        "noValue": "No data"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "legendFormat": "Model age"
+        }
+      ]
+    },
+    {
+      "id": 44,
+      "type": "stat",
+      "title": "📏 Active Model RMSE",
+      "description": "Root mean squared forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "noValue": "No data"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "legendFormat": "RMSE"
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "type": "stat",
+      "title": "📏 Active Model MAE",
+      "description": "Mean absolute forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 30
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "noValue": "No data"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "legendFormat": "MAE"
         }
       ]
     }

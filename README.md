@@ -272,10 +272,10 @@ The platform separates internal infrastructure orchestration from client-facing 
 * **Enterprise Inference API & RBAC:** Sub-second 7-day SKU demand forecast endpoint (`/api/forecast`) protected by Keycloak `ADMIN` role, fully validated in Postman/Newman E2E test suites.
 
 ### 📊 Full-Stack Observability (LGTM Stack)
-* **Pre-Provisioned Grafana Dashboards:**
-  1. `🏢 Business Intelligence & Inventory Operations` (all-time delivered merchandise-value/order/AOV snapshots, cancelled orders, live SKU stock risks, observed funnel activity, and cohort retention).
-  2. `🛡️ Technical, Infrastructure & Security Operations (SRE)` (Golden signals, P95 latency, circuit breaker states, HikariCP pools, JVM Heap, threat level, and unified Grafana Alloy log-forwarding pipeline).
-  3. `MLOps Forecast Service · Operations` (Forecast API availability, request rate, p95 latency, 5xx ratio, last successful forecast, and sales-data freshness; no duplicate experiment or inventory business charts).
+* **Two Audience-Focused Grafana Dashboards:**
+  1. `🏢 E-Commerce Business Intelligence & Inventory Operations` (revenue, orders, conversion, logistics, stock, SKU demand, retention, plus demand-forecast freshness, active model age, and RMSE/MAE for inventory decisions).
+  2. `🛡️ Microservices Architecture · Technical & Security Operations (SRE)` (service health, HTTP golden signals, availability SLO burn, demand-forecast API availability/traffic/latency, Kafka, resource saturation, security events, and Alloy delivery health).
+* **MLOps Metrics by Audience:** Forecast API reliability belongs to the SRE dashboard; forecast freshness and active-model quality appear with inventory business indicators. MLflow remains the experiment and model-registry UI.
 * **Deep Telemetry Correlation:** One-click drill-down in Grafana Explore linking Tempo distributed spans $\leftrightarrow$ Loki structured logs $\leftrightarrow$ Prometheus metrics.
 
 ---
