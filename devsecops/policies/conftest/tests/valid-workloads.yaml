@@ -46,12 +46,6 @@ spec:
                 limits:
                   cpu: 100m
                   memory: 64Mi
-              livenessProbe:
-                exec:
-                  command: ["true"]
-              readinessProbe:
-                exec:
-                  command: ["true"]
           containers:
             - name: backup
               image: postgres:18.0
@@ -60,10 +54,4 @@ spec:
                 limits:
                   cpu: 500m
                   memory: 512Mi
-              livenessProbe:
-                exec:
-                  command: ["true"]
-              readinessProbe:
-                exec:
-                  command: ["true"]
           restartPolicy: OnFailure

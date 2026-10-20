@@ -66,14 +66,19 @@ deny contains msg if {
   msg := sprintf("Container '%v' in %v '%v' uses a mutable latest-style image tag.", [container.name, input.kind, input.metadata.name])
 }
 
-# Warn on health checks across every supported workload type.
+# Health probes are required for long-running workloads. Jobs and CronJobs are
+# batch workloads: readiness has no traffic-routing role, and liveness can
+# restart a healthy training task before it finishes. Their completion status
+# and activeDeadlineSeconds are the appropriate health signals.
 warn contains msg if {
+  input.kind in {"Deployment", "StatefulSet", "DaemonSet"}
   container := workload_containers[_]
   not container.livenessProbe
   msg := sprintf("Container '%v' in %v '%v' has no livenessProbe.", [container.name, input.kind, input.metadata.name])
 }
 
 warn contains msg if {
+  input.kind in {"Deployment", "StatefulSet", "DaemonSet"}
   container := workload_containers[_]
   not container.readinessProbe
   msg := sprintf("Container '%v' in %v '%v' has no readinessProbe.", [container.name, input.kind, input.metadata.name])
