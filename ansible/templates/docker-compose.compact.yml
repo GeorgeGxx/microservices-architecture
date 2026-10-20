@@ -88,10 +88,10 @@ services:
       - internal-net
 
   # ----------------------------------------------------------------------------
-  # 3. DOMAIN MICROSERVICES (JAVA 21 / SPRING BOOT 3)
+# 3. DOMAIN MICROSERVICES (JAVA 21 / SPRING BOOT 4)
   # ----------------------------------------------------------------------------
   products-service:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/products-service:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/products-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-products
     restart: unless-stopped
     environment:
@@ -109,7 +109,7 @@ services:
       - internal-net
 
   orders-service:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/orders-service:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/orders-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-orders
     restart: unless-stopped
     environment:
@@ -125,7 +125,7 @@ services:
       - internal-net
 
   inventory-service:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/inventory-service:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/inventory-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-inventory
     restart: unless-stopped
     environment:
@@ -139,7 +139,7 @@ services:
       - internal-net
 
   notification-service:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/notification-service:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/notification-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-notification
     restart: unless-stopped
     environment:
@@ -154,7 +154,7 @@ services:
   # 4. EDGE GATEWAY & FRONTEND
   # ----------------------------------------------------------------------------
   cosmo-router:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/cosmo-router:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/cosmo-router:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-router
     restart: unless-stopped
     ports:
@@ -167,7 +167,7 @@ services:
       - inventory-service
 
   frontend:
-    image: ${REGISTRY:-ghcr.io/georgegxx}/frontend:latest
+    image: "${REGISTRY:-ghcr.io/georgegxx}/frontend:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
     container_name: compact-frontend
     restart: unless-stopped
     ports:

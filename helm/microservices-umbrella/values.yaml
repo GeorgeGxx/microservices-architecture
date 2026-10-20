@@ -58,15 +58,12 @@ configMap:
 
 
 secret:
-  create: true
+  # Secret values must be provisioned out-of-band by the selected secret
+  # manager (Vault/External Secrets, Key Vault CSI, or a protected operator step).
+  # Keep chart releases and ArgoCD values free of plaintext credentials.
+  create: false
   name: microservices-secrets
-  data:
-    KEYCLOAK_ADMIN: "admin"
-    KEYCLOAK_ADMIN_PASSWORD: "admin"
-    POSTGRES_USER: "postgres"
-    POSTGRES_PASSWORD: "admin"
-    REDIS_PASSWORD: "admin"
-    KEYCLOAK_CLIENT_SECRET: "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu"
+  data: {}
 
 prometheusRule:
   enabled: true

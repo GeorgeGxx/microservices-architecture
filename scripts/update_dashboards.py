@@ -824,11 +824,11 @@ def build_technical_dashboard():
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
             "colorMode": "background",
             "graphMode": "none",
-            "textMode": "auto"
+            "textMode": "value"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "max(up{job=\"alloy\"}) or vector(1)",
+            "expr": "min(up{job=\"alloy\"})",
             "legendFormat": "Controller Health"
         }]
     },
@@ -836,7 +836,7 @@ def build_technical_dashboard():
         "id": 602,
         "type": "stat",
         "title": "⏱️ Collector Uptime",
-        "description": "Elapsed running time of the Alloy daemon process since last startup.",
+        "description": "Elapsed running time of the Alloy daemon process since last startup. No data means the target is unavailable.",
         "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -855,7 +855,7 @@ def build_technical_dashboard():
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
             "colorMode": "value",
             "graphMode": "none",
-            "textMode": "auto"
+            "textMode": "value"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
@@ -867,7 +867,7 @@ def build_technical_dashboard():
         "id": 603,
         "type": "stat",
         "title": "💾 Alloy Memory (RSS)",
-        "description": "Resident set size memory footprint of the Alloy collector daemon vs 256MB allocation.",
+        "description": "Maximum resident set size across Alloy instances; the configured container limit is 256 MiB.",
         "gridPos": {"h": 4, "w": 6, "x": 12, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -888,52 +888,44 @@ def build_technical_dashboard():
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
             "colorMode": "value",
             "graphMode": "area",
-            "textMode": "auto"
+            "textMode": "value"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "max(process_resident_memory_bytes{job=\"alloy\"}) or vector(0)",
+            "expr": "max(process_resident_memory_bytes{job=\"alloy\"})",
             "legendFormat": "RSS Memory"
         }]
     },
     {
         "id": 604,
         "type": "stat",
-        "title": "⚡ Collector CPU Usage",
-        "description": "Current processor saturation percentage used by the Alloy log collector.",
+        "title": "⚡ Alloy CPU Consumption",
+        "description": "Maximum CPU cores currently consumed by an Alloy instance. This is process CPU time, not percentage of the container limit.",
         "gridPos": {"h": 4, "w": 6, "x": 18, "y": 39},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "percent",
-                "color": {"mode": "thresholds"},
-                "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                        {"color": "#10b981", "value": None},
-                        {"color": "#f59e0b", "value": 50},
-                        {"color": "#ef4444", "value": 80}
-                    ]
-                }
+                "unit": "cores",
+                "color": {"mode": "palette-classic"}
             }
         },
         "options": {
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
             "colorMode": "value",
             "graphMode": "area",
-            "textMode": "auto"
+            "textMode": "value"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "clamp_min(rate(process_cpu_seconds_total{job=\"alloy\"}[1m]) * 100, 0)",
-            "legendFormat": "CPU Saturation"
+            "expr": "max(rate(process_cpu_seconds_total{job=\"alloy\"}[5m]))",
+            "legendFormat": "CPU cores"
         }]
     },
     {
         "id": 605,
         "type": "timeseries",
-        "title": "📈 Container Log Forwarding Rate to Loki (lines/sec)",
-        "description": "Throughput of structured container log lines parsed by Alloy and shipped into Grafana Loki.",
+        "title": "📈 Entries Sent to Loki (entries/sec)",
+        "description": "Collector-side delivery throughput Alloy reports as sent to Loki; this does not guarantee end-to-end indexing latency.",
         "gridPos": {"h": 7, "w": 12, "x": 0, "y": 43},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -950,15 +942,15 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(rate(loki_source_docker_target_entries_total[1m])) or sum(rate(loki_source_file_read_lines_total[1m])) or vector(0)",
-            "legendFormat": "Forwarded Log Lines/sec"
+            "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m]))",
+            "legendFormat": "Entries sent to Loki/sec"
         }]
     },
     {
         "id": 606,
         "type": "timeseries",
-        "title": "⏱️ Loki Push Duration & Ingestion Latency (ms)",
-        "description": "Round-trip batch submission latency from Alloy to Loki (P95 / P50) and pipeline drops, verifying real-time log ingestion performance.",
+        "title": "⏱️ Loki Push Request Duration (ms)",
+        "description": "P95 and median duration of Alloy HTTP push requests to Loki. This measures request duration, not end-to-end ingestion latency.",
         "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -985,19 +977,40 @@ def build_technical_dashboard():
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "(histogram_quantile(0.95, sum by (le) (rate(loki_write_request_duration_seconds_bucket[1m]))) * 1000) or vector(0)",
-                "legendFormat": "P95 Push Latency (ms)"
+                "expr": "(histogram_quantile(0.95, sum by (le) (rate(loki_write_request_duration_seconds_bucket{job=\"alloy\"}[5m]))) * 1000) and (sum(rate(loki_write_request_duration_seconds_count{job=\"alloy\"}[5m])) > 0)",
+                "legendFormat": "P95 request duration (ms)"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "(histogram_quantile(0.50, sum by (le) (rate(loki_write_request_duration_seconds_bucket[1m]))) * 1000) or vector(0)",
-                "legendFormat": "P50 Median Latency (ms)"
-            },
-            {
-                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(rate(loki_write_batch_retries_total[1m])) or sum(rate(loki_source_docker_target_parsing_errors_total[1m])) or vector(0)",
-                "legendFormat": "Batch Retries / Drops"
+                "expr": "(histogram_quantile(0.50, sum by (le) (rate(loki_write_request_duration_seconds_bucket{job=\"alloy\"}[5m]))) * 1000) and (sum(rate(loki_write_request_duration_seconds_count{job=\"alloy\"}[5m])) > 0)",
+                "legendFormat": "P50 request duration (ms)"
             }
+        ]
+    },
+    {
+        "id": 607,
+        "type": "timeseries",
+        "title": "⚠️ Alloy Delivery Retries & Dropped Logs",
+        "description": "Retry, dropped-entry, and Docker parsing-error rates reported by Alloy. Missing series remain No data, not zero.",
+        "gridPos": {"h": 7, "w": 24, "x": 0, "y": 50},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "ops",
+                "color": {"mode": "palette-classic"},
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "smooth",
+                    "lineWidth": 2,
+                    "fillOpacity": 15,
+                    "gradientMode": "opacity"
+                }
+            }
+        },
+        "targets": [
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_batch_retries_total{job=\"alloy\"}[5m]))", "legendFormat": "Batch retries/sec"},
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_dropped_entries_total{job=\"alloy\"}[5m]))", "legendFormat": "Dropped entries/sec"},
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_source_docker_target_parsing_errors_total{job=\"alloy\"}[5m]))", "legendFormat": "Docker parsing errors/sec"}
         ]
     }
 ]
@@ -1009,7 +1022,7 @@ def build_technical_dashboard():
     with open(tech_path, 'w', encoding='utf-8') as f:
         json.dump(tech, f, indent=2, ensure_ascii=False)
 
-    print("Technical dashboard successfully curated with unified Alloy Telemetry row (18 essential panels, 6 SRE rows)!")
+    print("Technical dashboard successfully curated with unified Alloy telemetry and delivery diagnostics.")
 
 
 def update_dashboard_files():

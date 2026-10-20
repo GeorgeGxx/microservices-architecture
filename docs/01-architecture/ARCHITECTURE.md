@@ -212,6 +212,7 @@ The platform provides enterprise-grade secret management across **4 distinct arc
 1. **Deploying to Cloud (EKS / AKS / GKE):**
    * Keep **`VAULT_ENABLED: "false"`** in your Helm chart values ([`helm/microservices-umbrella/values.yaml`](../../helm/microservices-umbrella/values.yaml#L46)).
    * Allow the cluster operator (External Secrets Operator or Azure Key Vault CSI Provider) to sync secrets to `microservices-secrets`. This delivers the fastest deployment rollouts, zero cold-start penalty, and highest resilience against transient network blips.
+   * The umbrella chart deliberately does **not** create this Secret. Provision it in every target namespace before syncing the Argo CD application; do not pass credentials through Helm values or `--set`, because Helm stores release values in its release records. The sample EKS values contain no secret payload. Minikube's bootstrap script seeds the Secret outside Helm for the `auth`, `data`, and `dev` namespaces.
 2. **Developing Locally:**
    * Run `.\platform-minikube.ps1 up` (starts Minikube and seeds Vault automatically).
    * If working with plain Docker Compose, run `docker compose up -d` (the ephemeral `vault-init` container prepares everything with zero manual setup).
