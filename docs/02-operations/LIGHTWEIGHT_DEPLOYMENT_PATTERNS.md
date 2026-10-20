@@ -102,12 +102,21 @@ terraform apply -auto-approve
 ```bash
 cd ../../../ansible
 
+# Prepare a deployment-specific environment file outside version control.
+# Start from the example, replace every development credential, and set
+# IMAGE_TAG to the immutable commit tag published for this release.
+cp ../../.env.example .env
+chmod 600 .env
+${EDITOR:-vi} .env
+
 # Verify host connectivity
 ansible -i inventory/hosts.ini microservices_hosts -m ping
 
-# Run master deployment playbook
-ansible-playbook -i inventory/hosts.ini playbooks/deploy-compact-stack.yml
+# Run the playbook with the explicit local environment file. It will refuse to
+# copy .env.example or any other file unless the operator provides its path.
+MICROSERVICES_ENV_FILE="$PWD/.env" ansible-playbook -i inventory/hosts.ini playbooks/deploy-compact-stack.yml
 ```
+The compact Compose template requires `IMAGE_TAG` and never follows `latest`. The GitHub Actions vulnerability and IaC scans upload findings in advisory mode; Gitleaks remains a blocking check in the service delivery workflows.
 
 #### Step 3: Verification & Health Checks
 The playbook automatically runs post-deployment verification against Cosmo Router (`:8080/health`) and the Storefront (`:80`). You can also inspect running containers directly:

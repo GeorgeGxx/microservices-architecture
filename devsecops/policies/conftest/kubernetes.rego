@@ -18,12 +18,33 @@ deny contains msg if {
   msg := sprintf("Container '%v' in Deployment '%v' must specify resource limits (cpu & memory).", [container.name, input.metadata.name])
 }
 
-# Deny containers using 'latest' tag in image
+# Deny untagged containers and mutable latest-style tags (latest,
+# staging-latest, prod-latest). Digest-pinned images are allowed.
 deny contains msg if {
   input.kind == "Deployment"
   container := input.spec.template.spec.containers[_]
-  endswith(container.image, ":latest")
-  msg := sprintf("Container '%v' in Deployment '%v' uses the 'latest' image tag. Pin a specific SHA or version tag.", [container.name, input.metadata.name])
+  image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
+  not contains(image_ref, "@sha256:")
+  not contains(image_ref, ":")
+  msg := sprintf("Container '%v' in Deployment '%v' uses an untagged image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
+}
+
+deny contains msg if {
+  input.kind == "Deployment"
+  container := input.spec.template.spec.containers[_]
+  image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
+  not contains(image_ref, "@sha256:")
+  endswith(image_ref, ":latest")
+  msg := sprintf("Container '%v' in Deployment '%v' uses a mutable latest-style image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
+}
+
+deny contains msg if {
+  input.kind == "Deployment"
+  container := input.spec.template.spec.containers[_]
+  image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
+  not contains(image_ref, "@sha256:")
+  endswith(image_ref, "-latest")
+  msg := sprintf("Container '%v' in Deployment '%v' uses an untagged or mutable latest-style image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
 }
 
 # Warn if liveness probe is missing on Deployment containers

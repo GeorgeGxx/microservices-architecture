@@ -82,7 +82,7 @@ metadata:
   namespace: observability
   labels:
     app: alloy
-    release: prometheus
+    release: kube-prometheus
 spec:
   type: NodePort
   selector:
@@ -100,7 +100,7 @@ metadata:
   namespace: observability
   labels:
     app: alloy
-    release: prometheus
+    release: kube-prometheus
 spec:
   jobLabel: app
   selector:
@@ -188,18 +188,14 @@ spec:
             - name: pods
               mountPath: /var/log/pods
               readOnly: true
-            - name: containers
-              mountPath: /var/lib/docker/containers
-              readOnly: true
       volumes:
         - name: config
           configMap:
             name: alloy-config
         - name: data
-          emptyDir: {}
+          hostPath:
+            path: /var/lib/alloy/data
+            type: DirectoryOrCreate
         - name: pods
           hostPath:
             path: /var/log/pods
-        - name: containers
-          hostPath:
-            path: /var/lib/docker/containers

@@ -8,9 +8,38 @@
   become: true
   vars:
     app_dir: /opt/microservices
-    docker_compose_plugin_version: "2.27.0"
+    microservices_env_file: "{{ lookup('env', 'MICROSERVICES_ENV_FILE') }}"
 
   tasks:
+    - name: Require an operator-provided deployment environment file
+      ansible.builtin.assert:
+        that:
+          - microservices_env_file | length > 0
+        fail_msg: >-
+          Set MICROSERVICES_ENV_FILE to the absolute path of a deployment-specific
+          .env file. The development .env.example is never deployed automatically.
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Check the deployment environment file on the Ansible controller
+      ansible.builtin.stat:
+        path: "{{ microservices_env_file }}"
+      register: deployment_env_file
+      delegate_to: localhost
+      become: false
+      run_once: true
+
+    - name: Require a regular deployment environment file
+      ansible.builtin.assert:
+        that:
+          - deployment_env_file.stat.exists
+          - deployment_env_file.stat.isreg
+        fail_msg: "MICROSERVICES_ENV_FILE must point to an existing regular file."
+      delegate_to: localhost
+      become: false
+      run_once: true
+
     # --------------------------------------------------------------------------
     # 1. SYSTEM PACKAGES & HARDENING
     # --------------------------------------------------------------------------
@@ -46,14 +75,21 @@
     # --------------------------------------------------------------------------
     # 2. DOCKER ENGINE INSTALLATION
     # --------------------------------------------------------------------------
-    - name: Add Docker official GPG key
-      ansible.builtin.apt_key:
+    - name: Ensure APT keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker official signing key
+      ansible.builtin.get_url:
         url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
 
     - name: Add Docker repository
       ansible.builtin.apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        repo: "deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
         state: present
 
     - name: Install Docker CE and Docker Compose plugin
@@ -99,13 +135,14 @@
         group: docker
         mode: '0644'
 
-    - name: Deploy .env configuration
-      ansible.builtin.template:
-        src: ../../.env.example
+    - name: Deploy operator-managed .env configuration
+      ansible.builtin.copy:
+        src: "{{ microservices_env_file }}"
         dest: "{{ app_dir }}/.env"
         owner: ubuntu
         group: docker
         mode: '0600'
+      no_log: true
 
     # --------------------------------------------------------------------------
     # 4. SYSTEMD AUTO-HEALING SERVICE
@@ -125,7 +162,7 @@
           WorkingDirectory={{ app_dir }}
           ExecStart=/usr/bin/docker compose up -d --remove-orphans
           ExecStop=/usr/bin/docker compose down
-          ExecReload=/usr/bin/docker compose pull && /usr/bin/docker compose up -d
+          ExecReload=/bin/sh -c '/usr/bin/docker compose pull && /usr/bin/docker compose up -d'
           Restart=on-failure
           TimeoutStartSec=300
 

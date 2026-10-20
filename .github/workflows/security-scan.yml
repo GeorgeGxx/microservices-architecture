@@ -50,9 +50,8 @@ jobs:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
 
-      - name: Enforce Trivy Vulnerability Gate (fails on CRITICAL/HIGH)
+      - name: Report Trivy CRITICAL/HIGH findings (advisory mode)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        continue-on-error: true
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -60,7 +59,7 @@ jobs:
           format: 'table'
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
-          exit-code: '0'
+          exit-code: '0' # Advisory scan; findings are reported, not a merge gate.
 
   # ==========================================================
   # JOB 2: Gitleaks Repository-wide Secret Detection (Parallel)
@@ -92,7 +91,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Run Checkov IaC Scanner (Docker, K8s, Helm, Terraform)
+      - name: Report Checkov IaC findings (advisory mode)
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: '.'

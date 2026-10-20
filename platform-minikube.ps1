@@ -849,12 +849,7 @@ stringData:
                 }
             }
             & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev `
-                --set secret.data.KEYCLOAK_ADMIN="$keycloakAdmin" `
-                --set secret.data.KEYCLOAK_ADMIN_PASSWORD="$keycloakPass" `
-                --set secret.data.POSTGRES_USER="$postgresUser" `
-                --set secret.data.POSTGRES_PASSWORD="$postgresPass" `
-                --set secret.data.REDIS_PASSWORD="$redisPass" `
-                --set secret.data.KEYCLOAK_CLIENT_SECRET="$kcSecret" `
+                --set secret.create=false `
                 --values $minikubeValues --force-conflicts --wait --timeout 10m
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."

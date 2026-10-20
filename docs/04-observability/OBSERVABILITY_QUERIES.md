@@ -329,6 +329,7 @@ Verifies that the Grafana Alloy daemon target is scraped successfully by Prometh
 ```promql
 up{job="alloy"}
 ```
+The `AlloyCollectorDown` alert fires when a scrape fails or when the Alloy target disappears from Prometheus service discovery. In Minikube, Alloy's per-node storage directory persists its file-source offsets across pod replacement while the node disk remains; it is local to Minikube and is not a backup across cluster deletion. Compose uses the named `alloy_data` volume.
 
 #### ⚙️ Pipeline Components Controller Health
 Total active pipeline components in `healthy` status managed by Alloy controller:
@@ -336,10 +337,10 @@ Total active pipeline components in `healthy` status managed by Alloy controller
 sum(alloy_component_controller_running_components{job="alloy", health_type="healthy"})
 ```
 
-#### 💻 Alloy CPU Utilization Rate
-Calculates CPU time rate consumed by the Alloy process:
+#### 💻 Alloy CPU Consumption
+CPU cores currently consumed by the busiest Alloy instance (process CPU time, not percentage of the container limit):
 ```promql
-rate(process_cpu_seconds_total{job="alloy"}[1m]) * 100
+max(rate(process_cpu_seconds_total{job="alloy"}[5m]))
 ```
 
 #### 🧠 Alloy Resident Memory (RSS) vs Container Limit (256MB)
@@ -348,10 +349,25 @@ Monitors real memory consumption against the 256MB Docker/Kubernetes boundary:
 process_resident_memory_bytes{job="alloy"}
 ```
 
-#### 📥 Container Log Ingestion Rate (lines/second)
-Tracks live log ingestion throughput captured from Docker socket or Kubernetes pod logs:
+#### 📥 Entries Sent to Loki (entries/second)
+Tracks entries Alloy reports as sent to Loki. This is collector-side delivery throughput, not a guarantee of end-to-end indexing latency:
 ```promql
-sum(rate(loki_source_docker_target_entries_total{job="alloy"}[1m])) or sum(rate(loki_source_file_read_lines_total{job="alloy"}[1m]))
+sum(rate(loki_write_sent_entries_total{job="alloy"}[5m]))
+```
+
+#### ⏱️ Loki Push Request Duration (P95, milliseconds)
+Estimates the P95 HTTP push request duration from Alloy to Loki. It does not measure end-to-end ingestion latency. No request observations produce no data:
+```promql
+(histogram_quantile(0.95, sum by (le) (rate(loki_write_request_duration_seconds_bucket{job="alloy"}[5m]))) * 1000)
+and (sum(rate(loki_write_request_duration_seconds_count{job="alloy"}[5m])) > 0)
+```
+
+#### ⚠️ Alloy Delivery Retries, Dropped Entries & Parse Errors
+These are separate counter rates; an absent series is shown as no data rather than being presented as zero:
+```promql
+sum(rate(loki_write_batch_retries_total{job="alloy"}[5m]))
+sum(rate(loki_write_dropped_entries_total{job="alloy"}[5m]))
+sum(rate(loki_source_docker_target_parsing_errors_total{job="alloy"}[5m]))
 ```
 
 ---
