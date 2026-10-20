@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 40,
+  "version": 41,
   "tags": [
     "spring-boot",
     "java21",
@@ -343,10 +343,10 @@
       "id": 105,
       "type": "stat",
       "title": "🎯 Availability SLO Burn",
-      "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. Green is below 1x burn; red starts at the 14.4x multi-window alert threshold. No traffic or missing telemetry shows No data.",
+      "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. An available service with no request traffic shows 0x; a down or missing target remains No data. Red starts at the 14.4x multi-window alert threshold.",
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 8,
         "x": 16,
         "y": 1
       },
@@ -398,7 +398,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "microservices:http_error_ratio:rate5m / 0.005",
+          "expr": "(microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service\"} == 1) * 0)",
           "legendFormat": "{{service}} (x budget burn)"
         }
       ]

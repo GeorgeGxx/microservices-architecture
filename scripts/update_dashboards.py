@@ -355,8 +355,9 @@ def build_business_dashboard():
     }
 ]
 
+    if biz.get('panels') != biz_panels:
+        biz['version'] = biz.get('version', 1) + 1
     biz['panels'] = biz_panels
-    biz['version'] = biz.get('version', 1) + 1
 
     with open(biz_path, 'w', encoding='utf-8') as f:
         json.dump(biz, f, indent=2, ensure_ascii=False)
@@ -514,8 +515,8 @@ def build_technical_dashboard():
         "id": 105,
         "type": "stat",
         "title": "🎯 Availability SLO Burn",
-        "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. Green is below 1x burn; red starts at the 14.4x multi-window alert threshold. No traffic or missing telemetry shows No data.",
-        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
+        "description": "Per-service 5-minute 5xx ratio divided by the 0.5% error budget for the 99.5% availability objective. An available service with no request traffic shows 0x; a down or missing target remains No data. Red starts at the 14.4x multi-window alert threshold.",
+        "gridPos": {"h": 4, "w": 8, "x": 16, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -538,7 +539,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "microservices:http_error_ratio:rate5m / 0.005",
+            "expr": "(microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service\"} == 1) * 0)",
             "legendFormat": "{{service}} (x budget burn)"
         }]
     },
@@ -1047,8 +1048,9 @@ def build_technical_dashboard():
     }
 ]
 
+    if tech.get('panels') != tech_panels:
+        tech['version'] = tech.get('version', 1) + 1
     tech['panels'] = tech_panels
-    tech['version'] = tech.get('version', 1) + 1
     # Clean up obsolete links to separated alloy dashboard
     tech['links'] = [link for link in tech.get('links', []) if link.get('url') != '/d/grafana-alloy']
     with open(tech_path, 'w', encoding='utf-8') as f:

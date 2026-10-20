@@ -1,13 +1,103 @@
 import tempfile
+import sys
+import types
 import unittest
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
+
+import pandas as pd
 
 from train_demand_model import evaluate_champion_candidate, snapshot_dataset
 
 
 class TrainDemandModelTests(unittest.TestCase):
+    class _ColumnExpression:
+        def desc(self):
+            return self
+
+        def __lt__(self, other):
+            return "before-test-window"
+
+        def __ge__(self, other):
+            return "test-window-or-later"
+
+    def _main_dependencies(self, *, empty_sales: bool = False, empty_train: bool = False):
+        """Build a small Spark/MLflow double to exercise the training orchestration."""
+        sales = MagicMock()
+        sales.columns = ["date", "product_id", "units_sold"]
+        sales.withColumn.return_value = sales
+        sales.isEmpty.return_value = empty_sales
+
+        daily_sales = MagicMock()
+        sales.groupBy.return_value.agg.return_value = daily_sales
+        product_ranges = MagicMock()
+        daily_sales.groupBy.return_value.agg.return_value = product_ranges
+        date_spine = MagicMock()
+        product_ranges.select.return_value = date_spine
+        joined = MagicMock()
+        date_spine.join.return_value = joined
+        daily = MagicMock()
+        joined.select.return_value = daily
+        features = MagicMock()
+        daily.withColumn.return_value = daily
+        daily.na.drop.return_value = features
+
+        date_selection = MagicMock()
+        distinct_dates = MagicMock()
+        features.select.return_value = date_selection
+        date_selection.distinct.return_value = distinct_dates
+        distinct_dates.count.return_value = 20
+        ordered_dates = MagicMock()
+        distinct_dates.orderBy.return_value = ordered_dates
+        limited_dates = MagicMock()
+        ordered_dates.limit.return_value = limited_dates
+        aggregate_dates = MagicMock()
+        limited_dates.agg.return_value = aggregate_dates
+        aggregate_dates.first.return_value = (date(2026, 10, 1),)
+
+        train = MagicMock()
+        test = MagicMock()
+        features.where.side_effect = [train, test]
+        train.isEmpty.return_value = empty_train
+        test.isEmpty.return_value = False
+        train.select.return_value.toPandas.return_value = pd.DataFrame(
+            {"lag_1": [2.0, 3.0], "lag_7": [1.0, 2.0], "day_of_week": [1, 2], "day_of_year": [1, 2], "units_sold": [4.0, 5.0]}
+        )
+        test.select.return_value.toPandas.return_value = pd.DataFrame(
+            {"lag_1": [3.0, 4.0], "lag_7": [2.0, 3.0], "day_of_week": [3, 4], "day_of_year": [3, 4], "units_sold": [5.0, 6.0]}
+        )
+
+        spark = MagicMock()
+        builder = MagicMock()
+        builder.appName.return_value = builder
+        builder.master.return_value = builder
+        builder.getOrCreate.return_value = spark
+        spark_session = SimpleNamespace(builder=builder)
+        functions = MagicMock()
+        functions.col.side_effect = lambda *_: self._ColumnExpression()
+        functions.lit.side_effect = lambda *_: self._ColumnExpression()
+        sql_module = SimpleNamespace(
+            SparkSession=spark_session,
+            Window=SimpleNamespace(partitionBy=MagicMock(return_value=SimpleNamespace(orderBy=MagicMock(return_value="window")))),
+            functions=functions,
+        )
+
+        model = MagicMock()
+        model.predict.return_value = [5.0, 5.0]
+        sklearn_module = types.ModuleType("sklearn")
+        sklearn_module.__path__ = []
+        ensemble_module = types.ModuleType("sklearn.ensemble")
+        ensemble_module.RandomForestRegressor = MagicMock(return_value=model)
+        sklearn_module.ensemble = ensemble_module
+        run = SimpleNamespace(info=SimpleNamespace(run_id="test-run"))
+        mlflow = MagicMock()
+        mlflow.start_run.return_value.__enter__.return_value = run
+        mlflow.tracking = SimpleNamespace(MlflowClient=MagicMock())
+        mlflow.sklearn = SimpleNamespace(log_model=MagicMock())
+        return sales, spark, model, sql_module, mlflow, sklearn_module, ensemble_module
+
     def test_snapshot_empty_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             dates, fingerprint = snapshot_dataset(Path(temp_dir))
@@ -217,6 +307,75 @@ class TrainDemandModelTests(unittest.TestCase):
         mock_client.get_experiment_by_name.return_value = mock_exp
         mock_client.search_runs.return_value = []
         self.assertIsNone(_query_prior_champion_rmse(mock_client, "empty"))
+
+    def test_query_prior_champion_rmse_handles_tracking_failure(self) -> None:
+        from train_demand_model import _query_prior_champion_rmse
+
+        client = MagicMock()
+        client.get_experiment_by_name.side_effect = RuntimeError("offline")
+        with patch("builtins.print"):
+            self.assertIsNone(_query_prior_champion_rmse(client, "exp"))
+
+    def test_main_completes_training_and_records_auto_state(self) -> None:
+        from train_demand_model import main
+
+        sales, spark, model, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "last-successful.sha256"
+            parquet_path = Path(temp_dir) / "sales"
+            with (
+                patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+                patch("train_demand_model.read_sales", return_value=sales),
+                patch("train_demand_model._check_auto_training_readiness", return_value=(True, state_path, "fingerprint-123", str(parquet_path))),
+                patch("train_demand_model._query_prior_champion_rmse", return_value=None),
+                patch("sys.argv", ["train_demand_model.py", "--auto", "--input-parquet", str(parquet_path)]),
+                patch("builtins.print"),
+            ):
+                self.assertEqual(main(), 0)
+            self.assertTrue(state_path.exists())
+            self.assertEqual(state_path.read_text(encoding="ascii"), "fingerprint-123\n")
+            self.assertTrue(mlflow.sklearn.log_model.called)
+            spark.stop.assert_called_once()
+
+    def test_main_rejects_data_missing_required_columns(self) -> None:
+        from train_demand_model import main
+
+        sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies()
+        sales.columns = ["date", "product_id"]
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("train_demand_model.read_sales", return_value=sales),
+            patch("sys.argv", ["train_demand_model.py"]),
+        ):
+            with self.assertRaisesRegex(ValueError, "missing required columns: units_sold"):
+                main()
+        spark.stop.assert_called_once()
+
+    def test_main_rejects_empty_sales(self) -> None:
+        from train_demand_model import main
+
+        sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies(empty_sales=True)
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("train_demand_model.read_sales", return_value=sales),
+            patch("sys.argv", ["train_demand_model.py"]),
+        ):
+            with self.assertRaisesRegex(ValueError, "No usable sales rows"):
+                main()
+        spark.stop.assert_called_once()
+
+    def test_main_rejects_empty_train_split(self) -> None:
+        from train_demand_model import main
+
+        sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies(empty_train=True)
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("train_demand_model.read_sales", return_value=sales),
+            patch("sys.argv", ["train_demand_model.py"]),
+        ):
+            with self.assertRaisesRegex(ValueError, "Need enough dated sales rows"):
+                main()
+        spark.stop.assert_called_once()
 
     def test_read_sales_sample_fallback(self) -> None:
         from train_demand_model import read_sales
