@@ -147,7 +147,7 @@ def run_spark_capture(
     ivy_dir = os.getenv("SPARK_IVY_DIR", str(Path.home() / ".ivy2"))
     spark = (SparkSession.builder.appName("orders-kafka-to-parquet")
              .master("local[*]")
-             .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.9")
+             .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0")
              .config("spark.jars.ivy", ivy_dir)
              .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")

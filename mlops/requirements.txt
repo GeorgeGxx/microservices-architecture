@@ -69,7 +69,7 @@ pycparser==3.1
 pydantic==2.14.0
 pydantic_core==2.50.0
 pyparsing==3.3.3
-pyspark==3.5.9
+pyspark==4.2.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.4
 pywin32==312; sys_platform == 'win32'
