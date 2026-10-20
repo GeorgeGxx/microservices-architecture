@@ -5,7 +5,7 @@ WORKDIR /app
 RUN pip install --no-cache-dir --only-binary :all: \
     "fastapi==0.143.0" \
     "mlflow==3.17.0" \
-    "pandas==3.0.6" \
+    "pandas==2.3.3" \
     "prometheus-client==0.22.1" \
     "pyarrow==25.0.1" \
     "pydantic==2.14.0" \

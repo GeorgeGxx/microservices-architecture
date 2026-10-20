@@ -187,7 +187,7 @@ This starts MLflow, the demand-forecast API, Kafka, and the other default servic
 ```powershell
 docker compose run --build --rm demand-model-training
 ```
-The Linux training image contains Java 17, PySpark 4.2.0, scikit-learn, and MLflow. If `mlops/data/synthetic_sales.csv` does not exist, the job creates a deterministic 30-day example dataset there. It builds lag and calendar features with PySpark, trains a random forest, and logs the run, RMSE/MAE metrics, and model artifact to MLflow. The generated values demonstrate the pipeline and should not guide purchasing decisions.
+The Linux training image contains Java 17, PySpark 4.2.0, pandas 2.3.3 (the supported pandas 2.x line for Spark 4.2), scikit-learn, and MLflow. GitPython's optional Git executable warning is suppressed in the container because the image does not include a `.git` checkout; the run still records its metrics and artifacts normally. If `mlops/data/synthetic_sales.csv` does not exist, the job creates a deterministic 30-day example dataset there. It builds lag and calendar features with PySpark, trains a random forest, and logs the run, RMSE/MAE metrics, and model artifact to MLflow. The generated values demonstrate the pipeline and should not guide purchasing decisions.
  
 To train from another CSV, place it under `mlops/data` and pass its container path:
 ```powershell

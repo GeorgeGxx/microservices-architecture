@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/KEDA-v2.21.0-blueviolet.svg?style=for-the-badge&logo=kubernetes" alt="KEDA v2.21.0" />
   <img src="https://img.shields.io/badge/Grafana-LGTM%20Stack-F46800.svg?style=for-the-badge&logo=grafana" alt="Grafana LGTM" />
   <img src="https://img.shields.io/badge/MLflow-Tracking%20%26%20Registry-0194E2.svg?style=for-the-badge&logo=mlflow" alt="MLflow" />
-  <img src="https://img.shields.io/badge/PySpark-3.5%20MLOps-E25A1C.svg?style=for-the-badge&logo=apachespark" alt="PySpark" />
+  <img src="https://img.shields.io/badge/PySpark-4.2.0%20MLOps-E25A1C.svg?style=for-the-badge&logo=apachespark" alt="PySpark" />
   <img src="https://img.shields.io/badge/DevSecOps-12--Stage%20Pipeline-success.svg?style=for-the-badge&logo=githubactions" alt="DevSecOps" />
   <img src="https://img.shields.io/badge/Newman%20Tests-23%2F23%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 23/23 Passing" />
 </p>
@@ -237,7 +237,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | 🧪 **MLflow Tracking UI** | [http://localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 2.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
 | 🔑 **Keycloak Admin Console** | [http://localhost:8181](http://localhost:8181) | `http://$(minikube ip):30181` | HTTP / OIDC OAuth2 | Realm administration, user provisioning (`admin_user`, `basic_user`), client scopes & JWT keys |
 | 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.0.4 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
-| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Pre-provisioned dashboards for business KPIs, SRE technical ops (with unified Alloy telemetry pipeline), and MLOps (`admin`/`admin`) |
+| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Two pre-provisioned dashboards: business and inventory health, plus technical/SRE operations with forecast API telemetry (`admin`/`admin`) |
 | 🎯 **Prometheus TSDB** | [http://localhost:9090](http://localhost:9090) (or `/targets`) | Internal ClusterIP (`:9090` via port-forward) | HTTP / Prometheus 3.14.0 | Target scrape status inspection, PromQL expression evaluation & alerting rules |
 | 🔍 **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | `http://$(minikube ip):30330` (or `:3300` via tunnel) | HTTP / Grafana Alloy 1.19.1 | Interactive telemetry pipeline visualizer, component dependency graph, log agent state & `/metrics` |
 | 🕸️ **Kiali Service Mesh** | [http://localhost:20001/kiali](http://localhost:20001/kiali) | `http://$(minikube ip):32001/kiali` | HTTP / Kiali 2.33.0 | Real-time Istio visual service graph, mutual TLS traffic status & canary route split verification |

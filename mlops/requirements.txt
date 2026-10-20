@@ -54,7 +54,7 @@ opentelemetry-proto==1.45.1
 opentelemetry-sdk==1.45.1
 opentelemetry-semantic-conventions==0.66b1
 packaging==26.3
-pandas==3.0.6
+pandas==2.3.3
 pillow==12.3.0
 prettytable==3.18.0
 prometheus-client==0.22.1

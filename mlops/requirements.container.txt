@@ -4,7 +4,7 @@ pyspark==4.2.0
 scikit-learn==1.9.1
 setuptools==84.0.0
 kafka-python==2.3.2
-pandas==3.0.6
+pandas==2.3.3
 pyarrow==25.0.1
 skops==0.16.0
 pydantic==2.14.0
