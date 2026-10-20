@@ -1,45 +1,11 @@
 name: Local Stack and Infrastructure Quality Gates
 
-# Note: Automatic push and pull_request triggers are temporarily disabled
-# until AWS remote tfstate and production cloud infrastructure are provisioned.
-# To trigger manually: use the 'Run workflow' button in GitHub Actions.
 on:
+  push:
+    branches: [develop, staging, main, master]
+  pull_request:
+    branches: [develop, staging, main, master]
   workflow_dispatch:
-  # pull_request:
-  #   branches: [develop, staging, main, master]
-  #   paths:
-  #     - 'terraform/**'
-  #     - 'compose.yaml'
-  #     - 'scripts/testing/**'
-  #     - 'observability/**'
-  #     - 'frontend/nginx.conf'
-  #     - 'frontend/rate-limit.conf'
-  #     - 'scripts/update_dashboards.py'
-  #     - 'scripts/grafana.py'
-  #     - 'observability/grafana/dashboards/**'
-  #     - 'platform-*.ps1'
-  #     - 'platform-common.ps1'
-  #     - 'scripts/bootstrap-keycloak.ps1'
-  #     - 'scripts/manage-cloudflare-tunnels.ps1'
-  #     - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
-  #     - '.github/workflows/local-quality-gates.yml'
-  # push:
-  #   branches: [develop, staging, main, master]
-  #   paths:
-  #     - 'terraform/**'
-  #     - 'compose.yaml'
-  #     - 'scripts/testing/**'
-  #     - 'observability/**'
-  #     - 'frontend/nginx.conf'
-  #     - 'frontend/rate-limit.conf'
-  #     - 'scripts/update_dashboards.py'
-  #     - 'observability/grafana/dashboards/**'
-  #     - 'platform-*.ps1'
-  #     - 'platform-common.ps1'
-  #     - 'scripts/bootstrap-keycloak.ps1'
-  #     - 'scripts/manage-cloudflare-tunnels.ps1'
-  #     - 'docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md'
-  #     - '.github/workflows/local-quality-gates.yml'
 
 permissions:
   contents: read
@@ -87,7 +53,61 @@ jobs:
           directory: terraform/
           framework: terraform
           quiet: true
-          soft_fail: true
+          soft_fail: false
+
+  helm-policy:
+    name: Helm lint, workload policy and policy regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.17.3
+      - name: Install Conftest
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSLo conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.58.0/conftest_0.58.0_Linux_x86_64.tar.gz
+          tar xzf conftest.tar.gz conftest
+          sudo install conftest /usr/local/bin/conftest
+          conftest --version
+      - name: Lint umbrella and service charts
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml
+          helm lint helm/microservices-umbrella --values helm/values/values-eks-staging.yaml
+          helm lint helm/microservices-umbrella --values helm/values/values-eks-prod.yaml
+          for chart in helm/charts/*; do helm lint "$chart"; done
+      - name: Test policy fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          conftest test devsecops/policies/conftest/tests/valid-workloads.yaml --policy devsecops/policies/conftest
+          if conftest test devsecops/policies/conftest/tests/invalid-workloads.yaml --policy devsecops/policies/conftest > "$RUNNER_TEMP/expected-denials.txt" 2>&1; then
+            echo "::error::Invalid workload fixtures unexpectedly passed the Kubernetes policy."
+            exit 1
+          fi
+          grep -q "is privileged" "$RUNNER_TEMP/expected-denials.txt"
+          grep -q "mutable latest" "$RUNNER_TEMP/expected-denials.txt"
+          grep -q "default ServiceAccount" "$RUNNER_TEMP/expected-denials.txt"
+          cat "$RUNNER_TEMP/expected-denials.txt"
+      - name: Render and enforce policies for Minikube, staging and production
+        shell: bash
+        run: |
+          set -euo pipefail
+          for environment in minikube staging prod; do
+            args=(--namespace dev)
+            case "$environment" in
+              minikube) args+=(--values helm/values/values-minikube.yaml) ;;
+              staging) args+=(--namespace staging --values helm/values/values-eks-staging.yaml) ;;
+              prod) args+=(--namespace production --values helm/values/values-eks-prod.yaml) ;;
+            esac
+            helm template microservices helm/microservices-umbrella "${args[@]}" > "$RUNNER_TEMP/${environment}-manifests.yaml"
+            conftest test "$RUNNER_TEMP/${environment}-manifests.yaml" --policy devsecops/policies/conftest
+          done
+          conftest test k8s/common/bcdr/database-backup-cronjob.yaml --policy devsecops/policies/conftest
 
   local-config-and-tests:
     name: Compose config, Python checks and observability assets
@@ -124,6 +144,8 @@ jobs:
           }
       - name: Validate Grafana dashboard JSON
         run: python -c "import json,pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('observability/grafana/dashboards').glob('*.json')]"
+      - name: Validate Draw.io architecture diagram XML
+        run: python -c "import xml.etree.ElementTree as ET; ET.parse('docs/Diagrams.drawio')"
       - name: Validate Prometheus config and rules
         run: |
           docker run --rm \
@@ -131,5 +153,10 @@ jobs:
             -v "$PWD/observability/prometheus:/etc/prometheus:ro" \
             prom/prometheus:v3.14.0 \
             check config /etc/prometheus/prometheus.yml --lint=all
+          docker run --rm \
+            --entrypoint promtool \
+            -v "$PWD/observability/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.14.0 \
+            check rules /etc/prometheus/prometheus-rules.yml
       - name: Check patch whitespace
         run: git diff --check HEAD^ HEAD

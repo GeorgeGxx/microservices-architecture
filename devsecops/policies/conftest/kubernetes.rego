@@ -2,76 +2,92 @@ package main
 
 import rego.v1
 
-# Deny containers running in privileged mode
+# Expose PodSpecs for supported Kubernetes workload controllers.
+workload_pod_spec := input.spec.template.spec if {
+  input.kind in {"Deployment", "StatefulSet", "DaemonSet", "Job"}
+}
+
+workload_pod_spec := input.spec.jobTemplate.spec.template.spec if {
+  input.kind == "CronJob"
+}
+
+workload_containers contains container if {
+  pod_spec := workload_pod_spec
+  container := pod_spec.containers[_]
+}
+
+workload_containers contains container if {
+  pod_spec := workload_pod_spec
+  container := pod_spec.initContainers[_]
+}
+
+# Deny privileged workloads, including init containers.
 deny contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
   container.securityContext.privileged == true
-  msg := sprintf("Container '%v' in Deployment '%v' is running in privileged mode. Privileged containers are not allowed.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' is privileged; privileged containers are prohibited.", [container.name, input.kind, input.metadata.name])
 }
 
-# Deny containers without memory/cpu limits
+# Require both CPU and memory limits, rather than accepting an incomplete limit block.
 deny contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
-  not container.resources.limits
-  msg := sprintf("Container '%v' in Deployment '%v' must specify resource limits (cpu & memory).", [container.name, input.metadata.name])
+  container := workload_containers[_]
+  not container.resources.limits.cpu
+  msg := sprintf("Container '%v' in %v '%v' must specify a CPU limit.", [container.name, input.kind, input.metadata.name])
 }
 
-# Deny untagged containers and mutable latest-style tags (latest,
-# staging-latest, prod-latest). Digest-pinned images are allowed.
 deny contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
+  not container.resources.limits.memory
+  msg := sprintf("Container '%v' in %v '%v' must specify a memory limit.", [container.name, input.kind, input.metadata.name])
+}
+
+# Accept digest references or versioned tags; reject untagged and latest-style refs.
+deny contains msg if {
+  container := workload_containers[_]
   image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
   not contains(image_ref, "@sha256:")
   not contains(image_ref, ":")
-  msg := sprintf("Container '%v' in Deployment '%v' uses an untagged image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' uses an untagged image reference.", [container.name, input.kind, input.metadata.name])
 }
 
 deny contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
   image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
   not contains(image_ref, "@sha256:")
   endswith(image_ref, ":latest")
-  msg := sprintf("Container '%v' in Deployment '%v' uses a mutable latest-style image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' uses a mutable latest image tag.", [container.name, input.kind, input.metadata.name])
 }
 
 deny contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
   image_ref := split(container.image, "/")[count(split(container.image, "/")) - 1]
   not contains(image_ref, "@sha256:")
   endswith(image_ref, "-latest")
-  msg := sprintf("Container '%v' in Deployment '%v' uses an untagged or mutable latest-style image reference. Pin an immutable version or digest.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' uses a mutable latest-style image tag.", [container.name, input.kind, input.metadata.name])
 }
 
-# Warn if liveness probe is missing on Deployment containers
+# Warn on health checks across every supported workload type.
 warn contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
   not container.livenessProbe
-  msg := sprintf("Container '%v' in Deployment '%v' does not have a livenessProbe configured.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' has no livenessProbe.", [container.name, input.kind, input.metadata.name])
 }
 
-# Warn if readiness probe is missing on Deployment containers
 warn contains msg if {
-  input.kind == "Deployment"
-  container := input.spec.template.spec.containers[_]
+  container := workload_containers[_]
   not container.readinessProbe
-  msg := sprintf("Container '%v' in Deployment '%v' does not have a readinessProbe configured.", [container.name, input.metadata.name])
+  msg := sprintf("Container '%v' in %v '%v' has no readinessProbe.", [container.name, input.kind, input.metadata.name])
 }
 
-# Deny Deployments using the default ServiceAccount (Least Privilege RBAC)
+# Require a dedicated non-default ServiceAccount for each workload.
 deny contains msg if {
-  input.kind == "Deployment"
-  not input.spec.template.spec.serviceAccountName
-  msg := sprintf("Deployment '%v' does not define an explicit serviceAccountName. Running under the 'default' ServiceAccount is prohibited.", [input.metadata.name])
+  pod_spec := workload_pod_spec
+  not pod_spec.serviceAccountName
+  msg := sprintf("%v '%v' does not define an explicit serviceAccountName.", [input.kind, input.metadata.name])
 }
 
 deny contains msg if {
-  input.kind == "Deployment"
-  input.spec.template.spec.serviceAccountName == "default"
-  msg := sprintf("Deployment '%v' uses the 'default' ServiceAccount. Dedicated least-privilege ServiceAccounts are required.", [input.metadata.name])
+  pod_spec := workload_pod_spec
+  pod_spec.serviceAccountName == "default"
+  msg := sprintf("%v '%v' uses the default ServiceAccount.", [input.kind, input.metadata.name])
 }

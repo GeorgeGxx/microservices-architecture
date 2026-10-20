@@ -1,3 +1,26 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-bcdr-backups
+  namespace: data
+  labels:
+    app.kubernetes.io/part-of: bcdr-governance
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: postgres-bcdr-backup
+  namespace: data
+  labels:
+    app.kubernetes.io/part-of: bcdr-governance
+automountServiceAccountToken: false
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -7,60 +30,205 @@ metadata:
     app.kubernetes.io/name: postgres-bcdr-backup
     app.kubernetes.io/part-of: bcdr-governance
 spec:
-  # Execute automated backup snapshot every 6 hours (RPO < 6h for batch, continuous WAL streaming handles < 1m)
   schedule: "0 */6 * * *"
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 900
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 5
   jobTemplate:
     spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600
       template:
         metadata:
           labels:
             app.kubernetes.io/name: postgres-bcdr-backup
         spec:
+          serviceAccountName: postgres-bcdr-backup
+          automountServiceAccountToken: false
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+            seccompProfile:
+              type: RuntimeDefault
           containers:
             - name: postgres-backup
               image: postgres:18-alpine
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  set -e
-                  TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-                  BACKUP_DIR="/backups"
-                  echo "=== [BCDR] Starting Automated PostgreSQL Backup at ${TIMESTAMP} ==="
-                  
-                  # Databases to snapshot
-                  DATABASES="db_keycloak ms_inventory ms_orders ms_products"
-                  
-                  for DB in $DATABASES; do
-                    echo "Backing up ${DB}..."
-                    if [ "$DB" = "db_keycloak" ]; then
-                      HOST="db-keycloak.auth.svc.cluster.local"
-                    elif [ "$DB" = "ms_inventory" ]; then
-                      HOST="db-inventory.data.svc.cluster.local"
-                    elif [ "$DB" = "ms_orders" ]; then
-                      HOST="db-orders.data.svc.cluster.local"
-                    elif [ "$DB" = "ms_products" ]; then
-                      HOST="db-products.data.svc.cluster.local"
-                    fi
-                    
-                    pg_dump -h $HOST -U postgres -d $DB -F c -b -v -f "${BACKUP_DIR}/${DB}_${TIMESTAMP}.dump"
-                    echo "Snapshot created: ${BACKUP_DIR}/${DB}_${TIMESTAMP}.dump"
-                  done
-                  
-                  echo "=== [BCDR] All database snapshots completed successfully ==="
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              command: ["/bin/sh", "-ec"]
               env:
+                - name: HOME
+                  value: /tmp
+              args:
+                - |
+                  timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
+                  databases="ms_keycloak ms_inventory ms_orders ms_products"
+                  for database in $databases; do
+                    case "$database" in
+                      ms_keycloak) host=db-keycloak.auth.svc.cluster.local ;;
+                      ms_inventory) host=db-inventory.data.svc.cluster.local ;;
+                      ms_orders) host=db-orders.data.svc.cluster.local ;;
+                      ms_products) host=db-products.data.svc.cluster.local ;;
+                    esac
+                    final="/backups/${database}_${timestamp}.dump"
+                    temporary="${final}.partial"
+                    echo "Creating custom-format backup for ${database} from ${host}"
+                    pg_dump --no-owner --no-privileges --format=custom \
+                      --host="$host" --username="$PGUSER" --dbname="$database" \
+                      --file="$temporary"
+                    pg_restore --list "$temporary" >/dev/null
+                    mv "$temporary" "$final"
+                    sha256sum "$final" > "${final}.sha256"
+                    table_count="$(psql --no-align --tuples-only --host="$host" --username="$PGUSER" --dbname="$database" --command="SELECT count(*) FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'")"
+                    if [ "$table_count" -lt 1 ]; then
+                      echo "Source database ${database} contains no user tables" >&2
+                      exit 1
+                    fi
+                    printf '%s\n' "$table_count" > "${final}.tables"
+                    echo "Verified archive: ${final} (${table_count} user tables)"
+                  done
+                  find /backups -type f -name '*.dump' -mtime +7 -delete
+                  find /backups -type f -name '*.dump.sha256' -mtime +7 -delete
+                  find /backups -type f -name '*.dump.tables' -mtime +7 -delete
+                  echo "Backup run completed; retained rolling seven-day archives."
+              env:
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: microservices-secrets
+                      key: POSTGRES_USER
                 - name: PGPASSWORD
                   valueFrom:
                     secretKeyRef:
                       name: microservices-secrets
                       key: POSTGRES_PASSWORD
+                - name: PGCONNECT_TIMEOUT
+                  value: "10"
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 128Mi
+                  ephemeral-storage: 256Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                  ephemeral-storage: 1Gi
               volumeMounts:
                 - name: backup-storage
                   mountPath: /backups
+                - name: tmp
+                  mountPath: /tmp
           volumes:
             - name: backup-storage
-              emptyDir: {}
+              persistentVolumeClaim:
+                claimName: postgres-bcdr-backups
+            - name: tmp
+              emptyDir:
+                sizeLimit: 256Mi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-bcdr-restore-verification
+  namespace: data
+  labels:
+    app.kubernetes.io/name: postgres-bcdr-restore-verification
+    app.kubernetes.io/part-of: bcdr-governance
+spec:
+  schedule: "30 3 * * 0"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 4
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: postgres-bcdr-restore-verification
+        spec:
+          serviceAccountName: postgres-bcdr-backup
+          automountServiceAccountToken: false
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            fsGroup: 999
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: restore-verifier
+              image: postgres:18-alpine
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              command: ["/bin/sh", "-ec"]
+              env:
+                - name: HOME
+                  value: /tmp
+              args:
+                - |
+                  data_dir=/tmp/restore-data
+                  mkdir -p "$data_dir"
+                  initdb -D "$data_dir" -U postgres --auth-local=trust --auth-host=trust >/dev/null
+                  pg_ctl -D "$data_dir" -o "-h 127.0.0.1 -p 55432" -w start >/dev/null
+                  cleanup() { pg_ctl -D "$data_dir" -m immediate -w stop >/dev/null || true; }
+                  trap cleanup EXIT
+                  databases="ms_keycloak ms_inventory ms_orders ms_products"
+                  for database in $databases; do
+                    latest="$(ls -1t "/backups/${database}_"*.dump 2>/dev/null | head -n 1 || true)"
+                    if [ -z "$latest" ]; then
+                      echo "No backup archive found for ${database}" >&2
+                      exit 1
+                    fi
+                    (cd /backups && sha256sum --check "$(basename "$latest").sha256")
+                    createdb -h 127.0.0.1 -p 55432 -U postgres "$database"
+                    pg_restore --exit-on-error --no-owner --no-privileges \
+                      --host=127.0.0.1 --port=55432 --username=postgres \
+                      --dbname="$database" "$latest"
+                    table_count="$(psql -h 127.0.0.1 -p 55432 -U postgres -d "$database" -Atc \
+                      "SELECT count(*) FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE c.relkind IN ('r','p') AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg_toast%'")"
+                    expected_table_count="$(cat "${latest}.tables")"
+                    if [ "$table_count" -lt 1 ] || [ "$table_count" -ne "$expected_table_count" ]; then
+                      echo "Table-count verification failed for ${database}: expected ${expected_table_count}; restored ${table_count}" >&2
+                      exit 1
+                    fi
+                    echo "PASS: ${database} restored from $(basename "$latest") (${table_count} user tables)."
+                  done
+                  echo "All latest database backups passed checksum and isolated restore verification."
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                  ephemeral-storage: 512Mi
+                limits:
+                  cpu: 1000m
+                  memory: 1Gi
+                  ephemeral-storage: 2Gi
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backups
+                  readOnly: true
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: backup-storage
+              persistentVolumeClaim:
+                claimName: postgres-bcdr-backups
+            - name: tmp
+              emptyDir:
+                sizeLimit: 2Gi

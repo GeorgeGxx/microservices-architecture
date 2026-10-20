@@ -50,16 +50,27 @@ jobs:
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
 
-      - name: Report Trivy CRITICAL/HIGH findings (advisory mode)
+      - name: Block on fixed CRITICAL vulnerabilities
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
           trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
           format: 'table'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
           ignore-unfixed: true
-          exit-code: '0' # Advisory scan; findings are reported, not a merge gate.
+          exit-code: '1'
+
+      - name: Report HIGH vulnerability findings (advisory mode)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
+          format: 'table'
+          severity: 'HIGH'
+          ignore-unfixed: true
+          exit-code: '0'
 
   # ==========================================================
   # JOB 2: Gitleaks Repository-wide Secret Detection (Parallel)
@@ -91,14 +102,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Report Checkov IaC findings (advisory mode)
+      - name: Enforce Checkov IaC policy gate
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: '.'
           framework: 'all'
           output_format: 'cli,sarif'
           output_file_path: 'console,checkov-report.sarif'
-          soft_fail: true
+          soft_fail: false
 
       - name: Upload Checkov Scan Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4

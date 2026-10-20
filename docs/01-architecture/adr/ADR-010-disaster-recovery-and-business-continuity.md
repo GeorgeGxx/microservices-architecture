@@ -12,7 +12,7 @@
 While the platform features high availability within an individual region (Multi-AZ deployments, Kubernetes replica sets, and KEDA horizontal autoscaling), a regional cloud outage, catastrophic network partition, ransomware infection, or physical datacenter disaster would render the system unavailable, leading to substantial financial loss, customer trust degradation, and regulatory compliance failure.
 
 We need a standardized **Business Continuity and Disaster Recovery (BCDR)** strategy that:
-1. Meets Tier-1 business requirements: Recovery Time Objective (**RTO < 15 minutes**) and Recovery Point Objective (**RPO < 1 minute**).
+1. Targets Tier-1 business requirements: Recovery Time Objective (**RTO < 15 minutes**) and Recovery Point Objective (**RPO < 1 minute**), subject to implementation and GameDay verification.
 2. Protects mission-critical stateful storage (PostgreSQL databases per service and Kafka event streams).
 3. Provides automated edge traffic failover (DNS/Anycast) without human intervention bottlenecks.
 4. Balances business continuity guarantees against cloud operational expenditure.
@@ -63,7 +63,7 @@ Chosen option: **Option 3 (Cross-Region Warm Standby)**.
 * **Elastic Surge Capacity:** KEDA scales microservices from 25% to 100% in $< 45$ seconds upon traffic ingress.
 
 ### Positive Consequences
-* RTO guaranteed at $< 15$ minutes and RPO $< 1$ minute for Tier-1 services (`orders-service`, `keycloak`, PostgreSQL).
+* The selected design targets RTO $< 15$ minutes and RPO $< 1$ minute for Tier-1 services (`orders-service`, `keycloak`, PostgreSQL); these values are not yet demonstrated by the local backup-and-restore drill.
 * Compute costs in the secondary region are capped at ~25% of the primary region during standard operations.
 * Zero data split-brain risk due to asynchronous read-replica promotion semantics.
 

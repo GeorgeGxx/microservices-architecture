@@ -116,7 +116,7 @@ ansible -i inventory/hosts.ini microservices_hosts -m ping
 # copy .env.example or any other file unless the operator provides its path.
 MICROSERVICES_ENV_FILE="$PWD/.env" ansible-playbook -i inventory/hosts.ini playbooks/deploy-compact-stack.yml
 ```
-The compact Compose template requires `IMAGE_TAG` and never follows `latest`. The GitHub Actions vulnerability and IaC scans upload findings in advisory mode; Gitleaks remains a blocking check in the service delivery workflows.
+The compact Compose template requires `IMAGE_TAG` and never follows `latest`. GitHub Actions blocks fixed CRITICAL Trivy findings and configured Checkov IaC findings; HIGH Trivy findings remain advisory, and Gitleaks blocks detected secrets.
 
 #### Step 3: Verification & Health Checks
 The playbook automatically runs post-deployment verification against Cosmo Router (`:8080/health`) and the Storefront (`:80`). You can also inspect running containers directly:

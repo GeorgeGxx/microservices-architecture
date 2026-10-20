@@ -188,7 +188,7 @@ promtool check rules observability/prometheus/prometheus-rules.yml
 ```
 
 ### 3. Non-Destructive Database Backup & Restore Drill
-Creates a plain SQL backup of the `db-orders` database, restores it into an isolated temporary database in the same container, verifies table row counts, and cleans up the temporary database:
+Creates a custom-format backup of the `db-orders` database, restores it into a uniquely named temporary database in the same container, verifies the archive and restored user-table count, and cleans up the temporary database. Snapshot duration is not an RPO measurement:
 ```powershell
 .\scripts\bcdr-simulation.ps1 -Action VerifyBackups
 ```

@@ -90,4 +90,30 @@ spec:
           annotations:
             summary: "Grafana Alloy Telemetry Collector Unreachable"
             description: "The Grafana Alloy target is failing scrapes or is missing from Prometheus service discovery."
-{{- end }}
+    - name: microservices-availability-slo
+      interval: 30s
+      rules:
+        - record: microservices:http_requests:rate5m
+          expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m]))
+        - record: microservices:http_errors:rate5m
+          expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+        - record: microservices:http_error_ratio:rate5m
+          expr: microservices:http_errors:rate5m / clamp_min(microservices:http_requests:rate5m, 1e-9)
+        - record: microservices:http_requests:rate1h
+          expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1h]))
+        - record: microservices:http_errors:rate1h
+          expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[1h]))
+        - record: microservices:http_error_ratio:rate1h
+          expr: microservices:http_errors:rate1h / clamp_min(microservices:http_requests:rate1h, 1e-9)
+        - alert: MicroserviceAvailabilityErrorBudgetBurn
+          expr: (microservices:http_error_ratio:rate5m > 0.072) and (microservices:http_error_ratio:rate1h > 0.072)
+          for: 2m
+          labels:
+            severity: critical
+            slo: availability
+            objective: "99.5%"
+          annotations:
+            summary: "{{`{{ $labels.service }}`}} is consuming its availability error budget rapidly"
+            description: "The 5-minute and 1-hour 5xx ratios exceed 7.2%, a 14.4x burn rate against the 99.5% availability objective. Check recent deployments, downstream dependencies, and the service runbook."
+            runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#availability-slo-and-error-budget"
+  {{- end }}
