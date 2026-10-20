@@ -5,6 +5,8 @@
 
 > Enterprise engineering standard for production release qualification across microservices, MLOps engines, and edge routing. Defines explicit Service Level Objectives (SLOs), actionable alert definitions, compute resource limits, automated rollback triggers, and runtime version evidence verification.
 
+> **Profile scope:** SLO values below are proposed objectives. CPU/memory and JVM settings must be read from the selected Compose or Helm profile; this matrix is not itself a deployment configuration or an automatic rollback gate. Only checks wired into the relevant pipeline are enforced automatically.
+
 ---
 
 ## 📌 Executive Summary & Operational Tenets
@@ -55,14 +57,14 @@ flowchart TD
 
 | Service | Primary Stack & Port | Availability Target (30d) | Latency Objective (P95) | CPU Request / Limit | Memory Request / Limit | JVM Heap (-Xms / -Xmx) | Rollback Trigger | Version Evidence Verification |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
-| **`cosmo-router`** | Rust / WGC (`8080`) | **99.95%** | **< 150 ms** | 100m / 500m | 128Mi / 512Mi | N/A (Compiled Rust binary) | Error rate > 2% or 3 failed `/health` probes | `GET /health` + header `wgc-router-version` |
-| **`orders-service`** | Spring Boot 3.4 (`8003`) | **99.90%** | **< 350 ms** | 250m / 1000m | 512Mi / 1024Mi | `-Xms256m -Xmx600m` | 5xx ratio > 1% in canary or DB pool drop | `GET /actuator/orders/info` |
-| **`products-service`** | Spring Boot 3.4 (`8004`) | **99.90%** | **< 200 ms** | 200m / 800m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | P95 > 500ms or 3 consecutive probe failures | `GET /actuator/products/info` |
-| **`inventory-service`** | Spring Boot 3.4 (`8001`) | **99.90%** | **< 200 ms** | 200m / 800m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | Redis connectivity loss or 5xx > 1% | `GET /actuator/inventory/info` |
-| **`notification-service`** | Spring Boot 3.4 (`8002`) | **99.50%** | **< 500 ms** | 150m / 500m | 384Mi / 768Mi | `-Xms192m -Xmx450m` | Kafka consumer lag > 1000 msgs for 15m | `GET /actuator/notification/info` |
+| **`cosmo-router`** | Cosmo Router / Go (`8080`) | **99.95%** | **< 150 ms** | Profile-managed | Profile-managed | N/A (compiled binary) | Error rate > 2% or 3 failed `/health` probes | `GET /health` + header `wgc-router-version` |
+| **`orders-service`** | Spring Boot 4.0.8 (`8003`) | **99.90%** | **< 350 ms** | Profile-managed | Profile-managed | Profile-managed | 5xx ratio > 1% in canary or DB pool drop | `GET /actuator/orders/info` |
+| **`products-service`** | Spring Boot 4.0.8 (`8004`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | P95 > 500ms or 3 consecutive probe failures | `GET /actuator/products/info` |
+| **`inventory-service`** | Spring Boot 4.0.8 (`8001`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | Redis connectivity loss or 5xx > 1% | `GET /actuator/inventory/info` |
+| **`notification-service`** | Spring Boot 4.0.8 (`8002`) | **99.50%** | **< 500 ms** | Profile-managed | Profile-managed | Profile-managed | Kafka consumer lag > 1000 msgs for 15m | `GET /actuator/notification/info` |
 | **`frontend`** | React 19 / Nginx (`5173`) | **99.95%** | **< 100 ms** | 50m / 250m | 64Mi / 256Mi | N/A (Static asset server) | Nginx 5xx > 1% or healthz timeout | `GET /healthz` + meta tag version |
-| **`demand-forecast-service`** | FastAPI / Python (`8005`) | **99.50%** | **< 800 ms** | 250m / 1000m | 512Mi / 1536Mi | N/A (Uvicorn / scikit-learn) | Model age > 7d or RMSE > 15.0 | `GET /health` + `GET /api/forecast` metadata |
-| **`demand-sales-capture`** | PySpark 4.2 Streaming | **99.50%** | N/A (Stream) | 500m / 2000m | 1024Mi / 2048Mi | Driver: `-Xms512m -Xmx1200m` | Query crash loop or checkpoint corruption | Pod logs + Spark UI `/jobs` |
+| **`demand-forecast-service`** | FastAPI / Python (`8005`) | **99.50%** | **< 800 ms** | Profile-managed | Profile-managed | N/A (Uvicorn / scikit-learn) | Model age > 7d or RMSE > 15.0 | `GET /health` + `GET /api/forecast` metadata |
+| **`demand-sales-capture`** | PySpark 4.2 Streaming | **99.50%** | N/A (Stream) | Profile-managed | Profile-managed | Profile-managed | Query crash loop or checkpoint corruption | Pod logs + Spark UI `/jobs` |
 
 ---
 
@@ -193,8 +195,9 @@ flowchart TD
 Before promoting any container image to staging or production, the release operator or automated CI/CD pipeline must execute the standard qualification sequence:
 
 ```powershell
-# 1. Run Data Quality & Freshness Gate
-python mlops/data_contracts.py --input-parquet /data/sales_parquet --max-staleness-days 7
+# 1. The Spark training job enforces the data quality and freshness gate before feature engineering.
+# It exits without logging/promoting a model if the gate fails.
+docker compose --profile training run --rm demand-model-training --input-parquet /data/sales_parquet
 
 # 2. Run Full End-to-End User Journey Verification
 python scripts/testing/test-e2e-journey.py --router-url http://127.0.0.1:8080 --forecast-url http://127.0.0.1:8005

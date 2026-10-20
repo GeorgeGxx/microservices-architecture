@@ -4,8 +4,8 @@
 .DESCRIPTION
     Validates backup and disaster recovery procedures across the platform's stateful components:
       1. PostgreSQL: Custom-format logical dump, checksum validation, and isolated database restore.
-      2. Apache Kafka: Topic metadata, partition config, consumer group offsets, and isolated topic replay.
-      3. MLflow MLOps: SQLite tracking database backup, SQLite integrity check, and artifact store archive restore.
+      2. Apache Kafka: Topic and consumer-group diagnostics plus isolated replay of backed-up records.
+      3. MLflow MLOps: SQLite backup integrity and artifact archive restore/checksum verification.
     Supports both Docker Compose drills (-Action VerifyBackups) and Kubernetes drills (-Action SimulateFailover).
 .EXAMPLE
     .\scripts\bcdr-simulation.ps1 -Action VerifyBackups -Component All
@@ -100,8 +100,9 @@ function Run-PostgresComposeDrill {
         $restoreSw.Stop()
 
         $sourceTables = (& docker compose exec -T $DbService psql -U $DbUser -d $DbName -Atc "SELECT count(*) FROM pg_class WHERE relkind IN ('r','p') AND relnamespace NOT IN (SELECT oid FROM pg_namespace WHERE nspname LIKE 'pg_%' OR nspname = 'information_schema')")
+        if ($LASTEXITCODE -ne 0) { throw 'Could not inspect source database after backup.' }
         $restoredTables = (& docker compose exec -T $DbService psql -U $DbUser -d $restoreDatabase -Atc "SELECT count(*) FROM pg_class WHERE relkind IN ('r','p') AND relnamespace NOT IN (SELECT oid FROM pg_namespace WHERE nspname LIKE 'pg_%' OR nspname = 'information_schema')")
-        
+        if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the restored database.' }
         if ([int]$sourceTables.Trim() -ne [int]$restoredTables.Trim()) {
             throw "Restore verification failed: source has $($sourceTables.Trim()) tables; restored DB has $($restoredTables.Trim())."
         }
@@ -169,32 +170,37 @@ function Run-KafkaComposeDrill {
         $groupsDesc | Out-File -FilePath $groupBackupFile -Encoding utf8
 
         # 3. Message backup: dump up to 100 messages from target topic
-        $dumpCmd = "kafka-console-consumer --bootstrap-server localhost:9092 --topic $targetTopic --from-beginning --max-messages 100 --timeout-ms 5000 2>/dev/null || true"
+        $dumpCmd = "kafka-console-consumer --bootstrap-server localhost:9092 --topic $targetTopic --from-beginning --max-messages 100 --timeout-ms 5000 2>/dev/null"
         $messages = (& docker compose exec -T $KafkaSvc sh -c $dumpCmd)
+        if ($LASTEXITCODE -ne 0) { throw "Could not export retained records from Kafka topic '$targetTopic'." }
         $msgCount = 0
         if ($messages) {
-            $messages | Out-File -FilePath $messagesBackupFile -Encoding utf8
-            $msgCount = ($messages | Measure-Object -Line).Lines
+            $messageLines = @($messages | ForEach-Object { [string]$_ })
+            [System.IO.File]::WriteAllLines($messagesBackupFile, $messageLines, [System.Text.UTF8Encoding]::new($false))
+            $msgCount = $messageLines.Count
         }
+        if ($msgCount -eq 0) { throw "Kafka topic '$targetTopic' has no retained records to replay; no recovery was verified." }
 
         Write-Host " [OK] (Captured $msgCount messages)" -ForegroundColor Green
 
-        # 4. Isolated Restore Drill: Create temporary drill topic, produce test payload, verify offset
-        Write-Host "  ▶ Executing isolated topic restore & replay drill on '$drillTopic'..." -NoNewline
+        # 4. Isolated Restore Drill: replay the saved records into a temporary topic.
+        Write-Host "  ▶ Replaying $msgCount backed-up records into isolated topic '$drillTopic'..." -NoNewline
         $restoreSw = [System.Diagnostics.Stopwatch]::StartNew()
         
         # Create isolated drill topic with same replication & partition standard
         Invoke-DockerCompose -Arguments @('exec', '-T', $KafkaSvc, 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--create', '--topic', $drillTopic, '--partitions', '1', '--replication-factor', '1') | Out-Null
         $topicCreated = $true
 
-        # Produce a synthetic recovery marker message into the drill topic
-        $drillMessage = '{"event":"BCDR_REPLAY_VERIFICATION","timestamp":"' + $timestamp + '"}'
-        & docker compose exec -T $KafkaSvc sh -c "echo '$drillMessage' | kafka-console-producer --bootstrap-server localhost:9092 --topic $drillTopic" | Out-Null
+        $containerMessagesPath = "/tmp/$drillTopic.jsonl"
+        Invoke-DockerCompose -Arguments @('cp', $messagesBackupFile, "$KafkaSvc`:$containerMessagesPath")
+        & docker compose exec -T $KafkaSvc sh -c "cat '$containerMessagesPath' | kafka-console-producer --bootstrap-server localhost:9092 --topic $drillTopic" | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Failed to replay backed-up records to isolated topic '$drillTopic'." }
 
         # Consume back from drill topic to verify readability and message parity
-        $consumed = (& docker compose exec -T $KafkaSvc sh -c "kafka-console-consumer --bootstrap-server localhost:9092 --topic $drillTopic --from-beginning --max-messages 1 --timeout-ms 5000 2>/dev/null")
-        if (-not ($consumed -match "BCDR_REPLAY_VERIFICATION")) {
-            throw "Replayed message was not verified in drill topic $drillTopic"
+        $consumed = @(& docker compose exec -T $KafkaSvc sh -c "kafka-console-consumer --bootstrap-server localhost:9092 --topic $drillTopic --from-beginning --max-messages $msgCount --timeout-ms 10000 2>/dev/null")
+        if ($LASTEXITCODE -ne 0) { throw "Could not read replayed records from isolated topic '$drillTopic'." }
+        if ($consumed.Count -ne $msgCount -or (Compare-Object -ReferenceObject $messageLines -DifferenceObject $consumed)) {
+            throw "Isolated replay mismatch: expected $msgCount backed-up records, received $($consumed.Count)."
         }
         $restoreSw.Stop()
         $sw.Stop()
@@ -206,7 +212,7 @@ function Run-KafkaComposeDrill {
             SizeKB     = [math]::Round(((Get-Item $metaBackupFile).Length / 1KB), 2)
             DurationMs = $sw.ElapsedMilliseconds
             Status     = "PASS"
-            Details    = "Metadata, Consumer Groups & Replay verified"
+            Details    = "Topic and consumer-group diagnostics saved; $msgCount backed-up records replayed and matched"
         }
     }
     catch {
@@ -227,6 +233,7 @@ function Run-KafkaComposeDrill {
                 Invoke-DockerCompose -Arguments @('exec', '-T', $KafkaSvc, 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--delete', '--topic', $drillTopic) | Out-Null
             } catch { }
         }
+        try { Invoke-DockerCompose -Arguments @('exec', '-T', $KafkaSvc, 'rm', '-f', "/tmp/$drillTopic.jsonl") } catch { }
     }
 }
 
@@ -244,6 +251,9 @@ function Run-MlflowComposeDrill {
     $artifactsTarFile = Join-Path $ResolvedBackupDir "mlflow-artifacts-$timestamp.tar.gz"
     $containerDbBackup = "/tmp/mlflow_bcdr_backup_$timestamp.sqlite"
     $containerTarBackup = "/tmp/mlflow_bcdr_artifacts_$timestamp.tar.gz"
+    $containerDbRestore = "/tmp/mlflow_restore_$timestamp.sqlite"
+    $containerTarRestore = "/tmp/mlflow_artifacts_restore_$timestamp.tar.gz"
+    $restoreDir = "/tmp/mlflow_artifacts_restore_$timestamp"
 
     Write-Host "  ▶ Backing up MLflow SQLite metadata database and artifacts..." -NoNewline
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
@@ -265,26 +275,54 @@ function Run-MlflowComposeDrill {
         $fileSizeKb = [math]::Round(((Get-Item $dbBackupFile).Length / 1KB) + ((Get-Item $artifactsTarFile).Length / 1KB), 2)
         Write-Host " [OK] ($fileSizeKb KB total)" -ForegroundColor Green
 
-        # 3. Isolated Restore Drill: verify SQLite integrity & schema tables
+        # 3. Restore both backups to isolated paths and verify their contents.
         Write-Host "  ▶ Executing isolated MLflow restore integrity check..." -NoNewline
         $restoreSw = [System.Diagnostics.Stopwatch]::StartNew()
 
-        $verifyScript = "import sqlite3; conn = sqlite3.connect(r'$dbBackupFile'); c = conn.cursor(); c.execute('PRAGMA integrity_check;'); r = c.fetchone()[0]; assert r == 'ok'; c.execute('SELECT count(*) FROM sqlite_master WHERE type=\'table\';'); t = c.fetchone()[0]; c.execute('SELECT count(*) FROM experiments;'); e = c.fetchone()[0]; print(f'Tables: {t}, Experiments: {e}'); conn.close()"
-        $verifyOutput = & python -c $verifyScript
-        if ($LASTEXITCODE -ne 0) {
-            throw "SQLite restored database verification failed: $verifyOutput"
-        }
+        Invoke-DockerCompose -Arguments @('cp', $dbBackupFile, "$MlflowSvc`:$containerDbRestore")
+        Invoke-DockerCompose -Arguments @('cp', $artifactsTarFile, "$MlflowSvc`:$containerTarRestore")
+        Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'mkdir', '-p', $restoreDir)
+        Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'tar', '-xzf', $containerTarRestore, '-C', $restoreDir)
+
+        $verifyDbScript = @'
+import sqlite3, sys
+conn = sqlite3.connect(sys.argv[1])
+cursor = conn.cursor()
+result = cursor.execute("PRAGMA integrity_check").fetchone()[0]
+assert result == "ok", result
+tables = cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0]
+experiments = cursor.execute("SELECT count(*) FROM experiments").fetchone()[0]
+print("Restored SQLite integrity: ok; tables: {}; experiments: {}".format(tables, experiments))
+conn.close()
+'@
+        $verifyDbOutput = & docker compose exec -T $MlflowSvc python -c $verifyDbScript $containerDbRestore
+        if ($LASTEXITCODE -ne 0) { throw "SQLite restored database verification failed: $verifyDbOutput" }
+
+        $verifyArtifactsScript = @'
+from pathlib import Path
+import hashlib, sys
+def manifest(root):
+    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in root.rglob("*") if p.is_file()}
+source = manifest(Path(sys.argv[1]))
+restored = manifest(Path(sys.argv[2]))
+assert source, "artifact store is empty"
+assert source == restored, "restored artifact files/checksums do not match"
+print("Restored and checksum-verified {} artifact files".format(len(restored)))
+'@
+        $verifyArtifactOutput = & docker compose exec -T $MlflowSvc python -c $verifyArtifactsScript /mlflow-artifacts $restoreDir
+        if ($LASTEXITCODE -ne 0) { throw "MLflow artifact restore verification failed: $verifyArtifactOutput" }
         $restoreSw.Stop()
         $sw.Stop()
 
-        Write-Host " [OK] ($verifyOutput in $($restoreSw.ElapsedMilliseconds)ms)" -ForegroundColor Green
+        Write-Host " [OK] ($verifyDbOutput; $verifyArtifactOutput in $($restoreSw.ElapsedMilliseconds)ms)" -ForegroundColor Green
         return [PSCustomObject]@{
             Component  = "MLflow"
             Target     = "$MlflowSvc / sqlite + artifacts"
             SizeKB     = $fileSizeKb
             DurationMs = $sw.ElapsedMilliseconds
             Status     = "PASS"
-            Details    = "SQLite integrity check passed; $verifyOutput"
+            Details    = "SQLite restored integrity and artifact archive restore/checksum verification passed"
         }
     }
     catch {
@@ -302,6 +340,9 @@ function Run-MlflowComposeDrill {
     finally {
         try { Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'rm', '-f', $containerDbBackup) } catch { }
         try { Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'rm', '-f', $containerTarBackup) } catch { }
+        try { Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'rm', '-f', $containerDbRestore) } catch { }
+        try { Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'rm', '-f', $containerTarRestore) } catch { }
+        try { Invoke-DockerCompose -Arguments @('exec', '-T', $MlflowSvc, 'rm', '-rf', $restoreDir) } catch { }
     }
 }
 

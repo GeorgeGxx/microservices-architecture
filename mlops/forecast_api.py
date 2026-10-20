@@ -66,6 +66,16 @@ MODEL_AGE_SECONDS = Gauge(
     "demand_forecast_model_age_seconds",
     "Age of the active demand forecast model in seconds since training.",
 )
+MODEL_AVAILABLE = Gauge(
+    "demand_forecast_model_available",
+    "Whether the API has loaded a usable demand forecast model from MLflow (1=yes, 0=no).",
+)
+MODEL_CHECKED = Gauge(
+    "demand_forecast_model_check_performed",
+    "Whether this API process has attempted to load a model from MLflow (1=yes, 0=no).",
+)
+MODEL_AVAILABLE.set(0)
+MODEL_CHECKED.set(0)
 
 
 @app.get("/metrics")
@@ -166,6 +176,7 @@ def _select_champion_or_best_model(client: MlflowClient, experiment_id: str) -> 
 
 def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
     global _ACTIVE_MODEL_ENTRY
+    MODEL_CHECKED.set(1)
     now_mono = perf_counter()
 
     if _ACTIVE_MODEL_ENTRY is not None:
@@ -181,12 +192,14 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
         if experiment is None:
             if _ACTIVE_MODEL_ENTRY is not None:
                 return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
+            MODEL_AVAILABLE.set(0)
             raise HTTPException(status_code=503, detail="No trained demand model is available yet")
 
         selected = _select_champion_or_best_model(client, experiment.experiment_id)
         if not selected:
             if _ACTIVE_MODEL_ENTRY is not None:
                 return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
+            MODEL_AVAILABLE.set(0)
             raise HTTPException(status_code=503, detail="No successfully completed demand model is available")
 
         chosen_logged_model, chosen_run = selected
@@ -205,6 +218,7 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
         MODEL_AGE_SECONDS.set(max(0.0, (datetime.now(timezone.utc) - created).total_seconds()))
 
         _ACTIVE_MODEL_ENTRY = (model, chosen_run.info.run_id, created, now_mono)
+        MODEL_AVAILABLE.set(1)
         return model, chosen_run.info.run_id, created
 
     except HTTPException:
@@ -212,6 +226,7 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
     except Exception as exc:
         if _ACTIVE_MODEL_ENTRY is not None:
             return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
+        MODEL_AVAILABLE.set(0)
         raise HTTPException(status_code=503, detail="Could not load the latest trained model") from exc
 
 

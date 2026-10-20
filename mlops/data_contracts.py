@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import pandas as pd
 
@@ -70,12 +70,101 @@ def validate_sales_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         raise DataContractViolation("Sales DataFrame is empty")
 
-    # Check for negative units
-    if (df["units_sold"] < 0).any():
-        negative_count = int((df["units_sold"] < 0).sum())
+    units = pd.to_numeric(df["units_sold"], errors="coerce")
+    invalid_units = df["units_sold"].notna() & units.isna()
+    if invalid_units.any():
+        raise DataContractViolation(
+            f"Sales DataFrame contains {int(invalid_units.sum())} non-numeric 'units_sold' records"
+        )
+    if (units < 0).any():
+        negative_count = int((units < 0).sum())
         raise DataContractViolation(f"Sales DataFrame contains {negative_count} negative 'units_sold' records")
 
+    if df["date"].isna().any() or pd.to_datetime(df["date"], errors="coerce").isna().any():
+        raise DataContractViolation("Sales DataFrame contains missing or invalid 'date' records")
+    product_ids = df["product_id"].astype("string").str.strip()
+    if product_ids.isna().any() or product_ids.eq("").any():
+        raise DataContractViolation("Sales DataFrame contains missing or blank 'product_id' records")
+
     return df
+
+
+def validate_spark_sales_dataframe(
+    frame: Any,
+    max_staleness_days: int = 7,
+    min_history_days: int = 8,
+    max_units_per_row: float = 50000,
+    reference_date: Optional[date] = None,
+) -> Dict[str, Any]:
+    """Apply the sales quality gate using Spark aggregations without collecting the dataset."""
+    from pyspark.sql import functions as F
+
+    required = {"date", "product_id", "units_sold"}
+    missing = required.difference(frame.columns)
+    if missing:
+        raise DataContractViolation(f"Sales DataFrame missing required columns: {', '.join(sorted(missing))}")
+
+    row = frame.agg(
+        F.count(F.lit(1)).alias("rows_count"),
+        F.sum(F.when(F.col("date").isNull(), 1).otherwise(0)).alias("null_dates"),
+        F.sum(
+            F.when(F.col("product_id").isNull() | (F.trim(F.col("product_id")) == ""), 1).otherwise(0)
+        ).alias("invalid_products"),
+        F.sum(F.when(F.col("units_sold").isNull() | F.isnan("units_sold"), 1).otherwise(0)).alias("invalid_units"),
+        F.sum(F.when(F.col("units_sold") < 0, 1).otherwise(0)).alias("negative_units"),
+        F.sum(F.when(F.col("units_sold") > max_units_per_row, 1).otherwise(0)).alias("outliers"),
+        F.min("date").alias("min_date"),
+        F.max("date").alias("max_date"),
+    ).first().asDict()
+
+    violations: List[str] = []
+    if not row["rows_count"]:
+        violations.append("Sales DataFrame is empty")
+    for key, description in (
+        ("null_dates", "missing/invalid dates"),
+        ("invalid_products", "missing/blank product IDs"),
+        ("invalid_units", "missing/non-numeric unit quantities"),
+        ("negative_units", "negative unit quantities"),
+        ("outliers", f"unit quantities above {max_units_per_row:g}"),
+    ):
+        count = int(row.get(key) or 0)
+        if count:
+            violations.append(f"Dataset contains {count} records with {description}")
+
+    min_date = row["min_date"]
+    max_date = row["max_date"]
+    today = reference_date or date.today()
+    staleness_days = (today - max_date).days if max_date else None
+    if staleness_days is not None and staleness_days > max_staleness_days:
+        violations.append(
+            f"Data freshness violation: latest record date is {max_date} "
+            f"({staleness_days} days old, max allowed: {max_staleness_days} days)"
+        )
+    if staleness_days is not None and staleness_days < 0:
+        violations.append(f"Sales data contains future dates through {max_date}")
+
+    shallow = (
+        frame.groupBy("product_id")
+        .agg((F.datediff(F.max("date"), F.min("date")) + F.lit(1)).alias("history_days"))
+        .where(F.col("history_days") < min_history_days)
+        .select("product_id", "history_days")
+        .limit(5)
+        .collect()
+    )
+    if shallow:
+        samples = ", ".join(f"{item['product_id']} ({item['history_days']}d)" for item in shallow)
+        violations.append(
+            f"Products with less than {min_history_days} calendar days of history: {samples}"
+        )
+
+    return {
+        "passed": not violations,
+        "rows_count": int(row["rows_count"] or 0),
+        "min_date": str(min_date) if min_date else None,
+        "max_date": str(max_date) if max_date else None,
+        "staleness_days": staleness_days,
+        "violations": violations,
+    }
 
 
 def validate_data_quality_and_freshness(
@@ -137,7 +226,10 @@ def validate_data_quality_and_freshness(
         sku_depth = (group["date"].max() - group["date"].min()).days + 1
         sku_counts[str(sku)] = sku_depth
         if sku_depth < min_history_days:
-            warnings.append(f"SKU '{sku}' has only {sku_depth} days of history (min required for lag-7: {min_history_days})")
+            violations.append(
+                f"SKU '{sku}' has only {sku_depth} calendar days of history "
+                f"(minimum required: {min_history_days})"
+            )
 
     quality_passed = len(violations) == 0
 

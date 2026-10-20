@@ -615,9 +615,11 @@ demand_forecast_model_age_seconds > 604800
 # 3. Model Accuracy Degradation (RMSE exceeds 15 units)
 demand_forecast_model_rmse > 15.0
 
-# 4. Absence of Registered Model
-absent(demand_forecast_model_rmse) == 1
+# 4. No usable model after the API attempted a load
+(demand_forecast_model_check_performed == 1) and (demand_forecast_model_available == 0)
 ```
+
+The model availability rule is intentionally gated by `demand_forecast_model_check_performed`: the API checks MLflow lazily when `/api/forecast` is requested, so an idle process must not page as if a model were missing. `MLOpsForecastServiceDown` uses the stable `service="demand-forecast-service"` target label across Compose and Kubernetes, independent of each scrape job's name. These MLOps alerts are defined in the Compose Prometheus rules, the Minikube Prometheus ConfigMap, and the Helm `PrometheusRule`.
 
 ### Remediation Playbook:
 1. **Model Staleness:** Check if `demand-sales-capture` is running and appending records to `/data/sales_parquet`. If auto-training is scheduled, verify `train_demand_model.py` execution logs in MLflow UI (`http://localhost:5000`).

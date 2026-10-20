@@ -247,6 +247,23 @@ def main() -> int:
         if sales.isEmpty():
             raise ValueError("No usable sales rows were found in the selected input.")
 
+        from data_contracts import validate_spark_sales_dataframe
+
+        quality = validate_spark_sales_dataframe(
+            sales,
+            max_staleness_days=int(os.getenv("MLOPS_MAX_SALES_STALENESS_DAYS", "7")),
+            min_history_days=int(os.getenv("MLOPS_MIN_HISTORY_DAYS", "8")),
+            max_units_per_row=float(os.getenv("MLOPS_MAX_UNITS_PER_ROW", "50000")),
+        )
+        print(
+            f"Sales quality gate: {'PASS' if quality['passed'] else 'FAIL'} | "
+            f"{quality['rows_count']} rows | {quality['min_date']} to {quality['max_date']} | "
+            f"freshness {quality['staleness_days']}d",
+            flush=True,
+        )
+        if not quality["passed"]:
+            raise ValueError("Sales quality gate failed: " + "; ".join(quality["violations"]))
+
         daily_sales = sales.groupBy("date", "product_id").agg(F.sum("units_sold").alias("units_sold"))
         product_ranges = daily_sales.groupBy("product_id").agg(
             F.min("date").alias("start_date"),
