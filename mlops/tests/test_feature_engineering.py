@@ -72,6 +72,27 @@ class FeatureEngineeringTests(unittest.TestCase):
         self.assertEqual(len(train), 23)
         self.assertLess(train["date"].max(), test["date"].min())
 
+    def test_empty_dataframe_handling(self) -> None:
+        empty_df = pd.DataFrame()
+        self.assertTrue(build_daily_spine(empty_df).empty)
+        self.assertTrue(compute_lag_features(empty_df).empty)
+        self.assertTrue(add_calendar_features(empty_df).empty)
+        tr, te = chronological_train_test_split(empty_df)
+        self.assertTrue(tr.empty)
+        self.assertTrue(te.empty)
+
+    def test_chronological_train_test_split_small_date_range(self) -> None:
+        start = date(2026, 8, 1)
+        rows = [
+            {"date": start + timedelta(days=i), "product_id": "SKU-01", "units_sold": float(i)}
+            for i in range(4)
+        ]
+        df = pd.DataFrame(rows)
+        train, test = chronological_train_test_split(df, test_days=7)
+        self.assertFalse(train.empty)
+        self.assertFalse(test.empty)
+        self.assertLess(train["date"].max(), test["date"].min())
+
 
 if __name__ == "__main__":
     unittest.main()

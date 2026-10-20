@@ -184,7 +184,13 @@ jobs:
           fi
           pip install coverage
           if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            coverage run --source=${{ inputs.service-dir }} --omit="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
+            OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
+            if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
+              OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
+            elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
+              OMIT="$OMIT,*/forecast_api.py"
+            fi
+            coverage run --source=${{ inputs.service-dir }} --omit="$OMIT" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
             coverage xml -o ${{ inputs.service-dir }}/coverage.xml
           fi
 
@@ -399,11 +405,14 @@ jobs:
           fi
           : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
           cd "${{ inputs.service-dir }}"
-          EXCLUSIONS="tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py"
+          EXCLUSIONS="tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+          COVERAGE_EXCLUSIONS="generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
           if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
-            EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py"
+            EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py,feature_engineering.py"
+            COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,capture_orders.py,train_demand_model.py,feature_engineering.py"
           elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,forecast_api.py"
+            COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
           fi
           npx --yes sonar-scanner \
             -Dsonar.projectKey=msa-${{ inputs.service-name }} \
@@ -413,7 +422,7 @@ jobs:
             -Dsonar.sources=. \
             -Dsonar.tests=tests \
             -Dsonar.exclusions="$EXCLUSIONS" \
-            -Dsonar.coverage.exclusions=generate_sample_sales.py,test_tdd.py \
+            -Dsonar.coverage.exclusions="$COVERAGE_EXCLUSIONS" \
             -Dsonar.python.coverage.reportPaths=coverage.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
