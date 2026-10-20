@@ -3,7 +3,7 @@ FROM bellsoft/liberica-openjdk-alpine:21 AS builder
 
 WORKDIR /app
 
-COPY ./docker/healthcheck/HttpHealthcheck.java /app/healthcheck-src/HttpHealthcheck.java
+COPY ./orders-service/docker/HttpHealthcheck.java /app/healthcheck-src/HttpHealthcheck.java
 RUN mkdir -p /app/healthcheck && javac --release 21 -d /app/healthcheck /app/healthcheck-src/HttpHealthcheck.java
 
 # 1) Parent pom.xml first -> better cache
