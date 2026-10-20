@@ -352,6 +352,14 @@ up{job="alloy"}
 ```
 The `AlloyCollectorDown` alert fires when a scrape fails or when the Alloy target disappears from Prometheus service discovery. In Minikube, Alloy's per-node storage directory persists its file-source offsets across pod replacement while the node disk remains; it is local to Minikube and is not a backup across cluster deletion. Compose uses the named `alloy_data` volume.
 
+#### 🔄 Alloy Restarts in the Last 24 Hours
+Prefer Kubernetes' exact container restart counter when kube-state-metrics is available. Docker Compose does not expose that series, so the dashboard falls back to changes in Alloy's Prometheus process start-time metric:
+```promql
+sum(increase(kube_pod_container_status_restarts_total{namespace="observability",container="alloy"}[24h]))
+or sum(changes(process_start_time_seconds{job="alloy"}[24h]))
+```
+The Compose fallback requires a stable `job="alloy"` scrape target and at least two samples. It counts observed Alloy process restarts, not Docker's historical container restart counter.
+
 #### ⚙️ Pipeline Components Controller Health
 Total active pipeline components in `healthy` status managed by Alloy controller:
 ```promql
