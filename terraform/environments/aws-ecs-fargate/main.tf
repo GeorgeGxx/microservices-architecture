@@ -296,7 +296,7 @@ resource "aws_ecs_task_definition" "cosmo_router" {
 
   container_definitions = jsonencode([{
     name      = "cosmo-router"
-    image     = "${var.container_registry}/cosmo-router:latest"
+    image     = "${var.container_registry}/cosmo-router:${var.cosmo_router_image_tag}"
     essential = true
     portMappings = [{
       containerPort = 8080
@@ -359,7 +359,7 @@ resource "aws_ecs_task_definition" "frontend" {
 
   container_definitions = jsonencode([{
     name      = "frontend"
-    image     = "${var.container_registry}/frontend:latest"
+    image     = "${var.container_registry}/frontend:${var.frontend_image_tag}"
     essential = true
     portMappings = [{
       containerPort = 8080
