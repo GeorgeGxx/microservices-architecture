@@ -3,6 +3,7 @@ param(
     [string]$Target = "compose",
 
     [switch]$SimulateOrders = $false,
+    [switch]$StartCapture = $false,
     [int]$Days = 14,
 
     [ValidateRange(30, 900)]
@@ -18,6 +19,10 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $workingDirectory = Get-Location
 $dataDirectory = (Resolve-Path (Join-Path $PSScriptRoot "data")).Path.TrimEnd('\') + '\'
 $containerArgs = @()
+
+if ($StartCapture -and $Target -ne "compose") {
+    throw "-StartCapture is only available for Docker Compose. Minikube deploys Kafka capture with .\platform-minikube.ps1 up."
+}
 
 for ($index = 0; $index -lt $TrainingArgs.Count; $index++) {
     $argument = $TrainingArgs[$index]
@@ -45,6 +50,75 @@ for ($index = 0; $index -lt $TrainingArgs.Count; $index++) {
             $containerPath = "/data/$relativeInput"
         }
         $containerArgs += $containerPath
+    }
+}
+
+function Start-ComposeCapture {
+    Push-Location $repoRoot
+    try {
+        $captureServices = & docker compose ps --status running --services demand-sales-capture
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not inspect Docker Compose service status. Check that Docker Desktop and the Compose project are available."
+        }
+        if (-not ($captureServices -contains "demand-sales-capture")) {
+            Write-Host "Starting Kafka capture in the background (no extra terminal required)..." -ForegroundColor Cyan
+            & docker compose --profile capture up -d --build demand-sales-capture
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not start the Compose Kafka capture service. Check Docker Compose and Kafka health."
+            }
+        }
+
+        $deadline = [DateTime]::UtcNow.AddSeconds(120)
+        do {
+            $captureServices = & docker compose ps --status running --services demand-sales-capture
+            if ($LASTEXITCODE -ne 0) {
+                throw "Could not inspect Docker Compose capture status."
+            }
+            if ($captureServices -contains "demand-sales-capture") {
+                Write-Host "Kafka capture is running in the background." -ForegroundColor Green
+                return
+            }
+            Start-Sleep -Seconds 5
+        } while ([DateTime]::UtcNow -lt $deadline)
+
+        Write-Host "Recent capture logs:" -ForegroundColor Yellow
+        & docker compose logs --tail 50 demand-sales-capture | ForEach-Object { Write-Host $_ }
+        throw "Kafka capture did not become ready within 120 seconds. Inspect with: docker compose logs demand-sales-capture"
+    } finally {
+        Pop-Location
+    }
+}
+
+if ($SimulateOrders -and $Target -eq "compose" -and ($TrainingArgs -contains "--input-csv" -or $TrainingArgs -contains "--input-parquet")) {
+    throw "-SimulateOrders trains from the captured Kafka Parquet dataset; do not combine it with --input-csv or --input-parquet."
+}
+if ($StartCapture -and -not $SimulateOrders -and $TrainingArgs.Count -gt 0) {
+    throw "-StartCapture only starts the background Kafka listener; remove training arguments or run a separate training command."
+}
+
+if ($Target -eq "compose" -and ($SimulateOrders -or $StartCapture)) {
+    Start-ComposeCapture
+}
+
+if ($Target -eq "compose" -and $StartCapture -and -not $SimulateOrders) {
+    Write-Host "Place orders through the frontend and complete delivery; only DELIVERED orders enter the training dataset." -ForegroundColor Cyan
+    Write-Host "The capture service will persist Kafka events and auto-train after the dataset is ready." -ForegroundColor Cyan
+    Write-Host "Stop capture when finished with: docker compose stop demand-sales-capture" -ForegroundColor Yellow
+    exit 0
+}
+
+if ($SimulateOrders -and $Target -eq "compose") {
+    Push-Location $repoRoot
+    try {
+        $captureServices = & docker compose ps --status running --services demand-sales-capture
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not inspect Docker Compose service status. Check that Docker Desktop and the Compose project are available."
+        }
+        if (-not ($captureServices -contains "demand-sales-capture")) {
+            throw "Kafka capture was started but is not running. Inspect with: docker compose logs demand-sales-capture"
+        }
+    } finally {
+        Pop-Location
     }
 }
 
@@ -136,22 +210,16 @@ print("RUN_STATE=" + json.dumps({"experiment_id": experiment_id, "runs": finishe
 }
 
 if ($SimulateOrders) {
-    Write-Host "Streaming simulated purchase orders across $Days days directly to Kafka..." -ForegroundColor Cyan
     if ($Target -eq "minikube") {
+        Write-Host "Streaming simulated purchase orders across $Days days directly to Kafka..." -ForegroundColor Cyan
         & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days $Days --kafka-bootstrap-servers kafka.data.svc.cluster.local:9092 --kafka-topic orders-topic
         if ($LASTEXITCODE -ne 0) {
             throw "Failed to stream simulated orders to Kafka in Minikube."
         }
     } else {
+        Write-Host "Streaming simulated purchase orders across $Days days directly to Kafka..." -ForegroundColor Cyan
         Push-Location $repoRoot
         try {
-            if ($TrainingArgs -contains "--input-csv" -or $TrainingArgs -contains "--input-parquet") {
-                throw "-SimulateOrders trains from the captured Kafka Parquet dataset; do not combine it with --input-csv or --input-parquet."
-            }
-            $captureServices = & docker compose ps --status running --services demand-sales-capture
-            if ($LASTEXITCODE -ne 0 -or -not ($captureServices -contains "demand-sales-capture")) {
-                throw "The Compose Kafka capture service must already be running. Start it in another terminal with: docker compose run --build --rm demand-sales-capture"
-            }
             & docker compose run --rm --entrypoint python demand-sales-capture /app/generate_sample_sales.py --days $Days --kafka-bootstrap-servers kafka:9092 --kafka-topic orders-topic
             if ($LASTEXITCODE -ne 0) {
                 throw "Failed to stream simulated orders to Kafka in Docker Compose (exit code $LASTEXITCODE)."

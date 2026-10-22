@@ -313,18 +313,19 @@ Use `docker compose down -v` only when you intentionally want to delete persiste
 
 **Docker Compose MLOps & Demand Forecasting:**
 * The default Compose stack automatically includes **MLflow** (`http://localhost:5000`) and `demand-forecast-service` (`/api/forecast`).
-* Train the demo random forest on demand via containerized PySpark:
+* Optional: create a first demo run using containerized PySpark:
   ```powershell
-  docker compose run --build --rm demand-model-training
+  .\mlops\training.ps1 -Target compose
   ```
-* Stream delivered Kafka orders into partitioned Parquet (`/data/sales_parquet`):
-  ```powershell
-  docker compose run --build --rm demand-sales-capture
-  ```
-  Keep capture running in its terminal. In another terminal, publish simulated orders and verify that they produce a new MLflow run:
+* One-command simulated Kafka flow (the wrapper builds and starts capture in the background, publishes sample orders, then waits for and verifies a new MLflow run):
   ```powershell
   .\mlops\training.ps1 -Target compose -SimulateOrders -Days 14
   ```
+* Natural frontend flow: start Kafka capture in the background once:
+  ```powershell
+  .\mlops\training.ps1 -Target compose -StartCapture
+  ```
+  Then create orders through the storefront and complete their delivery. Only `DELIVERED` order events are captured; the service writes Parquet and automatically trains when at least 9 date partitions are available and the input has been stable for 60 seconds. Stop the listener with `docker compose stop demand-sales-capture`.
 * Compose and Minikube use separate MLflow stores. They share host port 5000 by default; stop one before starting the other, or set `$env:MLFLOW_PORT = "5001"` before starting Compose to run both at once. Routine `docker compose down` preserves runs and artifacts; `down -v` deletes them.
 * Complete runbook: [Local MLOps Workflow with Docker Compose](docs/02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
 

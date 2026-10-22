@@ -62,7 +62,7 @@ services:
     networks:
       - spring
 
-  ### One-off Kafka capture job; attach interactively and stop it with Ctrl+C.
+  ### Background Kafka capture service for simulated and frontend-created orders.
   demand-sales-capture:
     container_name: demand-sales-capture
     profiles: [capture]
@@ -95,7 +95,9 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    restart: "no"
+      mlflow:
+        condition: service_healthy
+    restart: unless-stopped
     cpus: 4.0
     mem_limit: 4g
     tmpfs:
