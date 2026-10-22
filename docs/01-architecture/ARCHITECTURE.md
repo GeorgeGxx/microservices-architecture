@@ -55,17 +55,17 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **Inventory Service** | `8001` | ClusterIP `8001`; tunnel/port-forward only | ClusterIP | Stock control & atomic verification |
 | **Notification Service** | `8002` | ClusterIP `8002`; tunnel/port-forward only | ClusterIP | Kafka Consumer & customer alerts |
 | **Keycloak IAM** | `8181` | NodePort `30181`; management port `9000` is also exposed through the currently auto-assigned `31827` | Istio ingress (`/realms/*`, `/resources/*`, `/admin/*`, `/js/*`) | `admin` / `admin`; avoid relying on auto-assigned NodePorts |
-| **HashiCorp Vault** | `8200` | NodePort `30820` | Ingress / NodePort | `root` / v2.0.4 Secret Management |
+| **HashiCorp Vault** | `8200` | NodePort `30820` | Ingress / NodePort | `root` / v2.2.0 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
 | **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.2) |
 | **Kiali Visual Mesh** | `20001` | NodePort `32001`; metrics port `9090` has auto-assigned NodePort `31628` in the current cluster | Ingress / NodePort | Istio Service Mesh Visualizer (v2.33.0, `/kiali`) |
-| **Grafana** | `3000` | NodePort `30030`; local tunnel `3000` → Service `80` | Ingress / NodePort | `admin` / `admin` (v13.2.1) |
-| **Grafana Tempo** | `3200` | NodePort `30200` for HTTP; OTLP ports are also NodePort-exposed with cluster-assigned values | ClusterIP | Distributed tracing backend (v3.0.3); assigned OTLP NodePorts can change after recreation |
+| **Grafana** | `3000` | NodePort `30030`; local tunnel `3000` → Service `80` | Ingress / NodePort | `admin` / `admin` (v13.2.3) |
+| **Grafana Tempo** | `3200` | NodePort `30200` for HTTP; OTLP ports are also NodePort-exposed with cluster-assigned values | ClusterIP | Distributed tracing backend (v3.0.5); assigned OTLP NodePorts can change after recreation |
 | **Prometheus** | `9090` | ClusterIP `9090`; local tunnel `9090` → Service `9090` | Prometheus Operator | Metrics scraping engine (v3.14.0); legacy standalone manifest's `30090` is not used by the active Terraform install |
 | **OpenCost** | — (not installed by Compose) | ClusterIP exporter `9003` + UI `9090`; local tunnel `7000` → UI Service `9090` | Argo CD + Helm; cloud billing needs provider billing data | Local Kubernetes allocation; cloud cost remains unavailable on Minikube |
-| **Grafana Loki** | `3100` | ClusterIP `3100`; local tunnel `3100` → Service `3100` | ClusterIP | Centralized logging engine (v3.7.4) |
-| **Grafana Alloy** | `3300` | DaemonSet | DaemonSet | Telemetry & log collector (v1.19.1) |
-| **Redis & Exporter** | `6379` / `9121` | ClusterIP `6379` / `9121` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.82.0 |
+| **Grafana Loki** | `3100` | ClusterIP `3100`; local tunnel `3100` → Service `3100` | ClusterIP | Centralized logging engine (v3.7.8) |
+| **Grafana Alloy** | `3300` | DaemonSet | DaemonSet | Telemetry & log collector (v1.21.0) |
+| **Redis & Exporter** | `6379` / `9121` | ClusterIP `6379` / `9121` | Managed Cache / ClusterIP | Redis 8.8 + Exporter v1.94.0 |
 | **PostgreSQL Databases** | Compose host ports `5431`–`5434` → container `5432` | Four ClusterIP Services on `5432` in `data`/`auth` | RDS / Flexible / Cloud SQL | Separate DB per service; host ports are distinct in Compose |
 | **Apache Kafka Broker** | `9092` / `29092` (host access) | ClusterIP `9092` (client), `9093` (controller) | KRaft Broker / Strimzi Operator | KRaft broker (PLAINTEXT, Topic: `orders-topic`) |
 | **KEDA Operator & Metrics** | N/A (In-Cluster) | ClusterIP | Kubernetes Operator | Event-Driven Autoscaler v2.21.0 (Kafka Lag & Prometheus RPS) |
@@ -183,6 +183,7 @@ The platform provides enterprise-grade secret management across **4 distinct arc
   * **Azure AKS:** Helm values in [`k8s/aks/vault/vault-helm-values-aks.yaml`](../../k8s/aks/vault/vault-helm-values-aks.yaml) featuring **Azure Key Vault KMS Auto-Unseal** and **Workload Identity**.
   * **Google Cloud GKE:** Helm values in [`k8s/gke/vault/vault-helm-values-gke.yaml`](../../k8s/gke/vault/vault-helm-values-gke.yaml) featuring **Cloud KMS Auto-Unseal** and **GCP Workload Identity**.
   * **Demo Deployment:** Test sidecar injection with [`k8s/minikube/vault/demo-vault-agent-inject.yaml`](../../k8s/minikube/vault/demo-vault-agent-inject.yaml).
+  * **Vault 2.2.0 runtime requirement:** Set `disable_mlock = true` in the Vault server configuration. This is present in Compose and Minikube; cloud Helm overlays must keep the same setting because the 2.2.0 container no longer includes the `IPC_LOCK` capability.
 * **Pros & Cons:**
   * ✅ **Pros:** Strict Zero-Trust compliance; secrets never hit the Kubernetes etcd database in any form; supports complex file rendering and automated process signaling (`pkill -SIGHUP`).
   * ⚠️ **Cons:** Adds ~30–50MiB RAM and CPU overhead per pod for the sidecar process; adds complexity to pod lifecycle and graceful shutdown hooks; slower pod initialization.
@@ -296,7 +297,7 @@ sequenceDiagram
 1. **Perimeter Ingress (North-South):** the **Istio Ingress Gateway** is the single entry point in every cloud environment; cloud-native L4 load balancers sit in front of it for public exposure, while Envoy enforces rate limits, CORS policies, security headers, and route dispatching.
 2. **Identity & Access Management:** **Keycloak 26** serves OIDC/OAuth2 tokens and publishes its JWKS public keys. The Istio gateway routes `/realms/**`, `/resources/**`, `/admin/**`, and `/js/**` directly to Keycloak. The React client uses the local forwarded Keycloak port on loopback and the shared Istio origin in ingress deployments.
 3. **Transport Security (Mesh Boundary):** Egress from the Ingress Controller is intercepted by its **Istio Envoy Sidecar**, initiating **`mTLS STRICT`** using short-lived X.509 SPIFFE identities issued by `istiod`.
-4. **Federated GraphQL Gateway:** **Cosmo Router 0.358.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router Hardening & Gateway Capabilities](#-cosmo-router-hardening--gateway-capabilities).
+4. **Federated GraphQL Gateway:** **Cosmo Router 0.362.0** verifies Keycloak JWTs against JWKS, applies `@authenticated` to order operations while preserving anonymous catalog access, bounds GraphQL complexity and request sizes, propagates bearer/correlation/trace headers, emits structured access logs, exports OTLP traces and Prometheus metrics, and uses bounded retries/timeouts. Production cloud overlays enable per-subgraph circuit breakers; local profiles leave them off for cold-start resilience. See [Cosmo Router Hardening & Gateway Capabilities](#-cosmo-router-hardening--gateway-capabilities).
 5. **Core Microservices Subgraphs (East-West):** Cosmo Router dispatches traffic to downstream subgraphs (`orders-service`, `products-service`, `inventory-service`) across the mesh with **`mTLS STRICT`** and canary routing dictated by **`VirtualService`** and **`DestinationRule`**.
 6. **Unified Observability in Kiali:** Kiali visualizes the continuous traffic graph, displaying the Ingress node communicating with `cosmo-router` and onward to microservices, accompanied by green mutual TLS verification locks and golden signal metrics (RPS, latency $p95$, HTTP error rates).
 
@@ -642,7 +643,7 @@ graph LR
     end
 
     subgraph LocalInfrastructure ["💻 Local Microservices Platform (Docker / Minikube)"]
-        APIGW["🚪 Cosmo Router 0.358.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
+        APIGW["🚪 Cosmo Router 0.362.0 (8080)<br/>(Federation v2 / GraphQL Playground)"]
         Keycloak["🔐 Keycloak 26.8.1 (8181)<br/>(KC_PROXY_HEADERS: xforwarded)"]
         Microservices["⚙️ Core Subgraphs (Java 21)<br/>(Products, Orders, Inventory, Notifications, Vault)"]
     end

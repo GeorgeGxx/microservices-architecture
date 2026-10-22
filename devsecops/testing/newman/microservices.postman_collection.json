@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "80d0f149-1d5d-4cef-a67e-10c7cee79cf9",
     "name": "microservices-cosmo-router",
-    "description": "Enterprise Microservices Architecture Collection with Cosmo Router 0.358.0 (GraphQL Federation v2; orders v2.5), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Observed Funnel Event Telemetry, and Saga Compensation Pattern.",
+    "description": "Enterprise Microservices Architecture Collection with Cosmo Router 0.362.0 (GraphQL Federation v2; orders v2.5), Spring Boot 4.0.8 Subgraphs, Keycloak OAuth2/OIDC, Automated DHL Tracking, Observed Funnel Event Telemetry, and Saga Compensation Pattern.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [

@@ -40,7 +40,7 @@ graph TB
     end
 
     subgraph Gateway["🚪 Ingress & Federated Gateway"]
-        ROUTER["Cosmo Router 0.358.0 (Go)<br/>(Port 8080 • Federation 2.3/2.5 • GraphQL Playground)"]
+        ROUTER["Cosmo Router 0.362.0 (Go)<br/>(Port 8080 • Federation 2.3/2.5 • GraphQL Playground)"]
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
@@ -67,7 +67,7 @@ graph TB
         PROM["Prometheus (:9090)<br/>(Micrometer 2.2.1 • PromQL)"]
         LOKI["Grafana Loki (:3100)<br/>(Centralized Logs • LogQL)"]
         TEMPO["Grafana Tempo (:3200)<br/>(Distributed Traces • TraceQL)"]
-        GRAFANA["Grafana 13.2.1 (:3000)<br/>(Executive BI & SRE Dashboards)"]
+        GRAFANA["Grafana 13.2.3 (:3000)<br/>(Executive BI & SRE Dashboards)"]
     end
 
     SPA -->|Public OIDC Token| KC
@@ -191,28 +191,28 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 
 | Service / Workload / Version | Port(s) | Credentials / Auth | K8s Right-Sizing (Req / Lim) | Architectural Role |
 | :--- | :---: | :--- | :--- | :--- |
-| **Cosmo Router Gateway**<br>`v0.358.0` | `8080` (`/graphql`)<br>`9090` (Metrics) | Keycloak JWKS JWT validation, authenticated order fields, bounded complexity | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | GraphQL Federation v2 edge router & subgraph composition gateway |
+| **Cosmo Router Gateway**<br>`v0.362.0` | `8080` (`/graphql`)<br>`9090` (Metrics) | Keycloak JWKS JWT validation, authenticated order fields, bounded complexity | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | GraphQL Federation v2 edge router & subgraph composition gateway |
 | **Products Service**<br>`Spring Boot 4.0.8` | `8004` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Catalog management, stock sync & product federation subgraph |
 | **Orders Service**<br>`Spring Boot 4.0.8` | `8003` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Order lifecycle, DHL tracking, funnel telemetry & Saga coordinator |
 | **Inventory Service**<br>`Spring Boot 4.0.8` | `8001` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Stock reservation, low-stock alerts & inventory federation subgraph |
 | **Notification Service**<br>`Spring Boot 4.0.8` | `8002` | SSE stream & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Real-time SSE dispatch & transactional messaging service |
 | **React Frontend SPA**<br>`React 19 / Nginx` | `5173` | `admin_user` / `admin`<br>`basic_user` / `password` | CPU: `50m` / `200m`<br>Mem: `64Mi` / `128Mi`<br>Storage: `256Mi` | Modernized Storefront UI, POS barcode scanner & telemetry client |
 | **Keycloak IAM**<br>`v26.8.1` | `8181` / `9000` | `admin` / `admin` | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | OIDC / OAuth2 identity provider & JWT issuer (JVM heap tuned) |
-| **HashiCorp Vault**<br>`v2.0.4` | `8200` | Root Token: `root` | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard | Dynamic secrets engine, KV-v2 engine & KMS envelope encryption |
-| **Apache Kafka Broker**<br>`KRaft v7.8.0` | `9092` / `29092` | PLAINTEXT (local development) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Distributed event log & asynchronous EDA streaming backbone |
+| **HashiCorp Vault**<br>`v2.2.0` | `8200` | Root Token: `root` | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard | Dynamic secrets engine, KV-v2 engine & KMS envelope encryption |
+| **Apache Kafka Broker**<br>`KRaft v8.3.2` | `9092` / `29092` | PLAINTEXT (local development) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Distributed event log & asynchronous EDA streaming backbone |
 | **Kafka Exporter**<br>`v1.9` | `9308` | *(No auth required)* | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Kafka consumer group lag and partition telemetry scraper |
 | **PostgreSQL DBs (x4)**<br>`PostgreSQL 18` | `5431`–`5435` | `postgres` / `postgres` | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | Database-per-service isolated relational persistence |
 | **Postgres Exporter**<br>`v0.20` | `9187` | *(No auth required)* | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | PostgreSQL connection pool and query performance exporter |
 | **Redis & Exporter**<br>`v8.8.1 / v1.82` | `6379` / `9121` | Password protected (`redis_pass`) | CPU: `100m` / `250m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `256Mi` | Distributed rate limiting, session cache & query result store |
 | **MLflow Tracking**<br>`v2.x` | `5000` | *(No auth required locally)* | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1536Mi` | Experiment tracking server, model registry & artifact repository |
-| **Demand Forecast API**<br>`FastAPI 0.143.0 / Python 3.12` | `8005` | Keycloak JWT Bearer (`ADMIN` role) | CPU: `100m` / `1000m`<br>Mem: `256Mi` / `768Mi`<br>Storage: `128Mi` / `512Mi` | Real-time 7-day inference serving over trained sales models (`mlops/forecast_api.py`) |
+| **Demand Forecast API**<br>`FastAPI 0.160.0 / Python 3.12` | `8005` | Keycloak JWT Bearer (`ADMIN` role) | CPU: `100m` / `1000m`<br>Mem: `256Mi` / `768Mi`<br>Storage: `128Mi` / `512Mi` | Real-time 7-day inference serving over trained sales models (`mlops/forecast_api.py`) |
 | **Kafka-to-Parquet Capture**<br>`PySpark 4.2.0 / Python 3.12` | — *(Daemon)* | Internal Kafka access | CPU: `1000m` / `4000m`<br>Mem: `2Gi` / `4Gi`<br>Storage: `1Gi` / `2Gi` | Structured Streaming consumer writing silver-tier Parquet lake (`mlops/capture_orders.py`) |
 | **Model Auto-Training**<br>`PySpark 4.2.0 / Python 3.12` | — *(Scheduled)* | Internal Parquet access | CPU: `1000m` / `4000m`<br>Mem: `2Gi` / `4Gi`<br>Storage: `1Gi` / `2Gi` | Automated drift-triggered model retraining & registry promotion (`mlops/train_demand_model.py`) |
 | **Prometheus TSDB**<br>`v3.14.0` | `9090` | *(No auth required)* | CPU: `200m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Time-series metrics collection, rule evaluation & alerting |
-| **Grafana**<br>`v13.2.1` | `3000` | `admin` / `admin` | CPU: `100m` / `500m`<br>Mem: `128Mi` / `512Mi`<br>Storage: `1Gi` | Unified visual telemetry (metrics, logs, traces, costs) |
-| **Grafana Loki**<br>`v3.7.4` | `3100` | Authenticated via Grafana datasource | CPU: `150m` / `800m`<br>Mem: `256Mi` / `1024Mi`<br>Storage: `2Gi` | Centralized container log indexing & LogQL querying |
-| **Grafana Tempo**<br>`v3.0.3` | `3200` | Authenticated via Grafana datasource | CPU: `100m` / `500m`<br>Mem: `192Mi` / `512Mi`<br>Storage: `1Gi` | High-volume W3C distributed trace span storage |
-| **Grafana Alloy**<br>`v1.19.1` | `3300` | *(No auth required)* | CPU: `50m` / `200m`<br>Mem: `64Mi` / `256Mi`<br>Storage: `256Mi` | OpenTelemetry & Prometheus-compatible log & telemetry collector forwarding container logs to Loki |
+| **Grafana**<br>`v13.2.3` | `3000` | `admin` / `admin` | CPU: `100m` / `500m`<br>Mem: `128Mi` / `512Mi`<br>Storage: `1Gi` | Unified visual telemetry (metrics, logs, traces, costs) |
+| **Grafana Loki**<br>`v3.7.8` | `3100` | Authenticated via Grafana datasource | CPU: `150m` / `800m`<br>Mem: `256Mi` / `1024Mi`<br>Storage: `2Gi` | Centralized container log indexing & LogQL querying |
+| **Grafana Tempo**<br>`v3.0.5` | `3200` | Authenticated via Grafana datasource | CPU: `100m` / `500m`<br>Mem: `192Mi` / `512Mi`<br>Storage: `1Gi` | High-volume W3C distributed trace span storage |
+| **Grafana Alloy**<br>`v1.21.0` | `3300` | *(No auth required)* | CPU: `50m` / `200m`<br>Mem: `64Mi` / `256Mi`<br>Storage: `256Mi` | OpenTelemetry & Prometheus-compatible log & telemetry collector forwarding container logs to Loki |
 | **OpenTelemetry Collector**<br>`Contrib v0.159` | `4317` (gRPC)<br>`4318` (HTTP) | *(OTLP Ingestion)* | CPU: `100m` / `400m`<br>Mem: `128Mi` / `512Mi` | Trace & metric pipeline processor forwarding to Tempo & Prometheus |
 | **OpenCost FinOps**<br>`v2.5.32` | `7000` (UI)<br>`9003` (API) | *(No auth required)* | UI: `25m` / `150m`, `64Mi` / `192Mi`<br>Exporter: `50m` / `300m`, `192Mi` / `512Mi` | Real-time Kubernetes cloud cost allocation & budget tracking |
 | **Kiali Dashboard**<br>`v2.33.0` | `20001` | *(No auth required)* | CPU: `150m` / `600m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `1Gi` | Istio service mesh topology, traffic health & mTLS inspection |
@@ -228,16 +228,16 @@ The platform separates internal infrastructure orchestration from client-facing 
 | Service / Interface | Direct Local Access URL (localhost) | Minikube NodePort Access | Protocol / Tool | Scope, Capabilities & Swagger Docs |
 | :--- | :--- | :--- | :--- | :--- |
 | 🛒 **Frontend Storefront SPA** | [http://localhost:5173](http://localhost:5173) | `http://$(minikube ip):30080` | HTTP / React 19 + Tailwind v4 | Customer Storefront, POS scanner, 7-day forecast cards, Keycloak login & telemetry |
-| 🚀 **Cosmo Router Gateway** | [http://localhost:8080](http://localhost:8080) (or `/graphql`) | Internal ClusterIP (`:8080` via port-forward) | GraphQL / Cosmo Router 0.358.0 | Unified GraphQL Playground, schema introspection & federated Supergraph query execution |
+| 🚀 **Cosmo Router Gateway** | [http://localhost:8080](http://localhost:8080) (or `/graphql`) | Internal ClusterIP (`:8080` via port-forward) | GraphQL / Cosmo Router 0.362.0 | Unified GraphQL Playground, schema introspection & federated Supergraph query execution |
 | 📖 **Products Swagger UI** | [http://localhost:8004/swagger-ui.html](http://localhost:8004/swagger-ui.html) | Internal ClusterIP (`:8004` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Catalog REST APIs (`/api/product/**`, `/v3/api-docs`) |
 | 📖 **Orders Swagger UI** | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html) | Internal ClusterIP (`:8003` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Orders, DHL tracking, idempotency & `/api/order/funnel` |
 | 📖 **Inventory Swagger UI** | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | Internal ClusterIP (`:8001` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Stock reservation, decrement/rollback & `/api/inventory/**` |
 | 📖 **Notification Swagger & SSE** | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html) | Internal ClusterIP (`:8002` via port-forward) | OpenAPI 3.0 / SSE Stream | Interactive OpenAPI documentation for Notification history & live SSE event stream (`/api/notifications/stream`) |
-| 📈 **Demand Forecast API Docs** | [http://localhost:8005/docs](http://localhost:8005/docs) | Internal ClusterIP (`:8005` via port-forward) | OpenAPI 3.0 / FastAPI 0.143.0 Swagger (Python 3.12) | Interactive Swagger UI for real-time 7-day SKU demand predictions (`/api/forecast`, `/metrics`) |
+| 📈 **Demand Forecast API Docs** | [http://localhost:8005/docs](http://localhost:8005/docs) | Internal ClusterIP (`:8005` via port-forward) | OpenAPI 3.0 / FastAPI 0.160.0 Swagger (Python 3.12) | Interactive Swagger UI for real-time 7-day SKU demand predictions (`/api/forecast`, `/metrics`) |
 | 🧪 **MLflow Tracking UI** | [http://localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 2.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
 | 🔑 **Keycloak Admin Console** | [http://localhost:8181](http://localhost:8181) | `http://$(minikube ip):30181` | HTTP / OIDC OAuth2 | Realm administration, user provisioning (`admin_user`, `basic_user`), client scopes & JWT keys |
-| 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.0.4 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
-| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.1 | Two pre-provisioned dashboards: business and inventory health, plus technical/SRE operations with forecast API telemetry (`admin`/`admin`) |
+| 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.2.0 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
+| 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.3 | Two pre-provisioned dashboards: business and inventory health, plus technical/SRE operations with forecast API telemetry (`admin`/`admin`) |
 | 🎯 **Prometheus TSDB** | [http://localhost:9090](http://localhost:9090) (or `/targets`) | Internal ClusterIP (`:9090` via port-forward) | HTTP / Prometheus 3.14.0 | Target scrape status inspection, PromQL expression evaluation & alerting rules |
 | 🔍 **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | `http://$(minikube ip):30330` (or `:3300` via tunnel) | HTTP / Grafana Alloy 1.19.1 | Interactive telemetry pipeline visualizer, component dependency graph, log agent state & `/metrics` |
 | 🕸️ **Kiali Service Mesh** | [http://localhost:20001/kiali](http://localhost:20001/kiali) | `http://$(minikube ip):32001/kiali` | HTTP / Kiali 2.33.0 | Real-time Istio visual service graph, mutual TLS traffic status & canary route split verification |
@@ -424,7 +424,7 @@ microservices-architecture/
 │   └── templates/                  # Compose stack & multi-DB initialization
 ├── argocd/                         # GitOps Applications & ApplicationSet definitions
 ├── azure-devops/                   # Azure DevOps Pipeline YAML files
-├── cosmo-router/                   # Cosmo Router 0.358.0 (Port 8080 • Federation v2)
+├── cosmo-router/                   # Cosmo Router 0.362.0 (Port 8080 • Federation v2)
 ├── devsecops/                      # Centralized DevSecOps Hub
 │   ├── compliance/trivy/           # Trivy container scanner configuration
 │   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles

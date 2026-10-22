@@ -40,7 +40,7 @@ services:
       - internal-net
 
   kafka:
-    image: confluentinc/cp-kafka:7.8.0
+    image: confluentinc/cp-kafka:8.3.2
     container_name: compact-kafka
     restart: unless-stopped
     environment:

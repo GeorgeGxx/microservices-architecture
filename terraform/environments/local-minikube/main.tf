@@ -176,6 +176,10 @@ resource "helm_release" "observability" {
       value = var.grafana_admin_password
     },
     {
+      name  = "grafana.image.tag"
+      value = "13.2.3"
+    },
+    {
       name  = "grafana.service.type"
       value = "NodePort"
     },
