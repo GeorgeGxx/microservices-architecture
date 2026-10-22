@@ -36,7 +36,7 @@ cosmo-router:
     allowedOrigins:
       - http://localhost:5173
       - http://127.0.0.1:5173
-  image: { repository: ghcr.io/wundergraph/cosmo/router, tag: "0.358.0" }
+  image: { repository: ghcr.io/wundergraph/cosmo/router, tag: "0.362.0" }
   keda:
     prometheus:
       serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"

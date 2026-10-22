@@ -13,17 +13,17 @@ oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella:<Chart.yaml version>
 
 ## Release procedure
 
-1. Use the current `version` in `helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version.
+1. Use the current `version` in `helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version. The checked-in umbrella chart is currently `1.0.1`.
 2. If Federation composition inputs changed, run `platform-minikube.ps1 compose-router` and commit the generated router config with the source change.
 3. Merge the chart change to `main`.
-4. Create and push the matching release tag. For the first release at the current `1.0.0` version:
+4. Create and push the matching release tag. For the current `1.0.1` version:
 
    ```powershell
-   git tag helm-v1.0.0
-   git push origin helm-v1.0.0
+   git tag helm-v1.0.1
+   git push origin helm-v1.0.1
    ```
 
-   Future releases use the matching bumped version, such as `helm-v1.0.1`.
+   Future releases use the matching bumped version, such as `helm-v1.0.2`.
 
 The `.github/workflows/helm-chart-release.yml` workflow builds dependencies from the committed `Chart.lock`, validates and renders production values, packages the umbrella chart, then publishes it to GHCR. A manual run is also available from `main` with the exact version from `Chart.yaml`.
 
@@ -32,6 +32,10 @@ The `production` GitHub Environment should require an authorized reviewer. The w
 Azure DevOps and Bitbucket are consumers, never publishers. Configure protected `GHCR_USERNAME` and `GHCR_TOKEN` variables in each deployment environment; the token needs read-only `read:packages` access to this package. Do not reuse the publishing token. Both pipelines read the desired chart version from the checked-out umbrella `Chart.yaml`, authenticate to GHCR, and deploy `oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella` with that exact `--version`. The version must already have been released by GitHub Actions, or deployment fails before changing the Helm release.
 
 The AWS, Azure, and GCP Terraform roots read the same `Chart.yaml` and expose `microservices_chart_repository`, `microservices_chart_version`, and `microservices_chart_reference` outputs for downstream release tooling. Terraform remains the owner of infrastructure; it does not create a second Helm release alongside Argo CD or the deployment pipelines. Each cloud root exposes these outputs in its `dev`, `staging`, and `prod` workspaces.
+
+## Chart usage and workload identity
+
+The umbrella chart is the supported full-stack deployment and creates its shared configuration resources and dedicated workload ServiceAccounts. The individual charts in `helm/charts/` can also be installed independently, but their services still expect the configured `microservices-config` ConfigMap and `microservices-secrets` Secret to exist in the release namespace. Each standalone service chart creates a dedicated ServiceAccount by default and disables automatic service-account token mounting at both the ServiceAccount and Pod levels. The umbrella chart keeps its centrally managed ServiceAccounts and also disables token mounting for its workloads. If a workload needs Kubernetes API access or cloud workload identity, configure that intentionally through its ServiceAccount and the target platform's identity integration.
 
 ## Immutability checks
 

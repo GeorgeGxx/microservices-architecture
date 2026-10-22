@@ -55,7 +55,7 @@ function Invoke-CosmoRouterCompose {
 
     Push-Location $root
     try {
-        $composeOutput = @(& npx --yes wgc@0.132.0 router compose --input $inputFile --out $outputFile 2>&1)
+        $composeOutput = @(& npx --yes wgc@0.133.3 router compose --input $inputFile --out $outputFile 2>&1)
         $composeExitCode = $LASTEXITCODE
         if ($composeExitCode -ne 0) {
             if ($composeOutput.Count -gt 0) { $composeOutput | ForEach-Object { Write-Host $_ } }

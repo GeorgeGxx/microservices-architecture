@@ -2,5 +2,5 @@ apiVersion: v2
 name: products-service
 description: Helm chart for the products-service microservice
 type: application
-version: 1.0.0
+version: 1.0.1
 appVersion: "1.0.0"
