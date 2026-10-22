@@ -18,7 +18,7 @@ services:
       - --artifacts-destination
       - /mlflow-artifacts
     environment:
-      MLFLOW_SERVER_ALLOWED_HOSTS: mlflow:5000,localhost:5000,127.0.0.1:5000
+      MLFLOW_SERVER_ALLOWED_HOSTS: mlflow:5000,localhost:${MLFLOW_PORT:-5000},127.0.0.1:${MLFLOW_PORT:-5000}
     volumes:
       - mlops_mlflow_data:/mlflow-data
       - mlops_mlflow_artifacts:/mlflow-artifacts
@@ -89,6 +89,7 @@ services:
       MLOPS_TRAINING_STATE_PATH: /data/checkpoints/auto-training/last-successful-input.sha256
       MLOPS_MIN_PARTITIONS: "9"
       MLOPS_AUTO_TRAIN_INTERVAL_SEC: "20"
+      MLOPS_AUTO_TRAIN_STABILITY_SECONDS: "60"
       SPARK_LOCAL_IP: 127.0.0.1
       HOME: /tmp
     depends_on:

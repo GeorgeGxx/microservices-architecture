@@ -58,6 +58,8 @@ spec:
                   value: /data/sales_parquet
                 - name: MLOPS_TRAINING_STATE_PATH
                   value: /data/checkpoints/auto-training/last-successful-input.sha256
+                - name: MLOPS_AUTO_TRAIN_STABILITY_SECONDS
+                  value: "60"
                 - name: HOME
                   value: /tmp
                 - name: GIT_PYTHON_REFRESH

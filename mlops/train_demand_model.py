@@ -11,6 +11,7 @@ import hashlib
 import math
 import os
 import stat
+import time
 from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -163,7 +164,41 @@ def _check_auto_training_readiness(
     if state_path.is_file():
         previous_fingerprint = state_path.read_text(encoding="ascii").strip()
         if previous_fingerprint == fingerprint:
+            candidate_path = state_path.with_name("candidate-input.state")
+            candidate_path.unlink(missing_ok=True)
             print("Sales Parquet has not changed since the last successful training; skipping.", flush=True)
+            return False, None, None, None
+
+    stability_seconds = max(0, int(os.getenv("MLOPS_AUTO_TRAIN_STABILITY_SECONDS", "0")))
+    if stability_seconds:
+        candidate_path = state_path.with_name("candidate-input.state")
+        candidate_path.parent.mkdir(parents=True, exist_ok=True)
+        candidate_fingerprint = ""
+        candidate_since = 0.0
+        if candidate_path.is_file():
+            try:
+                candidate_fingerprint, candidate_timestamp = candidate_path.read_text(encoding="ascii").splitlines()[:2]
+                candidate_since = float(candidate_timestamp)
+            except (OSError, ValueError):
+                candidate_fingerprint = ""
+
+        if candidate_fingerprint != fingerprint:
+            temporary_candidate_path = candidate_path.with_name(f"{candidate_path.name}.tmp-{os.getpid()}")
+            temporary_candidate_path.write_text(f"{fingerprint}\n{time.time():.6f}\n", encoding="ascii")
+            os.replace(temporary_candidate_path, candidate_path)
+            print(
+                f"Sales Parquet changed; waiting for {stability_seconds} seconds without writes before auto-training.",
+                flush=True,
+            )
+            return False, None, None, None
+
+        stable_for = time.time() - candidate_since
+        if stable_for < stability_seconds:
+            remaining = math.ceil(stability_seconds - stable_for)
+            print(
+                f"Sales Parquet is still within its stability window; auto-training will retry in about {remaining} seconds.",
+                flush=True,
+            )
             return False, None, None, None
 
     print(
@@ -335,6 +370,11 @@ def main() -> int:
             client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
             best_prior_rmse = _query_prior_champion_rmse(client, args.experiment)
 
+            # Persist evaluation metrics so the MLflow run table and champion
+            # comparison use the same values reported in the training output.
+            mlflow.log_metric("rmse", rmse)
+            mlflow.log_metric("mae", mae)
+
             is_champion, promotion_status = evaluate_champion_candidate(rmse, best_prior_rmse)
             if not is_champion:
                 print(
@@ -372,6 +412,7 @@ def main() -> int:
             temporary_state_path = state_path.with_name(f"{state_path.name}.tmp-{os.getpid()}")
             temporary_state_path.write_text(fingerprint + "\n", encoding="ascii")
             os.replace(temporary_state_path, state_path)
+            state_path.with_name("candidate-input.state").unlink(missing_ok=True)
             print("Training completed; the dataset fingerprint was recorded.", flush=True)
         return 0
     finally:

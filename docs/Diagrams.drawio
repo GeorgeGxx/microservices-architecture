@@ -74,7 +74,7 @@
         <mxCell id="n_mlops_train" parent="1" value="&lt;b&gt;Feature engineering &amp; PySpark (:1.0.0)&lt;/b&gt;&lt;br&gt;Containerized training • CronJob &amp; dynamic trigger&lt;br&gt;7-day autoregressive demand forecast" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=10;" vertex="1">
           <mxGeometry x="360" y="990" width="250" height="78" as="geometry" />
         </mxCell>
-        <mxCell id="n_mlflow" parent="1" value="&lt;b&gt;MLflow Tracking (:1.0.0)&lt;/b&gt;&lt;br&gt;Run comparison, RMSE/MAE metrics&lt;br&gt;Model artifacts • Port 5000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=10;" vertex="1">
+        <mxCell id="n_mlflow" parent="1" value="&lt;b&gt;MLflow Tracking (:1.0.0)&lt;/b&gt;&lt;br&gt;Run comparison, RMSE/MAE metrics&lt;br&gt;Independent Compose / Minikube stores&lt;br&gt;Port 5000 (Compose override: 5001)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=10;" vertex="1">
           <mxGeometry x="640" y="990" width="290" height="78" as="geometry" />
         </mxCell>
         <mxCell id="n_forecast_api" parent="1" value="&lt;b&gt;Demand Forecast API (:1.0.0)&lt;/b&gt;&lt;br&gt;FastAPI Port 8005 • Keycloak ADMIN JWT&lt;br&gt;7 daily SKU predictions • /metrics • /health • /docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">

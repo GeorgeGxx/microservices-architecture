@@ -234,7 +234,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | 📖 **Inventory Swagger UI** | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | Internal ClusterIP (`:8001` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Stock reservation, decrement/rollback & `/api/inventory/**` |
 | 📖 **Notification Swagger & SSE** | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html) | Internal ClusterIP (`:8002` via port-forward) | OpenAPI 3.0 / SSE Stream | Interactive OpenAPI documentation for Notification history & live SSE event stream (`/api/notifications/stream`) |
 | 📈 **Demand Forecast API Docs** | [http://localhost:8005/docs](http://localhost:8005/docs) | Internal ClusterIP (`:8005` via port-forward) | OpenAPI 3.0 / FastAPI 0.160.0 Swagger (Python 3.12) | Interactive Swagger UI for real-time 7-day SKU demand predictions (`/api/forecast`, `/metrics`) |
-| 🧪 **MLflow Tracking UI** | [http://localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 2.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
+| 🧪 **MLflow Tracking UI** | [localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 3.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
 | 🔑 **Keycloak Admin Console** | [http://localhost:8181](http://localhost:8181) | `http://$(minikube ip):30181` | HTTP / OIDC OAuth2 | Realm administration, user provisioning (`admin_user`, `basic_user`), client scopes & JWT keys |
 | 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.2.0 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
 | 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.3 | Two pre-provisioned dashboards: business and inventory health, plus technical/SRE operations with forecast API telemetry (`admin`/`admin`) |
@@ -267,7 +267,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 
 ### 🧪 Automated MLOps & Demand Forecasting
 * **Kafka Structured Streaming to Parquet:** Real-time ingestion of `DELIVERED` orders into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`) with durable Spark checkpoints and zero local CSV dependencies.
-* **Continuous PySpark Auto-Training:** Automated hourly CronJob and file-watcher checking minimum date thresholds ($\ge 9$ days per SKU) with SHA-256 fingerprinting to eliminate redundant training runs.
+* **Continuous PySpark Auto-Training:** Automated hourly CronJob and streaming capture checks require at least 9 date partitions, a changed SHA-256 fingerprint, and a 60-second stable Parquet snapshot before training to avoid redundant runs.
 * **MLflow Tracking & Registry:** Experiment tracking capturing RMSE/MAE metrics, hyperparameter runs, and model artifacts logging.
 * **Enterprise Inference API & RBAC:** Sub-second 7-day SKU demand forecast endpoint (`/api/forecast`) protected by Keycloak `ADMIN` role, fully validated in Postman/Newman E2E test suites.
 
@@ -306,9 +306,10 @@ docker compose up -d --build
 docker compose ps -a
 docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Ports}}"
 
-# 7. Graceful shutdown & volume teardown
-docker compose down -v
+# 7. Graceful shutdown (preserves named volumes and MLflow runs)
+docker compose down
 ```
+Use `docker compose down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs and model artifacts.
 
 **Docker Compose MLOps & Demand Forecasting:**
 * The default Compose stack automatically includes **MLflow** (`http://localhost:5000`) and `demand-forecast-service` (`/api/forecast`).
@@ -320,6 +321,11 @@ docker compose down -v
   ```powershell
   docker compose run --build --rm demand-sales-capture
   ```
+  Keep capture running in its terminal. In another terminal, publish simulated orders and verify that they produce a new MLflow run:
+  ```powershell
+  .\mlops\training.ps1 -Target compose -SimulateOrders -Days 14
+  ```
+* Compose and Minikube use separate MLflow stores. They share host port 5000 by default; stop one before starting the other, or set `$env:MLFLOW_PORT = "5001"` before starting Compose to run both at once. Routine `docker compose down` preserves runs and artifacts; `down -v` deletes them.
 * Complete runbook: [Local MLOps Workflow with Docker Compose](docs/02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
 
 ---
@@ -362,6 +368,7 @@ kubectl get pods -n dev # observability, auth, data, ..
   ```powershell
   .\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14
   ```
+  The wrapper waits up to 420 seconds for the capture pod's automatic trainer and confirms a new MLflow run was recorded; it then triggers a guarded training Job fallback and fails clearly if no new run appears. Use `-RunTimeoutSeconds 600` for a longer wait. Open the Minikube MLflow UI at `http://localhost:5000`. Compose can run alongside Minikube when bound to port 5001.
 * Complete runbook: [Minikube MLOps Deployment](docs/02-operations/LOCAL_DEPLOYMENT.md#5--minikube-mlops-deployment--automated-dynamic-training).
 
 > 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
