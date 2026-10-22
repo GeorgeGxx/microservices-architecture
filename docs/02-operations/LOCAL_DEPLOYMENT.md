@@ -147,7 +147,7 @@ pwsh -File .\scripts\bootstrap-keycloak.ps1
 ### 3. Launch the Default Docker Compose Stack
 Once Keycloak is bootstrapped and `.env` has the synced client secret, start the full Compose stack (microservices, databases, messaging, LGTM observability stack, HashiCorp Vault, MLflow, and the demand-forecast API). MLflow and the forecast API start with the rest; the forecast feature needs sales history and a trained model before it can return predictions.
  
-**HashiCorp Vault v2.0.4** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
+**HashiCorp Vault v2.2.0** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
  
 ```powershell
 # Build and launch the complete platform stack in detached mode
@@ -292,7 +292,7 @@ npm run dev
 
 ## ☸️ Local Kubernetes Deployment (Minikube, Istio Mesh & Canary Operations)
 
-The unified deployment orchestrator automates the complete lifecycle end-to-end: Minikube cluster provisioning, **Istio Service Mesh with Envoy sidecars**, Zero-Trust mTLS, **Kiali Visual Topology**, **Keycloak IAM bootstrap**, **HashiCorp Vault v2.0.4**, PostgreSQL databases, Kafka, and microservices:
+The unified deployment orchestrator automates the complete lifecycle end-to-end: Minikube cluster provisioning, **Istio Service Mesh with Envoy sidecars**, Zero-Trust mTLS, **Kiali Visual Topology**, **Keycloak IAM bootstrap**, **HashiCorp Vault v2.2.0**, PostgreSQL databases, Kafka, and microservices:
 
 ### 1. 🚀 One-Shot Cluster Deployment
 Deploy the entire infrastructure, security, mesh, and microservices in a single command:

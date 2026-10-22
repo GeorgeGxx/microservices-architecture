@@ -310,7 +310,7 @@ spec:
     metadata:
       labels:
         app: cosmo-router
-        version: "0.358.0"
+        version: "0.362.0"
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9090"
@@ -330,7 +330,7 @@ spec:
         - name: compose-federation-config
           image: node:22-alpine
           workingDir: /source
-          command: ["sh", "-ec", "npx --yes wgc@0.132.0 router compose --input /source/supergraph.yaml --out /runtime/execution-config.json"]
+          command: ["sh", "-ec", "npx --yes wgc@0.133.3 router compose --input /source/supergraph.yaml --out /runtime/execution-config.json"]
           env:
             - name: HOME
               value: /tmp
@@ -354,7 +354,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: cosmo-router
-          image: ghcr.io/wundergraph/cosmo/router:0.358.0
+          image: ghcr.io/wundergraph/cosmo/router:0.362.0
           imagePullPolicy: IfNotPresent
           env:
             - name: CONFIG_PATH

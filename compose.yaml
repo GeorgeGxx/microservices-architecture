@@ -201,7 +201,7 @@ services:
     container_name: cosmo-router-config
     image: node:22-alpine
     working_dir: /work
-    command: ["sh", "-ec", "npx --yes wgc@0.132.0 router compose --input /work/supergraph.yaml --out /work/execution-config.json"]
+    command: ["sh", "-ec", "npx --yes wgc@0.133.3 router compose --input /work/supergraph.yaml --out /work/execution-config.json"]
     volumes:
       - ./cosmo-router:/work
     restart: "no"
@@ -211,7 +211,7 @@ services:
   ### Cosmo Router Federation v2 gateway - http://localhost:8080/graphql
   cosmo-router:
     container_name: cosmo-router
-    image: ghcr.io/wundergraph/cosmo/router:0.358.0
+    image: ghcr.io/wundergraph/cosmo/router:${COSMO_ROUTER_VERSION:-0.362.0}
     ports:
       - "${COSMO_ROUTER_PORT:-${GATEWAY_PORT:-8080}}:8080"
     volumes:
@@ -498,7 +498,7 @@ services:
 
   redis-exporter:
     container_name: redis-exporter
-    image: "oliver006/redis_exporter:${REDIS_EXPORTER_VERSION:-v1.82.0}"
+    image: "oliver006/redis_exporter:${REDIS_EXPORTER_VERSION:-v1.94.0}"
     env_file:
       - .env
     environment:
@@ -657,16 +657,14 @@ services:
   ### HashiCorp Vault - http://localhost:8200
   vault:
     container_name: vault
-    image: "hashicorp/vault:${VAULT_VERSION:-2.0.4}"
+    image: "hashicorp/vault:${VAULT_VERSION:-2.2.0}"
     ports:
       - "${VAULT_PORT:-8200}:8200"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_TOKEN:-root}"
       VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
       VAULT_ADDR: "http://127.0.0.1:8200"
-      VAULT_LOCAL_CONFIG: '{"telemetry": {"prometheus_retention_time": "30s", "disable_hostname": true, "unauthenticated_metrics_access": true}}'
-    cap_add:
-      - IPC_LOCK
+      VAULT_LOCAL_CONFIG: '{"disable_mlock": true, "telemetry": {"prometheus_retention_time": "30s", "disable_hostname": true, "unauthenticated_metrics_access": true}}'
     volumes:
       - vault_data:/vault/file
     restart: unless-stopped
@@ -681,7 +679,7 @@ services:
   ### Vault Auto-Initialization & Secret Seeder (Automated zero-touch startup)
   vault-init:
     container_name: vault-init
-    image: "hashicorp/vault:${VAULT_VERSION:-2.0.4}"
+    image: "hashicorp/vault:${VAULT_VERSION:-2.2.0}"
     depends_on:
       vault:
         condition: service_healthy

@@ -75,7 +75,7 @@ spec:
       serviceAccountName: vault-auth
       containers:
         - name: vault
-          image: hashicorp/vault:2.0.4
+          image: hashicorp/vault:2.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8200
@@ -88,10 +88,12 @@ spec:
             - name: VAULT_ADDR
               value: "http://127.0.0.1:8200"
             - name: VAULT_LOCAL_CONFIG
-              value: '{"telemetry": {"prometheus_retention_time": "30s", "disable_hostname": true, "unauthenticated_metrics_access": true}}'
+              value: '{"disable_mlock": true, "telemetry": {"prometheus_retention_time": "30s", "disable_hostname": true, "unauthenticated_metrics_access": true}}'
           securityContext:
+            allowPrivilegeEscalation: false
             capabilities:
-              add: ["IPC_LOCK"]
+              drop:
+                - ALL
           startupProbe:
             httpGet:
               path: /v1/sys/health
@@ -119,9 +121,11 @@ spec:
             requests:
               cpu: "150m"
               memory: "256Mi"
+              ephemeral-storage: "256Mi"
             limits:
               cpu: "500m"
               memory: "512Mi"
+              ephemeral-storage: "512Mi"
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor

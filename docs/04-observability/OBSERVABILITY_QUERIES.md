@@ -401,7 +401,7 @@ sum(rate(loki_source_docker_target_parsing_errors_total{job="alloy"}[5m]))
 
 ---
 
-## 📜 2. LogQL Queries (Grafana Loki & Alloy v1.19.1)
+## 📜 2. LogQL Queries (Grafana Loki & Alloy v1.21.0)
 
 LogQL (*Log Query Language*) allows searching, filtering, and calculating metrics over logs collected by Grafana Alloy from Docker containers and Kubernetes pods. Alloy's pipeline includes multiline exception aggregation (`stage.multiline`) and structured JSON parsing (`stage.json`), promoting `level` to an indexed label without elevating cardinality.
 
@@ -496,7 +496,7 @@ Parses structured JSON logs and filters requests where HTTP status $\ge 500$:
 
 ---
 
-## 🔍 3. TraceQL Queries (Grafana Tempo 3.0.3 & OTel Tracing)
+## 🔍 3. TraceQL Queries (Grafana Tempo 3.0.5 & OTel Tracing)
 
 TraceQL (*Trace Query Language*) queries distributed traces collected by native Spring Boot OpenTelemetry exporters (`spring-boot-starter-opentelemetry`) and Tempo.
 

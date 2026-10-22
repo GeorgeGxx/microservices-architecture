@@ -11,7 +11,7 @@ global:
 server:
   image:
     repository: "hashicorp/vault"
-    tag: "2.0.4"
+    tag: "2.2.0"
 
   # Azure Workload Identity
   serviceAccount:
@@ -31,6 +31,7 @@ server:
       setNodeId: true
       config: |
         ui = true
+        disable_mlock = true
         listener "tcp" {
           tls_disable = 1
           address = "[::]:8200"
