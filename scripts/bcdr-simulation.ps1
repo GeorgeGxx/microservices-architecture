@@ -186,7 +186,7 @@ function Run-KafkaComposeDrill {
         # 4. Isolated Restore Drill: replay the saved records into a temporary topic.
         Write-Host "  ▶ Replaying $msgCount backed-up records into isolated topic '$drillTopic'..." -NoNewline
         $restoreSw = [System.Diagnostics.Stopwatch]::StartNew()
-        
+
         # Create isolated drill topic with same replication & partition standard
         Invoke-DockerCompose -Arguments @('exec', '-T', $KafkaSvc, 'kafka-topics', '--bootstrap-server', 'localhost:9092', '--create', '--topic', $drillTopic, '--partitions', '1', '--replication-factor', '1') | Out-Null
         $topicCreated = $true
@@ -448,9 +448,9 @@ function Run-SimulateFailover {
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
         $localDumpFile = Join-Path $TargetDir "$($target.DB)_$timestamp.dump"
         $podDumpFile = "/tmp/$($target.DB)_$timestamp.dump"
-        
+
         Write-Host "  ▶ Taking live snapshot of $($target.DB) from $($target.Namespace)/$($target.Pod)..." -NoNewline
-        
+
         try {
             Invoke-Kubectl -Arguments @('exec', '-n', $target.Namespace, $target.Pod, '-c', 'postgres', '--', 'pg_dump', '-U', 'postgres', '-d', $target.DB, '--no-owner', '--no-privileges', '--format=custom', '--file', $podDumpFile) | Out-Null
             Invoke-Kubectl -Arguments @('cp', '-n', $target.Namespace, '-c', 'postgres', "$($target.Pod):$podDumpFile", $localDumpFile) | Out-Null
@@ -459,11 +459,11 @@ function Run-SimulateFailover {
             }
             Invoke-Kubectl -Arguments @('exec', '-n', $target.Namespace, $target.Pod, '-c', 'postgres', '--', 'pg_restore', '--list', $podDumpFile) | Out-Null
             Invoke-Kubectl -Arguments @('exec', '-n', $target.Namespace, $target.Pod, '-c', 'postgres', '--', 'rm', '-f', $podDumpFile) | Out-Null
-            
+
             $sw.Stop()
             $fileSizeKb = [math]::Round(((Get-Item $localDumpFile).Length / 1KB), 2)
             Write-Host " [OK] ($fileSizeKb KB in $($sw.ElapsedMilliseconds)ms)" -ForegroundColor Green
-            
+
             $results += [PSCustomObject]@{
                 Component  = "PostgreSQL"
                 Service    = $target.Service
