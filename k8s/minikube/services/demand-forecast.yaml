@@ -220,6 +220,8 @@ spec:
               value: "9"
             - name: MLOPS_AUTO_TRAIN_INTERVAL_SEC
               value: "20"
+            - name: MLOPS_AUTO_TRAIN_STABILITY_SECONDS
+              value: "60"
             - name: HOME
               value: /tmp
             - name: SPARK_LOCAL_IP

@@ -228,6 +228,8 @@ spec:
               value: "{{ .Values.mlops.training.minPartitions | default 9 }}"
             - name: MLOPS_AUTO_TRAIN_INTERVAL_SEC
               value: "{{ .Values.mlops.training.autoTrainIntervalSec | default 20 }}"
+            - name: MLOPS_AUTO_TRAIN_STABILITY_SECONDS
+              value: "{{ .Values.mlops.training.autoTrainStabilitySeconds | default 60 }}"
             - name: HOME
               value: /tmp
             - name: SPARK_LOCAL_IP
@@ -429,6 +431,8 @@ spec:
                   value: /data/sales_parquet
                 - name: MLOPS_TRAINING_STATE_PATH
                   value: /data/checkpoints/auto-training/last-successful-input.sha256
+                - name: MLOPS_AUTO_TRAIN_STABILITY_SECONDS
+                  value: "{{ .Values.mlops.training.autoTrainStabilitySeconds | default 60 }}"
                 - name: HOME
                   value: /tmp
                 - name: SPARK_LOCAL_IP

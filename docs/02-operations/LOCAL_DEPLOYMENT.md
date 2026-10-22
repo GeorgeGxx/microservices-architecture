@@ -166,9 +166,11 @@ docker compose logs -f
 # View logs for a specific service
 docker compose logs -f cosmo-router
  
-# Graceful shutdown & volume teardown
-docker compose down -v
+# Stop containers and networks; preserve named volumes and local MLOps history
+docker compose down
 ```
+
+Use `docker compose down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs and model artifacts.
  
 ---
  
@@ -208,6 +210,12 @@ In a separate terminal, start the streaming capture job:
 docker compose run --build --rm demand-sales-capture
 ```
 It consumes `orders-topic` over the Compose network at `kafka:9092` and streams delivered order lines into the partitioned `mlops/data/sales_parquet` dataset. Spark stores its restart checkpoint under `mlops/data/checkpoints/sales_parquet`. Keep it running while you create orders and move them to `DELIVERED`. On restart, Structured Streaming resumes cleanly from its checkpoint.
+
+With capture still running in its terminal, publish 14 days of sample orders and wait for a new MLflow run:
+```powershell
+.\mlops\training.ps1 -Target compose -SimulateOrders -Days 14
+```
+The wrapper checks that capture is running, snapshots existing MLflow run IDs, then waits for auto-training to record a new finished run. If the automatic trainer does not produce one before `-RunTimeoutSeconds` (default 420), it invokes the guarded auto-training path against `/data/sales_parquet`, waits briefly for capture to retry if the dataset is still settling, and verifies the new run before printing its MLflow link. Pass `-RunTimeoutSeconds 600` for a longer initial wait. The simulation path cannot be combined with `--input-csv` or `--input-parquet` because it always trains from the captured Kafka dataset.
  
 #### 4. Train on the captured sales and select forecast data
 After `sales_parquet` spans at least 9 calendar days per SKU:
@@ -226,7 +234,12 @@ docker compose up -d --force-recreate demand-forecast-service
 #### 5. View the forecast and monitor operations
 Sign in as `admin_user` and navigate to **Admin Console → Demand Forecast · 7 Days**. The API requires the Keycloak `ADMIN` role, loads the latest successfully logged model from MLflow, and returns 7 daily estimates per SKU with data provenance.
  
-MLflow provides training-run and metric comparison at <http://localhost:5000>. Grafana has two dashboards: **Microservices Architecture · Technical & Security Operations (SRE)** covers forecast API availability, traffic, latency, and its contribution to the availability SLO; **E-Commerce Business Intelligence & Inventory Operations** covers forecast freshness, active model age, and RMSE/MAE alongside inventory indicators.
+MLflow provides training-run and metric comparison at <http://localhost:5000> by default. Compose and Minikube keep separate tracking databases, artifacts, and sales datasets; stop one runtime before starting the other if both use port 5000. To run both at once, bind Compose MLflow to port 5001 before starting it:
+```powershell
+$env:MLFLOW_PORT = "5001"
+docker compose up -d --force-recreate mlflow
+```
+Minikube remains at `http://localhost:5000`, while Compose uses `http://localhost:5001`; the training wrapper resolves the Compose URL from Docker's port mapping. Do not use `docker compose down -v` for routine shutdown because it deletes Compose MLflow metadata and artifacts. Grafana has two dashboards: **Microservices Architecture · Technical & Security Operations (SRE)** covers forecast API availability, traffic, latency, and its contribution to the availability SLO; **E-Commerce Business Intelligence & Inventory Operations** covers forecast freshness, active model age, and RMSE/MAE alongside inventory indicators.
  
 ---
 
@@ -410,7 +423,9 @@ The retirement command verifies the stable image and readiness before it removes
 .\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14
 ```
 
-A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly and trains only when $\ge 9$ valid date partitions exist and the SHA-256 dataset fingerprint has changed.
+When simulating, the wrapper waits up to 420 seconds for the capture pod's automatic trainer and confirms a new run appears in MLflow. If none appears, it triggers the scheduler's guarded training Job and reports an error if no new run is recorded. Increase the initial wait with `-RunTimeoutSeconds 600` when needed. On success, the command prints the run name, ID, and a direct MLflow link. Minikube's UI is exposed at <http://localhost:5000>. Compose can run alongside it when bound to port 5001.
+
+A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly, while the capture pod checks every 20 seconds. Both require at least 9 valid date partitions, a changed SHA-256 dataset fingerprint, and a 60-second stable Parquet snapshot before training. Runs log RMSE and MAE as MLflow metrics for run comparison and champion selection.
 
 ### 6. 🛑 Cluster Teardown, Pause & Fast Resume
 

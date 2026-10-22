@@ -622,6 +622,6 @@ demand_forecast_model_rmse > 15.0
 The model availability rule is intentionally gated by `demand_forecast_model_check_performed`: the API checks MLflow lazily when `/api/forecast` is requested, so an idle process must not page as if a model were missing. `MLOpsForecastServiceDown` uses the stable `service="demand-forecast-service"` target label across Compose and Kubernetes, independent of each scrape job's name. These MLOps alerts are defined in the Compose Prometheus rules, the Minikube Prometheus ConfigMap, and the Helm `PrometheusRule`.
 
 ### Remediation Playbook:
-1. **Model Staleness:** Check if `demand-sales-capture` is running and appending records to `/data/sales_parquet`. If auto-training is scheduled, verify `train_demand_model.py` execution logs in MLflow UI (`http://localhost:5000`).
+1. **Model Staleness:** Check if `demand-sales-capture` is running and appending records to `/data/sales_parquet`. If auto-training is scheduled, verify `train_demand_model.py` execution logs in the MLflow UI (`http://localhost:5000`). Stop the other local runtime before switching between Compose and Minikube because they share this host port.
 2. **Data Freshness Lag:** Inspect Kafka `orders-topic` partitions and consumer group `mlops-demand-history-v1` lag. If orders are placed but not DELIVERED, fulfillment status updates are required to trigger ML capture.
 3. **High RMSE:** Execute data quality audit with `python mlops/data_contracts.py --input-parquet /data/sales_parquet` to check for sudden volume anomalies or negative unit quantities.

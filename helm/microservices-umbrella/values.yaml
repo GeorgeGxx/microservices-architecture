@@ -293,6 +293,7 @@ mlops:
         memory: 4Gi
     minPartitions: 9
     autoTrainIntervalSec: 20
+    autoTrainStabilitySeconds: 60
   forecast:
     image:
       repository: georgegxx/demand-forecast
