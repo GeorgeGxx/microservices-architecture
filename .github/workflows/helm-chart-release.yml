@@ -95,7 +95,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npx --yes wgc@0.132.0 router compose \
+          npx --yes wgc@0.133.3 router compose \
             --input cosmo-router/supergraph.yaml \
             --out "$RUNNER_TEMP/execution-config.json"
           cmp --silent "$RUNNER_TEMP/execution-config.json" \

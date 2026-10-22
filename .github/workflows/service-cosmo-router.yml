@@ -34,7 +34,7 @@ jobs:
 
       - name: Compose static Cosmo execution config
         run: |
-          npx --yes wgc@0.132.0 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
+          npx --yes wgc@0.133.3 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
           mkdir -p helm/charts/cosmo-router/files
           cp cosmo-router/execution-config.json helm/charts/cosmo-router/files/execution-config.json
 

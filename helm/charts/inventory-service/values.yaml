@@ -73,8 +73,9 @@ securityContext:
       - ALL
 
 serviceAccount:
-  create: false
+  create: true
   name: ""
+  automountServiceAccountToken: false
   annotations: {}
   # eks.amazonaws.com/role-arn: arn:aws:iam::...:role/xxx-irsa-xxx
   # azure.workload.identity/client-id: xxxxxxxx-xxxx

@@ -1,18 +1,18 @@
 dependencies:
 - name: cosmo-router
   repository: file://../charts/cosmo-router
-  version: 2.0.0
+  version: 2.0.1
 - name: inventory-service
   repository: file://../charts/inventory-service
-  version: 1.0.0
+  version: 1.0.1
 - name: notification-service
   repository: file://../charts/notification-service
-  version: 1.0.0
+  version: 1.0.1
 - name: orders-service
   repository: file://../charts/orders-service
-  version: 1.0.0
+  version: 1.0.1
 - name: products-service
   repository: file://../charts/products-service
-  version: 1.0.0
-digest: sha256:300853fdcbf9662c60445b3135a232a21dfb22f39058cd248431866395c813ad
-generated: "2026-09-29T10:48:28.8106673-06:00"
+  version: 1.0.1
+digest: sha256:df6d9ed36304dc65a0626bd7ee281e005ef2293106760213c58a3847fe7f694b
+generated: "2026-10-22T14:17:03.6122629-06:00"
