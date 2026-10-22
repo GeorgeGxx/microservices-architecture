@@ -57,15 +57,20 @@ Located in [`terraform/environments/aws-ecs-fargate/`](../../terraform/environme
 * **Centralized Telemetry:** Integrated AWS CloudWatch Container Insights.
 
 ### Deployment Commands:
-```bash
+```powershell
 # 1. Navigate to the ECS Fargate directory
 cd terraform/environments/aws-ecs-fargate
 
-# 2. Initialize and plan
+# 2. Initialize Terraform
 terraform init
-terraform plan -out=tfplan
 
-# 3. Apply infrastructure
+# Set these to the exact 40-character Git SHA tags published in Docker Hub.
+# Each image is built by its own service workflow, so the SHAs can differ.
+$env:TF_VAR_cosmo_router_image_tag = "<cosmo-router-git-sha>"
+$env:TF_VAR_frontend_image_tag = "<frontend-git-sha>"
+
+# 3. Plan and apply
+terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
