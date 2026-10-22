@@ -176,7 +176,7 @@ Use `docker compose down -v` only when you intentionally want to delete persiste
  
 ### 5. 🧪 Local MLOps Workflow with Docker Compose
  
-The `training` and `capture` Compose profiles keep one-off jobs out of the regular `docker compose up` startup. Invoke each job directly with `docker compose run`; Compose activates the targeted service without requiring a manual `--profile` flag.
+The `training` and `capture` Compose profiles keep MLOps jobs out of the regular `docker compose up` startup. The PowerShell wrapper starts the capture service in the background when needed, so no second terminal must remain attached to Kafka.
  
 #### 1. Start the platform
 Complete the Keycloak bootstrap steps above, then launch the normal stack:
@@ -187,7 +187,7 @@ This starts MLflow, the demand-forecast API, Kafka, and the other default servic
  
 #### 2. Train the demo model
 ```powershell
-docker compose run --build --rm demand-model-training
+.\mlops\training.ps1 -Target compose
 ```
 The Linux training image contains Java 17, PySpark 4.2.0, pandas 2.3.3 (the supported pandas 2.x line for Spark 4.2), scikit-learn, and MLflow. GitPython's optional Git executable warning is suppressed in the container because the image does not include a `.git` checkout; the run still records its metrics and artifacts normally. If `mlops/data/synthetic_sales.csv` does not exist, the job creates a deterministic 30-day example dataset there. It builds lag and calendar features with PySpark, trains a random forest, and logs the run, RMSE/MAE metrics, and model artifact to MLflow. The generated values demonstrate the pipeline and should not guide purchasing decisions.
  
@@ -200,23 +200,20 @@ Or use the PowerShell convenience wrapper:
 .\mlops\training.ps1 --input-csv .\mlops\data\sales.csv
 ```
  
-#### 3. Stream delivered orders from Kafka to Parquet (Optional)
-Start or rebuild Kafka and order event producers:
-```powershell
-docker compose up -d --build kafka db-orders orders-service notification-service
-```
-In a separate terminal, start the streaming capture job:
-```powershell
-docker compose run --build --rm demand-sales-capture
-```
-It consumes `orders-topic` over the Compose network at `kafka:9092` and streams delivered order lines into the partitioned `mlops/data/sales_parquet` dataset. Spark stores its restart checkpoint under `mlops/data/checkpoints/sales_parquet`. Keep it running while you create orders and move them to `DELIVERED`. On restart, Structured Streaming resumes cleanly from its checkpoint.
-
-With capture still running in its terminal, publish 14 days of sample orders and wait for a new MLflow run:
+#### 3. Capture simulated or frontend orders (Optional)
+The one-command simulation path starts capture automatically, publishes sample orders to Kafka, and waits for a new verified MLflow run:
 ```powershell
 .\mlops\training.ps1 -Target compose -SimulateOrders -Days 14
 ```
-The wrapper checks that capture is running, snapshots existing MLflow run IDs, then waits for auto-training to record a new finished run. If the automatic trainer does not produce one before `-RunTimeoutSeconds` (default 420), it invokes the guarded auto-training path against `/data/sales_parquet`, waits briefly for capture to retry if the dataset is still settling, and verifies the new run before printing its MLflow link. Pass `-RunTimeoutSeconds 600` for a longer initial wait. The simulation path cannot be combined with `--input-csv` or `--input-parquet` because it always trains from the captured Kafka dataset.
- 
+
+For the natural storefront flow, start the listener in the background:
+```powershell
+.\mlops\training.ps1 -Target compose -StartCapture
+```
+Then create purchases in the frontend and complete delivery through the order workflow. Only `DELIVERED` order events are included. The background service consumes `orders-topic` at `kafka:9092`, stores order lines as partitioned Parquet in `mlops/data/sales_parquet`, and checkpoints under `mlops/data/checkpoints/sales_parquet`. Compose restarts the listener unless you stop it. Stop it with `docker compose stop demand-sales-capture`.
+
+The automatic trainer requires at least 9 distinct date partitions and a stable 60-second Parquet snapshot; naturally created orders share their actual order dates, so the model will not train until enough distinct dates exist. The optional demo training step above creates an initial run immediately using synthetic data. For simulated Kafka data, the wrapper snapshots existing MLflow run IDs and verifies the new finished run, with a guarded training fallback if the capture-side auto-trainer does not publish in time. Pass `-RunTimeoutSeconds 600` for a longer wait. Simulation cannot be combined with `--input-csv` or `--input-parquet` because it trains from the captured Kafka dataset.
+
 #### 4. Train on the captured sales and select forecast data
 After `sales_parquet` spans at least 9 calendar days per SKU:
 ```powershell
