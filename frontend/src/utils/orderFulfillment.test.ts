@@ -21,5 +21,13 @@ describe('order fulfillment view model', () => {
     expect(getOrderFulfillmentStageIndex('CANCELLED')).toBe(-1);
     expect(getOrderFulfillmentStageIndex('PREPARING')).toBe(-1);
     expect(getOrderFulfillmentStageIndex(null)).toBe(-1);
+    expect(getOrderStatusPresentation('PENDING_REVIEW')).toEqual({
+      label: 'PENDING REVIEW',
+      tone: 'slate',
+    });
+    expect(getOrderStatusPresentation(null)).toEqual({
+      label: 'Unknown',
+      tone: 'slate',
+    });
   });
 });

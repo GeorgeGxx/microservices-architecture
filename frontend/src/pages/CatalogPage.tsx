@@ -294,9 +294,9 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
       {/* Product Grid */}
       {isLoading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[...new Array(8)].map((_, i) => (
+          {['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8'].map((skeletonId) => (
             <div
-              key={`catalog-skel-${i}`}
+              key={skeletonId}
               className="glass-card rounded-2xl p-4 border border-slate-800 space-y-4 animate-pulse"
             >
               <div className="w-full h-48 bg-slate-800/50 rounded-xl" />
