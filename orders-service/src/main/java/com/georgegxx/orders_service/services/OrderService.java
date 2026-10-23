@@ -599,7 +599,9 @@ public class OrderService implements InitializingBean {
         order.setTrackingNumber("DHL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
         // Financial calculations
-        double subtotal = items.stream()
+        double subtotal = Optional.ofNullable(order.getOrderItems())
+                .orElseGet(Collections::emptyList)
+                .stream()
                 .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0L))
                 .sum();
         // Financial totals are derived from authoritative catalog prices and the server policy.

@@ -149,4 +149,41 @@ class ProductServiceTest {
         verify(productRepository).findById(1L);
         verify(productRepository).delete(sampleProduct);
     }
+
+    @Test
+    @DisplayName("DataLoader, Product entity prices, and SecurityConfig work as expected")
+    void testDataLoaderProductEntityAndSecurityConfig() {
+        // 1. Product entity addPrice & toString
+        Product prod = Product.builder().id(1L).sku("S1").name("N1").price(10.0).prices(null).build();
+        prod.addPrice("usd", java.math.BigDecimal.TEN);
+        prod.addPrice("USD", java.math.BigDecimal.valueOf(12.50));
+        prod.addPrice("EUR", java.math.BigDecimal.valueOf(9.00));
+        assertEquals(2, prod.getPrices().size());
+        assertTrue(prod.toString().contains("pricesCount=2"));
+
+        // 2. DataLoader when empty vs when existing products have null fields
+        com.georgegxx.products_service.utils.DataLoader loader =
+                new com.georgegxx.products_service.utils.DataLoader(productRepository);
+        when(productRepository.findAll()).thenReturn(List.of());
+        loader.run();
+        verify(productRepository).saveAll(any());
+
+        Product incomplete = Product.builder().id(2L).sku("INC").name("Inc").price(5.0).build();
+        when(productRepository.findAll()).thenReturn(List.of(incomplete, sampleProduct));
+        loader.run();
+        assertEquals(4.8, incomplete.getRating());
+        assertEquals("Electronics", incomplete.getCategory());
+        assertFalse(incomplete.getIsBestSeller());
+        verify(productRepository).save(incomplete);
+
+        // 3. DataLoader exception handling on concurrent seed
+        when(productRepository.findAll()).thenReturn(List.of());
+        when(productRepository.saveAll(any())).thenThrow(new RuntimeException("Duplicate key"));
+        assertDoesNotThrow(() -> loader.run());
+
+        // 4. SecurityConfig jwtDecoder
+        com.georgegxx.products_service.config.SecurityConfig secConfig =
+                new com.georgegxx.products_service.config.SecurityConfig();
+        assertNotNull(secConfig.jwtDecoder("http://localhost:8181/realms/microservices-realm/protocol/openid-connect/certs"));
+    }
 }
