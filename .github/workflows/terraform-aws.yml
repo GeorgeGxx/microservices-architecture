@@ -119,7 +119,7 @@ jobs:
           scan-type: config
           version: 'v0.76.1'
           scan-ref: terraform/
-          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          trivy-config: devsecops/compliance/trivy/trivy-sarif.yaml
           format: sarif
           output: trivy-tf-results.sarif
           exit-code: '0'
