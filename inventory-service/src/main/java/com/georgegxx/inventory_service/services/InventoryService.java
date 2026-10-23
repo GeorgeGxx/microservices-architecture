@@ -29,6 +29,8 @@ import java.util.stream.Collectors;
 @Slf4j
 public class InventoryService {
 
+    private static final String PRODUCT_WITH_SKU_PREFIX = "Product with sku ";
+
     // Core dependencies injected via Lombok @RequiredArgsConstructor
     private final InventoryRepository inventoryRepository;
     private final MeterRegistry meterRegistry;
@@ -249,10 +251,10 @@ public class InventoryService {
             Inventory inv = inventoryMap.get(sku);
             if (inv == null) {
                 // Item does not exist in inventory catalog
-                errors.add("Product with sku " + sku + " does not exist in inventory");
+                errors.add(PRODUCT_WITH_SKU_PREFIX + sku + " does not exist in inventory");
             } else if (inv.getQuantity() < reqQty) {
                 // Insufficient stock available
-                errors.add("Product with sku " + sku + " has insufficient quantity (requested: "
+                errors.add(PRODUCT_WITH_SKU_PREFIX + sku + " has insufficient quantity (requested: "
                         + reqQty + ", available: " + inv.getQuantity() + ")");
                 if (recordOutOfStockMetric) {
                     this.meterRegistry.counter("inventory_out_of_stock_events_total", "sku", sku).increment();
@@ -301,7 +303,7 @@ public class InventoryService {
             long newQty = inv.getQuantity() - reqQty;
             inv.setQuantity(newQty);
             totalUnitsDeducted = Math.addExact(totalUnitsDeducted, reqQty);
-            totalUnitsDeductedMetric += reqQty;
+            totalUnitsDeductedMetric += (double) reqQty;
         }
 
         // 4. Persist updated quantities; publish metrics and cache changes only after commit.
@@ -344,7 +346,7 @@ public class InventoryService {
         List<String> missingSkus = sortedSkus.stream().filter(sku -> !foundSkus.contains(sku)).toList();
         if (!missingSkus.isEmpty()) {
             return new BaseResponse(missingSkus.stream()
-                    .map(sku -> "Product with sku " + sku + " does not exist in inventory")
+                    .map(sku -> PRODUCT_WITH_SKU_PREFIX + sku + " does not exist in inventory")
                     .toArray(String[]::new));
         }
 

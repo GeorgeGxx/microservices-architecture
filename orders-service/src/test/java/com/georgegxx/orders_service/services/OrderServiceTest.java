@@ -392,4 +392,32 @@ class OrderServiceTest {
         OrderResponse delivered = orderService.deliverOrder(7L);
         assertEquals(OrderStatus.DELIVERED, delivered.orderStatus());
     }
+
+    @Test
+    @DisplayName("cancelOrder, shipOrder, deliverOrder register afterCommit synchronization when transaction is active")
+    void testAfterCommitWithActiveTransactionSynchronization() {
+        Order order = Order.builder()
+                .id(8L)
+                .orderNumber("ORD-TX-SYNC")
+                .orderStatus(OrderStatus.PLACED)
+                .orderItems(List.of(OrderItems.builder().sku("000001").price(50.0).quantity(2L).build()))
+                .build();
+        when(orderRepository.findByIdWithItemsForUpdate(8L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(inventoryClient.incrementStock(any()))
+                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(new String[]{"Partial error"}));
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            orderService.cancelOrder(8L, null, true);
+            List<org.springframework.transaction.support.TransactionSynchronization> syncs =
+                    org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, syncs.size());
+            syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+
+        verify(inventoryClient).incrementStock(any());
+    }
 }

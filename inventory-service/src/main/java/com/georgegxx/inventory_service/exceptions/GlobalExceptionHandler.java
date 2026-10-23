@@ -23,6 +23,7 @@ public class GlobalExceptionHandler {
     private static final String STATUS = "status";
     private static final String ERROR = "error";
     private static final String MESSAGE = "message";
+    private static final String VALIDATION_FAILED = "Validation Failed";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
@@ -35,8 +36,8 @@ public class GlobalExceptionHandler {
         String message = fieldErrors.entrySet().stream()
                 .map(e -> e.getKey() + ": " + e.getValue())
                 .collect(Collectors.joining("; "));
-        Map<String, Object> body = errorBody(HttpStatus.BAD_REQUEST, "Validation Failed", fieldErrors);
-        body.put(MESSAGE, message.isEmpty() ? "Validation Failed" : message);
+        Map<String, Object> body = errorBody(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, fieldErrors);
+        body.put(MESSAGE, message.isEmpty() ? VALIDATION_FAILED : message);
         return ResponseEntity.badRequest().body(body);
     }
 
@@ -45,7 +46,7 @@ public class GlobalExceptionHandler {
         String message = ex.getConstraintViolations().stream()
                 .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                 .collect(Collectors.joining("; "));
-        return ResponseEntity.badRequest().body(errorBody(HttpStatus.BAD_REQUEST, "Validation Failed", message));
+        return ResponseEntity.badRequest().body(errorBody(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, message));
     }
 
     @ExceptionHandler({org.springframework.security.access.AccessDeniedException.class, org.springframework.security.authorization.AuthorizationDeniedException.class})

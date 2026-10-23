@@ -20,21 +20,25 @@ class SseNotificationHubTest {
         assertThat(emitter).isNotNull();
 
         // Trigger lifecycle callbacks
-        assertThatCode(() -> {
-            emitter.complete();
-        }).doesNotThrowAnyException();
+        assertThatCode(emitter::complete).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("broadcast should distribute order event to registered clients and clean up failed emitters")
     void testBroadcast() {
-        SseEmitter emitter1 = hub.registerClient();
-        SseEmitter emitter2 = hub.registerClient();
-        assertThat(emitter1).isNotNull();
-        assertThat(emitter2).isNotNull();
+        SseEmitter adminEmitter = hub.registerClient("admin-id", "admin", true);
+        SseEmitter ownerByIdEmitter = hub.registerClient("u-1", "other", false);
+        SseEmitter ownerByUsernameEmitter = hub.registerClient(null, "JohnDoe", false);
+        SseEmitter unrelatedUserEmitter = hub.registerClient("u-2", "alice", false);
+        SseEmitter disconnectedEmitter = hub.registerClient("u-1", "johndoe", false);
 
-        // Complete emitter2 so it fails or disconnects on next send
-        emitter2.complete();
+        assertThat(adminEmitter).isNotNull();
+        assertThat(ownerByIdEmitter).isNotNull();
+        assertThat(ownerByUsernameEmitter).isNotNull();
+        assertThat(unrelatedUserEmitter).isNotNull();
+
+        // Complete disconnectedEmitter so it fails or disconnects on next send
+        disconnectedEmitter.complete();
 
         OrderEvent event = new OrderEvent(
                 "ORD-TEST-1",
@@ -48,6 +52,13 @@ class SseNotificationHubTest {
                 "johndoe"
         );
 
-        hub.broadcast(event);
+        assertThatCode(() -> {
+            hub.broadcast(null);
+            hub.broadcast(new OrderEvent(null, 1, OrderStatus.PLACED, "A", "B", "C", 1.0, "u-1", "johndoe"));
+            hub.broadcast(new OrderEvent("ORD-X", 1, null, "A", "B", "C", 1.0, "u-1", "johndoe"));
+            hub.broadcast(event);
+            hub.broadcast(new OrderEvent("ORD-TEST-2", 1, OrderStatus.SHIPPED, "John", "123 St", "TRK", 10.0, null, "johndoe"));
+            hub.broadcast(new OrderEvent("ORD-TEST-3", 1, OrderStatus.DELIVERED, "Anon", "123 St", "TRK", 10.0, null, null));
+        }).doesNotThrowAnyException();
     }
 }

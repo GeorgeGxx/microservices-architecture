@@ -58,7 +58,7 @@ public class SecurityConfig {
     }
 
     @SuppressWarnings("unchecked")
-    Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
+    Converter<Jwt, AbstractAuthenticationToken> jwtAuthConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Set<GrantedAuthority> authorities = new LinkedHashSet<>();

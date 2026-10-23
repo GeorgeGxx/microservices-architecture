@@ -30,7 +30,7 @@ public class OrderEventListener {
         Timer.Sample sample = Timer.start(this.meterRegistry);
         try {
             Optional.ofNullable(message)
-                    .filter(value -> value != null && !value.isBlank())
+                    .filter(value -> !value.isBlank())
                     .map(raw -> JsonUtils.fromJson(raw, OrderEvent.class))
                     .filter(event -> event.orderNumber() != null)
                     .ifPresentOrElse(
