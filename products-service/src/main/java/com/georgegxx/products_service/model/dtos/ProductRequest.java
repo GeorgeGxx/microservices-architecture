@@ -43,5 +43,11 @@ public class ProductRequest {
     private Integer reviewCount;
     private Boolean isBestSeller;
 
-    private Map<String, BigDecimal> prices;
+    @Size(max = 10, message = "prices cannot contain more than 10 currencies")
+    private Map<
+            @NotBlank(message = "currency is required")
+            @Pattern(regexp = "^[A-Za-z]{3}$", message = "currency must be a 3-letter ISO code") String,
+            @NotNull(message = "price amount is required")
+            @DecimalMin(value = "0.01", message = "price amount must be greater than zero")
+            @Digits(integer = 13, fraction = 2, message = "price amount must fit precision 15 and scale 2") BigDecimal> prices;
 }

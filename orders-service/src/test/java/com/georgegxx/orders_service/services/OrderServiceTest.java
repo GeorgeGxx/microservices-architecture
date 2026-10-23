@@ -101,7 +101,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("shipOrder updates order status to SHIPPED and publishes event")
     void testShipOrder() {
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponse response = orderService.shipOrder(1L);
@@ -116,7 +116,7 @@ class OrderServiceTest {
     @DisplayName("deliverOrder updates order status to DELIVERED, publishes event, and updates loyalty cohorts")
     void testDeliverOrder() {
         sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED)).thenReturn(List.of(sampleOrder));
 
@@ -137,7 +137,7 @@ class OrderServiceTest {
     @DisplayName("delivering multiple orders updates repeat and loyal_vip loyalty cohorts")
     void testDeliverOrder_UpdatesRepeatAndVipCohorts() {
         sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // User "user-123" has 2 delivered orders -> repeat cohort
@@ -161,7 +161,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("deliverOrder rejects an order that has not been dispatched")
     void testDeliverOrder_RequiresDispatch() {
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
 
         IllegalStateException error = assertThrows(IllegalStateException.class, () -> orderService.deliverOrder(1L));
 
@@ -192,7 +192,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("cancelOrder throws AccessDeniedException when unauthorized user attempts cancellation")
     void testCancelOrder_AccessDenied() {
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
 
         // Attempt cancellation with different user ID and not admin
         assertThrows(AccessDeniedException.class, () ->
@@ -205,7 +205,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("cancelOrder cancels order, restores stock, and publishes cancel event for authorized user")
     void testCancelOrder_Success() {
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponse response = orderService.cancelOrder(1L, "user-123", false);
@@ -220,7 +220,7 @@ class OrderServiceTest {
     @DisplayName("cancelOrder rejects cancellation once the order is in transit")
     void testCancelOrder_RejectsAfterDispatch() {
         sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
 
         IllegalStateException error = assertThrows(IllegalStateException.class,
                 () -> orderService.cancelOrder(1L, "user-123", false));
@@ -257,7 +257,7 @@ class OrderServiceTest {
     @Test
     @DisplayName("cancelOrder with admin privileges cancels order without user id matching")
     void testCancelOrderAsAdmin() {
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(sampleOrder));
+        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         OrderResponse response = orderService.cancelOrder(1L, null, true);
@@ -383,7 +383,7 @@ class OrderServiceTest {
                 .orderNumber("ORD-LOGISTICS")
                 .orderStatus(OrderStatus.PLACED)
                 .build();
-        when(orderRepository.findByIdWithItems(7L)).thenReturn(Optional.of(order));
+        when(orderRepository.findByIdWithItemsForUpdate(7L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponse shipped = orderService.shipOrder(7L);

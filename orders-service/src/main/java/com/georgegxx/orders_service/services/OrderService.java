@@ -18,6 +18,8 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import com.georgegxx.orders_service.clients.*;
 
 import java.time.Instant;
@@ -43,6 +45,9 @@ public class OrderService implements InitializingBean {
     private io.github.resilience4j.circuitbreaker.CircuitBreaker productsCircuitBreaker;
 
     private static final double STALE_PRICE_WARN_THRESHOLD = 0.01; // 1%
+    private static final double FREE_SHIPPING_THRESHOLD_USD = 100.0;
+    private static final double SHIPPING_FEE_USD = 9.99;
+    private static final double TAX_RATE = 0.08;
     private static final String INVENTORY_SERVICE = "inventory-service";
     private static final String PRODUCTS_SERVICE = "products-service";
     private static final String ORDERS_TOPIC = "orders-topic";
@@ -555,7 +560,10 @@ public class OrderService implements InitializingBean {
             throw new ServiceUnavailableException("Failed to secure inventory allocation. Service unavailable.");
         }
 
-        if (decrementResult != null && decrementResult.hasErrors()) {
+        if (decrementResult == null) {
+            throw new ServiceUnavailableException("Inventory service returned no response while securing stock.");
+        }
+        if (decrementResult.hasErrors()) {
             throw new InsufficientStockException("Failed to decrement inventory: " + String.join(", ", decrementResult.errorMessages()));
         }
     }
@@ -587,9 +595,11 @@ public class OrderService implements InitializingBean {
 
         // Financial calculations
         double subtotal = items.stream().mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * i.getQuantity()).sum();
-        double shipping = Optional.ofNullable(orderRequest.getShippingFee()).orElse("EXPRESS".equalsIgnoreCase(method) ? 9.99 : 0.0);
-        double tax = Optional.ofNullable(orderRequest.getTaxAmount()).orElse(Math.round(subtotal * 0.08 * 100.0) / 100.0);
-        double total = Optional.ofNullable(orderRequest.getTotalAmount()).orElse(Math.round((subtotal + shipping + tax) * 100.0) / 100.0);
+        // Financial totals are derived from authoritative catalog prices and the server policy.
+        // Legacy request amount fields are deliberately ignored to prevent client-side tampering.
+        double shipping = subtotal >= FREE_SHIPPING_THRESHOLD_USD ? 0.0 : SHIPPING_FEE_USD;
+        double tax = Math.round(subtotal * TAX_RATE * 100.0) / 100.0;
+        double total = Math.round((subtotal + shipping + tax) * 100.0) / 100.0;
 
         order.setSubtotalAmount(subtotal);
         order.setShippingFee(shipping);
@@ -658,7 +668,13 @@ public class OrderService implements InitializingBean {
             this.meterRegistry.counter("ecommerce_compensations_total").increment();
             this.meterRegistry.counter("ecommerce_saga_compensations_total", "reason", "downstream_failure").increment();
             CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE);
-            cb.executeSupplier(() -> this.inventoryClient.incrementStock(orderItems));
+            BaseResponse response = cb.executeSupplier(() -> this.inventoryClient.incrementStock(orderItems));
+            if (response == null || response.hasErrors()) {
+                String details = response != null && response.errorMessages() != null
+                        ? String.join(", ", response.errorMessages())
+                        : "Inventory service returned no compensation result";
+                throw new IllegalStateException("Inventory compensation failed: " + details);
+            }
         } catch (Exception e) {
             log.error("CRITICAL: Error occurred while dispatching inventory compensation: {}", e.getMessage(), e);
         }
@@ -706,7 +722,7 @@ public class OrderService implements InitializingBean {
     @Transactional
     public OrderResponse cancelOrder(@NonNull Long id, String currentUserId, boolean isAdmin) {
         // 1. Load items initialized from the query
-        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
                 .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
 
         if (!isAdmin && (order.getUserId() == null || !order.getUserId().equals(currentUserId))) {
@@ -730,16 +746,13 @@ public class OrderService implements InitializingBean {
         // 3. Map the response before external calls.
         OrderResponse response = mapOrderToOrderResponse(updatedOrder);
 
-        // 4. Compensation and external integration (Kafka / Inventory)
-        if (!itemsToRestore.isEmpty()) {
-            compensateInventoryStock(itemsToRestore);
-        }
-        publishCancelOrderEvent(updatedOrder);
-
-        // 5. O(1) incremental metrics update
-        recordCancelledOrderMetrics(updatedOrder);
-
-        log.info("Order #{} successfully cancelled and stock restored", updatedOrder.getOrderNumber());
+        // External effects must not run until the state transition commits.
+        afterCommit(() -> {
+            if (!itemsToRestore.isEmpty()) compensateInventoryStock(itemsToRestore);
+            publishCancelOrderEvent(updatedOrder);
+            recordCancelledOrderMetrics(updatedOrder);
+            log.info("Order #{} successfully cancelled and stock restoration dispatched", updatedOrder.getOrderNumber());
+        });
         return response;
     }
 
@@ -749,13 +762,15 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse shipOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
                 .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
 
         order.ship();
         Order updatedOrder = this.orderRepository.save(order);
-        publishOrderStatusEvent(updatedOrder, OrderStatus.SHIPPED);
-        recordShippedOrderMetrics();
+        afterCommit(() -> {
+            publishOrderStatusEvent(updatedOrder, OrderStatus.SHIPPED);
+            recordShippedOrderMetrics();
+        });
         log.info("Order #{} marked as SHIPPED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
     }
@@ -766,13 +781,15 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse deliverOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findByIdWithItems(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
                 .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
 
         order.deliver();
         Order updatedOrder = this.orderRepository.save(order);
-        publishOrderStatusEvent(updatedOrder, OrderStatus.DELIVERED);
-        recordDeliveredOrderMetrics(updatedOrder);
+        afterCommit(() -> {
+            publishOrderStatusEvent(updatedOrder, OrderStatus.DELIVERED);
+            recordDeliveredOrderMetrics(updatedOrder);
+        });
         log.info("Order #{} marked as DELIVERED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
     }
@@ -795,6 +812,23 @@ public class OrderService implements InitializingBean {
                 )
         );
         this.kafkaTemplate.send(ORDERS_TOPIC, order.getOrderNumber(), payload);
+    }
+
+    private void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    action.run();
+                } catch (RuntimeException ex) {
+                    log.error("Order committed, but a post-commit side effect failed", ex);
+                }
+            }
+        });
     }
 
     private List<OrderEvent.LineItem> mapEventItems(Order order) {
