@@ -216,7 +216,8 @@ devsecops/
 │
 ├── compliance/                # 🧰 Software Supply Chain Security
 │   ├── trivy/
-│   │   ├── trivy.yaml         # Container vulnerability scanner configuration
+│   │   ├── trivy.yaml         # Table-oriented Trivy configuration for local/pipeline scans
+│   │   ├── trivy-sarif.yaml   # SARIF-compatible Trivy configuration for GitHub uploads
 │   │   └── .trivyignore       # Formal risk acceptance and CVE exception registry
 │   └── sbom/                  # Metadata schemas for CycloneDX / SPDX SBOMs
 │
@@ -231,7 +232,7 @@ devsecops/
 
 | Tool | Current Mode | Next maturity step |
 | :--- | :--- | :--- |
-| **Trivy** | GitHub blocks fixed CRITICAL findings in source and built images; HIGH findings are reported as advisory. The shared config applies severity and `.trivyignore`. | Agree on a time-bound HIGH remediation policy and reviewed exceptions before making HIGH blocking. |
+| **Trivy** | GitHub blocks fixed CRITICAL findings in source and built images; HIGH findings are reported as advisory. Table-oriented local scans use `trivy.yaml`; GitHub SARIF uploads use `trivy-sarif.yaml` to avoid table-only rendering options. Maven dependencies are resolved and cached before the filesystem scan to avoid Trivy fetching Maven metadata directly. | Agree on a time-bound HIGH remediation policy and reviewed exceptions before making HIGH blocking. |
 | **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
 | **Trivy IaC** | Runs in audit mode with the shared Trivy configuration in local scripts and CI pipelines; findings are visible without blocking while the baseline is tuned. | Promote reviewed misconfiguration rules to blocking consistently in the shared Trivy configuration and all CI targets. |
 | **Conftest (OPA)** | Blocking on privileged containers, missing CPU/memory limits, untagged or latest-style images, and default/missing ServiceAccounts across Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs. Missing health probes are reported as warnings. | Extend coverage to organization-specific admission controls and validate them against every rendered target. |
@@ -504,7 +505,7 @@ The matrix below is a parity target and implementation inventory, not a guarante
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Secret Detection** | Gitleaks | `devsecops/sast/gitleaks/.gitleaks.toml` | Check workflow configuration | Check pipeline configuration | Check pipeline configuration | Pre-commit / CI configuration | Shared policy; provider parity needs verification |
 | **Vulnerability Scanning** | Trivy | `devsecops/compliance/trivy/trivy.yaml` | Check workflow thresholds | Check pipeline thresholds | Check pipeline thresholds | Admission policy is separate | Shared policy; thresholds may differ |
-| **IaC Misconfiguration Scan** | Trivy config | `devsecops/compliance/trivy/trivy.yaml` and `.trivyignore` | Terraform and service configuration scans | Terraform and service configuration scans | Service configuration scan | Admission policy is separate | Shared engine/configuration; scanned targets vary by pipeline |
+| **IaC Misconfiguration Scan** | Trivy config | `devsecops/compliance/trivy/trivy.yaml` for table output; `trivy-sarif.yaml` for SARIF output; both use `.trivyignore` | Terraform and service configuration scans | Terraform and service configuration scans | Service configuration scan | Admission policy is separate | Shared policy; output-compatible config varies by reporter |
 | **Policy-as-Code (OPA)** | Conftest | `devsecops/policies/conftest/*.rego` | Check rendered targets | Check rendered targets | Check rendered targets | Argo/Gatekeeper integration varies | Verify per delivery path |
 | **Cost Allocation Gate** | OpenCost CLI | `scripts/validate-opencost.sh` | Optional/provider-specific | Provider-specific | Provider-specific | Monitoring integration only | Not a universal release gate |
 | **Static Code Quality** | SonarQube Cloud | Common keys: `msa-<service>` | Depends on `SONAR_TOKEN` and job | Depends on pipeline configuration | Depends on pipeline configuration | PR decoration is separate | Configuration-dependent |

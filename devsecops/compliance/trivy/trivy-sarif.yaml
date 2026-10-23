@@ -1,0 +1,16 @@
+# Shared Trivy settings for GitHub SARIF uploads.
+# Keep output-format-specific options such as `table-mode` out of this file;
+# workflow steps select SARIF through the Trivy action's `format` input.
+severity:
+  - CRITICAL
+  - HIGH
+ignore-unfixed: true
+ignorefile: devsecops/compliance/trivy/.trivyignore
+timeout: 10m
+quiet: true
+scan:
+  skip-version-check: true
+vulnerability:
+  type:
+    - os
+    - library

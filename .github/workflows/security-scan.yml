@@ -30,6 +30,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
+      - name: Set up JDK 21 and cache Maven dependencies
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Resolve Maven dependencies before Trivy analysis
+        run: mvn -B -ntp -DskipTests dependency:resolve
+
       - name: Run Trivy Vulnerability Scanner (SARIF output)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         continue-on-error: true
@@ -37,7 +47,7 @@ jobs:
           scan-type: 'fs'
           version: 'v0.76.1'
           scan-ref: '.'
-          trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
+          trivy-config: 'devsecops/compliance/trivy/trivy-sarif.yaml'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -111,7 +121,7 @@ jobs:
           scan-type: config
           version: 'v0.76.1'
           scan-ref: .
-          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          trivy-config: devsecops/compliance/trivy/trivy-sarif.yaml
           format: sarif
           output: trivy-config-results.sarif
           exit-code: '0'
