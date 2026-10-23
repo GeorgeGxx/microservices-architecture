@@ -33,11 +33,13 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleValidation(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Validation Failed");
-        assertThat(response.getBody().get("message")).isEqualTo("name: name is required");
-        Map<?, ?> fields = (Map<?, ?>) response.getBody().get("fields");
-        assertThat(fields.get("name")).isEqualTo("name is required");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Validation Failed")
+                .containsEntry("message", "name: name is required");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> fields = (Map<String, Object>) response.getBody().get("fields");
+        assertThat(fields).containsEntry("name", "name is required");
     }
 
     @Test
@@ -48,8 +50,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleProductNotFound(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("message")).isEqualTo("Product with ID 99 not found");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("message", "Product with ID 99 not found");
     }
 
     @Test
@@ -60,8 +63,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleIllegalArgument(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("message")).isEqualTo("Invalid argument provided");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("message", "Invalid argument provided");
     }
 
     @Test
@@ -72,8 +76,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Forbidden");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Forbidden");
     }
 
     @Test
@@ -84,8 +89,9 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleAuthentication(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Unauthorized");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Unauthorized");
     }
 
     @Test
@@ -96,7 +102,8 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<Map<String, Object>> response = handler.handleUnexpected(ex);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().get("error")).isEqualTo("Internal Server Error");
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Internal Server Error");
     }
 }

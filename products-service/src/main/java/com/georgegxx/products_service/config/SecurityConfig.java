@@ -74,7 +74,7 @@ public class SecurityConfig {
   }
 
   @SuppressWarnings("unchecked")
-  private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
+  Converter<Jwt, AbstractAuthenticationToken> jwtAuthConverter() {
     JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
     converter.setJwtGrantedAuthoritiesConverter(jwt ->
         Optional.ofNullable((Map<String, Object>) jwt.getClaims().get("realm_access"))

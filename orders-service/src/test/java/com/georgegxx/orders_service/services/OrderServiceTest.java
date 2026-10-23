@@ -420,4 +420,53 @@ class OrderServiceTest {
 
         verify(inventoryClient).incrementStock(any());
     }
+
+    @Test
+    @DisplayName("placeOrder throws ServiceUnavailableException or InsufficientStockException when decrementStock returns null or errors")
+    void testPlaceOrder_DecrementStockNullOrErrors() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("000001").price(50.0).quantity(1L).build();
+        OrderRequest req = new OrderRequest();
+        req.setOrderItems(List.of(item));
+
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 50.0, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+
+        // 1. decrementStock returns null
+        when(inventoryClient.decrementStock(any())).thenReturn(null);
+        assertThrows(com.georgegxx.orders_service.exceptions.ServiceUnavailableException.class,
+                () -> orderService.placeOrder(req, "key-dec-null", "user-1", "u1"));
+
+        // 2. decrementStock returns errors
+        when(inventoryClient.decrementStock(any()))
+                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(new String[]{"Concurrent stock race"}));
+        assertThrows(InsufficientStockException.class,
+                () -> orderService.placeOrder(req, "key-dec-err", "user-1", "u1"));
+    }
+
+    @Test
+    @DisplayName("afterCommit catches RuntimeException when post-commit side effect fails")
+    void testAfterCommitCatchesRuntimeException() {
+        Order order = Order.builder()
+                .id(9L)
+                .orderNumber("ORD-TX-ERR")
+                .orderStatus(OrderStatus.PLACED)
+                .build();
+        when(orderRepository.findByIdWithItemsForUpdate(9L)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenThrow(new RuntimeException("Kafka broker down"));
+
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            orderService.shipOrder(9L);
+            List<org.springframework.transaction.support.TransactionSynchronization> syncs =
+                    org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, syncs.size());
+            assertDoesNotThrow(() -> syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit));
+        } finally {
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+        }
+    }
 }
