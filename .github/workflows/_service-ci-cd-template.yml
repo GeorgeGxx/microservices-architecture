@@ -403,8 +403,8 @@ jobs:
           fi
           : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
           cd "${{ inputs.service-dir }}"
-          EXCLUSIONS="tests/**,data/**,*.sh,.venv*/**,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
-          COVERAGE_EXCLUSIONS="generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+          EXCLUSIONS="tests/**,data/**,*.sh,*.ps1,Dockerfile*,.venv*/**,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
+          COVERAGE_EXCLUSIONS="*.sh,*.ps1,Dockerfile*,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
           if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py,feature_engineering.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,capture_orders.py,train_demand_model.py,feature_engineering.py"

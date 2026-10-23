@@ -89,6 +89,40 @@ def validate_sales_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _collect_spark_row_violations(row: Dict[str, Any], max_units_per_row: float) -> List[str]:
+    violations: List[str] = []
+    if not row["rows_count"]:
+        violations.append("Sales DataFrame is empty")
+    for key, description in (
+        ("null_dates", "missing/invalid dates"),
+        ("invalid_products", "missing/blank product IDs"),
+        ("invalid_units", "missing/non-numeric unit quantities"),
+        ("negative_units", "negative unit quantities"),
+        ("outliers", f"unit quantities above {max_units_per_row:g}"),
+    ):
+        count = int(row.get(key) or 0)
+        if count:
+            violations.append(f"Dataset contains {count} records with {description}")
+    return violations
+
+
+def _collect_spark_date_violations(
+    max_date: Any, today: date, max_staleness_days: int
+) -> tuple[Optional[int], List[str]]:
+    if not max_date:
+        return None, []
+    staleness_days = (today - max_date).days
+    violations: List[str] = []
+    if staleness_days > max_staleness_days:
+        violations.append(
+            f"Data freshness violation: latest record date is {max_date} "
+            f"({staleness_days} days old, max allowed: {max_staleness_days} days)"
+        )
+    elif staleness_days < 0:
+        violations.append(f"Sales data contains future dates through {max_date}")
+    return staleness_days, violations
+
+
 def validate_spark_sales_dataframe(
     frame: Any,
     max_staleness_days: int = 7,
@@ -117,31 +151,12 @@ def validate_spark_sales_dataframe(
         F.max("date").alias("max_date"),
     ).first().asDict()
 
-    violations: List[str] = []
-    if not row["rows_count"]:
-        violations.append("Sales DataFrame is empty")
-    for key, description in (
-        ("null_dates", "missing/invalid dates"),
-        ("invalid_products", "missing/blank product IDs"),
-        ("invalid_units", "missing/non-numeric unit quantities"),
-        ("negative_units", "negative unit quantities"),
-        ("outliers", f"unit quantities above {max_units_per_row:g}"),
-    ):
-        count = int(row.get(key) or 0)
-        if count:
-            violations.append(f"Dataset contains {count} records with {description}")
-
+    violations = _collect_spark_row_violations(row, max_units_per_row)
     min_date = row["min_date"]
     max_date = row["max_date"]
     today = reference_date or date.today()
-    staleness_days = (today - max_date).days if max_date else None
-    if staleness_days is not None and staleness_days > max_staleness_days:
-        violations.append(
-            f"Data freshness violation: latest record date is {max_date} "
-            f"({staleness_days} days old, max allowed: {max_staleness_days} days)"
-        )
-    if staleness_days is not None and staleness_days < 0:
-        violations.append(f"Sales data contains future dates through {max_date}")
+    staleness_days, date_violations = _collect_spark_date_violations(max_date, today, max_staleness_days)
+    violations.extend(date_violations)
 
     shallow = (
         frame.groupBy("product_id")

@@ -401,6 +401,98 @@ class TrainDemandModelTests(unittest.TestCase):
             res = read_sales(mock_spark, None, str(base))
             self.assertEqual(res, mock_df)
 
+    def test_check_auto_training_readiness_stability_window_lifecycle(self) -> None:
+        import os
+        import time
+        from train_demand_model import _check_auto_training_readiness, CANDIDATE_STATE_FILENAME
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            for i in range(1, 11):
+                p = base / f"date=2026-10-{i:02d}"
+                p.mkdir()
+                (p / "part.parquet").write_bytes(f"data-{i}".encode("ascii"))
+            state_file = base / "state.sha256"
+            candidate_file = base / CANDIDATE_STATE_FILENAME
+
+            with patch.dict(
+                os.environ,
+                {"MLOPS_TRAINING_STATE_PATH": str(state_file), "MLOPS_AUTO_TRAIN_STABILITY_SECONDS": "60"},
+            ):
+                # 1. Corrupt candidate file is handled gracefully and overwritten with new candidate state
+                candidate_file.write_text("corrupt-single-line", encoding="ascii")
+                proceed, _, _, _ = _check_auto_training_readiness(True, str(base))
+                self.assertFalse(proceed)
+                self.assertTrue(candidate_file.is_file())
+
+                # 2. Second call within stability window waits and returns False
+                proceed, _, _, _ = _check_auto_training_readiness(True, str(base))
+                self.assertFalse(proceed)
+
+                # 3. Once stability window has elapsed, auto-training proceeds
+                _, fp = snapshot_dataset(base)
+                candidate_file.write_text(f"{fp}\n{time.time() - 120.0:.6f}\n", encoding="ascii")
+                proceed, sp, returned_fp, resolved = _check_auto_training_readiness(True, str(base))
+                self.assertTrue(proceed)
+                self.assertEqual(sp, state_file.resolve())
+                self.assertEqual(returned_fp, fp)
+                self.assertEqual(resolved, str(base.resolve()))
+
+    def test_main_fails_when_sales_quality_gate_fails(self) -> None:
+        from train_demand_model import main
+
+        sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies()
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch(
+                "data_contracts.validate_spark_sales_dataframe",
+                return_value={
+                    "passed": False,
+                    "rows_count": 10,
+                    "min_date": "2026-01-01",
+                    "max_date": "2026-01-05",
+                    "staleness_days": 90,
+                    "violations": ["Data freshness violation"],
+                },
+            ),
+            patch("train_demand_model.read_sales", return_value=sales),
+            patch("sys.argv", ["train_demand_model.py"]),
+            patch("builtins.print"),
+        ):
+            with self.assertRaisesRegex(ValueError, "Sales quality gate failed: Data freshness violation"):
+                main()
+        spark.stop.assert_called_once()
+
+    def test_main_logs_challenger_rejected_and_improved_champion(self) -> None:
+        from train_demand_model import main
+
+        # 1. Challenger rejected when prior champion RMSE is much lower
+        sales, spark, _, sql_module, mlflow, sklearn_module, ensemble_module = self._main_dependencies()
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module, "mlflow": mlflow, "sklearn": sklearn_module, "sklearn.ensemble": ensemble_module}),
+            patch("data_contracts.validate_spark_sales_dataframe", return_value={"passed": True, "rows_count": 100, "min_date": "2026-01-01", "max_date": "2026-10-20", "staleness_days": 0, "violations": []}),
+            patch("train_demand_model.read_sales", return_value=sales),
+            patch("train_demand_model._query_prior_champion_rmse", return_value=0.05),
+            patch("sys.argv", ["train_demand_model.py"]),
+            patch("builtins.print"),
+        ):
+            self.assertEqual(main(), 0)
+        mlflow.set_tag.assert_any_call("model_role", "challenger_rejected")
+
+        # 2. Champion promoted when improved over prior champion RMSE
+        sales2, spark2, _, sql_module2, mlflow2, sklearn_module2, ensemble_module2 = self._main_dependencies()
+        with (
+            patch.dict(sys.modules, {"pyspark.sql": sql_module2, "mlflow": mlflow2, "sklearn": sklearn_module2, "sklearn.ensemble": ensemble_module2}),
+            patch("data_contracts.validate_spark_sales_dataframe", return_value={"passed": True, "rows_count": 100, "min_date": "2026-01-01", "max_date": "2026-10-20", "staleness_days": 0, "violations": []}),
+            patch("train_demand_model.read_sales", return_value=sales2),
+            patch("train_demand_model._query_prior_champion_rmse", return_value=10.0),
+            patch("sys.argv", ["train_demand_model.py"]),
+            patch("builtins.print"),
+        ):
+            self.assertEqual(main(), 0)
+        mlflow2.set_tag.assert_any_call("model_role", "champion")
+        mlflow2.log_metric.assert_any_call("prior_champion_rmse", 10.0)
+
 
 if __name__ == "__main__":
     unittest.main()
