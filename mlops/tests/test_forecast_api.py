@@ -156,12 +156,14 @@ class ForecastApiTests(unittest.TestCase):
         self.assertEqual(ctx.exception.status_code, 422)
 
         valid_df = pd.DataFrame([
-            {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": 5, "order_number": "SYNTH-1"},
-            {"date": "2026-10-02", "product_id": "SKU-A", "units_sold": 7, "order_number": "SYNTH-2"},
+            {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": 5, "order_number": "SYNTH-1", "kafka_timestamp": 100},
+            {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": 9, "order_number": "SYNTH-1", "kafka_timestamp": 200},
+            {"date": "2026-10-02", "product_id": "SKU-A", "units_sold": 7, "order_number": "SYNTH-2", "kafka_timestamp": 300},
         ])
         agg, source = forecast_api._clean_and_aggregate_sales(valid_df, "real_sales")
         self.assertEqual(source, "synthetic")
         self.assertEqual(len(agg), 2)
+        self.assertEqual(float(agg.loc[agg["date"] == date(2026, 10, 1), "units_sold"].iloc[0]), 9.0)
 
     def test_get_forecast_endpoint(self) -> None:
         fake_model = MagicMock(spec=RandomForestRegressor)
