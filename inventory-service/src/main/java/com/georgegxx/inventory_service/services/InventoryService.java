@@ -297,19 +297,17 @@ public class InventoryService {
 
         // 3. Safely discount stock and calculate total deducted units
         long totalUnitsDeducted = 0;
-        double totalUnitsDeductedMetric = 0.0;
         for (Inventory inv : lockedInventory) {
             long reqQty = requestedQuantities.get(inv.getSku());
             long newQty = inv.getQuantity() - reqQty;
             inv.setQuantity(newQty);
             totalUnitsDeducted = Math.addExact(totalUnitsDeducted, reqQty);
-            totalUnitsDeductedMetric += (double) reqQty;
         }
 
         // 4. Persist updated quantities; publish metrics and cache changes only after commit.
         this.inventoryRepository.saveAll(lockedInventory);
         long committedUnitsDeducted = totalUnitsDeducted;
-        double committedUnitsDeductedMetric = totalUnitsDeductedMetric;
+        double committedUnitsDeductedMetric = Long.valueOf(committedUnitsDeducted).doubleValue();
         afterCommit(() -> {
             lockedInventory.forEach(inv -> updateSkuGaugeState(inv.getSku(), inv.getQuantity()));
             this.totalStockState.addAndGet(-committedUnitsDeducted);
