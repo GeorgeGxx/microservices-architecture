@@ -101,7 +101,7 @@ services:
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:-admin}
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
     depends_on:
       - postgres
       - redis
@@ -117,7 +117,7 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
     depends_on:
       - postgres
       - kafka
@@ -132,7 +132,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_inventory
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-admin}
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
     depends_on:
       - postgres
     networks:
@@ -144,7 +144,7 @@ services:
     restart: unless-stopped
     environment:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m"
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
     depends_on:
       - kafka
     networks:

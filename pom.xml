@@ -179,7 +179,7 @@
 					<artifactId>maven-surefire-plugin</artifactId>
 					<version>3.5.2</version>
 					<configuration>
-						<argLine>@{argLine} -XX:+TieredCompilation -XX:TieredStopAtLevel=1</argLine>
+						<argLine>@{argLine} -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true</argLine>
 						<includes>
 							<include>**/*Test.java</include>
 							<include>**/*Tests.java</include>

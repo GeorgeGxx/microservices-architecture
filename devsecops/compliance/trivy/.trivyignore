@@ -11,3 +11,9 @@ AVD-KSV-0053
 # KSV-0056: CI/CD Deployer role requires service and networkpolicy management to reconcile Helm chart resources
 KSV-0056
 AVD-KSV-0056
+
+# CVE-2026-91403: OpenJDK <= 21.0.13 eMudhra intermediate CA compromise (JSSE / javax.net.ssl).
+# Mitigated in-image across builder (bellsoft/liberica-openjdk-alpine:21) and runtime (gcr.io/distroless/java21-debian13:nonroot)
+# via devsecops/compliance/java-security/blocked.certs (54 SHA-256 fingerprints including all 16 compromised eMudhra/Sectigo CAs)
+# plus strict TLS revocation checking (-Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true).
+CVE-2026-91403
