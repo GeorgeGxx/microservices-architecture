@@ -154,16 +154,20 @@ class OrderControllerTest {
         OrderRequest req = new OrderRequest();
         Jwt jwt = mock(Jwt.class);
 
-        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", new IllegalArgumentException("Bad input")))
+        IllegalArgumentException badInput = new IllegalArgumentException("Bad input");
+        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", badInput))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", new InsufficientStockException("Out of stock")))
+        InsufficientStockException outOfStock = new InsufficientStockException("Out of stock");
+        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", outOfStock))
                 .isInstanceOf(InsufficientStockException.class);
 
-        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", new IdempotencyConflictException("Conflict")))
+        IdempotencyConflictException conflict = new IdempotencyConflictException("Conflict");
+        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", conflict))
                 .isInstanceOf(IdempotencyConflictException.class);
 
-        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", new RuntimeException("wrapped", new IllegalStateException("State error"))))
+        RuntimeException wrappedState = new RuntimeException("wrapped", new IllegalStateException("State error"));
+        assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", wrappedState))
                 .isInstanceOf(IllegalStateException.class);
     }
 }

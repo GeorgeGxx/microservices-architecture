@@ -326,4 +326,72 @@ class InventoryServiceTest {
         assertNotNull(response);
         assertFalse(response.hasErrors());
     }
+
+    @Test
+    @DisplayName("incrementStock returns error when SKU does not exist in inventory")
+    void testIncrementStock_MissingSku() {
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-MISSING").quantity(2L).build()
+        );
+        when(inventoryRepository.findBySkuInWithLock(anyCollection())).thenReturn(Collections.emptyList());
+
+        BaseResponse response = inventoryService.incrementStock(items);
+
+        assertTrue(response.hasErrors());
+        assertEquals("Product with sku SKU-MISSING does not exist in inventory", response.errorMessages()[0]);
+        verify(inventoryRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("afterCommit registers transaction synchronization and handles post-commit exceptions safely")
+    void testAfterCommitWithActiveTransactionSynchronization() {
+        org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+        try {
+            Inventory inv = Inventory.builder().id(1L).sku("SKU-TX").quantity(10L).build();
+            when(inventoryRepository.findBySkuInWithLock(anyCollection())).thenReturn(List.of(inv));
+
+            BaseResponse response = inventoryService.decrementStock(
+                    List.of(OrderItemsRequest.builder().sku("SKU-TX").quantity(3L).build())
+            );
+            assertFalse(response.hasErrors());
+
+            var synchronizations = org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, synchronizations.size());
+            synchronizations.getFirst().afterCommit();
+            verify(cache).evict("SKU-TX");
+
+            // Also verify exception handling inside afterCommit when cache eviction throws RuntimeException
+            org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+            org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
+            doThrow(new RuntimeException("Redis down")).when(cache).evict("SKU-TX-ERR");
+
+            Inventory invErr = Inventory.builder().id(2L).sku("SKU-TX-ERR").quantity(10L).build();
+            when(inventoryRepository.findBySkuWithLock("SKU-TX-ERR")).thenReturn(Optional.of(invErr));
+            when(inventoryRepository.save(any(Inventory.class))).thenAnswer(i -> i.getArgument(0));
+
+            inventoryService.updateStock("SKU-TX-ERR", 15L);
+            var errSyncs = org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
+            assertEquals(1, errSyncs.size());
+            assertDoesNotThrow(() -> errSyncs.getFirst().afterCommit());
+        } finally {
+            if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+                org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("aggregateQuantities throws IllegalArgumentException on quantity overflow")
+    void testAggregateQuantitiesOverflow() {
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-OVERFLOW").quantity(Long.MAX_VALUE).build(),
+                OrderItemsRequest.builder().sku("SKU-OVERFLOW").quantity(1L).build()
+        );
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> inventoryService.areInStock(items)
+        );
+        assertTrue(ex.getMessage().contains("SKU-OVERFLOW"));
+    }
 }

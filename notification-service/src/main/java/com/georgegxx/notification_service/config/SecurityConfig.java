@@ -22,7 +22,8 @@ public class SecurityConfig {
 
     @Bean
     @Order(1)
-    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain actuatorFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .securityMatcher("/actuator/**")
@@ -32,7 +33,8 @@ public class SecurityConfig {
 
     @Bean
     @Order(2)
-    public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
+    @SuppressWarnings("java:S4502")
+    public SecurityFilterChain apiFilterChain(HttpSecurity http) {
         return http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(request -> request
@@ -53,7 +55,7 @@ public class SecurityConfig {
     }
 
     @SuppressWarnings("unchecked")
-    private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
+    Converter<Jwt, AbstractAuthenticationToken> jwtAuthConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(jwt ->
                 Optional.ofNullable((Map<String, Object>) jwt.getClaims().get("realm_access"))

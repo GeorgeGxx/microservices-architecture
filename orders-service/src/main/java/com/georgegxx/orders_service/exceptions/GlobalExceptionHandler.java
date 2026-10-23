@@ -26,6 +26,7 @@ public class GlobalExceptionHandler {
     private static final String STATUS = "status";
     private static final String ERROR = "error";
     private static final String MESSAGE = "message";
+    private static final String VALIDATION_FAILED = "Validation Failed";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
@@ -45,8 +46,8 @@ public class GlobalExceptionHandler {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put(TIMESTAMP, Instant.now().toString());
         body.put(STATUS, HttpStatus.BAD_REQUEST.value());
-        body.put(ERROR, "Validation Failed");
-        body.put(MESSAGE, message.isEmpty() ? "Validation Failed" : message);
+        body.put(ERROR, VALIDATION_FAILED);
+        body.put(MESSAGE, message.isEmpty() ? VALIDATION_FAILED : message);
         body.put("fields", fieldErrors);
 
         return ResponseEntity.badRequest().body(body);
@@ -54,7 +55,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
     public ResponseEntity<Map<String, Object>> handleConstraintViolation(jakarta.validation.ConstraintViolationException ex) {
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation Failed", ex.getMessage());
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, VALIDATION_FAILED, ex.getMessage());
     }
 
     @ExceptionHandler(OrderNotFoundException.class)

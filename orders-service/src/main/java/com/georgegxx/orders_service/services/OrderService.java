@@ -468,26 +468,7 @@ public class OrderService implements InitializingBean {
 
             // 6. Fast O(1) incremental metric update for placed order
             recordPlacedOrderMetrics(savedOrder);
-
-            // Financial & Order Value Distribution (DistributionSummary)
-            DistributionSummary.builder("ecommerce_order_value_usd")
-                    .description("Order transaction total purchase value distribution in USD")
-                    .baseUnit("USD")
-                    .register(this.meterRegistry)
-                    .record(savedOrder.getTotalAmount() != null ? savedOrder.getTotalAmount() : 0.0);
-
-            String deliveryMethod = (savedOrder.getDeliveryMethod() != null && !savedOrder.getDeliveryMethod().isBlank())
-                    ? savedOrder.getDeliveryMethod() : "Standard";
-            this.meterRegistry.counter("ecommerce_shipping_revenue_usd", "method", deliveryMethod)
-                    .increment(savedOrder.getShippingFee() != null ? savedOrder.getShippingFee() : 0.0);
-
-            if (savedOrder.getTaxAmount() != null && savedOrder.getTaxAmount() > 0) {
-                this.meterRegistry.counter("ecommerce_tax_collected_usd").increment(savedOrder.getTaxAmount());
-            }
-
-            String cardBrand = (savedOrder.getPaymentMethod() != null && !savedOrder.getPaymentMethod().isBlank())
-                    ? savedOrder.getPaymentMethod() : "Visa";
-            this.meterRegistry.counter("ecommerce_payment_brand_total", "brand", cardBrand).increment();
+            recordOrderFinancialMetrics(savedOrder);
 
             OrderResponse orderResponse = mapOrderToOrderResponse(savedOrder);
 
@@ -564,8 +545,32 @@ public class OrderService implements InitializingBean {
             throw new ServiceUnavailableException("Inventory service returned no response while securing stock.");
         }
         if (decrementResult.hasErrors()) {
-            throw new InsufficientStockException("Failed to decrement inventory: " + String.join(", ", decrementResult.errorMessages()));
+            String details = decrementResult.errorMessages() != null
+                    ? String.join(", ", decrementResult.errorMessages())
+                    : "Unknown error";
+            throw new InsufficientStockException("Failed to decrement inventory: " + details);
         }
+    }
+
+    private void recordOrderFinancialMetrics(Order savedOrder) {
+        DistributionSummary.builder("ecommerce_order_value_usd")
+                .description("Order transaction total purchase value distribution in USD")
+                .baseUnit("USD")
+                .register(this.meterRegistry)
+                .record(savedOrder.getTotalAmount() != null ? savedOrder.getTotalAmount() : 0.0);
+
+        String deliveryMethod = (savedOrder.getDeliveryMethod() != null && !savedOrder.getDeliveryMethod().isBlank())
+                ? savedOrder.getDeliveryMethod() : "Standard";
+        this.meterRegistry.counter("ecommerce_shipping_revenue_usd", "method", deliveryMethod)
+                .increment(savedOrder.getShippingFee() != null ? savedOrder.getShippingFee() : 0.0);
+
+        if (savedOrder.getTaxAmount() != null && savedOrder.getTaxAmount() > 0) {
+            this.meterRegistry.counter("ecommerce_tax_collected_usd").increment(savedOrder.getTaxAmount());
+        }
+
+        String cardBrand = (savedOrder.getPaymentMethod() != null && !savedOrder.getPaymentMethod().isBlank())
+                ? savedOrder.getPaymentMethod() : "Visa";
+        this.meterRegistry.counter("ecommerce_payment_brand_total", "brand", cardBrand).increment();
     }
 
     private Order saveOrder(OrderRequest orderRequest, Map<String, ProductPriceResponse> authoritativeProducts, String userId, String username) {
@@ -594,7 +599,9 @@ public class OrderService implements InitializingBean {
         order.setTrackingNumber("DHL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
         // Financial calculations
-        double subtotal = items.stream().mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * i.getQuantity()).sum();
+        double subtotal = items.stream()
+                .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0L))
+                .sum();
         // Financial totals are derived from authoritative catalog prices and the server policy.
         // Legacy request amount fields are deliberately ignored to prevent client-side tampering.
         double shipping = subtotal >= FREE_SHIPPING_THRESHOLD_USD ? 0.0 : SHIPPING_FEE_USD;

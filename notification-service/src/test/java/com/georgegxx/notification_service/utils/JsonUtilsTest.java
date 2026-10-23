@@ -20,7 +20,7 @@ class JsonUtilsTest {
 
         @SuppressWarnings("unchecked")
         Map<String, String> result = JsonUtils.fromJson(json, Map.class);
-        assertThat(result.get("key")).isEqualTo("value");
+        assertThat(result).containsEntry("key", "value");
     }
 
     @Test

@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -87,7 +88,8 @@ class IdempotencyManagerTest {
         when(valueOperations.get(anyString())).thenReturn(null);
         when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(false);
 
-        assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-conflict", new OrderRequest()))
+        OrderRequest request = new OrderRequest();
+        assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-conflict", request))
                 .isInstanceOf(IdempotencyConflictException.class);
     }
 
@@ -100,7 +102,8 @@ class IdempotencyManagerTest {
                 .build();
         when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(idempotencyRecord));
 
-        assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-prog", new OrderRequest()))
+        OrderRequest request = new OrderRequest();
+        assertThatThrownBy(() -> idempotencyManager.checkOrLock("key-prog", request))
                 .isInstanceOf(IdempotencyConflictException.class);
     }
 
@@ -202,18 +205,22 @@ class IdempotencyManagerTest {
         doThrow(new RuntimeException("Redis error")).when(valueOperations).set(anyString(), anyString(), any(Duration.class));
         doThrow(new RuntimeException("Redis error")).when(redisTemplate).delete(anyString());
 
-        idempotencyManager.saveCompleted("key-err", new OrderRequest(), sampleResponse());
-        idempotencyManager.releaseLock("key-err");
+        OrderRequest request = new OrderRequest();
+        OrderResponse response = sampleResponse();
+        assertThatCode(() -> {
+            idempotencyManager.saveCompleted("key-err", request, response);
+            idempotencyManager.releaseLock("key-err");
+        }).doesNotThrowAnyException();
     }
 
     @Test
     @DisplayName("checkOrLock with unknown status returns empty")
     void testCheckOrLockUnknownStatus() {
-        IdempotencyRecord record = IdempotencyRecord.builder()
+        IdempotencyRecord idempotencyRecord = IdempotencyRecord.builder()
                 .status("UNKNOWN_STATE")
                 .createdAt(Instant.now())
                 .build();
-        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(record));
+        when(valueOperations.get(anyString())).thenReturn(JsonUtils.toJson(idempotencyRecord));
         when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(true);
 
         Optional<OrderResponse> result = idempotencyManager.checkOrLock("key-unknown", new OrderRequest());

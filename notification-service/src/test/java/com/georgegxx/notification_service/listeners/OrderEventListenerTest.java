@@ -117,8 +117,10 @@ class OrderEventListenerTest {
     @Test
     @DisplayName("handleOrdersNotifications should handle blank or invalid messages safely")
     void testHandleBlankMessage() {
+        listener.handleOrdersNotifications(null);
         listener.handleOrdersNotifications("");
         listener.handleOrdersNotifications("   ");
+        listener.handleOrdersNotifications("{\"orderStatus\":\"PLACED\"}");
 
         verify(sseNotificationHub, never()).broadcast(any());
     }
@@ -133,7 +135,9 @@ class OrderEventListenerTest {
     @Test
     @DisplayName("handleDltNotifications should log poison message without throwing")
     void testHandleDltNotifications() {
-        assertThatCode(() -> listener.handleDltNotifications("invalid-poison-json"))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> {
+            listener.handleDltNotifications("invalid-poison-json");
+            listener.handleDltNotifications(null);
+        }).doesNotThrowAnyException();
     }
 }
