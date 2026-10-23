@@ -38,13 +38,13 @@
         <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache&lt;br&gt;Base64 Image Upload • RFC 7807" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="170" width="220" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j • OAuth2 S2S&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="350" width="220" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • Lock/Deduct&lt;br&gt;Live POS Stock Check &amp; +1 Adjustment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • S2S Lock/Deduct&lt;br&gt;Live POS Stock Check &amp; +1 Adjustment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="530" width="220" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer&lt;br&gt;Authenticated Tenant-Scoped SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="900" y="710" width="220" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_db_prod" parent="1" value="&lt;b&gt;db-products&lt;/b&gt;&lt;br&gt;PostgreSQL 18&lt;br&gt;Port 5433" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
@@ -134,7 +134,7 @@
         <mxCell id="e4" parent="1" value="Subgraph Query (_entities)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n_gw" target="n_orders">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e5" parent="1" value="Stock Check" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
+        <mxCell id="e5" parent="1" value="Stock Check &amp; S2S OAuth2 Decrement/Increment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e6" parent="1" value="Publish (PLAINTEXT 9092)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_orders" target="n_kafka">
@@ -533,7 +533,7 @@
         <mxCell id="st8" parent="1" value="8. Cosmo Router dispatches concurrent subgraph queries to orders-service:8003 over mTLS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="905" y="505" width="190" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st9" parent="1" value="9. Orders Service verifies inventory with Inventory Service and creates saga transaction in PostgreSQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st9" parent="1" value="9. Orders Service verifies &amp;amp; decrements inventory via S2S OAuth2 (ROLE_INTERNAL_SERVICE) and creates saga transaction in PostgreSQL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="1095" y="550" width="190" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st10" parent="1" value="10. Orders Service publishes order-created event to Kafka KRaft (Port 9092 / PLAINTEXT)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;fontSize=10;align=left;spacingLeft=8;" vertex="1">
@@ -1216,7 +1216,7 @@
         <mxCell id="n16_router" parent="1" value="&lt;b&gt;Cosmo Router 0.362.0 (Gateway)&lt;/b&gt;&lt;br&gt;• Port 8080 (/graphql)&lt;br&gt;• Apollo Federation v2 query planner&lt;br&gt;• JWT Bearer validation &amp;amp; claims pass-through&lt;br&gt;• Subgraph dispatch to Orders &amp;amp; Products" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="770" y="170" width="260" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="n16_keycloak" parent="1" value="&lt;b&gt;Keycloak 26 IAM (:8181)&lt;/b&gt;&lt;br&gt;• Realm: microservices-realm&lt;br&gt;• OIDC / OAuth2 signed JWTs (JWKS)&lt;br&gt;• Role Enforcement: ROLE_ADMIN vs ROLE_CUSTOMER&lt;br&gt;• Protects POS Admin stock &amp;amp; fulfillment mutations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n16_keycloak" parent="1" value="&lt;b&gt;Keycloak 26 IAM (:8181)&lt;/b&gt;&lt;br&gt;• Realm: microservices-realm&lt;br&gt;• OIDC / OAuth2 signed JWTs (JWKS)&lt;br&gt;• Role Enforcement: ROLE_ADMIN, ROLE_INTERNAL_SERVICE, ROLE_USER&lt;br&gt;• Protects POS Admin stock, S2S mutations &amp;amp; fulfillment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="770" y="325" width="260" height="120" as="geometry" />
         </mxCell>
         <mxCell id="n16_funnel_gw" parent="1" value="&lt;b&gt;Audit &amp;amp; Telemetry Gateway&lt;/b&gt;&lt;br&gt;• Reverse proxy to Orders Funnel API&lt;br&gt;• Sub-second non-blocking dispatch&lt;br&gt;• Zero impact on cashier scanning latency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=1.5;fontColor=#334155;fontSize=11;align=left;spacingLeft=12;" vertex="1">
@@ -1234,7 +1234,7 @@
         <mxCell id="n16_prod_svc" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Image Upload Handling:&lt;/b&gt; Compressed base64 Data URL (≤ 256KiB)&lt;br&gt;• &lt;b&gt;Strict Field Validation:&lt;/b&gt; SKU &amp;amp; Name regex patterns&lt;br&gt;• &lt;b&gt;RFC 7807 Exception Aggregator:&lt;/b&gt; GlobalExceptionHandler joins field errors into 'message' &amp;amp; 'fields' map for client transparency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1100" y="500" width="340" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="n16_notif_svc" parent="1" value="&lt;b&gt;Notification Service (:8002)&lt;/b&gt;&lt;br&gt;• Consumes Kafka fulfillment events&lt;br&gt;• Dispatches customer delivery notification &amp;amp; SSE update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n16_notif_svc" parent="1" value="&lt;b&gt;Notification Service (:8002)&lt;/b&gt;&lt;br&gt;• Consumes Kafka fulfillment events&lt;br&gt;• Dispatches customer delivery notification &amp;amp; authenticated tenant-scoped SSE update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1100" y="665" width="340" height="85" as="geometry" />
         </mxCell>
         <mxCell id="c16_data" parent="1" value="&lt;b&gt;💾 PERSISTENCE, CACHE &amp;amp; EVENT STREAM&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">

@@ -558,8 +558,8 @@ paths:
       tags:
       - Inventory Service
       summary: Increment inventory stock
-      description: Restores or adds stock for the specified order items (e.g. on order
-        cancellation/rollback)
+      description: Restores or adds stock for the specified order items on order
+        cancellation/rollback (requires INTERNAL_SERVICE or ADMIN role)
       operationId: incrementStock
       requestBody:
         content:
@@ -582,6 +582,10 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Authentication required
+        '403':
+          description: Access denied
       security:
       - KeycloakBearerAuth: []
   /api/inventory/in-stock:
@@ -620,7 +624,8 @@ paths:
       tags:
       - Inventory Service
       summary: Decrement inventory stock
-      description: Deducts stock for the specified order items
+      description: Deducts stock for the specified order items (requires INTERNAL_SERVICE
+        or ADMIN role)
       operationId: decrementStock
       requestBody:
         content:
@@ -643,6 +648,10 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/BaseResponse'
+        '401':
+          description: Authentication required
+        '403':
+          description: Access denied
       security:
       - KeycloakBearerAuth: []
   /api/inventory/detail/{sku}:

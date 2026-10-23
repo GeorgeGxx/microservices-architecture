@@ -55,6 +55,7 @@ Chosen option: **Option 2 (Keycloak 26 Quarkus-based IAM)**.
 
 ### Positive Consequences
 * **Single Sign-On (SSO) & Self-Registration:** Configured `microservices-realm` enables customer self-registration with automatic assignment of `ROLE_USER`.
-* **Zero Cross-Account Data Leaks:** `orders-service` extracts the `sub` claim from the Keycloak JWT to enforce order ownership; users cannot view or cancel other customers' orders.
+* **Zero Cross-Account Data Leaks:** `orders-service` extracts the `sub` claim from the Keycloak JWT to enforce order ownership; users cannot view or cancel other customers' orders. `notification-service` similarly authenticates `/api/notifications/stream` with Keycloak JWTs and filters SSE order notifications by owner (`userId`/`username`) or `ROLE_ADMIN`.
+* **Service-to-Service (M2M) Inventory Protection:** `orders-service` uses OAuth2 `client_credentials` (`microservices_client` service account with `ROLE_INTERNAL_SERVICE`) to authenticate stock deduction (`/api/inventory/decrement`) and Saga compensation (`/api/inventory/increment`) calls against `inventory-service`, blocking direct stock manipulation by regular `ROLE_USER` tokens.
 * **Administrative Separation:** Admins receive `ROLE_ADMIN` with global order oversight.
 * **Automated Declarative Provisioning:** Realm configuration is maintained as code in [`docs/reference/iam/realm-export.json`](../../reference/iam/realm-export.json) and bootstrapped via [`scripts/bootstrap-keycloak.ps1`](../../../scripts/bootstrap-keycloak.ps1).

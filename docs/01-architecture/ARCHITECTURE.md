@@ -36,9 +36,9 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 | :--- | :--- | :--- | :--- |
 | **Cosmo Router Gateway** | `/graphql`, `/health`, `/health/ready`, `/health/live` | `POST /graphql`, local `GET /` (GraphQL Playground) | Go Supergraph Gateway (Federation v2; Orders subgraph v2.5), query planning, Keycloak JWKS JWT validation, OTLP tracing |
 | **Products Service** | `/api/product`, `/graphql` | `POST /api/product`, `GET /api/product`, `/swagger-ui.html` | Product catalog, pricing, Redis caching, Subgraph entity resolver, OpenAPI v3 documentation |
-| **Orders Service** | `/api/order`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `/swagger-ui.html` | Order placement & cancellation, multi-tenant user isolation, inventory validation, Kafka producer, compulsive buyer telemetry, OpenAPI v3 documentation |
-| **Inventory Service** | `/api/inventory`, `/graphql`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `/swagger-ui.html` | Real-time SKU stock verification, $O(1)$ atomic delta allocation, Saga compensation & selective Redis cache eviction, OpenAPI v3 documentation |
-| **Notification Service**| `/api/notifications` | `/api/notifications/stream`, `/swagger-ui.html` | Consumes `OrderPlacedEvent`, customer email simulation, SSE real-time event streaming, OpenAPI v3 documentation |
+| **Orders Service** | `/api/order`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `/swagger-ui.html` | Order placement & cancellation, multi-tenant user isolation, OAuth2 S2S inventory client (`ServiceTokenProvider`), Kafka producer, compulsive buyer telemetry, OpenAPI v3 documentation |
+| **Inventory Service** | `/api/inventory`, `/graphql`| `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `/swagger-ui.html` | Real-time SKU stock verification, S2S-protected (`ROLE_INTERNAL_SERVICE` / `ROLE_ADMIN`) $O(1)$ atomic delta allocation & Saga compensation, post-commit Redis cache eviction, OpenAPI v3 documentation |
+| **Notification Service**| `/api/notifications` | `GET /api/notifications/stream`, `/swagger-ui.html` | Consumes `OrderEvent`, customer communication dispatch, JWT-authenticated & tenant-scoped SSE real-time event streaming, OpenAPI v3 documentation |
 
 ---
 
@@ -82,8 +82,13 @@ Port numbers are scoped to their listener: container ports belong to individual 
   - Basic users (`ROLE_USER`) only have visibility over their own placed orders (`GET /api/order` automatically filters by authenticated `userId`), strictly preventing cross-account order leaks.
   - Store administrators (`ROLE_ADMIN`) possess global visibility across all customer orders, including real-time customer handle attribution in the Admin Dashboard.
   - Order cancellation (`PUT /api/order/{id}/cancel`) enforces strict ownership validation: attempting to cancel another customer's order triggers an immediate `403 Forbidden` rejection.
+- **Service-to-Service (M2M) Authentication (`OAuth2 Client Credentials`):**
+  - `orders-service` authenticates outbound calls to `inventory-service` using `ServiceTokenProvider`, which acquires and caches an OAuth2 `client_credentials` access token from Keycloak via the confidential client `microservices_client` (`service-account-microservices_client` / `ROLE_INTERNAL_SERVICE`), refreshing proactively 15 seconds before expiration.
+  - `inventory-service` protects stock mutation endpoints (`POST /api/inventory/decrement` and `POST /api/inventory/increment`) with `hasAnyRole('INTERNAL_SERVICE', 'ADMIN')`, preventing standard customers (`ROLE_USER`) or unauthenticated callers from directly manipulating warehouse stock while preserving checkout and Saga compensation flows.
+- **Authenticated & Tenant-Scoped Real-Time SSE Streaming:**
+  - `notification-service` requires a valid Keycloak Bearer JWT on `GET /api/notifications/stream` and scopes emitted `ORDER_NOTIFICATION` events exclusively to the owning customer (`userId`/`username`) or `ROLE_ADMIN` operators with a minimized payload free of PII.
 - **Federated Identity & Token Propagation:** Cosmo Router v2 propagates the incoming `Authorization` header to federated subgraphs. Protected Spring services validate bearer tokens against Keycloak JWKS; public GraphQL fields and public REST routes remain accessible without a token according to each service's security configuration.
-- **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation client (`microservices_client`), realm roles, and local test users. Run it after Keycloak is available; [`docs/reference/iam/realm-export.json`](../reference/iam/realm-export.json) provides the declarative realm snapshot and backup.
+- **Keycloak Provisioning:** [`scripts/bootstrap-keycloak.ps1`](../../scripts/bootstrap-keycloak.ps1) provisions `microservices-realm`, the public frontend client (`microservices_frontend`), the confidential automation & S2S client (`microservices_client` with `serviceAccountsEnabled: true` and `INTERNAL_SERVICE` role mapping), realm roles (`ADMIN`, `USER`, `INTERNAL_SERVICE`), and local test users. Run it after Keycloak is available; [`docs/reference/iam/realm-export.json`](../reference/iam/realm-export.json) provides the declarative realm snapshot and backup.
 
 ---
 
