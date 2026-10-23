@@ -35,6 +35,7 @@ jobs:
         continue-on-error: true
         with:
           scan-type: 'fs'
+          version: 'v0.76.1'
           scan-ref: '.'
           trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
           format: 'sarif'
@@ -54,6 +55,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
+          version: 'v0.76.1'
           scan-ref: '.'
           trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
           format: 'table'
@@ -65,6 +67,7 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
+          version: 'v0.76.1'
           scan-ref: '.'
           trivy-config: 'devsecops/compliance/trivy/trivy.yaml'
           format: 'table'
@@ -92,31 +95,31 @@ jobs:
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
 
   # ==========================================================
-  # JOB 3: Checkov Repository-wide IaC Security Scan (Parallel)
+  # JOB 3: Trivy Repository-wide IaC Misconfiguration Scan (Parallel)
   # ==========================================================
-  checkov-scan:
-    name: 🏗️ 3. Checkov Multi-Framework IaC Scan
+  trivy-config-scan:
+    name: 🏗️ 3. Trivy IaC Misconfiguration Scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Report Checkov multi-framework findings
-        uses: bridgecrewio/checkov-action@v12
+      - name: Scan Terraform, Kubernetes, Helm and Dockerfile configuration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          directory: '.'
-          framework: 'all'
-          output_format: 'cli,sarif'
-          output_file_path: 'console,checkov-report.sarif'
-          # This repository-wide scan includes cloud examples and service Dockerfiles;
-          # findings are uploaded to Security while focused gates enforce regressions.
-          soft_fail: true
+          scan-type: config
+          version: 'v0.76.1'
+          scan-ref: .
+          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          format: sarif
+          output: trivy-config-results.sarif
+          exit-code: '0'
 
-      - name: Upload Checkov Scan Results to GitHub Security Tab
+      - name: Upload Trivy IaC Results to GitHub Security Tab
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
         with:
-          sarif_file: 'checkov-report.sarif'
-          category: 'checkov'
+          sarif_file: 'trivy-config-results.sarif'
+          category: 'trivy-config'

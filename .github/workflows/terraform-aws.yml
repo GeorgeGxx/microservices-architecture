@@ -80,12 +80,10 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
-      - name: Install Helm
-        uses: azure/setup-helm@v5
-        with:
-          version: v3.17.3
+      - name: Install Helm 4
+        run: bash scripts/install-helm4.sh v4.3.1
 
       - name: Validate OpenCost and Prometheus charts
         run: bash scripts/validate-opencost.sh
@@ -105,39 +103,41 @@ jobs:
           terraform validate
 
   # ==========================================================
-  # STAGE 1B: Checkov IaC Security Scan (Parallel with 1A)
+  # STAGE 1B: Trivy IaC Misconfiguration Scan (Parallel with 1A)
   # ==========================================================
-  tf-security-checkov:
-    name: 🔒 1B. Checkov Terraform Security Scan
+  tf-security-trivy:
+    name: 🔒 1B. Trivy Terraform Security Scan
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Run Checkov IaC Scanner
-        uses: bridgecrewio/checkov-action@v12
+      - name: Scan Terraform configuration with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          directory: 'terraform/'
-          framework: 'terraform'
-          output_format: 'cli,sarif'
-          output_file_path: 'console,checkov-tf-report.sarif'
-          soft_fail: true
+          scan-type: config
+          version: 'v0.76.1'
+          scan-ref: terraform/
+          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          format: sarif
+          output: trivy-tf-results.sarif
+          exit-code: '0'
 
-      - name: Upload Checkov SARIF to GitHub Security
+      - name: Upload Trivy IaC SARIF to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
         with:
-          sarif_file: 'checkov-tf-report.sarif'
-          category: 'checkov-terraform'
+          sarif_file: 'trivy-tf-results.sarif'
+          category: 'trivy-terraform'
 
   # ==========================================================
   # STAGE 2: Terraform Plan & Artifact Generation
   # ==========================================================
   tf-plan:
     name: 📊 2. Terraform Plan
-    needs: [tf-lint-validate, tf-security-checkov]
+    needs: [tf-lint-validate, tf-security-trivy]
     # Cloud plans are explicit/manual; PRs and branch pushes use the isolated
     # static validation workflow and never need cloud credentials or state.
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.action != 'drift-detection'
@@ -197,7 +197,7 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
       - name: Terraform Init
         run: |
@@ -306,7 +306,7 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
@@ -365,7 +365,7 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
@@ -424,7 +424,7 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
         uses: actions/download-artifact@v8
@@ -480,7 +480,7 @@ jobs:
       - name: Setup Terraform CLI
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
 
       - name: Terraform Init
         run: |

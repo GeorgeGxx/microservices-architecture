@@ -32,7 +32,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.8.0
+          terraform_version: 1.16.2
       - name: Check formatting
         run: terraform fmt -check -recursive terraform/
       - name: Initialize without remote backend
@@ -43,19 +43,20 @@ jobs:
         run: terraform validate -no-color
 
   iac-security:
-    name: Terraform security scan
+    name: Trivy IaC configuration scan
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
-      - uses: bridgecrewio/checkov-action@v12
+      - name: Scan Terraform configuration with Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
-          directory: terraform/
-          framework: terraform
-          quiet: true
-          # Keep findings visible while the existing multi-cloud backlog is remediated.
-          # Conftest, Terraform validation and formatting remain blocking gates.
-          soft_fail: true
+          scan-type: config
+          version: 'v0.76.1'
+          scan-ref: terraform/
+          trivy-config: devsecops/compliance/trivy/trivy.yaml
+          format: table
+          exit-code: '0'
 
   helm-policy:
     name: Helm lint, workload policy and policy regression tests
@@ -63,9 +64,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: azure/setup-helm@v5
-        with:
-          version: v3.17.3
+      - name: Install Helm 4
+        run: bash scripts/install-helm4.sh v4.3.1
       - name: Install Conftest
         shell: bash
         run: |
@@ -133,7 +133,6 @@ jobs:
         run: |
           $parseErrors = $null
           $scripts = @(
-            'platform-common.ps1',
             'platform-minikube.ps1',
             'platform-multicloud.ps1',
             'scripts/bootstrap-keycloak.ps1',

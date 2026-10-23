@@ -33,7 +33,7 @@ stages:
           - checkout: self
           - task: TerraformInstaller@0
             inputs:
-              terraformVersion: '1.8.0'
+              terraformVersion: '1.16.2'
           - script: |
               set -euo pipefail
               cd terraform/environments/azure

@@ -15,7 +15,6 @@ RUN apt-get update \
 
 WORKDIR /app
 # Batch training exits after the run; container/job completion is its health signal.
-#checkov:skip=CKV_DOCKER_2: Batch workload health is reported by Kubernetes Job completion status.
 COPY requirements.container.txt ./requirements.txt
 RUN pip install --no-cache-dir --only-binary :all: --no-binary pyspark -r requirements.txt
 COPY patch_spark_jars.py ./

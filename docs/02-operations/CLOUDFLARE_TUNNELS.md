@@ -173,7 +173,7 @@ All testing technologies under `devsecops/` can be run through the Minikube entr
   ```
 * **Manual PowerShell Command (Docker mount required):**
   ```powershell
-  docker run --rm -v "${PWD}:/workspace:ro" grafana/k6:0.55.0 run --env "TARGET_URL=$env:BASE_URL" /workspace/devsecops/testing/k6/load-test.js
+  docker run --rm -v "${PWD}:/workspace:ro" grafana/k6:1.8.1 run --env "TARGET_URL=$env:BASE_URL" /workspace/devsecops/testing/k6/load-test.js
   ```
 * **Results:**
   * 25 concurrent virtual users across a 25-second ramp.

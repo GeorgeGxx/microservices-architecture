@@ -6,12 +6,12 @@
 The platform provides two independent, non-cascading PowerShell entrypoints:
 - [`platform-minikube.ps1`](../../platform-minikube.ps1) for local zero-cloud-cost development, Istio, Gatekeeper, MLOps, and Vault.
 - [`platform-multicloud.ps1`](../../platform-multicloud.ps1) for enterprise cloud operations across AWS, Azure, and GCP.
-Shared implementation helpers and the unified DevSecOps core engine live in [`platform-common.ps1`](../../platform-common.ps1).
+Each entrypoint is standalone and contains only the runtime helpers required for its platform: local Minikube operations or AWS, Azure, and GCP operations.
 
 | Platform | Entrypoint | Infrastructure and cluster |
 | --- | --- | --- |
 | Local | [`platform-minikube.ps1`](../../platform-minikube.ps1) | Minikube, local images, Istio/Gatekeeper, MLOps, Vault, and local observability |
-| Multi-Cloud (AWS, Azure, GCP) | [`platform-multicloud.ps1`](../../platform-multicloud.ps1) | AWS (EKS/ECS/EC2), Azure (AKS), GCP (GKE), durable remote state, Delivery, and Post-Deploy Gates |
+| Multi-Cloud (AWS, Azure, GCP) | [`platform-multicloud.ps1`](../../platform-multicloud.ps1) | Cloud-specific Terraform lifecycle; EKS/AKS/GKE delivery where a matching values profile exists; endpoint-based post-deploy checks |
 
 ## Usage
 
@@ -70,15 +70,17 @@ Each cloud entrypoint performs provider-specific preflight before cloud actions:
 
 | Provider | Authentication check | Cluster setup | Host CLI inventory |
 | --- | --- | --- | --- |
-| AWS | `aws sts get-caller-identity` | `aws eks update-kubeconfig` | `terraform`, `aws`, `kubectl`, `gitleaks`, `tflint`, `trivy` |
-| Azure | `az account show` | `az aks get-credentials` | `terraform`, `az`, `kubectl`, `gitleaks`, `tflint`, `trivy` |
-| GCP | Active `gcloud` account and configured project | `gcloud container clusters get-credentials` | `terraform`, `gcloud`, `kubectl`, `gitleaks`, `tflint`, `trivy` |
+| AWS EKS | `aws sts get-caller-identity` | Select the intended EKS context before Kubernetes operations | `terraform`, `aws`, `kubectl`, `helm`, `gitleaks`, `tflint`, `trivy`, `conftest` |
+| AWS ECS Fargate / EC2 Compact | `aws sts get-caller-identity` | Not applicable; this CLI provides Terraform infrastructure lifecycle only | `terraform`, `aws`, `gitleaks`, `tflint`, `trivy` |
+| Azure AKS | `az account show` | Select the intended AKS context before Kubernetes operations | `terraform`, `az`, `kubectl`, `helm`, `gitleaks`, `tflint`, `trivy`, `conftest` |
+| GCP GKE | Active `gcloud` account and configured project | Select the intended GKE context before Kubernetes operations | `terraform`, `gcloud`, `kubectl`, `helm`, `gitleaks`, `tflint`, `trivy`, `conftest` |
 
 Plan/apply/destroy operations require a configured durable remote backend.
 Azure and GCP additionally require their local backend configuration file.
-Cloud diagnostics connect to the selected cluster(s) and restore the Kubernetes
-context that was active before the command. No command silently falls back to
-local state. `plan` and `apply` can create a missing environment workspace;
+Kubernetes commands use the current `kubectl` context; select and verify the
+intended provider cluster before running delivery, Gatekeeper, or diagnostics.
+The CLI does not rewrite kubeconfig or switch cloud identities. No command
+silently falls back to local Terraform state. `plan` and `apply` can create a missing environment workspace;
 `status`, `doctor`, `destroy`, and `unlock` require that workspace to already exist.
 Production provisions two data-plane clusters. `doctor`, `verify`, and `status`
 accept `-DataPlane all|primary|secondary` (default `all`) to choose diagnostic
@@ -125,7 +127,7 @@ images or install application charts. Application delivery is provider-specific:
 - Bitbucket Pipelines deploys application releases directly to GKE with Helm and
   owns GCP deployment/rollback (`apply-workloads`, `rollback`).
 
-`platform-multicloud.ps1` exposes a unified, non-cascading operational surface powered directly by [`platform-common.ps1`](../../platform-common.ps1):
+`platform-multicloud.ps1` exposes a unified, non-cascading operational surface with its cloud-specific DevSecOps, Terraform, delivery, and post-deploy helpers defined in the same script:
 
 - `pre-deploy`: Shift-Left static security gate running Gitleaks secret detection, TFLint, Trivy IaC misconfiguration, Conftest (OPA) Rego policy validation, optional Cosign container image signature verification, and optional Graphviz architecture modeling (`-GenerateGraph`).
 - `plan`: Formats, validates, and generates a verified binary plan artifact (`.tfplan`) with support for `-Flavor` (AWS: `eks`, `ecs-fargate`, `ec2-compact`), `-Target`, `-Replace`, `-Var`, and `-VarFile`.
@@ -134,8 +136,10 @@ images or install application charts. Application delivery is provider-specific:
 - `drift`: Audits live infrastructure drift against remote state via `terraform plan -detailed-exitcode -refresh-only`.
 - `output`: Displays and exports Terraform state outputs.
 - `unlock`: Forcibly releases a verified stale Terraform state lock (`-LockId <id>`).
-- `post-deploy`: Live dynamic quality and DAST gate executed strictly against the live deployed endpoint (`-TargetUrl <url>`), running Smoke tests (`smoke.py`), Newman API contract integration tests (`microservices.postman_collection.json`), Grafana k6 SLA benchmarks (`load-test.js`), and OWASP ZAP baseline DAST scans (`zap.yaml`).
+- `post-deploy`: Live dynamic quality and DAST gate executed against the deployed endpoint (`-TargetUrl <url>`), with `-KeycloakUrl <url>` (or `KEYCLOAK_URL`) for authenticated Newman checks. It runs Smoke tests (`smoke.py`), Newman API contract integration tests (`microservices.postman_collection.json`), Grafana k6 1.8.1 SLA benchmarks (`load-test.js`), and OWASP ZAP baseline DAST using the shared `rules.tsv` alert rules.
 - `pipeline`: Executes the full end-to-end delivery pipeline (`pre-deploy` -> `apply` -> delivery sync -> `post-deploy`).
+- AWS `pipeline`, ArgoCD, Gatekeeper, and Kubernetes diagnostics support EKS only. AWS ECS Fargate and EC2 Compact remain available for Terraform infrastructure lifecycle commands; this CLI has no workload delivery driver for those flavors.
+- Helm policy rendering and workload deployment select `values-eks-<environment>.yaml`, `values-aks-<environment>.yaml`, or `values-gke-<environment>.yaml`. Missing provider/environment profiles fail explicitly; the cloud CLI never substitutes Minikube values. Current AKS profiles are `dev` and `prod`; current GKE profile is `dev` only. Add the missing provider/environment values files before using AKS staging or GKE staging/prod workload delivery.
 - `sync-argocd`: (AWS only) Triggers Argo CD GitOps reconciliation for microservices on EKS.
 - `apply-workloads`: (Azure & GCP) Deploys the microservices Umbrella Helm chart directly to AKS/GKE.
 - `rollback`: (Azure & GCP) Executes immediate Helm atomic rollback (`-Revision <int>`) on AKS/GKE.
@@ -149,13 +153,13 @@ images or install application charts. Application delivery is provider-specific:
 .\platform-multicloud.ps1 plan -Provider aws -Environment staging -Flavor eks
 .\platform-multicloud.ps1 apply -Provider aws -Environment staging -PlanFile .terraform/tfplan-staging.binary
 .\platform-multicloud.ps1 sync-argocd -Provider aws -Environment staging
-.\platform-multicloud.ps1 post-deploy -Provider aws -Environment staging -TargetUrl "https://staging.domain.com"
+.\platform-multicloud.ps1 post-deploy -Provider aws -Environment staging -TargetUrl "https://staging.domain.com" -KeycloakUrl "https://auth.staging.domain.com"
 .\platform-multicloud.ps1 drift -Provider aws -Environment prod
 
 # Azure & GCP Examples
 .\platform-multicloud.ps1 apply-workloads -Provider azure -Environment dev
 .\platform-multicloud.ps1 rollback -Provider azure -Environment dev -Revision 2
-.\platform-multicloud.ps1 pipeline -Provider gcp -Environment staging -TargetUrl "https://gcp-staging.domain.com"
+.\platform-multicloud.ps1 pipeline -Provider gcp -Environment dev -TargetUrl "https://gcp-dev.domain.com" -KeycloakUrl "https://auth.gcp-dev.domain.com"
 ```
 
 The current Terraform backend stores the production root in a single state. Per-data-plane commands are deliberately module-targeted as an operational safety boundary; the CI pipeline must use the same target selection.
