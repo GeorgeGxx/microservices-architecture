@@ -148,30 +148,73 @@ def require_admin(
 
 
 _ACTIVE_MODEL_ENTRY: tuple[RandomForestRegressor, str, datetime, float] | None = None
-MODEL_CACHE_TTL_SEC = float(os.getenv("MLOPS_MODEL_CACHE_TTL_SEC", "60.0"))
+MODEL_CACHE_TTL_SEC = float(os.getenv("MLOPS_MODEL_CACHE_TTL_SEC", "5.0"))
 
 
-def _select_champion_or_best_model(client: MlflowClient, experiment_id: str) -> tuple[Any, Any] | None:
+def _resolve_active_sales_path() -> Path:
+    if SALES_DATA_PATH.name == "synthetic_sales.csv":
+        parquet_candidate = SALES_DATA_PATH.with_name("sales_parquet")
+        if parquet_candidate.is_dir():
+            partitions = [
+                child
+                for child in parquet_candidate.iterdir()
+                if child.is_dir() and child.name.startswith("date=")
+            ]
+            if len(partitions) >= 8:
+                return parquet_candidate
+    return SALES_DATA_PATH
+
+
+def _infer_preferred_input_format(path: Path) -> str:
+    if path.is_dir() or path.suffix.lower() == ".parquet":
+        return "parquet"
+    return "csv"
+
+
+def _is_usable_logged_model(logged_model: Any) -> bool:
+    return bool(
+        logged_model.name == "demand-forecast"
+        and logged_model.status.name == "READY"
+        and logged_model.source_run_id
+    )
+
+
+def _run_matches_format(run: Any, preferred_input_format: str | None) -> bool:
+    if not preferred_input_format:
+        return True
+    params = getattr(run.data, "params", None)
+    if not isinstance(params, dict) or "input_format" not in params:
+        return True
+    return params["input_format"] == preferred_input_format
+
+
+def _select_champion_or_best_model(
+    client: MlflowClient, experiment_id: str, preferred_input_format: str | None = None
+) -> tuple[Any, Any] | None:
     logged_models = client.search_logged_models(
         experiment_ids=[experiment_id],
         order_by=[{"field_name": "creation_time", "ascending": False}],
         max_results=100,
     )
     valid_models: list[tuple[Any, Any]] = []
+    preferred_models: list[tuple[Any, Any]] = []
+    fallback_champions: list[tuple[Any, Any]] = []
     for logged_model in logged_models:
-        if (
-            logged_model.name != "demand-forecast"
-            or logged_model.status.name != "READY"
-            or not logged_model.source_run_id
-        ):
+        if not _is_usable_logged_model(logged_model):
             continue
         run = client.get_run(logged_model.source_run_id)
         if run.info.status != "FINISHED":
             continue
         valid_models.append((logged_model, run))
-        if run.data.tags.get("model_role") == "champion":
+        matches = _run_matches_format(run, preferred_input_format)
+        is_champion = run.data.tags.get("model_role") == "champion"
+        if is_champion and matches:
             return logged_model, run
-    return valid_models[0] if valid_models else None
+        if matches:
+            preferred_models.append((logged_model, run))
+        elif is_champion:
+            fallback_champions.append((logged_model, run))
+    return (preferred_models or fallback_champions or valid_models or [None])[0]
 
 
 def _fallback_or_fail_model(detail: str, cause: Exception | None = None) -> tuple[RandomForestRegressor, str, datetime]:
@@ -211,7 +254,9 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
         if experiment is None:
             return _fallback_or_fail_model("No trained demand model is available yet")
 
-        selected = _select_champion_or_best_model(client, experiment.experiment_id)
+        active_path = _resolve_active_sales_path()
+        preferred_format = _infer_preferred_input_format(active_path)
+        selected = _select_champion_or_best_model(client, experiment.experiment_id, preferred_format)
         if not selected:
             return _fallback_or_fail_model("No successfully completed demand model is available")
 
@@ -233,12 +278,17 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
 
 
 _DAILY_HISTORY_CACHE: tuple[pd.DataFrame, str, date, date, float, float] | None = None
-HISTORY_CACHE_TTL_SEC = float(os.getenv("MLOPS_HISTORY_CACHE_TTL_SEC", "30.0"))
+HISTORY_CACHE_TTL_SEC = float(os.getenv("MLOPS_HISTORY_CACHE_TTL_SEC", "5.0"))
 
 
 def _get_path_mtime(path: Path) -> float:
     try:
-        return path.stat().st_mtime
+        latest = path.stat().st_mtime
+        if path.is_dir():
+            for child in path.rglob("*"):
+                if not child.name.startswith(("_", ".")):
+                    latest = max(latest, child.stat().st_mtime)
+        return latest
     except OSError:
         return 0.0
 
@@ -286,18 +336,19 @@ def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.
 
 def _daily_history() -> tuple[pd.DataFrame, str, date, date]:
     global _DAILY_HISTORY_CACHE
-    if not SALES_DATA_PATH.exists():
-        raise HTTPException(status_code=503, detail=f"Sales data is missing: {SALES_DATA_PATH.name}")
+    active_sales_path = _resolve_active_sales_path()
+    if not active_sales_path.exists():
+        raise HTTPException(status_code=503, detail=f"Sales data is missing: {active_sales_path.name}")
 
     now_mono = perf_counter()
-    current_mtime = _get_path_mtime(SALES_DATA_PATH)
+    current_mtime = _get_path_mtime(active_sales_path)
     if _DAILY_HISTORY_CACHE is not None:
         cached_df, cached_source, cached_min, cached_max, cached_at, cached_mtime = _DAILY_HISTORY_CACHE
         if now_mono - cached_at < HISTORY_CACHE_TTL_SEC and cached_mtime == current_mtime:
             return cached_df, cached_source, cached_min, cached_max
 
-    sales = _read_sales_file(SALES_DATA_PATH)
-    aggregated, source = _clean_and_aggregate_sales(sales, SALES_DATA_PATH.stem)
+    sales = _read_sales_file(active_sales_path)
+    aggregated, source = _clean_and_aggregate_sales(sales, active_sales_path.stem)
 
     min_date = min(aggregated["date"])
     max_date = max(aggregated["date"])

@@ -199,8 +199,12 @@ class TrainDemandModelTests(unittest.TestCase):
         mock_run.data.metrics = {"rmse": 2.75}
         mock_client.search_runs.return_value = [mock_run]
 
-        rmse = _query_prior_champion_rmse(mock_client, "inventory-demand-forecast")
+        rmse = _query_prior_champion_rmse(mock_client, "inventory-demand-forecast", "parquet")
         self.assertEqual(rmse, 2.75)
+        self.assertIn(
+            "params.input_format = 'parquet'",
+            mock_client.search_runs.call_args.kwargs["filter_string"],
+        )
 
     def test_check_auto_training_readiness_insufficient_partitions(self) -> None:
         from train_demand_model import _check_auto_training_readiness

@@ -9,6 +9,14 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 }).format(new Date(`${value}T12:00:00`));
 
+const formatDateTime = (value: string) => new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(value));
+
 export const DemandForecastPanel: React.FC = () => {
   const { user } = useAuth();
   const [forecast, setForecast] = useState<DemandForecastResponse | null>(null);
@@ -92,7 +100,9 @@ export const DemandForecastPanel: React.FC = () => {
             <div className="glass-card p-4 rounded-2xl border border-slate-800">
               <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Model run</div>
               <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white">
-                <Clock3 className="w-4 h-4 text-indigo-400" /> {formatDate(forecast.modelCreatedAt.slice(0, 10))}
+                <Clock3 className="w-4 h-4 text-indigo-400" />
+                <span>{formatDateTime(forecast.modelCreatedAt)}</span>
+                <span className="text-xs font-mono text-indigo-300">#{forecast.modelRunId.slice(0, 8)}</span>
               </div>
             </div>
           </div>
