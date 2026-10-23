@@ -111,7 +111,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       seenOrderEvents.current.add(notif.id);
       setNotifications((prev) => [notif, ...prev.filter((item) => item.id !== notif.id).slice(0, 49)]);
       showToast(notif.title, notif.message, notif.type);
-    });
+    }, user.token);
 
     return () => {
       unsubscribe();

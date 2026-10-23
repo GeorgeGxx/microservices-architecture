@@ -1,5 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { createOrderNotification, parseOrderStatusEvent } from './sse';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('./keycloak', () => ({
+  getValidAccessToken: vi.fn(async (token?: string) => token),
+}));
+
+import { createOrderNotification, parseOrderStatusEvent, sseService } from './sse';
 
 describe('order status SSE contract', () => {
   it.each(['PLACED', 'SHIPPED', 'DELIVERED', 'CANCELLED'] as const)(
@@ -33,67 +38,35 @@ describe('order status SSE contract', () => {
 });
 
 describe('SSEService live connection management', () => {
-  it('connects and receives general and order notifications', async () => {
-    class MockEventSource {
-      listeners: Record<string, ((event: any) => void)[]> = {};
-      onopen: (() => void) | null = null;
-      onmessage: ((event: any) => void) | null = null;
-      onerror: (() => void) | null = null;
-      closed = false;
+  it('connects with a bearer token and receives only the minimized order status event', async () => {
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(encoder.encode(
+          'event: ORDER_NOTIFICATION\ndata: {"orderNumber":"ORD-999","orderStatus":"DELIVERED","userId":"customer-1"}\n\n'
+        ));
+        controller.close();
+      },
+    });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, body });
+    vi.stubGlobal('fetch', fetchMock);
 
-      constructor(public url: string) {}
-
-      addEventListener(type: string, cb: (event: any) => void) {
-        this.listeners[type] = this.listeners[type] || [];
-        this.listeners[type].push(cb);
-      }
-
-      close() {
-        this.closed = true;
-      }
-    }
-
-    (globalThis as any).EventSource = MockEventSource;
-
-    const { sseService } = await import('./sse');
     const received: any[] = [];
-    const unsubscribe = sseService.subscribe((n) => received.push(n));
-
-    const activeInstance = (sseService as any).eventSource as MockEventSource;
-    expect(activeInstance).toBeTruthy();
-
-    // Trigger onopen
-    activeInstance.onopen?.();
-
-    // Trigger JSON message
-    activeInstance.onmessage?.({
-      data: JSON.stringify({ title: 'Welcome', message: 'Hello user', orderNumber: 'ORD-123' }),
-    });
-    expect(received).toHaveLength(1);
-    expect(received[0].title).toBe('Welcome');
-
-    // Trigger raw text message fallback
-    activeInstance.onmessage?.({ data: 'Plain text alert' });
-    expect(received).toHaveLength(2);
-    expect(received[1].title).toBe('System Notification');
-
-    // Trigger ORDER_NOTIFICATION
     const orderReceived: any[] = [];
+    const unsubscribe = sseService.subscribe((notification) => received.push(notification), 'test-token');
     const unsubOrder = sseService.subscribeOrderStatus((ev) => orderReceived.push(ev));
-    const orderListener = activeInstance.listeners['ORDER_NOTIFICATION']?.[0];
-    orderListener?.({
-      data: JSON.stringify({ orderNumber: 'ORD-999', orderStatus: 'DELIVERED' }),
-    });
+
+    await vi.waitFor(() => expect(received).toHaveLength(1));
     expect(orderReceived).toHaveLength(1);
     expect(orderReceived[0].orderNumber).toBe('ORD-999');
+    expect(received[0].orderNumber).toBe('ORD-999');
+    expect(fetchMock).toHaveBeenCalledWith('/api/notifications/stream', expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: 'Bearer test-token' }),
+    }));
 
-    // Test error handler and reconnect
-    activeInstance.onerror?.();
-    expect(activeInstance.closed).toBe(true);
-
-    // Unsubscribe all
     unsubscribe();
     unsubOrder();
+    vi.unstubAllGlobals();
   });
 });
 

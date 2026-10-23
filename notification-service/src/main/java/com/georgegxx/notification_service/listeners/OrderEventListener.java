@@ -35,10 +35,12 @@ public class OrderEventListener {
                     .filter(event -> event.orderNumber() != null)
                     .ifPresentOrElse(
                             this::processOrderEvent,
-                            () -> log.warn("Received empty or invalid OrderEvent payload: {}", message)
+                            () -> log.warn("Received empty or invalid OrderEvent payload (length: {})",
+                                    message == null ? 0 : message.length())
                     );
         } catch (Exception ex) {
-            log.error("Error processing Kafka message from orders-topic: {} | Raw: {}", ex.getMessage(), message, ex);
+            log.error("Error processing Kafka message from orders-topic (payload length: {}): {}",
+                    message == null ? 0 : message.length(), ex.getMessage(), ex);
             throw new RuntimeException("Re-throwing to trigger Kafka DefaultErrorHandler / DLT recovery", ex);
         } finally {
             sample.stop(this.meterRegistry.timer("notification_processing_duration_seconds"));
@@ -65,34 +67,21 @@ public class OrderEventListener {
                 String statusStr = status != null ? status.name() : "UNKNOWN";
                 this.meterRegistry.counter("notification_events_processed_total", "status", statusStr).increment();
 
-                String effectiveCustomer = (customer != null && !customer.isBlank()) ? customer : "Valued Customer";
-                String effectiveTracking = (tracking != null && !tracking.isBlank()) ? tracking : "PENDING";
-                double effectiveTotal = total != null ? total : 0.0;
-
-                // Exhaustive Pattern Matching Switch on OrderStatus (Java 21 JEP 441)
-                String statusSummary = switch (status) {
-                    case PLACED -> "🎉 Order placed successfully! Payment verified and preparation in progress.";
-                    case CANCELLED -> "🛑 Order cancelled. Stock replenishment and customer credit initiated.";
-                    case SHIPPED -> String.format("📦 Order #%s has shipped! Tracking code: %s", orderNum, effectiveTracking);
-                    case DELIVERED -> String.format("✅ Package delivered successfully. Enjoy your items, %s!", effectiveCustomer);
-                    case null -> "ℹ️ Order update received without explicit status tag.";
-                };
-
-                log.info("🔔 Notification Dispatcher: [{}] Order #{} ({} items) | Customer: {} | Tracking: {} | Total: ${} | Message: {}",
-                        statusStr, orderNum, items, effectiveCustomer, effectiveTracking, effectiveTotal, statusSummary);
+                log.info("🔔 Notification Dispatcher: [{}] Order #{} ({} items)", statusStr, orderNum, items);
 
                 // Broadcast real-time SSE event to connected SPA clients
                 this.sseNotificationHub.broadcast(orderEvent);
 
                 // Dispatches simulated Customer Communication
-                log.info("📧 Email confirmation dispatched to {} for order #{} (Tracking: {}). Status: {} | Message: {}",
-                        effectiveCustomer, orderNum, effectiveTracking, statusStr, statusSummary);
+                log.info("📧 Simulated customer communication dispatched for order #{} with status {}",
+                        orderNum, statusStr);
             }
         }
     }
 
     @KafkaListener(topics = "orders-topic.DLT", groupId = "notification-dlt-group")
     public void handleDltNotifications(String message) {
-        log.error("🚨 ALERT: Received poisoned/failed message in Dead Letter Topic [orders-topic.DLT]: {}", message);
+        log.error("🚨 ALERT: Received poisoned message in Dead Letter Topic [orders-topic.DLT] (payload length: {})",
+                message == null ? 0 : message.length());
     }
 }

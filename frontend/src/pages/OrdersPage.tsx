@@ -110,7 +110,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
         orderEventRefreshTimeout.current = null;
         void loadOrders();
       }, 500);
-    });
+    }, user?.token);
 
     return () => {
       window.clearInterval(intervalId);
@@ -118,7 +118,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
       document.removeEventListener('visibilitychange', refreshWhenVisible);
       unsubscribeOrderEvents();
     };
-  }, [hasUser, loadOrders]);
+  }, [hasUser, loadOrders, user?.token]);
 
   // Reset page when filters change
   useEffect(() => {
