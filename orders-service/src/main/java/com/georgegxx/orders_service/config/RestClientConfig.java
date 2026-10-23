@@ -16,18 +16,24 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import java.net.http.HttpClient;
 import java.time.Duration;
+import java.util.Optional;
 
 @Configuration
 public class RestClientConfig {
 
     @Bean
-    public RestClient.Builder restClientBuilder() {
+    public RestClient.Builder restClientBuilder(ServiceTokenProvider serviceTokenProvider) {
         ClientHttpRequestInterceptor bearerAuthInterceptor = (request, body, execution) -> {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication instanceof AbstractOAuth2TokenAuthenticationToken<?> oauth2Token) {
-                request.getHeaders().setBearerAuth(oauth2Token.getToken().getTokenValue());
-            } else if (authentication != null && authentication.getCredentials() instanceof String tokenStr && !tokenStr.isBlank()) {
-                request.getHeaders().setBearerAuth(tokenStr);
+            Optional<String> serviceToken = serviceTokenProvider.getAccessToken();
+            if (serviceToken.isPresent()) {
+                request.getHeaders().setBearerAuth(serviceToken.get());
+            } else {
+                Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+                if (authentication instanceof AbstractOAuth2TokenAuthenticationToken<?> oauth2Token) {
+                    request.getHeaders().setBearerAuth(oauth2Token.getToken().getTokenValue());
+                } else if (authentication != null && authentication.getCredentials() instanceof String tokenStr && !tokenStr.isBlank()) {
+                    request.getHeaders().setBearerAuth(tokenStr);
+                }
             }
             return execution.execute(request, body);
         };
