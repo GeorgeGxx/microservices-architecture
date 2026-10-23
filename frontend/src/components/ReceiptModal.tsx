@@ -153,8 +153,8 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ order, onClose }) =>
 
         {/* Order Items */}
         <div className="border-t border-b border-slate-800 py-3 mb-5 space-y-2 max-h-48 overflow-y-auto">
-          {order.orderItems?.map((item, idx) => (
-            <div key={idx} className="flex justify-between items-center text-xs">
+          {order.orderItems?.map((item) => (
+            <div key={`${item.sku}-${item.quantity}-${item.price}`} className="flex justify-between items-center text-xs">
               <div className="min-w-0 pr-2">
                 <span className="text-slate-200 font-medium truncate block">
                   {item.product?.name || item.sku}

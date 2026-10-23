@@ -69,6 +69,20 @@ function useStorefrontHealthStatus(): StorefrontHealth {
   return storefrontHealth;
 }
 
+const getDesktopTabClass = (isActive: boolean, withIcon = false) =>
+  `px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${withIcon ? 'flex items-center gap-1.5 ' : ''}${
+    isActive
+      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
+      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+  }`;
+
+const getMobileTabClass = (isActive: boolean) =>
+  `w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
+    isActive
+      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold'
+      : 'text-slate-300 hover:bg-slate-900'
+  }`;
+
 export const Navbar: React.FC<NavbarProps> = ({
   activeTab,
   setActiveTab,
@@ -99,6 +113,18 @@ export const Navbar: React.FC<NavbarProps> = ({
     unavailable: 'bg-rose-500',
   }[storefrontHealth];
 
+  let wishlistTitle = 'Sign in to access Wishlist';
+  if (user) {
+    wishlistTitle = isFavoritesFilterActive ? 'Showing Wishlist Only' : 'Filter by Wishlist';
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    if (activeTab !== 'catalog') {
+      setActiveTab('catalog');
+    }
+  };
+
   const handleWishlistClick = () => {
     if (!user) {
       showToast('Sign In Required', 'Please sign in with Keycloak to access your saved wishlist.', 'info');
@@ -106,9 +132,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       return;
     }
     setActiveTab('catalog');
-    if (onToggleFavoritesFilter) {
-      onToggleFavoritesFilter();
-    }
+    onToggleFavoritesFilter?.();
   };
 
   return (
@@ -149,21 +173,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="hidden lg:flex items-center gap-1">
             <button
               onClick={() => setActiveTab('catalog')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition ${
-                activeTab === 'catalog'
-                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-              }`}
+              className={getDesktopTabClass(activeTab === 'catalog')}
             >
               Catalog
             </button>
             <button
               onClick={() => setActiveTab('orders')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                activeTab === 'orders'
-                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-              }`}
+              className={getDesktopTabClass(activeTab === 'orders', true)}
             >
               <Package className="w-3.5 h-3.5" />
               Orders & Tracking
@@ -171,11 +187,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {user?.isAdmin && (
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 ${
-                  activeTab === 'admin'
-                    ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
-                }`}
+                className={getDesktopTabClass(activeTab === 'admin', true)}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
                 Admin Console
@@ -192,12 +204,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (activeTab !== 'catalog') {
-                    setActiveTab('catalog');
-                  }
-                }}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Search products by SKU, name, or description..."
                 className="w-full pl-9 pr-16 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-slate-700 focus:border-indigo-500 text-slate-200 placeholder-slate-500 text-xs transition focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner"
               />
@@ -254,7 +261,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Wishlist Indicator */}
           <button
             onClick={handleWishlistClick}
-            title={user ? (isFavoritesFilterActive ? "Showing Wishlist Only" : "Filter by Wishlist") : "Sign in to access Wishlist"}
+            title={wishlistTitle}
             className={`p-1.5 sm:p-2 rounded-lg border transition relative ${
               isFavoritesFilterActive
                 ? 'bg-rose-500/20 text-rose-400 border-rose-500/40'
@@ -352,10 +359,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                if (activeTab !== 'catalog') setActiveTab('catalog');
-              }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search products by SKU, name, or description..."
               className="w-full pl-9 pr-14 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 shadow-inner"
             />
@@ -390,11 +394,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setActiveTab('catalog');
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === 'catalog'
-                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold'
-                  : 'text-slate-300 hover:bg-slate-900'
-              }`}
+              className={getMobileTabClass(activeTab === 'catalog')}
             >
               <div className="flex items-center gap-2.5">
                 <Sparkles className="w-4 h-4 text-indigo-400" />
@@ -410,11 +410,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 setActiveTab('orders');
                 setIsMobileMenuOpen(false);
               }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                activeTab === 'orders'
-                  ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold'
-                  : 'text-slate-300 hover:bg-slate-900'
-              }`}
+              className={getMobileTabClass(activeTab === 'orders')}
             >
               <div className="flex items-center gap-2.5">
                 <Package className="w-4 h-4 text-emerald-400" />
@@ -431,11 +427,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   setActiveTab('admin');
                   setIsMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition ${
-                  activeTab === 'admin'
-                    ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 font-bold'
-                    : 'text-slate-300 hover:bg-slate-900'
-                }`}
+                className={getMobileTabClass(activeTab === 'admin')}
               >
                 <div className="flex items-center gap-2.5">
                   <LayoutDashboard className="w-4 h-4 text-violet-400" />

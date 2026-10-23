@@ -12,12 +12,14 @@ interface QuickViewModalProps {
   onOpenQR: (product: Product) => void;
 }
 
+const STAR_SLOTS = [0, 1, 2, 3, 4] as const;
+
 export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose, onOpenQR }) => {
   const [quantity, setQuantity] = useState(1);
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
   const { isInWishlist, toggleWishlist } = useWishlist();
-  const { user, login } = useAuth();
+  const { user } = useAuth();
 
   if (!product) return null;
 
@@ -71,11 +73,11 @@ export const QuickViewModal: React.FC<QuickViewModalProps> = ({ product, onClose
             {/* Ratings */}
             <div className="flex items-center gap-2 mb-3">
               <div className="flex text-amber-400">
-                {[...new Array(5)].map((_, i) => (
+                {STAR_SLOTS.map((slot) => (
                   <Star
-                    key={`star-${i}`}
+                    key={`star-slot-${slot}`}
                     className={`w-4 h-4 ${
-                      i < Math.floor(product.rating || 4.8) ? 'fill-current' : 'text-slate-700'
+                      slot < Math.floor(product.rating || 4.8) ? 'fill-current' : 'text-slate-700'
                     }`}
                   />
                 ))}

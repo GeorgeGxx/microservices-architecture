@@ -18,7 +18,18 @@ describe('order status SSE contract', () => {
   );
 
   it('normalizes status casing and ignores malformed or unsupported events', () => {
-    expect(parseOrderStatusEvent('{"orderNumber":"ORD-42","orderStatus":"shipped"}')?.orderStatus).toBe('SHIPPED');
+    expect(
+      parseOrderStatusEvent(
+        '{"orderNumber":"ORD-42","orderStatus":"shipped","userId":"u1","username":"alice"}'
+      )
+    ).toEqual({
+      orderNumber: 'ORD-42',
+      orderStatus: 'SHIPPED',
+      userId: 'u1',
+      username: 'alice',
+    });
+    expect(parseOrderStatusEvent('null')).toBeNull();
+    expect(parseOrderStatusEvent('{"orderNumber":"ORD-42","orderStatus":123}')).toBeNull();
     expect(parseOrderStatusEvent('{broken')).toBeNull();
     expect(parseOrderStatusEvent('{"orderNumber":"ORD-42","orderStatus":"PREPARING"}')).toBeNull();
     expect(parseOrderStatusEvent('{"orderStatus":"DELIVERED"}')).toBeNull();
@@ -66,6 +77,40 @@ describe('SSEService live connection management', () => {
 
     unsubscribe();
     unsubOrder();
+    vi.unstubAllGlobals();
+  });
+
+  it('handles non-ok HTTP status, non-ORDER_NOTIFICATION frames, and reconnect cleanup', async () => {
+    vi.useFakeTimers();
+    const encoder = new TextEncoder();
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          encoder.encode(
+            'event: HEARTBEAT\ndata: ping\n\nevent: ORDER_NOTIFICATION\ndata: {invalid}\n\n'
+          )
+        );
+        controller.close();
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, body: null })
+      .mockResolvedValueOnce({ ok: true, status: 200, body });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const received: unknown[] = [];
+    const unsubscribe = sseService.subscribe((n) => received.push(n), 'retry-token');
+
+    await vi.advanceTimersByTimeAsync(10);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(received).toHaveLength(0);
+
+    unsubscribe();
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 });

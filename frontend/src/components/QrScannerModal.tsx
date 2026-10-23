@@ -43,6 +43,158 @@ interface QrScannerModalProps {
   onOpenReceipt?: (order: Order) => void;
 }
 
+interface ParsedScanPayload {
+  sku: string | null;
+  orderNum: string | null;
+  fallbackName: string | null;
+  fallbackPrice: number | null;
+}
+
+function parseScannedPayload(rawClean: string): ParsedScanPayload {
+  let sku: string | null = null;
+  let orderNum: string | null = null;
+  let fallbackName: string | null = null;
+  let fallbackPrice: number | null = null;
+
+  try {
+    const json = JSON.parse(rawClean);
+    if (json && typeof json === 'object') {
+      if (json.sku) sku = String(json.sku).trim();
+      if (json.orderNumber) orderNum = String(json.orderNumber).trim();
+      if (json.name) fallbackName = String(json.name).trim();
+      if (typeof json.price === 'number') fallbackPrice = json.price;
+    }
+  } catch {
+    // Raw string format
+  }
+
+  if (!sku && !orderNum) {
+    if (rawClean.toUpperCase().startsWith('ORD-')) {
+      orderNum = rawClean;
+    } else {
+      sku = rawClean;
+    }
+  }
+
+  return { sku, orderNum, fallbackName, fallbackPrice };
+}
+
+function resolveCatalogProduct(
+  products: Product[],
+  targetSku: string,
+  fallbackName: string | null,
+  fallbackPrice: number | null
+): Product {
+  const upperTarget = targetSku.toUpperCase();
+  const found = products.find(
+    (p) =>
+      p.sku.toUpperCase() === upperTarget ||
+      p.name.toUpperCase().includes(upperTarget) ||
+      (p.id && String(p.id).toUpperCase() === upperTarget)
+  );
+  if (found) return found;
+
+  return {
+    id: 'pos-scanned',
+    sku: upperTarget,
+    name: fallbackName || `Scanned Item (${targetSku})`,
+    price: fallbackPrice ?? 0,
+    status: true,
+    category: 'POS Scanned',
+    quantity: 0,
+    isInStock: false,
+  };
+}
+
+function isCameraPermissionError(err: unknown): boolean {
+  return (
+    err instanceof DOMException &&
+    (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')
+  );
+}
+
+async function acquireCameraStream(facingMode: 'environment' | 'user'): Promise<MediaStream> {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    throw new Error('Camera API is not supported on this browser or origin (requires HTTPS or localhost).');
+  }
+
+  let stream: MediaStream | null = null;
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      audio: false,
+    });
+  } catch (err: unknown) {
+    if (isCameraPermissionError(err)) throw err;
+  }
+
+  if (!stream) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode } },
+        audio: false,
+      });
+    } catch (err: unknown) {
+      if (isCameraPermissionError(err)) throw err;
+    }
+  }
+
+  stream ??= await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false,
+  });
+
+  return stream;
+}
+
+async function detectWithNativeBarcodeDetector(
+  source: HTMLVideoElement | HTMLImageElement
+): Promise<string | null> {
+  if (!('BarcodeDetector' in window)) return null;
+  try {
+    const detector = new (window as unknown as {
+      BarcodeDetector: new (opts: { formats: string[] }) => {
+        detect: (el: HTMLVideoElement | HTMLImageElement) => Promise<Array<{ rawValue: string }>>;
+      };
+    }).BarcodeDetector({
+      formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
+    });
+    const codes = await detector.detect(source);
+    if (codes && codes.length > 0 && codes[0].rawValue) {
+      return codes[0].rawValue;
+    }
+  } catch {}
+  return null;
+}
+
+function detectWithJsQrCanvas(
+  source: HTMLVideoElement | HTMLImageElement,
+  canvas: HTMLCanvasElement,
+  targetW: number,
+  targetH: number
+): string | null {
+  if (targetW <= 0 || targetH <= 0) return null;
+  try {
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(source, 0, 0, targetW, targetH);
+    const imgData = ctx.getImageData(0, 0, targetW, targetH);
+    const qr = jsQR(imgData.data, targetW, targetH, {
+      inversionAttempts: 'attemptBoth',
+    });
+    return qr?.data || null;
+  } catch {
+    return null;
+  }
+}
+
 export const QrScannerModal: React.FC<QrScannerModalProps> = ({
   isOpen,
   onClose,
@@ -116,48 +268,23 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     playPosBeep();
     setScannedCode(rawClean);
 
-    // 1. Intelligent parsing: JSON receipt/label vs raw string
-    let parsedSku: string | null = null;
-    let parsedOrderNum: string | null = null;
-    let fallbackName: string | null = null;
-    let fallbackPrice: number | null = null;
+    const { sku: parsedSku, orderNum: parsedOrderNum, fallbackName, fallbackPrice } =
+      parseScannedPayload(rawClean);
 
-    try {
-      const json = JSON.parse(rawClean);
-      if (json && typeof json === 'object') {
-        if (json.sku) parsedSku = String(json.sku).trim();
-        if (json.orderNumber) parsedOrderNum = String(json.orderNumber).trim();
-        if (json.name) fallbackName = String(json.name).trim();
-        if (typeof json.price === 'number') fallbackPrice = json.price;
-      }
-    } catch {
-      // Raw string format
-    }
-
-    if (!parsedSku && !parsedOrderNum) {
-      if (rawClean.toUpperCase().startsWith('ORD-')) {
-        parsedOrderNum = rawClean;
-      } else {
-        parsedSku = rawClean;
-      }
-    }
-
-    // 2. Scenario A: ORDER RECEIPT
+    // Scenario A: ORDER RECEIPT
     if (parsedOrderNum) {
-      const orderCode = parsedOrderNum;
       setIsOrderCode(true);
       setMatchedProduct(null);
       setLiveInventory(null);
 
-      showToast('Order Code Verified', `Scanned receipt #${orderCode}`, 'order');
-      void recordFunnelTelemetry({ eventType: 'QR_ORDER_SCANNED', step: orderCode }, user?.token);
+      showToast('Order Code Verified', `Scanned receipt #${parsedOrderNum}`, 'order');
+      void recordFunnelTelemetry({ eventType: 'QR_ORDER_SCANNED', step: parsedOrderNum }, user?.token);
 
       try {
         const userOrders = await fetchOrders(user?.token);
+        const upperOrderCode = parsedOrderNum.toUpperCase();
         const foundOrder = userOrders.find(
-          (o) =>
-            o.orderNumber.toUpperCase() === orderCode.toUpperCase() ||
-            String(o.id) === orderCode
+          (o) => o.orderNumber.toUpperCase() === upperOrderCode || String(o.id) === parsedOrderNum
         );
         setMatchedOrder(foundOrder || null);
       } catch {
@@ -166,58 +293,35 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       return;
     }
 
-    // 3. Scenario B: PRODUCT CATALOG & INVENTORY
-    if (parsedSku) {
-      const targetSku = parsedSku;
-      setIsOrderCode(false);
-      setMatchedOrder(null);
+    // Scenario B: PRODUCT CATALOG & INVENTORY
+    if (!parsedSku) return;
 
-      const found = products.find(
-        (p) =>
-          p.sku.toUpperCase() === targetSku.toUpperCase() ||
-          p.name.toUpperCase().includes(targetSku.toUpperCase()) ||
-          (p.id && String(p.id).toUpperCase() === targetSku.toUpperCase())
-      );
+    setIsOrderCode(false);
+    setMatchedOrder(null);
 
-      const productResolved: Product = found || {
-        id: 'pos-scanned',
-        sku: targetSku.toUpperCase(),
-        name: fallbackName || `Scanned Item (${targetSku})`,
-        price: fallbackPrice ?? 0,
-        status: true,
-        category: 'POS Scanned',
-        quantity: 0,
-        isInStock: false,
-      };
+    const productResolved = resolveCatalogProduct(products, parsedSku, fallbackName, fallbackPrice);
+    setMatchedProduct(productResolved);
 
-      setMatchedProduct(productResolved);
-
-      // Correlation with inventory-service (Authoritative real-time stock lookup)
-      setIsFetchingInventory(true);
-      try {
-        const invDetail = await fetchInventoryBySku(productResolved.sku, user?.token);
-        setLiveInventory(invDetail);
-        if (invDetail) {
-          showToast(
-            'Product & Stock Synced',
-            `${productResolved.name} | Live Stock: ${invDetail.quantity} units`,
-            'stock'
-          );
-        } else {
-          showToast('Product Identified', `${productResolved.name} (${productResolved.sku})`, 'stock');
-        }
-      } catch {
-        setLiveInventory(null);
-        showToast('Product Identified', `${productResolved.name} (${productResolved.sku})`, 'stock');
-      } finally {
-        setIsFetchingInventory(false);
-      }
-
-      void recordFunnelTelemetry(
-        { eventType: 'QR_PRODUCT_SCANNED', sku: productResolved.sku, category: productResolved.category },
-        user?.token
-      );
+    setIsFetchingInventory(true);
+    try {
+      const invDetail = await fetchInventoryBySku(productResolved.sku, user?.token);
+      setLiveInventory(invDetail);
+      const toastTitle = invDetail ? 'Product & Stock Synced' : 'Product Identified';
+      const toastMsg = invDetail
+        ? `${productResolved.name} | Live Stock: ${invDetail.quantity} units`
+        : `${productResolved.name} (${productResolved.sku})`;
+      showToast(toastTitle, toastMsg, 'stock');
+    } catch {
+      setLiveInventory(null);
+      showToast('Product Identified', `${productResolved.name} (${productResolved.sku})`, 'stock');
+    } finally {
+      setIsFetchingInventory(false);
     }
+
+    void recordFunnelTelemetry(
+      { eventType: 'QR_PRODUCT_SCANNED', sku: productResolved.sku, category: productResolved.category },
+      user?.token
+    );
   }, [products, user?.token, showToast]);
 
   // 1. Hardware USB / Bluetooth HID barcode reader listener (<45ms interval)
@@ -287,50 +391,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
     setCameraError(null);
 
     try {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Camera API is not supported on this browser or origin (requires HTTPS or localhost).');
-      }
-
-      let stream: MediaStream | null = null;
-
-      // Attempt 1: Standard ideal facingMode + 720p
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: facingMode },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        });
-      } catch (err: unknown) {
-        if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-          throw err;
-        }
-      }
-
-      // Attempt 2: Basic ideal facingMode without resolution constraints
-      if (!stream) {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: { ideal: facingMode } },
-            audio: false,
-          });
-        } catch (err: unknown) {
-          if (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
-            throw err;
-          }
-        }
-      }
-
-      // Attempt 3: Universal fallback ({ video: true })
-      if (!stream) {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
-        });
-      }
-
+      const stream = await acquireCameraStream(facingMode);
       streamRef.current = stream;
 
       const video = videoRef.current;
@@ -348,56 +409,27 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
         }
       }
 
-      // Hybrid Frame Scanner loop (BarcodeDetector + jsQR)
       scanIntervalRef.current = setInterval(async () => {
         const vid = videoRef.current;
         if (!vid || vid.readyState < 2 || vid.videoWidth === 0) return;
 
-        // 1. Native BarcodeDetector
-        if ('BarcodeDetector' in window) {
-          try {
-            const detector = new (window as unknown as {
-              BarcodeDetector: new (opts: { formats: string[] }) => {
-                detect: (source: HTMLVideoElement) => Promise<Array<{ rawValue: string }>>;
-              };
-            }).BarcodeDetector({
-              formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
-            });
-            const barcodes = await detector.detect(vid);
-            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-              void handleCodeDetected(barcodes[0].rawValue);
-              return;
-            }
-          } catch {}
+        const nativeCode = await detectWithNativeBarcodeDetector(vid);
+        if (nativeCode) {
+          void handleCodeDetected(nativeCode);
+          return;
         }
 
-        // 2. jsQR software fallback
-        try {
-          offscreenCanvasRef.current ??= document.createElement('canvas');
-          const canvas = offscreenCanvasRef.current;
-          const vw = vid.videoWidth;
-          const vh = vid.videoHeight;
-
-          if (vw > 0 && vh > 0) {
-            const scale = Math.min(1, 640 / Math.max(vw, vh));
-            const targetW = Math.floor(vw * scale);
-            const targetH = Math.floor(vh * scale);
-
-            canvas.width = targetW;
-            canvas.height = targetH;
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (ctx) {
-              ctx.drawImage(vid, 0, 0, targetW, targetH);
-              const imgData = ctx.getImageData(0, 0, targetW, targetH);
-              const qr = jsQR(imgData.data, targetW, targetH, {
-                inversionAttempts: 'attemptBoth',
-              });
-              if (qr?.data) {
-                void handleCodeDetected(qr.data);
-              }
-            }
-          }
-        } catch {}
+        offscreenCanvasRef.current ??= document.createElement('canvas');
+        const scale = Math.min(1, 640 / Math.max(vid.videoWidth, vid.videoHeight));
+        const qrData = detectWithJsQrCanvas(
+          vid,
+          offscreenCanvasRef.current,
+          Math.floor(vid.videoWidth * scale),
+          Math.floor(vid.videoHeight * scale)
+        );
+        if (qrData) {
+          void handleCodeDetected(qrData);
+        }
       }, 250);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Camera access permission denied';
@@ -456,55 +488,21 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
       reader.onload = (ev) => {
         const img = new Image();
         img.onload = async () => {
-          let found = false;
+          const detected =
+            (await detectWithNativeBarcodeDetector(img)) ??
+            detectWithJsQrCanvas(img, document.createElement('canvas'), img.width, img.height);
 
-          // Native BarcodeDetector
-          if ('BarcodeDetector' in window) {
-            try {
-              const detector = new (window as unknown as {
-                BarcodeDetector: new (opts: { formats: string[] }) => {
-                  detect: (source: HTMLImageElement) => Promise<Array<{ rawValue: string }>>;
-                };
-              }).BarcodeDetector({
-                formats: ['qr_code', 'code_128', 'ean_13', 'upc_a'],
-              });
-              const codes = await detector.detect(img);
-              if (codes && codes.length > 0 && codes[0].rawValue) {
-                void handleCodeDetected(codes[0].rawValue);
-                found = true;
-              }
-            } catch {}
+          if (detected) {
+            void handleCodeDetected(detected);
+            setIsProcessingFile(false);
+            return;
           }
 
-          // jsQR canvas decoding
-          if (!found) {
-            try {
-              const canvas = document.createElement('canvas');
-              canvas.width = img.width;
-              canvas.height = img.height;
-              const ctx = canvas.getContext('2d', { willReadFrequently: true });
-              if (ctx) {
-                ctx.drawImage(img, 0, 0);
-                const imgData = ctx.getImageData(0, 0, img.width, img.height);
-                const qr = jsQR(imgData.data, img.width, img.height, {
-                  inversionAttempts: 'attemptBoth',
-                });
-                if (qr?.data) {
-                  void handleCodeDetected(qr.data);
-                  found = true;
-                }
-              }
-            } catch {}
-          }
-
-          // Filename match fallback
-          if (!found) {
-            const nameMatch = file.name.match(/(?:LAPTOP|KEYBOARD|MOUSE|ORD)-[A-Z0-9-]+/i);
-            if (nameMatch) {
-              void handleCodeDetected(nameMatch[0]);
-            } else {
-              showToast('No Code Detected', 'Could not detect a valid QR or Barcode in this image.', 'system');
-            }
+          const nameMatch = file.name.match(/(?:LAPTOP|KEYBOARD|MOUSE|ORD)-[A-Z0-9-]+/i);
+          if (nameMatch) {
+            void handleCodeDetected(nameMatch[0]);
+          } else {
+            showToast('No Code Detected', 'Could not detect a valid QR or Barcode in this image.', 'system');
           }
           setIsProcessingFile(false);
         };
@@ -732,7 +730,7 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
                 <input
                   type="file"
                   accept="image/*"
-                  onChange={(e) => void handleFileUpload(e)}
+                  onChange={handleFileUpload}
                   className="hidden"
                 />
               </label>

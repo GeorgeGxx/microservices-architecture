@@ -246,6 +246,36 @@ ProductCard.Actions = function ProductCardActions() {
     setTimeout(() => setIsAdded(false), 1500);
   };
 
+  let addButtonTone = 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20';
+  if (!isInStock) {
+    addButtonTone =
+      'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none border border-slate-200 dark:border-slate-700/60';
+  } else if (isAdded) {
+    addButtonTone = 'bg-emerald-600 text-white shadow-emerald-500/20';
+  }
+
+  let addButtonContent = (
+    <>
+      <ShoppingBag className="w-3.5 h-3.5" />
+      Add to Cart
+    </>
+  );
+  if (isAdded) {
+    addButtonContent = (
+      <>
+        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+        Added!
+      </>
+    );
+  } else if (!isInStock) {
+    addButtonContent = (
+      <>
+        <AlertTriangle className="w-3.5 h-3.5" />
+        Out of Stock
+      </>
+    );
+  }
+
   return (
     <div className="flex items-center gap-1.5">
       {onOpenQR && user?.isAdmin && (
@@ -262,30 +292,9 @@ ProductCard.Actions = function ProductCardActions() {
         onClick={handleAddToCart}
         disabled={!isInStock}
         title={!isInStock ? 'This product is currently out of stock' : 'Add to cart'}
-        className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-xs shadow-md transition active:scale-95 ${
-          !isInStock
-            ? 'bg-slate-100 dark:bg-slate-800/80 text-slate-400 dark:text-slate-500 cursor-not-allowed shadow-none border border-slate-200 dark:border-slate-700/60'
-            : isAdded
-            ? 'bg-emerald-600 text-white shadow-emerald-500/20'
-            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-500/20'
-        }`}
+        className={`inline-flex items-center gap-1 px-3 py-2 rounded-xl font-bold text-xs shadow-md transition active:scale-95 ${addButtonTone}`}
       >
-        {isAdded ? (
-          <>
-            <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-            Added!
-          </>
-        ) : !isInStock ? (
-          <>
-            <AlertTriangle className="w-3.5 h-3.5" />
-            Out of Stock
-          </>
-        ) : (
-          <>
-            <ShoppingBag className="w-3.5 h-3.5" />
-            Add to Cart
-          </>
-        )}
+        {addButtonContent}
       </button>
     </div>
   );
