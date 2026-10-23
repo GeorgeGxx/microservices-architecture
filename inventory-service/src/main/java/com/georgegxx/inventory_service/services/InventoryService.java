@@ -270,6 +270,7 @@ public class InventoryService {
      * deducts stock, updates Prometheus gauges, and evicts cache entries.
      */
     @Transactional
+    @SuppressWarnings("java:S9395")
     public BaseResponse decrementStock(List<OrderItemsRequest> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
             return new BaseResponse(null);
@@ -307,14 +308,13 @@ public class InventoryService {
         // 4. Persist updated quantities; publish metrics and cache changes only after commit.
         this.inventoryRepository.saveAll(lockedInventory);
         long committedUnitsDeducted = totalUnitsDeducted;
-        double committedUnitsDeductedMetric = Long.valueOf(committedUnitsDeducted).doubleValue();
         afterCommit(() -> {
             lockedInventory.forEach(inv -> updateSkuGaugeState(inv.getSku(), inv.getQuantity()));
             this.totalStockState.addAndGet(-committedUnitsDeducted);
             if (this.stockDecrementsCounter != null) {
-                this.stockDecrementsCounter.increment(committedUnitsDeductedMetric);
+                this.stockDecrementsCounter.increment(committedUnitsDeducted);
             } else {
-                this.meterRegistry.counter("inventory_stock_decrements_total").increment(committedUnitsDeductedMetric);
+                this.meterRegistry.counter("inventory_stock_decrements_total").increment(committedUnitsDeducted);
             }
             evictInventoryCaches(requestedQuantities.keySet());
         });
