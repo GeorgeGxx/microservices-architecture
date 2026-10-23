@@ -11,14 +11,6 @@ resource "aws_security_group" "msk" {
     security_groups = var.allowed_security_group_ids
   }
 
-  ingress {
-    description     = "Kafka ZooKeeper / KRaft port"
-    from_port       = 2181
-    to_port         = 2181
-    protocol        = "tcp"
-    security_groups = var.allowed_security_group_ids
-  }
-
   egress {
     description = "Allow all outbound traffic"
     from_port   = 0
@@ -49,6 +41,7 @@ resource "aws_cloudwatch_log_group" "msk" {
 }
 
 resource "aws_msk_cluster" "this" {
+  # MSK Provisioned currently supports Kafka 4.1.x; Kafka 4.2.x is Express-only.
   cluster_name           = "${var.name}-${var.environment}-kafka"
   kafka_version          = var.kafka_version
   number_of_broker_nodes = var.number_of_broker_nodes
