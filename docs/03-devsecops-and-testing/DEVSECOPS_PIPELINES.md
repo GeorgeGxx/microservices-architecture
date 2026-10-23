@@ -7,6 +7,21 @@
 
 ---
 
+## Pinned CI toolchain
+
+The CI providers use a shared, explicit baseline for the main build and infrastructure tools. Windows development runtimes remain Java 21, Node.js 22, and Python 3.12.
+
+| Tool | Pipeline baseline |
+| :--- | :--- |
+| Terraform CLI | 1.16.2 across GitHub Actions, Azure DevOps, and Bitbucket |
+| Helm CLI | 4.3.1 across GitHub Actions, Azure DevOps, and Bitbucket; charts remain Helm API v2 |
+| Trivy CLI | 0.76.1 across GitHub Actions, Azure DevOps, and Bitbucket |
+| TFLint | 0.64.0 in the Azure Terraform pipeline |
+| Maven | 3.10.0 with Eclipse Temurin 21 in Bitbucket Pipelines |
+| k6 | 1.8.1 in local scripts and CI pipelines |
+
+The Helm 4 upgrade is validated by linting service and umbrella charts, rendering Kubernetes manifests, and running the existing Conftest policy checks. Keep the CLI versions aligned when changing these pipeline baselines.
+
 ## 🛡️ Local DevSecOps Platform and delivery paths
 
 The architecture includes a production-parity **DevSecOps ecosystem** designed to run locally with **zero cloud costs** using a Windows GitHub Actions Self-Hosted Runner (`winsvc`), Minikube, and Terraform. See the [local deployment guide](../02-operations/LOCAL_DEPLOYMENT.md#-prerequisites) for the canonical workstation and Minikube resource profile.
@@ -55,7 +70,7 @@ The application and observability URLs above use Docker Compose host ports or th
 The platform provides two independent entrypoints:
 - [`platform-minikube.ps1`](../../platform-minikube.ps1) for local zero-cloud-cost development, Istio, Gatekeeper, MLOps, and Vault.
 - [`platform-multicloud.ps1`](../../platform-multicloud.ps1) for enterprise cloud operations across AWS, Azure, and GCP.
-Shared implementation helpers and the unified DevSecOps core engine live in [`platform-common.ps1`](../../platform-common.ps1).
+Both entrypoints are standalone: each embeds only the runtime and operational helpers needed for its platform, keeping local Minikube workflows separate from AWS, Azure, and GCP workflows.
 
 > The naming model is intentionally split: Git branches are `develop`, `staging`, `master`, while cluster namespaces are `dev`, `staging`, `prod`. The deployment pipeline maps branch to namespace, but the scripts keep them distinct to avoid operational ambiguity.
 >
@@ -218,7 +233,7 @@ devsecops/
 | :--- | :--- | :--- |
 | **Trivy** | GitHub blocks fixed CRITICAL findings in source and built images; HIGH findings are reported as advisory. The shared config applies severity and `.trivyignore`. | Agree on a time-bound HIGH remediation policy and reviewed exceptions before making HIGH blocking. |
 | **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
-| **Checkov** | Blocking for the configured IaC scan jobs. | Triage baseline findings and keep exception ownership and expiry explicit. |
+| **Trivy IaC** | Runs in audit mode with the shared Trivy configuration in local scripts and CI pipelines; findings are visible without blocking while the baseline is tuned. | Promote reviewed misconfiguration rules to blocking consistently in the shared Trivy configuration and all CI targets. |
 | **Conftest (OPA)** | Blocking on privileged containers, missing CPU/memory limits, untagged or latest-style images, and default/missing ServiceAccounts across Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs. Missing health probes are reported as warnings. | Extend coverage to organization-specific admission controls and validate them against every rendered target. |
 | **OWASP ZAP** | Fails on rules marked `FAIL` in `rules.tsv`; advisory on `WARN`. | Strict blocking on security headers and CSP violations. |
 
@@ -330,7 +345,7 @@ The runner leverages all available hardware threads of the Intel/AMD processor t
 The reusable service workflow currently has seven numbered job groups, followed by a conditional recovery job. Its implemented path is:
 
 1. **🧪 Unit/build verification**: Maven tests and JaCoCo for Spring services, or npm build for the web frontend.
-2. **🔍 SAST and secrets**: Gitleaks, Semgrep and Checkov. Optional SonarQube Cloud analysis runs with unit/build verification.
+2. **🔍 SAST, secrets and IaC**: Gitleaks, Semgrep and Trivy configuration scanning. Optional SonarQube Cloud analysis runs with unit/build verification.
 3. **⚙️ Image and SBOM**: BuildKit produces an image archive and Trivy generates CycloneDX SBOM.
 4. **🧰 Container scan**: Trivy blocks fixed CRITICAL vulnerabilities in the source and built image; HIGH findings are reported as advisory until the project sets an agreed remediation threshold.
 5. **🧾 Policy gate**: Helm renders the chart and Conftest evaluates Rego policies.
@@ -380,7 +395,7 @@ If tunnels or public URLs are already established, you can toggle the stage dire
 
 ##### 🎯 7. Extending the Blocking Security Gates
 
-Fixed CRITICAL Trivy findings and Checkov findings already block the configured GitHub workflows. To make HIGH Trivy findings blocking, change both source and image scan steps in `.github/workflows/security-scan.yml` and `.github/workflows/_service-ci-cd-template.yml` to include `HIGH,CRITICAL` with `exit-code: '1'`, then review `.trivyignore` exceptions and the expected pipeline impact. ZAP continues to fail `FAIL` rules and report `WARN` rules from `devsecops/dast/zap/rules.tsv`; promote a `WARN` only after verifying it against the local and CI test targets.
+Fixed CRITICAL Trivy vulnerability findings block the configured GitHub source and image scans; HIGH findings remain advisory. IaC configuration scans use Trivy in audit mode with the shared configuration. To make HIGH vulnerabilities or selected IaC misconfigurations blocking, update the relevant Trivy policy/configuration and CI exit behavior together, then review `.trivyignore` exceptions and expected pipeline impact. ZAP continues to fail `FAIL` rules and report `WARN` rules from `devsecops/dast/zap/rules.tsv`; promote a `WARN` only after verifying it against the local and CI test targets.
 
 ---
 
@@ -460,7 +475,7 @@ The project uses provider-specific CI/CD workflows and recovery controls; rollba
 
 ### 2. Azure DevOps - Single Unified Pipeline (Azure Cloud)
 - **Shared application pipeline (`azure-devops/templates/app-stages.yml`)**: Each component entry point executes the same **14 numbered stages** plus rollback stages:
-  - Stages 1-5: Unit Tests (Maven/React, JaCoCo), SAST (Semgrep, Gitleaks, Checkov, SonarQube), BuildKit Container Build & CycloneDX SBOM, Trivy Scan, Conftest OPA.
+  - Stages 1-5: Unit Tests (Maven/React, JaCoCo), SAST (Semgrep, Gitleaks, SonarQube) and Trivy IaC configuration scan, BuildKit Container Build & CycloneDX SBOM, Trivy image scan, Conftest OPA.
   - **Dev Tier (Stage 5.5)**: Deploys to AKS namespace **`dev`** on `develop` branch with **`RollbackDev`** on failure.
   - **Staging Tier (Stage 6)**: Deploys to AKS namespace **`staging`** with full QA validation (Newman API tests, Cypress E2E, k6 latency/stress, OWASP ZAP DAST) and **`RollbackStaging`** on any test failure.
   - **Promotion**: Certified image promotion to Azure Container Registry (ACR).
@@ -489,7 +504,7 @@ The matrix below is a parity target and implementation inventory, not a guarante
 | :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |
 | **Secret Detection** | Gitleaks | `devsecops/sast/gitleaks/.gitleaks.toml` | Check workflow configuration | Check pipeline configuration | Check pipeline configuration | Pre-commit / CI configuration | Shared policy; provider parity needs verification |
 | **Vulnerability Scanning** | Trivy | `devsecops/compliance/trivy/trivy.yaml` | Check workflow thresholds | Check pipeline thresholds | Check pipeline thresholds | Admission policy is separate | Shared policy; thresholds may differ |
-| **IaC Security Scan** | Checkov | Dockerfile, Helm, Kubernetes, Terraform | App/cloud behavior differs | Branch-specific policy | Branch-specific policy | Gatekeeper policy is separate | Provider- and branch-specific |
+| **IaC Misconfiguration Scan** | Trivy config | `devsecops/compliance/trivy/trivy.yaml` and `.trivyignore` | Terraform and service configuration scans | Terraform and service configuration scans | Service configuration scan | Admission policy is separate | Shared engine/configuration; scanned targets vary by pipeline |
 | **Policy-as-Code (OPA)** | Conftest | `devsecops/policies/conftest/*.rego` | Check rendered targets | Check rendered targets | Check rendered targets | Argo/Gatekeeper integration varies | Verify per delivery path |
 | **Cost Allocation Gate** | OpenCost CLI | `scripts/validate-opencost.sh` | Optional/provider-specific | Provider-specific | Provider-specific | Monitoring integration only | Not a universal release gate |
 | **Static Code Quality** | SonarQube Cloud | Common keys: `msa-<service>` | Depends on `SONAR_TOKEN` and job | Depends on pipeline configuration | Depends on pipeline configuration | PR decoration is separate | Configuration-dependent |

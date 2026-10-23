@@ -1,4 +1,4 @@
-image: maven:3.9.9-eclipse-temurin-21
+image: maven:3.10.0-eclipse-temurin-21
 
 options:
   max-time: 45
@@ -93,14 +93,14 @@ definitions:
               fi
             fi
     - step: &sast
-        name: '2. SAST, secrets and IaC scan'
+        name: '2. SAST, secrets and Trivy IaC scan'
         image: python:3.12-slim
         script:
           - apt-get update && apt-get install -y --no-install-recommends curl tar && rm -rf /var/lib/apt/lists/*
           - curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
           - gitleaks detect --source . --config devsecops/sast/gitleaks/.gitleaks.toml --no-git
-          - pip install --no-cache-dir checkov==3.2.495
-          - checkov -d "${SERVICE_DIR:-${SERVICE_NAME:-products-service}}" --framework dockerfile,kubernetes,helm
+          - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.76.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.76.1
+          - trivy config --config devsecops/compliance/trivy/trivy.yaml --ignorefile devsecops/compliance/trivy/.trivyignore "${SERVICE_DIR:-${SERVICE_NAME:-products-service}}"
     - step: &build-sbom
         name: '3. Build immutable image and CycloneDX SBOM'
         services: [docker]
@@ -122,14 +122,14 @@ definitions:
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f "$SERVICE_DIR/Dockerfile" .
             fi
             docker save "local/${SERVICE_NAME}:${IMAGE_TAG}" -o "artifacts/images/${SERVICE_NAME}.tar"
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.59.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.59.1
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.76.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.76.1
             trivy image --input "artifacts/images/${SERVICE_NAME}.tar" --format cyclonedx --output "artifacts/sbom/${SERVICE_NAME}.cdx.json"
         artifacts:
           - artifacts/images/**
           - artifacts/sbom/**
     - step: &container-scan
         name: '4. Container vulnerability scan'
-        image: aquasec/trivy:0.59.1
+        image: aquasec/trivy:0.76.1
         services: [docker]
         script:
           - set -euo pipefail
@@ -137,7 +137,7 @@ definitions:
           - trivy image --input "artifacts/images/${SERVICE_NAME:-products-service}.tar" --config devsecops/compliance/trivy/trivy.yaml --ignorefile devsecops/compliance/trivy/.trivyignore --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
     - step: &policy-gate
         name: '5. Helm, OpenCost and OPA policy gate'
-        image: alpine/helm:3.17.3
+        image: alpine/helm:4.3.1
         script:
           - apk add --no-cache bash curl tar nodejs npm
           - npx --yes wgc@0.133.3 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
@@ -159,7 +159,7 @@ definitions:
           - helm/charts/cosmo-router/files/**
     - step: &terraform-validate
         name: '6. GCP Terraform format and validation (no backend/apply)'
-        image: hashicorp/terraform:1.8.5
+        image: hashicorp/terraform:1.16.2
         script:
           - set -euo pipefail
           - terraform fmt -check -recursive terraform/
@@ -213,7 +213,7 @@ definitions:
             trap 'rm -f /tmp/gcp-key.json' EXIT
             gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
             gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
-            curl -fsSL https://raw.githubusercontent.com/helm/helm/v3.17.3/scripts/get-helm-3 | HELM_INSTALL_DIR=/usr/local/bin bash -s -- --version v3.17.3
+            bash scripts/install-helm4.sh v4.3.1
             CHART_VERSION="$(helm show chart helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
             CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' helm/microservices-umbrella/Chart.yaml)"
             [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
@@ -269,7 +269,7 @@ definitions:
           - python scripts/testing/smoke.py --deployment --base-url "$GKE_INGRESS_URL" --frontend-url "$GKE_FRONTEND_URL"
     - step: &performance
         name: '11. k6 performance and SLO checks'
-        image: grafana/k6:0.55.0
+        image: grafana/k6:1.8.1
         script:
           - set -euo pipefail
           - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'

@@ -205,6 +205,12 @@ The platform provides a fully production-grade, hardened **Amazon Web Services (
 
 ### Active AWS Platform Components
 
+#### Managed data-streaming version alignment
+
+The local `confluentinc/cp-kafka:8.3.2` image is Confluent Platform 8.3.2 and bundles Apache Kafka 4.3.x; its tag is not an Apache Kafka version. The Terraform MSK module provisions standard (non-Express) brokers, for which AWS currently supports Kafka 4.1.x as the closest available line. MSK Kafka 4.2.x is Express-only, so Terraform uses `4.1.x` until the module explicitly adopts Express brokers. This is the closest managed-service mapping, not a same-version deployment; validate client compatibility and feature use when promoting between environments. Kafka 4.x uses KRaft, so the Terraform module uses an M5 broker because AWS does not support T3 brokers with KRaft. For an existing ZooKeeper-based MSK cluster, check AWS's supported migration path and compatible target versions before applying Terraform; the version change alone is not a safe migration plan. See [Confluent's compatibility matrix](https://docs.confluent.io/platform/current/installation/versions-interoperability.html), [AWS MSK supported versions](https://docs.aws.amazon.com/msk/latest/developerguide/supported-kafka-versions.html), [AWS MSK version upgrades](https://docs.aws.amazon.com/msk/latest/developerguide/version-upgrades.html), and [AWS MSK broker sizes](https://docs.aws.amazon.com/msk/latest/developerguide/broker-instance-sizes.html).
+
+ElastiCache remains on Redis OSS 7.1, currently AWS's newest Redis OSS engine version. ElastiCache's newer Valkey releases use a distinct engine and require a compatibility/migration decision rather than a Redis version bump. See [AWS ElastiCache engine versions](https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/engine-versions.html).
+
 * **Terraform Infrastructure as Code ([`terraform/environments/aws/`](../../terraform/environments/aws/)):**
   * Modular multi-environment workspaces: `dev`, `staging`, and `prod`.
   * Backed by production-grade modules in [`terraform/modules/aws/`](../../terraform/modules/aws/):

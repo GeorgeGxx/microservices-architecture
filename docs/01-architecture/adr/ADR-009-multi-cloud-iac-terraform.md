@@ -15,7 +15,7 @@ We require an Infrastructure as Code (IaC) framework that:
 1. Provisions Kubernetes clusters and supporting cloud services across AWS (EKS), Azure (AKS), GCP (GKE), and Minikube.
 2. Promotes reusable, modular design across development, staging, and production tiers.
 3. Integrates with remote state storage and distributed state locking.
-4. Supports automated security scanning in CI/CD pipelines (via Checkov / Trivy).
+4. Supports automated security scanning in CI/CD pipelines (via Trivy configuration scanning and Conftest policy checks).
 
 ---
 
@@ -42,7 +42,7 @@ We require an Infrastructure as Code (IaC) framework that:
 | :--- | :---: | :---: | :---: | :---: |
 | **Multi-Cloud Unified Language** | 5 | 0 (Baseline: fragmented) | **+1** (Single language: HCL) | +1 (TypeScript/Go/Python) |
 | **Declarative State & Plan Diffs** | 5 | 0 (Baseline) | **+1** (Predictable `terraform plan`) | +1 (Plan diffs) |
-| **Security Scanning Ecosystem (Checkov)** | 4 | 0 (Baseline) | **+1** (Industry standard for static IaC scan) | 0 (Less mature rulesets) |
+| **Security Scanning Ecosystem** | 4 | 0 (Baseline) | **+1** (Mature Terraform ecosystem and provider tooling) | 0 (Less mature provider rulesets) |
 | **Developer Onboarding & Adoption** | 4 | 0 (Baseline: 3 different stacks) | **+1** (High global adoption) | 0 (Programming language fragmentation) |
 | **Weighted Total** | - | **0.00** | **+18 (WINNER)** | +10.00 |
 
@@ -60,4 +60,4 @@ The repository organizes Terraform into a clean modular architecture:
 
 ### Positive Consequences
 * **Decoupled entrypoints:** `platform-multicloud.ps1` (`-Provider aws|azure|gcp`) drives Terraform across cloud providers without cascading scripts; `platform-minikube.ps1` manages the local zero-cost cluster.
-* **Shift-Left IaC Security:** Validated in CI/CD using Checkov and Trivy before any infrastructure changes are applied.
+* **Shift-Left IaC Security:** Validated in CI/CD using Trivy configuration scanning, Conftest policies, Terraform validation, and TFLint before infrastructure changes are applied.

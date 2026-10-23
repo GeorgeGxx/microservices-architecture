@@ -45,7 +45,7 @@ The operating model coordinates six distinct cross-functional roles across the e
 | Traditional Workflow Characteristic | DevSecOps & S-SDLC Evolution in Microservices Architecture | Implementation / Gate in Project |
 | :--- | :--- | :--- |
 | **Manual Committee Review 1 (Pre-Build)** | Replaced by **Definition of Ready (DoR)** with schema-first validation and peer-approved ADRs for breaking changes. | [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md) (DoR checklist) |
-| **Vague "Tools Review" at end of Code** | Decomposed into continuous **Shift-Left automated gates** at Pre-commit (Gitleaks) and Pull Request (JaCoCo $\ge$ 80%, SonarQube SAST, Trivy SCA & Secrets, Checkov IaC). | [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) & [DoD Level 1](./QUALITY_GATES_AND_DOD.md) |
+| **Vague "Tools Review" at end of Code** | Decomposed into continuous **Shift-Left automated gates** at Pre-commit (Gitleaks) and Pull Request (JaCoCo $\ge$ 80%, SonarQube SAST, Trivy SCA, secrets and IaC configuration). | [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) & [DoD Level 1](./QUALITY_GATES_AND_DOD.md) |
 | **Manual Committee Review 2 (Pre-Testing)** | Replaced by **Automated Pull Request Validation & Branch Protection Rules** for merge into `develop`. | GitHub Actions branch protection & mandatory peer approval |
 | **Isolated "Automation Stress Security" block** | Integrated into continuous **DoD Level 2 Staging Gate** via ArgoCD: Postman/Newman contract verification, Cosmo Router federation checks, k6 load testing, and OWASP ZAP DAST. | [`devsecops/testing/`](../../devsecops/testing/) & [`devsecops/dast/zap/`](../../devsecops/dast/zap/) |
 | **IaC as a static deployment overlay** | **Declarative GitOps & Admission Control:** Terraform in `terraform/`, Helm in `helm/`, ArgoCD in `argocd/`, validated statically with Conftest/Rego and dynamically with OPA Gatekeeper. | [`devsecops/policies/`](../../devsecops/policies/) & [`argocd/`](../../argocd/) |
@@ -80,7 +80,7 @@ flowchart TD
         TDD["💻 Test-Driven Development (TDD)<br/>• Unit tests written first<br/>• Clean Architecture & SOLID standards"]:::dev
         CODE["🔨 Implementation & Pre-commit<br/>• Local linting & formatting<br/>• Gitleaks secret detection hook"]:::dev
         PR["👥 Peer Review & Pull Request<br/>• Code review by Tech Leads<br/>• Conventional Commits verification"]:::lead
-        DoD1(["🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage &ge; 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Lint (Checkov & Conftest Rego)"]):::gate
+        DoD1(["🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage &ge; 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Misconfiguration (Trivy) & Policy (Conftest Rego)"]):::gate
         BUILD["📦 Immutable Container Build<br/>• Multi-stage non-root distroless build<br/>• Trivy image scan & Cosign signature"]:::ops
 
         DoR -->|Ready for Sprint| TDD
@@ -169,7 +169,7 @@ sequenceDiagram
     CI->>CI: 1. Unit Tests & JaCoCo Coverage (≥ 80%)
     CI->>CI: 2. SAST (SonarQube Quality Gate)
     CI->>CI: 3. SCA & Secret Scan (Trivy & Gitleaks)
-    CI->>CI: 4. IaC Policy Check (Checkov / OPA)
+    CI->>CI: 4. IaC Configuration and Policy Check (Trivy / OPA)
     CI-->>Dev: Build Artifacts & Container Images
     end
 
@@ -217,7 +217,7 @@ The following RACI matrix specifies organizational accountability across the mul
 | **4. Automated Gates** | Build & Container Packaging | I | I | I | I | I | I | C | I | - | **A / R** |
 | | SAST & SonarQube Quality Gate | I | I | C | R | I | **A** | I | - | - | **R** |
 | | Container & Dependency CVE Scanning | I | I | I | R | I | **A** | C | - | - | **R** |
-| | IaC Security Linting (Checkov / Trivy) | I | C | I | I | I | **A** | R | - | - | **R** |
+| | IaC Security Linting (Trivy config / Conftest) | I | C | I | I | I | **A** | R | - | - | **R** |
 | | API Contract Testing (Newman) | I | I | C | C | **A / R** | I | I | - | - | **R** |
 | | Load & Performance Testing (k6) | I | C | C | C | **A / R** | I | C | C | - | **R** |
 | | Dynamic Application Security (OWASP ZAP) | I | I | I | I | C | **A** | I | - | - | **R** |

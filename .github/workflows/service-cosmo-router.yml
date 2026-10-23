@@ -38,9 +38,8 @@ jobs:
           mkdir -p helm/charts/cosmo-router/files
           cp cosmo-router/execution-config.json helm/charts/cosmo-router/files/execution-config.json
 
-      - uses: azure/setup-helm@v5
-        with:
-          version: 'v3.17.3'
+      - name: Install Helm 4
+        run: bash scripts/install-helm4.sh v4.3.1
 
       - name: Resolve local Helm dependencies and lint
         run: |

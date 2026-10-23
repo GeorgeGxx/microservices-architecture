@@ -43,10 +43,11 @@ steps:
   # Deployment jobs: do not rely on an implicit checkout for chart/manifests.
   - checkout: self
 
-  - task: HelmInstaller@1
+  - bash: |
+      set -euo pipefail
+      bash scripts/install-helm4.sh "${{ parameters.helmVersion }}"
+      helm version --short
     displayName: "Install Helm ${{ parameters.helmVersion }}"
-    inputs:
-      helmVersionToInstall: ${{ parameters.helmVersion }}
 
   - task: AzureCLI@2
     displayName: "Helm upgrade -> ${{ parameters.envName }} (${{ parameters.cluster }} / ${{ parameters.namespace }})"
