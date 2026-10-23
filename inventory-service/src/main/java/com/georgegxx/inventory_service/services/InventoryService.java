@@ -15,6 +15,8 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -187,17 +189,14 @@ public class InventoryService {
         // Persist the updated stock entity
         Inventory saved = this.inventoryRepository.save(inventory);
 
-        // O(1) in-memory atomic delta calculation to update Prometheus metrics
         long delta = safeQty - oldQty;
-        this.totalStockState.addAndGet(delta);
-        updateSkuGaugeState(saved.getSku(), saved.getQuantity());
-
-        // Invalidate cache for the updated SKU
-        evictInventoryCache(sku);
-
-        // Track restock counter metric and log event
-        this.meterRegistry.counter("inventory_restock_total", "sku", saved.getSku()).increment();
-        log.info("Stock updated for SKU {}: {} units (delta: {})", saved.getSku(), saved.getQuantity(), delta);
+        afterCommit(() -> {
+            this.totalStockState.addAndGet(delta);
+            updateSkuGaugeState(saved.getSku(), saved.getQuantity());
+            evictInventoryCache(sku);
+            this.meterRegistry.counter("inventory_restock_total", "sku", saved.getSku()).increment();
+            log.info("Stock updated for SKU {}: {} units (delta: {})", saved.getSku(), saved.getQuantity(), delta);
+        });
         return mapToInventoryResponse(saved);
     }
 
@@ -301,21 +300,24 @@ public class InventoryService {
             long reqQty = requestedQuantities.get(inv.getSku());
             long newQty = inv.getQuantity() - reqQty;
             inv.setQuantity(newQty);
-            totalUnitsDeducted += reqQty;
+            totalUnitsDeducted = Math.addExact(totalUnitsDeducted, reqQty);
             totalUnitsDeductedMetric += reqQty;
-            updateSkuGaugeState(inv.getSku(), newQty);
         }
 
-        // 4. Persist updated quantities and refresh in-memory / cache states
+        // 4. Persist updated quantities; publish metrics and cache changes only after commit.
         this.inventoryRepository.saveAll(lockedInventory);
-        this.totalStockState.addAndGet(-totalUnitsDeducted);
-        if (this.stockDecrementsCounter != null) {
-            this.stockDecrementsCounter.increment(totalUnitsDeductedMetric);
-        } else {
-            this.meterRegistry.counter("inventory_stock_decrements_total")
-                    .increment(totalUnitsDeductedMetric);
-        }
-        evictInventoryCaches(requestedQuantities.keySet());
+        long committedUnitsDeducted = totalUnitsDeducted;
+        double committedUnitsDeductedMetric = totalUnitsDeductedMetric;
+        afterCommit(() -> {
+            lockedInventory.forEach(inv -> updateSkuGaugeState(inv.getSku(), inv.getQuantity()));
+            this.totalStockState.addAndGet(-committedUnitsDeducted);
+            if (this.stockDecrementsCounter != null) {
+                this.stockDecrementsCounter.increment(committedUnitsDeductedMetric);
+            } else {
+                this.meterRegistry.counter("inventory_stock_decrements_total").increment(committedUnitsDeductedMetric);
+            }
+            evictInventoryCaches(requestedQuantities.keySet());
+        });
 
         return new BaseResponse(null);
     }
@@ -338,23 +340,34 @@ public class InventoryService {
         List<String> sortedSkus = requestedQuantities.keySet().stream().sorted().toList();
         List<Inventory> lockedInventory = this.inventoryRepository.findBySkuInWithLock(sortedSkus);
 
+        Set<String> foundSkus = lockedInventory.stream().map(Inventory::getSku).collect(Collectors.toSet());
+        List<String> missingSkus = sortedSkus.stream().filter(sku -> !foundSkus.contains(sku)).toList();
+        if (!missingSkus.isEmpty()) {
+            return new BaseResponse(missingSkus.stream()
+                    .map(sku -> "Product with sku " + sku + " does not exist in inventory")
+                    .toArray(String[]::new));
+        }
+
         // Restore stock quantities for each SKU
         long totalRestored = 0;
         for (Inventory inv : lockedInventory) {
             Long qty = requestedQuantities.get(inv.getSku());
             if (qty != null) {
-                long newQty = inv.getQuantity() + qty;
+                long newQty = Math.addExact(inv.getQuantity(), qty);
                 inv.setQuantity(newQty);
-                totalRestored += qty;
-                updateSkuGaugeState(inv.getSku(), newQty);
+                totalRestored = Math.addExact(totalRestored, qty);
             }
         }
 
-        // Persist restored inventory and update Prometheus metric state
+        // Persist restored inventory and update metrics/cache only after commit.
         this.inventoryRepository.saveAll(lockedInventory);
-        this.totalStockState.addAndGet(totalRestored);
-        evictInventoryCaches(requestedQuantities.keySet());
-        log.info("Stock compensated/restored for SKUs: {} (total restored: {})", requestedQuantities.keySet(), totalRestored);
+        long committedTotalRestored = totalRestored;
+        afterCommit(() -> {
+            lockedInventory.forEach(inv -> updateSkuGaugeState(inv.getSku(), inv.getQuantity()));
+            this.totalStockState.addAndGet(committedTotalRestored);
+            evictInventoryCaches(requestedQuantities.keySet());
+            log.info("Stock compensated/restored for SKUs: {} (total restored: {})", requestedQuantities.keySet(), committedTotalRestored);
+        });
 
         return new BaseResponse(null);
     }
@@ -383,20 +396,40 @@ public class InventoryService {
         }
     }
 
+    private void afterCommit(Runnable action) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            action.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    action.run();
+                } catch (RuntimeException ex) {
+                    log.error("Failed to refresh inventory metrics/cache after database commit", ex);
+                }
+            }
+        });
+    }
+
     /**
      * Aggregates a list of order items by SKU, summing up requested quantities
      * and filtering out null or invalid entries.
      */
     private Map<String, Long> aggregateQuantities(List<OrderItemsRequest> orderItems) {
-        return Optional.ofNullable(orderItems)
-                .orElseGet(Collections::emptyList)
-                .stream()
-                .filter(Objects::nonNull)
-                .filter(item -> item.getSku() != null)
-                .collect(Collectors.groupingBy(
-                    item -> item.getSku(),
-                        Collectors.summingLong(item -> Optional.ofNullable(item.getQuantity()).orElse(0L))
-                ));
+        Map<String, Long> quantitiesBySku = new HashMap<>();
+        for (OrderItemsRequest item : Optional.ofNullable(orderItems).orElseGet(Collections::emptyList)) {
+            if (item == null || item.getSku() == null) continue;
+            long quantity = Optional.ofNullable(item.getQuantity()).orElse(0L);
+            try {
+                quantitiesBySku.merge(item.getSku(), quantity, Math::addExact);
+            } catch (ArithmeticException ex) {
+                throw new IllegalArgumentException(
+                        "Requested quantity total exceeds the supported range for SKU " + item.getSku(), ex);
+            }
+        }
+        return quantitiesBySku;
     }
 
     /**
