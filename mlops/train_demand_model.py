@@ -216,21 +216,37 @@ def _check_auto_training_readiness(
     return True, state_path, fingerprint, str(dataset_path)
 
 
-def _query_prior_champion_rmse(client: Any, experiment_name: str) -> float | None:
+def _build_prior_runs_filter(base_filter: str, input_format: str | None) -> str:
+    if not input_format:
+        return base_filter
+    return f"{base_filter} and params.input_format = '{input_format}'"
+
+
+def _query_prior_champion_rmse(
+    client: Any, experiment_name: str, input_format: str | None = None
+) -> float | None:
     try:
         current_exp = client.get_experiment_by_name(experiment_name)
         if not current_exp:
             return None
+        champion_filter = _build_prior_runs_filter(
+            "attributes.status = 'FINISHED' and tags.model_role = 'champion'",
+            input_format,
+        )
         champion_runs = client.search_runs(
             experiment_ids=[current_exp.experiment_id],
-            filter_string="attributes.status = 'FINISHED' and tags.model_role = 'champion'",
+            filter_string=champion_filter,
             order_by=["metrics.rmse ASC"],
             max_results=1,
         )
         if not champion_runs:
+            fallback_filter = _build_prior_runs_filter(
+                "attributes.status = 'FINISHED' and metrics.rmse > 0",
+                input_format,
+            )
             champion_runs = client.search_runs(
                 experiment_ids=[current_exp.experiment_id],
-                filter_string="attributes.status = 'FINISHED' and metrics.rmse > 0",
+                filter_string=fallback_filter,
                 order_by=["metrics.rmse ASC"],
                 max_results=1,
             )
@@ -417,7 +433,7 @@ def main() -> int:
             mae = float(np.mean(np.abs(residuals)))
 
             client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
-            best_prior_rmse = _query_prior_champion_rmse(client, args.experiment)
+            best_prior_rmse = _query_prior_champion_rmse(client, args.experiment, input_format)
             _, role = _log_champion_evaluation(mlflow, rmse, mae, best_prior_rmse)
 
             mlflow.sklearn.log_model(

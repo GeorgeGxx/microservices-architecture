@@ -203,10 +203,61 @@ class ForecastApiTests(unittest.TestCase):
 
     def test_get_path_mtime(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            p = Path(temp_dir) / "file.txt"
+            base = Path(temp_dir)
+            p = base / "file.txt"
             p.write_text("hello")
             self.assertGreater(forecast_api._get_path_mtime(p), 0.0)
-            self.assertEqual(forecast_api._get_path_mtime(Path(temp_dir) / "does_not_exist"), 0.0)
+            part_dir = base / "date=2026-10-20"
+            part_dir.mkdir()
+            (part_dir / "part.parquet").write_bytes(b"parquet")
+            self.assertGreater(forecast_api._get_path_mtime(base), 0.0)
+            self.assertEqual(forecast_api._get_path_mtime(base / "does_not_exist"), 0.0)
+
+    def test_resolve_active_sales_path_and_format_preference(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            synth_csv = base / "synthetic_sales.csv"
+            synth_csv.write_text("date,product_id,units_sold\n2026-10-01,SKU-1,5\n")
+            parquet_dir = base / "sales_parquet"
+            parquet_dir.mkdir()
+            for day in range(1, 10):
+                (parquet_dir / f"date=2026-10-{day:02d}").mkdir()
+
+            with patch.object(forecast_api, "SALES_DATA_PATH", synth_csv):
+                resolved = forecast_api._resolve_active_sales_path()
+                self.assertEqual(resolved, parquet_dir)
+                self.assertEqual(forecast_api._infer_preferred_input_format(resolved), "parquet")
+
+        client = MagicMock()
+        csv_model = MagicMock(name="csv-model")
+        csv_model.name = "demand-forecast"
+        csv_model.status.name = "READY"
+        csv_model.source_run_id = "run-csv"
+        pq_model = MagicMock(name="pq-model")
+        pq_model.name = "demand-forecast"
+        pq_model.status.name = "READY"
+        pq_model.source_run_id = "run-pq"
+
+        csv_run = MagicMock()
+        csv_run.info.status = "FINISHED"
+        csv_run.data.tags = {"model_role": "champion"}
+        csv_run.data.params = {"input_format": "csv"}
+
+        pq_run = MagicMock()
+        pq_run.info.status = "FINISHED"
+        pq_run.data.tags = {"model_role": "challenger_rejected"}
+        pq_run.data.params = {"input_format": "parquet"}
+
+        client.search_logged_models.return_value = [pq_model, csv_model]
+        client.get_run.side_effect = [pq_run, csv_run]
+        selected = forecast_api._select_champion_or_best_model(client, "exp-1", "parquet")
+        self.assertEqual(selected, (pq_model, pq_run))
+
+        # Fallback to champion when no preferred format matches
+        client.get_run.side_effect = [csv_run]
+        client.search_logged_models.return_value = [csv_model]
+        selected_fallback = forecast_api._select_champion_or_best_model(client, "exp-1", "parquet")
+        self.assertEqual(selected_fallback, (csv_model, csv_run))
 
     def test_load_latest_model_experiment_none(self) -> None:
         from fastapi import HTTPException
