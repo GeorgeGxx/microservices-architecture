@@ -179,7 +179,7 @@ class ProductServiceTest {
         // 3. DataLoader exception handling on concurrent seed
         when(productRepository.findAll()).thenReturn(List.of());
         when(productRepository.saveAll(any())).thenThrow(new RuntimeException("Duplicate key"));
-        assertDoesNotThrow(() -> loader.run());
+        assertDoesNotThrow(() -> loader.run("seed"));
 
         // 4. SecurityConfig jwtDecoder
         com.georgegxx.products_service.config.SecurityConfig secConfig =

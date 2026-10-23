@@ -59,9 +59,40 @@ class ServiceTokenProviderTest {
 
         ServiceTokenProvider blankSecretProvider = new ServiceTokenProvider(TOKEN_URI, "microservices_client", "", restClient);
         ServiceTokenProvider maskedSecretProvider = new ServiceTokenProvider(TOKEN_URI, "microservices_client", "**********", restClient);
+        ServiceTokenProvider nullClientProvider = new ServiceTokenProvider(TOKEN_URI, null, "secret", restClient);
+        ServiceTokenProvider blankClientProvider = new ServiceTokenProvider(TOKEN_URI, "   ", "secret", restClient);
+        ServiceTokenProvider nullSecretProvider = new ServiceTokenProvider(TOKEN_URI, "client", null, restClient);
+        ServiceTokenProvider nullUriProvider = new ServiceTokenProvider(null, "client", "secret", restClient);
+        ServiceTokenProvider blankUriProvider = new ServiceTokenProvider("   ", "client", "secret", restClient);
 
         assertThat(blankSecretProvider.getAccessToken()).isEmpty();
         assertThat(maskedSecretProvider.getAccessToken()).isEmpty();
+        assertThat(nullClientProvider.getAccessToken()).isEmpty();
+        assertThat(blankClientProvider.getAccessToken()).isEmpty();
+        assertThat(nullSecretProvider.getAccessToken()).isEmpty();
+        assertThat(nullUriProvider.getAccessToken()).isEmpty();
+        assertThat(blankUriProvider.getAccessToken()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getAccessToken handles null/blank token responses and zero expires_in")
+    void getAccessTokenHandlesEdgeTokenResponses() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+
+        server.expect(requestTo(TOKEN_URI))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"access_token\":\"   \",\"expires_in\":0}", MediaType.APPLICATION_JSON));
+        server.expect(requestTo(TOKEN_URI))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"access_token\":\"tok-default-ttl\",\"expires_in\":0}", MediaType.APPLICATION_JSON));
+
+        ServiceTokenProvider provider = new ServiceTokenProvider(
+                TOKEN_URI, "microservices_client", "valid-secret", builder.build());
+
+        assertThat(provider.getAccessToken()).isEmpty();
+        assertThat(provider.getAccessToken()).contains("tok-default-ttl");
+        server.verify();
     }
 
     @Test
