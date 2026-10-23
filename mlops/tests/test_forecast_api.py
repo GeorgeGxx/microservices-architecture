@@ -367,6 +367,58 @@ class ForecastApiTests(unittest.TestCase):
                 forecast_api._read_sales_file(Path("sales.csv"))
         self.assertEqual(ctx.exception.status_code, 503)
 
+    def test_info_and_helper_caches_and_middleware(self) -> None:
+        import asyncio
+
+        info_payload = forecast_api.info()
+        self.assertEqual(info_payload["service"], "demand-forecast-service")
+        self.assertEqual(info_payload["version"], "1.0.0")
+
+        # Exercise warm cache hit in load_latest_model
+        fake_model = MagicMock(spec=RandomForestRegressor)
+        fake_created = datetime.now(timezone.utc)
+        forecast_api._ACTIVE_MODEL_ENTRY = (fake_model, "cached-ttl-run", fake_created, forecast_api.perf_counter())
+        model, run_id, created = forecast_api.load_latest_model()
+        self.assertIs(model, fake_model)
+        self.assertEqual(run_id, "cached-ttl-run")
+        self.assertEqual(created, fake_created)
+
+        # Exercise fallback to active model when _select_champion_or_best_model returns None
+        forecast_api._ACTIVE_MODEL_ENTRY = (fake_model, "stale-run", fake_created, -1000.0)
+        mock_client = MagicMock()
+        mock_client.get_experiment_by_name.return_value.experiment_id = "exp-1"
+        with (
+            patch("forecast_api.MlflowClient", return_value=mock_client),
+            patch("forecast_api._select_champion_or_best_model", return_value=None),
+        ):
+            model2, run_id2, _ = forecast_api.load_latest_model()
+            self.assertIs(model2, fake_model)
+            self.assertEqual(run_id2, "stale-run")
+
+        # Exercise jwks_client and _load_model wrappers
+        forecast_api.jwks_client.cache_clear()
+        with patch("forecast_api.jwt.PyJWKClient", return_value="jwk-client") as mock_pyjwk:
+            self.assertEqual(forecast_api.jwks_client("http://keycloak/certs"), "jwk-client")
+            mock_pyjwk.assert_called_once_with("http://keycloak/certs")
+
+        forecast_api._load_model.cache_clear()
+        with patch("forecast_api.mlflow.sklearn.load_model", return_value=fake_model) as mock_mlflow_load:
+            self.assertIs(forecast_api._load_model("models:/demand-forecast/1"), fake_model)
+            mock_mlflow_load.assert_called_once_with("models:/demand-forecast/1")
+
+        # Exercise HTTP metrics middleware
+        request = MagicMock()
+        request.method = "GET"
+        request.url.path = "/api/forecast"
+        response = MagicMock()
+        response.status_code = 200
+
+        async def call_next(_req):
+            return response
+
+        returned = asyncio.run(forecast_api.record_http_metrics(request, call_next))
+        self.assertIs(returned, response)
+
 
 if __name__ == "__main__":
     unittest.main()

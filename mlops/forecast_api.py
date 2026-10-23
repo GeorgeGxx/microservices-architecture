@@ -174,48 +174,53 @@ def _select_champion_or_best_model(client: MlflowClient, experiment_id: str) -> 
     return valid_models[0] if valid_models else None
 
 
+def _fallback_or_fail_model(detail: str, cause: Exception | None = None) -> tuple[RandomForestRegressor, str, datetime]:
+    if _ACTIVE_MODEL_ENTRY is not None:
+        return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
+    MODEL_AVAILABLE.set(0)
+    if cause is not None:
+        raise HTTPException(status_code=503, detail=detail) from cause
+    raise HTTPException(status_code=503, detail=detail)
+
+
+def _update_model_metrics(chosen_run: Any, created: datetime) -> None:
+    run_metrics = chosen_run.data.metrics or {}
+    rmse_val = run_metrics.get("rmse")
+    mae_val = run_metrics.get("mae")
+    if rmse_val is not None:
+        MODEL_RMSE.set(rmse_val)
+    if mae_val is not None:
+        MODEL_MAE.set(mae_val)
+    MODEL_AGE_SECONDS.set(max(0.0, (datetime.now(timezone.utc) - created).total_seconds()))
+
+
 def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
     global _ACTIVE_MODEL_ENTRY
     MODEL_CHECKED.set(1)
     now_mono = perf_counter()
 
-    if _ACTIVE_MODEL_ENTRY is not None:
-        cached_model, cached_run_id, cached_created, cached_at = _ACTIVE_MODEL_ENTRY
-        if now_mono - cached_at < MODEL_CACHE_TTL_SEC:
-            MODEL_AGE_SECONDS.set(max(0.0, (datetime.now(timezone.utc) - cached_created).total_seconds()))
-            return cached_model, cached_run_id, cached_created
+    if _ACTIVE_MODEL_ENTRY is not None and (now_mono - _ACTIVE_MODEL_ENTRY[3] < MODEL_CACHE_TTL_SEC):
+        cached_model, cached_run_id, cached_created, _ = _ACTIVE_MODEL_ENTRY
+        MODEL_AGE_SECONDS.set(max(0.0, (datetime.now(timezone.utc) - cached_created).total_seconds()))
+        return cached_model, cached_run_id, cached_created
 
     try:
         mlflow.set_tracking_uri(TRACKING_URI)
         client = MlflowClient(tracking_uri=TRACKING_URI)
         experiment = client.get_experiment_by_name(EXPERIMENT_NAME)
         if experiment is None:
-            if _ACTIVE_MODEL_ENTRY is not None:
-                return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
-            MODEL_AVAILABLE.set(0)
-            raise HTTPException(status_code=503, detail="No trained demand model is available yet")
+            return _fallback_or_fail_model("No trained demand model is available yet")
 
         selected = _select_champion_or_best_model(client, experiment.experiment_id)
         if not selected:
-            if _ACTIVE_MODEL_ENTRY is not None:
-                return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
-            MODEL_AVAILABLE.set(0)
-            raise HTTPException(status_code=503, detail="No successfully completed demand model is available")
+            return _fallback_or_fail_model("No successfully completed demand model is available")
 
         chosen_logged_model, chosen_run = selected
         model = _load_model(chosen_logged_model.model_uri)
         created = datetime.fromtimestamp(
             chosen_logged_model.creation_timestamp / 1000, tz=timezone.utc
         )
-        run_metrics = chosen_run.data.metrics or {}
-        rmse_val = run_metrics.get("rmse")
-        mae_val = run_metrics.get("mae")
-
-        if rmse_val is not None:
-            MODEL_RMSE.set(rmse_val)
-        if mae_val is not None:
-            MODEL_MAE.set(mae_val)
-        MODEL_AGE_SECONDS.set(max(0.0, (datetime.now(timezone.utc) - created).total_seconds()))
+        _update_model_metrics(chosen_run, created)
 
         _ACTIVE_MODEL_ENTRY = (model, chosen_run.info.run_id, created, now_mono)
         MODEL_AVAILABLE.set(1)
@@ -224,10 +229,7 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
     except HTTPException:
         raise
     except Exception as exc:
-        if _ACTIVE_MODEL_ENTRY is not None:
-            return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
-        MODEL_AVAILABLE.set(0)
-        raise HTTPException(status_code=503, detail="Could not load the latest trained model") from exc
+        return _fallback_or_fail_model("Could not load the latest trained model", exc)
 
 
 _DAILY_HISTORY_CACHE: tuple[pd.DataFrame, str, date, date, float, float] | None = None
