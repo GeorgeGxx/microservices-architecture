@@ -49,6 +49,7 @@ services:
       SPARK_LOCAL_IP: 127.0.0.1
       GIT_PYTHON_REFRESH: quiet
       HOME: /tmp
+      JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/tmp/spark-native -Dorg.xerial.snappy.tempdir=/tmp/spark-native
     volumes:
       - ./mlops/data:/data
     depends_on:
@@ -59,6 +60,7 @@ services:
     mem_limit: 4g
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=1g
+      - /tmp/spark-native:rw,exec,nosuid,nodev,size=128m
     networks:
       - spring
 
@@ -92,6 +94,7 @@ services:
       MLOPS_AUTO_TRAIN_STABILITY_SECONDS: "60"
       SPARK_LOCAL_IP: 127.0.0.1
       HOME: /tmp
+      JAVA_TOOL_OPTIONS: -Djava.io.tmpdir=/tmp/spark-native -Dorg.xerial.snappy.tempdir=/tmp/spark-native
     depends_on:
       kafka:
         condition: service_healthy
@@ -102,6 +105,7 @@ services:
     mem_limit: 4g
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=1g
+      - /tmp/spark-native:rw,exec,nosuid,nodev,size=128m
     networks:
       - spring
 

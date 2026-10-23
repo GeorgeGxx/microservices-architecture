@@ -7,7 +7,7 @@ param(
     [int]$Days = 14,
 
     [ValidateRange(30, 900)]
-    [int]$RunTimeoutSeconds = 420,
+    [int]$RunTimeoutSeconds = 180,
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$TrainingArgs
@@ -116,6 +116,10 @@ if ($SimulateOrders -and $Target -eq "compose") {
         }
         if (-not ($captureServices -contains "demand-sales-capture")) {
             throw "Kafka capture was started but is not running. Inspect with: docker compose logs demand-sales-capture"
+        }
+        $script:captureRestartCountBeforeSimulation = & docker inspect --format '{{.RestartCount}}' demand-sales-capture
+        if ($LASTEXITCODE -ne 0 -or "$script:captureRestartCountBeforeSimulation" -notmatch '^\d+$') {
+            throw "Could not read the Compose capture container restart count. Inspect with: docker inspect demand-sales-capture"
         }
     } finally {
         Pop-Location
@@ -278,13 +282,33 @@ if ($Target -eq "minikube") {
 }
 
 if ($SimulateOrders) {
-    Write-Host "Waiting up to $RunTimeoutSeconds seconds for Compose capture's automatic trainer to publish a new MLflow run..." -ForegroundColor Yellow
+    Write-Host "Waiting up to $RunTimeoutSeconds seconds for Compose capture to persist and train the simulated sales..." -ForegroundColor Yellow
     $deadline = [DateTime]::UtcNow.AddSeconds($RunTimeoutSeconds)
     $newRun = $null
     while ([DateTime]::UtcNow -lt $deadline) {
         $newRun = Find-NewMlflowRun
         if ($newRun) { break }
-        Start-Sleep -Seconds 10
+
+        Push-Location $repoRoot
+        try {
+            $captureRestartCount = & docker inspect --format '{{.RestartCount}}' demand-sales-capture
+            $inspectExitCode = $LASTEXITCODE
+            $captureState = & docker inspect --format '{{.State.Status}}' demand-sales-capture
+            $stateExitCode = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+        if ($inspectExitCode -ne 0 -or $stateExitCode -ne 0 -or "$captureState" -ne "running") {
+            $captureLogs = & docker compose logs --tail 50 demand-sales-capture 2>&1
+            $captureLogs | ForEach-Object { Write-Host $_ }
+            throw "Compose Kafka capture is not running. The training wait stopped early; inspect with: docker compose logs demand-sales-capture"
+        }
+        if ("$captureRestartCount" -match '^\d+$' -and [int]$captureRestartCount -gt [int]$script:captureRestartCountBeforeSimulation) {
+            $captureLogs = & docker compose logs --tail 50 demand-sales-capture 2>&1
+            $captureLogs | ForEach-Object { Write-Host $_ }
+            throw "Compose Kafka capture restarted while processing the simulated records. See the capture error above; the wrapper stopped waiting immediately."
+        }
+        Start-Sleep -Seconds 5
     }
 
     if (-not $newRun) {
