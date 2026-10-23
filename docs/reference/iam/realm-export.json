@@ -97,6 +97,15 @@
         "attributes": {}
       },
       {
+        "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+        "name": "INTERNAL_SERVICE",
+        "description": "Service-to-service role for internal microservice mutations",
+        "composite": false,
+        "clientRole": false,
+        "containerId": "5d03d560-e351-43a0-9c50-b256157bc48e",
+        "attributes": {}
+      },
+      {
         "id": "08567cef-a995-4209-993a-b669d2b0e2ec",
         "name": "offline_access",
         "description": "${role_offline-access}",
@@ -537,7 +546,8 @@
       "disableableCredentialTypes": [],
       "requiredActions": [],
       "realmRoles": [
-        "default-roles-microservices-realm"
+        "default-roles-microservices-realm",
+        "INTERNAL_SERVICE"
       ],
       "clientRoles": {
         "microservices_client": [
@@ -770,7 +780,7 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "**********",
+      "secret": "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu",
       "redirectUris": [
         "https://oauth.pstmn.io/v1/browser-callback",
         "http://localhost:8080/*",

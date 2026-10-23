@@ -105,24 +105,30 @@ public class InventoryController {
         return inventoryService.areInStock(orderItemsRequests);
     }
 
-    @Operation(summary = "Decrement inventory stock", description = "Deducts stock for the specified order items")
+    @Operation(summary = "Decrement inventory stock", description = "Deducts stock for the specified order items (requires INTERNAL_SERVICE or ADMIN role)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Stock decremented successfully"),
-            @ApiResponse(responseCode = "400", description = "Insufficient stock or invalid payload")
+            @ApiResponse(responseCode = "400", description = "Insufficient stock or invalid payload"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
     })
     @PostMapping("/decrement")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
     public BaseResponse decrementStock(@Valid @RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.decrementStock(orderItemsRequests);
     }
 
-    @Operation(summary = "Increment inventory stock", description = "Restores or adds stock for the specified order items (e.g. on order cancellation/rollback)")
+    @Operation(summary = "Increment inventory stock", description = "Restores or adds stock for the specified order items on order cancellation/rollback (requires INTERNAL_SERVICE or ADMIN role)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Stock incremented successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid order items payload")
+            @ApiResponse(responseCode = "400", description = "Invalid order items payload"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Access denied")
     })
     @PostMapping("/increment")
     @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
     public BaseResponse incrementStock(@Valid @RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.incrementStock(orderItemsRequests);
     }

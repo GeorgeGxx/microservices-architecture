@@ -270,7 +270,7 @@ if (-not $clients -or $clients.Count -eq 0) {
     Write-Host "  [OK] Public client microservices_frontend updated with flexible origins and redirect URIs." -ForegroundColor DarkGray
 }
 
-# Backend Confidential Client
+# Backend Confidential Client (with Service Accounts enabled for S2S Client Credentials)
 $clients = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client"
 $confClientId = $null
 if (-not $clients -or $clients.Count -eq 0) {
@@ -282,14 +282,26 @@ if (-not $clients -or $clients.Count -eq 0) {
         protocol = "openid-connect"
         standardFlowEnabled = $true
         directAccessGrantsEnabled = $true
+        serviceAccountsEnabled = $true
     } | ConvertTo-Json
     Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Body $confClient
     $clients = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=microservices_client"
     $confClientId = $clients[0].id
-    Write-Host "  [OK] Created confidential client: microservices_client" -ForegroundColor Green
+    Write-Host "  [OK] Created confidential client: microservices_client (serviceAccountsEnabled=true)" -ForegroundColor Green
 } else {
     $confClientId = $clients[0].id
-    Write-Host "  Confidential client microservices_client already exists." -ForegroundColor DarkGray
+    $confClient = @{
+        clientId = "microservices_client"
+        enabled = $true
+        publicClient = $false
+        redirectUris = @("http://localhost:8080/*", "https://oauth.pstmn.io/v1/browser-callback")
+        protocol = "openid-connect"
+        standardFlowEnabled = $true
+        directAccessGrantsEnabled = $true
+        serviceAccountsEnabled = $true
+    } | ConvertTo-Json
+    Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId" -Body $confClient
+    Write-Host "  [OK] Confidential client microservices_client updated (serviceAccountsEnabled=true)." -ForegroundColor DarkGray
 }
 
 # Generate/Fetch Client Secret and Sync to .env and K8s Secret
@@ -297,7 +309,7 @@ try {
     $secret = $null
     try {
         $existingSec = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -ErrorAction SilentlyContinue
-        if ($existingSec.value) {
+        if ($existingSec.value -and ($existingSec.value -notmatch "^\*+$")) {
             $secret = $existingSec.value
         }
     } catch {}
@@ -348,13 +360,28 @@ try {
 
 # 5. Ensure Roles and Users
 Write-Host "`n[5/5] Configuring Roles and Users..." -ForegroundColor Yellow
-foreach ($role in @("ADMIN", "USER")) {
+foreach ($role in @("ADMIN", "USER", "INTERNAL_SERVICE")) {
     try {
         Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/$role" -ErrorAction Stop | Out-Null
     } catch {
         $rolePayload = @{ name = $role } | ConvertTo-Json
         Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/roles" -Body $rolePayload
         Write-Host "  [OK] Created role: $role" -ForegroundColor Green
+    }
+}
+
+# Assign INTERNAL_SERVICE role to service-account-microservices_client for S2S authentication
+if ($confClientId) {
+    try {
+        $saUser = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/service-account-user"
+        $internalRole = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/roles/INTERNAL_SERVICE"
+        if ($saUser -and $saUser.id -and $internalRole) {
+            $roleMapPayload = "[$($internalRole | ConvertTo-Json -Compress)]"
+            Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/users/$($saUser.id)/role-mappings/realm" -Body $roleMapPayload
+            Write-Host "  [OK] Assigned INTERNAL_SERVICE role to service-account-microservices_client" -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  Note: Could not assign INTERNAL_SERVICE role to service account: $_" -ForegroundColor DarkGray
     }
 }
 
