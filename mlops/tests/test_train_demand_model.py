@@ -167,10 +167,18 @@ class TrainDemandModelTests(unittest.TestCase):
         self.assertEqual(fingerprint, "")
 
     def test_resolve_input_format(self) -> None:
-        from train_demand_model import _resolve_input_format
+        from train_demand_model import _resolve_dataset_fingerprint, _resolve_input_format
         self.assertEqual(_resolve_input_format("sales.csv", None), "csv")
         self.assertEqual(_resolve_input_format(None, "sales_parquet"), "parquet")
         self.assertEqual(_resolve_input_format(None, None), "generated_sample")
+        self.assertEqual(_resolve_dataset_fingerprint(None, None, "precomputed"), "precomputed")
+        self.assertEqual(_resolve_dataset_fingerprint(None, None, None), "generated_sample")
+        self.assertEqual(_resolve_dataset_fingerprint("missing.csv", None, None), "csv")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            csv_file = Path(temp_dir) / "sales.csv"
+            csv_file.write_text("date,product_id,units_sold\n2026-10-01,SKU-1,5\n")
+            self.assertEqual(len(_resolve_dataset_fingerprint(str(csv_file), None, None)), 64)
+            self.assertEqual(_resolve_dataset_fingerprint(None, temp_dir, None), "parquet")
 
     def test_check_auto_training_readiness_not_auto(self) -> None:
         from train_demand_model import _check_auto_training_readiness
@@ -199,10 +207,14 @@ class TrainDemandModelTests(unittest.TestCase):
         mock_run.data.metrics = {"rmse": 2.75}
         mock_client.search_runs.return_value = [mock_run]
 
-        rmse = _query_prior_champion_rmse(mock_client, "inventory-demand-forecast", "parquet")
+        rmse = _query_prior_champion_rmse(mock_client, "inventory-demand-forecast", "parquet", "fp-123")
         self.assertEqual(rmse, 2.75)
         self.assertIn(
             "params.input_format = 'parquet'",
+            mock_client.search_runs.call_args.kwargs["filter_string"],
+        )
+        self.assertIn(
+            "params.dataset_fingerprint = 'fp-123'",
             mock_client.search_runs.call_args.kwargs["filter_string"],
         )
 

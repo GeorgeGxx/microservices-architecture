@@ -27,9 +27,10 @@ def generate_rows(days: int) -> list[dict[str, str | int]]:
     for product_index, (product_id, baseline) in enumerate(PRODUCT_BASELINES.items()):
         for day_index in range(days):
             current_day = first_day + timedelta(days=day_index)
+            day_ordinal = current_day.toordinal()
             weekday_effect = 3 if current_day.weekday() in (4, 5) else 0
-            seasonal_effect = 3 * math.sin(2 * math.pi * day_index / 14)
-            product_effect = (day_index * (product_index + 2)) % 4
+            seasonal_effect = 3 * math.sin(2 * math.pi * day_ordinal / 14)
+            product_effect = (day_ordinal * (product_index + 2)) % 4
             units_sold = max(1, round(baseline + weekday_effect + seasonal_effect + product_effect))
             rows.append(
                 {

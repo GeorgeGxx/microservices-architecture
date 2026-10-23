@@ -137,6 +137,24 @@ def _resolve_input_format(input_csv: str | None, input_parquet: str | None) -> s
     return "generated_sample"
 
 
+def _resolve_dataset_fingerprint(
+    input_csv: str | None, input_parquet: str | None, precomputed_fingerprint: str | None = None
+) -> str:
+    if precomputed_fingerprint:
+        return precomputed_fingerprint
+    if input_parquet:
+        _, fp = snapshot_dataset(Path(input_parquet).resolve())
+        return fp or "parquet"
+    if input_csv:
+        csv_path = Path(input_csv).resolve()
+        if csv_path.is_file():
+            metadata = csv_path.stat()
+            payload = f"{csv_path.name}:{metadata.st_size}:{metadata.st_mtime_ns}".encode("utf-8")
+            return hashlib.sha256(payload).hexdigest()
+        return "csv"
+    return "generated_sample"
+
+
 def _read_candidate_state(candidate_path: Path) -> tuple[str, float]:
     if not candidate_path.is_file():
         return "", 0.0
@@ -216,14 +234,22 @@ def _check_auto_training_readiness(
     return True, state_path, fingerprint, str(dataset_path)
 
 
-def _build_prior_runs_filter(base_filter: str, input_format: str | None) -> str:
-    if not input_format:
-        return base_filter
-    return f"{base_filter} and params.input_format = '{input_format}'"
+def _build_prior_runs_filter(
+    base_filter: str, input_format: str | None, dataset_fingerprint: str | None = None
+) -> str:
+    clauses = [base_filter]
+    if input_format:
+        clauses.append(f"params.input_format = '{input_format}'")
+    if dataset_fingerprint:
+        clauses.append(f"params.dataset_fingerprint = '{dataset_fingerprint}'")
+    return " and ".join(clauses)
 
 
 def _query_prior_champion_rmse(
-    client: Any, experiment_name: str, input_format: str | None = None
+    client: Any,
+    experiment_name: str,
+    input_format: str | None = None,
+    dataset_fingerprint: str | None = None,
 ) -> float | None:
     try:
         current_exp = client.get_experiment_by_name(experiment_name)
@@ -232,6 +258,7 @@ def _query_prior_champion_rmse(
         champion_filter = _build_prior_runs_filter(
             "attributes.status = 'FINISHED' and tags.model_role = 'champion'",
             input_format,
+            dataset_fingerprint,
         )
         champion_runs = client.search_runs(
             experiment_ids=[current_exp.experiment_id],
@@ -243,6 +270,7 @@ def _query_prior_champion_rmse(
             fallback_filter = _build_prior_runs_filter(
                 "attributes.status = 'FINISHED' and metrics.rmse > 0",
                 input_format,
+                dataset_fingerprint,
             )
             champion_runs = client.search_runs(
                 experiment_ids=[current_exp.experiment_id],
@@ -414,9 +442,11 @@ def main() -> int:
 
         with mlflow.start_run() as run:
             input_format = _resolve_input_format(args.input_csv, args.input_parquet)
+            dataset_fp = _resolve_dataset_fingerprint(args.input_csv, args.input_parquet, fingerprint)
             mlflow.log_param("algorithm", "sklearn_random_forest_with_spark_features")
             mlflow.log_param("num_trees", 40)
             mlflow.log_param("input_format", input_format)
+            mlflow.log_param("dataset_fingerprint", dataset_fp)
             mlflow.log_param("input_path", args.input_csv or args.input_parquet or "generated_sample")
             mlflow.log_param("tracking_uri", tracking_uri)
             model = SklearnRandomForestRegressor(
@@ -433,7 +463,9 @@ def main() -> int:
             mae = float(np.mean(np.abs(residuals)))
 
             client = mlflow.tracking.MlflowClient(tracking_uri=tracking_uri)
-            best_prior_rmse = _query_prior_champion_rmse(client, args.experiment, input_format)
+            best_prior_rmse = _query_prior_champion_rmse(
+                client, args.experiment, input_format, dataset_fp
+            )
             _, role = _log_champion_evaluation(mlflow, rmse, mae, best_prior_rmse)
 
             mlflow.sklearn.log_model(

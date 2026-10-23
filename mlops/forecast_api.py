@@ -311,7 +311,9 @@ def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.
     sales = sales.dropna(subset=["date", "product_id", "units_sold"])
     sales = sales[sales["units_sold"] >= 0]
     if "order_number" in sales.columns:
-        sales = sales.drop_duplicates(subset=["order_number", "product_id"])
+        if "kafka_timestamp" in sales.columns:
+            sales = sales.sort_values("kafka_timestamp")
+        sales = sales.drop_duplicates(subset=["order_number", "product_id"], keep="last")
     if sales.empty:
         raise HTTPException(status_code=422, detail="Sales data has no usable dated rows")
 
