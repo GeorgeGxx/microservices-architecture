@@ -30,6 +30,12 @@ variable "node_type" {
   default     = "cache.t4g.micro"
 }
 
+variable "redis_engine_version" {
+  description = "Amazon ElastiCache Redis OSS engine version. AWS currently supports Redis OSS through 7.1; newer ElastiCache Valkey versions are a separate engine migration."
+  type        = string
+  default     = "7.1"
+}
+
 variable "num_cache_clusters" {
   description = "Number of cache clusters (primary + replicas). 1 for dev, 2+ for staging/prod"
   type        = number

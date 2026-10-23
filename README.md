@@ -199,12 +199,12 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 | **React Frontend SPA**<br>`React 19 / Nginx` | `5173` | `admin_user` / `admin`<br>`basic_user` / `password` | CPU: `50m` / `200m`<br>Mem: `64Mi` / `128Mi`<br>Storage: `256Mi` | Modernized Storefront UI, POS barcode scanner & telemetry client |
 | **Keycloak IAM**<br>`v26.8.1` | `8181` / `9000` | `admin` / `admin` | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | OIDC / OAuth2 identity provider & JWT issuer (JVM heap tuned) |
 | **HashiCorp Vault**<br>`v2.2.0` | `8200` | Root Token: `root` | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard | Dynamic secrets engine, KV-v2 engine & KMS envelope encryption |
-| **Apache Kafka Broker**<br>`KRaft v8.3.2` | `9092` / `29092` | PLAINTEXT (local development) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Distributed event log & asynchronous EDA streaming backbone |
+| **Kafka Broker**<br>`Confluent Platform 8.3.2`<br>`Apache Kafka 4.3.x (KRaft)` | `9092` / `29092` | PLAINTEXT (local development) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Distributed event log & asynchronous EDA streaming backbone |
 | **Kafka Exporter**<br>`v1.9` | `9308` | *(No auth required)* | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Kafka consumer group lag and partition telemetry scraper |
 | **PostgreSQL DBs (x4)**<br>`PostgreSQL 18` | `5431`–`5435` | `postgres` / `postgres` | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | Database-per-service isolated relational persistence |
 | **Postgres Exporter**<br>`v0.20` | `9187` | *(No auth required)* | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | PostgreSQL connection pool and query performance exporter |
-| **Redis & Exporter**<br>`v8.8.1 / v1.82` | `6379` / `9121` | Password protected (`redis_pass`) | CPU: `100m` / `250m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `256Mi` | Distributed rate limiting, session cache & query result store |
-| **MLflow Tracking**<br>`v2.x` | `5000` | *(No auth required locally)* | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1536Mi` | Experiment tracking server, model registry & artifact repository |
+| **Redis & Exporter**<br>`Redis 8.8.1 / Exporter v1.94.0` | `6379` / `9121` | Password protected (`redis_pass`) | CPU: `100m` / `250m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `256Mi` | Distributed rate limiting, session cache & query result store |
+| **MLflow Tracking**<br>`3.17.2` | `5000` | *(No auth required locally)* | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1536Mi` | Experiment tracking server, model registry & artifact repository |
 | **Demand Forecast API**<br>`FastAPI 0.160.0 / Python 3.12` | `8005` | Keycloak JWT Bearer (`ADMIN` role) | CPU: `100m` / `1000m`<br>Mem: `256Mi` / `768Mi`<br>Storage: `128Mi` / `512Mi` | Real-time 7-day inference serving over trained sales models (`mlops/forecast_api.py`) |
 | **Kafka-to-Parquet Capture**<br>`PySpark 4.2.0 / Python 3.12` | — *(Daemon)* | Internal Kafka access | CPU: `1000m` / `4000m`<br>Mem: `2Gi` / `4Gi`<br>Storage: `1Gi` / `2Gi` | Structured Streaming consumer writing silver-tier Parquet lake (`mlops/capture_orders.py`) |
 | **Model Auto-Training**<br>`PySpark 4.2.0 / Python 3.12` | — *(Scheduled)* | Internal Parquet access | CPU: `1000m` / `4000m`<br>Mem: `2Gi` / `4Gi`<br>Storage: `1Gi` / `2Gi` | Automated drift-triggered model retraining & registry promotion (`mlops/train_demand_model.py`) |
@@ -234,7 +234,7 @@ The platform separates internal infrastructure orchestration from client-facing 
 | 📖 **Inventory Swagger UI** | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html) | Internal ClusterIP (`:8001` via port-forward) | OpenAPI 3.0 / SpringDoc | Interactive OpenAPI documentation for Stock reservation, decrement/rollback & `/api/inventory/**` |
 | 📖 **Notification Swagger & SSE** | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html) | Internal ClusterIP (`:8002` via port-forward) | OpenAPI 3.0 / SSE Stream | Interactive OpenAPI documentation for Notification history & live SSE event stream (`/api/notifications/stream`) |
 | 📈 **Demand Forecast API Docs** | [http://localhost:8005/docs](http://localhost:8005/docs) | Internal ClusterIP (`:8005` via port-forward) | OpenAPI 3.0 / FastAPI 0.160.0 Swagger (Python 3.12) | Interactive Swagger UI for real-time 7-day SKU demand predictions (`/api/forecast`, `/metrics`) |
-| 🧪 **MLflow Tracking UI** | [localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 3.x | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
+| 🧪 **MLflow Tracking UI** | [localhost:5000](http://localhost:5000) | Internal ClusterIP (`:5000` via port-forward) | HTTP / MLflow 3.17.2 | Experiment tracking dashboard, model parameter comparison, metric runs & artifact store |
 | 🔑 **Keycloak Admin Console** | [http://localhost:8181](http://localhost:8181) | `http://$(minikube ip):30181` | HTTP / OIDC OAuth2 | Realm administration, user provisioning (`admin_user`, `basic_user`), client scopes & JWT keys |
 | 🔒 **HashiCorp Vault UI** | [http://localhost:8200](http://localhost:8200) | `http://$(minikube ip):30820` | HTTP / Vault 2.2.0 | Web UI for KV-v2 dynamic secret engines, access policies & Transit encryption (Token: `root`) |
 | 📊 **Grafana LGTM Dashboards** | [http://localhost:3000](http://localhost:3000) | `http://$(minikube ip):30030` | HTTP / Grafana 13.2.3 | Two pre-provisioned dashboards: business and inventory health, plus technical/SRE operations with forecast API telemetry (`admin`/`admin`) |
@@ -508,7 +508,6 @@ microservices-architecture/
 ├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI/CD configuration
 ├── compose.yaml                    # Local multi-service development stack (15 containers)
 ├── LICENSE                         # MIT License file
-├── platform-common.ps1             # Unified DevSecOps core engine & shared PowerShell helpers
 ├── platform-minikube.ps1           # Local Minikube platform CLI & lifecycle orchestrator
 ├── platform-multicloud.ps1         # Multi-Cloud (AWS, Azure, GCP) Enterprise Orchestrator
 ├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4.0.8)

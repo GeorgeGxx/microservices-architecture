@@ -25,9 +25,9 @@ variable "allowed_security_group_ids" {
 }
 
 variable "kafka_version" {
-  description = "Desired Apache Kafka version"
+  description = "Amazon MSK Provisioned Kafka version. 4.1.x is the closest currently supported MSK Provisioned line to local Confluent Platform 8.3.x (Apache Kafka 4.3.x)."
   type        = string
-  default     = "3.6.0"
+  default     = "4.1.x"
 }
 
 variable "number_of_broker_nodes" {
@@ -37,9 +37,9 @@ variable "number_of_broker_nodes" {
 }
 
 variable "instance_type" {
-  description = "Broker instance type (e.g. kafka.t3.small for dev/staging, kafka.m5.large for prod)"
+  description = "MSK Standard broker type. Kafka 4.x uses KRaft, which requires an M5 or M7g broker (T3 is unsupported)."
   type        = string
-  default     = "kafka.t3.small"
+  default     = "kafka.m5.large"
 }
 
 variable "ebs_volume_size" {

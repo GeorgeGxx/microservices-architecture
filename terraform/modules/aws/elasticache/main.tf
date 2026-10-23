@@ -57,7 +57,7 @@ resource "aws_elasticache_replication_group" "this" {
   replication_group_id = "${var.name}-${var.environment}-redis"
   description          = "Redis replication group for ${var.name} (${var.environment})"
   engine               = "redis"
-  engine_version       = "7.1"
+  engine_version       = var.redis_engine_version
   node_type            = var.node_type
   num_cache_clusters   = var.num_cache_clusters
   port                 = 6379

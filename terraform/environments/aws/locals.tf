@@ -36,13 +36,14 @@ locals {
       elasticache_num_clusters = 1
       elasticache_multi_az     = false
       enable_msk               = false
-      msk_instance_type        = "kafka.t3.small"
-      msk_broker_nodes         = 2
-      enable_s3_assets         = true
-      enable_cloudfront        = false
-      enable_route53_acm       = false
-      domain_name              = "dev.msa.local"
-      log_retention_days       = 7
+      # Kafka 4.x uses KRaft; MSK does not allow T3 brokers with KRaft metadata mode.
+      msk_instance_type  = "kafka.m5.large"
+      msk_broker_nodes   = 2
+      enable_s3_assets   = true
+      enable_cloudfront  = false
+      enable_route53_acm = false
+      domain_name        = "dev.msa.local"
+      log_retention_days = 7
     }
     staging = {
       vpc_cidr                 = "10.15.0.0/16"
@@ -64,13 +65,14 @@ locals {
       elasticache_num_clusters = 2
       elasticache_multi_az     = true
       enable_msk               = true
-      msk_instance_type        = "kafka.t3.small"
-      msk_broker_nodes         = 2
-      enable_s3_assets         = true
-      enable_cloudfront        = true
-      enable_route53_acm       = true
-      domain_name              = "staging.msa.example.com"
-      log_retention_days       = 30
+      # Kafka 4.x uses KRaft; MSK does not allow T3 brokers with KRaft metadata mode.
+      msk_instance_type  = "kafka.m5.large"
+      msk_broker_nodes   = 2
+      enable_s3_assets   = true
+      enable_cloudfront  = true
+      enable_route53_acm = true
+      domain_name        = "staging.msa.example.com"
+      log_retention_days = 30
     }
     prod = {
       vpc_cidr                 = "10.20.0.0/16"
