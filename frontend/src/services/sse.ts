@@ -1,5 +1,6 @@
 import { AppNotification } from '../types';
 import { getOrderStatusNotificationCopy } from '../utils/orderNotificationCopy';
+import { getValidAccessToken } from './keycloak';
 
 export type NotificationListener = (notification: AppNotification) => void;
 
@@ -35,88 +36,65 @@ export function parseOrderStatusEvent(data: string): OrderStatusEvent | null {
 }
 
 class SSEService {
-  private eventSource: EventSource | null = null;
-  private readonly listeners: Set<NotificationListener> = new Set();
-  private readonly orderStatusListeners: Set<(event: OrderStatusEvent) => void> = new Set();
+  private abortController: AbortController | null = null;
+  private connecting = false;
+  private readonly listeners = new Map<NotificationListener, string | undefined>();
+  private readonly orderStatusListeners = new Map<(event: OrderStatusEvent) => void, string | undefined>();
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
-  connect() {
-    if (this.eventSource) return;
-
+  private async connect() {
+    if (this.abortController || this.connecting || !this.hasSubscribers()) return;
+    this.connecting = true;
     try {
-      this.eventSource = new EventSource('/api/notifications/stream');
+      const fallbackToken = this.getSubscriberToken();
+      const accessToken = await getValidAccessToken(fallbackToken);
+      if (!accessToken || !this.hasSubscribers()) return;
 
-      this.eventSource.onopen = () => {
-        console.log('⚡ Connected to real-time SSE Notification Stream');
-      };
-
-      this.eventSource.onmessage = (event) => {
-        try {
-          const raw = JSON.parse(event.data);
-          const notification: AppNotification = {
-            id: `notif-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`,
-            title: raw.title || 'Order Event Update',
-            message: raw.message || (raw.orderNumber ? `Order #${raw.orderNumber} status changed to ${raw.orderStatus || 'updated'}` : event.data),
-            type: raw.type || 'order',
-            timestamp: new Date(),
-            read: false,
-            orderNumber: raw.orderNumber,
-          };
-          this.broadcast(notification);
-        } catch {
-          const notification: AppNotification = {
-            id: `notif-${Date.now()}`,
-            title: 'System Notification',
-            message: event.data,
-            type: 'system',
-            timestamp: new Date(),
-            read: false,
-          };
-          this.broadcast(notification);
-        }
-      };
-
-      // Spring emits order changes as a named SSE event, so onmessage does not receive them.
-      this.eventSource.addEventListener('ORDER_NOTIFICATION', (event: MessageEvent<string>) => {
-        const orderEvent = parseOrderStatusEvent(event.data);
-        if (!orderEvent) return;
-        this.broadcast(createOrderNotification(orderEvent));
-        this.orderStatusListeners.forEach((listener) => listener(orderEvent));
+      const controller = new AbortController();
+      this.abortController = controller;
+      const response = await fetch('/api/notifications/stream', {
+        headers: { Authorization: `Bearer ${accessToken}`, Accept: 'text/event-stream' },
+        signal: controller.signal,
       });
+      if (!response.ok || !response.body) {
+        throw new Error(`Notification stream returned HTTP ${response.status}`);
+      }
 
-      this.eventSource.onerror = () => {
-        if (this.eventSource) {
-          this.eventSource.close();
-          this.eventSource = null;
-        }
-        if (!this.hasSubscribers()) return;
-        // Graceful reconnect retry backoff
-        if (!this.reconnectTimeout) {
-          this.reconnectTimeout = setTimeout(() => {
-            this.reconnectTimeout = null;
-            if (this.hasSubscribers()) this.connect();
-          }, 5000);
-        }
-      };
-    } catch (e) {
-      console.warn('SSE subscription notice:', e);
+      console.log('⚡ Connected to authenticated real-time SSE Notification Stream');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (!controller.signal.aborted) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const frames = buffer.split(/\r?\n\r?\n/);
+        buffer = frames.pop() ?? '';
+        frames.forEach((frame) => this.handleFrame(frame));
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) {
+        console.warn('SSE subscription interrupted:', error);
+      }
+    } finally {
+      this.abortController = null;
+      this.connecting = false;
+      if (this.hasSubscribers()) this.scheduleReconnect();
     }
   }
 
-  subscribe(listener: NotificationListener) {
-    this.listeners.add(listener);
-    if (!this.eventSource) {
-      this.connect();
-    }
+  subscribe(listener: NotificationListener, token?: string) {
+    this.listeners.set(listener, token);
+    void this.connect();
     return () => {
       this.listeners.delete(listener);
       this.disconnectWhenIdle();
     };
   }
 
-  subscribeOrderStatus(listener: (event: OrderStatusEvent) => void) {
-    this.orderStatusListeners.add(listener);
-    if (!this.eventSource) this.connect();
+  subscribeOrderStatus(listener: (event: OrderStatusEvent) => void, token?: string) {
+    this.orderStatusListeners.set(listener, token);
+    void this.connect();
     return () => {
       this.orderStatusListeners.delete(listener);
       this.disconnectWhenIdle();
@@ -127,18 +105,45 @@ class SSEService {
     return this.listeners.size > 0 || this.orderStatusListeners.size > 0;
   }
 
+  private getSubscriberToken() {
+    return [...this.listeners.values(), ...this.orderStatusListeners.values()]
+      .find((token): token is string => Boolean(token));
+  }
+
+  private handleFrame(frame: string) {
+    let eventName = 'message';
+    const data: string[] = [];
+    frame.split(/\r?\n/).forEach((line) => {
+      if (line.startsWith('event:')) eventName = line.slice(6).trim();
+      if (line.startsWith('data:')) data.push(line.slice(5).trimStart());
+    });
+    if (eventName !== 'ORDER_NOTIFICATION' || data.length === 0) return;
+    const orderEvent = parseOrderStatusEvent(data.join('\n'));
+    if (!orderEvent) return;
+    this.broadcast(createOrderNotification(orderEvent));
+    this.orderStatusListeners.forEach((_, listener) => listener(orderEvent));
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimeout || !this.hasSubscribers()) return;
+    this.reconnectTimeout = setTimeout(() => {
+      this.reconnectTimeout = null;
+      void this.connect();
+    }, 5000);
+  }
+
   private disconnectWhenIdle() {
     if (this.hasSubscribers()) return;
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
       this.reconnectTimeout = null;
     }
-    this.eventSource?.close();
-    this.eventSource = null;
+    this.abortController?.abort();
+    this.abortController = null;
   }
 
   private broadcast(notification: AppNotification) {
-    this.listeners.forEach((listener) => listener(notification));
+    this.listeners.forEach((_, listener) => listener(notification));
   }
 }
 
