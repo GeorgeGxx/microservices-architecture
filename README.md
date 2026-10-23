@@ -369,7 +369,7 @@ kubectl get pods -n dev # observability, auth, data, ..
   ```powershell
   .\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14
   ```
-  The wrapper waits up to 420 seconds for the capture pod's automatic trainer and confirms a new MLflow run was recorded; it then triggers a guarded training Job fallback and fails clearly if no new run appears. Use `-RunTimeoutSeconds 600` for a longer wait. Open the Minikube MLflow UI at `http://localhost:5000`. Compose can run alongside Minikube when bound to port 5001.
+  The wrapper waits up to 180 seconds for the capture pod's automatic trainer and confirms a new MLflow run was recorded; it then triggers a guarded training Job fallback and fails clearly if no new run appears. Use `-RunTimeoutSeconds 300` for a longer wait. Open the Minikube MLflow UI at `http://localhost:5000`. Compose can run alongside Minikube when bound to port 5001.
 * Complete runbook: [Minikube MLOps Deployment](docs/02-operations/LOCAL_DEPLOYMENT.md#5--minikube-mlops-deployment--automated-dynamic-training).
 
 > 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
