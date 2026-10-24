@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
+    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
     [string]$Command = "help",
     [ValidateSet("dev", "minikube", "staging", "prod")]
     [string]$Environment = "dev",
@@ -16,7 +16,7 @@ param(
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
     [switch]$InstallOpenCostPlugin = $false,
-    [ValidateSet("k8s-auth", "istio-pki")]
+    [ValidateSet("status", "k8s-auth", "istio-pki")]
     [string]$VaultAction = "",
     [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
     [string]$VaultNamespace = "vault",
@@ -327,6 +327,16 @@ function Get-LocalVaultPod {
     return [string]$readyPod.metadata.name
 }
 
+function Test-HostVaultEndpoint {
+    param([string]$VaultAddress = "http://127.0.0.1:8200")
+    try {
+        $resp = Invoke-WebRequest -Uri "$($VaultAddress.TrimEnd('/'))/v1/sys/health" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        return ($resp.StatusCode -in @(200, 429, 472, 473))
+    } catch {
+        return $false
+    }
+}
+
 function Invoke-LocalVaultCli {
     param(
         [Parameter(Mandatory = $true)][string]$Pod,
@@ -334,9 +344,26 @@ function Invoke-LocalVaultCli {
         [switch]$AllowFailure
     )
     $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
-    $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'vault') + $VaultArguments
-    $output = @(& kubectl @command 2>&1)
-    $exitCode = $LASTEXITCODE
+    $vaultAddr = if ($env:VAULT_ADDR) { $env:VAULT_ADDR } else { 'http://127.0.0.1:8200' }
+    $hostVault = Get-Command vault -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($hostVault -and (Test-HostVaultEndpoint -VaultAddress $vaultAddr)) {
+        $prevAddr = $env:VAULT_ADDR
+        $prevToken = $env:VAULT_TOKEN
+        try {
+            $env:VAULT_ADDR = $vaultAddr
+            $env:VAULT_TOKEN = $token
+            $output = @(& $hostVault.Source @VaultArguments 2>&1)
+            $exitCode = $LASTEXITCODE
+        } finally {
+            $env:VAULT_ADDR = $prevAddr
+            $env:VAULT_TOKEN = $prevToken
+        }
+    } else {
+        $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'vault') + $VaultArguments
+        $output = @(& kubectl @command 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
     if ($exitCode -ne 0 -and -not $AllowFailure) {
         throw "Vault command 'vault $($VaultArguments -join ' ')' failed (exit $exitCode): $($output -join ' ')"
     }
@@ -350,13 +377,83 @@ function Invoke-LocalVaultCliWithInput {
         [Parameter(Mandatory = $true)][string]$InputText
     )
     $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
-    $encodedInput = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($InputText))
-    $vaultCommand = 'printf ''%s'' ''' + $encodedInput + ''' | base64 -d | vault ' + ($VaultArguments -join ' ')
-    $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'sh', '-c', $vaultCommand)
-    $output = @(& kubectl @command 2>&1)
-    $exitCode = $LASTEXITCODE
+    $vaultAddr = if ($env:VAULT_ADDR) { $env:VAULT_ADDR } else { 'http://127.0.0.1:8200' }
+    $hostVault = Get-Command vault -ErrorAction SilentlyContinue | Select-Object -First 1
+
+    if ($hostVault -and (Test-HostVaultEndpoint -VaultAddress $vaultAddr)) {
+        $prevAddr = $env:VAULT_ADDR
+        $prevToken = $env:VAULT_TOKEN
+        try {
+            $env:VAULT_ADDR = $vaultAddr
+            $env:VAULT_TOKEN = $token
+            $output = @($InputText | & $hostVault.Source @VaultArguments 2>&1)
+            $exitCode = $LASTEXITCODE
+        } finally {
+            $env:VAULT_ADDR = $prevAddr
+            $env:VAULT_TOKEN = $prevToken
+        }
+    } else {
+        $encodedInput = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($InputText))
+        $vaultCommand = 'printf ''%s'' ''' + $encodedInput + ''' | base64 -d | vault ' + ($VaultArguments -join ' ')
+        $command = @('exec', '-n', $VaultNamespace, $Pod, '--', 'env', "VAULT_TOKEN=$token", 'sh', '-c', $vaultCommand)
+        $output = @(& kubectl @command 2>&1)
+        $exitCode = $LASTEXITCODE
+    }
     if ($exitCode -ne 0) { throw "Vault input command 'vault $($VaultArguments -join ' ')' failed (exit $exitCode): $($output -join ' ')" }
     return ($output -join "`n")
+}
+
+function Invoke-VaultStatusAudit {
+    param([Parameter(Mandatory = $true)][string]$Pod)
+    $hostVault = Get-Command vault -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($hostVault) {
+        $verOut = (& $hostVault.Source version 2>&1 | Select-Object -First 1)
+        Write-Host "  [OK] Host Vault CLI: $verOut" -ForegroundColor Green
+    } else {
+        Write-Host "  [WARN] Host 'vault' CLI not found; falling back to in-cluster pod execution." -ForegroundColor Yellow
+    }
+    $statusResult = Invoke-LocalVaultCli -Pod $Pod -VaultArguments @('status', '-format=json') -AllowFailure
+    if ($statusResult.ExitCode -eq 0 -and $statusResult.Output) {
+        $statusObj = $statusResult.Output | ConvertFrom-Json
+        Write-Host "  [OK] Vault Cluster Status: Initialized=$($statusObj.initialized) | Sealed=$($statusObj.sealed) | Version=$($statusObj.version)" -ForegroundColor Green
+    } else {
+        throw "Could not query Vault status from pod '$Pod'."
+    }
+}
+
+function Assert-LocalJavaMavenToolchain {
+    $javaCmd = Get-Command java -ErrorAction SilentlyContinue | Select-Object -First 1
+    $mvnCmd = Get-Command mvn -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $javaCmd) {
+        throw "Required host CLI 'java' (JDK 21) is missing. Run '.\platform-$Platform.ps1 tools -Install' and reopen the terminal."
+    }
+    if (-not $mvnCmd) {
+        throw "Required host CLI 'mvn' (Apache Maven) is missing. Run '.\platform-$Platform.ps1 tools -Install' and reopen the terminal."
+    }
+    $javaVer = @(& $javaCmd.Source --version 2>&1 | Select-Object -First 1) -join ' '
+    $mvnVer = @(& $mvnCmd.Source --version 2>&1 | Select-Object -First 1) -join ' '
+    Write-Host "  [OK] Host Java runtime: $($javaVer.Trim())" -ForegroundColor Green
+    Write-Host "  [OK] Host Maven build tool: $($mvnVer.Trim())" -ForegroundColor Green
+}
+
+function Invoke-LocalJavaMavenTests {
+    Assert-LocalJavaMavenToolchain
+    $javaServices = @("products-service", "orders-service", "inventory-service", "notification-service")
+    foreach ($svc in $javaServices) {
+        $svcDir = Join-Path $root $svc
+        if (-not (Test-Path -LiteralPath (Join-Path $svcDir "pom.xml") -PathType Leaf)) { continue }
+        Write-Host "`n  ▶ Running Maven unit tests for '$svc'..." -ForegroundColor Cyan
+        Push-Location $svcDir
+        try {
+            & mvn test -B
+            if ($LASTEXITCODE -ne 0) {
+                throw "Maven unit tests failed for '$svc' (exit $LASTEXITCODE)."
+            }
+            Write-Host "  [OK] ${svc}: Maven unit tests passed." -ForegroundColor Green
+        } finally {
+            Pop-Location
+        }
+    }
 }
 
 function Invoke-VaultKubernetesAuthSetup {
@@ -1544,7 +1641,7 @@ if ($AutoApprove -and $Command -notin @("apply", "destroy")) {
 }
 if ($VaultAction -and $Command -ne "vault") { throw "-VaultAction is valid only with 'vault'." }
 if ($Command -eq "vault") {
-    if (-not $VaultAction) { throw "Select a Vault action: -VaultAction k8s-auth|istio-pki." }
+    if (-not $VaultAction) { $VaultAction = "status" }
     if ($Platform -ne "minikube") { throw "Vault setup actions currently support Minikube only." }
     if ($Environment -notin @("dev", "minikube")) { throw "Vault setup actions are local-dev only; use -Environment dev or minikube." }
     if ($RotateVaultPki -and $VaultAction -ne "istio-pki") { throw "-RotateVaultPki is valid only with '-VaultAction istio-pki'." }
@@ -1596,6 +1693,11 @@ switch ($Command) {
     "build" {
         if ($Platform -ne "minikube") { throw "'build' is supported only for -Platform minikube." }
         Invoke-MinikubePlatform -SubCommand build
+    }
+
+    "test" {
+        Show-Banner "Local Microservice Unit Test Suite (Host Java 21 + Maven)"
+        Invoke-LocalJavaMavenTests
     }
 
     "mlops" {
@@ -1759,6 +1861,7 @@ switch ($Command) {
         Show-Banner "Minikube Vault Operations"
         $vaultPod = Get-LocalVaultPod -Namespace $VaultNamespace
         switch ($VaultAction) {
+            "status" { Invoke-VaultStatusAudit -Pod $vaultPod }
             "k8s-auth" { Invoke-VaultKubernetesAuthSetup -Namespace $VaultNamespace -PruneLegacyRole:$PruneLegacyVaultRole }
             "istio-pki" { Invoke-VaultIstioPkiSetup -VaultPod $vaultPod -MeshNamespace $IstioNamespace -Rotate:$RotateVaultPki }
         }
@@ -1883,7 +1986,7 @@ switch ($Command) {
         Write-Host "  .\platform-$Platform.ps1 <command> [-Environment dev|staging|prod] [provider options]`n" -ForegroundColor White
         Write-Host "COMMANDS:" -ForegroundColor Cyan
         $providerCommands = if ($Platform -eq "minikube") {
-            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls")
+            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls")
         } else {
             switch ($Platform) {
                 "aws" { @("plan", "apply", "destroy", "doctor", "verify", "status", "unlock", "security-scan", "sync-argocd", "tools", "help") }
@@ -3041,6 +3144,7 @@ stringData:
 
         "build" {
             Show-Banner "Build Microservice & Frontend Container Images From Source"
+            Assert-LocalJavaMavenToolchain
             $buildAllScript = Join-Path $scriptsDir "build-all.py"
             if (Test-Path $buildAllScript) {
                 python $buildAllScript "1.0.0"
