@@ -1895,7 +1895,7 @@ function Get-PlatformToolInventory {
         [pscustomobject]@{ Id = 'Graphviz.Graphviz'; Command = 'dot'; Purpose = 'Terraform graph rendering' },
         [pscustomobject]@{ Id = 'Gitleaks.Gitleaks'; Command = 'gitleaks'; Purpose = 'Secret scanning' },
         [pscustomobject]@{ Id = 'AquaSecurity.Trivy'; Command = 'trivy'; Purpose = 'Image and IaC scanning' },
-        [pscustomobject]@{ Id = 'Sigstore.Cosign'; Command = 'cosign'; Purpose = 'Image signature verification' },
+        [pscustomobject]@{ Id = 'Sigstore.Cosign'; Command = 'cosign-windows-amd64'; Purpose = 'Image signature verification' },
         [pscustomobject]@{ Id = 'Hashicorp.Vault'; Command = 'vault'; Purpose = 'Vault CLI workflows' },
         [pscustomobject]@{ Id = 'Kubernetes.minikube'; Command = 'minikube'; Purpose = 'Local Kubernetes cluster' },
         [pscustomobject]@{ Id = 'Kubernetes.kubectl'; Command = 'kubectl'; Purpose = 'Kubernetes administration' },
