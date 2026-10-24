@@ -41,7 +41,7 @@ spec:
               memory: 384Mi
             limits:
               cpu: 1000m
-              memory: 1024Mi
+              memory: 1536Mi
           readinessProbe:
             httpGet:
               path: /actuator/products/health/readiness
