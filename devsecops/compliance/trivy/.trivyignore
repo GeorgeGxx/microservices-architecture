@@ -12,6 +12,28 @@ AVD-KSV-0053
 KSV-0056
 AVD-KSV-0056
 
+# KSV-0046 / KSV-0041: Kiali Service Mesh Visualizer ClusterRole requires mesh and TLS secret inspection
+KSV-0046
+AVD-KSV-0046
+KSV-0041
+AVD-KSV-0041
+
+# KSV-0108: Local Minikube staging-infra-bridges emulate host port forwards
+KSV-0108
+AVD-KSV-0108
+
+# KSV-0109: Local dev Alertmanager ConfigMap template
+KSV-0109
+AVD-KSV-0109
+
+# KSV-0014: Stateful local observability pods (Prometheus TSDB, Grafana) require local writable directories
+KSV-0014
+AVD-KSV-0014
+
+# KSV-0118: Local development infrastructure support tools under Minikube sandbox
+KSV-0118
+AVD-KSV-0118
+
 # CVE-2026-91403: OpenJDK <= 21.0.13 eMudhra intermediate CA compromise (JSSE / javax.net.ssl).
 # Mitigated in-image across builder (bellsoft/liberica-openjdk-alpine:21) and runtime (gcr.io/distroless/java21-debian13:nonroot)
 # via devsecops/compliance/java-security/blocked.certs (54 SHA-256 fingerprints including all 16 compromised eMudhra/Sectigo CAs)

@@ -43,8 +43,30 @@ rules:
       - cronjobs
       - jobs
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["networking.istio.io", "security.istio.io", "telemetry.istio.io", "extensions.istio.io"]
-    resources: ["*"]
+  - apiGroups: ["networking.istio.io"]
+    resources:
+      - destinationrules
+      - envoyfilters
+      - gateways
+      - serviceentries
+      - sidecars
+      - virtualservices
+      - workloadentries
+      - workloadgroups
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: ["security.istio.io"]
+    resources:
+      - authorizationpolicies
+      - peerauthentications
+      - requestauthentications
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: ["telemetry.istio.io"]
+    resources:
+      - telemetries
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  - apiGroups: ["extensions.istio.io"]
+    resources:
+      - wasmplugins
     verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
   - apiGroups: ["networking.k8s.io"]
     resources:
@@ -222,9 +244,11 @@ spec:
             requests:
               cpu: "150m"
               memory: "256Mi"
+              ephemeral-storage: "128Mi"
             limits:
               cpu: "600m"
               memory: "512Mi"
+              ephemeral-storage: "512Mi"
           readinessProbe:
             httpGet:
               path: /kiali/healthz
