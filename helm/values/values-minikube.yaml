@@ -88,7 +88,7 @@ products-service:
 mlops:
   enabled: true
   mlflow:
-    image: { repository: georgegxx/mlflow, tag: "1.0.0" }
+    image: { repository: georgegxx/mlflow, tag: "1.1.0" }
   training:
     image: { repository: georgegxx/mlops-training, tag: "1.0.0" }
   forecast:
