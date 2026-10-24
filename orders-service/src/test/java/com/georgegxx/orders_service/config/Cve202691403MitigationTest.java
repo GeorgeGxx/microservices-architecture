@@ -37,7 +37,7 @@ class Cve202691403MitigationTest {
         assertThat(blockedCertsPath).exists();
 
         List<String> lines = Files.readAllLines(blockedCertsPath).stream()
-                .map(String::trim)
+                .map(line -> line != null ? line.trim() : "")
                 .filter(line -> !line.isEmpty())
                 .toList();
 

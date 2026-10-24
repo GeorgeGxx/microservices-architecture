@@ -58,10 +58,10 @@ flowchart TD
 | Service | Primary Stack & Port | Availability Target (30d) | Latency Objective (P95) | CPU Request / Limit | Memory Request / Limit | JVM Heap (-Xms / -Xmx) | Rollback Trigger | Version Evidence Verification |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
 | **`cosmo-router`** | Cosmo Router / Go (`8080`) | **99.95%** | **< 150 ms** | Profile-managed | Profile-managed | N/A (compiled binary) | Error rate > 2% or 3 failed `/health` probes | `GET /health` + header `wgc-router-version` |
-| **`orders-service`** | Spring Boot 4.0.8 (`8003`) | **99.90%** | **< 350 ms** | Profile-managed | Profile-managed | Profile-managed | 5xx ratio > 1% in canary or DB pool drop | `GET /actuator/orders/info` |
-| **`products-service`** | Spring Boot 4.0.8 (`8004`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | P95 > 500ms or 3 consecutive probe failures | `GET /actuator/products/info` |
-| **`inventory-service`** | Spring Boot 4.0.8 (`8001`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | Redis connectivity loss or 5xx > 1% | `GET /actuator/inventory/info` |
-| **`notification-service`** | Spring Boot 4.0.8 (`8002`) | **99.50%** | **< 500 ms** | Profile-managed | Profile-managed | Profile-managed | Kafka consumer lag > 1000 msgs for 15m | `GET /actuator/notification/info` |
+| **`orders-service`** | Spring Boot 4.0.9 (`8003`) | **99.90%** | **< 350 ms** | Profile-managed | Profile-managed | Profile-managed | 5xx ratio > 1% in canary or DB pool drop | `GET /actuator/orders/info` |
+| **`products-service`** | Spring Boot 4.0.9 (`8004`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | P95 > 500ms or 3 consecutive probe failures | `GET /actuator/products/info` |
+| **`inventory-service`** | Spring Boot 4.0.9 (`8001`) | **99.90%** | **< 200 ms** | Profile-managed | Profile-managed | Profile-managed | Redis connectivity loss or 5xx > 1% | `GET /actuator/inventory/info` |
+| **`notification-service`** | Spring Boot 4.0.9 (`8002`) | **99.50%** | **< 500 ms** | Profile-managed | Profile-managed | Profile-managed | Kafka consumer lag > 1000 msgs for 15m | `GET /actuator/notification/info` |
 | **`frontend`** | React 19 / Nginx (`5173`) | **99.95%** | **< 100 ms** | 50m / 250m | 64Mi / 256Mi | N/A (Static asset server) | Nginx 5xx > 1% or healthz timeout | `GET /healthz` + meta tag version |
 | **`demand-forecast-service`** | FastAPI / Python (`8005`) | **99.50%** | **< 800 ms** | Profile-managed | Profile-managed | N/A (Uvicorn / scikit-learn) | Model age > 7d or RMSE > 15.0 | `GET /health` + `GET /api/forecast` metadata |
 | **`demand-sales-capture`** | PySpark 4.2 Streaming | **99.50%** | N/A (Stream) | Profile-managed | Profile-managed | Profile-managed | Query crash loop or checkpoint corruption | Pod logs + Spark UI `/jobs` |
@@ -87,7 +87,7 @@ flowchart TD
 
 ---
 
-### 2. `orders-service` (Spring Boot 3.4)
+### 2. `orders-service` (Spring Boot 4.0.9)
 * **Function:** Mission-critical transactional checkout, order placement, status lifecycle, and Kafka event publishing.
 * **SLOs:**
   * **Availability:** $\ge 99.90\%$ across 30 days.
@@ -129,7 +129,7 @@ flowchart TD
 
 ---
 
-### 3. `products-service` & `inventory-service` (Spring Boot 3.4)
+### 3. `products-service` & `inventory-service` (Spring Boot 4.0.9)
 * **Function:** Product catalog indexing, pricing, inventory reservation, and Redis cache synchronization.
 * **SLOs:**
   * **Availability:** $\ge 99.90\%$.
@@ -146,7 +146,7 @@ flowchart TD
 
 ---
 
-### 4. `notification-service` (Spring Boot 3.4 / Kafka Consumer)
+### 4. `notification-service` (Spring Boot 4.0.9 / Kafka Consumer)
 * **Function:** Asynchronous customer order dispatch notification, email dispatch, and dead-letter queue (DLT) processing.
 * **SLOs:**
   * **Availability:** $\ge 99.50\%$.

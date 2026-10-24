@@ -413,7 +413,11 @@ class OrderServiceTest {
             List<org.springframework.transaction.support.TransactionSynchronization> syncs =
                     org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
             assertEquals(1, syncs.size());
-            syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit);
+            syncs.forEach(sync -> {
+                if (sync != null) {
+                    sync.afterCommit();
+                }
+            });
         } finally {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }
@@ -464,7 +468,11 @@ class OrderServiceTest {
             List<org.springframework.transaction.support.TransactionSynchronization> syncs =
                     org.springframework.transaction.support.TransactionSynchronizationManager.getSynchronizations();
             assertEquals(1, syncs.size());
-            assertDoesNotThrow(() -> syncs.forEach(org.springframework.transaction.support.TransactionSynchronization::afterCommit));
+            assertDoesNotThrow(() -> syncs.forEach(sync -> {
+                if (sync != null) {
+                    sync.afterCommit();
+                }
+            }));
         } finally {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }

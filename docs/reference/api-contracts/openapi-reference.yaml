@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Enterprise E-Commerce Microservices Architecture API
   description: 'Authoritative OpenAPI 3.0 specification consolidating all Spring Boot
-    4.0.8 REST microservices:
+    4.0.9 REST microservices:
 
     - Products Service (:8004)
 
