@@ -319,31 +319,31 @@ pipelines:
       - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
       - stage:
           name: '7. Publish dev image'
-          environment: test
+          environment: dev
           steps: [{ step: *publish-candidate }]
       - stage:
           name: '8. Deploy dev to GKE'
-          deployment: test
+          deployment: dev
           steps: [{ step: *deploy-gke }]
       - stage:
           name: '9. Dev API contract'
-          environment: test
+          environment: dev
           steps: [{ step: *api-contract }]
       - stage:
           name: '10. Dev storefront E2E'
-          environment: test
+          environment: dev
           steps: [{ step: *frontend-e2e }]
       - stage:
           name: '11. Dev performance SLO'
-          environment: test
+          environment: dev
           steps: [{ step: *performance }]
       - stage:
           name: '12. Dev DAST'
-          environment: test
+          environment: dev
           steps: [{ step: *dast }]
       - stage:
           name: '13. Verify dev rollout'
-          environment: test
+          environment: dev
           steps: [{ step: *runtime-verify }]
       - stage: { name: '14. Dev release evidence', steps: [{ step: *release-evidence }] }
 

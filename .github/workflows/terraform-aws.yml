@@ -290,7 +290,7 @@ jobs:
       id-token: write
       contents: read
     environment:
-      name: dev-infra
+      name: dev
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -349,7 +349,7 @@ jobs:
       id-token: write
       contents: read
     environment:
-      name: staging-infra
+      name: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -408,7 +408,7 @@ jobs:
       id-token: write
       contents: read
     environment:
-      name: prod-infra
+      name: production
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
