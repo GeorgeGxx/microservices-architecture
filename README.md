@@ -264,11 +264,12 @@ The platform separates internal infrastructure orchestration from client-facing 
 * **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
 * **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, mandatory labels, and prohibiting default `ServiceAccount` usage.
 * **Multi-Environment Least-Privilege RBAC:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false` across `dev`, `staging`, and `prod`.
+* **Cryptographic Supply-Chain Verification (Sigstore Cosign):** Public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) verified locally via `security-scan` and during multi-cloud image promotion.
 
 ### 🧪 Automated MLOps & Demand Forecasting
 * **Kafka Structured Streaming to Parquet:** Real-time ingestion of `DELIVERED` orders into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`) with durable Spark checkpoints and zero local CSV dependencies.
 * **Continuous PySpark Auto-Training:** Automated hourly CronJob and streaming capture checks require at least 9 date partitions, a changed SHA-256 fingerprint, and a 60-second stable Parquet snapshot before training to avoid redundant runs.
-* **MLflow Tracking & Registry:** Experiment tracking capturing RMSE/MAE metrics, hyperparameter runs, and model artifacts logging.
+* **MLflow Tracking & Champion-Only Model Governance:** Experiment tracking capturing RMSE/MAE metrics, dataset-scoped RMSE quality gates, and `model_role=champion` promotion (`PROMOTED`, `PROMOTED_INITIAL_BASELINE`, `PROMOTED_NEW_DATASET`). Non-improving runs (`model_role=challenger_rejected`) are logged strictly in MLflow for audit without overwriting the active model served to the storefront.
 * **Enterprise Inference API & RBAC:** Sub-second 7-day SKU demand forecast endpoint (`/api/forecast`) protected by Keycloak `ADMIN` role, fully validated in Postman/Newman E2E test suites.
 
 ### 📊 Full-Stack Observability (LGTM Stack)
@@ -411,6 +412,8 @@ npx --yes newman run devsecops/testing/newman/microservices.postman_collection.j
 $env:PYTHONPATH = "mlops"; python -m unittest discover -s mlops/tests -v
 
 # 9. Platform CLI wrappers (Minikube / DevSecOps):
+.\platform-minikube.ps1 test           # Runs Java 21 + Maven reactor unit tests across all microservices
+.\platform-minikube.ps1 security-scan  # Runs 5 Shift-Left gates (Gitleaks, TFLint, Trivy, OPA Conftest, Cosign)
 .\platform-minikube.ps1 smoke          # Runs smoke checks against active cluster
 .\platform-minikube.ps1 contract       # Runs Newman API collection in automated container
 .\platform-minikube.ps1 performance    # Runs k6 SLO latency and throughput benchmark
@@ -434,10 +437,10 @@ microservices-architecture/
 ├── azure-devops/                   # Azure DevOps Pipeline YAML files
 ├── cosmo-router/                   # Cosmo Router 0.362.0 (Port 8080 • Federation v2)
 ├── devsecops/                      # Centralized DevSecOps Hub
+│   ├── compliance/cosign/          # Sigstore Cosign public key (cosign.pub) & signed supply-chain manifest
 │   ├── compliance/trivy/           # Trivy container scanner configuration
 │   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
 │   ├── policies/                   # OPA Rego Conftest & Gatekeeper constraints
-│   ├── sast/gitleaks/              # Gitleaks and Semgrep static security configs
 │   └── testing/newman/             # Newman JSON export + Postman collection tree
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
@@ -503,7 +506,6 @@ microservices-architecture/
 ├── .env.example                    # Environment variables template
 ├── .gitattributes                  # Git line-ending and binary attributes configuration
 ├── .gitignore                      # Git ignore patterns
-├── .gitleaks.toml                  # Gitleaks security scanner configuration and detection rules
 ├── .gitleaksignore                 # Baseline allowlist and suppressions for secrets scanner
 ├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI/CD configuration
 ├── compose.yaml                    # Local multi-service development stack (15 containers)
