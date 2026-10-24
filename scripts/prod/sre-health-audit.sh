@@ -61,7 +61,7 @@ check_http() {
   start_time="$(date +%s%N 2>/dev/null || date +%s)"
   local http_code
   http_code="$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout "${timeout}" --max-time "$((timeout + 2))" "$url" || echo "000")"
-  
+
   if [[ "$http_code" == "$expected_code" ]]; then
     printf "  ✅ %-30s | HTTP %-3s | OK (%s)\n" "$service_name" "$http_code" "$url"
   else
@@ -86,7 +86,7 @@ check_socket() {
 dump_jvm_triage() {
   local pid="$1"
   log_header "TRIAGE DE EMERGENCIA: Volcado de Threads y Memoria JVM (PID: ${pid})"
-  
+
   if ! command -v jcmd >/dev/null 2>&1; then
     echo "❌ Error: 'jcmd' (OpenJDK JDK) no está disponible en este host." >&2
     exit 1

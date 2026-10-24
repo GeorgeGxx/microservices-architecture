@@ -68,14 +68,14 @@ backup_db() {
   local port="${3:-$PGPORT}"
   local timestamp
   timestamp="$(date -u +'%Y%m%dT%H%M%SZ')"
-  
+
   local final_file="${BACKUP_DIR}/${db}_${timestamp}.dump"
   local temp_file="${final_file}.partial"
 
   mkdir -p "${BACKUP_DIR}"
 
   log "Iniciando respaldo de base de datos '${db}' desde ${host}:${port}..."
-  
+
   # Dump en formato custom binario comprimido con nivel configurable
   pg_dump --no-owner --no-privileges \
     --format=custom \
@@ -140,7 +140,7 @@ verify_drill() {
   fi
 
   log "Ejecutando verificación BCDR para: ${dump_file}"
-  
+
   # 1. Validar checksum si existe
   if [[ -f "${dump_file}.sha256" ]]; then
     log "Verificando Checksum SHA-256..."
