@@ -12,7 +12,7 @@ global:
   # chart needs to change. Requires: the "azureKeyvaultSecretsProvider"
   # AKS add-on (already on via terraform/modules/azure/aks), the Key Vault
   # RBAC role granted in terraform/modules/azure/keyvault, and an AKS
-  # Workload Identity client-id for discovery-server's ServiceAccount.
+  # Workload Identity client-id for the application ServiceAccount.
   azureKeyVault:
     enabled: false
     name: ""                       # e.g. georgegxx-msa-dev-kv (matches terraform/modules/azure/keyvault naming: <name>-<environment>-kv)

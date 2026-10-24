@@ -11,6 +11,7 @@
   "trustedRegistries": [
     "georgegxx/",
     "docker.io/georgegxx/",
+    "ghcr.io/wundergraph/cosmo/",
     "ghcr.io/georgegxx/",
     "gcr.io/distroless",
     "quay.io/",
@@ -18,39 +19,54 @@
   ],
   "components": [
     {
-      "name": "discovery-server",
-      "runtime": "eclipse-temurin:21-jre-alpine",
-      "image": "georgegxx/discovery-server"
+      "name": "cosmo-router",
+      "runtime": "ghcr.io/wundergraph/cosmo/router:0.362.0",
+      "image": "ghcr.io/wundergraph/cosmo/router:0.362.0"
     },
     {
-      "name": "config-server",
+      "name": "products-service",
       "runtime": "eclipse-temurin:21-jre-alpine",
-      "image": "georgegxx/config-server"
+      "image": "georgegxx/products-service:1.0.0"
     },
     {
-      "name": "api-gateway",
+      "name": "orders-service",
       "runtime": "eclipse-temurin:21-jre-alpine",
-      "image": "georgegxx/api-gateway"
+      "image": "georgegxx/orders-service:1.0.0"
     },
     {
-      "name": "product-service",
+      "name": "inventory-service",
       "runtime": "eclipse-temurin:21-jre-alpine",
-      "image": "georgegxx/product-service"
+      "image": "georgegxx/inventory-service:1.0.0"
     },
     {
-      "name": "order-service",
+      "name": "notification-service",
       "runtime": "eclipse-temurin:21-jre-alpine",
-      "image": "georgegxx/order-service"
+      "image": "georgegxx/notification-service:1.0.0"
     },
     {
       "name": "frontend",
       "runtime": "nginxinc/nginx-unprivileged:1.27-alpine",
-      "image": "georgegxx/frontend"
+      "image": "georgegxx/frontend:1.0.0"
     },
     {
-      "name": "mlops-demand-forecast",
-      "runtime": "python:3.11-slim",
-      "image": "georgegxx/mlops-demand-forecast"
+      "name": "demand-forecast-service",
+      "runtime": "python:3.12-slim",
+      "image": "georgegxx/demand-forecast-service:1.0.0"
+    },
+    {
+      "name": "demand-sales-capture",
+      "runtime": "python:3.12-slim",
+      "image": "georgegxx/demand-sales-capture:1.0.0"
+    },
+    {
+      "name": "demand-model-training",
+      "runtime": "python:3.12-slim",
+      "image": "georgegxx/demand-model-training:1.0.0"
+    },
+    {
+      "name": "mlflow",
+      "runtime": "ghcr.io/mlflow/mlflow:v3.17.2",
+      "image": "georgegxx/mlflow:1.0.0"
     }
   ]
 }
