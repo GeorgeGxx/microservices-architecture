@@ -262,7 +262,7 @@ kubectl get nodes
 
 ##### 🐳 2. Docker Hub Authentication & Secrets Configuration
 
-Container images are published under `georgegxx/<service>:<git-sha>`; the registry-returned digest is used for deployment. Mutable `latest` and overwritten `1.0.0` aliases are not pushed.
+Container images are published under `georgegxx/<service>:<git-sha>` for continuous branch builds, or under `georgegxx/<service>:<semver>` (e.g. `1.0.0`, `1.0.1`) for formal release pipelines (`docker-release.yml` and Git tags `v*.*.*`). In strict compliance with Docker Hub's **"All tags are immutable"** policy, mutable `latest` tags and tag overwrites are prohibited. Pull requests never publish images to prevent registry pollution. Deployment manifests reference either the immutable SemVer tag or the cryptographically verified registry digest.
 
 1. To enable automated image publishing and digest-based deployment after all blocking CI gates pass, ensure your GitHub repository has the following secrets configured (**Settings** -> **Secrets and variables** -> **Actions**):
    * `DOCKERHUB_USERNAME`: `georgegxx`

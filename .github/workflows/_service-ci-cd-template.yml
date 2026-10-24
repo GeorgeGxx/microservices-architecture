@@ -75,6 +75,16 @@ on:
         type: string
         default: ''
         description: 'Keycloak URL for IAM validation (defaults to vars.DEVSECOPS_KEYCLOAK_URL)'
+      publish-to-registry:
+        required: false
+        type: boolean
+        default: true
+        description: 'Whether to push the certified container image to registry'
+      image-tag:
+        required: false
+        type: string
+        default: ''
+        description: 'Explicit image tag to publish (e.g. 1.0.0). Defaults to git tag SemVer or commit SHA'
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -570,9 +580,11 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
+    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false)
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
+      image-tag: ${{ steps.registry-push.outputs.image-tag }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
@@ -592,11 +604,31 @@ jobs:
           DOCKER_PASS: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
           set -euo pipefail
-          SHA_TAG="${{ env.IMAGE_NAME }}:${{ github.sha }}"
+
+          # Determine the single target tag:
+          # 1. Explicit input tag (e.g. 1.0.0)
+          # 2. Git Tag SemVer (e.g. refs/tags/v1.0.0 -> 1.0.0)
+          # 3. Commit SHA fallback (always immutable)
+          if [ -n "${{ inputs.image-tag }}" ]; then
+            TARGET_TAG="${{ inputs.image-tag }}"
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            TARGET_TAG="${BASH_REMATCH[1]}"
+          else
+            TARGET_TAG="${{ github.sha }}"
+          fi
+
+          FINAL_IMAGE="${{ env.IMAGE_NAME }}:${TARGET_TAG}"
 
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-            docker push "$SHA_TAG" 2>&1 | tee /tmp/docker-push.log
+
+            # If target tag differs from github.sha, tag the loaded image
+            if [ "$TARGET_TAG" != "${{ github.sha }}" ]; then
+              docker tag "${{ env.IMAGE_NAME }}:${{ github.sha }}" "$FINAL_IMAGE"
+            fi
+
+            echo "Pushing single immutable image tag: $FINAL_IMAGE"
+            docker push "$FINAL_IMAGE" 2>&1 | tee /tmp/docker-push.log
             IMAGE_DIGEST="$(sed -n 's/.*digest: \(sha256:[0-9a-f]*\).*/\1/p' /tmp/docker-push.log | tail -n 1)"
             if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
               echo "::error::Registry did not return a valid immutable image digest."
@@ -604,9 +636,12 @@ jobs:
             fi
             echo "digest=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "Published $SHA_TAG; deployment will use the immutable digest $IMAGE_DIGEST."
+            echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+            echo "Published $FINAL_IMAGE with immutable digest $IMAGE_DIGEST."
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "digest=" >> "$GITHUB_OUTPUT"
+            echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
             echo "::notice::Registry credentials are not configured; deployment is skipped because no image was published."
           fi
 
@@ -658,19 +693,20 @@ jobs:
         run: |
           echo "Connecting to ArgoCD for $APP_NAME in namespace $TARGET_NS..."
           IMAGE_DIGEST="${{ needs.push-dockerhub.outputs.image-digest }}"
+          PUBLISHED_TAG="${{ needs.push-dockerhub.outputs.image-tag || github.sha }}"
           HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
             if [ -n "$IMAGE_DIGEST" ]; then
               argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             else
-              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag=${{ github.sha }} --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
+              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag="$PUBLISHED_TAG" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             fi
             argocd app sync "$APP_NAME" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             argocd app wait "$APP_NAME" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
             echo "Successfully synchronized and validated $APP_NAME via ArgoCD."
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             echo "Using direct cluster fallback for $TARGET_ENV..."
-            IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest= --set ${HELM_KEY}.image.tag=${{ github.sha }})
+            IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest= --set ${HELM_KEY}.image.tag="$PUBLISHED_TAG")
             if [ -n "$IMAGE_DIGEST" ]; then
               IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest="$IMAGE_DIGEST")
             fi
@@ -684,7 +720,7 @@ jobs:
               --cleanup-on-fail
             echo "Cluster deployment healthy in $TARGET_NS."
           else
-            echo "::notice::ArgoCD server not connected in this runner — GitOps delivery dispatched for $APP_NAME (Tag: ${{ github.sha }})."
+            echo "::notice::ArgoCD server not connected in this runner — GitOps delivery dispatched for $APP_NAME (Tag: $PUBLISHED_TAG)."
           fi
 
   # Opt-in because the GitHub runner must have network access to the deployed app.

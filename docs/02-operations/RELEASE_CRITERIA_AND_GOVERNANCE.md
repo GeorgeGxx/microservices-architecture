@@ -216,3 +216,65 @@ Invoke-RestMethod -Uri "http://localhost:8005/health" | ConvertTo-Json
 ### Automated Rollback Actions:
 * **Helm Deployment Failure:** All deployments specify `--atomic --timeout 5m`. If any container fails to pass its readiness probe within 5 minutes, Helm automatically purges the new ReplicaSet and rolls back to the prior stable revision.
 * **Istio Canary Degradation:** During progressive traffic rollouts (`10% -> 25% -> 50% -> 100%`), if Prometheus indicates `MicroserviceAvailabilityErrorBudgetBurn` or P95 latency exceeds the service SLO threshold, the traffic VirtualService immediately snaps back to `100% stable / 0% canary`.
+
+---
+
+## 📦 Immutable Release Delivery & Rollback Runbook
+
+### 1. Essential Elements of a Production Release
+Every release candidate promoted to production must contain:
+1. **Immutable SemVer 2.0.0 Tag:** Semantic version string (`v1.0.0`, `v1.0.1`, `v1.1.0`) enforcing Docker Hub's **"All tags are immutable"** protection. Tags are never reused or overwritten.
+2. **Container Registry Image & Digest:** Published under `georgegxx/<service>:<semver>` with its immutable cryptographic content addressable identifier (`sha256:...`).
+3. **Supply Chain Provenance (Sigstore Cosign):** Cryptographically signed container image verifiable against [`cosign.pub`](../../cosign.pub) before admission into the cluster.
+4. **SBOM & Clean Security Gate:** CycloneDX SBOM generated and zero unaddressed CRITICAL vulnerabilities confirmed by Trivy.
+5. **GitOps Desired State Declaration:** Pinned version or digest committed to `helm/microservices-umbrella/values.yaml` or target environment values.
+6. **Backward-Compatible Database Migrations:** Database schema migrations (Liquibase/Flyway/PostgreSQL) strictly following the *Expand/Contract* pattern so that rolling back to version $N-1$ never corrupts active persistent data.
+
+### 2. Zero-Downtime Switch Procedure to a New Version
+When promoting a new version (e.g. `1.0.1`):
+1. **Trigger the Release Pipeline:**
+   - **Via GitHub Actions UI:** Navigate to **Actions** -> **Container Release Pipeline**, specify `version: 1.0.1`, and click **Run workflow**.
+   - **Via Git Release Tag:**
+     ```bash
+     git tag v1.0.1
+     git push origin v1.0.1
+     ```
+2. **Synchronize GitOps (ArgoCD):**
+   Update the image tag in Helm values and synchronize ArgoCD:
+   ```bash
+   argocd app set microservices-dev --helm-set orders-service.image.tag="1.0.1"
+   argocd app sync microservices-dev
+   ```
+3. **Rolling Update Execution:**
+   - Kubernetes pulls the new `1.0.1` image (single pull per node).
+   - The new pod starts up and executes its `readinessProbe` (`/actuator/<service>/health` or `/healthz`).
+   - Active user traffic continues routing to `1.0.0` until `1.0.1` reports `200 OK`.
+   - Kubernetes completes traffic switch and gracefully terminates `1.0.0` pods with zero downtime.
+
+### 3. Emergency & Operational Rollback Procedures
+If a regression or critical incident occurs, execute one of the following three rollback mechanisms:
+
+#### A. GitOps Commit Revert (Standard Audit-Compliant Rollback)
+```bash
+git revert HEAD
+git push origin develop
+# ArgoCD reconciles the restored desired state automatically
+```
+
+#### B. ArgoCD Emergency Revision Rollback
+```bash
+# List historical application revisions
+argocd app history microservices-dev
+
+# Immediately roll back to previous deployment ID (e.g. revision 12)
+argocd app rollback microservices-dev 12
+```
+
+#### C. Kubernetes Native Deployment Rollout Undo (Instant Recovery)
+```bash
+# Roll back orders-service to its prior stable ReplicaSet
+kubectl rollout undo deployment/orders-service -n dev
+
+# Confirm healthy rollout status
+kubectl rollout status deployment/orders-service -n dev
+```

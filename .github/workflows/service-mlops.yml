@@ -14,6 +14,17 @@ on:
       - '.github/workflows/service-mlops.yml'
       - '.github/workflows/_service-ci-cd-template.yml'
   workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Explicit image tag to publish (leave empty for git sha or semver from tag)'
+        required: false
+        type: string
+        default: ''
+      publish-to-registry:
+        description: 'Publish image to Docker Registry'
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: mlops-${{ github.ref }}
@@ -34,6 +45,8 @@ jobs:
       context-dir: mlops
       helm-values-key: mlops.forecast
       post-deploy-enabled: false
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
     secrets: inherit
 
   # ==========================================================
@@ -50,4 +63,6 @@ jobs:
       context-dir: mlops
       helm-values-key: mlops.training
       post-deploy-enabled: false
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
     secrets: inherit
