@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     Enterprise Multi-Cloud Platform Orchestrator (AWS, Azure, GCP)
 .DESCRIPTION
@@ -62,7 +62,7 @@ param(
 )
 
 Set-StrictMode -Version Latest
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Set cloud context before loading this standalone CLI's helper functions.
