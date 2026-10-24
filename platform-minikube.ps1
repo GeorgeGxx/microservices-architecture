@@ -41,6 +41,8 @@ param(
     [int]$Cpus = 8,
     [int]$MemoryMb = 16384,
     [string]$DiskSize = "40g",
+    [string]$CosignImage = "",
+    [string]$CosignKey = "",
     [switch]$Destroy = $false
 )
 
@@ -653,12 +655,71 @@ function New-GitleaksScanSource {
     }
 }
 
+function Get-CosignExecutable {
+    foreach ($candidate in @('cosign', 'cosign-windows-amd64')) {
+        $cmd = Get-Command $candidate -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($cmd) { return $cmd }
+    }
+    return $null
+}
+
+function Invoke-CosignSupplyChainGate {
+    [CmdletBinding()]
+    param(
+        [string]$StepHeader = "  ── Cosign: Container Image Signature Verification ──",
+        [string]$ImageRef = "",
+        [string]$PublicKeyPath = ""
+    )
+
+    $cosignCmd = Get-CosignExecutable
+    if (-not $cosignCmd) {
+        throw "Required local DevSecOps CLI 'cosign' is missing. Run '.\platform-$Platform.ps1 tools -Install' and reopen the terminal."
+    }
+
+    Write-Host ""
+    Write-Host $StepHeader -ForegroundColor Cyan
+
+    $resolvedKey = $PublicKeyPath
+    if (-not $resolvedKey) {
+        $defaultKey = Join-Path $root 'devsecops\compliance\cosign\cosign.pub'
+        if (Test-Path -LiteralPath $defaultKey -PathType Leaf) {
+            $resolvedKey = $defaultKey
+        }
+    }
+
+    if ($ImageRef) {
+        Write-Host "  Verifying cryptographic signature for container image '$ImageRef'..." -ForegroundColor Gray
+        $cosignArgs = @('verify')
+        if ($resolvedKey) {
+            $cosignArgs += @('--key', $resolvedKey)
+        }
+        $cosignArgs += $ImageRef
+        $cosignOutput = @(& $cosignCmd.Source @cosignArgs 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            throw "Cosign signature verification failed for '$ImageRef' (exit $LASTEXITCODE)."
+        }
+        Write-Host "  [OK] Cosign: Container image signature verified for '$ImageRef'." -ForegroundColor Green
+    } else {
+        $versionOutput = @(& $cosignCmd.Source version 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            throw "Cosign binary check failed (exit $LASTEXITCODE)."
+        }
+        $versionLine = @($versionOutput | Where-Object { "$_" -match 'GitVersion' } | Select-Object -First 1)
+        $versionDetail = if ($versionLine.Count -gt 0) { ($versionLine[0] -replace '\s+', ' ').Trim() } else { "Sigstore Cosign active" }
+        Write-Host "  [INFO] No external registry image specified with -CosignImage ($versionDetail)." -ForegroundColor Gray
+        Write-Host "  [OK] Cosign: Supply-chain cryptographic verifier ready (advisory mode; pass -CosignImage <image> [-CosignKey <key>] to enforce)." -ForegroundColor Green
+    }
+}
+
 function Invoke-LocalDevSecOpsScan {
     [CmdletBinding()]
     param(
         [switch]$IncludeRenderedPolicy,
         [ValidateSet('minikube', 'aws', 'azure', 'gcp')]
-        [string]$TargetPlatform = 'minikube'
+        [string]$TargetPlatform = 'minikube',
+        [string]$ImageToVerify = $CosignImage,
+        [string]$PublicKey = $CosignKey
     )
 
     $gitleaksConfig = Join-Path $root 'devsecops\sast\gitleaks\.gitleaks.toml'
@@ -675,8 +736,11 @@ function Invoke-LocalDevSecOpsScan {
                 throw "Required local DevSecOps CLI '$tool' is missing. Run '.\platform-$Platform.ps1 tools -Install' and reopen the terminal."
             }
         }
+        if (-not (Get-CosignExecutable)) {
+            throw "Required local DevSecOps CLI 'cosign' is missing. Run '.\platform-$Platform.ps1 tools -Install' and reopen the terminal."
+        }
 
-        $totalGates = if ($IncludeRenderedPolicy) { 4 } else { 3 }
+        $totalGates = if ($IncludeRenderedPolicy) { 5 } else { 4 }
 
         # --- [1/N] Gitleaks ---
         Write-Host ""
@@ -728,6 +792,11 @@ function Invoke-LocalDevSecOpsScan {
             $stepHeader = "  ── [4/$totalGates] Conftest: OPA Rego Policy Gate ──"
             Invoke-LocalPolicyGate -StepHeader $stepHeader
         }
+
+        # --- [5/N] Cosign ---
+        $cosignStepNumber = if ($IncludeRenderedPolicy) { 5 } else { 4 }
+        $cosignHeader = "  ── [$cosignStepNumber/$totalGates] Cosign: Container Image Signature Verification ──"
+        Invoke-CosignSupplyChainGate -StepHeader $cosignHeader -ImageRef $ImageToVerify -PublicKeyPath $PublicKey
 
         Write-Host ""
         Write-Host "  ✔ Shift-Left Security Scans completed successfully." -ForegroundColor Green
@@ -1458,6 +1527,9 @@ if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform
 if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
+if (($CosignImage -or $CosignKey) -and $Command -notin @("up", "bootstrap", "apply", "security-scan")) {
+    throw "-CosignImage and -CosignKey are valid only with 'security-scan', 'up', 'bootstrap', or 'apply'."
+}
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
 }
@@ -1748,11 +1820,11 @@ switch ($Command) {
 
     "security-scan" {
         if ($Platform -eq 'minikube') {
-            Show-Banner "Local DevSecOps Scans (Gitleaks, TFLint, Trivy, Conftest)"
-            Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -TargetPlatform $Platform
+            Show-Banner "Local DevSecOps Scans (Gitleaks, TFLint, Trivy, Conftest, Cosign)"
+            Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey
         } else {
-            Show-Banner "Cloud IaC and Repository Scans (Gitleaks, TFLint, Trivy)"
-            Invoke-LocalDevSecOpsScan -TargetPlatform $Platform
+            Show-Banner "Cloud IaC and Repository Scans (Gitleaks, TFLint, Trivy, Cosign)"
+            Invoke-LocalDevSecOpsScan -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey
         }
     }
 
@@ -1852,7 +1924,7 @@ switch ($Command) {
             Write-Host "  start / resume      Fast platform resume (<30s) bypassing Terraform, Gatekeeper and Helm re-build"
             Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
             Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
-            Write-Host "  security-scan       Run the configured Gitleaks, TFLint, Trivy, and Conftest checks"
+            Write-Host "  security-scan       Run the configured Gitleaks, TFLint, Trivy, Conftest, and Cosign checks"
             Write-Host "  smoke | contract | performance | dast | tunnels | diagrams | bcdr"
         } else {
             Write-Host "  security-scan       Run local Gitleaks, TFLint, and Trivy scans for this provider"
@@ -1895,7 +1967,7 @@ function Get-PlatformToolInventory {
         [pscustomobject]@{ Id = 'Graphviz.Graphviz'; Command = 'dot'; Purpose = 'Terraform graph rendering' },
         [pscustomobject]@{ Id = 'Gitleaks.Gitleaks'; Command = 'gitleaks'; Purpose = 'Secret scanning' },
         [pscustomobject]@{ Id = 'AquaSecurity.Trivy'; Command = 'trivy'; Purpose = 'Image and IaC scanning' },
-        [pscustomobject]@{ Id = 'Sigstore.Cosign'; Command = 'cosign-windows-amd64'; Purpose = 'Image signature verification' },
+        [pscustomobject]@{ Id = 'Sigstore.Cosign'; Command = 'cosign'; Purpose = 'Image signature verification' },
         [pscustomobject]@{ Id = 'Hashicorp.Vault'; Command = 'vault'; Purpose = 'Vault CLI workflows' },
         [pscustomobject]@{ Id = 'Kubernetes.minikube'; Command = 'minikube'; Purpose = 'Local Kubernetes cluster' },
         [pscustomobject]@{ Id = 'Kubernetes.kubectl'; Command = 'kubectl'; Purpose = 'Kubernetes administration' },
