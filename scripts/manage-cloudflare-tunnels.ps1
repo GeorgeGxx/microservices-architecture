@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     Manages Cloudflare Quick Tunnels for local DevSecOps post-deployment verification.

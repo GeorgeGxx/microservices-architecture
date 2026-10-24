@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+#Requires -Version 7.0
 <#
 .SYNOPSIS
     Native PowerShell script to bootstrap Keycloak realm, clients, roles and test users.
