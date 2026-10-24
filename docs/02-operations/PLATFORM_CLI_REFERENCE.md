@@ -46,6 +46,10 @@ does not replace, the provider's CI security gates.
 # Workload and DevSecOps commands
 .\platform-minikube.ps1 test                             # Run Java 21 + Maven reactor unit tests
 .\platform-minikube.ps1 security-scan                    # Run 5 Shift-Left gates (Gitleaks, TFLint, Trivy, Conftest, Cosign)
+.\platform-minikube.ps1 dast                             # Run OWASP ZAP baseline dynamic application security scan against live frontend
+.\platform-minikube.ps1 contract                         # Run Newman API contract tests (23/23 passing)
+.\platform-minikube.ps1 performance                      # Run k6 load and latency SLO benchmark
+.\platform-minikube.ps1 bcdr                             # Run BCDR backup & disaster recovery simulation drill
 .\platform-minikube.ps1 vault -VaultAction status        # Hybrid host Vault CLI + K8s fallback (init|seed|rotate|status)
 .\platform-minikube.ps1 mlops                            # Deploy/refresh MLflow & MLOps
 .\platform-minikube.ps1 canary -Action rollout -Namespace dev
