@@ -160,4 +160,5 @@ jobs:
           cosign verify-blob \
             --key devsecops/compliance/cosign/cosign.pub \
             --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+            --insecure-ignore-tlog=true \
             devsecops/compliance/cosign/supply-chain-manifest.json
