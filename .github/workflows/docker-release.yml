@@ -1,0 +1,140 @@
+name: Container Release Pipeline (Immutable SemVer)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version tag (e.g. 1.0.0)'
+        required: true
+        type: string
+        default: '1.0.0'
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-tag:
+    name: "🏷️ Resolve Release Tag"
+    runs-on: ubuntu-latest
+    outputs:
+      release-tag: ${{ steps.extract-tag.outputs.tag }}
+    steps:
+      - name: Extract SemVer Tag
+        id: extract-tag
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            TAG="${{ inputs.version }}"
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            TAG="${BASH_REMATCH[1]}"
+          else
+            echo "::error::No valid SemVer release tag specified."
+            exit 1
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Target release tag: $TAG"
+
+  # ==========================================================
+  # 🛒 Core Spring Boot Microservices
+  # ==========================================================
+  release-products:
+    name: "📦 Release products-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: products-service
+      service-type: spring-boot
+      service-dir: products-service
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-orders:
+    name: "📦 Release orders-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: orders-service
+      service-type: spring-boot
+      service-dir: orders-service
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-inventory:
+    name: "📦 Release inventory-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: inventory-service
+      service-type: spring-boot
+      service-dir: inventory-service
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-notifications:
+    name: "📦 Release notification-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: notification-service
+      service-type: spring-boot
+      service-dir: notification-service
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  # ==========================================================
+  # 🌐 Frontend React 19 SPA
+  # ==========================================================
+  release-frontend:
+    name: "🌐 Release frontend"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: frontend
+      service-type: react
+      service-dir: frontend
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  # ==========================================================
+  # 📈 MLOps Demand Forecasting
+  # ==========================================================
+  release-demand-forecast:
+    name: "📈 Release demand-forecast"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: demand-forecast
+      service-type: python
+      service-dir: mlops
+      dockerfile-path: mlops/Dockerfile.forecast
+      context-dir: mlops
+      helm-values-key: mlops.forecast
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-mlops-training:
+    name: "🧪 Release mlops-training"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: mlops-training
+      service-type: python
+      service-dir: mlops
+      dockerfile-path: mlops/Dockerfile.training
+      context-dir: mlops
+      helm-values-key: mlops.training
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit

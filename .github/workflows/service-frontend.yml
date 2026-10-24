@@ -14,6 +14,17 @@ on:
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-frontend.yml'
   workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Explicit image tag to publish (leave empty for git sha or semver from tag)'
+        required: false
+        type: string
+        default: ''
+      publish-to-registry:
+        description: 'Publish image to Docker Registry'
+        required: false
+        type: boolean
+        default: true
 
 concurrency:
   group: frontend-${{ github.ref }}
@@ -26,4 +37,6 @@ jobs:
       service-name: frontend
       service-type: react
       service-dir: frontend
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
     secrets: inherit
