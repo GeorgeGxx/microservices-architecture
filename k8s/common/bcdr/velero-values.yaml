@@ -1,0 +1,80 @@
+# ==============================================================================
+# 🛡️ Velero Server v1.18.3 Helm Values Manifest
+# Enterprise Multi-Cloud Disaster Recovery & Stateful Volume Backup
+# ==============================================================================
+image:
+  repository: velero/velero
+  tag: v1.18.3
+  pullPolicy: IfNotPresent
+
+# Plugins para almacenamiento de respaldo en Cloud u On-Prem / Minikube
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.11.0
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /plugins
+        name: plugins
+
+# Habilitar DaemonSet Node-Agent (Kopia) para respaldar PVCs a nivel de archivos.
+# Requerido por: defaultVolumesToFsBackup: true en velero-schedule.yaml
+deployNodeAgent: true
+
+nodeAgent:
+  podVolumePath: /var/lib/kubelet/pods
+  privileged: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1024Mi
+
+# Configuración del Backend de Almacenamiento
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: aws
+      bucket: ${VELERO_BUCKET:-microservices-bcdr-backups}
+      prefix: ${VELERO_PREFIX:-cluster-backups}
+      config:
+        region: ${AWS_DEFAULT_REGION:-us-east-1}
+        # Para MinIO local (Minikube / Dev):
+        # s3Url: http://minio.data.svc.cluster.local:9000
+        # s3ForcePathStyle: "true"
+  volumeSnapshotLocation:
+    - name: default
+      provider: aws
+      config:
+        region: ${AWS_DEFAULT_REGION:-us-east-1}
+
+  # Configuración global de respaldos
+  features: EnableCSI
+  extraEnvVars:
+    VELERO_SCRATCH_DIR: /scratch
+
+# Políticas de ejecución y recursos del Server
+resources:
+  requests:
+    cpu: 200m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+# Exposición de métricas para el Prometheus TSDB del stack LGTM (:9090)
+metrics:
+  enabled: true
+  scrapeInterval: 30s
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: prometheus

@@ -52,7 +52,7 @@ graph TB
     end
 
     subgraph EventBus["📨 Event Streaming & Caching"]
-        KAFKA["Apache Kafka 7.8<br/>(KRaft • Port 9092)"]
+        KAFKA["Apache Kafka 8.3.2<br/>(KRaft • Port 9092)"]
         REDIS["Redis 8.8.1<br/>(Cache & Rate Limiting)"]
     end
 

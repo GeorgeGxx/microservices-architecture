@@ -278,16 +278,22 @@ The Compose Kafka drill exports topic and consumer-group diagnostics, then resto
 
 ---
 
-## 💾 Kubernetes State Protection with Velero
+## 💾 Kubernetes State Protection with Velero (v1.18.3)
 
-While all application configurations and deployments are stored declaratively in Git (GitOps via ArgoCD), stateful PersistentVolumeClaims (PVCs) and dynamically generated Secrets/Certificates are backed up via **Velero**:
+While all application configurations and deployments are stored declaratively in Git (GitOps via ArgoCD), stateful PersistentVolumeClaims (PVCs) and dynamically generated Secrets/Certificates are backed up via **Velero v1.18.3** with Kopia `nodeAgent` (`defaultVolumesToFsBackup: true`):
 
-### Automated Velero Schedule Manifest:
+### Automated Velero Deployment & Schedule:
+- **CLI Installer:** [`scripts/install-velero.sh`](../../scripts/install-velero.sh) (pins `v1.18.3` across Linux/macOS architectures).
+- **Cluster Helm Values:** [`k8s/common/bcdr/velero-values.yaml`](../../k8s/common/bcdr/velero-values.yaml).
+- **Automated Deployment Script:** [`scripts/deploy-velero.sh`](../../scripts/deploy-velero.sh).
+- **Production Schedule Manifest:** [`k8s/common/bcdr/velero-schedule.yaml`](../../k8s/common/bcdr/velero-schedule.yaml).
+- **Postgres BCDR Engine:** [`scripts/prod/pg-bcdr-engine.sh`](../../scripts/prod/pg-bcdr-engine.sh).
+
 ```yaml
 apiVersion: velero.io/v1
 kind: Schedule
 metadata:
-  name: daily-cluster-backup
+  name: microservices-cluster-bcdr-schedule
   namespace: velero
 spec:
   schedule: "0 2 * * *" # Every day at 02:00 UTC
@@ -297,15 +303,21 @@ spec:
       - auth
       - data
       - vault
+      - istio-system
     snapshotVolumes: true
-    storageLocation: s3-dr-bucket
+    defaultVolumesToFsBackup: true
     ttl: 720h0m0s # 30 Days Retention
 ```
 
-### Full Cluster Disaster Recovery Command:
+### Full Cluster Disaster Recovery Commands:
 ```bash
 # Complete restoration on a freshly provisioned cluster
-velero restore create --from-backup daily-cluster-backup-20261002020000
+velero restore create --from-backup microservices-cluster-bcdr-schedule-20261002020000
+
+# Standalone database restoration & verification drills via production Bash engine:
+./scripts/prod/pg-bcdr-engine.sh backup --all --dest backups/bcdr-drill
+./scripts/prod/pg-bcdr-engine.sh verify-drill --file backups/bcdr-drill/ms_orders_20261002.dump
+./scripts/prod/pg-bcdr-engine.sh restore --file backups/bcdr-drill/ms_orders_20261002.dump --target-db ms_orders
 ```
 
 ---
