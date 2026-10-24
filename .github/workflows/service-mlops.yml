@@ -66,3 +66,21 @@ jobs:
       image-tag: ${{ inputs.image-tag || '' }}
       publish-to-registry: ${{ inputs.publish-to-registry != false }}
     secrets: inherit
+
+  # ==========================================================
+  # 🧪 Service Pipeline 3: MLflow Tracking Server
+  # ==========================================================
+  mlflow:
+    name: "🧪 MLflow Tracking Server Pipeline"
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: mlflow
+      service-type: python
+      service-dir: mlops
+      dockerfile-path: mlops/Dockerfile
+      context-dir: mlops
+      helm-values-key: mlops.mlflow
+      post-deploy-enabled: false
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+    secrets: inherit

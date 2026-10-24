@@ -138,3 +138,18 @@ jobs:
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
     secrets: inherit
+
+  release-mlflow:
+    name: "🧪 Release mlflow"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: mlflow
+      service-type: python
+      service-dir: mlops
+      dockerfile-path: mlops/Dockerfile
+      context-dir: mlops
+      helm-values-key: mlops.mlflow
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit

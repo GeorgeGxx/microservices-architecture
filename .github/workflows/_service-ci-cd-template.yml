@@ -199,6 +199,8 @@ jobs:
               OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
             elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
               OMIT="$OMIT,*/forecast_api.py"
+            elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
+              OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
             fi
             coverage run --source=${{ inputs.service-dir }} --omit="$OMIT" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
             coverage xml -o ${{ inputs.service-dir }}/coverage.xml
@@ -421,6 +423,9 @@ jobs:
           elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,forecast_api.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
+          elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
+            EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,Dockerfile.training,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
+            COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
           fi
           npx --yes sonar-scanner \
             -Dsonar.projectKey=msa-${{ inputs.service-name }} \
