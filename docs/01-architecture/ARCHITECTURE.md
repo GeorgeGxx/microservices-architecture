@@ -57,7 +57,7 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **Keycloak IAM** | `8181` | NodePort `30181`; management port `9000` is also exposed through the currently auto-assigned `31827` | Istio ingress (`/realms/*`, `/resources/*`, `/admin/*`, `/js/*`) | `admin` / `admin`; avoid relying on auto-assigned NodePorts |
 | **HashiCorp Vault** | `8200` | NodePort `30820` | Ingress / NodePort | `root` / v2.2.0 Secret Management |
 | **OPA Gatekeeper** | `8888` / `8443` | ClusterIP | Admission Controller | Policy-as-Code Engine (v3.23.0) |
-| **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.2) |
+| **Istio Ingress Gateway** | `80` / `443` | Kubernetes-assigned NodePorts for Minikube | Ingress / LoadBalancer | Envoy Proxy Service Mesh (v1.31.3) |
 | **Kiali Visual Mesh** | `20001` | NodePort `32001`; metrics port `9090` has auto-assigned NodePort `31628` in the current cluster | Ingress / NodePort | Istio Service Mesh Visualizer (v2.33.0, `/kiali`) |
 | **Grafana** | `3000` | NodePort `30030`; local tunnel `3000` → Service `80` | Ingress / NodePort | `admin` / `admin` (v13.2.3) |
 | **Grafana Tempo** | `3200` | NodePort `30200` for HTTP; OTLP ports are also NodePort-exposed with cluster-assigned values | ClusterIP | Distributed tracing backend (v3.0.5); assigned OTLP NodePorts can change after recreation |
