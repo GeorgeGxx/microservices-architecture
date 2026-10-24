@@ -273,7 +273,7 @@ sequenceDiagram
     participant Keycloak as 🔐 Keycloak IAM<br/>(OIDC / PKCE / JWKS)
     participant Envoy as 🛡️ Istio Envoy Sidecars<br/>(mTLS STRICT SPIFFE)
     participant Gateway as 🚀 Cosmo Router v2<br/>(Query Planner / Fed 2.3)
-    participant Microservice as 📦 Subgraphs (Orders/Products/Inv)<br/>(Spring Boot 4.0.8)
+    participant Microservice as 📦 Subgraphs (Orders/Products/Inv)<br/>(Spring Boot 4.0.9)
     participant Kiali as 📊 Kiali Dashboard
 
     Note over Client, Keycloak: Phase 1: Authentication & Token Issuance
@@ -540,7 +540,7 @@ flowchart TD
         LogisticsStepper["📦 Consumer Order Status<br/>Placed ➔ Shipped ➔ Delivered<br/>Read from Orders Service"]
     end
 
-    subgraph BackendMS ["⚙️ Spring Boot 4.0.8 Microservices"]
+    subgraph BackendMS ["⚙️ Spring Boot 4.0.9 Microservices"]
         OrdersMS["📦 Orders Service (:8003)<br/>• Computes Tax & Shipping<br/>• Auto-Generates DHL-XXXXXXXX Tracking<br/>• Stores Complete Recipient Profile"]
         ProductsMS["🏷️ Products Service (:8004)<br/>• Delivers Ratings & Review Counts<br/>• #1 Best Seller Tag Engine<br/>• Multi-Level Redis Cache"]
         KafkaBus["⚡ Kafka KRaft (orders-topic)<br/>Event Payload with Tracking ID,<br/>Carrier & Customer Coordinates"]
@@ -688,9 +688,9 @@ The current React web SPA is not a React Native app. For a native mobile client,
 
 ---
 
-## ☕ Modern Java 21 & Spring Boot 4.0.8 Platform Architecture
+## ☕ Modern Java 21 & Spring Boot 4.0.9 Platform Architecture
 
-The backend microservices ecosystem leverages modern Java 21 LTS and Spring Boot 4.0.8 capabilities to deliver high throughput, sub-millisecond GC pauses, and clean domain models:
+The backend microservices ecosystem leverages modern Java 21 LTS and Spring Boot 4.0.9 capabilities to deliver high throughput, sub-millisecond GC pauses, and clean domain models:
 
 ### 1. 🌐 Modern HTTP Client with HTTP/2 & Virtual Threads (`JdkClientHttpRequestFactory`)
 - Replaced legacy blocking `HttpURLConnection` (`SimpleClientHttpRequestFactory`) with Java 21's native [`JdkClientHttpRequestFactory`](../../orders-service/src/main/java/com/georgegxx/orders_service/config/RestClientConfig.java) powered by `java.net.http.HttpClient`.

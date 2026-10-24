@@ -3,7 +3,6 @@ package com.georgegxx.notification_service.controllers;
 import com.georgegxx.notification_service.service.SseNotificationHub;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.http.MediaType;
@@ -22,8 +21,7 @@ public class NotificationController {
             @AuthenticationPrincipal Jwt jwt,
             Authentication authentication) {
         boolean isAdmin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch("ROLE_ADMIN"::equals);
+                .anyMatch(authority -> authority != null && "ROLE_ADMIN".equals(authority.getAuthority()));
         return this.sseNotificationHub.registerClient(
                 jwt.getSubject(), jwt.getClaimAsString("preferred_username"), isAdmin);
     }

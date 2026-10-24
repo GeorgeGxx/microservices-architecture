@@ -30,6 +30,7 @@ import java.util.stream.Collectors;
 public class InventoryService {
 
     private static final String PRODUCT_WITH_SKU_PREFIX = "Product with sku ";
+    private static final String SKU_MUST_NOT_BE_NULL = "SKU must not be null";
 
     // Core dependencies injected via Lombok @RequiredArgsConstructor
     private final InventoryRepository inventoryRepository;
@@ -226,7 +227,7 @@ public class InventoryService {
                 .stream()
                 .collect(Collectors.collectingAndThen(
                         Collectors.toMap(
-                                inventory -> Objects.requireNonNull(inventory.getSku(), "SKU must not be null"),
+                                inventory -> Objects.requireNonNull(inventory.getSku(), SKU_MUST_NOT_BE_NULL),
                                 Function.identity(),
                                 (existing, replacement) -> existing
                         ),
@@ -284,7 +285,7 @@ public class InventoryService {
         List<Inventory> lockedInventory = this.inventoryRepository.findBySkuInWithLock(sortedSkus);
         Map<String, Inventory> inventoryMap = lockedInventory.stream()
             .collect(Collectors.toMap(
-                inventory -> Objects.requireNonNull(inventory.getSku(), "SKU must not be null"),
+                inventory -> Objects.requireNonNull(inventory.getSku(), SKU_MUST_NOT_BE_NULL),
                 Function.identity(),
                 (existing, replacement) -> existing,
                 LinkedHashMap::new
@@ -340,7 +341,9 @@ public class InventoryService {
         List<String> sortedSkus = requestedQuantities.keySet().stream().sorted().toList();
         List<Inventory> lockedInventory = this.inventoryRepository.findBySkuInWithLock(sortedSkus);
 
-        Set<String> foundSkus = lockedInventory.stream().map(Inventory::getSku).collect(Collectors.toSet());
+        Set<String> foundSkus = lockedInventory.stream()
+                .map(inventory -> Objects.requireNonNull(inventory.getSku(), SKU_MUST_NOT_BE_NULL))
+                .collect(Collectors.toSet());
         List<String> missingSkus = sortedSkus.stream().filter(sku -> !foundSkus.contains(sku)).toList();
         if (!missingSkus.isEmpty()) {
             return new BaseResponse(missingSkus.stream()
@@ -423,7 +426,8 @@ public class InventoryService {
             if (item == null || item.getSku() == null) continue;
             long quantity = Optional.ofNullable(item.getQuantity()).orElse(0L);
             try {
-                quantitiesBySku.merge(item.getSku(), quantity, Math::addExact);
+                quantitiesBySku.merge(item.getSku(), quantity, (existing, addition) ->
+                        Math.addExact(existing != null ? existing : 0L, addition != null ? addition : 0L));
             } catch (ArithmeticException ex) {
                 throw new IllegalArgumentException(
                         "Requested quantity total exceeds the supported range for SKU " + item.getSku(), ex);

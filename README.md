@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk" alt="Java 21" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-4.0.8-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.0.8" />
+  <img src="https://img.shields.io/badge/Spring%20Boot-4.0.9-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.0.9" />
   <img src="https://img.shields.io/badge/React-19%20SPA-blue.svg?style=for-the-badge&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS v4" />
   <img src="https://img.shields.io/badge/Keycloak-26.8.1-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Newman%20Tests-23%2F23%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 23/23 Passing" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.8**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.0.9**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
 
 **Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs ~20+ containers.
 
@@ -44,7 +44,7 @@ graph TB
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
-    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.0.8 • Federation 2.3; Orders 2.5)"]
+    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.0.9 • Federation 2.3; Orders 2.5)"]
         PROD["Products Service<br/>(:8004 • PostgreSQL 18 • Subgraph)"]
         ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Subgraph)"]
         INV["Inventory Service<br/>(:8001 • PostgreSQL 18 • Subgraph)"]
@@ -192,10 +192,10 @@ The matrix below outlines the platform's core workloads, service ports, authenti
 | Service / Workload / Version | Port(s) | Credentials / Auth | K8s Right-Sizing (Req / Lim) | Architectural Role |
 | :--- | :---: | :--- | :--- | :--- |
 | **Cosmo Router Gateway**<br>`v0.362.0` | `8080` (`/graphql`)<br>`9090` (Metrics) | Keycloak JWKS JWT validation, authenticated order fields, bounded complexity | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | GraphQL Federation v2 edge router & subgraph composition gateway |
-| **Products Service**<br>`Spring Boot 4.0.8` | `8004` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Catalog management, stock sync & product federation subgraph |
-| **Orders Service**<br>`Spring Boot 4.0.8` | `8003` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Order lifecycle, DHL tracking, funnel telemetry & Saga coordinator |
-| **Inventory Service**<br>`Spring Boot 4.0.8` | `8001` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Stock reservation, low-stock alerts & inventory federation subgraph |
-| **Notification Service**<br>`Spring Boot 4.0.8` | `8002` | SSE stream & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Real-time SSE dispatch & transactional messaging service |
+| **Products Service**<br>`Spring Boot 4.0.9` | `8004` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Catalog management, stock sync & product federation subgraph |
+| **Orders Service**<br>`Spring Boot 4.0.9` | `8003` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Order lifecycle, DHL tracking, funnel telemetry & Saga coordinator |
+| **Inventory Service**<br>`Spring Boot 4.0.9` | `8001` | Internal Subgraph & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Stock reservation, low-stock alerts & inventory federation subgraph |
+| **Notification Service**<br>`Spring Boot 4.0.9` | `8002` | SSE stream & REST (JWT bearer token) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | Real-time SSE dispatch & transactional messaging service |
 | **React Frontend SPA**<br>`React 19 / Nginx` | `5173` | `admin_user` / `admin`<br>`basic_user` / `password` | CPU: `50m` / `200m`<br>Mem: `64Mi` / `128Mi`<br>Storage: `256Mi` | Modernized Storefront UI, POS barcode scanner & telemetry client |
 | **Keycloak IAM**<br>`v26.8.1` | `8181` / `9000` | `admin` / `admin` | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | OIDC / OAuth2 identity provider & JWT issuer (JVM heap tuned) |
 | **HashiCorp Vault**<br>`v2.2.0` | `8200` | Root Token: `root` | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard | Dynamic secrets engine, KV-v2 engine & KMS envelope encryption |
@@ -510,7 +510,7 @@ microservices-architecture/
 ├── LICENSE                         # MIT License file
 ├── platform-minikube.ps1           # Local Minikube platform CLI & lifecycle orchestrator
 ├── platform-multicloud.ps1         # Multi-Cloud (AWS, Azure, GCP) Enterprise Orchestrator
-├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4.0.8)
+├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4.0.9)
 ├── README.md                       # Master architecture documentation & quickstart guide
 └── sonar-monorepo-projects.json    # SonarQube / SonarCloud multi-module matrix metadata
 ```
