@@ -12,6 +12,12 @@ table-mode:
   - detailed
 scan:
   skip-version-check: true
+  skip-dirs:
+    - devsecops/policies/conftest/tests
+    - node_modules
+    - .venv
+    - .venv-ml
+    - target
 vulnerability:
   type:
     - os
