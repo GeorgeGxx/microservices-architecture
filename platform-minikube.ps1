@@ -776,21 +776,19 @@ function Invoke-CosignSupplyChainGate {
     Write-Host ""
     Write-Host $StepHeader -ForegroundColor Cyan
 
-    $resolvedKey = $PublicKeyPath
-    if (-not $resolvedKey) {
-        $defaultKey = Join-Path $root 'devsecops\compliance\cosign\cosign.pub'
-        if (Test-Path -LiteralPath $defaultKey -PathType Leaf) {
-            $resolvedKey = $defaultKey
-        }
+    $defaultCosignDir = Join-Path $root 'devsecops\compliance\cosign'
+    $resolvedKey = if ($PublicKeyPath) { $PublicKeyPath } else { Join-Path $defaultCosignDir 'cosign.pub' }
+    if (-not (Test-Path -LiteralPath $resolvedKey -PathType Leaf)) {
+        throw "Cosign public key is missing: $resolvedKey"
+    }
+    $keyContent = Get-Content -LiteralPath $resolvedKey -Raw
+    if ($keyContent -notmatch '-----BEGIN PUBLIC KEY-----') {
+        throw "Cosign public key '$resolvedKey' does not contain a valid PEM public key header."
     }
 
     if ($ImageRef) {
-        Write-Host "  Verifying cryptographic signature for container image '$ImageRef'..." -ForegroundColor Gray
-        $cosignArgs = @('verify')
-        if ($resolvedKey) {
-            $cosignArgs += @('--key', $resolvedKey)
-        }
-        $cosignArgs += $ImageRef
+        Write-Host "  Verifying cryptographic signature for container image '$ImageRef' with key '$resolvedKey'..." -ForegroundColor Gray
+        $cosignArgs = @('verify', '--key', $resolvedKey, $ImageRef)
         $cosignOutput = @(& $cosignCmd.Source @cosignArgs 2>&1)
         if ($LASTEXITCODE -ne 0) {
             $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
@@ -798,14 +796,21 @@ function Invoke-CosignSupplyChainGate {
         }
         Write-Host "  [OK] Cosign: Container image signature verified for '$ImageRef'." -ForegroundColor Green
     } else {
-        $versionOutput = @(& $cosignCmd.Source version 2>&1)
-        if ($LASTEXITCODE -ne 0) {
-            throw "Cosign binary check failed (exit $LASTEXITCODE)."
+        $manifestPath = Join-Path $defaultCosignDir 'supply-chain-manifest.json'
+        $bundlePath = Join-Path $defaultCosignDir 'supply-chain-manifest.sigstore.json'
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf) -or -not (Test-Path -LiteralPath $bundlePath -PathType Leaf)) {
+            throw "Cosign supply-chain attestation artifacts are missing in $defaultCosignDir."
         }
-        $versionLine = @($versionOutput | Where-Object { "$_" -match 'GitVersion' } | Select-Object -First 1)
-        $versionDetail = if ($versionLine.Count -gt 0) { ($versionLine[0] -replace '\s+', ' ').Trim() } else { "Sigstore Cosign active" }
-        Write-Host "  [INFO] No external registry image specified with -CosignImage ($versionDetail)." -ForegroundColor Gray
-        Write-Host "  [OK] Cosign: Supply-chain cryptographic verifier ready (advisory mode; pass -CosignImage <image> [-CosignKey <key>] to enforce)." -ForegroundColor Green
+        Write-Host "  Verifying supply-chain provenance manifest with '$resolvedKey'..." -ForegroundColor Gray
+        $verifyOutput = @(& $cosignCmd.Source verify-blob --key $resolvedKey --bundle $bundlePath $manifestPath 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            $verifyOutput = @(& $cosignCmd.Source verify-blob --key $resolvedKey --bundle $bundlePath --insecure-ignore-tlog=true $manifestPath 2>&1)
+        }
+        if ($LASTEXITCODE -ne 0) {
+            $verifyOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            throw "Cosign supply-chain provenance verification failed (exit $LASTEXITCODE)."
+        }
+        Write-Host "  [OK] Cosign: Cryptographic signature verified via cosign.pub (supply-chain-manifest.json)." -ForegroundColor Green
     }
 }
 
