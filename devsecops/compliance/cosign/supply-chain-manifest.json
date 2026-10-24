@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "1.0.0",
+  "platform": "microservices-architecture",
+  "attestationType": "https://slsa.dev/provenance/v1",
+  "signingSpec": {
+    "tool": "sigstore-cosign",
+    "algorithm": "ecdsa-sha2-256-nistp256",
+    "publicKeyPath": "devsecops/compliance/cosign/cosign.pub",
+    "transparencyLog": "https://rekor.sigstore.dev"
+  },
+  "trustedRegistries": [
+    "georgegxx/",
+    "docker.io/georgegxx/",
+    "ghcr.io/georgegxx/",
+    "gcr.io/distroless",
+    "quay.io/",
+    "localhost"
+  ],
+  "components": [
+    {
+      "name": "discovery-server",
+      "runtime": "eclipse-temurin:21-jre-alpine",
+      "image": "georgegxx/discovery-server"
+    },
+    {
+      "name": "config-server",
+      "runtime": "eclipse-temurin:21-jre-alpine",
+      "image": "georgegxx/config-server"
+    },
+    {
+      "name": "api-gateway",
+      "runtime": "eclipse-temurin:21-jre-alpine",
+      "image": "georgegxx/api-gateway"
+    },
+    {
+      "name": "product-service",
+      "runtime": "eclipse-temurin:21-jre-alpine",
+      "image": "georgegxx/product-service"
+    },
+    {
+      "name": "order-service",
+      "runtime": "eclipse-temurin:21-jre-alpine",
+      "image": "georgegxx/order-service"
+    },
+    {
+      "name": "frontend",
+      "runtime": "nginxinc/nginx-unprivileged:1.27-alpine",
+      "image": "georgegxx/frontend"
+    },
+    {
+      "name": "mlops-demand-forecast",
+      "runtime": "python:3.11-slim",
+      "image": "georgegxx/mlops-demand-forecast"
+    }
+  ]
+}

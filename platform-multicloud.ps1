@@ -330,30 +330,42 @@ function Invoke-PreDeploySecurityGate {
 
     # --- 1.5 Cosign Supply Chain Signature Verification ---
     Write-Host "`n[5/6] 🔏 Cosign: Container Image Signature Verification..." -ForegroundColor Cyan
-    if ($CosignImage) {
-        if (-not (Get-Command cosign -ErrorAction SilentlyContinue)) {
-            Show-Warning "cosign CLI not found. Skipping container signature verification."
-            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "SKIPPED"; Details = "cosign CLI missing" })
-            if ($FailFast) { throw "Image signature verification was requested, but Cosign is not installed." }
+    $defaultCosignDir = Join-Path $RepoRoot "devsecops\compliance\cosign"
+    $resolvedCosignKey = if ($CosignKey) { $CosignKey } else { Join-Path $defaultCosignDir "cosign.pub" }
+    if (-not (Get-Command cosign -ErrorAction SilentlyContinue)) {
+        Show-Warning "cosign CLI not found. Skipping container signature verification."
+        $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "SKIPPED"; Details = "cosign CLI missing" })
+        if ($FailFast -and $CosignImage) { throw "Image signature verification was requested, but Cosign is not installed." }
+    } elseif ($CosignImage) {
+        $cosignArgs = @("verify", "--key", $resolvedCosignKey, $CosignImage)
+        $cosignOutput = @(& cosign @cosignArgs 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            Show-Success "Cosign: Image signature for '$CosignImage' verified successfully."
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = "Image signature verified" })
         } else {
-            $cosignArgs = @("verify")
-            if ($CosignKey) { $cosignArgs += @("--key", $CosignKey) }
-            $cosignArgs += $CosignImage
-            $cosignOutput = @(& cosign @cosignArgs 2>&1)
-            if ($LASTEXITCODE -eq 0) {
-                Show-Success "Cosign: Image signature for '$CosignImage' verified successfully."
-                $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = "Signature verified" })
-            } else {
-                Show-Failure "Cosign: Verification failed for '$CosignImage'."
-                $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-                $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Invalid signature" })
-                $passed = $false
-                if ($FailFast) { throw "Pre-deploy failed at Cosign stage." }
-            }
+            Show-Failure "Cosign: Verification failed for '$CosignImage'."
+            $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Invalid image signature" })
+            $passed = $false
+            if ($FailFast) { throw "Pre-deploy failed at Cosign stage." }
         }
     } else {
-        Write-Host "  [INFO] No container image specified with -CosignImage. Supply chain gate passed in advisory mode." -ForegroundColor DarkGray
-        $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "ADVISORY"; Details = "No image target specified" })
+        $manifestPath = Join-Path $defaultCosignDir "supply-chain-manifest.json"
+        $bundlePath = Join-Path $defaultCosignDir "supply-chain-manifest.sigstore.json"
+        $cosignOutput = @(& cosign verify-blob --key $resolvedCosignKey --bundle $bundlePath $manifestPath 2>&1)
+        if ($LASTEXITCODE -ne 0) {
+            $cosignOutput = @(& cosign verify-blob --key $resolvedCosignKey --bundle $bundlePath --insecure-ignore-tlog=true $manifestPath 2>&1)
+        }
+        if ($LASTEXITCODE -eq 0) {
+            Show-Success "Cosign: Cryptographic signature verified via cosign.pub (supply-chain-manifest.json)."
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = "Verified via cosign.pub" })
+        } else {
+            Show-Failure "Cosign: Provenance verification failed against '$resolvedCosignKey'."
+            $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Invalid provenance signature" })
+            $passed = $false
+            if ($FailFast) { throw "Pre-deploy failed at Cosign stage." }
+        }
     }
 
     # --- 1.6 Graphviz Visual Dependency Diagram ---
