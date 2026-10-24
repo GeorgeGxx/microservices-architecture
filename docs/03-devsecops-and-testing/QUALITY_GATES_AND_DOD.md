@@ -97,7 +97,7 @@ Because microservices operate across isolated containers, federated gateways, Gi
   - Unit tests run and pass cleanly (`mvn test` / `npm run test` or `npm run test:coverage`).
   - Code line coverage meets or exceeds **80%** as verified by **JaCoCo** and **Vitest** reports.
 - [ ] **Static Code & Secret Analysis (Shift-Left SAST):**
-  - **Secret Detection:** Zero unencrypted tokens or credentials flagged by **Gitleaks** (`gitleaks detect` against `.gitleaks.toml`).
+  - **Secret Detection:** Zero unencrypted tokens or credentials flagged by **Gitleaks** (`gitleaks detect` against `devsecops/sast/gitleaks/.gitleaks.toml`).
   - **Static Analysis:** Zero critical/high security bugs detected by **Semgrep** and **SonarQube**.
   - **Dependency Scanning:** Container and library dependencies scanned with zero exploitable High/Critical CVEs (**Trivy**).
 - [ ] **Local Maturity & Infrastructure Consistency:**

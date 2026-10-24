@@ -43,10 +43,10 @@ The Minikube entrypoint audits the local developer and deployment tool inventory
 ### 2. DevSecOps & Security
 - **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
 - **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
-- **`Sigstore.Cosign` (`cosign`)**: Container image signing and supply chain verification.
+- **`Sigstore.Cosign` (`cosign`)**: Cryptographic supply-chain verification (`devsecops/compliance/cosign/cosign.pub` + `supply-chain-manifest.json` verified in `.\platform-minikube.ps1 security-scan` and image verification in `.\platform-multicloud.ps1 pre-deploy`).
 - **`Hashicorp.Vault` (`vault`)**: Client CLI for HashiCorp Vault (KV-v2 secrets, PKI engine).
   * **Server runtime vs. Host client:** The Vault server runs inside Kubernetes (Minikube `namespace: vault` or cloud EKS/AKS/GKE) exposed on port `8200` (`http://localhost:8200`). The local `vault.exe` on Windows functions as an interactive administrative and debugging client.
-  * **Script automation:** Minikube routines (`.\platform-minikube.ps1 vault ...` and `.\platform-minikube.ps1 up`) execute commands via `kubectl exec` inside the containerized Vault pod so developers without a local binary can still run all automations.
+  * **Script automation:** Minikube routines (`.\platform-minikube.ps1 vault -VaultAction init|seed|rotate|status` and `.\platform-minikube.ps1 up`) automatically use the local host `vault` CLI when `http://localhost:8200` is reachable and fall back seamlessly to `kubectl exec` inside the containerized Vault pod so developers without an active port-forward can still run all automations.
   * **Connecting your host CLI to the cluster:**
     ```powershell
     $env:VAULT_ADDR = "http://localhost:8200"
@@ -97,7 +97,7 @@ Use `kubectl logs -n data job/<job-name>` to confirm each database passed. The P
 - **`istioctl` (`istioctl`)**: Service mesh control plane and traffic management CLI.
 
 ### 4. Runtimes, Build Tools & Productivity
-- **`Apache.Maven` (`mvn`)**: Java build engine for Spring Boot microservices.
+- **`Apache.Maven` (`mvn`)**: Java build & unit test engine (`.\platform-minikube.ps1 test` executes the Java 21 + Maven multi-module reactor test suite).
 - **`BellSoft.LibericaJDK.21` (`java`)**: Java 21 runtime required by the Spring Boot services.
 - **`OpenJS.NodeJS.LTS` (`node`)**: JavaScript runtime for React frontend compilation.
 - **`Python.Python.3.11` (`python`)**: Runtime for the documented project automation and test scripts (3.11 or newer).
@@ -229,7 +229,7 @@ docker compose up -d --force-recreate demand-forecast-service
 ```
  
 #### 5. View the forecast and monitor operations
-Sign in as `admin_user` and navigate to **Admin Console → Demand Forecast · 7 Days**. The API requires the Keycloak `ADMIN` role, loads the latest successfully logged model from MLflow, and returns 7 daily estimates per SKU with data provenance.
+Sign in as `admin_user` and navigate to **Admin Console → Demand Forecast · 7 Days**. The API requires the Keycloak `ADMIN` role, loads the latest promoted champion model (`tags.model_role = 'champion'`) matching the active dataset from MLflow, and returns 7 daily estimates per SKU with data provenance. Non-improving training runs (`tags.model_role = 'challenger_rejected'`, `promotion_status = 'REJECTED_BY_QUALITY_GATE'`) remain logged in MLflow for audit and comparison without overwriting the active model served in the storefront.
  
 MLflow provides training-run and metric comparison at <http://localhost:5000> by default. Compose and Minikube keep separate tracking databases, artifacts, and sales datasets; stop one runtime before starting the other if both use port 5000. To run both at once, bind Compose MLflow to port 5001 before starting it:
 ```powershell
@@ -352,7 +352,8 @@ Audit proxy synchronization, RBAC service accounts, and mutual TLS enforcement w
 Run the local DevSecOps controls independently after the stack is reachable:
 
 ```powershell
-.\platform-minikube.ps1 security-scan   # Gitleaks, TFLint, Trivy, Conftest
+.\platform-minikube.ps1 test            # Java 21 + Maven reactor unit test suite across microservices
+.\platform-minikube.ps1 security-scan   # Gitleaks, TFLint, Trivy, Conftest, Cosign (cosign.pub)
 .\platform-minikube.ps1 contract       # Newman API/auth collection
 .\platform-minikube.ps1 performance    # k6 SLO suite in Docker
 .\platform-minikube.ps1 dast           # OWASP ZAP baseline with devsecops/dast/zap/rules.tsv
@@ -422,7 +423,7 @@ The retirement command verifies the stable image and readiness before it removes
 
 When simulating, the wrapper waits up to 180 seconds for the capture pod's automatic trainer and confirms a new run appears in MLflow. If none appears, it triggers the scheduler's guarded training Job and reports an error if no new run is recorded. Increase the initial wait with `-RunTimeoutSeconds 300` when needed. On success, the command prints the run name, ID, and a direct MLflow link. Minikube's UI is exposed at <http://localhost:5000>. Compose can run alongside it when bound to port 5001.
 
-A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly, while the capture pod checks every 20 seconds. Both require at least 9 valid date partitions, a changed SHA-256 dataset fingerprint, and a 60-second stable Parquet snapshot before training. Runs log RMSE and MAE as MLflow metrics for run comparison and champion selection.
+A shared `mlops-sales-data` PVC stores partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`). The `demand-model-training-scheduler` CronJob checks hourly, while the capture pod checks every 20 seconds. Both require at least 9 valid date partitions, a changed SHA-256 dataset fingerprint, and a 60-second stable Parquet snapshot before training. Runs log RMSE and MAE as MLflow metrics and enforce a dataset-scoped RMSE quality gate: runs that beat or match the active dataset's champion RMSE are promoted (`model_role=champion`, `promotion_status=PROMOTED|PROMOTED_INITIAL_BASELINE|PROMOTED_NEW_DATASET`) and served by `/api/forecast`, while non-improving runs are recorded as `model_role=challenger_rejected` (`promotion_status=REJECTED_BY_QUALITY_GATE`) in MLflow without replacing the active storefront model.
 
 ### 6. 🛑 Cluster Teardown, Pause & Fast Resume
 

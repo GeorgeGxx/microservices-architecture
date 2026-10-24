@@ -215,6 +215,10 @@ devsecops/
 │   └── Semgrep auto rules are selected in CI; custom Semgrep rules are not checked into this repository
 │
 ├── compliance/                # 🧰 Software Supply Chain Security
+│   ├── cosign/
+│   │   ├── cosign.pub         # Sigstore Cosign ECDSA P-256 public verification key
+│   │   ├── supply-chain-manifest.json          # Canonical artifact & policy SHA-256 provenance manifest
+│   │   └── supply-chain-manifest.sigstore.json # Offline Sigstore cryptographic signature bundle
 │   ├── trivy/
 │   │   ├── trivy.yaml         # Table-oriented Trivy configuration for local/pipeline scans
 │   │   ├── trivy-sarif.yaml   # SARIF-compatible Trivy configuration for GitHub uploads
@@ -236,6 +240,7 @@ devsecops/
 | **Gitleaks** | Blocking (`exit 1` on real credentials detection). | Blocking. |
 | **Trivy IaC** | Runs in audit mode with the shared Trivy configuration in local scripts and CI pipelines; findings are visible without blocking while the baseline is tuned. | Promote reviewed misconfiguration rules to blocking consistently in the shared Trivy configuration and all CI targets. |
 | **Conftest (OPA)** | Blocking on privileged containers, missing CPU/memory limits, untagged or latest-style images, and default/missing ServiceAccounts across Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs. Missing health probes are reported as warnings. | Extend coverage to organization-specific admission controls and validate them against every rendered target. |
+| **Sigstore Cosign** | Verifies cryptographic signature bundle (`supply-chain-manifest.sigstore.json`) and SHA-256 artifact integrity against `devsecops/compliance/cosign/cosign.pub` during `security-scan` and `pre-deploy`, plus container image signature verification when `-ImageURI` is supplied. | Enforce keyless OIDC Sigstore admission control in cluster policy controller. |
 | **OWASP ZAP** | Fails on rules marked `FAIL` in `rules.tsv`; advisory on `WARN`. | Strict blocking on security headers and CSP violations. |
 
 #### 🚀 Deployment & Operations Guide: 100% Local Enterprise DevSecOps on Minikube

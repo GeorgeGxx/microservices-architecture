@@ -133,3 +133,24 @@ jobs:
         with:
           sarif_file: 'trivy-config-results.sarif'
           category: 'trivy-config'
+
+  # ==========================================================
+  # JOB 4: Supply Chain Cryptographic Provenance Verification
+  # ==========================================================
+  cosign-verify:
+    name: 🔏 4. Sigstore Cosign Supply-Chain Provenance Verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3dedc67a6087d2b41377853613b63 # v3.8.1
+
+      - name: Verify Cryptographic Supply-Chain Provenance Manifest
+        run: |
+          cosign verify-blob \
+            --key devsecops/compliance/cosign/cosign.pub \
+            --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+            devsecops/compliance/cosign/supply-chain-manifest.json

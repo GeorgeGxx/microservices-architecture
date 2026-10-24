@@ -44,6 +44,9 @@ does not replace, the provider's CI security gates.
 .\platform-minikube.ps1 up -Fast                         # Equivalent to start
 
 # Workload and DevSecOps commands
+.\platform-minikube.ps1 test                             # Run Java 21 + Maven reactor unit tests
+.\platform-minikube.ps1 security-scan                    # Run 5 Shift-Left gates (Gitleaks, TFLint, Trivy, Conftest, Cosign)
+.\platform-minikube.ps1 vault -VaultAction status        # Hybrid host Vault CLI + K8s fallback (init|seed|rotate|status)
 .\platform-minikube.ps1 mlops                            # Deploy/refresh MLflow & MLOps
 .\platform-minikube.ps1 canary -Action rollout -Namespace dev
 .\platform-minikube.ps1 doctor                           # Deep cluster health diagnostics
