@@ -1,4 +1,6 @@
-﻿[CmdletBinding()]
+#!/usr/bin/env pwsh
+#Requires -Version 7.0
+[CmdletBinding()]
 param(
     [Parameter(Position = 0)]
     [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
@@ -972,7 +974,7 @@ function ConvertTo-DockerReachableUrl {
 }
 
 function Invoke-LocalContractChecks {
-    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { throw "Node.js/npm are required. Run '.\platform-minikube.ps1 tools -Install' and reopen PowerShell." }
+    if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { throw "Node.js/npm are required. Run '.\platform-minikube.ps1 tools -Install' and reopen pwsh." }
     $collection = Join-Path $root 'devsecops\testing\newman\microservices.postman_collection.json'
     if (-not (Test-Path -LiteralPath $collection -PathType Leaf)) { throw "Newman collection is missing: $collection" }
     $baseUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'BASE_URL' -LocalDefault 'http://127.0.0.1:5173'
@@ -2157,11 +2159,7 @@ function Start-LocalTunnelSupervisor {
     $startedProcess = $null
     if (-not $supervisorProcess) {
         $python = Get-Command python -ErrorAction Stop
-        $startedProcess = Start-Process -FilePath $python.Source `
-            -ArgumentList @("`"$supervisorScript`"") `
-            -WorkingDirectory $root `
-            -WindowStyle Hidden `
-            -PassThru
+        $startedProcess = Start-Process -FilePath $python.Source -ArgumentList @("`"$supervisorScript`"") -WorkingDirectory $root -WindowStyle Hidden -PassThru
     }
 
     $frontendReady = $false
@@ -2170,8 +2168,7 @@ function Start-LocalTunnelSupervisor {
             throw "Local tunnel supervisor exited before publishing the frontend. Run 'kubectl port-forward -n dev svc/frontend 5173:80' to inspect tunnel errors."
         }
         try {
-            $response = Invoke-WebRequest -Uri "http://127.0.0.1:5173/healthz" `
-                -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:5173/healthz" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             if ($response.StatusCode -eq 200) {
                 $frontendReady = $true
                 break
@@ -2235,9 +2232,7 @@ function Invoke-MinikubeMlopsDeployment {
     Write-Host "  ▶ Checking $($imageBuilds.Count) MLOps image caches..." -ForegroundColor White
     foreach ($imageBuild in $imageBuilds) {
         $buildIndex++
-        Write-Progress -Activity "Preparing Minikube MLOps images" `
-            -Status "$($imageBuild.Name) ($buildIndex/$($imageBuilds.Count))" `
-            -PercentComplete (($buildIndex - 1) / $imageBuilds.Count * 100)
+        Write-Progress -Activity "Preparing Minikube MLOps images" -Status "$($imageBuild.Name) ($buildIndex/$($imageBuilds.Count))" -PercentComplete (($buildIndex - 1) / $imageBuilds.Count * 100)
 
         $fingerprintInput = [System.Text.StringBuilder]::new()
         [void]$fingerprintInput.Append($imageBuild.Image).Append('|').AppendLine($imageBuild.Dockerfile)
@@ -2477,8 +2472,7 @@ df.write.mode('overwrite').partitionBy('date').parquet('/data/sales_parquet')
 
     if ($StartMlflowPortForward) {
         Start-LocalTunnelSupervisor
-        $mlflowHealth = Invoke-WebRequest -Uri "http://127.0.0.1:5000/health" `
-            -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $mlflowHealth = Invoke-WebRequest -Uri "http://127.0.0.1:5000/health" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
         if ($mlflowHealth.StatusCode -ne 200) {
             throw "The MLflow service is ready inside Kubernetes, but its local tunnel did not return HTTP 200."
         }
@@ -2719,13 +2713,18 @@ function Invoke-MinikubePlatform {
             }
 
             if ($EnableIstioMesh) {
-                kubectl label namespace dev istio-injection=enabled environment=dev `
-                    "pod-security.kubernetes.io/enforce=privileged" `
-                    "pod-security.kubernetes.io/enforce-version=latest" `
-                    "pod-security.kubernetes.io/warn=restricted" `
-                    "pod-security.kubernetes.io/warn-version=latest" `
-                    "pod-security.kubernetes.io/audit=restricted" `
-                    "pod-security.kubernetes.io/audit-version=latest" --overwrite 2>$null | Out-Null
+                $istioLabels = @(
+                    "label", "namespace", "dev",
+                    "istio-injection=enabled", "environment=dev",
+                    "pod-security.kubernetes.io/enforce=privileged",
+                    "pod-security.kubernetes.io/enforce-version=latest",
+                    "pod-security.kubernetes.io/warn=restricted",
+                    "pod-security.kubernetes.io/warn-version=latest",
+                    "pod-security.kubernetes.io/audit=restricted",
+                    "pod-security.kubernetes.io/audit-version=latest",
+                    "--overwrite"
+                )
+                & kubectl @istioLabels 2>$null | Out-Null
             }
 
             Write-Host "  ▶ Deploying LGTM Telemetry Stack (Tempo 3.0, Loki 3.7, Alloy, OTel, Grafana Datasources)..." -ForegroundColor White
@@ -2900,9 +2899,15 @@ stringData:
                     kubectl label $($r.Kind) $($r.Name) -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
                 }
             }
-            & helm upgrade --install microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev `
-                --set secret.create=false `
-                --values $minikubeValues --force-conflicts --wait --timeout 10m
+            $helmArgs = @(
+                "upgrade", "--install", "microservices", $resolvedUmbrellaDir,
+                "--namespace", "dev",
+                "--set", "global.environment=dev",
+                "--set", "secret.create=false",
+                "--values", $minikubeValues,
+                "--force-conflicts", "--wait", "--timeout", "10m"
+            )
+            & helm @helmArgs
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."
             }

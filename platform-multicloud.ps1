@@ -1,4 +1,6 @@
-﻿<#
+#!/usr/bin/env pwsh
+#Requires -Version 7.0
+<#
 .SYNOPSIS
     Enterprise Multi-Cloud Platform Orchestrator (AWS, Azure, GCP)
 .DESCRIPTION

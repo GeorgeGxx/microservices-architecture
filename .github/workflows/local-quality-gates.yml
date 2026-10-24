@@ -137,7 +137,8 @@ jobs:
             'platform-multicloud.ps1',
             'scripts/bootstrap-keycloak.ps1',
             'scripts/manage-cloudflare-tunnels.ps1',
-            'scripts/bcdr-simulation.ps1'
+            'scripts/bcdr-simulation.ps1',
+            'mlops/training.ps1'
           )
           foreach ($path in $scripts) {
             [void][System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $path), [ref]$null, [ref]$parseErrors)

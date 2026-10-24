@@ -1,3 +1,5 @@
+#!/usr/bin/env pwsh
+#Requires -Version 7.0
 param(
     [ValidateSet("compose", "minikube")]
     [string]$Target = "compose",

@@ -3,6 +3,9 @@
 > [!TIP]
 > [Enterprise Platform Hub](../../README.md) > **02. Operations** > Platform CLI
 
+> [!NOTE]
+> All platform PowerShell scripts (`*.ps1`) are standardized on **PowerShell 7+ (`pwsh`)** with `#Requires -Version 7.0` and cross-platform shebangs `#!/usr/bin/env pwsh`. Legacy Windows PowerShell 5.1 (`powershell.exe`) is intentionally blocked by `#Requires` to ensure deterministic UTF-8 encoding, modern parameter splatting, and complete cross-platform parity between Windows, macOS, Linux, and GitHub Actions runners.
+
 The platform provides two independent, non-cascading PowerShell entrypoints:
 - [`platform-minikube.ps1`](../../platform-minikube.ps1) for local zero-cloud-cost development, Istio, Gatekeeper, MLOps, and Vault.
 - [`platform-multicloud.ps1`](../../platform-multicloud.ps1) for enterprise cloud operations across AWS, Azure, and GCP.
