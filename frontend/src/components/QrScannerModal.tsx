@@ -50,23 +50,27 @@ interface ParsedScanPayload {
   fallbackPrice: number | null;
 }
 
-function parseScannedPayload(rawClean: string): ParsedScanPayload {
-  let sku: string | null = null;
-  let orderNum: string | null = null;
-  let fallbackName: string | null = null;
-  let fallbackPrice: number | null = null;
-
+function parseJsonPayload(rawClean: string): Partial<ParsedScanPayload> | null {
   try {
     const json = JSON.parse(rawClean);
-    if (json && typeof json === 'object') {
-      if (json.sku) sku = String(json.sku).trim();
-      if (json.orderNumber) orderNum = String(json.orderNumber).trim();
-      if (json.name) fallbackName = String(json.name).trim();
-      if (typeof json.price === 'number') fallbackPrice = json.price;
-    }
+    if (!json || typeof json !== 'object') return null;
+    return {
+      sku: json.sku ? String(json.sku).trim() : null,
+      orderNum: json.orderNumber ? String(json.orderNumber).trim() : null,
+      fallbackName: json.name ? String(json.name).trim() : null,
+      fallbackPrice: typeof json.price === 'number' ? json.price : null,
+    };
   } catch {
-    // Raw string format
+    return null;
   }
+}
+
+function parseScannedPayload(rawClean: string): ParsedScanPayload {
+  const jsonResult = parseJsonPayload(rawClean);
+  let sku = jsonResult?.sku ?? null;
+  let orderNum = jsonResult?.orderNum ?? null;
+  const fallbackName = jsonResult?.fallbackName ?? null;
+  const fallbackPrice = jsonResult?.fallbackPrice ?? null;
 
   if (!sku && !orderNum) {
     if (rawClean.toUpperCase().startsWith('ORD-')) {
