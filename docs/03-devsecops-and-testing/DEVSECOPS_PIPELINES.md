@@ -423,6 +423,7 @@ All three CI providers use the same project keys so results converge into the sa
 | Novashop storefront | `msa-frontend` |
 | Demand Forecast (MLOps) | `msa-demand-forecast` |
 | MLOps Training Engine | `msa-mlops-training` |
+| MLflow Tracking Server | `msa-mlflow` |
 
 Configure these values in each CI provider before enabling Sonar analysis:
 
