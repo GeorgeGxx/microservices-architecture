@@ -26,5 +26,9 @@
   {
     "projectKey": "msa-mlops-training",
     "projectName": "MLOps Training Engine"
+  },
+  {
+    "projectKey": "msa-mlflow",
+    "projectName": "MLflow Tracking Server"
   }
 ]

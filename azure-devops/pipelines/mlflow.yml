@@ -1,0 +1,53 @@
+name: MSA-MLflow-$(Date:yyyyMMdd)$(Rev:.r)
+
+# =============================================================================
+# MLflow Tracking Server CI/CD Pipeline
+# Deploys the MLflow model and experiment tracking server in Azure AKS.
+# =============================================================================
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/mlflow.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - mlops/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/mlflow.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: mlflow
+      serviceDir: mlops
+      serviceType: python
+      servicePort: 5000
+      dockerfilePath: mlops/Dockerfile
+      contextDir: mlops
+      helmValuesKey: mlops.mlflow
+      deploymentName: mlflow
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure
+      canaryEnabled: false
+      canaryVirtualServicePath: ''

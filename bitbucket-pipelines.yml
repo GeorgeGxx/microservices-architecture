@@ -54,6 +54,10 @@ definitions:
                 OMIT="$OMIT,*/forecast_api.py"
                 EXCLUSIONS="$EXCLUSIONS,mlops/Dockerfile.forecast,mlops/forecast_api.py"
                 COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
+              elif [ "$SERVICE_NAME" = "mlflow" ]; then
+                OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
+                EXCLUSIONS="$EXCLUSIONS,mlops/Dockerfile.forecast,mlops/Dockerfile.training,mlops/forecast_api.py,mlops/capture_orders.py,mlops/train_demand_model.py,mlops/feature_engineering.py"
+                COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
               fi
               docker run --rm -v "$PWD:/workspace" -w /workspace -e PYTHONPATH=/workspace/mlops python:3.12-slim bash -c "pip install --no-cache-dir -r mlops/requirements.txt coverage && coverage run --source=mlops --omit=\"$OMIT\" -m unittest discover -s mlops/tests -v && coverage xml -o mlops/coverage.xml"
               if [ -n "${SONAR_TOKEN:-}" ]; then
@@ -117,6 +121,8 @@ definitions:
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile.forecast mlops
             elif [ "$SERVICE_NAME" = "mlops-training" ]; then
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile.training mlops
+            elif [ "$SERVICE_NAME" = "mlflow" ]; then
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile mlops
             else
               test -f "$SERVICE_DIR/Dockerfile" || { echo "Missing Dockerfile: $SERVICE_DIR"; exit 1; }
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f "$SERVICE_DIR/Dockerfile" .
@@ -241,6 +247,9 @@ definitions:
             elif [ "$SERVICE_NAME" = "mlops-training" ]; then
               HELM_SET_KEY="mlops.training"
               DEPLOYMENT_NAME="demand-sales-capture"
+            elif [ "$SERVICE_NAME" = "mlflow" ]; then
+              HELM_SET_KEY="mlops.mlflow"
+              DEPLOYMENT_NAME="mlflow"
             fi
             helm upgrade --install microservices "$CHART_REPOSITORY" \
               --version "$CHART_VERSION" \
