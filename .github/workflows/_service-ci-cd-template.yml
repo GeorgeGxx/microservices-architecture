@@ -369,7 +369,7 @@ jobs:
           fi
           : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
           cd "${{ inputs.service-dir }}"
-          npx --yes sonar-scanner \
+          npx --yes sonarqube-scanner \
             -Dsonar.projectKey=msa-frontend \
             -Dsonar.projectName="Novashop Storefront" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
@@ -427,7 +427,7 @@ jobs:
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,Dockerfile.training,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
           fi
-          npx --yes sonar-scanner \
+          npx --yes sonarqube-scanner \
             -Dsonar.projectKey=msa-${{ inputs.service-name }} \
             -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
@@ -436,6 +436,7 @@ jobs:
             -Dsonar.tests=tests \
             -Dsonar.exclusions="$EXCLUSIONS" \
             -Dsonar.coverage.exclusions="$COVERAGE_EXCLUSIONS" \
+            -Dsonar.python.version=3.12 \
             -Dsonar.python.coverage.reportPaths=coverage.xml \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 

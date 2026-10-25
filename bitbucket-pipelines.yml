@@ -29,7 +29,7 @@ definitions:
               if [ -n "${SONAR_TOKEN:-}" ]; then
                 : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
                 SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
-                npx --yes sonar-scanner \
+                npx --yes sonarqube-scanner \
                   -Dsonar.projectKey=msa-frontend \
                   -Dsonar.projectName="Novashop Storefront" \
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
@@ -63,7 +63,7 @@ definitions:
               if [ -n "${SONAR_TOKEN:-}" ]; then
                 : "${SONAR_ORGANIZATION:?Set SONAR_ORGANIZATION to the SonarQube Cloud organization key}"
                 SONAR_HOST_URL="${SONAR_HOST_URL:-https://sonarcloud.io}"
-                npx --yes sonar-scanner \
+                npx --yes sonarqube-scanner \
                   -Dsonar.projectKey="msa-${SERVICE_NAME}" \
                   -Dsonar.projectName="MSA ${SERVICE_NAME}" \
                   -Dsonar.organization="$SONAR_ORGANIZATION" \
@@ -72,6 +72,7 @@ definitions:
                   -Dsonar.tests=mlops/tests \
                   -Dsonar.exclusions="$EXCLUSIONS" \
                   -Dsonar.coverage.exclusions="$COVERAGE_EXCLUSIONS" \
+                  -Dsonar.python.version=3.12 \
                   -Dsonar.python.coverage.reportPaths=mlops/coverage.xml \
                   -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
               else
