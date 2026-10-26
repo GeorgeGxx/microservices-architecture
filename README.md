@@ -248,36 +248,16 @@ The platform separates internal infrastructure orchestration from client-facing 
 
 ## ⚡ Core Enterprise Capabilities
 
-### 🛒 E-Commerce & Retail Innovation
-* **Modernized Storefront Experience (React 19 & TailwindCSS v4):** Context-aware catalog search, Keycloak-persisted wishlists, role-gated admin telemetry & QR scanner tools, 7-day demand forecasting, user-scoped SSE transactional notifications, and responsive pagination.
-* **Automated DHL Tracking Generation:** Every successfully placed order automatically generates a trackable carrier tracking number (e.g. `DHL-A8B9C0D1`) and initial tracking event history.
-* **Checkout Funnel Event Telemetry:** Observed `CART_ADD`, `CHECKOUT_START`, and `CHECKOUT_STEP` events feed Prometheus counters and Grafana activity panels. Events currently lack shared session identifiers, so dashboards do not claim conversion or cart-abandonment rates.
-* **Point of Sale (POS) & QR Scanner:** Dual workflow supporting standard checkout and physical POS cashier operations with Code-128 barcode scanning and instant SAT/CFDI invoice QR generation.
+The platform implements 6 core enterprise capabilities designed for high availability, zero-trust security, and cloud-native resilience. Complete technical specifications, state machines, and schemas are consolidated in the canonical [Enterprise Features & Platform Capabilities Catalog](docs/01-architecture/ARCHITECTURE.md#-enterprise-features--platform-capabilities-catalog).
 
-### 🔄 Distributed Reliability & Consistency
-* **Saga Orchestration Pattern:** Graceful compensation and stock rollback when downstream payment or inventory allocation fails.
-* **Distributed Idempotency:** Guaranteed once-only order processing via mandatory UUIDv4 `X-Idempotency-Key` headers backed by Redis deduplication.
-* **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`) and thread-isolated bulkheads.
-
-### 🛡️ Zero-Trust Security & DevSecOps
-* **OIDC Authentication:** Public Keycloak SPA client (`microservices_frontend`) using PKCE without a browser-held `client_secret`; a native mobile app needs its own redirect URI configuration.
-* **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
-* **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, mandatory labels, and prohibiting default `ServiceAccount` usage.
-* **Multi-Environment Least-Privilege RBAC:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false` across `dev`, `staging`, and `prod`.
-* **Cryptographic Supply-Chain Verification (Sigstore Cosign):** Public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) verified locally via `security-scan` and during multi-cloud image promotion.
-
-### 🧪 Automated MLOps & Demand Forecasting
-* **Kafka Structured Streaming to Parquet:** Real-time ingestion of `DELIVERED` orders into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`) with durable Spark checkpoints and zero local CSV dependencies.
-* **Continuous PySpark Auto-Training:** Automated hourly CronJob and streaming capture checks require at least 9 date partitions, a changed SHA-256 fingerprint, and a 60-second stable Parquet snapshot before training to avoid redundant runs.
-* **MLflow Tracking & Champion-Only Model Governance:** Experiment tracking capturing RMSE/MAE metrics, dataset-scoped RMSE quality gates, and `model_role=champion` promotion (`PROMOTED`, `PROMOTED_INITIAL_BASELINE`, `PROMOTED_NEW_DATASET`). Non-improving runs (`model_role=challenger_rejected`) are logged strictly in MLflow for audit without overwriting the active model served to the storefront.
-* **Enterprise Inference API & RBAC:** Sub-second 7-day SKU demand forecast endpoint (`/api/forecast`) protected by Keycloak `ADMIN` role, fully validated in Postman/Newman E2E test suites.
-
-### 📊 Full-Stack Observability (LGTM Stack)
-* **Two Audience-Focused Grafana Dashboards:**
-  1. `🏢 E-Commerce Business Intelligence & Inventory Operations` (revenue, orders, conversion, logistics, stock, SKU demand, retention, plus demand-forecast freshness, active model age, and RMSE/MAE for inventory decisions).
-  2. `🛡️ Microservices Architecture · Technical & Security Operations (SRE)` (service health, HTTP golden signals, availability SLO burn, demand-forecast API availability/traffic/latency, Kafka, resource saturation, security events, and Alloy delivery health).
-* **MLOps Metrics by Audience:** Forecast API reliability belongs to the SRE dashboard; forecast freshness and active-model quality appear with inventory business indicators. MLflow remains the experiment and model-registry UI.
-* **Deep Telemetry Correlation:** One-click drill-down in Grafana Explore linking Tempo distributed spans $\leftrightarrow$ Loki structured logs $\leftrightarrow$ Prometheus metrics.
+| Capability Domain | Core Features & Implementation Highlights | Architectural Specification |
+| :--- | :--- | :--- |
+| **🛒 E-Commerce & Retail** | 3-step checkout funnel, automated DHL carrier tracking (`DHL-XXXXXXXX`), WebRTC camera & USB wedge scanner, user-scoped SSE notifications, verified reviews & best seller badges | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#1--e-commerce--retail-innovation) |
+| **🔄 Distributed Reliability** | Saga compensation stock rollback, distributed UUIDv4 idempotency with Redis `SETNX`, Resilience4j circuit breakers, Kafka Dead Letter Topics (`.DLT`) | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#2--distributed-reliability--consistency) |
+| **🛡️ Zero-Trust Security** | Keycloak 26.8.1 OIDC PKCE flow, HashiCorp Vault v2.2.0 dynamic secrets & transit encryption, OPA Gatekeeper admission control, Sigstore Cosign image provenance | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#3--zero-trust-security--devsecops-governance) |
+| **🧪 Automated MLOps** | Real-time Kafka Structured Streaming to Parquet, continuous PySpark GBT regressor auto-training, MLflow Champion/Challenger model registry, 7-day inference API | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#4--automated-mlops--demand-forecasting) |
+| **📊 Full-Stack Observability** | Unified LGTM stack (Loki, Grafana, Tempo, Prometheus), Grafana Explore correlation, Kiali service mesh visualizer, OpenCost real-time FinOps telemetry | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#5--full-stack-observability-lgtm-stack) |
+| **📱 Mobile & Edge Readiness** | Clean architecture boundary for React Native / Expo, Google Play Store publication readiness, Cloudflare Anycast zero-trust edge tunnels for serverless Vercel clients | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#6--client-agnostic-mobile--edge-networking) |
 
 ---
 
