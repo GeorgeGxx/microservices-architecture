@@ -7,19 +7,9 @@
 
 ---
 
-## 🧭 Navigation & Service Endpoints
+## 🧭 Navigation & Observability Service Endpoints
 
-| Telemetry Engine | Local Endpoint | Default Port | Primary Function |
-| :--- | :--- | :---: | :--- |
-| **Grafana UI** | [http://localhost:3000](http://localhost:3000) | `3000` | Unified visualization, dashboards & Explore mode |
-| **Prometheus** | [http://localhost:9090](http://localhost:9090) | `9090` | Timeseries metrics database & PromQL engine |
-| **Grafana Loki** | [http://localhost:3100](http://localhost:3100) | `3100` | High-throughput centralized log indexing |
-| **Grafana Tempo** | [http://localhost:3200](http://localhost:3200) | `3200` | Distributed tracing & OTLP span store |
-| **OTel Collector** | `http://localhost:4317` (gRPC) / `4318` (HTTP) | `4317` / `4318` | OpenTelemetry telemetry ingestion pipeline |
-| **Grafana Alloy UI** | [http://localhost:3300](http://localhost:3300) | `3300` / NodePort `30330` | Interactive pipeline visualizer, component graph, log agent state & `/metrics` |
-| **Demand Forecast API** | [http://localhost:8005/docs](http://localhost:8005/docs) | `8005` | FastAPI MLOps inference engine (`/metrics`, `/health`, `/docs`) |
-
-Grafana queries data from Prometheus, Loki, and Tempo. Alloy collects container/pod logs and ships them to Loki; the OpenTelemetry Collector forwards traces to Tempo. For Docker Compose the datasource URLs are service DNS names (`prometheus:9090`, `loki:3100`, `tempo:3200`). In Minikube, Grafana uses the Kubernetes service URLs provisioned in `k8s/minikube/infra/grafana-datasources.yaml`.
+For the complete catalog of infrastructure ports, credentials, and telemetry ingress routing across Docker Compose and Minikube environments, refer to the canonical [Unified Endpoints, API Routing & Swagger Access Matrix](../01-architecture/ARCHITECTURE.md#-unified-endpoints-api-routing--swagger-access-matrix) and [Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](../01-architecture/ARCHITECTURE.md#-workload-matrix-infrastructure-sizing--cloud-target-mapping) in `ARCHITECTURE.md`. Grafana queries data from Prometheus, Loki, and Tempo; Alloy collects container/pod logs and ships them to Loki; the OpenTelemetry Collector forwards traces to Tempo. For Docker Compose the datasource URLs are service DNS names (`prometheus:9090`, `loki:3100`, `tempo:3200`). In Minikube, Grafana uses the Kubernetes service URLs provisioned in `k8s/minikube/infra/grafana-datasources.yaml`.
 
 ---
 
