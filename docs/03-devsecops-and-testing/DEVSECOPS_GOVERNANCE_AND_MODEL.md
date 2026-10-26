@@ -179,7 +179,7 @@ sequenceDiagram
     CI->>CI: 5. Newman API Contract Check (23/23 Pass)
     CI->>CI: 6. k6 Load & SLO Benchmark (p95 < 200ms)
     CI->>CI: 7. OWASP ZAP Baseline DAST
-    CI->>Ops: Promote to Production (Istio Canary 10% -> 100%)
+    CI->>Ops: Promote to Production (Istio Canary 10% ➔ 100%)
     end
 
     rect rgb(245, 240, 255)
