@@ -95,43 +95,8 @@ This section centralizes all security, compliance, quality, and dynamic testing 
 
 #### 📂 Directory Structure
 
-```
-devsecops/
-├── dast/                      # 🕵️ Dynamic Application Security Testing (DAST)
-│   └── zap/
-│       ├── rules.tsv          # OWASP ZAP threshold calibration & alert overrides
-│       ├── zap-report.html    # Baseline DAST scan security report
-│       └── zap.yaml           # ZAP automation plan definition
-│
-├── policies/                  # 📜 Policy-as-Code (OPA / Rego)
-│   ├── conftest/
-│   │   └── kubernetes.rego    # Shift-Left: Pre-deployment Helm manifests audit (OPA v1)
-│   └── gatekeeper/            # Admission Controller: Runtime enforcement on Minikube
-│       ├── templates/         # ConstraintTemplates (Custom Rego CRDs)
-│       └── constraints/       # Constraints applied to target namespaces (staging / prod)
-│
-├── sast/                      # 🔍 Static Application Security Testing (SAST & Secrets)
-│   ├── gitleaks/
-│   │   └── .gitleaks.toml     # Hardcoded secret, API key, and token detection
-│   └── Semgrep auto rules are selected in CI; custom Semgrep rules are not checked into this repository
-│
-├── compliance/                # 🧰 Software Supply Chain Security
-│   ├── cosign/
-│   │   ├── cosign.pub         # Sigstore Cosign ECDSA P-256 public verification key
-│   │   ├── supply-chain-manifest.json          # Canonical artifact & policy SHA-256 provenance manifest
-│   │   └── supply-chain-manifest.sigstore.json # Offline Sigstore cryptographic signature bundle
-│   ├── trivy/
-│   │   ├── trivy.yaml         # Table-oriented Trivy configuration for local/pipeline scans
-│   │   ├── trivy-sarif.yaml   # SARIF-compatible Trivy configuration for GitHub uploads
-│   │   └── .trivyignore       # Formal risk acceptance and CVE exception registry
-│   └── sbom/                  # Metadata schemas for CycloneDX / SPDX SBOMs
-│
-└── testing/                   # ⚡ Dynamic & Performance Testing
-    ├── k6/
-    │   └── load-test.js       # Stress testing & p95 latency SLO verification via Istio Gateway
-    └── newman/
-        └── microservices.postman_collection.json # API integration test suite
-```
+For the complete file tree and comprehensive subfolder breakdown of the `devsecops/` hub (including compliance, DAST, OPA policies, SAST, and testing suites), refer to the canonical [Repository Structure](../../README.md#-repository-structure) in `README.md`.
+
 
 #### ⚙️ Security Operating Modes: Audit vs. Enforce
 
