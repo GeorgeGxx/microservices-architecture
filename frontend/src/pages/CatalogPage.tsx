@@ -112,7 +112,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
           <div className="space-y-2 max-w-3xl">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span>Spring Boot 4.0.9 & Apollo Federation 2.3 Supergraph</span>
+              <span>Spring Boot 4.1.2 & Apollo Federation 2.3 Supergraph</span>
             </div>
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight leading-snug">
               Precision Electronics & Enterprise Catalog
