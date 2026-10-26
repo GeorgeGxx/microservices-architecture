@@ -324,86 +324,65 @@ $env:PYTHONPATH = "mlops"; python -m unittest discover -s mlops/tests -v
 
 ```text
 microservices-architecture/
-├── .github/workflows/              # GitHub Actions service CI, registry, GitOps and Terraform workflows
+├── .github/workflows/              # ⚙️ GitHub Actions CI/CD (service build, container registry & GitOps)
 ├── ansible/                        # 🤖 Ansible Automation for Compact Host Deployments
 │   ├── inventory/hosts.ini         # Dynamic EC2 host inventory
-│   ├── playbooks/deploy-compact-stack.yml # Master Docker, UFW, Systemd deployment
+│   ├── playbooks/deploy-compact-stack.yml # Master Docker, UFW & Systemd deployment
 │   └── templates/                  # Compose stack & multi-DB initialization
-├── argocd/                         # GitOps Applications & ApplicationSet definitions
-├── azure-devops/                   # Azure DevOps Pipeline YAML files
-├── cosmo-router/                   # Cosmo Router 0.362.0 (Port 8080 • Federation v2)
-├── devsecops/                      # 🛡️ Centralized DevSecOps Hub
-│   ├── compliance/                 # 🧰 Software Supply Chain Security & Attestations
-│   │   ├── cosign/                 # Sigstore Cosign ECDSA P-256 public key (cosign.pub) & provenance manifests
-│   │   ├── java-security/          # JVM certificate pinning & blocked untrusted cert registry (blocked.certs)
-│   │   └── trivy/                  # Trivy configs (trivy.yaml, trivy-sarif.yaml) & exception list (.trivyignore)
-│   ├── dast/                       # 🕵️ Dynamic Application Security Testing (DAST)
-│   │   └── zap/                    # OWASP ZAP automation plan (zap.yaml), rule calibrations (rules.tsv) & reports
-│   ├── policies/                   # 📜 Policy-as-Code (OPA / Rego)
-│   │   ├── conftest/               # Shift-Left: Pre-deployment Helm manifests audit (kubernetes.rego & fixtures)
-│   │   └── gatekeeper/             # Admission Controller: ConstraintTemplates (CRDs) & active constraints
-│   ├── sast/                       # 🔍 Static Application Security Testing (SAST & Secrets)
-│   │   └── gitleaks/               # Hardcoded secrets, API keys, and credential token detection (.gitleaks.toml)
-│   └── testing/                    # ⚡ Dynamic, Performance & Contract Testing
-│       ├── k6/                     # k6 stress testing & p95 latency SLO verification via Istio Gateway
-│       └── newman/                 # Newman integration test collection (microservices.postman_collection.json)
+├── argocd/                         # 🐙 ArgoCD GitOps Applications & ApplicationSets (dev, staging, prod)
+├── azure-devops/                   # 🔷 Azure DevOps Pipeline definitions
+├── backups/                        # 💾 BCDR disaster recovery drills & automated database snapshots
+├── cosmo-router/                   # 🌐 Cosmo Router Federation v2 Gateway (Port 8080)
+├── devsecops/                      # 🛡️ Centralized DevSecOps Security Hub
+│   ├── compliance/                 # Sigstore Cosign keys, JVM pinned certs & Trivy configs
+│   ├── dast/zap/                   # OWASP ZAP automation plan (zap.yaml) & rule calibrations
+│   ├── policies/                   # Policy-as-Code (Conftest pre-deploy & Gatekeeper admission)
+│   ├── sast/gitleaks/              # Hardcoded credential detection (.gitleaks.toml)
+│   └── testing/                    # k6 performance SLOs & Newman integration test collections
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
-│   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
-│   │   ├── adr/                    # Architecture Decision Records (ADRs: ADR-001 - ADR-010)
-│   │   ├── API_DESIGN_AND_CONTRACTS.md # RESTful OpenAPI 3.0 & RFC 7807 Problem Details standards
-│   │   ├── ARCHITECTURE.md
-│   │   ├── DISASTER_RECOVERY_STRATEGY.md # Business Continuity, Warm Standby DR, RTO/RPO SLAs
-│   │   └── MULTI_CLOUD_INFRASTRUCTURE.md
-│   ├── 02-operations/              # 🚀 Operations, Local Minikube, Platform CLI & Cloudflare Tunnels
-│   │   ├── LOCAL_DEPLOYMENT.md
-│   │   ├── RELEASE_CRITERIA_AND_GOVERNANCE.md # Per-service SLOs, Alerts, Resource Limits & Rollback
-│   │   ├── LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md # AWS ECS Fargate & EC2 Ansible patterns
-│   │   ├── PLATFORM_CLI_REFERENCE.md
-│   │   ├── CLOUDFLARE_TUNNELS.md
-│   │   └── HELM_AND_CANARY.md
-│   ├── 03-devsecops-and-testing/   # 🛡️ CI/CD Pipelines, Quality Gates, DoD, k6, Newman & DAST
-│   │   ├── DEVSECOPS_PIPELINES.md
-│   │   ├── QUALITY_GATES_AND_DOD.md
-│   │   ├── DYNAMIC_AND_CHAOS_TESTING.md
-│   │   └── GIT_WORKFLOW_AND_COLLABORATION.md
-│   ├── 04-observability/           # 📊 Telemetry Handbook, Grafana, PromQL, LogQL & TraceQL
-│   │   └── OBSERVABILITY_QUERIES.md
-│   ├── reference/                  # 📦 Reference Schemas, IAM Backups, and Cloud Templates
-│   │   ├── api-contracts/          # Canonical OpenAPI 3.0 Reference Specification
-│   │   ├── iam/realm-export.json
-│   │   ├── schemas/POSTGRESQL_18_SCHEMA_AND_QUERIES.sql
+│   ├── 01-architecture/            # ADRs, System Architecture, Disaster Recovery & Multi-Cloud
+│   ├── 02-operations/              # Minikube, Governance, Cloudflare Tunnels & Helm Canary
+│   ├── 03-devsecops-and-testing/   # Pipelines, Quality Gates, DoD, Chaos Testing & Git Workflow
+│   ├── 04-observability/           # Telemetry Handbook, PromQL, LogQL & TraceQL queries
+│   ├── reference/                  # OpenAPI specifications, Keycloak realm exports & SQL schemas
 │   └── Diagrams.drawio             # 🎨 16-Page Comprehensive Architectural Blueprint (Draw.io)
-├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
-├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
-├── inventory-service/              # Stock allocation & verification (Port 8001)
-├── k8s/                            # Kubernetes manifests, Istio routing rules & dev RBAC
+├── frontend/                       # 💻 React 19 + TailwindCSS v4 SPA (Port 3000 • Nginx Distroless)
+├── helm/                           # ⎈ Kubernetes Helm Packaging
+│   ├── charts/                     # Individual service subcharts (products, orders, inventory, etc.)
+│   ├── microservices-umbrella/     # Master umbrella chart orchestrating the complete platform
+│   └── values/                     # Environment-specific configuration overrides (dev, staging, prod)
+├── inventory-service/              # 📦 Inventory & Stock Allocation Service (Port 8001 • Spring Boot)
+├── k8s/                            # ☸️ Kubernetes & Service Mesh Manifests
+│   ├── common/                     # Core namespaces, RBAC roles & StorageClasses
+│   ├── istio/                      # VirtualServices, DestinationRules, Gateway & mTLS policies
+│   ├── minikube/                   # Local cluster deployment manifests & local secrets
+│   └── [aks|eks|gke]/              # Managed cloud Kubernetes configurations
 ├── mlops/                          # 🧪 MLOps Pipeline & Forecasting Service
-│   ├── capture_orders.py           # Unified Kafka event capture (Spark Parquet stream & Python CSV)
-│   ├── train_demand_model.py       # PySpark MLlib GBT regressor, MLflow tracking & auto-train engine
-│   ├── forecast_api.py             # FastAPI 7-day SKU demand inference endpoint with Keycloak OIDC RBAC
+│   ├── capture_orders.py           # Unified Kafka event capture (Spark Parquet & Python CSV)
+│   ├── train_demand_model.py       # PySpark MLlib GBT regressor, MLflow tracking & auto-trainer
+│   ├── forecast_api.py             # FastAPI 7-day SKU demand inference endpoint with Keycloak RBAC
 │   ├── generate_sample_sales.py    # Synthetic seasonal historical sales dataset generator
 │   └── container_train.sh          # Containerized headless PySpark training entrypoint
-├── notification-service/           # Kafka event consumer & SSE Stream (Port 8002)
-├── observability/                  # Grafana LGTM provisioning (Dashboards, Alloy, Loki, Tempo)
-├── orders-service/                 # Order orchestration & Saga orchestrator (Port 8003)
-├── products-service/               # Product catalog domain (Port 8004)
-├── scripts/                        # Enterprise automation scripts (PowerShell & Python)
-│   ├── testing/                    # Consolidated testing engine (diagnose.py, simulate.py, smoke.py)
-│   │   ├── diagnose.py             # Unified health, DB schemas, Vault, Kafka & restore verification
-│   │   ├── simulate.py             # Realistic concurrent order & inventory traffic simulation
-│   │   └── smoke.py                # Fast endpoint availability and HTTP smoke probes
-│   ├── bcdr-simulation.ps1         # Disaster recovery GameDay simulation & backup verification runner
+├── notification-service/           # 🔔 Kafka Event Consumer & SSE Notification Stream (Port 8002 • Spring Boot)
+├── observability/                  # 📊 Full-Stack LGTM Observability Platform
+│   ├── alloy/                      # Grafana Alloy OpenTelemetry telemetry collector config
+│   ├── grafana/                    # Provisioned datasources and dynamic dashboards
+│   └── [loki|tempo|prometheus]/    # Log aggregation, distributed tracing & metrics backends
+├── orders-service/                 # 🛒 Order Orchestration & Saga Coordinator (Port 8003 • Spring Boot)
+├── products-service/               # 🏷️ Product Catalog Domain Service (Port 8004 • Spring Boot)
+├── scripts/                        # ⚡ Enterprise Platform Automation & Verification Suite
+│   ├── testing/                    # Consolidated diagnostic engine (diagnose.py, simulate.py, smoke.py)
+│   ├── bcdr-simulation.ps1         # Disaster recovery GameDay & backup verification runner
 │   ├── bootstrap-keycloak.ps1      # Keycloak 26 IAM realm bootstrapper & client secret sync
 │   ├── build-all.py                # Concurrent Java & React container image compiler
 │   ├── generate-secure-secrets.py  # CSPRNG cryptographic secret & JWT key generator
-│   ├── generate_drawio.py          # Programmatic 16-page architectural diagram generator
-│   ├── generate_postman_collection.py # Programmatic Postman Collection v2.1 generator
-│   ├── local-cost-estimator.py     # Unified FinOps suite (architecture estimates, Terraform plan-delta, K8s right-sizing)
-│   ├── manage-cloudflare-tunnels.ps1 # Cloudflare Zero Trust tunnel manager and DNS record sync
-│   ├── supervise-tunnels.py        # Resilient background port-forward supervisor daemon
-│   ├── update_dashboards.py        # Unified Grafana dashboard generator, live publisher, and demo telemetry CLI
-│   └── validate-opencost.sh        # Render pinned OpenCost and cloud Prometheus charts
-├── terraform/                      # Multi-Cloud IaC (AWS, Azure, GCP modules & workspaces)
+│   ├── local-cost-estimator.py     # Unified FinOps suite (Terraform plan-delta & K8s right-sizing)
+│   ├── manage-cloudflare-tunnels.ps1 # Cloudflare Zero Trust tunnel manager & DNS sync
+│   └── update_dashboards.py        # Grafana dashboard generator & live publisher
+├── terraform/                      # 🌍 Multi-Cloud Infrastructure as Code (IaC)
+│   ├── backend-config/             # Remote state backend definitions (S3, Azure Blob, GCS)
+│   ├── environments/               # Target workspaces (aws, azure, gcp, dev, staging, prod)
+│   └── modules/                    # Reusable cloud modules (VPC, EKS, AKS, GKE, RDS, Vault)
 ├── .env.example                    # Environment variables template
 ├── .gitattributes                  # Git line-ending and binary attributes configuration
 ├── .gitignore                      # Git ignore patterns
