@@ -147,7 +147,7 @@ mindmap
 * **Hardware-Agnostic Universal Barcode & QR Engine:**
   * *Live Camera Stream (WebRTC):* Front/rear lens switching, torch/flashlight toggle, and real-time canvas aiming reticle.
   * *File Decoder:* Drag-and-drop image decoding supporting QR and Code-128 formats.
-  * *Hardware Wedge Scanner Support:* High-speed keystroke burst interceptor ($< 45\text{ ms}$) enabling 100% driverless plug-and-play USB and Bluetooth laser barcode guns (Honeywell, Zebra, Tera).
+  * *Hardware Wedge Scanner Support:* High-speed keystroke burst interceptor (< 45 ms) enabling 100% driverless plug-and-play USB and Bluetooth laser barcode guns (Honeywell, Zebra, Tera).
   * *POS Receipt QR Generation:* Dynamic vector SVG QR codes embedded on digital customer receipts for instant verification.
 * **User-Scoped Reactive Event Streaming (SSE):** Real-time Server-Sent Events from `notification-service` (`/api/notifications/stream`) securely scoped to the authenticated caller's profile via Keycloak JWT claims.
 * **Social Proof & Verified Reviews Engine:** Verified buyer ratings (`★ 4.8 / 5.0`), aggregate customer ratings (`(1,240 ratings)`), and `#1 Best Seller` dynamic amber badges (`#e67a00`).
@@ -156,7 +156,7 @@ mindmap
 ### 2. 🔄 Distributed Reliability & Consistency
 * **Saga Orchestration Pattern:** Graceful compensation and stock rollback across `orders-service` and `inventory-service` when downstream allocations fail.
 * **Distributed Idempotency:** Guaranteed once-only processing via mandatory UUIDv4 `X-Idempotency-Key` headers backed by atomic Redis `SETNX` deduplication with 7-day TTL.
-* **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`) and thread-isolated bulkheads.
+* **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` → `OPEN` → `HALF_OPEN`) and thread-isolated bulkheads.
 * **Dead Letter Topic (DLT) Queueing:** Poison pill isolation in Kafka (`orders-topic.DLT`) ensuring zero consumer thread blockage during serialization or schema failures.
 
 ### 3. 🛡️ Zero-Trust Security & DevSecOps Governance
@@ -584,12 +584,12 @@ flowchart LR
 
 ### 1. 📂 Client-Side Canvas Compression & Base64 Data URL Engine
 * **Local File Selection:** Select `.jpg`, `.png`, or `.webp` images directly from your computer or mobile device. The browser compresses the image before sending product creation to `products-service`, without requiring a third-party image host.
-* **Automated Canvas Rescaling:** The browser accepts JPEG, PNG, and WebP source images up to $15\text{ MB}$, scales them to a maximum dimension of $800\text{ px}$, and encodes WebP at up to $82\%$ quality. It retries at smaller dimensions and lower quality until the compressed image is at most $256\text{ KiB}$ before converting it to a **Base64 Data URL**. No separate upload service or object-store configuration is needed.
+* **Automated Canvas Rescaling:** The browser accepts JPEG, PNG, and WebP source images up to 15 MB, scales them to a maximum dimension of 800 px, and encodes WebP at up to 82% quality. It retries at smaller dimensions and lower quality until the compressed image is at most 256 KiB before converting it to a **Base64 Data URL**. No separate upload service or object-store configuration is needed.
 * **1-Click Curated Presets:** Instant template selector for high-end hardware categories (*Apple Vision Pro, PlayStation 5 Pro, RTX 4090 OC, Dell XPS 16 OLED, Bose QC Ultra, Server Racks*).
 * **Smart Keyword Fallback Resolver:** Dynamic keyword detection across product name and SKU ensures every item in the catalog always renders a high-definition photo even if no custom image was provided.
 
 ### 2. 💾 PostgreSQL Unlimited TEXT Persistence & Redis Cache
-* **JPA Entity Schema ([`Product.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to $256\text{ KiB}$ to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
+* **JPA Entity Schema ([`Product.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/entities/Product.java)):** Configured with `@Column(columnDefinition = "TEXT") private String imageUrl;` to persist a compressed image Data URL or an external image URL in PostgreSQL. The React form caps compressed uploads to 256 KiB to keep product and GraphQL payload sizes bounded. Docker Compose persists the products database in `products-pgdata`; Minikube uses the products PostgreSQL StatefulSet PVC.
 * **DTO Mapping & Seed DataLoader:** Mapped across [`ProductRequest.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) and [`ProductResponse.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductResponse.java) with initial HD seed imagery in [`DataLoader.java`](../../products-service/src/main/java/com/georgegxx/products_service/utils/DataLoader.java).
 * **Input Validation & Field-Level Transparency:** [`ProductRequest.java`](../../products-service/src/main/java/com/georgegxx/products_service/model/dtos/ProductRequest.java) validates mandatory SKU pattern (`^[A-Z0-9\-]{6,20}$`) and safe product name punctuation (`^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9.,'\-()\"/&+%:#!*[\\] ]+$`, max 150 chars). The centralized `GlobalExceptionHandler` aggregates field violations into the `message` and `fields` response map, preventing error masking in client toasts.
 * **Redis Serialization:** Full caching support in Redis 8.8 (`products-cache`) for sub-millisecond retrieval through the products service.
@@ -597,7 +597,7 @@ flowchart LR
 ### 3. 🎨 High-Fidelity Storefront Visual Integration
 * **Catalog Grid:** 16:10 responsive aspect ratio image banners with hover zoom transitions, glassmorphism overlay badges, and verified customer ratings.
 * **Quick View Hero Modal:** High-resolution hero display with dynamic category labels, real-time stock indicators, 2-Year SLA guarantees, and express dispatch chips.
-* **Cart, Checkout & Order History:** Consistent square visual thumbnails ($52\times52\text{ px}$ in Cart Drawer, $46\times46\text{ px}$ in Checkout Summary, and $32\times32\text{ px}$ in Order History rows).
+* **Cart, Checkout & Order History:** Consistent square visual thumbnails (52×52 px in Cart Drawer, 46×46 px in Checkout Summary, and 32×32 px in Order History rows).
 * **Admin Dashboard:** File picker, URL input, live image preview card, and product table thumbnail column.
 
 ---

@@ -34,7 +34,7 @@ flowchart TD
 | **JaCoCo** | **Stage 1 (Coverage)** | Enforces code quality gates requiring ≥80% line and branch coverage before code can be packaged into containers. | Maven Plugin (`jacoco:report`) |
 | **Newman (Postman CLI)** | **Stage 7 (Integration)** | Runs the repository collection through the frontend Nginx proxy, covering GraphQL/REST responses, Keycloak logins, and order lifecycle assertions. | Container / CLI (`newman run`) |
 | **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
-| **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles ($p_{95} < 500\text{ms}$), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
+| **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles (p95 < 500 ms), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
 | **`simulate.py` / `smoke.py`** | **Runtime / Chaos** | `simulate.py` generates shopper/chaos traffic; `smoke.py` provides functional, read-only deployment, and bounded GraphQL resilience modes. | Minikube CLI (`.\platform-minikube.ps1 smoke`) |
 
 ---

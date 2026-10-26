@@ -45,11 +45,11 @@ The operating model coordinates six distinct cross-functional roles across the e
 | Traditional Workflow Characteristic | DevSecOps & S-SDLC Evolution in Microservices Architecture | Implementation / Gate in Project |
 | :--- | :--- | :--- |
 | **Manual Committee Review 1 (Pre-Build)** | Replaced by **Definition of Ready (DoR)** with schema-first validation and peer-approved ADRs for breaking changes. | [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md) (DoR checklist) |
-| **Vague "Tools Review" at end of Code** | Decomposed into continuous **Shift-Left automated gates** at Pre-commit (Gitleaks) and Pull Request (JaCoCo $\ge$ 80%, SonarQube SAST, Trivy SCA, secrets and IaC configuration). | [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) & [DoD Level 1](./QUALITY_GATES_AND_DOD.md) |
+| **Vague "Tools Review" at end of Code** | Decomposed into continuous **Shift-Left automated gates** at Pre-commit (Gitleaks) and Pull Request (JaCoCo ≥ 80%, SonarQube SAST, Trivy SCA, secrets and IaC configuration). | [`.github/workflows/_service-ci-cd-template.yml`](../../.github/workflows/_service-ci-cd-template.yml) & [DoD Level 1](./QUALITY_GATES_AND_DOD.md) |
 | **Manual Committee Review 2 (Pre-Testing)** | Replaced by **Automated Pull Request Validation & Branch Protection Rules** for merge into `develop`. | GitHub Actions branch protection & mandatory peer approval |
 | **Isolated "Automation Stress Security" block** | Integrated into continuous **DoD Level 2 Staging Gate** via ArgoCD: Postman/Newman contract verification, Cosmo Router federation checks, k6 load testing, and OWASP ZAP DAST. | [`devsecops/testing/`](../../devsecops/testing/) & [`devsecops/dast/zap/`](../../devsecops/dast/zap/) |
 | **IaC as a static deployment overlay** | **Declarative GitOps & Admission Control:** Terraform in `terraform/`, Helm in `helm/`, ArgoCD in `argocd/`, validated statically with Conftest/Rego and dynamically with OPA Gatekeeper. | [`devsecops/policies/`](../../devsecops/policies/) & [`argocd/`](../../argocd/) |
-| **Manual Production CAB** | Replaced by **Progressive Canary Rollouts (Istio 10% $\rightarrow$ 100%)** with automated health checks, error-budget guardrails, and instant rollback. | Istio VirtualService + Prometheus SLO alert gates |
+| **Manual Production CAB** | Replaced by **Progressive Canary Rollouts (Istio 10% → 100%)** with automated health checks, error-budget guardrails, and instant rollback. | Istio VirtualService + Prometheus SLO alert gates |
 | **Linear "Fix & Refactor"** | **Closed-Loop Feedback:** Telemetry in Grafana Tempo (distributed traces), Loki (logs), and Prometheus (metrics) automatically correlates errors into RCA post-mortems and regression tests. | [OBSERVABILITY_QUERIES.md](../04-observability/OBSERVABILITY_QUERIES.md) |
 
 ### 🔄 End-to-End DevSecOps & S-SDLC Lifecycle Diagram
@@ -223,7 +223,7 @@ The following RACI matrix specifies organizational accountability across the mul
 | | Dynamic Application Security (OWASP ZAP) | I | I | I | I | C | **A** | I | - | - | **R** |
 | **5. Deployment** | Staging Promotion & Validation | I | I | C | I | C | C | **A / R** | C | - | **R** |
 | | Production Gate Approval (CAB) | **A** | C | C | I | C | C | R | C | I | - |
-| | Canary Traffic Shift (Istio 10% $\rightarrow$ 100%) | I | I | I | I | I | I | **A / R** | C | - | **R** |
+| | Canary Traffic Shift (Istio 10% → 100%) | I | I | I | I | I | I | **A / R** | C | - | **R** |
 | | Post-Deployment Smoke Probes | I | I | I | I | C | I | R | **A** | I | **R** |
 | **6. Operations** | Metrics, Logs & Tracing Monitoring | I | I | I | I | I | I | C | **A / R** | I | - |
 | | Incident Response (Sev 1 / Sev 2) | I | I | C | C | I | C | R | **A** | R | - |

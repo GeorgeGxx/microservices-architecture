@@ -73,16 +73,16 @@ flowchart TD
 ### 1. `cosmo-router` (GraphQL Supergraph Gateway)
 * **Function:** Federated GraphQL execution engine and entry point for external traffic.
 * **SLOs:**
-  * **Availability:** $\ge 99.95\%$ across 30 days.
-  * **Latency:** P95 $\le 150\text{ ms}$, P99 $\le 400\text{ ms}$.
+  * **Availability:** ≥ 99.95% across 30 days.
+  * **Latency:** P95 ≤ 150 ms, P99 ≤ 400 ms.
 * **Resource Bounds:**
   * Request: `100m` CPU, `128Mi` RAM.
   * Limit: `500m` CPU, `512Mi` RAM.
 * **Actionable Alerts:**
-  * `CosmoRouterDown`: Target unreachable for $> 3\text{ minutes}$ (Critical).
-  * `CosmoRouterHighErrorRate`: Supergraph 5xx failure rate $> 5\%$ for $> 5\text{ minutes}$ (Warning).
-  * `CosmoRouterHighLatency`: P95 request duration $> 1000\text{ ms}$ for $> 5\text{ minutes}$ (Warning).
-* **Rollback Trigger:** Automatic Helm rollback if readiness probe (`/health`) fails 3 times with 10s timeout, or Istio canary reports $> 2\%$ 5xx during the 10-minute traffic shift.
+  * `CosmoRouterDown`: Target unreachable for > 3 minutes (Critical).
+  * `CosmoRouterHighErrorRate`: Supergraph 5xx failure rate > 5% for > 5 minutes (Warning).
+  * `CosmoRouterHighLatency`: P95 request duration > 1000 ms for > 5 minutes (Warning).
+* **Rollback Trigger:** Automatic Helm rollback if readiness probe (`/health`) fails 3 times with 10s timeout, or Istio canary reports > 2% 5xx during the 10-minute traffic shift.
 * **Version Evidence:** Header `wgc-router-version` and Cosmo execution config hash in logs.
 
 ---
@@ -90,19 +90,19 @@ flowchart TD
 ### 2. `orders-service` (Spring Boot 4.0.9)
 * **Function:** Mission-critical transactional checkout, order placement, status lifecycle, and Kafka event publishing.
 * **SLOs:**
-  * **Availability:** $\ge 99.90\%$ across 30 days.
-  * **Latency:** P95 $\le 350\text{ ms}$, P99 $\le 800\text{ ms}$.
-  * **Error Budget:** 5-minute burn rate threshold $= 7.2\%$ (14.4x normal consumption).
+  * **Availability:** ≥ 99.90% across 30 days.
+  * **Latency:** P95 ≤ 350 ms, P99 ≤ 800 ms.
+  * **Error Budget:** 5-minute burn rate threshold = 7.2% (14.4x normal consumption).
 * **Resource Bounds:**
   * Request: `250m` CPU, `512Mi` RAM.
   * Limit: `1000m` CPU, `1024Mi` RAM.
-  * JVM Heap: `-Xms256m -Xmx600m` (Preserves $\sim 424\text{ Mi}$ headroom for Metaspace, threads, Netty buffers).
+  * JVM Heap: `-Xms256m -Xmx600m` (Preserves ~424 MiB headroom for Metaspace, threads, Netty buffers).
 * **Actionable Alerts:**
-  * `ServiceDown`: Pod unreachable for $> 3\text{ minutes}$ (Critical).
-  * `MicroserviceAvailabilityErrorBudgetBurn`: 5m & 1h error ratios $> 7.2\%$ (Critical).
-  * `HighLatency`: P95 HTTP duration $> 1.0\text{ second}$ for $> 5\text{ minutes}$ (Warning).
-  * `HikariPoolExhaustion`: Active connection ratio $> 85\%$ for $> 2\text{ minutes}$ (Warning).
-* **Rollback Trigger:** Readiness probe failure (`/actuator/orders/health/readiness`), uncaught `SQLException` spike $> 3\%$, or circuit breaker open state.
+  * `ServiceDown`: Pod unreachable for > 3 minutes (Critical).
+  * `MicroserviceAvailabilityErrorBudgetBurn`: 5m & 1h error ratios > 7.2% (Critical).
+  * `HighLatency`: P95 HTTP duration > 1.0s for > 5 minutes (Warning).
+  * `HikariPoolExhaustion`: Active connection ratio > 85% for > 2 minutes (Warning).
+* **Rollback Trigger:** Readiness probe failure (`/actuator/orders/health/readiness`), uncaught `SQLException` spike > 3%, or circuit breaker open state.
 * **Version Evidence:**
   * Query endpoint: `GET /actuator/orders/info`
   * Expected JSON payload:
@@ -132,15 +132,15 @@ flowchart TD
 ### 3. `products-service` & `inventory-service` (Spring Boot 4.0.9)
 * **Function:** Product catalog indexing, pricing, inventory reservation, and Redis cache synchronization.
 * **SLOs:**
-  * **Availability:** $\ge 99.90\%$.
-  * **Latency:** P95 $\le 200\text{ ms}$, P99 $\le 500\text{ ms}$.
+  * **Availability:** ≥ 99.90%.
+  * **Latency:** P95 ≤ 200 ms, P99 ≤ 500 ms.
 * **Resource Bounds:**
   * Request: `200m` CPU, `384Mi` RAM.
   * Limit: `800m` CPU, `768Mi` RAM.
   * JVM Heap: `-Xms192m -Xmx450m`.
 * **Actionable Alerts:**
-  * `RedisExporterDown`: Redis cluster/instance unreachable for $> 2\text{ minutes}$ (Critical).
-  * `HighHeapUsage`: JVM memory utilization $> 75\%$ for $> 10\text{ minutes}$ (Warning).
+  * `RedisExporterDown`: Redis cluster/instance unreachable for > 2 minutes (Critical).
+  * `HighHeapUsage`: JVM memory utilization > 75% for > 10 minutes (Warning).
 * **Rollback Trigger:** Inability to obtain database connection or unhandled Redis command timeouts during canary warm-up.
 * **Version Evidence:** `GET /actuator/products/info` and `GET /actuator/inventory/info`.
 
@@ -149,15 +149,15 @@ flowchart TD
 ### 4. `notification-service` (Spring Boot 4.0.9 / Kafka Consumer)
 * **Function:** Asynchronous customer order dispatch notification, email dispatch, and dead-letter queue (DLT) processing.
 * **SLOs:**
-  * **Availability:** $\ge 99.50\%$.
-  * **Processing Lag:** Consumer offset lag $\le 100\text{ messages}$ under normal traffic.
+  * **Availability:** ≥ 99.50%.
+  * **Processing Lag:** Consumer offset lag ≤ 100 messages under normal traffic.
 * **Resource Bounds:**
   * Request: `150m` CPU, `384Mi` RAM.
   * Limit: `500m` CPU, `768Mi` RAM.
   * JVM Heap: `-Xms192m -Xmx450m`.
 * **Actionable Alerts:**
-  * `KafkaConsumerHighLag`: Partition lag $> 1000$ messages for $> 15\text{ minutes}$ (Warning).
-  * `KafkaDLTSpike`: More than 5 messages sent to `orders-topic.DLT` within $1\text{ minute}$ (Critical).
+  * `KafkaConsumerHighLag`: Partition lag > 1000 messages for > 15 minutes (Warning).
+  * `KafkaDLTSpike`: More than 5 messages sent to `orders-topic.DLT` within 1 minute (Critical).
 * **Rollback Trigger:** Container CrashLoopBackOff or partition revocation storm.
 * **Version Evidence:** `GET /actuator/notification/info`.
 
@@ -166,15 +166,15 @@ flowchart TD
 ### 5. `demand-forecast-service` (FastAPI MLOps Inference)
 * **Function:** Machine learning inference API exposing 7-day SKU demand forecasts based on active champion model from MLflow.
 * **SLOs:**
-  * **Availability:** $\ge 99.50\%$.
-  * **Latency:** P95 $\le 800\text{ ms}$, P99 $\le 1500\text{ ms}$.
+  * **Availability:** ≥ 99.50%.
+  * **Latency:** P95 ≤ 800 ms, P99 ≤ 1500 ms.
 * **Resource Bounds:**
   * Request: `250m` CPU, `512Mi` RAM.
   * Limit: `1000m` CPU, `1536Mi` RAM.
 * **Actionable Alerts:**
-  * `MLOpsModelStale`: Active model trained $> 7\text{ days}$ ago without retraining (Warning).
-  * `MLOpsDataFreshnessLag`: Input sales dataset contains no events in the last $> 3\text{ days}$ (Warning).
-  * `MLOpsHighModelRMSE`: Model RMSE $> 15.0$ units (Warning).
+  * `MLOpsModelStale`: Active model trained > 7 days ago without retraining (Warning).
+  * `MLOpsDataFreshnessLag`: Input sales dataset contains no events in the last > 3 days (Warning).
+  * `MLOpsHighModelRMSE`: Model RMSE > 15.0 units (Warning).
   * `MLOpsNoActiveModel`: No registered model serving predictions (Critical).
 * **Rollback Trigger:** Data contract schema violation or MLflow artifact fetch exception returning HTTP 503.
 * **Version Evidence:**

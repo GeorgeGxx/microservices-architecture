@@ -342,7 +342,7 @@ microservices-architecture/
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # ADRs, System Architecture, Disaster Recovery & Multi-Cloud
 │   ├── 02-operations/              # Minikube, Governance, Cloudflare Tunnels & Helm Canary
-│   ├── 03-devsecops-and-testing/   # Pipelines, Quality Gates, DoD, Chaos Testing & Git Workflow
+│   ├── 03-devsecops-and-testing/   # Governance Model, CI/CD Pipelines, Quality Gates, Chaos & Git Workflow
 │   ├── 04-observability/           # Telemetry Handbook, PromQL, LogQL & TraceQL queries
 │   ├── reference/                  # OpenAPI specifications, Keycloak realm exports & SQL schemas
 │   └── Diagrams.drawio             # 🎨 16-Page Comprehensive Architectural Blueprint (Draw.io)
