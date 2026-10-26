@@ -278,6 +278,57 @@ The Compose Kafka drill exports topic and consumer-group diagnostics, then resto
 
 ---
 
+### Runbook 6: Application Release Rollback (Helm, GitOps & Multi-CI/CD)
+
+Recovery behavior depends on the deployment path. Helm atomic upgrades restore the prior release when deployment readiness fails; later QA failures block promotion and require an operator to redeploy/rollback. ArgoCD recovery is performed by reverting Git or using its rollback controls.
+
+```mermaid
+flowchart TD
+    A[🚀 Trigger Deployment] --> B[Helm upgrade --atomic]
+    B -->|Readiness or rollout fails| C[Helm restores previous release]
+    B -->|Deployment succeeds| D[Post-deploy QA gates]
+    D -->|QA fails| E[Promotion blocked; operator investigates/rolls back]
+    D -->|QA passes| F[Manual production approval where configured]
+    F --> G[Provider-specific production rollout]
+    G -->|Production incident| H[Git revert / ArgoCD or Helm recovery]
+```
+
+#### 1. Universal Direct Kubernetes / Helm CLI
+To immediately inspect revision history and roll back in any cluster (Minikube, EKS, AKS, GKE):
+```bash
+# View deployment revision history:
+helm history microservices -n staging
+helm history microservices -n production
+
+# Roll back to the immediately preceding revision:
+helm rollback microservices -n staging
+helm rollback microservices -n production
+
+# Roll back to a specific revision (e.g. revision 3):
+helm rollback microservices 3 -n production --wait --timeout 5m
+```
+
+#### 2. Declarative GitOps Rollback (ArgoCD)
+* **The GitOps Way (Recommended):** Revert the commit in Git so that Git history remains the single source of truth:
+  ```bash
+  git revert HEAD
+  git push origin main
+  ```
+  ArgoCD detects the revert and automatically reconciles (`selfHeal: true`) the cluster to the restored state.
+* **Emergency UI / CLI Rollback:**
+  * In the **ArgoCD Web Console**: Navigate to the application (`microservices-prod`) ➔ Click **History and Rollback** ➔ Select desired revision ➔ Click **Rollback** (temporarily pauses auto-sync until the incident is investigated).
+  * Via ArgoCD CLI:
+    ```bash
+    argocd app rollback microservices-prod <revision-id>
+    ```
+
+#### 3. Multi-CI/CD Automated & Assisted Rollbacks
+* **GitHub Actions:** If a release fails during staging verification, the `rollback-staging` job executes automatically. To redeploy an earlier release manually, open **Actions** ➔ Select workflow ➔ Click **Run workflow** ➔ Select target branch or tag.
+* **Azure DevOps:** The `RollbackStaging` stage automatically triggers whenever `IntegrationTests`, `E2ETests`, `PerformanceTests`, or `DASTScan` fail. To redeploy a previous build: Open **Pipelines** ➔ Select prior successful run ➔ Click **Run new** or **Redeploy stage**.
+* **Bitbucket Pipelines:** A failed Helm upgrade uses `--atomic`; deployment-step errors attempt rollback when an earlier release exists. For post-deployment gate failures, use `helm rollback microservices <revision> -n <namespace> --wait`.
+
+---
+
 ## 💾 Kubernetes State Protection with Velero (v1.18.3)
 
 While all application configurations and deployments are stored declaratively in Git (GitOps via ArgoCD), stateful PersistentVolumeClaims (PVCs) and dynamically generated Secrets/Certificates are backed up via **Velero v1.18.3** with Kopia `nodeAgent` (`defaultVolumesToFsBackup: true`):
