@@ -7,6 +7,7 @@ Usage:
 """
 import sys
 import os
+import time
 import subprocess
 import argparse
 
@@ -40,6 +41,27 @@ def run_command(cmd, cwd=None):
         sys.exit(result.returncode)
 
 
+def push_with_retry(image_name, max_retries=3, delay_seconds=5):
+    """Pushes a container image with automatic exponential-style backoff retries.
+    Handles transient network glitches, socket resets, and Docker Hub chunk timeouts
+    ('error from registry: invalid content range').
+    """
+    cmd = ["docker", "push", image_name]
+    for attempt in range(1, max_retries + 1):
+        print(f"\n==> Pushing {image_name} (attempt {attempt}/{max_retries})...")
+        result = subprocess.run(cmd)
+        if result.returncode == 0:
+            print(f"✅ Successfully pushed {image_name}")
+            return True
+        print(f"⚠️ Push attempt {attempt} failed with exit code {result.returncode}.")
+        if attempt < max_retries:
+            wait_time = delay_seconds * attempt
+            print(f"⏳ Waiting {wait_time}s before retrying push for {image_name}...")
+            time.sleep(wait_time)
+    print(f"❌ Failed to push {image_name} after {max_retries} attempts.")
+    sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Build all microservice Docker images")
     parser.add_argument("tag", nargs="?", default="1.0.0", help="Image tag (default: 1.0.0)")
@@ -48,6 +70,7 @@ def main():
     parser.add_argument("--include-mlops", action="store_true", help="Also build MLOps images (forecast, training, mlflow)")
     parser.add_argument("--no-cache", action="store_true", help="Build Docker images without cache")
     parser.add_argument("--push", action="store_true", help="Push built images to Docker Registry after building")
+    parser.add_argument("--push-only", action="store_true", help="Skip build step and only push existing images to registry")
     args = parser.parse_args()
 
     tag = args.tag
@@ -55,73 +78,82 @@ def main():
     built_images = []
 
     print("=" * 60)
-    print(f" 🚀 BUILDING CONTAINER IMAGES ({prefix}/*:{tag})")
+    mode_msg = "PUSHING EXISTING" if args.push_only else "BUILDING"
+    print(f" 🚀 {mode_msg} CONTAINER IMAGES ({prefix}/*:{tag})")
     print("=" * 60)
 
-    # 1. Build Spring Boot Microservices
     services_to_build = [svc for svc in SERVICES if svc not in args.exclude_service]
-    for svc in services_to_build:
-        image_name = f"{prefix}/{svc}:{tag}"
-        print(f"\n📦 Building service '{image_name}'...")
-        dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
-        cmd = [
-            "docker", "build",
-            "-t", image_name,
-            "-f", dockerfile,
-            ROOT_DIR
-        ]
-        if args.no_cache:
-            cmd.insert(2, "--no-cache")
-        run_command(cmd, cwd=ROOT_DIR)
-        built_images.append(image_name)
 
-    # 2. Build Frontend SPA
-    frontend_image = f"{prefix}/frontend:{tag}"
-    print(f"\n🌐 Building frontend SPA '{frontend_image}'...")
-    frontend_dir = os.path.join(ROOT_DIR, "frontend")
-    frontend_dockerfile = os.path.join(frontend_dir, "Dockerfile")
-    cmd = [
-        "docker", "build",
-        "-t", frontend_image,
-        "-f", frontend_dockerfile,
-        frontend_dir
-    ]
-    if args.no_cache:
-        cmd.insert(2, "--no-cache")
-    run_command(cmd, cwd=frontend_dir)
-    built_images.append(frontend_image)
-
-    # 3. Build MLOps Stack (Optional)
-    if args.include_mlops:
-        print("\n📈 Building MLOps container images...")
-        for ml in MLOPS_SERVICES:
-            ml_image = f"{prefix}/{ml['name']}:{tag}"
-            print(f"\n🧪 Building MLOps '{ml_image}'...")
-            ml_context = os.path.join(ROOT_DIR, ml["context"])
-            ml_dockerfile = os.path.join(ROOT_DIR, ml["dockerfile"])
+    if not args.push_only:
+        # 1. Build Spring Boot Microservices
+        for svc in services_to_build:
+            image_name = f"{prefix}/{svc}:{tag}"
+            print(f"\n📦 Building service '{image_name}'...")
+            dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
             cmd = [
                 "docker", "build",
-                "-t", ml_image,
-                "-f", ml_dockerfile,
-                ml_context
+                "-t", image_name,
+                "-f", dockerfile,
+                ROOT_DIR
             ]
             if args.no_cache:
                 cmd.insert(2, "--no-cache")
-            run_command(cmd, cwd=ml_context)
-            built_images.append(ml_image)
+            run_command(cmd, cwd=ROOT_DIR)
+            built_images.append(image_name)
 
-    print("\n" + "=" * 60)
-    print(" ✨ REQUESTED CONTAINER IMAGES BUILT SUCCESSFULLY!")
-    print("=" * 60)
+        # 2. Build Frontend SPA
+        frontend_image = f"{prefix}/frontend:{tag}"
+        print(f"\n🌐 Building frontend SPA '{frontend_image}'...")
+        frontend_dir = os.path.join(ROOT_DIR, "frontend")
+        frontend_dockerfile = os.path.join(frontend_dir, "Dockerfile")
+        cmd = [
+            "docker", "build",
+            "-t", frontend_image,
+            "-f", frontend_dockerfile,
+            frontend_dir
+        ]
+        if args.no_cache:
+            cmd.insert(2, "--no-cache")
+        run_command(cmd, cwd=frontend_dir)
+        built_images.append(frontend_image)
+
+        # 3. Build MLOps Stack (Optional)
+        if args.include_mlops:
+            print("\n📈 Building MLOps container images...")
+            for ml in MLOPS_SERVICES:
+                ml_image = f"{prefix}/{ml['name']}:{tag}"
+                print(f"\n🧪 Building MLOps '{ml_image}'...")
+                ml_context = os.path.join(ROOT_DIR, ml["context"])
+                ml_dockerfile = os.path.join(ROOT_DIR, ml["dockerfile"])
+                cmd = [
+                    "docker", "build",
+                    "-t", ml_image,
+                    "-f", ml_dockerfile,
+                    ml_context
+                ]
+                if args.no_cache:
+                    cmd.insert(2, "--no-cache")
+                run_command(cmd, cwd=ml_context)
+                built_images.append(ml_image)
+
+        print("\n" + "=" * 60)
+        print(" ✨ REQUESTED CONTAINER IMAGES BUILT SUCCESSFULLY!")
+        print("=" * 60)
+    else:
+        for svc in services_to_build:
+            built_images.append(f"{prefix}/{svc}:{tag}")
+        built_images.append(f"{prefix}/frontend:{tag}")
+        if args.include_mlops:
+            for ml in MLOPS_SERVICES:
+                built_images.append(f"{prefix}/{ml['name']}:{tag}")
 
     # 4. Optional Push
-    if args.push:
+    if args.push or args.push_only:
         print("\n" + "=" * 60)
-        print(" 📤 PUSHING IMAGES TO REGISTRY...")
+        print(" 📤 PUSHING IMAGES TO REGISTRY (WITH AUTOMATIC RETRIES)...")
         print("=" * 60)
         for img in built_images:
-            print(f"\nPushing {img}...")
-            run_command(["docker", "push", img])
+            push_with_retry(img, max_retries=3, delay_seconds=5)
         print("\n" + "=" * 60)
         print(" ✅ ALL IMAGES PUSHED SUCCESSFULLY!")
         print("=" * 60)
