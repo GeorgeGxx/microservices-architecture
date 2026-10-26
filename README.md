@@ -311,24 +311,10 @@ docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Ports}}"
 docker compose down
 ```
 Use `docker compose down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs and model artifacts.
-
-**Docker Compose MLOps & Demand Forecasting:**
-* The default Compose stack automatically includes **MLflow** (`http://localhost:5000`) and `demand-forecast-service` (`/api/forecast`).
-* Optional: create a first demo run using containerized PySpark:
-  ```powershell
-  .\mlops\training.ps1 -Target compose
-  ```
-* One-command simulated Kafka flow (the wrapper builds and starts capture in the background, publishes sample orders, then waits for and verifies a new MLflow run):
-  ```powershell
-  .\mlops\training.ps1 -Target compose -SimulateOrders -Days 14
-  ```
-* Natural frontend flow: start Kafka capture in the background once:
-  ```powershell
-  .\mlops\training.ps1 -Target compose -StartCapture
-  ```
-  Then create orders through the storefront and complete their delivery. Only `DELIVERED` order events are captured; the service writes Parquet and automatically trains when at least 9 date partitions are available and the input has been stable for 60 seconds. Stop the listener with `docker compose stop demand-sales-capture`.
-* Compose and Minikube use separate MLflow stores. They share host port 5000 by default; stop one before starting the other, or set `$env:MLFLOW_PORT = "5001"` before starting Compose to run both at once. Routine `docker compose down` preserves runs and artifacts; `down -v` deletes them.
-* Complete runbook: [Local MLOps Workflow with Docker Compose](docs/02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
+> 🧪 **MLOps & Demand Forecasting Quick Commands:**
+> - Run containerized PySpark baseline training: `.\mlops\training.ps1 -Target compose`
+> - Simulate 14-day Kafka order ingestion and auto-training cycle: `.\mlops\training.ps1 -Target compose -SimulateOrders -Days 14`
+> - For Parquet streaming partitions, dual MLflow port handling, and background capture, see the [Docker Compose MLOps Runbook](docs/02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
 
 ---
 
@@ -337,43 +323,36 @@ Use `docker compose down -v` only when you intentionally want to delete persiste
 To deploy the entire production-grade stack on Minikube with **Istio Service Mesh**, **OPA Gatekeeper**, and **Helm**:
 
 ```powershell
-# 1. Host CLI Audit & Automated Winget Installation
+# 1. Audit host CLI dependencies:
 .\platform-minikube.ps1 tools
 
-# 2. Start Minikube, initialize Istio Service Mesh, and deploy the umbrella Helm chart:
+# 2. Deploy the full ecosystem (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps):
 .\platform-minikube.ps1 up -Environment dev -WithIstio
 
-# 3. Audit platform health, pods, NodePorts, and Gatekeeper OPA policies:
+# 3. Verify platform health, pods, NodePorts, and Gatekeeper OPA policies:
 .\platform-minikube.ps1 doctor -Environment dev
 
-# 4. Check all pods running
-kubectl get pods -A
-kubectl get pods -n dev # observability, auth, data, ..
+# 4. Supervise background tunnels and display interactive endpoints table:
+.\platform-minikube.ps1 tunnels
+.\platform-minikube.ps1 urls
 
 # 5. Pause cluster (preserves storage, database state, and volumes):
 .\platform-minikube.ps1 down
 
 # 6. Fast-resume stack in < 30 seconds (bypassing Terraform, Gatekeeper, and Helm packaging):
 .\platform-minikube.ps1 start                       # Default with Istio
-.\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight mode
+.\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight native mode
 .\platform-minikube.ps1 start -DeployCanary -CanaryImageTag v2.1  # Fast resume with canary active
-.\platform-minikube.ps1 up -Fast                    # Equivalent to start
 
 # 7. Complete purge when no longer needed:
 .\platform-minikube.ps1 down -Destroy
 ```
 
-**Minikube GitOps MLOps & Automated Auto-Training:**
-* Provisioned automatically by `.\platform-minikube.ps1 up` (or refreshed via `.\platform-minikube.ps1 mlops`) in namespace `dev` with dedicated ServiceAccounts (`mlflow-sa`, `demand-forecast-sa`).
-* Persistent Parquet data is shared via the `mlops-sales-data` PVC, while the `demand-model-training-scheduler` CronJob checks hourly and trains only when $\ge 9$ days of new sales partitions change.
-* Simulate and stream 14 days of delivered orders:
-  ```powershell
-  .\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14
-  ```
-  The wrapper waits up to 180 seconds for the capture pod's automatic trainer and confirms a new MLflow run was recorded; it then triggers a guarded training Job fallback and fails clearly if no new run appears. Use `-RunTimeoutSeconds 300` for a longer wait. Open the Minikube MLflow UI at `http://localhost:5000`. Compose can run alongside Minikube when bound to port 5001.
-* Complete runbook: [Minikube MLOps Deployment](docs/02-operations/LOCAL_DEPLOYMENT.md#5--minikube-mlops-deployment--automated-dynamic-training).
+> 🧪 **Minikube MLOps Auto-Training Quick Command:**
+> - Simulate 14 days of delivered orders and trigger the guarded training scheduler: `.\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14`
+> - For PVC storage details, CronJob scheduler logic, and Champion/Challenger model governance, see the [Minikube MLOps Deployment Runbook](docs/02-operations/LOCAL_DEPLOYMENT.md#5--minikube-mlops-deployment--automated-dynamic-training).
 
-> 📘 **Step-by-step Minikube guide:** Detailed hardware allocation, network topologies, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
+> 📘 **Step-by-step Minikube Deep-Dive:** Detailed hardware allocation, standalone host development, network topologies, Canary traffic routing, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
 
 ---
 

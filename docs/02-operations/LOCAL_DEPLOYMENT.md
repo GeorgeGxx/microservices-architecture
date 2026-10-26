@@ -111,8 +111,10 @@ Use `.\platform-minikube.ps1 tools` to audit the local CLI inventory. Add `-Inst
 
 ---
  
-## 🚀 Quick Start with Docker Compose
- 
+## 🚀 Docker Compose Deep-Dive & Operations
+
+> 💡 **Fast-Track Quick Start:** For the 3-minute TL;DR copy-paste guide, see [README.md (Option A: Local Docker Compose)](../../README.md#option-a-local-docker-compose-default-platform-stack). The sections below detail the operational mechanics, container lifecycle, and debugging procedures.
+
 ### 1. Launch Keycloak (Auth Layer)
 Keycloak and its PostgreSQL database must be initialized first:
  
@@ -301,6 +303,8 @@ npm run dev
 ---
 
 ## ☸️ Local Kubernetes Deployment (Minikube, Istio Mesh & Canary Operations)
+
+> 💡 **Fast-Track Quick Start:** For the 3-minute TL;DR copy-paste guide, see [README.md (Option B: Local Kubernetes on Minikube)](../../README.md#option-b-local-kubernetes-on-minikube-enterprise-devsecops). The sections below detail the complete Istio service mesh tuning, Canary traffic split mechanics, KEDA autoscaling, and HashiCorp Vault injector operations.
 
 The unified deployment orchestrator automates the complete lifecycle end-to-end: Minikube cluster provisioning, **Istio Service Mesh with Envoy sidecars**, Zero-Trust mTLS, **Kiali Visual Topology**, **Keycloak IAM bootstrap**, **HashiCorp Vault v2.2.0**, PostgreSQL databases, Kafka, and microservices:
 
