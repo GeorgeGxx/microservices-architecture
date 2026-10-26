@@ -2091,82 +2091,65 @@ switch ($Command) {
     }
 
     default {
-        Show-Banner "$($Platform.ToUpper()) Platform CLI"
-        Write-Host "USAGE:" -ForegroundColor Yellow
-        Write-Host "  .\platform-$Platform.ps1 <command> [-Environment dev|staging|prod] [provider options]`n" -ForegroundColor White
-        Write-Host "COMMANDS:" -ForegroundColor Cyan
-        $providerCommands = if ($Platform -eq "minikube") {
-            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls", "set-tag")
-        } else {
-            switch ($Platform) {
-                "aws" { @("plan", "apply", "destroy", "doctor", "verify", "status", "unlock", "security-scan", "sync-argocd", "tools", "help") }
-                default { @("plan", "apply", "destroy", "doctor", "verify", "status", "unlock", "security-scan", "tools", "help") }
-            }
-        }
-        Write-Host "  $($providerCommands -join ' | ')"
-        if ($Platform -eq "minikube") {
-            Write-Host "  Minikube capabilities: resource-sized cluster lifecycle, fast-resume (<30s), Istio/Gatekeeper bootstrap, MLOps, canary, Vault, and local image builds."
-            Write-Host "  Container builds:    .\platform-minikube.ps1 build [-IncludeMlops] [-Push] [-PushOnly] [-ImageTag <version>]"
-            Write-Host "  Tag synchronization: .\platform-minikube.ps1 set-tag -ImageTag <version> [-Service all|<svc>] [-TargetEnv minikube|all]"
-        } else {
-            $providerDetails = switch ($Platform) {
-                "aws" { "AWS IAM/STS preflight; EKS lifecycle; S3 remote state with lock table." }
-                "azure" { "Azure subscription preflight; AKS lifecycle; AzureRM remote state and Blob locking." }
-                "gcp" { "Active gcloud account/project preflight; GKE lifecycle; GCS remote state." }
-            }
-            Write-Host "  $providerDetails"
-            Write-Host "  Destruction is explicit and prompts for confirmation unless -AutoApprove is supplied."
-            $providerTools = switch ($Platform) {
-                "aws" { @("terraform", "aws", "kubectl", "gitleaks", "tflint", "trivy") }
-                "azure" { @("terraform", "az", "kubectl", "gitleaks", "tflint", "trivy") }
-                "gcp" { @("terraform", "gcloud", "kubectl", "gitleaks", "tflint", "trivy") }
-            }
-            Write-Host "  Host tools: $($providerTools -join ', ')"
-            Write-Host "  apply provisions infrastructure only; application artifacts and releases are delivered by the configured CI/CD pipeline."
-            Write-Host "  DataPlane: all|primary|secondary; on prod Terraform commands require an explicit selection."
-            Write-Host "  primary/secondary Terraform selections target only that cluster module; 'all' includes shared infrastructure."
-            if ($Platform -eq "aws") {
-                Write-Host "  sync-argocd requests reconciliation of the already-installed Application from its remote Git source."
-                Write-Host "  GitHub Actions provides CI; Argo CD provides AWS CD and rollback follows GitOps."
-            } elseif ($Platform -eq "azure") {
-                Write-Host "  Azure DevOps builds, publishes, and deploys app releases to AKS with Helm; pipeline stages own rollback."
-            } else {
-                Write-Host "  Bitbucket Pipelines deploys app releases to GKE with Helm and owns deployment rollback."
-            }
-        }
-        if ($Platform -eq "minikube") {
-            Write-Host "  start / resume      Fast platform resume (<30s) bypassing Terraform, Gatekeeper and Helm re-build"
-            Write-Host "  cost                Live Kubernetes workload costs via kubectl-cost and OpenCost"
-            Write-Host "  finops              Offline architecture estimate (not live cloud billing)"
-            Write-Host "  security-scan       Run the configured Gitleaks, TFLint, Trivy, Conftest, and Cosign checks"
-            Write-Host "  smoke | contract | performance | dast | tunnels | diagrams | bcdr"
-        } else {
-            Write-Host "  security-scan       Run local Gitleaks, TFLint, and Trivy scans for this provider"
-        }
-        Write-Host "  tools -Install      Audit or install this entrypoint's documented host tools"
-        Write-Host "EXAMPLES:" -ForegroundColor Cyan
-        if ($Platform -eq "minikube") {
-            Write-Host "  .\platform-minikube.ps1 up"
-            Write-Host "  .\platform-minikube.ps1 start                       # Fast resume (<30s) bypassing Terraform"
-            Write-Host "  .\platform-minikube.ps1 start -WithoutIstio         # Fast resume in lightweight mode"
-            Write-Host "  .\platform-minikube.ps1 start -DeployCanary         # Fast resume with canary active"
-            Write-Host "  .\platform-minikube.ps1 up -Fast                    # Equivalent to start"
-            Write-Host "  .\platform-minikube.ps1 down                        # Safe pause (preserves DB & cluster state)"
-            Write-Host "  .\platform-minikube.ps1 mlops"
-            Write-Host "  .\platform-minikube.ps1 canary -Action rollout"
-        } else {
-            Write-Host "  .\platform-$Platform.ps1 plan -Environment staging"
-            Write-Host "  .\platform-$Platform.ps1 apply -Environment prod -DataPlane all"
-            Write-Host "  .\platform-$Platform.ps1 destroy -Environment prod -DataPlane secondary"
-            Write-Host "  .\platform-$Platform.ps1 unlock -LockId <ID>"
-            if ($Platform -eq "aws") {
-                Write-Host "  .\platform-$Platform.ps1 sync-argocd -Environment staging"
-            }
-            Write-Host "  .\platform-$Platform.ps1 status -Environment prod -DataPlane all"
-        }
-        Write-Host "  .\platform-$Platform.ps1 tools -Install"
-        Write-Host "  .\platform-$Platform.ps1 doctor"
-        Write-Host "================================================================================" -ForegroundColor Cyan
+        Write-Host @"
+================================================================================
+ 🚀 LOCAL DEVSECOPS & CLUSTER ORCHESTRATOR (platform-minikube.ps1)
+================================================================================
+Usage:
+  .\platform-minikube.ps1 <command> [options]
+
+Commands:
+  up            : Bootstrap full local cluster (Istio, Gatekeeper, Vault, Keycloak, Apps, Tunnels).
+  start / resume: Fast platform resume (<30s) bypassing Terraform, Gatekeeper, and Helm re-build.
+  down / stop   : Safe pause of Minikube (preserves DB state, volumes, and workloads).
+  destroy       : Purges Minikube VM, background tunnels, volume data, and cached modules.
+  build         : Builds container images from Dockerfiles (-Service, -IncludeMlops, -Push, -PushOnly).
+  set-tag       : Synchronizes container image tags across Helm values via yq (-ImageTag, -Service, -TargetEnv).
+  test          : Executes Java 21 + Maven multi-module reactor unit tests on host.
+  security-scan : Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign).
+  smoke         : Runs router and presentation frontend health & HTTP smoke checks.
+  contract      : Executes Newman/Postman API contract integration suite (23/23 tests).
+  performance   : Runs Grafana k6 SLA latency, throughput, and performance benchmarks.
+  dast          : Executes OWASP ZAP baseline dynamic application security scan against frontend.
+  canary        : Controls progressive canary rollout (-Action weight|rollout|promote|retire).
+  vault         : Manages HashiCorp Vault operations (-VaultAction status|k8s-auth|istio-pki).
+  mlops         : Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline training.
+  secrets       : Generates zero-trust cryptographically secure secrets in Kubernetes namespace.
+  cost          : Queries live Kubernetes workload costs via kubectl-cost and OpenCost.
+  finops        : Computes offline architecture cost model estimate (-Environment dev|staging|prod).
+  urls          : Displays active local port-forward URLs, ingress endpoints, and credentials.
+  tunnels       : Supervises background port-forward tunnels for local services.
+  cloudflare    : Manages Cloudflare Anycast Quick Tunnels (-Action start|status|stop).
+  doctor        : Runs deep cluster health diagnostics, pods, endpoints, and metrics.
+  bcdr          : Simulates backup, disaster recovery, and failover drill.
+  compose-router: Composes Cosmo Router GraphQL Federation v2 execution config.
+  graph         : Generates visual Terraform dependency graph via Graphviz dot.
+  diagrams      : Synchronizes architecture blueprints into docs/Diagrams.drawio (16 tabs).
+  tools         : Audits host CLI dependencies (pass -Install to attempt WinGet install).
+
+Options:
+  -Fast                                : Fast-resume mode (<30s) bypassing Terraform & Gatekeeper
+  -WithoutIstio                        : Lightweight native K8s mode without Istio mTLS or Kiali
+  -Build                               : Compiles Docker images during up or start
+  -Service <name>                      : Target an individual microservice (e.g. orders-service, frontend)
+  -IncludeMlops                        : Include MLOps stack (demand-forecast, mlops-training, mlflow)
+  -Push                                : Push built container images to Docker Hub with retry backoff
+  -PushOnly                            : Push existing local images to Docker Hub without rebuilding
+  -ImageTag <tag>                      : Target container image tag to compile, push, or set in Helm
+  -TargetEnv <minikube|all>            : Target values file scope for set-tag (default: minikube)
+  -DeployCanary                        : Bootstrap with canary workload enabled on products-service
+  -CanaryImageTag <tag>                : Custom tag for canary deployment (default: canary)
+  -Action <weight|rollout|promote|retire> : Action for canary or cloudflare commands
+  -V1Weight / -V2Weight <0..100>       : Traffic percentage split between stable and canary
+  -VaultAction <status|k8s-auth|istio-pki>: Action for HashiCorp Vault operations
+  -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
+  -Environment <dev|staging|prod>      : Environment scope for FinOps and secrets
+  -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 16384, 40g)
+  -SkipScans                           : Bypass shift-left security scan gates during up
+  -Destroy                             : Complete VM purge flag for down command
+  -Install                             : Automatically attempt WinGet installation of missing host tools
+================================================================================
+"@
     }
 }
 
