@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Java-21-orange.svg?style=for-the-badge&logo=openjdk" alt="Java 21" />
-  <img src="https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4.1.2" />
+  <img src="https://img.shields.io/badge/Spring%20Boot-4-brightgreen.svg?style=for-the-badge&logo=springboot" alt="Spring Boot 4" />
   <img src="https://img.shields.io/badge/React-19%20SPA-blue.svg?style=for-the-badge&logo=react" alt="React 19" />
   <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8.svg?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS v4" />
   <img src="https://img.shields.io/badge/Keycloak-26.8.1-blue.svg?style=for-the-badge&logo=keycloak" alt="Keycloak 26" />
@@ -16,7 +16,7 @@
   <img src="https://img.shields.io/badge/Newman%20Tests-23%2F23%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 23/23 Passing" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4.1.2**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
 
 **Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs ~20+ containers.
 
@@ -44,7 +44,7 @@ graph TB
         ISTIO["Istio Ingress Gateway<br/>(Envoy • mTLS • Canary 90/10)"]
     end
 
-    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4.1.2 • Federation 2.3; Orders 2.5)"]
+    subgraph Microservices["⚙️ Core Domain Subgraphs (Spring Boot 4 • Federation 2.3; Orders 2.5)"]
         PROD["Products Service<br/>(:8004 • PostgreSQL 18 • Subgraph)"]
         ORD["Orders Service<br/>(:8003 • PostgreSQL 18 • Subgraph)"]
         INV["Inventory Service<br/>(:8001 • PostgreSQL 18 • Subgraph)"]
@@ -392,7 +392,7 @@ microservices-architecture/
 ├── LICENSE                         # MIT License file
 ├── platform-minikube.ps1           # Local Minikube platform CLI & lifecycle orchestrator
 ├── platform-multicloud.ps1         # Multi-Cloud (AWS, Azure, GCP) Enterprise Orchestrator
-├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4.1.2)
+├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4)
 ├── README.md                       # Master architecture documentation & quickstart guide
 └── sonar-monorepo-projects.json    # SonarQube / SonarCloud multi-module matrix metadata
 ```
