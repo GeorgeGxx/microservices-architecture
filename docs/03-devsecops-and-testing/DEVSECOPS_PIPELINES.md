@@ -85,104 +85,16 @@ The Minikube entrypoint handles local-cluster validation; the multi-cloud entryp
 | [`platform-multicloud.ps1`](../../platform-multicloud.ps1) `-Provider azure` | `dev`, `staging`, `prod` | Provider-specific workflow branches | Azure AKS | Azure subscription + durable AzureRM Terraform state |
 | [`platform-multicloud.ps1`](../../platform-multicloud.ps1) `-Provider gcp` | `dev`, `staging`, `prod` | Provider-specific workflow branches | GCP GKE | Active gcloud account/project + durable GCS Terraform state |
 
-#### 1. Quick Start with Platform Entry Points
+#### 1. Platform Operations Reference (Single Source of Truth)
 
-```powershell
-# 1. Audit and install Windows CLI tools via Winget (excluding 9 ignored tools)
-.\platform-minikube.ps1 tools
-.\platform-minikube.ps1 tools -Install
+> [!IMPORTANT]
+> All operational commands, CLI switches, and execution recipes for [`platform-minikube.ps1`](../../platform-minikube.ps1) and [`platform-multicloud.ps1`](../../platform-multicloud.ps1) are centralized exclusively in the **[Platform CLI Reference](../02-operations/PLATFORM_CLI_REFERENCE.md)**.
+>
+> Refer to that reference for:
+> - **Local Platform Orchestrator (`platform-minikube.ps1`):** Cluster lifecycle (`up`/`start`/`down`/`destroy`), fast resume (<30s), targeted container builds (`build -Service`), yq declarative tag synchronization (`set-tag`), progressive canary rollouts, HashiCorp Vault setup, MLOps stack, and local test gates.
+> - **Multi-Cloud Orchestrator (`platform-multicloud.ps1`):** Shift-left pre-deploy scans, Terraform lifecycle (`plan`/`apply`/`destroy`), drift detection, remote state unlock, OPA Gatekeeper governance, atomic Helm rollbacks, and post-deployment dynamic verification across AWS, Azure, and GCP.
 
-# 2. Bootstrap full Minikube ecosystem (Istio, Vault, Keycloak, db-keycloak, Apps, Tunnels)
-.\platform-minikube.ps1 up
-.\platform-minikube.ps1 up -Build        # Compile Java & React Dockerfiles from source & load into Minikube
-.\platform-minikube.ps1 build            # Standalone image build & rolling update in Minikube
-.\platform-minikube.ps1 build -IncludeMlops -Push # Build all images including MLOps & push with retry backoff
-.\platform-minikube.ps1 build -PushOnly -ImageTag 1.0.0 # Push existing local images without rebuilding
-.\platform-minikube.ps1 up -WithIstio     # With Istio mTLS and Kiali
-.\platform-minikube.ps1 up -WithoutIstio  # Pure Kubernetes native mode
-.\platform-minikube.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"
-.\platform-minikube.ps1 canary -Action rollout -Namespace dev -Steps 10,25,50,75,100
-.\platform-minikube.ps1 canary -Action promote -Namespace dev
-# Commit/push the values change, wait for ArgoCD + stable Deployment Ready, then retire:
-.\platform-minikube.ps1 canary -Action retire -Namespace dev
-
-# 3. Synchronize Container Image Tags (via yq Orchestrator)
-.\platform-minikube.ps1 set-tag -ImageTag "1.1.0"          # Update dev values-minikube.yaml
-.\platform-minikube.ps1 set-tag -ImageTag "1.1.0" -TargetEnv all # Update across minikube, EKS, AKS, GKE
-
-# 4. Fast Resume & Resource Teardown
-.\platform-minikube.ps1 down             # Safe pause (preserves database, volumes, and state)
-.\platform-minikube.ps1 start            # Fast resume in < 30s (bypasses Terraform & Gatekeeper)
-.\platform-minikube.ps1 start -WithoutIstio # Fast resume in lightweight mode
-.\platform-minikube.ps1 start -DeployCanary -CanaryImageTag "<immutable-image-tag>" # Fast resume with canary
-.\platform-minikube.ps1 up -Fast         # Equivalent to start
-.\platform-minikube.ps1 down -Destroy    # Complete purge of VM, volumes & state
-
-# 4. Multi-Cloud Terraform Planning & Deployment
-.\platform-multicloud.ps1 plan -Provider aws -Environment staging
-.\platform-multicloud.ps1 apply -Provider aws -Environment staging
-
-.\platform-multicloud.ps1 plan -Provider azure -Environment prod -DataPlane all
-.\platform-multicloud.ps1 apply -Provider azure -Environment prod -DataPlane all
-
-.\platform-multicloud.ps1 plan -Provider gcp -Environment staging
-.\platform-multicloud.ps1 apply -Provider gcp -Environment staging
-
-# 4. Deep Diagnostic Health Check & Smoke Tests
-.\platform-minikube.ps1 doctor
-.\platform-minikube.ps1 smoke
-
-# 5. Live OpenCost allocation and offline architecture estimates
-.\platform-minikube.ps1 cost
-.\platform-minikube.ps1 finops -Environment minikube
-.\platform-minikube.ps1 finops -Environment staging
-.\platform-minikube.ps1 finops -Environment prod
-
-# 6. Interactive Endpoints Table & Tunnels
-.\platform-minikube.ps1 urls
-.\platform-minikube.ps1 tunnels
-
-# 7. Gracefully Pause Minikube (preserves state) or Complete Purge
-.\platform-minikube.ps1 down
-.\platform-minikube.ps1 down -Destroy
-```
-
-#### 2. Direct Execution of Multi-Cloud Orchestrator
-
-```powershell
-# Minikube Direct (Zero-cloud-cost local stack)
-.\platform-minikube.ps1 up
-.\platform-minikube.ps1 up -Build      # Build Dockerfiles & sideload to Minikube
-.\platform-minikube.ps1 build          # Rebuild and rollout restart pods in dev
-.\platform-minikube.ps1 security-scan  # Runs Gitleaks, TFLint, Trivy, Conftest
-.\platform-minikube.ps1 graph          # Generates visual Graphviz PNG in docs/reference/
-.\platform-minikube.ps1 down
-
-# AWS Cloud Direct (Flavors: eks, ecs-fargate, ec2-compact • Delivery: Argo CD GitOps)
-.\platform-multicloud.ps1 pre-deploy -Provider aws -Environment staging -Flavor eks
-.\platform-multicloud.ps1 plan -Provider aws -Environment staging -Flavor eks
-.\platform-multicloud.ps1 apply -Provider aws -Environment staging -Flavor eks
-.\platform-multicloud.ps1 sync-argocd -Provider aws -Environment staging
-.\platform-multicloud.ps1 post-deploy -Provider aws -Environment staging -TargetUrl "https://staging.microservices.local"
-.\platform-multicloud.ps1 drift -Provider aws -Environment prod
-
-# Azure Cloud Direct (Delivery: Helm umbrella chart / Azure DevOps)
-.\platform-multicloud.ps1 pre-deploy -Provider azure -Environment prod
-.\platform-multicloud.ps1 plan -Provider azure -Environment prod -DataPlane all
-.\platform-multicloud.ps1 apply -Provider azure -Environment prod -DataPlane all
-.\platform-multicloud.ps1 apply-workloads -Provider azure -Environment prod
-.\platform-multicloud.ps1 rollback -Provider azure -Environment prod -Revision 2
-.\platform-multicloud.ps1 post-deploy -Provider azure -Environment prod -TargetUrl "https://azure.microservices.local"
-
-# GCP Cloud Direct (Delivery: Helm umbrella chart / Bitbucket Pipelines)
-.\platform-multicloud.ps1 pre-deploy -Provider gcp -Environment staging
-.\platform-multicloud.ps1 plan -Provider gcp -Environment staging
-.\platform-multicloud.ps1 apply -Provider gcp -Environment staging
-.\platform-multicloud.ps1 apply-workloads -Provider gcp -Environment staging
-.\platform-multicloud.ps1 post-deploy -Provider gcp -Environment staging -TargetUrl "https://gcp.microservices.local"
-```
-
-#### 3. GitHub Actions Commands
+#### 2. CI/CD Pipeline Dispatch Commands
 
 ```powershell
 gh workflow run service-orders.yml --ref develop
