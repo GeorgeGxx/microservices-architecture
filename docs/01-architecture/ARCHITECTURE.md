@@ -72,6 +72,96 @@ Port numbers are scoped to their listener: container ports belong to individual 
 
 ---
 
+## ⚡ Enterprise Features & Platform Capabilities Catalog
+
+This section serves as the **Single Source of Truth (SSOT)** for all functional, architectural, security, and operational capabilities implemented across the microservices ecosystem.
+
+```mermaid
+mindmap
+  root((Enterprise Platform))
+    E-Commerce & Retail
+      3-Step Checkout Funnel
+      DHL Carrier Tracking
+      Universal WebRTC & USB Scanner
+      LocalStorage Address Persistence
+      Reactive SSE Notifications
+      Social Proof & Best Seller Engine
+    Reliability & Consistency
+      Saga Compensation Orchestration
+      UUIDv4 Idempotency with Redis
+      Resilience4j Circuit Breakers
+      Kafka Outbox & Dead Letter Topics
+    Zero-Trust Security
+      Keycloak 26 OIDC PKCE
+      HashiCorp Vault KV2 & Transit
+      OPA Gatekeeper Policies
+      Sigstore Cosign Provenance
+      Non-Root Distroless Containers
+    MLOps & Forecasting
+      Kafka Streaming to Parquet
+      Continuous PySpark GBT Regressor
+      MLflow Champion & Challenger
+      FastAPI 7-Day Inference Endpoint
+    Observability LGTM
+      Grafana Tempo Tracing
+      Grafana Loki Logging
+      Prometheus Golden Signals
+      Kiali Service Mesh Topology
+      OpenCost Real-Time FinOps
+    Edge & Mobile Readiness
+      Cloudflare Anycast Tunnels
+      React Native Clean Architecture
+      Android App Bundle Compliance
+```
+
+### 1. 🛒 E-Commerce & Retail Innovation
+* **Modernized Storefront Architecture (React 19 & TailwindCSS v4):** High-performance single-page application with context-aware global search, zero-jargon customer notifications, and glassmorphism telemetry status widgets.
+* **Guided 3-Step Multi-Stage Checkout Funnel:**
+  1. *Recipient Profile & Address:* Full Name, email, mobile phone, street address, postal code, and country with 1-click `localStorage` recall (`msa_shipping_address`).
+  2. *Tiered Logistics & Delivery Speed:* Free Standard Shipping ($0.00, 3–5 business days) vs. ⚡ DHL Express Priority ($9.99, 24–48 hours).
+  3. *Local Payment Demo Simulation:* Deterministic approved/declined sandbox simulation without external payment gateways or credit card storage.
+* **Automated DHL Tracking Generation:** Every successfully placed order automatically generates a trackable carrier tracking reference (e.g. `DHL-A8B9C0D1`) and initial lifecycle tracking events.
+* **Hardware-Agnostic Universal Barcode & QR Engine:**
+  * *Live Camera Stream (WebRTC):* Front/rear lens switching, torch/flashlight toggle, and real-time canvas aiming reticle.
+  * *File Decoder:* Drag-and-drop image decoding supporting QR and Code-128 formats.
+  * *Hardware Wedge Scanner Support:* High-speed keystroke burst interceptor ($< 45\text{ ms}$) enabling 100% driverless plug-and-play USB and Bluetooth laser barcode guns (Honeywell, Zebra, Tera).
+  * *POS Receipt QR Generation:* Dynamic vector SVG QR codes embedded on digital customer receipts for instant verification.
+* **User-Scoped Reactive Event Streaming (SSE):** Real-time Server-Sent Events from `notification-service` (`/api/notifications/stream`) securely scoped to the authenticated caller's profile via Keycloak JWT claims.
+* **Social Proof & Verified Reviews Engine:** Verified buyer ratings (`★ 4.8 / 5.0`), aggregate customer ratings (`(1,240 ratings)`), and `#1 Best Seller` dynamic amber badges (`#e67a00`).
+* **Reverse Chronological Order History & Pagination:** Responsive filters (`All Orders`, `Placed`, `In Transit`, `Delivered`, `Cancelled`) with mobile-friendly wrapping and non-clipping page controls.
+
+### 2. 🔄 Distributed Reliability & Consistency
+* **Saga Orchestration Pattern:** Graceful compensation and stock rollback across `orders-service` and `inventory-service` when downstream allocations fail.
+* **Distributed Idempotency:** Guaranteed once-only processing via mandatory UUIDv4 `X-Idempotency-Key` headers backed by atomic Redis `SETNX` deduplication with 7-day TTL.
+* **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` $\rightarrow$ `OPEN` $\rightarrow$ `HALF_OPEN`) and thread-isolated bulkheads.
+* **Dead Letter Topic (DLT) Queueing:** Poison pill isolation in Kafka (`orders-topic.DLT`) ensuring zero consumer thread blockage during serialization or schema failures.
+
+### 3. 🛡️ Zero-Trust Security & DevSecOps Governance
+* **OIDC Authentication & PKCE Flow:** Secure browser authentication using Keycloak 26.8.1 with public clients (`microservices_frontend`) and automated JWT bearer token relay to federated GraphQL subgraphs.
+* **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
+* **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, mandatory labels, and prohibiting default `ServiceAccount` usage.
+* **Least-Privilege RBAC & Distroless Runtimes:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false` and non-root distroless container images across `dev`, `staging`, and `prod`.
+* **Cryptographic Supply-Chain Verification (Sigstore Cosign):** Public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) verified locally via `security-scan` and during multi-cloud image promotion.
+
+### 4. 🧪 Automated MLOps & Demand Forecasting
+* **Kafka Structured Streaming to Parquet:** Real-time ingestion of `DELIVERED` orders into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`) with durable Spark checkpoints and zero local CSV dependencies.
+* **Continuous PySpark Auto-Training:** Automated hourly CronJob and streaming capture checks requiring at least 9 date partitions, a changed SHA-256 fingerprint, and a 60-second stable Parquet snapshot before training.
+* **MLflow Tracking & Champion-Only Model Governance:** Experiment tracking capturing RMSE/MAE metrics, dataset-scoped RMSE quality gates, and `model_role=champion` promotion (`PROMOTED`, `PROMOTED_INITIAL_BASELINE`, `PROMOTED_NEW_DATASET`). Non-improving runs (`model_role=challenger_rejected`) are logged strictly in MLflow for audit without overwriting the active model served to the storefront.
+* **Enterprise Inference API & RBAC:** Sub-second 7-day SKU demand forecast endpoint (`/api/forecast`) protected by Keycloak `ADMIN` role, fully validated in Postman/Newman E2E test suites.
+
+### 5. 📊 Full-Stack Observability (LGTM Stack)
+* **Audience-Focused Grafana Dashboards:**
+  1. *🏢 E-Commerce Business Intelligence & Inventory Operations:* Revenue, order velocity, inventory health, SKU demand forecasts, and model freshness.
+  2. *🛡️ SRE Technical & Security Operations:* Golden signals, HTTP RPS/latency, error budget burn rates, Kafka consumer lag, and Alloy ingestion pipeline health.
+* **Distributed Telemetry Correlation:** One-click drill-down linking Tempo distributed spans $\leftrightarrow$ Loki structured logs $\leftrightarrow$ Prometheus metrics.
+* **Visual Mesh & FinOps:** Kiali visual topology graphs for Istio mTLS verification and OpenCost for live container cost allocation.
+
+### 6. 📱 Client-Agnostic Mobile & Edge Networking
+* **Native Mobile Architecture Boundary:** Domain and application layer design ready for React Native / Expo clients, with mobile OIDC deep linking (`com.georgegxx.microstore://auth/callback`) and Google Play Store publication compliance.
+* **Zero-Trust Edge Cloud Tunnels:** Cloudflare Anycast quick tunnels exposing local or cluster endpoints securely to external test devices and serverless frontends (Vercel) without public IP exposure or port-forwarding vulnerabilities.
+
+---
+
 ## 🔐 Identity & Access Management (Keycloak 26.8.1)
 
 - **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in React 19 SPA.

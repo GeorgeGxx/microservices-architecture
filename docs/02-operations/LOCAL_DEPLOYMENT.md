@@ -265,40 +265,7 @@ npm install
 npm run dev
 ```
 
-**Key Architectural & Storefront Capabilities (`http://localhost:5173`):**
-- **Context-Aware Global & Scoped Search:**
-  - The navbar header search dynamically filters the product catalog and triggers a quick command palette.
-  - The Orders & Tracking view scopes search to customer order history, and the Admin Console isolates filters to specific management tables (the header search is automatically hidden on the Orders view to prevent conflicting search fields).
-- **Enterprise Wishlist & State Persistence:**
-  - Adheres to mature e-commerce identity patterns: guest shoppers attempting to save items are prompted to authenticate via Keycloak, while authenticated users have favorites safely synchronized across sessions and devices (`localStorage` + backend state).
-- **Role-Based Telemetry & Admin Controls:**
-  - Administrative tools (QR/Barcode Scanner for inventory auditing, Admin Telemetry tab, warehouse controls) are strictly gated to users holding the Keycloak `ADMIN` role.
-  - The navbar brand LED checks a lightweight GraphQL query every 30 seconds. Green means the frontend → Cosmo Router → Products subgraph path is reachable, amber means a check is in progress, and red means that path failed. Platform telemetry is monitored via Grafana.
-- **Seven-Day Demand Forecast Panel:**
-  - Dedicated admin tab reading the latest successfully registered MLflow model through `demand-forecast-service`.
-  - Distinguishes synthetic demo data from captured sales and displays the latest observed training timestamp. Containerized PySpark training and Kafka Structured Streaming integrate directly without requiring host Python or Java runtime configurations (see [Local MLOps Workflow with Docker Compose](#5--local-mlops-workflow-with-docker-compose) and [Minikube MLOps Deployment](#5--minikube-mlops-deployment--automated-dynamic-training)).
-- **Scoped Notification Feed (Server-Sent Events):**
-  - Real-time Server-Sent Events (SSE) from `notification-service` are strictly isolated per authenticated user profile to protect transactional privacy (order confirmation, DHL tracking updates, stock alerts).
-  - Features a viewport-bounded notifications drawer (`position: fixed; max-width: 400px;`) with auto-dismiss backdrop and word breaking for tracking IDs.
-- **Hardware-Agnostic Universal QR & Barcode Engine:**
-  - 📷 **Live Camera Stream (WebRTC):** Lens switching (front/rear), flashlight/torch toggle, and real-time laser animation.
-  - 📁 **Image File Upload:** Drag-and-drop or file picker decoding of QR codes and barcodes.
-  - 🔌 **USB & Bluetooth Laser Scanners (HID Wedge):** Real-time keystroke burst interceptor ($< 45\text{ ms}$) enabling $100\%$ driverless plug-and-play barcode guns (Honeywell, Zebra, Tera).
-  - 🎨 **Dynamic QR Vector Generation:** On-demand SVG/Canvas QR labels for product shelf tags and order pickup receipts.
-- **Enterprise Multi-Step Checkout & Logistics (Amazon & Mercado Libre):**
-  - 📍 **Persistent Recipient Profile:** Automatic `localStorage` persistence (`msa_shipping_address`) enabling 1-click address recall for repeat buyers.
-  - 🚚 **Tiered Delivery & DHL Tracking:** Real-time choice between Free Standard Shipping (3-5 days) and ⚡ DHL Express Priority ($9.99, 24-48h) with automated `DHL-XXXXXXXX` tracking generation.
-  - 💳 **Local Payment Simulation:** Choose a demo-approved or demo-declined outcome. No payment card data is requested or stored; no payment provider or real charge is involved. A declined outcome does not create an order or decrement inventory.
-- **Product Catalog Social Proof & Verified Ratings:**
-  - Verified buyer ratings (`★ 4.8 / 5.0`), total rating count derivations (`(1,240 ratings)`), `#1 Best Seller` ecommerce amber badges (`#e67a00`), and real-time stock availability pills.
-- **Order Lifecycle, Responsive Pagination & Saga Rollback:**
-  - 🔄 **Reverse Chronological History:** Latest orders automatically appear on Page 1; oldest purchases are paginated to the final page.
-  - 📑 **Order Status Filters:** Responsive filters for `All Orders`, `Placed` (`PLACED`), `In Transit` (`SHIPPED`), `Delivered` (`DELIVERED`), and `Cancelled` (`CANCELLED`). UI labels map directly to Orders Service enums; cancelled is terminal and is not shown as a fulfillment step.
-  - 🚚 **Dispatch and Cancellation Rule:** A placed order can be cancelled before dispatch; once the admin dispatches it (`SHIPPED` / In Transit), cancellation is removed and the backend rejects it. Later changes arrive through the Kafka-backed `ORDER_NOTIFICATION` SSE event and are confirmed by refetching GraphQL state, with periodic polling as fallback.
-  - 📦 **Structured Two-Tier Order Item Cards:** Upper tier displays thumbnail, full title (line-clamped), and mono SKU tag; lower tier pairs quantity and unit price (`[Qty: 1] × $1,299.99`) with an emerald-highlighted subtotal.
-  - ⚡ **Admin Logistics & Compensation Matrix:** Symmetrical 2x2 action grid for `Re-Order`, `View Receipt & QR`, `Dispatch (Ship)` / `Mark Delivered`, and `Cancel Order`.
-  - 📄 **Responsive Pagination:** Full pagination controls with items-per-page selectors and page counters across both the public product catalog and administrative data tables, featuring non-clipping mobile wrapping.
-- **OIDC PKCE Security:** Secure authentication flow via Keycloak 26.8.1 with automatic JWT token management, role validation, and route guards.
+> 🛍️ **Storefront & E-Commerce Capabilities Reference:** For complete functional and architectural specifications of storefront features (including the 3-step checkout funnel, WebRTC/USB laser barcode scanner engine, automated DHL carrier tracking, and Keycloak state persistence), consult the canonical [Enterprise Features & Platform Capabilities Catalog](../01-architecture/ARCHITECTURE.md#1--e-commerce--retail-innovation) in `ARCHITECTURE.md`.
 
 ---
 
