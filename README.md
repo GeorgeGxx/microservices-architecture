@@ -467,10 +467,6 @@ microservices-architecture/
 │   │   ├── api-contracts/          # Canonical OpenAPI 3.0 Reference Specification
 │   │   ├── iam/realm-export.json
 │   │   ├── schemas/POSTGRESQL_18_SCHEMA_AND_QUERIES.sql
-│   │   └── aws-eks/
-│   ├── liferay-pipeline/           # Reference CI/CD pipelines for Liferay DXP deployments
-│   │   ├── README.md
-│   │   └── .gitlab-ci.yml
 │   └── Diagrams.drawio             # 🎨 16-Page Comprehensive Architectural Blueprint (Draw.io)
 ├── frontend/                       # React 19 + TailwindCSS v4 SPA (Nginx Distroless)
 ├── helm/                           # Kubernetes Helm Charts (Umbrella chart & subcharts)
