@@ -25,22 +25,22 @@ Every service and stateful store is categorized by business criticality to optim
 
 ```mermaid
 quadrantChart
-    title BIA Service Criticality Matrix (RTO vs RPO)
-    x-axis Low RTO (Minutes) --> High RTO (Hours)
-    y-axis High RPO (Hours) --> Low RPO (Seconds)
+    title BIA Service Criticality Matrix - RTO vs RPO
+    x-axis Low RTO Minutes --> High RTO Hours
+    y-axis High RPO Hours --> Low RPO Seconds
     quadrant-1 Low Urgency
-    quadrant-2 Tier 1: Mission Critical (Orders, Keycloak, Postgres)
-    quadrant-3 Tier 2: Business Operational (Inventory, Products, Router)
-    quadrant-4 Tier 3: Async & Observability (Notifications, LGTM)
-    "Orders Service": [0.15, 0.90]
-    "Keycloak IAM": [0.10, 0.95]
-    "PostgreSQL Data": [0.10, 0.98]
-    "Cosmo Router": [0.20, 0.70]
-    "Inventory Service": [0.25, 0.75]
-    "Products Service": [0.25, 0.65]
-    "Kafka KRaft": [0.20, 0.85]
-    "Notification Service": [0.60, 0.40]
-    "Observability LGTM": [0.75, 0.30]
+    quadrant-2 Tier 1 Mission Critical
+    quadrant-3 Tier 2 Business Operational
+    quadrant-4 Tier 3 Async and Observability
+    Orders Service: [0.15, 0.90]
+    Keycloak IAM: [0.10, 0.95]
+    PostgreSQL Data: [0.10, 0.98]
+    Cosmo Router: [0.20, 0.70]
+    Inventory Service: [0.25, 0.75]
+    Products Service: [0.25, 0.65]
+    Kafka KRaft: [0.20, 0.85]
+    Notification Service: [0.60, 0.40]
+    Observability LGTM: [0.75, 0.30]
 ```
 
 | Criticality Tier | Workload / Data Store | Maximum Tolerable Downtime (RTO) | Maximum Data Loss (RPO) | Resiliency & Recovery Architecture |
@@ -58,7 +58,7 @@ graph TD
     Client[Global Clients & Edge Traffic] -->|Anycast Routing| Edge[Cloudflare Zero-Trust / Route53]
     
     subgraph "Primary Region (AWS us-east-1 / Active)"
-        Edge -->|Primary Active (100% Traffic)| Ingress1[Istio Ingress Gateway]
+        Edge -->|"Primary Active (100% Traffic)"| Ingress1[Istio Ingress Gateway]
         Ingress1 --> EKS1[EKS Cluster Primary]
         EKS1 --> App1[Microservices + Router]
         App1 --> DB1[(RDS PostgreSQL 18 Multi-AZ)]
@@ -73,7 +73,7 @@ graph TD
     end
 
     subgraph "Secondary DR Region (AWS us-west-2 / Warm Standby)"
-        Edge -.->|Automated DNS Failover < 30s| Ingress2[Istio Ingress Gateway DR]
+        Edge -.->|"Automated DNS Failover < 30s"| Ingress2[Istio Ingress Gateway DR]
         Ingress2 --> EKS2[EKS Cluster DR 25% Baseline]
         EKS2 --> App2[Microservices Standby / KEDA Autoscalers]
         App2 -.->|Promoted on Failover| DB2

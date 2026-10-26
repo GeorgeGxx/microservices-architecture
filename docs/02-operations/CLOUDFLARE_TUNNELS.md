@@ -53,7 +53,7 @@ flowchart LR
 
     Newman -->|OAuth2 / GraphQL / REST| CF_FE & CF_KC
     Smoke -->|/graphql & /healthz| CF_FE
-    K6 -->|/api/product (SLO)| CF_FE
+    K6 -->|"/api/product (SLO)"| CF_FE
     ZAP -->|DAST Scan| CF_FE
 
     CF_FE --> CFTunnel
