@@ -379,45 +379,35 @@ kubectl get pods -n dev # observability, auth, data, ..
 
 ## 🧪 Automated Testing & Simulation Suite
 
-The platform provides an automated test and simulation suite to validate service health, contract integrity, load thresholds, and telemetry pipelines:
+The platform provides an automated test, simulation, and quality gate suite orchestrated directly through `platform-minikube.ps1`:
 
 ```powershell
 # 1. Functional smoke checks across Router, REST subgraphs, and Auth
-python scripts/testing/smoke.py
+.\platform-minikube.ps1 smoke
 
 # 2. Legitimate E-Commerce User Traffic Simulation (Funnel events + real checkouts)
-python scripts/testing/simulate.py --scenario traffic --orders 15 --concurrency 3
+.\platform-minikube.ps1 simulate -Scenario traffic -Orders 15
 
-# 3. Unified component and telemetry diagnostics (read-only)
-python scripts/testing/diagnose.py all
+# 3. Unified component and telemetry diagnostics (Swagger, PromQL, Grafana, Series)
+.\platform-minikube.ps1 diagnose
 
-# 4. Read-only authenticated order-list diagnostic (requires Keycloak client secret)
-python scripts/testing/diagnose.py orders-readonly
+# 4. Newman API Contract Suite (23 Requests, including MLOps 7-day forecast & RBAC)
+.\platform-minikube.ps1 contract
 
-# 5. Read-only deployment gate against Router and storefront independently
-python scripts/testing/smoke.py --deployment --base-url http://localhost:8080 --frontend-url http://localhost:5173
+# 5. k6 Performance & SLO latency benchmark in containerized runtime
+.\platform-minikube.ps1 performance
 
-# 6. Grafana dashboard publishing and Funnel demo telemetry seeding
-python scripts/update_dashboards.py dashboards
-python scripts/update_dashboards.py funnel-demo --count 30 --category Electronics
+# 6. OWASP ZAP Dynamic Application Security Testing (DAST) baseline scan
+.\platform-minikube.ps1 dast
 
-# 7. Newman API Contract Suite (23 Requests, including MLOps 7-day forecast & RBAC)
-# Note: Point BASE_URL to the frontend proxy (5173) or Router (8080)
-npx --yes newman run devsecops/testing/newman/microservices.postman_collection.json `
-  --env-var "BASE_URL=http://localhost:5173" `
-  --env-var "keycloak_url=http://localhost:8181" `
-  --reporters cli
+# 7. Shift-Left Security Scans (Gitleaks, TFLint, Trivy, OPA Conftest, Cosign)
+.\platform-minikube.ps1 security-scan
 
-# 8. MLOps Quality & Model Governance Suite (15 automated tests)
+# 8. Java 21 + Maven Reactor Unit Tests across microservices
+.\platform-minikube.ps1 test
+
+# 9. MLOps Quality & Model Governance Suite (15 automated tests)
 $env:PYTHONPATH = "mlops"; python -m unittest discover -s mlops/tests -v
-
-# 9. Platform CLI wrappers (Minikube / DevSecOps):
-.\platform-minikube.ps1 test           # Runs Java 21 + Maven reactor unit tests across all microservices
-.\platform-minikube.ps1 security-scan  # Runs 5 Shift-Left gates (Gitleaks, TFLint, Trivy, OPA Conftest, Cosign)
-.\platform-minikube.ps1 smoke          # Runs smoke checks against active cluster
-.\platform-minikube.ps1 contract       # Runs Newman API collection in automated container
-.\platform-minikube.ps1 performance    # Runs k6 SLO latency and throughput benchmark
-.\platform-minikube.ps1 dast           # Runs OWASP ZAP baseline security scan
 ```
 
 > 📖 **Comprehensive Testing Runbook:** For circuit breaker chaos drills, rate-limiting DDoS probes, and k6 SLA thresholds, see the [Dynamic Testing & Chaos Engineering Guide](docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md).
