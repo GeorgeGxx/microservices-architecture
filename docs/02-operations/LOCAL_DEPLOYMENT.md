@@ -26,7 +26,7 @@
 **Local Resource Profile & Allocation:**
 - **Host Allocation:** 8+ CPU cores and 16–32 GB host RAM; reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
 - **MLOps Resource Footprint:** During automatic training runs, MLOps workloads request ~2.3 CPU cores and 4.75 GiB RAM in total (Kafka-to-Parquet capture, MLflow, and forecast API). Scheduled training Jobs execute only when data drift or threshold criteria are met.
-- **Workload Right-Sizing Matrix:** For the complete per-service CPU/Memory requests, limits, storage reservations, operational ports, credentials, and architectural roles across all platform components, refer to the canonical [Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](../01-architecture/ARCHITECTURE.md#--workload-matrix-infrastructure-sizing--cloud-target-mapping) in `ARCHITECTURE.md`.
+- **Workload Right-Sizing Matrix:** For the complete per-service CPU/Memory requests, limits, storage reservations, operational ports, credentials, and architectural roles across all platform components, refer to the canonical [Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](../01-architecture/ARCHITECTURE.md#-workload-matrix-infrastructure-sizing--cloud-target-mapping) in `ARCHITECTURE.md`.
 
 > ⚠️ **Security note:** The Keycloak realm, test accounts (`admin_user`/`admin`, `basic_user`/`password`), and Grafana credentials (`admin`/`admin`) documented across the platform are seeded for **local development only**. Rotate all credentials and secrets before using this stack in shared or production environments.
 
@@ -350,7 +350,7 @@ Expose all internal services and web consoles to `localhost`:
 ```
 Running `.\platform-minikube.ps1 urls` automatically renders the formatted table of active `localhost` tunnels, Minikube NodePorts, and default credentials directly in the terminal.
 
-> 🌐 **Canonical Endpoint & Documentation Matrix:** For the complete, interactive reference table listing all 16 direct `localhost` URLs, Minikube NodePorts, protocols, and OpenAPI Swagger UIs (Products, Orders, Inventory, Notification, Demand Forecast, MLflow, Keycloak, Vault, Grafana, Prometheus, Alloy, Kiali, ArgoCD, OpenCost), refer to the complementary [Unified Endpoints, API Routing & Swagger Access Matrix](../01-architecture/ARCHITECTURE.md#--unified-endpoints-api-routing--swagger-access-matrix) in `ARCHITECTURE.md`.
+> 🌐 **Canonical Endpoint & Documentation Matrix:** For the complete, interactive reference table listing all 16 direct `localhost` URLs, Minikube NodePorts, protocols, and OpenAPI Swagger UIs (Products, Orders, Inventory, Notification, Demand Forecast, MLflow, Keycloak, Vault, Grafana, Prometheus, Alloy, Kiali, ArgoCD, OpenCost), refer to the complementary [Unified Endpoints, API Routing & Swagger Access Matrix](../01-architecture/ARCHITECTURE.md#-unified-endpoints-api-routing--swagger-access-matrix) in `ARCHITECTURE.md`.
 
 ### 4. 🔀 Traffic Routing & Progressive Canary Rollouts
 Deploy a distinct immutable candidate image, then shift Istio traffic in guarded stages. `platform-minikube.ps1 canary -Action rollout` checks both deployments stay Ready, pauses for observation in Grafana/Kiali at every stage, and restores the last accepted split if a gate fails or is declined:

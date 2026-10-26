@@ -225,7 +225,7 @@ Invoke-RestMethod -Uri "http://localhost:8005/health" | ConvertTo-Json
 Every release candidate promoted to production must contain:
 1. **Immutable SemVer 2.0.0 Tag:** Semantic version string (`v1.0.0`, `v1.0.1`, `v1.1.0`) enforcing Docker Hub's **"All tags are immutable"** protection. Tags are never reused or overwritten.
 2. **Container Registry Image & Digest:** Published under `georgegxx/<service>:<semver>` with its immutable cryptographic content addressable identifier (`sha256:...`).
-3. **Supply Chain Provenance (Sigstore Cosign):** Cryptographically signed container image verifiable against [`cosign.pub`](../../cosign.pub) before admission into the cluster.
+3. **Supply Chain Provenance (Sigstore Cosign):** Cryptographically signed container image verifiable against [`cosign.pub`](../../devsecops/compliance/cosign/cosign.pub) before admission into the cluster.
 4. **SBOM & Clean Security Gate:** CycloneDX SBOM generated and zero unaddressed CRITICAL vulnerabilities confirmed by Trivy.
 5. **GitOps Desired State Declaration:** Pinned version or digest committed to `helm/microservices-umbrella/values.yaml` or target environment values.
 6. **Backward-Compatible Database Migrations:** Database schema migrations (Liquibase/Flyway/PostgreSQL) strictly following the *Expand/Contract* pattern so that rolling back to version $N-1$ never corrupts active persistent data.

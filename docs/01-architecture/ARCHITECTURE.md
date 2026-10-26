@@ -390,25 +390,26 @@ sequenceDiagram
     participant Kiali as 📊 Kiali Dashboard
 
     Note over Client, Keycloak: Phase 1: Authentication & Token Issuance
-    Client->>Ingress: 1. POST /realms/microservices-realm/protocol/openid-connect/token (PKCE)
-    Ingress->>Envoy: 2. Route authentication request to Keycloak service
-    Envoy->>Keycloak: 3. Deliver request encrypted over mTLS
-    Keycloak-->>Client: 4. Returns signed JWT Access Token (roles, 'sub', RSA keys)
+    Client->>Ingress: POST /realms/microservices-realm/protocol/openid-connect/token (PKCE)
+    Ingress->>Envoy: Route authentication request to Keycloak service
+    Envoy->>Keycloak: Deliver request encrypted over mTLS
+    Keycloak-->>Client: Return signed JWT Access Token (roles, 'sub', RSA keys)
 
     Note over Client, Microservice: Phase 2: Business Execution (Defense-in-Depth)
-    Client->>Ingress: 5. GraphQL POST / (Authorization: Bearer <JWT>, traceparent)
+    Client->>Ingress: GraphQL POST / (Authorization: Bearer <JWT>, traceparent)
     Note over Ingress: Perimeter L7 Filtering:<br/>• Rate limiting (100 RPS)<br/>• WAF / Input sanitization<br/>• Security Headers injection
-    Ingress->>Envoy: 6. Forward egress traffic to cosmo-router:8080
+    Ingress->>Envoy: Forward egress traffic to cosmo-router:8080
     Note over Envoy: Istio Service Mesh (mTLS STRICT):<br/>• Envoy interception<br/>• VirtualService / DestinationRule validation<br/>• Cryptographic mTLS with SPIFFE X.509 certs
-    Envoy->>Gateway: 7. Deliver decrypted GraphQL request to Cosmo Router
+    Envoy->>Gateway: Deliver decrypted GraphQL request to Cosmo Router
     Note over Gateway: Application Layer Processing:<br/>• Native JWT verification against Keycloak JWKS<br/>• Supergraph Federated Query Planning<br/>• Header propagation (Authorization & Idempotency)
-    Gateway->>Envoy: 8. Dispatch concurrent subgraph queries to orders-service:8003 over mTLS
-    Envoy->>Microservice: 9. East-West mTLS encrypted leap to backend container
-    Microservice-->>Gateway: 10. GraphQL entity data returned
-    Gateway-->>Ingress-->>Client: 11. Consolidated GraphQL response returned to React 19 Storefront
+    Gateway->>Envoy: Dispatch concurrent subgraph queries to orders-service:8003 over mTLS
+    Envoy->>Microservice: East-West mTLS encrypted leap to backend container
+    Microservice-->>Gateway: GraphQL entity data returned
+    Gateway-->>Ingress: Consolidated GraphQL response returned to Ingress
+    Ingress-->>Client: Delivers response payload to React 19 Storefront
 
     Note over Kiali: Real-Time Observability
-    Envoy-->>Kiali: 12. Kiali renders live nodes: [Ingress] ➔ [cosmo-router] ➔ [orders-service] with green 🔒 mTLS lock
+    Envoy-->>Kiali: Renders live nodes: [Ingress] ➔ [cosmo-router] ➔ [orders-service] with green 🔒 mTLS lock
 ```
 
 ### Flow Breakdown & Separation of Concerns:
@@ -518,16 +519,16 @@ The frontend storefront is engineered with **React 19**, **TailwindCSS v4**, and
 
 ### Core Tactical DDD & Clean Architecture Highlights:
 
-1. **Immutable Value Objects:**
+1. **Immutable Value Objects & Tracking Domain:**
    * [`Money`](../../frontend/src/domain/value-objects/Money.ts): Encapsulates monetary arithmetic (`add`, `subtract`, `multiply`), strict **USD** currency enforcement, and localized US formatting via `Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })`.
-   * [`TrackingNumber`](../../frontend/src/domain/value-objects/TrackingNumber.ts): Validates international shipping codes and dynamically generates live DHL Express tracking URLs.
+   * **Carrier Tracking & Logistics:** [`orderProcessing.ts`](../../frontend/src/utils/orderProcessing.ts) & [`orderFulfillment.ts`](../../frontend/src/utils/orderFulfillment.ts) validate international shipping codes and dynamically render live DHL Express tracking URLs.
 2. **Domain Aggregate Pattern ([`CartAggregate`](../../frontend/src/domain/aggregates/CartAggregate.ts)):**
    * Protects warehouse stock invariants (cannot exceed available units reported by `inventory-service`).
    * Computes subtotal, tiered shipping rate ($0 if subtotal $\ge \$100$, else $\$9.99$), $8\%$ sales tax, and free shipping progress percentage.
    * Pure and immutable: each mutation returns a new `CartAggregate` instance.
 3. **Ports & Adapters (Decoupled Infrastructure):**
-   * Domain ports ([`IProductRepository`](../../frontend/src/domain/repositories/IProductRepository.ts), [`IOrderRepository`](../../frontend/src/domain/repositories/IOrderRepository.ts)) define contracts independently of network frameworks.
-   * Infrastructure adapters ([`GraphQLProductRepository`](../../frontend/src/infrastructure/adapters/GraphQLProductRepository.ts), [`GraphQLOrderRepository`](../../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts)) communicate with Cosmo Router v2 Supergraph (`POST /graphql`).
+   * Domain ports ([`IOrderRepository`](../../frontend/src/domain/repositories/IOrderRepository.ts)) and catalog services ([`graphql.ts`](../../frontend/src/services/graphql.ts), [`adminCatalog.ts`](../../frontend/src/services/adminCatalog.ts)) define contracts independently of UI presentation.
+   * Infrastructure adapters ([`GraphQLOrderRepository`](../../frontend/src/infrastructure/adapters/GraphQLOrderRepository.ts), [`LocalStorageCartRepository`](../../frontend/src/infrastructure/adapters/LocalStorageCartRepository.ts)) communicate with Cosmo Router v2 Supergraph (`POST /graphql`) and browser session storage.
 4. **Finite State Machine (FSM) Checkout ([`CheckoutFSM`](../../frontend/src/application/use-cases/CheckoutFSM.ts)):**
    * Eliminates invalid or skipped checkout states: `CUSTOMER_INFO` ➔ `DELIVERY_TIER` ➔ `PAYMENT` ➔ `PROCESSING` ➔ `CONFIRMED` / `FAILED`.
    * Enforces domain field validations before advancing between stages.
@@ -708,7 +709,7 @@ flowchart TD
 * **Dynamic Storefront API LED:** The brand indicator in the navbar checks a lightweight `products { sku }` GraphQL query every 30 seconds. 🟢 means the browser → frontend Nginx → Cosmo Router → Products subgraph path is responding; 🟠 means the check is in progress; 🔴 means that path is unavailable. This indicator does not claim to represent every service or the Kubernetes cluster; use Grafana and Kubernetes health probes for platform-wide status.
 * **Modern Live Sync Indicator:** The `/admin` operations console auto-synchronizes catalog inventory, warehouse stock levels, and order states every 4 seconds or on manual click with a glassmorphism `● LIVE SYNC` widget.
 * **Separation of Concerns (Grafana Observability):** Complex infrastructure telemetry (Kubernetes cluster nodes, KRaft partition lags, and Istio Envoy service mesh mTLS traffic) is strictly delegated to Grafana LGTM dashboards (Port 3000) and Kiali (Port 20001), keeping the frontend clean, focused, and free of redundant telemetry docks.
-* **Demand Forecasting (MLOps in Minikube & Compose):** The `ADMIN`-only Demand Forecast tab displays daily per-SKU estimates for the next seven days with source provenance (`captured-sales` vs. `synthetic`) and historical date ranges. A FastAPI service loads the latest validated model from MLflow and validates Keycloak JWTs server-side. PySpark Structured Streaming ingests delivered Kafka order events into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`), triggering automated dynamic re-training whenever new multi-day sales are registered. Local development may use bootstrap image tags; the GitHub service workflow publishes Git SHA tags and deploys by registry digest when credentials and a target cluster are configured. The Minikube integration includes Istio sidecars, Prometheus metrics, and automated Newman API test coverage. See the [Local MLOps workflow](../../README.md#local-mlops-workflow).
+* **Demand Forecasting (MLOps in Minikube & Compose):** The `ADMIN`-only Demand Forecast tab displays daily per-SKU estimates for the next seven days with source provenance (`captured-sales` vs. `synthetic`) and historical date ranges. A FastAPI service loads the latest validated model from MLflow and validates Keycloak JWTs server-side. PySpark Structured Streaming ingests delivered Kafka order events into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`), triggering automated dynamic re-training whenever new multi-day sales are registered. Local development may use bootstrap image tags; the GitHub service workflow publishes Git SHA tags and deploys by registry digest when credentials and a target cluster are configured. The Minikube integration includes Istio sidecars, Prometheus metrics, and automated Newman API test coverage. See the [Local MLOps workflow](../02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
 
 ### 5. 🔔 Customer-Centric Notification Center (Zero-Jargon)
 * **Buyer-Oriented Messaging:** Removed internal architecture jargon (such as *"Saga orchestrator"*, *"distributed compensation"*, *"Kafka stream active"*).

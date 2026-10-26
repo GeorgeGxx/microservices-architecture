@@ -175,7 +175,7 @@ sequenceDiagram
         opt Admin Order Fulfillment
             Admin->>Scanner: Click 'Ship Order'
             Scanner->>Router: mutation { shipOrder(id: $id) }
-            Router->>Orders: Update status -> SHIPPED & publish Kafka event
+            Router->>Orders: Update status to SHIPPED & publish Kafka event
         end
     end
     Scanner--)Orders: Async Telemetry POST /api/order/funnel (QR_SCAN_RESOLVED)

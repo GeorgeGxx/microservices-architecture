@@ -187,9 +187,9 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 
 ## 🔌 Workload Matrix, Infrastructure Sizing & Cloud Target Mapping
 
-The platform workloads, listener ports, container resource allocations (CPU/memory requests, limits, and PVC storage) across all 29 ecosystem components—including core microservices, IAM, datastores, MLOps, observability, and scaling operators—are centrally unified in the canonical **[Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](./docs/01-architecture/ARCHITECTURE.md#--workload-matrix-infrastructure-sizing--cloud-target-mapping)** within `ARCHITECTURE.md`.
+The platform workloads, listener ports, container resource allocations (CPU/memory requests, limits, and PVC storage) across all 29 ecosystem components—including core microservices, IAM, datastores, MLOps, observability, and scaling operators—are centrally unified in the canonical **[Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](./docs/01-architecture/ARCHITECTURE.md#-workload-matrix-infrastructure-sizing--cloud-target-mapping)** within `ARCHITECTURE.md`.
 
-For the complete microservices catalog, API path routing, direct `localhost` access URLs, interactive OpenAPI 3.0 Swagger specifications, and administrative management consoles across both local direct port-forwards and Minikube NodePort topologies, refer to the complementary **[Unified Endpoints, API Routing & Swagger Access Matrix](./docs/01-architecture/ARCHITECTURE.md#--unified-endpoints-api-routing--swagger-access-matrix)** in `ARCHITECTURE.md`.
+For the complete microservices catalog, API path routing, direct `localhost` access URLs, interactive OpenAPI 3.0 Swagger specifications, and administrative management consoles across both local direct port-forwards and Minikube NodePort topologies, refer to the complementary **[Unified Endpoints, API Routing & Swagger Access Matrix](./docs/01-architecture/ARCHITECTURE.md#-unified-endpoints-api-routing--swagger-access-matrix)** in `ARCHITECTURE.md`.
 
 ---
 
