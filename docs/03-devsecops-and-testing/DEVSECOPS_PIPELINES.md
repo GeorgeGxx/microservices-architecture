@@ -43,27 +43,10 @@ flowchart LR
     J -->|Post-deploy QA failure| L[Block promotion; operator recovery]
 ```
 
-### 🖥️ Local Platform Endpoints & Access Matrix
+### 🖥️ Local Platform Endpoints & Access Reference
 
-Core platform services, Swagger UIs, and dashboards are available on Windows `localhost` through managed port-forwards in Minikube. The same microservice ports are host-published by Docker Compose:
+Core platform services, interactive Swagger UIs, and dashboards are accessible on `localhost` through managed Minikube tunnels and Docker Compose host publishes. For the consolidated routing matrix, operational ports, credentials, and Swagger endpoints across all platform components, refer to the canonical [Unified Endpoints, API Routing & Swagger Access Matrix](../01-architecture/ARCHITECTURE.md#-unified-endpoints-api-routing--swagger-access-matrix) in `ARCHITECTURE.md`.
 
-| Service / Tool | URL | Credentials / Auth | Role in Ecosystem |
-| :--- | :--- | :--- | :--- |
-| 🌐 **Novashop Storefront (React 19 SPA)** | [`http://localhost:5173`](http://localhost:5173) | Public Storefront | Storefront UI (React 19, Tailwind v4, Tactical DDD) |
-| 🚀 **Cosmo Router (Sandbox & Supergraph)** | [`http://localhost:8080`](http://localhost:8080) | Bearer JWT / Public | Interactive GraphQL Schema Explorer & Sandbox IDE |
-| 📖 **Products Swagger UI** | [`http://localhost:8004/swagger-ui.html`](http://localhost:8004/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Products REST APIs |
-| 📖 **Orders Swagger UI** | [`http://localhost:8003/swagger-ui.html`](http://localhost:8003/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Orders REST APIs |
-| 📖 **Inventory Swagger UI** | [`http://localhost:8001/swagger-ui.html`](http://localhost:8001/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Inventory REST APIs |
-| 📖 **Notification Swagger UI** | [`http://localhost:8002/swagger-ui.html`](http://localhost:8002/swagger-ui.html) | Public Docs | OpenAPI v3 interactive documentation for Notification REST APIs |
-| 🔑 **Keycloak IAM** | [`http://localhost:8181`](http://localhost:8181) | `admin` / `admin` | Identity Provider, OAuth2/OIDC, PKCE Realm |
-| 🔒 **HashiCorp Vault UI** | [`http://localhost:8200`](http://localhost:8200) | Token: `root` | Enterprise Secrets Engine & Dynamic Credentials |
-| 🧭 **Kiali Mesh Topology** | [`http://localhost:20001/kiali`](http://localhost:20001/kiali) | Anonymous (Local) | Real-time Istio Service Mesh Visualizer & mTLS |
-| 🐙 **ArgoCD GitOps** | [`https://localhost:8088`](https://localhost:8088) | `admin` / `admin` | GitOps Controller & Declarative Deployments |
-| 📊 **Grafana Observability** | [`http://localhost:3000`](http://localhost:3000) | `admin` / `admin` | Curated SRE & Business Intelligence Dashboards (Prometheus + Loki + Tempo) |
-| 📈 **Prometheus Targets** | [`http://localhost:9090/targets`](http://localhost:9090/targets) | Public Scraping | In-cluster Metric Scraping Health Verification |
-| 📊 **OpenCost UI** | [`http://localhost:7000`](http://localhost:7000) | *(No auth required)* | Kubernetes workload allocation (Minikube/cloud via Helm; not installed by Compose) |
-
-The application and observability URLs above use Docker Compose host ports or the managed Minikube tunnels, depending on the active platform. In Minikube the microservices remain ClusterIP endpoints; the tunnel supervisor forwards ports `8001`–`8004` for the four Swagger UIs. OpenCost is available only when its Kubernetes Helm release is installed. The Postman collection uses frontend Nginx and does not call host ports `8001`–`8004`.
 
 ### ⚙️ Platform Operational Lifecycle Commands (Independent Entry Points)
 

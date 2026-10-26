@@ -181,11 +181,8 @@ sequenceDiagram
     Scanner--)Orders: Async Telemetry POST /api/order/funnel (QR_SCAN_RESOLVED)
 ```
 
-### Key Capabilities:
-1. **Universal Dual-Engine Decoding:** Native `BarcodeDetector` API supplemented with pure TypeScript `jsQR` offscreen canvas processing, guaranteeing 100% scanning support across Chrome, Firefox, Edge, Safari, iOS, and Android.
-2. **Authoritative Stock Verification:** Queries `GET /api/inventory/detail/{sku}` directly against PostgreSQL to prevent stale client cache anomalies.
-3. **In-Modal POS Fulfillment:** Administrators can trigger order fulfillment (`shipOrder`, `deliverOrder`) directly from the scanner view upon reading shipping labels or order receipts.
-4. **Security Header Alignment:** Serves `Permissions-Policy: camera=(self), microphone=(), geolocation=()` via Nginx, allowing WebCam access for the storefront origin while restricting unauthorized third-party embeds.
+> 🛍️ **E-Commerce & Barcode Capabilities Reference:** For complete technical specifications of the universal dual-engine scanner, stock verification, and POS fulfillment workflows, refer to the canonical [Enterprise Features & Platform Capabilities Catalog](ARCHITECTURE.md#1--e-commerce--retail-innovation) in `ARCHITECTURE.md`.
+
 
 ---
 
