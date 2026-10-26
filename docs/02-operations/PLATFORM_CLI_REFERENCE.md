@@ -53,6 +53,9 @@ does not replace, the provider's CI security gates.
 .\platform-minikube.ps1 contract                         # Run Newman API contract tests (23/23 passing)
 .\platform-minikube.ps1 performance                      # Run k6 load and latency SLO benchmark
 .\platform-minikube.ps1 bcdr                             # Run BCDR backup & disaster recovery simulation drill
+.\platform-minikube.ps1 set-tag -ImageTag 1.2.0          # Synchronize container image tags in values-minikube.yaml
+.\platform-minikube.ps1 set-tag -ImageTag 1.2.0 -Service orders-service # Synchronize a single service only
+.\platform-minikube.ps1 set-tag -ImageTag 1.2.0 -TargetEnv all          # Synchronize tags across all Helm values environments
 .\platform-minikube.ps1 vault -VaultAction status        # Hybrid host Vault CLI + K8s fallback (init|seed|rotate|status)
 .\platform-minikube.ps1 mlops                            # Deploy/refresh MLflow & MLOps
 .\platform-minikube.ps1 canary -Action rollout -Namespace dev
@@ -73,6 +76,8 @@ workloads and tunnels back online in under 30 seconds.
 `mlops` deploys the local MLflow tracking service, Kafka-to-Parquet capture,
 forecast API, and scheduled model-training workload. It expects the Minikube
 base platform to be present.
+
+`set-tag` synchronizes container image tags across Helm values manifests (`helm/values/values-*.yaml`) using `yq`. It protects third-party components (such as Cosmo Router, Kiali, and Prometheus) from accidental mutation while updating application microservices (`georgegxx/*`, frontend, and MLOps). Supports targeting a single service (`-Service <name>`) or all environment profiles (`-TargetEnv all`), producing an immediate Git diff summary.
 
 ## Cloud lifecycle
 

@@ -3,7 +3,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "help")]
+    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "set-tag", "help")]
     [string]$Command = "help",
     [ValidateSet("dev", "minikube", "staging", "prod")]
     [string]$Environment = "dev",
@@ -14,6 +14,11 @@ param(
     [switch]$DeployCanary = $false,
     [ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')]
     [string]$CanaryImageTag = "canary",
+    [ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$')]
+    [string]$ImageTag = "",
+    [string]$Service = "all",
+    [ValidateSet("minikube", "all")]
+    [string]$TargetEnv = "minikube",
     [switch]$Fast = $false,
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
@@ -1593,6 +1598,56 @@ function Invoke-CloudPlatform {
     }
 }
 
+function Invoke-SetImageTag {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Tag,
+        [string]$TargetService = "all",
+        [string]$Scope = "minikube"
+    )
+
+    if (-not (Get-Command yq -ErrorAction SilentlyContinue)) {
+        throw "yq executable is required to synchronize image tags. Install it via 'winget install MikeFarah.yq' or ensure yq is in PATH."
+    }
+
+    Write-Host "🏷️  Synchronizing container image tags to: '$Tag'" -ForegroundColor Cyan
+    Write-Host "   Service Target: $TargetService" -ForegroundColor DarkGray
+    Write-Host "   Scope:          $Scope" -ForegroundColor DarkGray
+
+    $valuesDir = Join-Path $root "helm\values"
+    $targetFiles = if ($Scope -eq "all") {
+        Get-ChildItem -Path (Join-Path $valuesDir "values-*.yaml")
+    } else {
+        @(Get-Item (Join-Path $valuesDir "values-minikube.yaml"))
+    }
+
+    if (-not $targetFiles -or $targetFiles.Count -eq 0) {
+        throw "No matching Helm values files found in '$valuesDir'."
+    }
+
+    $yqExpr = if ($TargetService -eq "all") {
+        "(.. | select(has(`"image`")) | select((.image.repository == `"georgegxx/*`" or .image.repository == `"*/*-service`" or .image.repository == `"*/frontend`" or .image.repository == `"*/mlflow`" or .image.repository == `"*/mlops-training`" or .image.repository == `"*/demand-forecast`") and .image.repository != `"*cosmo/router*`") | .image.tag) = `"$Tag`""
+    } else {
+        $cleanSvc = $TargetService -replace "^georgegxx/", ""
+        "(.. | select(has(`"image`")) | select(.image.repository == `"*/$cleanSvc`" or .image.repository == `"$cleanSvc`" or .image.repository == `"georgegxx/$cleanSvc`") | .image.tag) = `"$Tag`""
+    }
+
+    foreach ($file in $targetFiles) {
+        Write-Host "  ▶ Modifying $($file.Name)..." -ForegroundColor White
+        & yq -i $yqExpr $file.FullName
+        if ($LASTEXITCODE -ne 0) {
+            throw "yq failed while processing file '$($file.FullName)' with exit code $LASTEXITCODE."
+        }
+    }
+
+    Write-Host "`n✅ Container image tags successfully updated to '$Tag'." -ForegroundColor Green
+
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Write-Host "`n🔍 Git Diff Summary:" -ForegroundColor Yellow
+        git diff --stat (Join-Path $valuesDir "values-*.yaml")
+    }
+}
+
 function Show-Banner {
     param([string]$Subtitle = "Platform Operations")
     Write-Host ""
@@ -1700,6 +1755,11 @@ if ($Command -eq "cloudflare") {
 }
 if ($LockId -and ($Command -ne "unlock" -or $Platform -eq "minikube")) {
     throw "-LockId is valid only for 'unlock' on a cloud platform; application rollback never releases Terraform locks."
+}
+if ($Command -eq "set-tag") {
+    if (-not $ImageTag) {
+        throw "Specify the target image tag using -ImageTag <version> (e.g. .\platform-minikube.ps1 set-tag -ImageTag 1.2.0)."
+    }
 }
 
 switch ($Command) {
@@ -2009,13 +2069,18 @@ switch ($Command) {
         & (Join-Path $scriptsDir "bcdr-simulation.ps1") -Environment $Environment
     }
 
+    "set-tag" {
+        Show-Banner "Container Image Tag Synchronizer (yq Orchestrator)"
+        Invoke-SetImageTag -Tag $ImageTag -TargetService $Service -Scope $TargetEnv
+    }
+
     default {
         Show-Banner "$($Platform.ToUpper()) Platform CLI"
         Write-Host "USAGE:" -ForegroundColor Yellow
         Write-Host "  .\platform-$Platform.ps1 <command> [-Environment dev|staging|prod] [provider options]`n" -ForegroundColor White
         Write-Host "COMMANDS:" -ForegroundColor Cyan
         $providerCommands = if ($Platform -eq "minikube") {
-            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls")
+            @("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "verify", "status", "plan", "apply", "rollback", "unlock", "cost", "finops", "tools", "policy", "canary", "vault", "smoke", "contract", "performance", "dast", "tunnels", "cloudflare", "graph", "security-scan", "diagrams", "bcdr", "urls", "set-tag")
         } else {
             switch ($Platform) {
                 "aws" { @("plan", "apply", "destroy", "doctor", "verify", "status", "unlock", "security-scan", "sync-argocd", "tools", "help") }
@@ -2026,6 +2091,7 @@ switch ($Command) {
         if ($Platform -eq "minikube") {
             Write-Host "  Minikube capabilities: resource-sized cluster lifecycle, fast-resume (<30s), Istio/Gatekeeper bootstrap, MLOps, canary, Vault, and local image builds."
             Write-Host "  Capacity options: -Cpus, -MemoryMb, -DiskSize; use -WithoutIstio for a smaller local cluster; use -Fast to bypass Terraform."
+            Write-Host "  Tag synchronization: .\platform-minikube.ps1 set-tag -ImageTag <version> [-Service all|<svc>] [-TargetEnv minikube|all]"
         } else {
             $providerDetails = switch ($Platform) {
                 "aws" { "AWS IAM/STS preflight; EKS lifecycle; S3 remote state with lock table." }
