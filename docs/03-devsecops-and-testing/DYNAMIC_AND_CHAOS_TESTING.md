@@ -80,7 +80,14 @@ python scripts/testing/simulate.py --scenario traffic --continuous
 
 ### 2. ⚡ Resilience4j Circuit Breaker State Verification
 Test the automatic failure detection and self-healing lifecycle:
-$$\text{🟢 CLOSED (Green)} \xrightarrow[\text{Failures}]{\text{Downstream outage}} \text{🔴 OPEN (Red, 15s window)} \xrightarrow[\text{15s timer}]{\text{Auto-recovery probe}} \text{🟡 HALF\_OPEN (Yellow)} \xrightarrow[\text{2 trial orders OK}]{\text{Health restored}} \text{🟢 CLOSED (Green)}$$
+
+```mermaid
+flowchart LR
+    CLOSED["🟢 CLOSED (Healthy)"] -->|Downstream outage / Failures| OPEN["🔴 OPEN (Tripped, 15s window)"]
+    OPEN -->|15s timer / Auto-recovery probe| HALF_OPEN["🟡 HALF-OPEN (Testing)"]
+    HALF_OPEN -->|2 trial orders succeed| CLOSED
+    HALF_OPEN -->|Trial order fails| OPEN
+```
 
 > [!NOTE]
 > **Why Red only lasts 15 seconds:** `waitDurationInOpenState` is set to 15 seconds with `automaticTransitionFromOpenToHalfOpenEnabled: true`. Once tripped into **🔴 RED (`OPEN`)**, it will automatically transition to **🟡 YELLOW (`HALF_OPEN`)** after 15s of silence to test for backend recovery.
