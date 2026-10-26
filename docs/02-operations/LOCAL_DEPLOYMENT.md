@@ -465,7 +465,7 @@ flowchart TD
     end
 
     subgraph Workloads["📦 Microservices Deployments"]
-        PODS[Microservices Pods<br/>Min: 1 | Max: 3 (Host Safe)]
+        PODS["Microservices Pods<br/>Min: 1 | Max: 3 (Host Safe)"]
     end
 
     KAFKA --> KEDA_OP

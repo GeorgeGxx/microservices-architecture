@@ -14,6 +14,7 @@ This microservices repository adopts a **Hybrid Trunk-Based with Environment Pro
 ```mermaid
 gitGraph
     commit id: "v1.0.0"
+    branch staging
     branch develop
     checkout develop
     commit id: "Initial-Dev"
@@ -23,7 +24,6 @@ gitGraph
     commit id: "test: verify navbar"
     checkout develop
     merge feature/led id: "PR #42: Squash & Merge"
-    branch staging
     checkout staging
     merge develop id: "Promote to Staging"
     commit id: "QA: Newman + k6 Pass"
