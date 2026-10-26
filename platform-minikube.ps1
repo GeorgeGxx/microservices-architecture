@@ -3,7 +3,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "set-tag", "help")]
+    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "simulate", "diagnose", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "set-tag", "help")]
     [string]$Command = "help",
     [ValidateSet("dev", "minikube", "staging", "prod")]
     [string]$Environment = "dev",
@@ -53,6 +53,8 @@ param(
     [string]$DiskSize = "40g",
     [string]$CosignImage = "",
     [string]$CosignKey = "",
+    [string]$Scenario = "traffic",
+    [int]$Orders = 15,
     [switch]$Destroy = $false
 )
 
@@ -2004,6 +2006,22 @@ switch ($Command) {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
+    "simulate" {
+        Show-Banner "Shopping Journey & Resilience Traffic Simulation"
+        $simScript = Join-Path $scriptsDir "testing\simulate.py"
+        if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
+        python $simScript --scenario $Scenario --orders $Orders --concurrency 3
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "diagnose" {
+        Show-Banner "Unified Platform & Telemetry Diagnostics"
+        $diagScript = Join-Path $scriptsDir "testing\diagnose.py"
+        if (-not (Test-Path -LiteralPath $diagScript)) { throw "Diagnostic script is missing: $diagScript" }
+        python $diagScript all
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
     "tunnels" {
         Show-Banner "Background Port-Forward Tunnel Supervisor"
         $tunnelContext = & kubectl config current-context 2>$null
@@ -2108,6 +2126,8 @@ Commands:
   test          : Executes Java 21 + Maven multi-module reactor unit tests on host.
   security-scan : Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign).
   smoke         : Runs router and presentation frontend health & HTTP smoke checks.
+  simulate      : Runs shopper traffic and circuit-breaker resilience simulation (-Scenario, -Orders).
+  diagnose      : Runs comprehensive platform, telemetry, and service diagnostics.
   contract      : Executes Newman/Postman API contract integration suite (23/23 tests).
   performance   : Runs Grafana k6 SLA latency, throughput, and performance benchmarks.
   dast          : Executes OWASP ZAP baseline dynamic application security scan against frontend.
