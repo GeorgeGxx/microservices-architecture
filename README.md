@@ -332,12 +332,21 @@ microservices-architecture/
 ├── argocd/                         # GitOps Applications & ApplicationSet definitions
 ├── azure-devops/                   # Azure DevOps Pipeline YAML files
 ├── cosmo-router/                   # Cosmo Router 0.362.0 (Port 8080 • Federation v2)
-├── devsecops/                      # Centralized DevSecOps Hub
-│   ├── compliance/cosign/          # Sigstore Cosign public key (cosign.pub) & signed supply-chain manifest
-│   ├── compliance/trivy/           # Trivy container scanner configuration
-│   ├── dast/zap/                   # OWASP ZAP baseline rules and profiles
-│   ├── policies/                   # OPA Rego Conftest & Gatekeeper constraints
-│   └── testing/newman/             # Newman JSON export + Postman collection tree
+├── devsecops/                      # 🛡️ Centralized DevSecOps Hub
+│   ├── compliance/                 # 🧰 Software Supply Chain Security & Attestations
+│   │   ├── cosign/                 # Sigstore Cosign ECDSA P-256 public key (cosign.pub) & provenance manifests
+│   │   ├── java-security/          # JVM certificate pinning & blocked untrusted cert registry (blocked.certs)
+│   │   └── trivy/                  # Trivy configs (trivy.yaml, trivy-sarif.yaml) & exception list (.trivyignore)
+│   ├── dast/                       # 🕵️ Dynamic Application Security Testing (DAST)
+│   │   └── zap/                    # OWASP ZAP automation plan (zap.yaml), rule calibrations (rules.tsv) & reports
+│   ├── policies/                   # 📜 Policy-as-Code (OPA / Rego)
+│   │   ├── conftest/               # Shift-Left: Pre-deployment Helm manifests audit (kubernetes.rego & fixtures)
+│   │   └── gatekeeper/             # Admission Controller: ConstraintTemplates (CRDs) & active constraints
+│   ├── sast/                       # 🔍 Static Application Security Testing (SAST & Secrets)
+│   │   └── gitleaks/               # Hardcoded secrets, API keys, and credential token detection (.gitleaks.toml)
+│   └── testing/                    # ⚡ Dynamic, Performance & Contract Testing
+│       ├── k6/                     # k6 stress testing & p95 latency SLO verification via Istio Gateway
+│       └── newman/                 # Newman integration test collection (microservices.postman_collection.json)
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
 │   ├── 01-architecture/            # 🏗️ System Design, Domain Microservices, Vault & Multi-Cloud
 │   │   ├── adr/                    # Architecture Decision Records (ADRs: ADR-001 - ADR-010)
