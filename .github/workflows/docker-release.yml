@@ -13,7 +13,7 @@ on:
       - 'v*.*.*'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: release-images-${{ github.ref }}
@@ -153,3 +153,48 @@ jobs:
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
     secrets: inherit
+
+  # ==========================================================
+  # 🐙 GitOps Writeback: Align Helm Values via yq
+  # ==========================================================
+  gitops-writeback:
+    name: "🐙 GitOps Writeback (yq Synchronizer)"
+    needs:
+      - resolve-tag
+      - release-products
+      - release-orders
+      - release-inventory
+      - release-notifications
+      - release-frontend
+      - release-demand-forecast
+      - release-mlops-training
+      - release-mlflow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.ref_name || 'develop' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: bash scripts/install-yq.sh v4.44.3
+
+      - name: Synchronize Helm Values via yq
+        run: |
+          TAG="${{ needs.resolve-tag.outputs.release-tag }}"
+          echo "Synchronizing GitOps manifests to release tag: $TAG"
+          for f in helm/values/values-*.yaml; do
+            yq -i "(.. | select(has(\"image\")) | select((.image.repository == \"georgegxx/*\" or .image.repository == \"*/*-service\" or .image.repository == \"*/frontend\" or .image.repository == \"*/mlflow\" or .image.repository == \"*/mlops-training\" or .image.repository == \"*/demand-forecast\") and .image.repository != \"*cosmo/router*\") | .image.tag) = \"$TAG\"" "$f"
+          done
+
+      - name: Commit & Push GitOps Release State
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet helm/values/; then
+            echo "No values changes to commit; values are already synchronized."
+          else
+            git commit -am "chore(release): synchronize GitOps values to version ${{ needs.resolve-tag.outputs.release-tag }} [skip ci]"
+            git push origin HEAD:${{ github.ref_name || 'develop' }}
+          fi

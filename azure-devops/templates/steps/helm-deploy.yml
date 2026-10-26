@@ -46,8 +46,9 @@ steps:
   - bash: |
       set -euo pipefail
       bash scripts/install-helm4.sh "${{ parameters.helmVersion }}"
+      bash scripts/install-yq.sh v4.44.3
       helm version --short
-    displayName: "Install Helm ${{ parameters.helmVersion }}"
+    displayName: "Install Helm ${{ parameters.helmVersion }} & yq"
 
   - task: AzureCLI@2
     displayName: "Helm upgrade -> ${{ parameters.envName }} (${{ parameters.cluster }} / ${{ parameters.namespace }})"
@@ -68,8 +69,8 @@ steps:
 
         : "${GHCR_USERNAME:?Set GHCR_USERNAME as a read-only GHCR package account}"
         : "${GHCR_TOKEN:?Set GHCR_TOKEN as a secret with read:packages access}"
-        CHART_VERSION="$(helm show chart ./helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
-        CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' helm/microservices-umbrella/Chart.yaml)"
+        CHART_VERSION="$(yq '.version' helm/microservices-umbrella/Chart.yaml)"
+        CHART_REPOSITORY="$(yq '.metadata.annotations["microservices-architecture.io/helm-oci-repository"] // ""' helm/microservices-umbrella/Chart.yaml)"
         [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid umbrella chart version: $CHART_VERSION"; exit 1; }
         [[ "$CHART_REPOSITORY" == oci://ghcr.io/*/microservices-umbrella ]] || { echo "Invalid umbrella chart OCI repository: $CHART_REPOSITORY"; exit 1; }
         printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
