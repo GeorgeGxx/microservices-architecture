@@ -19,6 +19,9 @@ param(
     [string]$Service = "all",
     [ValidateSet("minikube", "all")]
     [string]$TargetEnv = "minikube",
+    [switch]$IncludeMlops = $false,
+    [switch]$Push = $false,
+    [switch]$PushOnly = $false,
     [switch]$Fast = $false,
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
@@ -1606,6 +1609,10 @@ function Invoke-SetImageTag {
         [string]$Scope = "minikube"
     )
 
+    if ($Tag -notmatch '^(v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?|[0-9a-f]{7,40}|latest)$') {
+        throw "Invalid image tag format '$Tag'. Must be a SemVer string (e.g. '1.0.0', 'v1.2.0'), a Git SHA, or 'latest'."
+    }
+
     if (-not (Get-Command yq -ErrorAction SilentlyContinue)) {
         throw "yq executable is required to synchronize image tags. Install it via 'winget install MikeFarah.yq' or ensure yq is in PATH."
     }
@@ -1761,11 +1768,18 @@ if ($Command -eq "set-tag") {
         throw "Specify the target image tag using -ImageTag <version> (e.g. .\platform-minikube.ps1 set-tag -ImageTag 1.2.0)."
     }
 }
+if (($Push -or $PushOnly) -and ($Command -ne "build" -and -not $Build)) {
+    throw "-Push and -PushOnly are valid only with 'build' or when specifying '-Build'."
+}
+if ($IncludeMlops -and ($Command -ne "build" -and -not $Build)) {
+    throw "-IncludeMlops is valid only with 'build' or when specifying '-Build'."
+}
 
 switch ($Command) {
     { $_ -in @("up", "bootstrap") } {
         if ($Platform -eq "minikube") {
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
+            $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove -DataPlane $DataPlane
         }
@@ -1773,7 +1787,8 @@ switch ($Command) {
 
     { $_ -in @("start", "resume") } {
         if ($Platform -eq "minikube") {
-            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
+            $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
+            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
         } else {
             throw "'$Command' is supported only for -Platform minikube to resume a paused local cluster."
         }
@@ -1781,7 +1796,8 @@ switch ($Command) {
 
     "build" {
         if ($Platform -ne "minikube") { throw "'build' is supported only for -Platform minikube." }
-        Invoke-MinikubePlatform -SubCommand build
+        $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
+        Invoke-MinikubePlatform -SubCommand build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service
     }
 
     "test" {
@@ -2090,7 +2106,7 @@ switch ($Command) {
         Write-Host "  $($providerCommands -join ' | ')"
         if ($Platform -eq "minikube") {
             Write-Host "  Minikube capabilities: resource-sized cluster lifecycle, fast-resume (<30s), Istio/Gatekeeper bootstrap, MLOps, canary, Vault, and local image builds."
-            Write-Host "  Capacity options: -Cpus, -MemoryMb, -DiskSize; use -WithoutIstio for a smaller local cluster; use -Fast to bypass Terraform."
+            Write-Host "  Container builds:    .\platform-minikube.ps1 build [-IncludeMlops] [-Push] [-PushOnly] [-ImageTag <version>]"
             Write-Host "  Tag synchronization: .\platform-minikube.ps1 set-tag -ImageTag <version> [-Service all|<svc>] [-TargetEnv minikube|all]"
         } else {
             $providerDetails = switch ($Platform) {
@@ -2553,6 +2569,11 @@ function Invoke-MinikubePlatform {
         [string]$SubCommand,
 
         [switch]$BuildImages = $false,
+        [switch]$WithMlops = $false,
+        [switch]$PushImages = $false,
+        [switch]$PushOnlyImages = $false,
+        [string]$TargetTag = "1.0.0",
+        [string]$TargetService = "all",
         [switch]$EnableIstioMesh = $true,
         [switch]$DeployCanaryOption = $false,
         [string]$CanaryImageTag = "canary",
@@ -2569,7 +2590,7 @@ function Invoke-MinikubePlatform {
     switch ($SubCommand) {
         "up" {
             if ($FastResume) {
-                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
+                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
                 return
             }
 
@@ -2722,15 +2743,21 @@ function Invoke-MinikubePlatform {
             Write-Host "  [OK] Resource metrics API (v1beta1.metrics.k8s.io) is healthy and active." -ForegroundColor Green
 
             if ($BuildImages) {
-                Write-Host "`n🔨 [-Build] Building all container images from Dockerfiles (Java Maven + React)..." -ForegroundColor Yellow
+                Write-Host "`n🔨 [-Build] Building container images from Dockerfiles..." -ForegroundColor Yellow
+                $cleanSvc = $TargetService -replace "^georgegxx/", ""
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
                 if (Test-Path $buildAllScript) {
-                    if ($DeployCanaryOption) {
+                    $buildArgs = @($TargetTag)
+                    if ($WithMlops) { $buildArgs += "--include-mlops" }
+                    if ($PushImages) { $buildArgs += "--push" }
+                    if ($PushOnlyImages) { $buildArgs += "--push-only" }
+                    if ($cleanSvc -and $cleanSvc -ne "all") {
+                        $buildArgs += @("--service", $cleanSvc)
+                    } elseif ($DeployCanaryOption) {
                         Write-Host "  ▶ Preserving the currently deployed products-service stable image; building the other platform images first." -ForegroundColor White
-                        & python $buildAllScript "1.0.0" --exclude-service products-service
-                    } else {
-                        & python $buildAllScript "1.0.0"
+                        $buildArgs += @("--exclude-service", "products-service")
                     }
+                    & python $buildAllScript @buildArgs
                     if ($LASTEXITCODE -ne 0) { throw "Container image build failed; platform deployment was not attempted." }
                 }
                 if ($DeployCanaryOption) {
@@ -2741,15 +2768,23 @@ function Invoke-MinikubePlatform {
             }
 
             # Synchronize local Docker images into Minikube's internal containerd store
-            $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
-            if ($DeployCanaryOption) { $servicesToLoad = @("orders-service", "inventory-service", "notification-service", "frontend") }
+            $cleanSvc = $TargetService -replace "^georgegxx/", ""
+            $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
+                @($cleanSvc)
+            } elseif ($DeployCanaryOption) {
+                @("orders-service", "inventory-service", "notification-service", "frontend")
+            } else {
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
+                $allSvc
+            }
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
                 foreach ($svc in $servicesToLoad) {
-                    $hasLocal = docker images -q "georgegxx/${svc}:1.0.0" 2>$null
+                    $hasLocal = docker images -q "georgegxx/${svc}:${TargetTag}" 2>$null
                     if ($hasLocal) {
-                        minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
+                        minikube image load "georgegxx/${svc}:${TargetTag}" --overwrite 2>$null
                     }
                 }
                 if ($DeployCanaryOption) {
@@ -3126,37 +3161,62 @@ stringData:
             if (-not $hasDevNs) {
                 Write-Host "  [WARN] 'dev' namespace not found. Cluster has not been initialized." -ForegroundColor Yellow
                 Write-Host "  ▶ Escalating to full bootstrap (up)..." -ForegroundColor Yellow
-                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
+                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
                 return
             }
 
             if ($BuildImages) {
                 Write-Host "`n🔨 [-Build] Compiling container images from source..." -ForegroundColor Yellow
+                $cleanSvc = $TargetService -replace "^georgegxx/", ""
                 $buildAllScript = Join-Path $scriptsDir "build-all.py"
                 if (Test-Path $buildAllScript) {
-                    if ($DeployCanaryOption) {
-                        & python $buildAllScript "1.0.0" --exclude-service products-service
-                    } else {
-                        & python $buildAllScript "1.0.0"
+                    $buildArgs = @($TargetTag)
+                    if ($WithMlops) { $buildArgs += "--include-mlops" }
+                    if ($PushImages) { $buildArgs += "--push" }
+                    if ($PushOnlyImages) { $buildArgs += "--push-only" }
+                    if ($cleanSvc -and $cleanSvc -ne "all") {
+                        $buildArgs += @("--service", $cleanSvc)
+                    } elseif ($DeployCanaryOption) {
+                        $buildArgs += @("--exclude-service", "products-service")
                     }
+                    & python $buildAllScript @buildArgs
                     if ($LASTEXITCODE -ne 0) { throw "Image build failed." }
                 }
                 if ($DeployCanaryOption) {
                     docker build -t "georgegxx/products-service:$CanaryImageTag" -f (Join-Path $root "products-service\Dockerfile") $root
                     if ($LASTEXITCODE -ne 0) { throw "Canary image build failed." }
                 }
-                $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
-                if ($DeployCanaryOption) { $servicesToLoad = @("orders-service", "inventory-service", "notification-service", "frontend") }
+                $cleanSvc = $TargetService -replace "^georgegxx/", ""
+                $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
+                    @($cleanSvc)
+                } elseif ($DeployCanaryOption) {
+                    @("orders-service", "inventory-service", "notification-service", "frontend")
+                } else {
+                    $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                    if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
+                    $allSvc
+                }
                 foreach ($svc in $servicesToLoad) {
-                    $hasLocal = docker images -q "georgegxx/${svc}:1.0.0" 2>$null
+                    $hasLocal = docker images -q "georgegxx/${svc}:${TargetTag}" 2>$null
                     if ($hasLocal) {
-                        minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
+                        minikube image load "georgegxx/${svc}:${TargetTag}" --overwrite 2>$null
                     }
                 }
                 if ($DeployCanaryOption) {
                     minikube image load "georgegxx/products-service:$CanaryImageTag" --overwrite 2>$null
                 }
-                kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                if ($cleanSvc -and $cleanSvc -ne "all") {
+                    $depName = switch ($cleanSvc) {
+                        "demand-forecast" { "demand-forecast-service" }
+                        default { $cleanSvc }
+                    }
+                    if (kubectl get deployment $depName -n dev --ignore-not-found 2>$null) {
+                        Write-Host "  ▶ Reloading deployment '$depName' in 'dev' namespace..." -ForegroundColor White
+                        kubectl rollout restart deployment/$depName -n dev 2>$null | Out-Null
+                    }
+                } else {
+                    kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                }
                 Write-Host "  [OK] Container images compiled, reloaded into Minikube, and workloads restarted." -ForegroundColor Green
             }
 
@@ -3246,19 +3306,45 @@ stringData:
         "build" {
             Show-Banner "Build Microservice & Frontend Container Images From Source"
             Assert-LocalJavaMavenToolchain
+            $cleanSvc = $TargetService -replace "^georgegxx/", ""
             $buildAllScript = Join-Path $scriptsDir "build-all.py"
             if (Test-Path $buildAllScript) {
-                python $buildAllScript "1.0.0"
+                $buildArgs = @($TargetTag)
+                if ($WithMlops) { $buildArgs += "--include-mlops" }
+                if ($PushImages) { $buildArgs += "--push" }
+                if ($PushOnlyImages) { $buildArgs += "--push-only" }
+                if ($cleanSvc -and $cleanSvc -ne "all") {
+                    $buildArgs += @("--service", $cleanSvc)
+                }
+                & python $buildAllScript @buildArgs
+                if ($LASTEXITCODE -ne 0) { throw "Image build failed with exit code $LASTEXITCODE." }
             }
-            $servicesToLoad = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+            $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
+                @($cleanSvc)
+            } else {
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
+                $allSvc
+            }
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
                 Write-Host "  ▶ Loading compiled images into active Minikube cluster..." -ForegroundColor White
                 foreach ($svc in $servicesToLoad) {
-                    minikube image load "georgegxx/${svc}:1.0.0" --overwrite 2>$null
+                    minikube image load "georgegxx/${svc}:${TargetTag}" --overwrite 2>$null
                 }
-                Write-Host "  ▶ Reloading running deployments in 'dev' namespace..." -ForegroundColor White
-                kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                if ($cleanSvc -and $cleanSvc -ne "all") {
+                    $depName = switch ($cleanSvc) {
+                        "demand-forecast" { "demand-forecast-service" }
+                        default { $cleanSvc }
+                    }
+                    if (kubectl get deployment $depName -n dev --ignore-not-found 2>$null) {
+                        Write-Host "  ▶ Reloading deployment '$depName' in 'dev' namespace..." -ForegroundColor White
+                        kubectl rollout restart deployment/$depName -n dev 2>$null | Out-Null
+                    }
+                } else {
+                    Write-Host "  ▶ Reloading running deployments in 'dev' namespace..." -ForegroundColor White
+                    kubectl rollout restart deployment -n dev 2>$null | Out-Null
+                }
                 Write-Host "  [OK] Images compiled, loaded into Minikube, and deployments restarted." -ForegroundColor Green
             } else {
                 Write-Host "  [OK] Images compiled locally in Docker." -ForegroundColor Green
