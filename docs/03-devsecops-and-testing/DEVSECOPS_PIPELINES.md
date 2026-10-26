@@ -96,6 +96,8 @@ The Minikube entrypoint handles local-cluster validation; the multi-cloud entryp
 .\platform-minikube.ps1 up
 .\platform-minikube.ps1 up -Build        # Compile Java & React Dockerfiles from source & load into Minikube
 .\platform-minikube.ps1 build            # Standalone image build & rolling update in Minikube
+.\platform-minikube.ps1 build -IncludeMlops -Push # Build all images including MLOps & push with retry backoff
+.\platform-minikube.ps1 build -PushOnly -ImageTag 1.0.0 # Push existing local images without rebuilding
 .\platform-minikube.ps1 up -WithIstio     # With Istio mTLS and Kiali
 .\platform-minikube.ps1 up -WithoutIstio  # Pure Kubernetes native mode
 .\platform-minikube.ps1 up -DeployCanary -CanaryImageTag "<immutable-image-tag>"

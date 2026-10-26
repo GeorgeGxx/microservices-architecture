@@ -47,6 +47,11 @@ does not replace, the provider's CI security gates.
 .\platform-minikube.ps1 up -Fast                         # Equivalent to start
 
 # Workload and DevSecOps commands
+.\platform-minikube.ps1 build                            # Compile container images from source and reload into Minikube
+.\platform-minikube.ps1 build -Service orders-service    # Fast targeted rebuild & reload of a single service
+.\platform-minikube.ps1 build -IncludeMlops              # Include MLOps images (forecast, training, mlflow)
+.\platform-minikube.ps1 build -IncludeMlops -Push        # Compile and push to Docker Hub with retry backoff
+.\platform-minikube.ps1 build -PushOnly -ImageTag 1.0.0  # Push existing local images without rebuilding
 .\platform-minikube.ps1 test                             # Run Java 21 + Maven reactor unit tests
 .\platform-minikube.ps1 security-scan                    # Run 5 Shift-Left gates (Gitleaks, TFLint, Trivy, Conftest, Cosign)
 .\platform-minikube.ps1 dast                             # Run OWASP ZAP baseline dynamic application security scan against live frontend
