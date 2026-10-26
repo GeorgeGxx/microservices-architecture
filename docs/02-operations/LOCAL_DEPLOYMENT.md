@@ -9,22 +9,67 @@
 
 ## ✅ Prerequisites
 
-| Tool | Version | Required for |
-| :--- | :---: | :--- |
-| Docker & Docker Compose | Latest | Quick Start (full stack) |
-| Java (JDK) | 21 | Building/running Spring Boot services standalone |
-| Maven | 3.9+ | Java multi-module reactor build |
-| Node.js & npm | 22+ | React 19 + Tailwind v4 frontend |
-| kubectl | 1.37.0 | Kubernetes / Minikube deployment |
-| Minikube | 1.39.0 | Local Kubernetes deployment |
-| Istioctl | 1.31.3 | Service mesh install & Kiali dashboard |
-| Terraform | 1.16.2 | AWS / Azure / GCP provisioning |
-| Cloudflared CLI | 2026.9.1 | Cloudflare tunnels deployment |
-| PowerShell (`pwsh`) | 7+ | Running the automation scripts in `scripts/` |
-| Python3 (`python`) | 3.11+ | Running the automation scripts in `scripts/` |
+### 1. System & Hardware Specifications
 
-**Local Resource Profile & Allocation:**
-- **Host Allocation:** 8+ CPU cores and 16–32 GB host RAM; reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
+| Component | Minimum Specification | Recommended Specification | Architectural Justification |
+| :--- | :--- | :--- | :--- |
+| **Operating System** | Windows 10/11 64-bit Pro / Enterprise | Windows 11 (64-bit) or Ubuntu 22.04+ LTS | PowerShell 7+ (`pwsh`) host environment and Docker Desktop / WSL2 integration. |
+| **CPU Allocation** | 6 Physical Cores (8 vCPUs) | 8+ Physical Cores (16 vCPUs) | Minikube VM allocates 8 vCPUs to support ~20+ microservices, Kafka, Redis, and Istio sidecars. |
+| **RAM (Memory)** | 16 GB Total Host RAM | 32 GB Total Host RAM | Docker Desktop reserves ~20 GiB; Minikube provisions 16 GiB for stable multi-service operation. |
+| **Storage (Disk)** | 40 GB Free SSD Space | 80+ GB NVMe SSD | Container image layers, Minikube VM disk, Kafka log segments, and persistent volumes. |
+| **Virtualization** | Hardware Virtualization Enabled | VT-x / AMD-V + WSL2 / Hyper-V Backend | Required for Docker Desktop container engine and Minikube hypervisor driver. |
+
+---
+
+### 2. Complete Platform CLI & Tool Inventory Matrix
+
+The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool audit and provisioning system. Every tool below is verified during pre-flight health checks:
+
+| Operational Domain | Tool / Binary | Recommended Version | WinGet / Scoop Package ID | Mandatory For |
+| :--- | :--- | :---: | :--- | :--- |
+| **Runtime & Engines** | `docker` & Compose | 27.0+ (Latest) | `Docker.DockerDesktop` | Local container runtime, image builds, and multi-container daemon. |
+| **Runtime & Engines** | `java` (JDK) | 21 LTS | `BellSoft.LibericaJDK.21` | Spring Boot 3.4 microservices standalone execution and compilation. |
+| **Runtime & Engines** | `mvn` (Maven) | 3.9+ | `Apache.Maven` | Multi-module Java reactor build (`platform-minikube.ps1 test`). |
+| **Runtime & Engines** | `node` & `npm` / `npx` | 22 LTS | `OpenJS.NodeJS.LTS` | React 19 + Vite storefront build and Cosmo Router Supergraph composition. |
+| **Runtime & Engines** | `python` (`python3`) | 3.11+ | `Python.Python.3.11` | Automated test suites (`smoke.py`, `simulate.py`, `diagnose.py`), MLOps, FinOps. |
+| **Runtime & Engines** | `pwsh` | 7.4+ | `Microsoft.PowerShell` | Master orchestrator CLI execution (`platform-minikube.ps1`, `platform-multicloud.ps1`). |
+| **Runtime & Engines** | `git` | 2.40+ | `Git.Git` | Distributed version control, secret diff scanning, GitOps ArgoCD tracking. |
+| **Kubernetes & Mesh** | `minikube` | 1.39.0+ | `Kubernetes.minikube` | Local single-node Kubernetes cluster hypervisor and driver. |
+| **Kubernetes & Mesh** | `kubectl` | 1.32.0+ | `Kubernetes.kubectl` | Kubernetes cluster control plane administration and manifest application. |
+| **Kubernetes & Mesh** | `helm` | 3.17.0+ | `Helm.Helm` | Package manager deploying the umbrella chart (`helm/microservices-umbrella`). |
+| **Kubernetes & Mesh** | `istioctl` | 1.31.3+ | `Istio.Istio` | Service mesh control plane setup, STRICT mTLS enforcement, and Kiali dashboards. |
+| **Kubernetes & Mesh** | `cloudflared` | 2026.9.1+ | `Cloudflare.cloudflared` | Secure Zero-Trust edge tunneling for remote DAST, Newman, and webhook drills. |
+| **DevSecOps & Security** | `gitleaks` | 8.24.0+ | `Gitleaks.Gitleaks` | Shift-left secret detection in commits and working trees (`platform-minikube.ps1 security-scan`). |
+| **DevSecOps & Security** | `trivy` | 0.60.0+ | `AquaSecurity.Trivy` | Comprehensive vulnerability and misconfiguration scanner for containers and Helm charts. |
+| **DevSecOps & Security** | `tflint` | 0.55.0+ | `TerraformLinters.tflint` | Static analysis framework and lint rule linter for Terraform multi-cloud modules. |
+| **DevSecOps & Security** | `cosign` | 2.4.0+ | `Sigstore.Cosign` | Supply-chain verification of signed container images using `cosign.pub`. |
+| **DevSecOps & Security** | `conftest` | 0.56.0+ | `Scoop: conftest` | Open Policy Agent (OPA) Rego policy enforcement on rendered Helm templates. |
+| **DevSecOps & Security** | `vault` CLI | 1.18.0+ | `Hashicorp.Vault` | HashiCorp Vault administrative client (KV-v2 secrets engine, PKI mTLS CA certificates). |
+| **IaC & FinOps** | `terraform` | 1.16.2+ | `Hashicorp.Terraform` | Multi-cloud Infrastructure as Code engine (Local Minikube, AWS, Azure, GCP). |
+| **IaC & FinOps** | `dot` (Graphviz) | 12.0.0+ | `Graphviz.Graphviz` | Dependency graph visualizer (`terraform graph \| dot -Tpng -o graph.png`). |
+| **IaC & FinOps** *(Optional)* | `kubectl-cost` | Latest | `Krew: cost` | Live Kubernetes workload-cost queries through OpenCost (`kubectl cost ... --opencost`). |
+
+---
+
+### 3. One-Command Toolchain Audit & Automatic Provisioning
+
+You can audit and automatically install all missing developer tools with a single PowerShell command:
+
+```powershell
+# 1. Audit your current host CLI inventory:
+.\platform-minikube.ps1 tools
+
+# 2. Automatically install all missing tools via WinGet, Scoop, and Krew:
+.\platform-minikube.ps1 tools -Install -InstallOpenCostPlugin
+
+# 3. After installation, reopen your PowerShell terminal to refresh your PATH environment.
+```
+
+---
+
+### 4. Local Resource Profile & Memory Sizing Considerations
+
+- **Host Allocation:** Reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
 - **MLOps Resource Footprint:** During automatic training runs, MLOps workloads request ~2.3 CPU cores and 4.75 GiB RAM in total (Kafka-to-Parquet capture, MLflow, and forecast API). Scheduled training Jobs execute only when data drift or threshold criteria are met.
 - **Workload Right-Sizing Matrix:** For the complete per-service CPU/Memory requests, limits, storage reservations, operational ports, credentials, and architectural roles across all platform components, refer to the canonical [Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](../01-architecture/ARCHITECTURE.md#-workload-matrix-infrastructure-sizing--cloud-target-mapping) in `ARCHITECTURE.md`.
 
