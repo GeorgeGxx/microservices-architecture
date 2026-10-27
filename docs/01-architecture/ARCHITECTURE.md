@@ -22,6 +22,12 @@ The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
   * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and Saga compensations.
 * **🔔 Notification & Real-Time Stream Context (`notification-service`):**
   * **Reactive Hub:** Implements idempotent event ingestion with Redis `SETNX` (7-day TTL) and dispatches real-time Server-Sent Events (SSE) to connected clients.
+* **💳 Payment & Transaction Settlement Context (`payments-service`):**
+  * **Aggregate Root `Payment` & `AuditLog`:** Implemented with Go 1.26, Gin v1.12.0, and GORM v1.31.2. Orchestrates idempotent payment authorization and transaction logging via non-blocking goroutines and buffered channels (`chan AuditLog`), backed by isolated PostgreSQL 18 (`ms_payments`).
+* **🚚 Shipment Logistics & Order Fulfillment Context (`fulfillment-service`):**
+  * **Aggregate Root `Shipment` & Entity `TrackingEvent`:** Decoupled from `orders-service` and implemented with TypeScript 7, NestJS v12.2.0, and TypeORM 1.1.2. Directly encapsulates delivery state invariants (`PENDING → DISPATCHED → IN_TRANSIT → DELIVERED` / `CANCELLED`), carrier reference generation, and 100% TDD unit test validation, backed by isolated PostgreSQL 18 (`ms_fulfillment`).
+* **📊 Real-Time Analytics & Funnel Intelligence Context (`analytics-service`):**
+  * **Aggregate `AnalyticsEvent` & Domain Services:** Decoupled from `orders-service` and engineered with FastAPI v0.162.0, SQLAlchemy ORM v2.1.6 (asyncpg), and Pydantic v2. Provides real-time ingestion, Cart Abandonment Rate gauge calculation, and checkout drop-off metrics, backed by isolated PostgreSQL 18 (`ms_analytics`).
 
 ### 🛡️ 2. Functional Programming & RFC 7807 Error Handling
 * **Monadic Try/Result Pipelines:** Elimination of procedural `try-catch` blocks in favor of Java 21 Streams and monadic Optional chains (`Optional.filter().map().ifPresentOrElse()`).
@@ -42,6 +48,9 @@ The platform separates client-facing traffic routing and interactive developer i
 | 📖 **Orders Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & Subgraph`<br>`/api/order/**`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `POST /graphql` (v2.5 subgraph), [Swagger UI](http://localhost:8003/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html)<br>Internal ClusterIP (`:8003` via port-forward) | Order placement & cancellation, multi-tenant user isolation, automated DHL tracking (`DHL-XXXXXXXX`), OAuth2 S2S inventory client (`ServiceTokenProvider`), Kafka producer (`orders-topic`), compulsive buyer & funnel drop-off analytics, Saga coordinator |
 | 📖 **Inventory Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & Subgraph`<br>`/api/inventory/**`, `/graphql` | `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `POST /graphql`, [Swagger UI](http://localhost:8001/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html)<br>Internal ClusterIP (`:8001` via port-forward) | Real-time SKU stock verification, S2S-protected (`ROLE_INTERNAL_SERVICE` / `ROLE_ADMIN`) $O(1)$ atomic delta allocation & Saga compensation, post-commit Redis cache eviction (`inventory-cache`), OpenAPI 3.0 documentation |
 | 📖 **Notification Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & SSE`<br>`/api/notifications/**` | `GET /api/notifications/stream` (SSE live stream), [Swagger UI](http://localhost:8002/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html)<br>Internal ClusterIP (`:8002` via port-forward) | Consumes `OrderEvent` from Kafka (`orders-topic`), customer communication dispatch, JWT-authenticated & tenant-scoped SSE real-time event streaming, OpenAPI 3.0 documentation |
+| 💳 **Payments Service**<br>`Go 1.26 / Gin v1.12.0 / GORM v1.31.2` | `HTTP REST`<br>`/api/v1/payments/**` | `POST /api/v1/payments`, `GET /api/v1/payments/{id}`, `GET /health`, [Swagger UI](http://localhost:8085/swagger/index.html) (`/swagger/index.html`), `/swagger/doc.json` | [http://localhost:8085/swagger/index.html](http://localhost:8085/swagger/index.html)<br>Internal ClusterIP (`:8085` via port-forward) | High-performance Go microservice, idempotent transaction processing, non-blocking asynchronous audit logging via goroutines/channels, Kafka consumer/producer (`payments-topic`), isolated PostgreSQL 18 (`ms_payments`) |
+| 🚚 **Fulfillment Service**<br>`NestJS v12.2.0 / TypeScript 7 / TypeORM 1.1.2` | `HTTP REST`<br>`/api/v1/fulfillment/**` | `POST /api/v1/fulfillment/shipments`, `GET /api/v1/fulfillment/shipments/{id}`, `PATCH /api/v1/fulfillment/shipments/{id}/status`, `GET /health`, [Swagger UI](http://localhost:8086/swagger) (`/swagger`) | [http://localhost:8086/swagger](http://localhost:8086/swagger)<br>Internal ClusterIP (`:8086` via port-forward) | Decoupled shipment logistics context, Aggregate Root DDD domain model, 100% TDD test coverage, Kafka consumer/producer (`fulfillment-topic`), isolated PostgreSQL 18 (`ms_fulfillment`) |
+| 📊 **Analytics Service**<br>`FastAPI v0.162.0 / Python 3.12 / SQLAlchemy 2.0` | `HTTP REST (FastAPI)`<br>`/api/v1/analytics/**` | `POST /api/v1/analytics/events`, `GET /api/v1/analytics/metrics`, `GET /health`, [Swagger UI](http://localhost:8087/docs) (`/docs`), `/redoc` | [http://localhost:8087/docs](http://localhost:8087/docs)<br>Internal ClusterIP (`:8087` via port-forward) | Decoupled funnel & event intelligence, async PostgreSQL 18 connection pool (asyncpg), real-time Cart Abandonment Rate gauge calculation, Kafka event listener, OpenAPI 3.0 documentation |
 | 📈 **Demand Forecast API**<br>`FastAPI 0.160.0 / Python 3.12` | `HTTP REST (FastAPI)`<br>`/api/forecast/**` | `POST /api/forecast`, `GET /health`, `GET /metrics`, [Swagger UI](http://localhost:8005/docs) (`/docs`), `/redoc` | [http://localhost:8005/docs](http://localhost:8005/docs)<br>Internal ClusterIP (`:8005` via port-forward) | Real-time 7-day SKU demand inference engine serving trained PySpark/MLflow GBT regressor models, Keycloak JWT Bearer authentication (`ROLE_ADMIN`), Prometheus latency metrics |
 | 🧪 **MLflow Tracking UI**<br>`v3.17.2` | `HTTP REST & Web UI`<br>`/`, `/api/2.0/mlflow/**` | `GET /` (Experiments & Registry UI), `/api/2.0/mlflow/runs/create`, `/api/2.0/mlflow/model-versions/create` | [http://localhost:5000](http://localhost:5000)<br>Internal ClusterIP (`:5000` via port-forward) | Experiment tracking dashboard, model parameter comparison, metric runs (RMSE, MAE, R²), Champion/Challenger promotion & artifact repository |
 | 🔑 **Keycloak Admin Console**<br>`v26.8.1 / Quarkus` | `HTTP OIDC / OAuth2`<br>`/admin/*`, `/realms/*` | `/admin/master/console/`, `/realms/{realm}/.well-known/openid-configuration`, `/realms/{realm}/protocol/openid-connect/certs` (JWKS) | [http://localhost:8181](http://localhost:8181)<br>`http://$(minikube ip):30181` | Centralized OIDC identity provider, realm administration, user provisioning (`admin_user`, `basic_user`), client scopes, RS256 JWKS key rotation & RBAC token issuance |
@@ -82,7 +91,10 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **Grafana Alloy**<br>`v1.21.0` | Container `3300`<br>*(host `3300`)* | `DaemonSet`<br>(runs on all cluster nodes) | CPU: `50m` / `200m`<br>Mem: `64Mi` / `256Mi`<br>Storage: `256Mi` | CloudWatch Agent / Azure Monitor Agent / Google Cloud Ops Agent | Node host-path log mount & cluster ServiceAccount | Stateless node telemetry agent scraping `/var/log/pods` |
 | **OpenTelemetry Collector**<br>`Contrib v0.159` | Container `4317` (gRPC)<br>`4318` (HTTP) | `Deployment`<br>(ClusterIP `4317`/`4318`) | CPU: `100m` / `400m`<br>Mem: `128Mi` / `512Mi` | AWS Distro for OpenTelemetry (ADOT) / Azure Monitor / Google Cloud Trace | In-cluster OTLP ingestion pipeline | Stateless pipeline processor with batching and retry memory queues |
 | **Redis & Exporter**<br>`Redis 8.8.1 / Exporter v1.94.0` | Container `6379` (Redis)<br>`9121` (Exporter) | `Deployment`<br>(ClusterIP `6379`/`9121`) | CPU: `100m` / `250m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `256Mi` | AWS ElastiCache / Azure Managed Redis / GCP Memorystore | Password protected (`redis_pass`), Auth header | In-memory cache with optional RDB snapshots (Rate limiting & Idempotency) |
-| **PostgreSQL Databases (x4)**<br>`PostgreSQL 18` | Container `5432`<br>Host `5431`–`5435` | `Deployment` / `StatefulSet`<br>(4 services in `data`/`auth`) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | AWS Aurora PostgreSQL / Azure Database for PostgreSQL Flexible Server / GCP Cloud SQL | `postgres` / `postgres` (dev seed per DB: `orders`, `products`, `inventory`, `keycloak`) | Stateful isolated relational databases with persistent block volumes |
+| **Payments Service**<br>`Go 1.26 / Gin v1.12.0` | Container `8085`<br>*(host `8085`)* | `Deployment`<br>(ClusterIP `8085`) | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | AWS ECS/EKS / Azure Container Apps/AKS / GCP Cloud Run/GKE | Idempotency verification, non-blocking audit goroutines | Stateless high-throughput transaction payment engine |
+| **Fulfillment Service**<br>`NestJS v12.2.0 / TypeScript 7` | Container `8086`<br>*(host `8086`)* | `Deployment`<br>(ClusterIP `8086`) | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi` | AWS ECS/EKS / Azure Container Apps/AKS / GCP Cloud Run/GKE | Aggregate Root DDD, TypeORM migration & repository | Stateless logistics & order fulfillment domain service |
+| **Analytics Service**<br>`FastAPI v0.162.0 / Python 3.12` | Container `8087`<br>*(host `8087`)* | `Deployment`<br>(ClusterIP `8087`) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi` | AWS ECS/EKS / Azure Container Apps/AKS / GCP Cloud Run/GKE | Async SQLAlchemy 2.0 asyncpg connection pool | Stateless real-time funnel drop-off & abandonment engine |
+| **PostgreSQL Databases (x7)**<br>`PostgreSQL 18` | Container `5432`<br>Host `5431`–`5438` | `Deployment` / `StatefulSet`<br>(7 isolated instances) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | AWS Aurora PostgreSQL / Azure Database for PostgreSQL Flexible Server / GCP Cloud SQL | `postgres` / `postgres` (isolated DBs: `orders`, `products`, `inventory`, `keycloak`, `payments`, `fulfillment`, `analytics`) | Stateful isolated relational databases with persistent block volumes (Zero Shared DB) |
 | **Postgres Exporter**<br>`v0.20` | Container `9187`<br>*(host `9187`)* | `Deployment`<br>(ClusterIP `9187`) | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Cloud native RDS/Flexible Server performance insights | Read-only `pg_stat_statements` database user | Stateless connection pool and query execution latency exporter |
 | **Apache Kafka Broker**<br>`Confluent 8.3.2 / Kafka 4.3.x KRaft` | Container `9092` (Client)<br>`9093` (Controller)<br>Host `29092` | `StatefulSet`<br>(ClusterIP `9092`/`9093`) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Amazon Managed Streaming for Apache Kafka (MSK) / Azure Event Hubs (Kafka protocol) / Confluent Cloud on GCP | PLAINTEXT local dev, SASL_SSL / SCRAM for production | Stateful event log with KRaft distributed quorum consensus (Topic: `orders-topic`) |
 | **Kafka Exporter**<br>`v1.9` | Container `9308`<br>*(host `9308`)* | `Deployment`<br>(ClusterIP `9308`) | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Cloud native streaming lag metrics | Read-only consumer group access | Stateless consumer group partition lag and offset scraper |
@@ -184,6 +196,111 @@ mindmap
 * **Zero-Trust Edge Cloud Tunnels:** Cloudflare Anycast quick tunnels exposing local or cluster endpoints securely to external test devices and serverless frontends (Vercel) without public IP exposure or port-forwarding vulnerabilities.
 
 ---
+
+
+---
+
+## 🔄 100% Asynchronous Choreographed Saga Pattern (Kafka Event-Driven Architecture)
+
+To eliminate distributed monolith anti-patterns and guarantee zero temporal coupling, the platform implements a **100% Asynchronous Choreographed Saga** across isolated microservices and independent PostgreSQL 18 databases:
+
+```mermaid
+flowchart TD
+    subgraph Client["🛒 Customer & Storefront"]
+        CLI[React 19 SPA / Checkout FSM]
+    end
+
+    subgraph OrdersContext["📦 Orders Context (:8003)"]
+        ORD[Orders Service<br/>Spring Boot 4 / Java 21]
+        DB_ORD[(db-orders<br/>PostgreSQL 18 :5435)]
+        ORD --- DB_ORD
+    end
+
+    subgraph KafkaBroker["⚡ Apache Kafka KRaft (:9092)"]
+        TOP_ORD[[orders-topic]]
+        TOP_PAY[[payments-topic]]
+        TOP_FUL[[fulfillment-topic]]
+    end
+
+    subgraph PaymentsContext["💳 Payments Context (:8085)"]
+        PAY[Payments Service<br/>Go 1.26 / Gin / GORM]
+        DB_PAY[(db-payments<br/>PostgreSQL 18 :5436)]
+        PAY --- DB_PAY
+    end
+
+    subgraph FulfillmentContext["🚚 Fulfillment Context (:8086)"]
+        FUL[Fulfillment Service<br/>NestJS 12 / TypeScript 7 / TypeORM]
+        DB_FUL[(db-fulfillment<br/>PostgreSQL 18 :5437)]
+        FUL --- DB_FUL
+    end
+
+    subgraph AnalyticsContext["📊 Analytics Context (:8087)"]
+        ANA[Analytics Service<br/>FastAPI / SQLAlchemy Async]
+        DB_ANA[(db-analytics<br/>PostgreSQL 18 :5438)]
+        ANA --- DB_ANA
+    end
+
+    %% Forward Workflow (Happy Path)
+    CLI -->|POST /api/order| ORD
+    ORD -->|1. ORDER_PLACED| TOP_ORD
+    TOP_ORD -->|Consume| PAY
+    PAY -->|2. PAYMENT_PROCESSED| TOP_PAY
+    TOP_PAY -->|Consume| FUL
+    FUL -->|3. SHIPMENT_DISPATCHED| TOP_FUL
+    TOP_FUL -->|Consume| ORD
+
+    %% Analytics Tap
+    TOP_ORD -.->|Real-Time Stream| ANA
+    TOP_PAY -.->|Real-Time Stream| ANA
+    TOP_FUL -.->|Real-Time Stream| ANA
+
+    %% Compensations
+    PAY -.->|Compensate: PAYMENT_FAILED| TOP_PAY
+    FUL -.->|Compensate: SHIPMENT_FAILED| TOP_FUL
+```
+
+### 1. Architectural Principles & Isolation Guarantees
+* **Autonomous Bounded Contexts:** No service directly executes synchronous queries or updates against another service's database. Each domain service (`orders-service`, `payments-service`, `fulfillment-service`, `analytics-service`) owns a dedicated, fully isolated **PostgreSQL 18** database instance (`ms_orders`, `ms_payments`, `ms_fulfillment`, `ms_analytics`).
+* **Zero Central Orchestrator:** Instead of a brittle, centralized orchestrator bottle-necking state changes, business logic advances reactively via domain events broadcast over Apache Kafka KRaft topics (`orders-topic`, `payments-topic`, `fulfillment-topic`).
+* **Idempotency Invariant:** Every event payload carries a deterministic `order_id` and unique `idempotency_key` or `event_id`. Consumers verify event deduplication before applying business state mutations, guaranteeing exactly-once semantics.
+
+### 2. Forward Choreography Lifecycle (Happy Path)
+1. **Order Initiation:**
+   * Customer submits checkout in the React 19 Storefront.
+   * `orders-service` validates payload, creates the Order aggregate with initial state `PLACED`, and persists it in `ms_orders` (`5435`).
+   * Emits `ORDER_PLACED` event to `orders-topic`.
+2. **Payment Processing:**
+   * `payments-service` (Go 1.26) consumes `ORDER_PLACED`.
+   * Enforces idempotency via the `Idempotency-Key` table.
+   * Processes the transaction, dispatches non-blocking audit logging via Go goroutines and buffered channels (`chan AuditLog`), and records the payment record with status `SUCCESS` in `ms_payments` (`5436`).
+   * Emits `PAYMENT_PROCESSED` event to `payments-topic`.
+3. **Fulfillment & Dispatch:**
+   * `fulfillment-service` (NestJS 12 / TypeScript 7) consumes `PAYMENT_PROCESSED`.
+   * Instantiates the `Shipment` Aggregate Root (status `PENDING` ➔ `DISPATCHED`), generates a trackable carrier reference (`DHL-XXXXXXXX`), and logs tracking events in `ms_fulfillment` (`5437`).
+   * Emits `SHIPMENT_DISPATCHED` event to `fulfillment-topic`.
+4. **Order Status Synchronization:**
+   * `orders-service` consumes `SHIPMENT_DISPATCHED` and transitions the internal Order state to `SHIPPED` (presented as *In Transit* to the client).
+   * Emits notification updates through `notification-service` via Server-Sent Events (SSE).
+5. **Final Delivery:**
+   * Courier confirms receipt ➔ `fulfillment-service` transitions status to `DELIVERED` and emits `SHIPMENT_DELIVERED`.
+   * `orders-service` updates status to `DELIVERED` in `ms_orders`.
+
+### 3. Compensating Transactions (Automated Rollback Choreography)
+Distributed failures trigger automated reverse compensation events without manual DBA intervention:
+* **Scenario A: Payment Authorization Failure (`PAYMENT_FAILED`)**
+  * If customer funds are insufficient or the payment card is declined, `payments-service` marks the payment record as `FAILED` and broadcasts `PAYMENT_FAILED` on `payments-topic`.
+  * `orders-service` consumes `PAYMENT_FAILED` and transitions the Order status to `CANCELLED`.
+  * **Compensating Action:** `orders-service` triggers S2S inventory compensation (`compensateInventoryStock`), restoring all previously reserved stock units in `inventory-service`.
+* **Scenario B: Logistics / Fulfillment Rejection (`SHIPMENT_FAILED`)**
+  * If the destination address is invalid or carrier capacity is unavailable, `fulfillment-service` marks the shipment as `FAILED` and emits `SHIPMENT_FAILED` on `fulfillment-topic`.
+  * `payments-service` consumes `SHIPMENT_FAILED`, automatically executes a transaction refund, updates payment status to `REFUNDED`, and publishes `PAYMENT_REFUNDED`.
+  * `orders-service` consumes the failure event, marks the Order as `CANCELLED`, and releases reserved inventory.
+
+### 4. Real-Time Analytics & Funnel Intelligence Stream
+* `analytics-service` (FastAPI / SQLAlchemy 2.0 Async) continuously streams all events across `orders-topic`, `payments-topic`, and `fulfillment-topic` via background consumers.
+* Ingests funnel touchpoints (`CHECKOUT_STARTED`, `ORDER_PLACED`, `PAYMENT_PROCESSED`, `PAYMENT_FAILED`) into `ms_analytics` (`5438`).
+* Computes real-time **Cart Abandonment Rate** and conversion velocity gauges exposed at `GET /api/v1/analytics/metrics` and visible on the Storefront Admin telemetry dashboard without adding latency to customer-facing transactional APIs.
+
 
 ## 🔐 Identity & Access Management (Keycloak 26.8.1)
 

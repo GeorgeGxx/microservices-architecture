@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
-    root_mxfile = ET.Element("mxfile", host="Electron", pages="16", type="device")
+    root_mxfile = ET.Element("mxfile", host="Electron", pages="17", type="device")
 
     # Helper function to create page
     def create_page(page_id, page_name):
@@ -62,7 +62,7 @@ def build_drawio_xml():
 
     # Async Event Streaming & Cache
     add_node(r1, "c_async", "1", "<b>⚡ EVENT STREAMING & CACHE</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 1420, 110, 440, 340)
-    add_node(r1, "n_kafka", "1", "<b>Apache Kafka 8.3.2 (KRaft)</b><br>kafka:9092 (PLAINTEXT) • host localhost:29092<br>Topics: orders-topic, orders-topic-dlt", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;", 1450, 170, 380, 80)
+    add_node(r1, "n_kafka", "1", "<b>Apache Kafka 8.3.2 (KRaft)</b><br>kafka:9092 (PLAINTEXT) • host localhost:29092<br>Topics: orders-topic, payments-topic, fulfillment-topic, orders-topic-dlt", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;", 1450, 170, 380, 80)
     add_node(r1, "n_redis", "1", "<b>Redis 8.8 (Cache & Rate Limiting)</b><br>redis:6379<br>Products & Session Caching", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;", 1450, 290, 380, 80)
 
     # MLOps Architecture Layer: Minikube (dev namespace) & Docker Compose
@@ -88,6 +88,17 @@ def build_drawio_xml():
     add_node(r1, "n_loki", "1", "<b>Grafana Loki</b><br>Logs (3100) • 30-day retention<br>Persistent storage + compactor", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=10;", 1650, 630, 180, 60)
     add_node(r1, "n_tempo", "1", "<b>Grafana Tempo</b><br>Traces (3200) • 7-day retention<br>Persistent storage + compactor", "rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=10;", 1450, 740, 180, 60)
     add_node(r1, "n_grafana", "1", "<b>Grafana Dashboard</b><br>Port 3000 (Unified Master UI)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;", 1650, 740, 180, 60)
+    # Decoupled Services Layer (Payments, Fulfillment, Analytics)
+    add_node(r1, "c_decoupled_ms", "1", "<b>⚡ DECOUPLED EVENT-DRIVEN MICROSERVICES (PostgreSQL 18 Isolated DBs)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 980, 930, 880, 260)
+    add_node(r1, "n_payments", "1", "<b>Payments Service</b><br>Go 1.26 • Gin v1.12.0 • GORM v1.31.2<br>Port 8085 • Async Audit Goroutines<br>Swagger: /swagger/index.html", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 1000, 970, 260, 80)
+    add_node(r1, "n_db_payments", "1", "<b>db-payments</b><br>PostgreSQL 18 (Port 5436)<br>ms_payments", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1000, 1070, 260, 60)
+
+    add_node(r1, "n_fulfillment", "1", "<b>Fulfillment Service</b><br>TypeScript 7 • NestJS v12.2.0 • TypeORM 1.1.2<br>Port 8086 • Aggregate Root DDD &amp; TDD<br>Swagger: /swagger", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 1290, 970, 260, 80)
+    add_node(r1, "n_db_fulfillment", "1", "<b>db-fulfillment</b><br>PostgreSQL 18 (Port 5437)<br>ms_fulfillment", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1290, 1070, 260, 60)
+
+    add_node(r1, "n_analytics", "1", "<b>Analytics Service</b><br>FastAPI v0.162.0 • SQLAlchemy 2.0 Async<br>Port 8087 • Cart Abandonment Gauge<br>Swagger: /docs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;", 1580, 970, 260, 80)
+    add_node(r1, "n_db_analytics", "1", "<b>db-analytics</b><br>PostgreSQL 18 (Port 5438)<br>ms_analytics", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1580, 1070, 260, 60)
+
 
     # Connections
     add_edge(r1, "e1", "1", "GraphQL /graphql via frontend Nginx", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;", "n_spa", "n_gw")
@@ -111,6 +122,13 @@ def build_drawio_xml():
     add_edge(r1, "e10", "1", "JDBC", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_inv", "n_db_inv")
     add_edge(r1, "e11", "1", "Zero-Touch Seed", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;", "n_vault_init", "n_vault")
     add_edge(r1, "e12", "1", "Inject Secrets", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;dashed=1;", "n_vault", "n_orders")
+    add_edge(r1, "e_pay_db", "1", "GORM", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_payments", "n_db_payments")
+    add_edge(r1, "e_ful_db", "1", "TypeORM", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_fulfillment", "n_db_fulfillment")
+    add_edge(r1, "e_ana_db", "1", "asyncpg", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n_analytics", "n_db_analytics")
+    add_edge(r1, "e_pay_kafka", "1", "payments-topic", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n_payments", "n_kafka")
+    add_edge(r1, "e_ful_kafka", "1", "fulfillment-topic", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n_fulfillment", "n_kafka")
+    add_edge(r1, "e_ana_kafka", "1", "Event Stream", "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;dashed=1;", "n_kafka", "n_analytics")
+
 
     # =========================================================================
     # PAGE 2: HashiCorp Vault - Zero-Touch Security Architecture
@@ -675,10 +693,72 @@ def build_drawio_xml():
     # Bottom Summary Banner
     add_node(r16, "n16_legend", "1", "<b>🎯 ENTERPRISE OMNICHANNEL SCANNER &amp; HARDENED LIFECYCLE:</b> Eliminates camera race conditions by combining a 100ms mount lock with a tiered native BarcodeDetector / jsQR software fallback. Nginx Permissions-Policy <code>camera=(self)</code> guarantees browser camera activation while blocking unauthorized iframe embedding. Bidirectional correlation directly queries authoritative PostgreSQL inventory and drives live POS order fulfillment through federated GraphQL mutations.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;", 50, 870, 1820, 75)
 
+    # =========================================================================
+    # PAGE 17: Asynchronous Choreographed Saga (Kafka Event-Driven Architecture)
+    # =========================================================================
+    r17 = create_page("page_saga_choreography", "17. Asynchronous Choreographed Saga (Kafka Event-Driven Architecture)")
+    add_node(r17, "t17", "1", "<b style='font-size:22px;color:#1E293B;'>ASYNCHRONOUS CHOREOGRAPHED SAGA (KAFKA EVENT-DRIVEN ARCHITECTURE)</b><br><span style='font-size:13px;color:#64748B;'>Zero Central Orchestrator • PostgreSQL 18 Multi-DB Isolation • Event Choreography via Kafka KRaft (orders-topic, payments-topic, fulfillment-topic)</span>", title_style, 250, 25, 1420, 55)
+
+    # Core Participants & Dedicated PostgreSQL 18 Databases
+    add_node(r17, "c17_participants", "1", "<b>🏛️ AUTONOMOUS BOUNDED CONTEXTS &amp; ISOLATED DATABASES (POSTGRESQL 18)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 50, 95, 1820, 205)
+
+    # Orders Service (Java 21 / Spring Boot 4)
+    add_node(r17, "n17_orders", "1", "<b>1. Orders Service</b><br>Spring Boot 4 • Java 21 (Port 8003)<br>• Saga Initiator &amp; Compensator<br>• Emits: ORDER_PLACED, ORDER_CANCELLED<br>• Swagger: /swagger-ui.html", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;", 75, 140, 270, 95)
+    add_node(r17, "n17_db_orders", "1", "<b>db-orders</b><br>PostgreSQL 18 (:5435)<br>DB: ms_orders (isolated)", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 360, 145, 140, 85)
+
+    # Payments Service (Go 1.26 / Gin / GORM)
+    add_node(r17, "n17_payments", "1", "<b>2. Payments Service</b><br>Go 1.26 • Gin v1.12.0 • GORM v1.31.2 (Port 8085)<br>• Non-blocking Goroutines Audit Logger<br>• Emits: PAYMENT_PROCESSED, PAYMENT_FAILED<br>• Swagger: /swagger/index.html", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;", 530, 140, 270, 95)
+    add_node(r17, "n17_db_payments", "1", "<b>db-payments</b><br>PostgreSQL 18 (:5436)<br>DB: ms_payments (isolated)", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 815, 145, 140, 85)
+
+    # Fulfillment Service (TypeScript 7 / NestJS 12 / TypeORM)
+    add_node(r17, "n17_fulfillment", "1", "<b>3. Fulfillment Service</b><br>TypeScript 7 • NestJS v12.2.0 • TypeORM (Port 8086)<br>• Aggregate Root DDD &amp; 100% TDD Coverage<br>• Emits: SHIPMENT_DISPATCHED, SHIPMENT_DELIVERED<br>• Swagger: /swagger", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;", 985, 140, 270, 95)
+    add_node(r17, "n17_db_fulfillment", "1", "<b>db-fulfillment</b><br>PostgreSQL 18 (:5437)<br>DB: ms_fulfillment (isolated)", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1270, 145, 140, 85)
+
+    # Analytics Service (FastAPI / SQLAlchemy 2.0 Async)
+    add_node(r17, "n17_analytics", "1", "<b>4. Analytics Service</b><br>FastAPI v0.162.0 • SQLAlchemy 2.0 (Port 8087)<br>• Real-time Event Ingestion &amp; DDD Stream<br>• Metrics: Cart Abandonment Rate Gauge<br>• Swagger: /docs", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;", 1440, 140, 250, 95)
+    add_node(r17, "n17_db_analytics", "1", "<b>db-analytics</b><br>PostgreSQL 18 (:5438)<br>DB: ms_analytics (isolated)", "shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;", 1705, 145, 140, 85)
+
+    # Kafka Event Bus & Topics
+    add_node(r17, "c17_kafka", "1", "<b>⚡ APACHE KAFKA 8.3.2 KRAFT EVENT BUS (Port 9092 / PLAINTEXT)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=13;dashed=1;", 50, 315, 1820, 120)
+    add_node(r17, "n17_top_orders", "1", "<b>Topic: orders-topic</b><br>• ORDER_PLACED (order_id, user_id, amount, items)<br>• ORDER_CANCELLED (order_id, reason)<br>• ORDER_COMPENSATED (order_id, inventory_restored)", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;", 80, 355, 430, 65)
+    add_node(r17, "n17_top_payments", "1", "<b>Topic: payments-topic</b><br>• PAYMENT_REQUESTED (payment_id, order_id, amount)<br>• PAYMENT_PROCESSED (payment_id, order_id, status=SUCCESS)<br>• PAYMENT_FAILED (payment_id, order_id, reason) • PAYMENT_REFUNDED", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;", 540, 355, 480, 65)
+    add_node(r17, "n17_top_fulfillment", "1", "<b>Topic: fulfillment-topic</b><br>• SHIPMENT_REQUESTED (shipment_id, order_id, address)<br>• SHIPMENT_DISPATCHED (shipment_id, order_id, carrier=DHL)<br>• SHIPMENT_DELIVERED (shipment_id) • SHIPMENT_FAILED", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;", 1050, 355, 460, 65)
+    add_node(r17, "n17_top_analytics", "1", "<b>Real-Time Tap</b><br>Consumer Group: analytics-group<br>Calculates Funnel &amp; Abandonment", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;", 1540, 355, 305, 65)
+
+    # Saga Workflows: Happy Path (Left) vs Compensations (Right)
+    # Happy Path
+    add_node(r17, "c17_happy", "1", "<b>✅ FORWARD CHOREOGRAPHY (HAPPY PATH WORKFLOW)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 50, 450, 890, 430)
+    add_node(r17, "n17_hp1", "1", "<b>Step 1: Order Placement &amp; Reservation</b><br>User checks out ➔ Orders Service creates Order (status=PLACED) in ms_orders.<br>Publishes event: <code>ORDER_PLACED</code> to orders-topic.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;", 75, 490, 840, 55)
+    add_node(r17, "n17_hp2", "1", "<b>Step 2: Idempotent Payment &amp; Goroutine Audit</b><br>Payments Service (Go 1.26) consumes <code>ORDER_PLACED</code>. Verifies Idempotency-Key.<br>Processes payment in ms_payments, launches async goroutine audit log.<br>Publishes event: <code>PAYMENT_PROCESSED</code> to payments-topic.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;", 75, 560, 840, 65)
+    add_node(r17, "n17_hp3", "1", "<b>Step 3: Fulfillment Aggregate &amp; Carrier Dispatch</b><br>Fulfillment Service (NestJS / TypeScript 7) consumes <code>PAYMENT_PROCESSED</code>.<br>Creates Shipment aggregate root in ms_fulfillment with carrier tracking reference.<br>Publishes event: <code>SHIPMENT_DISPATCHED</code> to fulfillment-topic.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;", 75, 640, 840, 65)
+    add_node(r17, "n17_hp4", "1", "<b>Step 4: Order Status Sync &amp; Customer SSE</b><br>Orders Service consumes <code>SHIPMENT_DISPATCHED</code> ➔ transitions Order to SHIPPED (In Transit).<br>Notification Service consumes event and pushes live SSE alert to customer browser.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;", 75, 720, 840, 60)
+    add_node(r17, "n17_hp5", "1", "<b>Step 5: Final Delivery Confirmation</b><br>Carrier delivers package ➔ Fulfillment Service emits <code>SHIPMENT_DELIVERED</code>.<br>Orders Service transitions Order to DELIVERED ➔ Final state achieved.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;strokeWidth=2;fontColor=#14532D;fontSize=11;align=left;spacingLeft=10;", 75, 795, 840, 65)
+
+    # Compensations
+    add_node(r17, "c17_rollback", "1", "<b>🔄 BACKWARD CHOREOGRAPHY (COMPENSATING TRANSACTIONS)</b>", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;", 980, 450, 890, 430)
+    add_node(r17, "n17_comp1", "1", "<b>Scenario A: Payment Declined or Fund Shortage</b><br>• Payments Service rejects charge and publishes <code>PAYMENT_FAILED</code>.<br>• Orders Service consumes <code>PAYMENT_FAILED</code> and transitions status to CANCELLED.<br>• Automated Compensating Action: Invokes S2S inventory compensation (<code>compensateInventoryStock</code>) restoring warehouse units.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=11;align=left;spacingLeft=10;", 1005, 490, 840, 75)
+    add_node(r17, "n17_comp2", "1", "<b>Scenario B: Warehouse Out-of-Stock or Logistics Failure</b><br>• Fulfillment Service encounters carrier/logistics failure and emits <code>SHIPMENT_FAILED</code>.<br>• Payments Service consumes <code>SHIPMENT_FAILED</code> and executes payment refund.<br>• Emits <code>PAYMENT_REFUNDED</code> on payments-topic.<br>• Orders Service cancels order and compensates inventory stock.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=11;align=left;spacingLeft=10;", 1005, 580, 840, 80)
+    add_node(r17, "n17_comp3", "1", "<b>Scenario C: Real-Time Event-Driven Analytics Tracking</b><br>• Analytics Service (FastAPI / SQLAlchemy Async) listens to all 3 Kafka topics.<br>• Correlates ORDER_PLACED vs PAYMENT_FAILED to calculate live Cart Abandonment Rate.<br>• Ingests events into ms_analytics without adding overhead to transaction path.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=10;", 1005, 675, 840, 75)
+    add_node(r17, "n17_comp4", "1", "<b>Guaranteed Eventual Consistency Invariants:</b><br>• Idempotent event consumers with deduplication keys prevent duplicate processing.<br>• PostgreSQL 18 isolated schemas prevent cross-service database locks and coupling.<br>• Fully asynchronous choreographed execution with zero single point of failure (SPOF).", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=10;", 1005, 765, 840, 95)
+
+    # Bottom Summary Banner
+    add_node(r17, "n17_legend", "1", "<b>🎯 ASYNCHRONOUS SAGA CHOREOGRAPHY ARCHITECTURE:</b> Complete decoupling of order processing into autonomous domain microservices. Orders Service orchestrates high-level placement, Payments Service guarantees Go 1.26 high-throughput transaction auditing, Fulfillment Service enforces TypeScript 7 DDD shipment boundaries, and Analytics Service streams real-time business intelligence—all coordinated through Kafka KRaft topics with isolated PostgreSQL 18 databases.", "rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;", 50, 895, 1820, 65)
+
+    # Database and Kafka Edges for Page 17
+    add_edge(r17, "e17_ord_db", "1", "JPA / JDBC", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n17_orders", "n17_db_orders")
+    add_edge(r17, "e17_pay_db", "1", "GORM / pgx", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n17_payments", "n17_db_payments")
+    add_edge(r17, "e17_ful_db", "1", "TypeORM", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n17_fulfillment", "n17_db_fulfillment")
+    add_edge(r17, "e17_ana_db", "1", "asyncpg", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;", "n17_analytics", "n17_db_analytics")
+    add_edge(r17, "e17_ord_k", "1", "Publish ORDER_PLACED", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n17_orders", "n17_top_orders")
+    add_edge(r17, "e17_pay_k", "1", "Publish PAYMENT_PROCESSED", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n17_payments", "n17_top_payments")
+    add_edge(r17, "e17_ful_k", "1", "Publish SHIPMENT_DISPATCHED", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;", "n17_fulfillment", "n17_top_fulfillment")
+    add_edge(r17, "e17_k_ana", "1", "Stream events", "edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;dashed=1;", "c17_kafka", "n17_top_analytics")
+
+
     tree = ET.ElementTree(root_mxfile)
     ET.indent(tree, space="  ", level=0)
     tree.write("docs/Diagrams.drawio", encoding="utf-8", xml_declaration=True)
-    print("Successfully generated docs/Diagrams.drawio in English with 16 comprehensive tabs!")
+    print("Successfully generated docs/Diagrams.drawio in English with 17 comprehensive tabs!")
 
 if __name__ == "__main__":
     build_drawio_xml()

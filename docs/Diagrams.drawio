@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="16" type="device">
+<mxfile host="Electron" pages="17" type="device">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
@@ -59,7 +59,7 @@
         <mxCell id="c_async" parent="1" value="&lt;b&gt;⚡ EVENT STREAMING &amp; CACHE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1420" y="110" width="440" height="340" as="geometry" />
         </mxCell>
-        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 8.3.2 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9092 (PLAINTEXT) • host localhost:29092&lt;br&gt;Topics: orders-topic, orders-topic-dlt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
+        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 8.3.2 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9092 (PLAINTEXT) • host localhost:29092&lt;br&gt;Topics: orders-topic, payments-topic, fulfillment-topic, orders-topic-dlt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="1450" y="170" width="380" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_redis" parent="1" value="&lt;b&gt;Redis 8.8 (Cache &amp; Rate Limiting)&lt;/b&gt;&lt;br&gt;redis:6379&lt;br&gt;Products &amp; Session Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
@@ -118,6 +118,27 @@
         </mxCell>
         <mxCell id="n_grafana" parent="1" value="&lt;b&gt;Grafana Dashboard&lt;/b&gt;&lt;br&gt;Port 3000 (Unified Master UI)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFEDD5;strokeColor=#F97316;strokeWidth=2;fontColor=#7C2D12;fontSize=12;" vertex="1">
           <mxGeometry x="1650" y="740" width="180" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_decoupled_ms" parent="1" value="&lt;b&gt;⚡ DECOUPLED EVENT-DRIVEN MICROSERVICES (PostgreSQL 18 Isolated DBs)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="980" y="930" width="880" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="n_payments" parent="1" value="&lt;b&gt;Payments Service&lt;/b&gt;&lt;br&gt;Go 1.26 • Gin v1.12.0 • GORM v1.31.2&lt;br&gt;Port 8085 • Async Audit Goroutines&lt;br&gt;Swagger: /swagger/index.html" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1000" y="970" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_payments" parent="1" value="&lt;b&gt;db-payments&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (Port 5436)&lt;br&gt;ms_payments" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1000" y="1070" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_fulfillment" parent="1" value="&lt;b&gt;Fulfillment Service&lt;/b&gt;&lt;br&gt;TypeScript 7 • NestJS v12.2.0 • TypeORM 1.1.2&lt;br&gt;Port 8086 • Aggregate Root DDD &amp;amp; TDD&lt;br&gt;Swagger: /swagger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1290" y="970" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_fulfillment" parent="1" value="&lt;b&gt;db-fulfillment&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (Port 5437)&lt;br&gt;ms_fulfillment" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1290" y="1070" width="260" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_analytics" parent="1" value="&lt;b&gt;Analytics Service&lt;/b&gt;&lt;br&gt;FastAPI v0.162.0 • SQLAlchemy 2.0 Async&lt;br&gt;Port 8087 • Cart Abandonment Gauge&lt;br&gt;Swagger: /docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1580" y="970" width="260" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_analytics" parent="1" value="&lt;b&gt;db-analytics&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (Port 5438)&lt;br&gt;ms_analytics" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1580" y="1070" width="260" height="60" as="geometry" />
         </mxCell>
         <mxCell id="e1" parent="1" value="GraphQL /graphql via frontend Nginx" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#3B82F6;strokeWidth=2;" edge="1" source="n_spa" target="n_gw">
           <mxGeometry relative="1" as="geometry" />
@@ -180,6 +201,24 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e12" parent="1" value="Inject Secrets" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;dashed=1;" edge="1" source="n_vault" target="n_orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pay_db" parent="1" value="GORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_payments" target="n_db_payments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ful_db" parent="1" value="TypeORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_fulfillment" target="n_db_fulfillment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ana_db" parent="1" value="asyncpg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_analytics" target="n_db_analytics">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_pay_kafka" parent="1" value="payments-topic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_payments" target="n_kafka">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ful_kafka" parent="1" value="fulfillment-topic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_fulfillment" target="n_kafka">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ana_kafka" parent="1" value="Event Stream" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;dashed=1;" edge="1" source="n_kafka" target="n_analytics">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
@@ -1305,6 +1344,119 @@
         </mxCell>
         <mxCell id="n16_legend" parent="1" value="&lt;b&gt;🎯 ENTERPRISE OMNICHANNEL SCANNER &amp;amp; HARDENED LIFECYCLE:&lt;/b&gt; Eliminates camera race conditions by combining a 100ms mount lock with a tiered native BarcodeDetector / jsQR software fallback. Nginx Permissions-Policy &lt;code&gt;camera=(self)&lt;/code&gt; guarantees browser camera activation while blocking unauthorized iframe embedding. Bidirectional correlation directly queries authoritative PostgreSQL inventory and drives live POS order fulfillment through federated GraphQL mutations." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="50" y="870" width="1820" height="75" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_saga_choreography" name="17. Asynchronous Choreographed Saga (Kafka Event-Driven Architecture)">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t17" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ASYNCHRONOUS CHOREOGRAPHED SAGA (KAFKA EVENT-DRIVEN ARCHITECTURE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Zero Central Orchestrator • PostgreSQL 18 Multi-DB Isolation • Event Choreography via Kafka KRaft (orders-topic, payments-topic, fulfillment-topic)&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_participants" parent="1" value="&lt;b&gt;🏛️ AUTONOMOUS BOUNDED CONTEXTS &amp;amp; ISOLATED DATABASES (POSTGRESQL 18)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="95" width="1820" height="205" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_orders" parent="1" value="&lt;b&gt;1. Orders Service&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Java 21 (Port 8003)&lt;br&gt;• Saga Initiator &amp;amp; Compensator&lt;br&gt;• Emits: ORDER_PLACED, ORDER_CANCELLED&lt;br&gt;• Swagger: /swagger-ui.html" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="75" y="140" width="270" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_db_orders" parent="1" value="&lt;b&gt;db-orders&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5435)&lt;br&gt;DB: ms_orders (isolated)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="360" y="145" width="140" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_payments" parent="1" value="&lt;b&gt;2. Payments Service&lt;/b&gt;&lt;br&gt;Go 1.26 • Gin v1.12.0 • GORM v1.31.2 (Port 8085)&lt;br&gt;• Non-blocking Goroutines Audit Logger&lt;br&gt;• Emits: PAYMENT_PROCESSED, PAYMENT_FAILED&lt;br&gt;• Swagger: /swagger/index.html" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="530" y="140" width="270" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_db_payments" parent="1" value="&lt;b&gt;db-payments&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5436)&lt;br&gt;DB: ms_payments (isolated)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="815" y="145" width="140" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_fulfillment" parent="1" value="&lt;b&gt;3. Fulfillment Service&lt;/b&gt;&lt;br&gt;TypeScript 7 • NestJS v12.2.0 • TypeORM (Port 8086)&lt;br&gt;• Aggregate Root DDD &amp;amp; 100% TDD Coverage&lt;br&gt;• Emits: SHIPMENT_DISPATCHED, SHIPMENT_DELIVERED&lt;br&gt;• Swagger: /swagger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="985" y="140" width="270" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_db_fulfillment" parent="1" value="&lt;b&gt;db-fulfillment&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5437)&lt;br&gt;DB: ms_fulfillment (isolated)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1270" y="145" width="140" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_analytics" parent="1" value="&lt;b&gt;4. Analytics Service&lt;/b&gt;&lt;br&gt;FastAPI v0.162.0 • SQLAlchemy 2.0 (Port 8087)&lt;br&gt;• Real-time Event Ingestion &amp;amp; DDD Stream&lt;br&gt;• Metrics: Cart Abandonment Rate Gauge&lt;br&gt;• Swagger: /docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1440" y="140" width="250" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_db_analytics" parent="1" value="&lt;b&gt;db-analytics&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5438)&lt;br&gt;DB: ms_analytics (isolated)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1705" y="145" width="140" height="85" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_kafka" parent="1" value="&lt;b&gt;⚡ APACHE KAFKA 8.3.2 KRAFT EVENT BUS (Port 9092 / PLAINTEXT)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="315" width="1820" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_top_orders" parent="1" value="&lt;b&gt;Topic: orders-topic&lt;/b&gt;&lt;br&gt;• ORDER_PLACED (order_id, user_id, amount, items)&lt;br&gt;• ORDER_CANCELLED (order_id, reason)&lt;br&gt;• ORDER_COMPENSATED (order_id, inventory_restored)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="80" y="355" width="430" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_top_payments" parent="1" value="&lt;b&gt;Topic: payments-topic&lt;/b&gt;&lt;br&gt;• PAYMENT_REQUESTED (payment_id, order_id, amount)&lt;br&gt;• PAYMENT_PROCESSED (payment_id, order_id, status=SUCCESS)&lt;br&gt;• PAYMENT_FAILED (payment_id, order_id, reason) • PAYMENT_REFUNDED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="540" y="355" width="480" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_top_fulfillment" parent="1" value="&lt;b&gt;Topic: fulfillment-topic&lt;/b&gt;&lt;br&gt;• SHIPMENT_REQUESTED (shipment_id, order_id, address)&lt;br&gt;• SHIPMENT_DISPATCHED (shipment_id, order_id, carrier=DHL)&lt;br&gt;• SHIPMENT_DELIVERED (shipment_id) • SHIPMENT_FAILED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1050" y="355" width="460" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_top_analytics" parent="1" value="&lt;b&gt;Real-Time Tap&lt;/b&gt;&lt;br&gt;Consumer Group: analytics-group&lt;br&gt;Calculates Funnel &amp;amp; Abandonment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;" vertex="1">
+          <mxGeometry x="1540" y="355" width="305" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_happy" parent="1" value="&lt;b&gt;✅ FORWARD CHOREOGRAPHY (HAPPY PATH WORKFLOW)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="450" width="890" height="430" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_hp1" parent="1" value="&lt;b&gt;Step 1: Order Placement &amp;amp; Reservation&lt;/b&gt;&lt;br&gt;User checks out ➔ Orders Service creates Order (status=PLACED) in ms_orders.&lt;br&gt;Publishes event: &lt;code&gt;ORDER_PLACED&lt;/code&gt; to orders-topic." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="75" y="490" width="840" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_hp2" parent="1" value="&lt;b&gt;Step 2: Idempotent Payment &amp;amp; Goroutine Audit&lt;/b&gt;&lt;br&gt;Payments Service (Go 1.26) consumes &lt;code&gt;ORDER_PLACED&lt;/code&gt;. Verifies Idempotency-Key.&lt;br&gt;Processes payment in ms_payments, launches async goroutine audit log.&lt;br&gt;Publishes event: &lt;code&gt;PAYMENT_PROCESSED&lt;/code&gt; to payments-topic." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="75" y="560" width="840" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_hp3" parent="1" value="&lt;b&gt;Step 3: Fulfillment Aggregate &amp;amp; Carrier Dispatch&lt;/b&gt;&lt;br&gt;Fulfillment Service (NestJS / TypeScript 7) consumes &lt;code&gt;PAYMENT_PROCESSED&lt;/code&gt;.&lt;br&gt;Creates Shipment aggregate root in ms_fulfillment with carrier tracking reference.&lt;br&gt;Publishes event: &lt;code&gt;SHIPMENT_DISPATCHED&lt;/code&gt; to fulfillment-topic." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="75" y="640" width="840" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_hp4" parent="1" value="&lt;b&gt;Step 4: Order Status Sync &amp;amp; Customer SSE&lt;/b&gt;&lt;br&gt;Orders Service consumes &lt;code&gt;SHIPMENT_DISPATCHED&lt;/code&gt; ➔ transitions Order to SHIPPED (In Transit).&lt;br&gt;Notification Service consumes event and pushes live SSE alert to customer browser." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="75" y="720" width="840" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_hp5" parent="1" value="&lt;b&gt;Step 5: Final Delivery Confirmation&lt;/b&gt;&lt;br&gt;Carrier delivers package ➔ Fulfillment Service emits &lt;code&gt;SHIPMENT_DELIVERED&lt;/code&gt;.&lt;br&gt;Orders Service transitions Order to DELIVERED ➔ Final state achieved." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;strokeWidth=2;fontColor=#14532D;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="75" y="795" width="840" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_rollback" parent="1" value="&lt;b&gt;🔄 BACKWARD CHOREOGRAPHY (COMPENSATING TRANSACTIONS)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+          <mxGeometry x="980" y="450" width="890" height="430" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_comp1" parent="1" value="&lt;b&gt;Scenario A: Payment Declined or Fund Shortage&lt;/b&gt;&lt;br&gt;• Payments Service rejects charge and publishes &lt;code&gt;PAYMENT_FAILED&lt;/code&gt;.&lt;br&gt;• Orders Service consumes &lt;code&gt;PAYMENT_FAILED&lt;/code&gt; and transitions status to CANCELLED.&lt;br&gt;• Automated Compensating Action: Invokes S2S inventory compensation (&lt;code&gt;compensateInventoryStock&lt;/code&gt;) restoring warehouse units." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1005" y="490" width="840" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_comp2" parent="1" value="&lt;b&gt;Scenario B: Warehouse Out-of-Stock or Logistics Failure&lt;/b&gt;&lt;br&gt;• Fulfillment Service encounters carrier/logistics failure and emits &lt;code&gt;SHIPMENT_FAILED&lt;/code&gt;.&lt;br&gt;• Payments Service consumes &lt;code&gt;SHIPMENT_FAILED&lt;/code&gt; and executes payment refund.&lt;br&gt;• Emits &lt;code&gt;PAYMENT_REFUNDED&lt;/code&gt; on payments-topic.&lt;br&gt;• Orders Service cancels order and compensates inventory stock." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF2F2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1005" y="580" width="840" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_comp3" parent="1" value="&lt;b&gt;Scenario C: Real-Time Event-Driven Analytics Tracking&lt;/b&gt;&lt;br&gt;• Analytics Service (FastAPI / SQLAlchemy Async) listens to all 3 Kafka topics.&lt;br&gt;• Correlates ORDER_PLACED vs PAYMENT_FAILED to calculate live Cart Abandonment Rate.&lt;br&gt;• Ingests events into ms_analytics without adding overhead to transaction path." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1005" y="675" width="840" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_comp4" parent="1" value="&lt;b&gt;Guaranteed Eventual Consistency Invariants:&lt;/b&gt;&lt;br&gt;• Idempotent event consumers with deduplication keys prevent duplicate processing.&lt;br&gt;• PostgreSQL 18 isolated schemas prevent cross-service database locks and coupling.&lt;br&gt;• Fully asynchronous choreographed execution with zero single point of failure (SPOF)." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1005" y="765" width="840" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_legend" parent="1" value="&lt;b&gt;🎯 ASYNCHRONOUS SAGA CHOREOGRAPHY ARCHITECTURE:&lt;/b&gt; Complete decoupling of order processing into autonomous domain microservices. Orders Service orchestrates high-level placement, Payments Service guarantees Go 1.26 high-throughput transaction auditing, Fulfillment Service enforces TypeScript 7 DDD shipment boundaries, and Analytics Service streams real-time business intelligence—all coordinated through Kafka KRaft topics with isolated PostgreSQL 18 databases." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="50" y="895" width="1820" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ord_db" parent="1" value="JPA / JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_orders" target="n17_db_orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_pay_db" parent="1" value="GORM / pgx" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_payments" target="n17_db_payments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ful_db" parent="1" value="TypeORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_fulfillment" target="n17_db_fulfillment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ana_db" parent="1" value="asyncpg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_analytics" target="n17_db_analytics">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ord_k" parent="1" value="Publish ORDER_PLACED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_orders" target="n17_top_orders">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_pay_k" parent="1" value="Publish PAYMENT_PROCESSED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_payments" target="n17_top_payments">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ful_k" parent="1" value="Publish SHIPMENT_DISPATCHED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_fulfillment" target="n17_top_fulfillment">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_k_ana" parent="1" value="Stream events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;dashed=1;" edge="1" source="c17_kafka" target="n17_top_analytics">
+          <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

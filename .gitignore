@@ -31,5 +31,11 @@ coverage.xml
 **/coverage.xml
 .scannerwork/
 **/.scannerwork/
+dist/
+**/dist/
+coverage/
+**/coverage/
+node_modules/
+**/node_modules/
 cosign.key
 devsecops/compliance/cosign/*.key
