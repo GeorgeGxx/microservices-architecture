@@ -2530,23 +2530,74 @@ except Exception:
 
         if (-not $hasTrainedModel) {
             Write-Host "  ▶ Seeding initial sales data and training baseline MLOps model in Minikube..." -ForegroundColor White
-            $localSyntheticSales = Join-Path $root "mlops\data\synthetic_sales.csv"
-            if (Test-Path $localSyntheticSales) {
-                $capturePod = (& kubectl get pod -n dev -l app=demand-sales-capture -o jsonpath='{.items[0].metadata.name}').Trim()
-                if ($capturePod) {
-                    & kubectl cp $localSyntheticSales "dev/${capturePod}:/data/synthetic_sales.csv" -c stream-orders 2>&1 | Out-Null
+            $capturePod = (& kubectl get pod -n dev -l app=demand-sales-capture -o jsonpath='{.items[0].metadata.name}').Trim()
+            if ($capturePod) {
+                # 1. Publish 30 days of DELIVERED sales events to Kafka topic 'orders-topic'
+                # and generate synthetic_sales.csv. Using Kafka streaming ingestion avoids concurrent
+                # overwrite conflicts with the active Structured Streaming query in demand-sales-capture.
+                & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days 30 --output /data/synthetic_sales.csv 2>&1 | Out-Null
+                & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days 30 --kafka-bootstrap-servers kafka.data.svc.cluster.local:9092 --kafka-topic orders-topic 2>&1 | Out-Null
+
+                # 2. Wait up to 30 seconds for the capture stream to persist at least 9 date partitions
+                $deadline = (Get-Date).AddSeconds(30)
+                $useParquet = $false
+                while ((Get-Date) -lt $deadline) {
+                    $partitionCount = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
+from pathlib import Path
+p = Path('/data/sales_parquet')
+print(len([d for d in p.iterdir() if d.is_dir() and d.name.startswith('date=')]) if p.is_dir() else 0)
+" 2>$null
+                    if ($partitionCount -and [int]($partitionCount.Trim()) -ge 9) {
+                        $useParquet = $true
+                        break
+                    }
+                    Start-Sleep -Seconds 3
+                }
+
+                # 3. Explicitly train the baseline champion model and track it in MLflow
+                # (without --auto, avoiding the 60-second stability delay and training immediately)
+                $trainingArgs = if ($useParquet) { "--input-parquet", "/data/sales_parquet" } else { "--input-csv", "/data/synthetic_sales.csv" }
+                $trainOutput = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/train_demand_model.py @trainingArgs 2>&1
+
+                # Sync auto-training state file so background capture daemon knows this dataset is already trained
+                if ($useParquet) {
                     & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
-from pyspark.sql import SparkSession
-spark = SparkSession.builder.master('local[*]').getOrCreate()
-df = spark.read.option('header', True).option('inferSchema', True).csv('/data/synthetic_sales.csv')
-df.write.mode('overwrite').partitionBy('date').parquet('/data/sales_parquet')
+from pathlib import Path
+from train_demand_model import snapshot_dataset, CANDIDATE_STATE_FILENAME
+dataset_path = Path('/data/sales_parquet')
+state_path = Path('/data/checkpoints/auto-training/last-successful-input.sha256')
+dates, fp = snapshot_dataset(dataset_path)
+if fp:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(fp + '\n', encoding='ascii')
+    state_path.with_name(CANDIDATE_STATE_FILENAME).unlink(missing_ok=True)
 " 2>&1 | Out-Null
                 }
-                $seedJobName = "demand-model-training-init-$(Get-Date -Format 'yyyyMMddHHmmss')"
-                & kubectl create job --from=cronjob/demand-model-training-scheduler $seedJobName -n dev 2>&1 | Out-Null
-                & kubectl wait --for=condition=complete "job/$seedJobName" -n dev --timeout=180s 2>&1 | Out-Null
-                & kubectl delete job $seedJobName -n dev 2>&1 | Out-Null
-                Write-Host "  [OK] Initial MLOps model trained and registered in MLflow." -ForegroundColor Green
+
+                # 4. Verify the baseline model run in MLflow
+                $verifyCheck = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
+import urllib.request, json
+try:
+    with urllib.request.urlopen('http://mlflow:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=inventory-demand-forecast', timeout=5) as r:
+        exp = json.loads(r.read())
+        exp_id = exp.get('experiment', {}).get('experiment_id')
+        if exp_id:
+            req_runs = urllib.request.Request('http://mlflow:5000/api/2.0/mlflow/runs/search', data=json.dumps({'experiment_ids': [exp_id]}).encode(), headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req_runs, timeout=5) as rr:
+                runs = json.loads(rr.read()).get('runs', [])
+                if len(runs) > 0:
+                    print('TRAINED')
+except Exception:
+    pass
+" 2>$null
+                if ($verifyCheck -match 'TRAINED') {
+                    Write-Host "  [OK] Initial MLOps model trained and registered in MLflow." -ForegroundColor Green
+                } else {
+                    Write-Host "  [WARN] Baseline training executed but no run was registered in MLflow." -ForegroundColor Yellow
+                    $trainOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+                }
+            } else {
+                Write-Host "  [WARN] demand-sales-capture pod not found; skipping initial model seeding." -ForegroundColor Yellow
             }
         } else {
             Write-Host "  [OK] Active trained model verified in MLflow." -ForegroundColor Green
