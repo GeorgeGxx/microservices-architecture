@@ -18,14 +18,16 @@ spec:
         app: frontend
         version: "1.0.0"
         tier: presentation
+      annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
     spec:
       serviceAccountName: frontend-sa
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
-        runAsUser: 101
-        runAsGroup: 101
-        fsGroup: 101
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -53,10 +55,8 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            - name: var-cache-nginx
-              mountPath: /var/cache/nginx
-            - name: var-run
-              mountPath: /var/run
+            - name: run
+              mountPath: /run
           livenessProbe:
             httpGet:
               path: /
@@ -72,9 +72,7 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        - name: var-cache-nginx
-          emptyDir: {}
-        - name: var-run
+        - name: run
           emptyDir: {}
 ---
 apiVersion: v1

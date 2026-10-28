@@ -11,19 +11,16 @@ RUN npm ci --prefer-offline --no-audit
 COPY . .
 RUN npm run build
 
-# ---- Stage 2: Nginx unprivileged minimal runtime ----
-FROM nginxinc/nginx-unprivileged:stable-alpine-slim
+# ---- Stage 2: Distroless Nginx minimal non-root runtime ----
+FROM cgr.dev/chainguard/nginx:latest
 
-# Copy the Vite production bundle
-COPY --from=build --chown=root:root /app/dist /usr/share/nginx/html
+# Copy the Vite production bundle (owned by root with read/execute permissions for non-root runtime)
+COPY --from=build --chown=root:root --chmod=755 /app/dist /usr/share/nginx/html
 COPY rate-limit.conf /etc/nginx/conf.d/00-rate-limit.conf
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/conf.d/nginx.default.conf
 
-USER nginx
+USER 65532
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --quiet --tries=1 --spider http://127.0.0.1:8080/ || exit 1
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["-e", "/dev/stderr", "-g", "daemon off;"]
