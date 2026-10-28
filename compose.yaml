@@ -693,6 +693,8 @@ services:
     environment:
       VAULT_ADDR: "http://vault:8200"
       VAULT_TOKEN: "${VAULT_TOKEN:-root}"
+      POSTGRES_USER: "${POSTGRES_USER:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
     entrypoint:
       - /bin/sh
       - -c
@@ -708,10 +710,10 @@ services:
         
         echo "📦 [Vault Auto-Init] Seeding microservice secrets..."
         vault kv put secret/application spring.datasource.username="postgres" spring.datasource.password="postgres" jwt.secret="super-secure-jwt-secret-key-3300" 2>/dev/null || true
-        vault kv put secret/products-service spring.datasource.url="jdbc:postgresql://db-products:5432/ms_products" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/orders-service spring.datasource.url="jdbc:postgresql://db-orders:5432/ms_orders" spring.datasource.username="postgres" spring.datasource.password="postgres" spring.kafka.bootstrap-servers="kafka:9092" spring.kafka.properties.security.protocol="PLAINTEXT" 2>/dev/null || true
-        vault kv put secret/inventory-service spring.datasource.url="jdbc:postgresql://db-inventory:5432/ms_inventory" spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
-        vault kv put secret/notification-service spring.kafka.bootstrap-servers="kafka:9092" spring.kafka.properties.security.protocol="PLAINTEXT" spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
+        vault kv put secret/products-service spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
+        vault kv put secret/orders-service spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
+        vault kv put secret/inventory-service spring.datasource.username="postgres" spring.datasource.password="postgres" 2>/dev/null || true
+        vault kv put secret/notification-service spring.mail.username="notification@microservices.local" spring.mail.password="dev-mail-password" 2>/dev/null || true
         vault kv put secret/cosmo-router keycloak.client-secret="microservices-client-secret-key-3300" keycloak.issuer-uri="http://keycloak:8181/realms/microservices-realm" 2>/dev/null || true
         
         echo "🔐 [Vault Auto-Init] Enabling Transit Encryption Engine..."
@@ -720,14 +722,39 @@ services:
         
         echo "🗄️ [Vault Auto-Init] Enabling Dynamic Database Engine..."
         vault secrets enable database 2>/dev/null || true
+        # Products Service Database
         vault write database/config/postgres-products \
             plugin_name=postgresql-database-plugin \
             allowed_roles="products-db-role" \
             connection_url="postgresql://{{username}}:{{password}}@db-products:5432/ms_products?sslmode=disable" \
-            username="postgres" \
-            password="postgres" 2>/dev/null || true
+            username="$${POSTGRES_USER}" \
+            password="$${POSTGRES_PASSWORD}" 2>/dev/null || true
         vault write database/roles/products-db-role \
             db_name=postgres-products \
+            creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+            default_ttl="1h" \
+            max_ttl="24h" 2>/dev/null || true
+        # Orders Service Database
+        vault write database/config/postgres-orders \
+            plugin_name=postgresql-database-plugin \
+            allowed_roles="orders-db-role" \
+            connection_url="postgresql://{{username}}:{{password}}@db-orders:5432/ms_orders?sslmode=disable" \
+            username="$${POSTGRES_USER}" \
+            password="$${POSTGRES_PASSWORD}" 2>/dev/null || true
+        vault write database/roles/orders-db-role \
+            db_name=postgres-orders \
+            creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
+            default_ttl="1h" \
+            max_ttl="24h" 2>/dev/null || true
+        # Inventory Service Database
+        vault write database/config/postgres-inventory \
+            plugin_name=postgresql-database-plugin \
+            allowed_roles="inventory-db-role" \
+            connection_url="postgresql://{{username}}:{{password}}@db-inventory:5432/ms_inventory?sslmode=disable" \
+            username="$${POSTGRES_USER}" \
+            password="$${POSTGRES_PASSWORD}" 2>/dev/null || true
+        vault write database/roles/inventory-db-role \
+            db_name=postgres-inventory \
             creation_statements="CREATE ROLE \"{{name}}\" WITH LOGIN PASSWORD '{{password}}' VALID UNTIL '{{expiration}}'; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO \"{{name}}\";" \
             default_ttl="1h" \
             max_ttl="24h" 2>/dev/null || true
