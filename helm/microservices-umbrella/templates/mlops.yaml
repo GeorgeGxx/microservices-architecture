@@ -73,6 +73,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: mlflow
@@ -170,6 +172,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: demand-sales-capture
@@ -227,17 +231,21 @@ spec:
             - name: MLOPS_MIN_PARTITIONS
               value: "{{ .Values.mlops.training.minPartitions | default 9 }}"
             - name: MLOPS_AUTO_TRAIN_INTERVAL_SEC
-              value: "{{ .Values.mlops.training.autoTrainIntervalSec | default 20 }}"
+              value: "{{ .Values.mlops.training.autoTrainIntervalSec | default 60 }}"
             - name: MLOPS_AUTO_TRAIN_STABILITY_SECONDS
               value: "{{ .Values.mlops.training.autoTrainStabilitySeconds | default 60 }}"
             - name: HOME
               value: /tmp
             - name: SPARK_LOCAL_IP
               value: 127.0.0.1
+            - name: SPARK_DRIVER_MEMORY
+              value: {{ .Values.mlops.training.sparkDriverMemory | default "1g" | quote }}
+            - name: SPARK_SHUFFLE_PARTITIONS
+              value: {{ .Values.mlops.training.sparkShufflePartitions | default "4" | quote }}
           resources:
             requests:
-              cpu: {{ .Values.mlops.training.resources.requests.cpu | default "1" }}
-              memory: {{ .Values.mlops.training.resources.requests.memory | default "2Gi" }}
+              cpu: {{ .Values.mlops.training.resources.requests.cpu | default "250m" }}
+              memory: {{ .Values.mlops.training.resources.requests.memory | default "1Gi" }}
               ephemeral-storage: 1Gi
             limits:
               cpu: {{ .Values.mlops.training.resources.limits.cpu | default "4" }}
@@ -284,6 +292,8 @@ metadata:
     argocd.argoproj.io/sync-wave: "3"
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: demand-forecast-service

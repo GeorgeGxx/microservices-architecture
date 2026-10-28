@@ -73,6 +73,7 @@ class TrainDemandModelTests(unittest.TestCase):
         builder = MagicMock()
         builder.appName.return_value = builder
         builder.master.return_value = builder
+        builder.config.return_value = builder
         builder.getOrCreate.return_value = spark
         spark_session = SimpleNamespace(builder=builder)
         functions = MagicMock()
