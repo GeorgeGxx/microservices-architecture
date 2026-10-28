@@ -326,6 +326,50 @@ def _record_completed_auto_state(auto: bool, state_path: Path | None, fingerprin
     print("Training completed; the dataset fingerprint was recorded.", flush=True)
 
 
+def _acquire_training_lock(lock_path: Path) -> bool:
+    """
+    Attempts to acquire an exclusive file lock for training execution.
+    Returns True if the lock was successfully acquired or if lock enforcement is bypassed.
+    Returns False ONLY if another active training process is currently executing.
+    """
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        if lock_path.exists():
+            try:
+                pid_str = lock_path.read_text(encoding="ascii").strip()
+                if pid_str.isdigit():
+                    pid = int(pid_str)
+                    try:
+                        os.kill(pid, 0)
+                        print(f"Training execution skipped: another training process (PID {pid}) is currently active.", flush=True)
+                        return False
+                    except (ProcessLookupError, PermissionError):
+                        lock_path.unlink(missing_ok=True)
+                elif time.time() - lock_path.stat().st_mtime > 120:
+                    lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(lock_fd, "w") as f:
+            f.write(f"{os.getpid()}\n")
+        return True
+    except FileExistsError:
+        print("Training execution skipped: another training process is currently active.", flush=True)
+        return False
+    except OSError as exc:
+        print(f"Warning: could not enforce training lock at {lock_path}: {exc}. Proceeding without lock.", flush=True)
+        return True
+
+
+def _release_training_lock(lock_path: Path | None) -> None:
+    if lock_path is not None:
+        try:
+            lock_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     inputs = parser.add_mutually_exclusive_group()
@@ -356,30 +400,17 @@ def main() -> int:
     if resolved_parquet:
         args.input_parquet = resolved_parquet
 
-    lock_path = Path(os.getenv("MLOPS_TRAIN_LOCK_PATH", "/data/checkpoints/auto-training/train.lock")).resolve()
-    try:
-        lock_path.parent.mkdir(parents=True, exist_ok=True)
-        if lock_path.exists():
-            try:
-                pid_str = lock_path.read_text(encoding="ascii").strip()
-                if pid_str.isdigit():
-                    pid = int(pid_str)
-                    try:
-                        os.kill(pid, 0)
-                        print(f"Training execution skipped: another training process (PID {pid}) is currently active.", flush=True)
-                        return 0
-                    except (ProcessLookupError, PermissionError):
-                        lock_path.unlink(missing_ok=True)
-                elif time.time() - lock_path.stat().st_mtime > 120:
-                    lock_path.unlink(missing_ok=True)
-            except OSError:
-                pass
-        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        with os.fdopen(lock_fd, "w") as f:
-            f.write(f"{os.getpid()}\n")
-    except (FileExistsError, OSError):
-        print("Training execution skipped: another training process is currently active.", flush=True)
-        return 0
+    lock_path: Path | None = None
+    if os.getenv("MLOPS_TRAIN_LOCK_PATH"):
+        lock_path = Path(os.environ["MLOPS_TRAIN_LOCK_PATH"]).resolve()
+    elif args.auto and state_path:
+        lock_path = state_path.with_name("train.lock")
+    elif args.auto:
+        lock_path = Path("/data/checkpoints/auto-training/train.lock")
+
+    if lock_path is not None:
+        if not _acquire_training_lock(lock_path):
+            return 0
 
     import mlflow
     import numpy as np
@@ -518,10 +549,7 @@ def main() -> int:
             spark.stop()
         except Exception:
             pass
-        try:
-            lock_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        _release_training_lock(lock_path)
 
 
 if __name__ == "__main__":

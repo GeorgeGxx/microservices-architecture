@@ -510,6 +510,52 @@ class TrainDemandModelTests(unittest.TestCase):
         mlflow2.set_tag.assert_any_call("model_role", "champion")
         mlflow2.log_metric.assert_any_call("prior_champion_rmse", 10.0)
 
+    def test_acquire_and_release_training_lock_lifecycle(self) -> None:
+        import os
+        from train_demand_model import _acquire_training_lock, _release_training_lock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "test.lock"
+            # 1. Acquire
+            self.assertTrue(_acquire_training_lock(lock_path))
+            self.assertTrue(lock_path.is_file())
+            self.assertEqual(lock_path.read_text(encoding="ascii").strip(), str(os.getpid()))
+
+            # 2. Release
+            _release_training_lock(lock_path)
+            self.assertFalse(lock_path.exists())
+
+    def test_acquire_training_lock_skips_when_active_process_exists(self) -> None:
+        import os
+        from train_demand_model import _acquire_training_lock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "test.lock"
+            # Pre-create lock with our own PID (guaranteed to be active)
+            lock_path.write_text(f"{os.getpid()}\n", encoding="ascii")
+            self.assertFalse(_acquire_training_lock(lock_path))
+
+    def test_acquire_training_lock_reclaims_stale_lock(self) -> None:
+        import os
+        from train_demand_model import _acquire_training_lock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "test.lock"
+            # Use an arbitrary inactive PID and mock os.kill to raise ProcessLookupError
+            lock_path.write_text("999999\n", encoding="ascii")
+            with patch("os.kill", side_effect=ProcessLookupError):
+                self.assertTrue(_acquire_training_lock(lock_path))
+                self.assertEqual(lock_path.read_text(encoding="ascii").strip(), str(os.getpid()))
+
+    def test_acquire_training_lock_handles_unwritable_path(self) -> None:
+        from train_demand_model import _acquire_training_lock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "unwritable" / "test.lock"
+            with patch.object(Path, "mkdir", side_effect=PermissionError("Permission denied")):
+                # When filesystem is unwritable, should warn and proceed (return True) rather than fail
+                self.assertTrue(_acquire_training_lock(lock_path))
+
 
 if __name__ == "__main__":
     unittest.main()
