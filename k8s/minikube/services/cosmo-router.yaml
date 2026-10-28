@@ -312,6 +312,7 @@ spec:
         app: cosmo-router
         version: "0.362.0"
       annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
         prometheus.io/scrape: "true"
         prometheus.io/port: "9090"
         prometheus.io/path: "/metrics"

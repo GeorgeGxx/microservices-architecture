@@ -25,6 +25,7 @@ spec:
         app: orders-service
         version: "1.0.0"
       annotations:
+        sidecar.istio.io/rewriteAppHTTPProbers: "true"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8003"
         prometheus.io/path: "/actuator/orders/prometheus"
