@@ -228,7 +228,7 @@ Every release candidate promoted to production must contain:
 3. **Supply Chain Provenance (Sigstore Cosign):** Cryptographically signed container image verifiable against [`cosign.pub`](../../devsecops/compliance/cosign/cosign.pub) before admission into the cluster.
 4. **SBOM & Clean Security Gate:** CycloneDX SBOM generated and zero unaddressed CRITICAL vulnerabilities confirmed by Trivy.
 5. **GitOps Desired State Declaration:** Pinned version or digest committed to `helm/microservices-umbrella/values.yaml` or target environment values.
-6. **Backward-Compatible Database Migrations:** Database schema migrations (Liquibase/Flyway/PostgreSQL) strictly following the *Expand/Contract* pattern so that rolling back to version $N-1$ never corrupts active persistent data.
+6. **Backward-Compatible Database Schema Evolution:** Database schema updates strictly following the *Expand/Contract* pattern so that rolling back to version $N-1$ never corrupts active persistent data.
 
 ### 2. Zero-Downtime Switch Procedure to a New Version
 When promoting a new version (e.g. `1.0.1`):

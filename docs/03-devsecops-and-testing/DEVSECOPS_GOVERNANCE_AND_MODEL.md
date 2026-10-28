@@ -35,7 +35,7 @@ The operating model coordinates six distinct cross-functional roles across the e
 
 * 🔵 **Business / Product Owner (PO):** Defines value streams, functional acceptance criteria (Given-When-Then), releases authorization, and sprint priority.
 * 🟢 **Team Leads / Solution Architecture:** Governs Architecture Decision Records (ADRs), non-functional requirements (NFRs), schema design, and code quality benchmarks.
-* 🔴 **Developers:** Implements Test-Driven Development (TDD), clean code, pre-commit hygiene, atomic feature branches, and database migrations (Flyway).
+* 🔴 **Developers:** Implements Test-Driven Development (TDD), clean code, pre-commit hygiene, atomic feature branches, and declarative schema evolution (JPA/Hibernate).
 * 🟡 **Cybersecurity / SecOps:** Conducts threat modeling (STRIDE / abuse cases), enforces security quality gates, manages CVE triage, and audits runtime security posture.
 * 🟠 **Testers / QA Automation:** Engineers automated API contract tests (Newman), integration suites, and resilience/load benchmarks (k6).
 * 🔘 **Infrastructure / DevOps / SRE:** Provisions immutable IaC (Terraform), Helm charts, GitOps delivery (ArgoCD), service mesh (Istio), and telemetry collection (OTel, Grafana Alloy, Prometheus, Loki, Tempo).
@@ -81,7 +81,7 @@ flowchart TD
         CODE["🔨 Implementation & Pre-commit<br/>• Local linting & formatting<br/>• Gitleaks secret detection hook"]:::dev
         PR["👥 Peer Review & Pull Request<br/>• Code review by Tech Leads<br/>• Conventional Commits verification"]:::lead
         DoD1(["🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage &ge; 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Misconfiguration (Trivy) & Policy (Conftest Rego)"]):::gate
-        BUILD["📦 Immutable Container Build<br/>• Multi-stage non-root distroless build<br/>• Trivy image scan & Cosign signature"]:::ops
+        BUILD["📦 Immutable Container Build<br/>• 100% Non-root distroless (Java Debian & Chainguard Nginx)<br/>• Trivy image scan & Cosign signature"]:::ops
 
         DoR -->|Ready for Sprint| TDD
         TDD --> CODE
@@ -160,7 +160,7 @@ sequenceDiagram
     Note over Biz,Dev: Phase 2: Agile Refinement & Construction
     Biz->>Dev: Refined User Stories & Acceptance Criteria
     Dev->>Dev: TDD, Clean Code, Local Linting (Pre-commit)
-    Dev->>Dev: Versioned DB Migrations (Flyway) & IaC (Terraform)
+    Dev->>Dev: Non-destructive DB Schema Evolution & IaC (Terraform)
     Dev->>Dev: Open Pull Request to 'develop'
     end
 

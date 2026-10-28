@@ -474,13 +474,26 @@ kubectl describe pod -l app=keycloak -n dev | Select-String -Pattern "Startup" -
 
 # 2. Direct CLI Inspection (Troubleshooting & Debugging):
 # Via host Vault CLI (when port-forward or tunnel is active on localhost:8200):
-$env:VAULT_ADDR = "http://localhost:8200"
+# NOTE: Set $env:VAULT_ADDR in the active session to avoid HTTPS fallback errors.
+$env:VAULT_ADDR = "http://127.0.0.1:8200"
 $env:VAULT_TOKEN = "root"
+vault status
+
+# Read static KV-v2 service secrets:
 vault kv get secret/products-service
 
-# Via Minikube container exec:
-kubectl exec -it -n vault deploy/vault -- vault kv get secret/products-service
-kubectl exec -it -n vault deploy/vault -- vault policy list
+# Request dynamic PostgreSQL credentials (ephemeral 1h TTL):
+vault read database/creds/products-db-role
+vault read database/creds/orders-db-role
+vault read database/creds/inventory-db-role
+
+# List and audit active dynamic leases:
+vault list sys/leases/lookup/database/creds/products-db-role
+
+# Via Minikube container exec (pod-level direct execution):
+$vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}")
+kubectl exec -it -n vault $vaultPod -- vault kv get secret/products-service
+kubectl exec -it -n vault $vaultPod -- vault policy list
 
 # 3. Vault Agent Sidecar Injector Verification:
 kubectl exec -it <pod-name> -n dev -c <app-container> -- cat /vault/secrets/database.env

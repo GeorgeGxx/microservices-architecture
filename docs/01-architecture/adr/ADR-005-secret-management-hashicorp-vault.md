@@ -53,10 +53,23 @@ We require a secret management architecture that:
 
 Chosen option: **Option 2 (HashiCorp Vault)**.
 
+### Architectural Blueprint & Enabled Engines
+1. **KV-v2 Secrets Engine (`secret/`):**
+   * Hierarchical paths (`secret/products-service`, `secret/orders-service`, `secret/inventory-service`, `secret/notification-service`, `secret/cosmo-router`, `secret/application`).
+   * Automated versioning, soft deletion, and rollback for static credentials and JWT keys.
+2. **Dynamic Database Secrets Engine (`database/`):**
+   * Configured connections to isolated service databases (`postgres-products`, `postgres-orders`, `postgres-inventory`).
+   * Dynamic ephemeral PostgreSQL users created on demand (`products-db-role`, `orders-db-role`, `inventory-db-role`) with automated 1-hour lease TTL (`max_ttl: 24h`) and automatic role dropping on lease expiration or revocation.
+3. **Transit Encryption Engine (`transit/`):**
+   * Encryption-as-a-Service (`transit/keys/microservices-data-key`) utilizing AES-256-GCM for PII/credit card data encryption before storage, ensuring application runtimes never store encryption keys.
+4. **Local Developer & Operator Parity:**
+   * Full Windows host CLI support (`vault.exe`) via `http://127.0.0.1:8200` with automated fallback to `kubectl exec` inside `platform-minikube.ps1 vault`.
+
 ### Positive Consequences
 * **Service-Level Isolation:** Microservices authenticate via Kubernetes ServiceAccount tokens. `products-service` is granted read-only access to `secret/data/microservices/products` and cannot read order or payment secrets.
-* **Automated Local Seeding:** In Minikube, `Initialize-LocalVault` in `platform-minikube.ps1` automatically unseals Vault, enables KV-v2, and populates credentials parsed dynamically from `.env`.
+* **Automated Local Seeding:** In Minikube, `Initialize-LocalVault` in `platform-minikube.ps1` automatically unseals Vault, enables KV-v2, configures database engines, Transit keys, and populates credentials parsed dynamically from `.env`.
 * **Zero Leak Risk:** Gitleaks pre-commit hooks ensure raw secrets cannot enter Git history.
+* **Ephemeral Database Access:** Databases no longer require hardcoded microservice passwords in production; credentials rotate continuously via Vault leases.
 
 ### Negative Consequences / Trade-offs
 * Vault pod must be unsealed and healthy before microservices bootstrap. Handled via automated readiness probes in Helm.

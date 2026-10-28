@@ -119,7 +119,7 @@ mindmap
       HashiCorp Vault KV2 & Transit
       OPA Gatekeeper Policies
       Sigstore Cosign Provenance
-      Non-Root Distroless Containers
+      Non-Root Distroless & Unprivileged Containers
     MLOps & Forecasting
       Kafka Streaming to Parquet
       Continuous PySpark GBT Regressor
@@ -163,7 +163,7 @@ mindmap
 * **OIDC Authentication & PKCE Flow:** Secure browser authentication using Keycloak 26.8.1 with public clients (`microservices_frontend`) and automated JWT bearer token relay to federated GraphQL subgraphs.
 * **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
 * **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, mandatory labels, and prohibiting default `ServiceAccount` usage.
-* **Least-Privilege RBAC & Distroless Runtimes:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false` and non-root distroless container images across `dev`, `staging`, and `prod`.
+* **Least-Privilege RBAC & Hardened Distroless Runtimes:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false`, non-root distroless container images for backend microservices (`gcr.io/distroless/java21-debian13:nonroot`), and zero-CVE non-root distroless Nginx (`cgr.dev/chainguard/nginx:latest` UID 65532) for the frontend SPA across `dev`, `staging`, and `prod`.
 * **Cryptographic Supply-Chain Verification (Sigstore Cosign):** Public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) verified locally via `security-scan` and during multi-cloud image promotion.
 
 ### 4. 🧪 Automated MLOps & Demand Forecasting
@@ -337,6 +337,107 @@ The platform provides enterprise-grade secret management across **4 distinct arc
    * If working with plain Docker Compose, run `docker compose up -d` (the ephemeral `vault-init` container prepares everything with zero manual setup).
 3. **When to use `VAULT_ENABLED: "true"`:**
    * Only toggle `VAULT_ENABLED: "true"` when you are specifically testing Spring Cloud Vault's programmatic lease renewals or running microservices outside Kubernetes.
+
+---
+
+### 🛠️ Strategic Verification Playbook: Dynamic Database Secrets & Rotation
+
+The platform implements HashiCorp Vault's **Database Secrets Engine**, which generates dynamic, ephemeral, high-entropy PostgreSQL credentials on-demand with automated lease expiration (TTL: 1h, Max: 24h). Below are the strategic operational commands for **Docker Compose** and **Minikube**:
+
+#### 1. 🐳 Docker Compose Environment
+
+| Operational Action | Command Line | Verification & Expected Result |
+| :--- | :--- | :--- |
+| **Request Dynamic Credential** | `docker exec -e VAULT_TOKEN=root vault vault read database/creds/products-db-role` | Emits ephemeral `username` (`v-token-...`), random `password`, and unique `lease_id`. |
+| **Audit Active Roles in PostgreSQL** | `docker exec -it db-products psql -U postgres -d ms_products -c "\du"` | Confirms PostgreSQL created the dynamic role with `Password valid until <timestamp>`. |
+| **List Active Leases in Vault** | `docker exec -e VAULT_TOKEN=root vault vault list sys/leases/lookup/database/creds/products-db-role` | Displays all active database leases currently held by clients. |
+| **Inspect Specific Lease TTL** | `docker exec -e VAULT_TOKEN=root vault vault lease lookup <lease_id>` | Shows remaining lease time (`ttl`), renewal count, and expiration date. |
+| **Force Immediate Revocation** | `docker exec -e VAULT_TOKEN=root vault vault lease revoke <lease_id>` | Immediately revokes lease; re-checking PostgreSQL `\du` confirms the role was automatically dropped. |
+
+#### 2. ☸️ Minikube Kubernetes Environment
+
+| Operational Action | Command Line | Verification & Expected Result |
+| :--- | :--- | :--- |
+| **Seed / Initialize Vault** | `pwsh .\platform-minikube.ps1 secrets` | Automatically configures KV-v2, Transit KMS, and connects Vault to PostgreSQL instances across the `data` namespace. |
+| **Request Dynamic Credential** | `$vPod = kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}"`<br>`kubectl exec -n vault $vPod -- vault read database/creds/products-db-role` | Emits dynamic user `v-token-products-...` and password directly from the in-cluster Vault pod. |
+| **Audit Active Roles in PostgreSQL** | `$pPod = kubectl get pods -n data -l app=db-products -o jsonpath="{.items[0].metadata.name}"`<br>`kubectl exec -n data $pPod -c postgres -- psql -U postgres -d ms_products -c "\du"` | Confirms the ephemeral role is live inside the `data` namespace PostgreSQL pod. |
+| **Revoke All Dynamic Leases** | `kubectl exec -n vault $vPod -- vault lease revoke -prefix database/creds/products-db-role` | Revokes all dynamic database credentials for the role across the cluster in one step. |
+
+#### 3. 💻 Local Windows CLI Environment (HashiCorp Vault CLI `vault.exe`)
+
+When developers install HashiCorp Vault CLI locally on Windows (`winget install Hashicorp.Vault`), the CLI connects to the Vault server running in Minikube or Docker Compose through the published port `8200` (`http://127.0.0.1:8200`).
+
+> [!WARNING]
+> **Windows Session Environment Variables vs. Registry (`User`) Scope:**
+> Running `[System.Environment]::SetEnvironmentVariable('VAULT_ADDR', 'http://127.0.0.1:8200', 'User')` writes the variable to the Windows Registry (`HKCU\Environment`), which is only inherited by **new** processes. The current active PowerShell session retains an empty `$env:VAULT_ADDR`.
+> If `$env:VAULT_ADDR` is unset in the current session, `vault.exe` defaults to HTTPS (`https://127.0.0.1:8200`), causing:
+> `Error checking seal status: Get "https://127.0.0.1:8200/v1/sys/seal-status": http: server gave HTTP response to HTTPS client`
+> **Always initialize the current PowerShell session directly:**
+> ```powershell
+> $env:VAULT_ADDR = "http://127.0.0.1:8200"
+> $env:VAULT_TOKEN = "root"
+> ```
+
+##### Dynamic Database Role Minting & Verification Commands:
+
+```powershell
+# 1. Set terminal session environment
+$env:VAULT_ADDR = "http://127.0.0.1:8200"
+$env:VAULT_TOKEN = "root"
+
+# 2. Check cluster Vault status
+vault status
+
+# 3. Mint ephemeral dynamic PostgreSQL credentials (1h TTL)
+vault read database/creds/products-db-role     # Generates v-token-products-... for ms_products
+vault read database/creds/orders-db-role       # Generates v-token-orders-... for ms_orders
+vault read database/creds/inventory-db-role    # Generates v-token-inventor-... for ms_inventory
+
+# 4. Audit active database leases in Vault
+vault list sys/leases/lookup/database/creds/products-db-role
+vault list sys/leases/lookup/database/creds/orders-db-role
+vault list sys/leases/lookup/database/creds/inventory-db-role
+
+# 5. Verify ephemeral users in PostgreSQL databases
+kubectl exec -n data db-products-0 -c postgres -- psql -U postgres -d ms_products -c "\du v-token*"
+kubectl exec -n data db-orders-0 -c postgres -- psql -U postgres -d ms_orders -c "\du v-token*"
+kubectl exec -n data db-inventory-0 -c postgres -- psql -U postgres -d ms_inventory -c "\du v-token*"
+
+# 6. Revoke a specific lease or all leases by role prefix
+vault lease revoke <lease_id>
+vault lease revoke -prefix database/creds/products-db-role
+vault lease revoke -prefix database/creds/
+```
+
+---
+
+### 📦 Workload Deployment Strategies & Compute Sizing Matrix
+
+To balance zero-downtime rolling upgrades with single-replica stateful integrity and avoid Kubernetes node resource exhaustion (such as OOMKilled or Exit 137), workloads follow an explicit deployment strategy and resource sizing policy:
+
+| Workload / Service | Workload Type | Deployment Strategy | Reason & Operational Behavior | Default CPU / Memory Request | Default CPU / Memory Limit |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`frontend`** | Stateless SPA | `RollingUpdate` | Zero downtime. Distroless Nginx UID 65532 with `tmpfs` mounts. | `50m` / `64Mi` | `250m` / `128Mi` |
+| **`cosmo-router`** | Stateless Gateway | `RollingUpdate` | Zero downtime. Federated GraphQL router handling all client traffic. | `100m` / `128Mi` | `500m` / `256Mi` |
+| **`products-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot REST/GraphQL subgraph. | `150m` / `512Mi` | `500m` / `1Gi` |
+| **`orders-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with Kafka producer. | `150m` / `512Mi` | `500m` / `1Gi` |
+| **`inventory-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with Kafka consumer. | `150m` / `512Mi` | `500m` / `1Gi` |
+| **`notification-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with KEDA auto-scaler. | `150m` / `384Mi` | `500m` / `768Mi` |
+| **`demand-forecast-service`** | Stateless ML Inference | `RollingUpdate` / `Recreate` | Serves FastAPI predictions from MLflow champion model artifacts. | `150m` / `512Mi` | `1000m` / `2Gi` |
+| **`demand-sales-capture`** | Stateful Streaming | `Recreate` | **Exclusive Lock & PVC Integrity:** Consumes Kafka order events and writes Parquet snapshots with structured checkpoints to `mlops-sales-data` PVC. `RollingUpdate` is prohibited to prevent checkpoint file lock collisions. | `250m` / `1Gi` | `4000m` / `4Gi` |
+| **`mlflow`** | Stateful Registry | `Recreate` | Single-replica experiment tracking and artifact storage backed by `mlflow-data` PVC. | `100m` / `256Mi` | `500m` / `1Gi` |
+| **`vault`** | Security Vault | `Recreate` | Stateful dev vault server with file storage and in-memory key shares. | `100m` / `256Mi` | `500m` / `512Mi` |
+| **`keycloak`** | Identity Provider | `RollingUpdate` | OIDC provider backed by high-availability PostgreSQL database. | `250m` / `768Mi` | `1000m` / `1.5Gi` |
+| **`kafka` / `zookeeper`** | Messaging Cluster | `StatefulSet` | Ordered identity, persistent volume claims, and stable network identifiers. | `250m` / `512Mi` | `1000m` / `1Gi` |
+| **PostgreSQL Databases** | Database Per Service | `StatefulSet` | `db-products`, `db-orders`, `db-inventory`, `db-keycloak` with dedicated durable PVCs. | `100m` / `256Mi` | `500m` / `1Gi` |
+
+> [!TIP]
+> **PySpark Resource Guardrails:**
+> To eliminate transient `Exit Code 137` (SIGKILL / OOMKilled) in resource-constrained environments (such as Minikube nodes with 4 cores), MLOps training jobs configure:
+> - `spark.driver.memory = "1g"` (prevents JVM heap ballooning)
+> - `spark.sql.shuffle.partitions = "4"` (matches host core count, avoiding 200 default partitions)
+> - `spark.ui.enabled = false` (eliminates port 4040/4041 collisions during scheduled runs)
+> - `PID-based active process lockfiles` (`/data/demand_training.lock`) with `os.kill(pid, 0)` verification to guarantee single-instance training execution.
 
 ---
 
