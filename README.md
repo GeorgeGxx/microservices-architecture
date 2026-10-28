@@ -254,7 +254,7 @@ To deploy the entire production-grade stack on Minikube with **Istio Service Mes
 .\platform-minikube.ps1 tools
 
 # 2. Deploy the full ecosystem (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps):
-.\platform-minikube.ps1 up -Environment dev -WithIstio
+.\platform-minikube.ps1 up -Environment dev
 
 # 3. Verify platform health, pods, NodePorts, and Gatekeeper OPA policies:
 .\platform-minikube.ps1 doctor -Environment dev

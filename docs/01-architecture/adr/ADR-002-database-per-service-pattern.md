@@ -21,7 +21,7 @@ We require a data architecture that guarantees:
 
 ## ⚖️ Decision Drivers
 
-1. **Service Autonomy:** Teams must deploy database schema migrations (via Flyway/JPA) without affecting other domains.
+1. **Service Autonomy:** Teams must deploy database schema evolutions (via JPA/Hibernate Schema Management) without affecting other domains.
 2. **Blast Radius Reduction:** A deadlock or outage in orders must not degrade catalog browsing in products.
 3. **Multi-Tenant Data Isolation:** Ensure GDPR/compliance readiness by strictly isolating user, order, and inventory data.
 4. **Cloud Managed DB Flexibility:** Ability to migrate individual services to specialized datastores (e.g. DynamoDB, Cloud Spanner) without cross-domain impact.
