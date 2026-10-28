@@ -6,7 +6,7 @@ spring:
   config:
     activate:
       on-profile: vault
-    import: "vault://"
+    import: "optional:vault://"
   cloud:
     vault:
       enabled: true

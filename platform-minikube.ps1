@@ -26,7 +26,7 @@ param(
     [switch]$SkipScans = $false,
     [switch]$AutoApprove = $false,
     [switch]$InstallOpenCostPlugin = $false,
-    [ValidateSet("status", "k8s-auth", "istio-pki")]
+    [ValidateSet("status", "k8s-auth", "istio-pki", "seed")]
     [string]$VaultAction = "",
     [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
     [string]$VaultNamespace = "vault",
@@ -1971,6 +1971,7 @@ switch ($Command) {
             "status" { Invoke-VaultStatusAudit -Pod $vaultPod }
             "k8s-auth" { Invoke-VaultKubernetesAuthSetup -Namespace $VaultNamespace -PruneLegacyRole:$PruneLegacyVaultRole }
             "istio-pki" { Invoke-VaultIstioPkiSetup -VaultPod $vaultPod -MeshNamespace $IstioNamespace -Rotate:$RotateVaultPki }
+            "seed" { Initialize-LocalVault }
         }
     }
 
@@ -2132,7 +2133,7 @@ Commands:
   performance   : Runs Grafana k6 SLA latency, throughput, and performance benchmarks.
   dast          : Executes OWASP ZAP baseline dynamic application security scan against frontend.
   canary        : Controls progressive canary rollout (-Action weight|rollout|promote|retire).
-  vault         : Manages HashiCorp Vault operations (-VaultAction status|k8s-auth|istio-pki).
+  vault         : Manages HashiCorp Vault operations (-VaultAction status|k8s-auth|istio-pki|seed).
   mlops         : Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline training.
   secrets       : Generates zero-trust cryptographically secure secrets in Kubernetes namespace.
   cost          : Queries live Kubernetes workload costs via kubectl-cost and OpenCost.
@@ -2161,7 +2162,7 @@ Options:
   -CanaryImageTag <tag>                : Custom tag for canary deployment (default: canary)
   -Action <weight|rollout|promote|retire> : Action for canary or cloudflare commands
   -V1Weight / -V2Weight <0..100>       : Traffic percentage split between stable and canary
-  -VaultAction <status|k8s-auth|istio-pki>: Action for HashiCorp Vault operations
+  -VaultAction <status|k8s-auth|istio-pki|seed>: Action for HashiCorp Vault operations
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
   -Environment <dev|staging|prod>      : Environment scope for FinOps and secrets
   -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 16384, 40g)
@@ -2530,19 +2531,19 @@ except Exception:
 
         if (-not $hasTrainedModel) {
             Write-Host "  ▶ Seeding initial sales data and training baseline MLOps model in Minikube..." -ForegroundColor White
-            $capturePod = (& kubectl get pod -n dev -l app=demand-sales-capture -o jsonpath='{.items[0].metadata.name}').Trim()
+            $capturePod = (& kubectl get pod -n dev -l app=demand-sales-capture --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}').Trim()
             if ($capturePod) {
                 # 1. Publish 30 days of DELIVERED sales events to Kafka topic 'orders-topic'
                 # and generate synthetic_sales.csv. Using Kafka streaming ingestion avoids concurrent
                 # overwrite conflicts with the active Structured Streaming query in demand-sales-capture.
-                & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days 30 --output /data/synthetic_sales.csv 2>&1 | Out-Null
-                & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days 30 --kafka-bootstrap-servers kafka.data.svc.cluster.local:9092 --kafka-topic orders-topic 2>&1 | Out-Null
+                & kubectl exec -n dev $capturePod -c stream-orders -- python /app/generate_sample_sales.py --days 30 --output /data/synthetic_sales.csv 2>&1 | Out-Null
+                & kubectl exec -n dev $capturePod -c stream-orders -- python /app/generate_sample_sales.py --days 30 --kafka-bootstrap-servers kafka.data.svc.cluster.local:9092 --kafka-topic orders-topic 2>&1 | Out-Null
 
-                # 2. Wait up to 30 seconds for the capture stream to persist at least 9 date partitions
-                $deadline = (Get-Date).AddSeconds(30)
+                # 2. Wait up to 45 seconds for the capture stream to persist at least 9 date partitions
+                $deadline = (Get-Date).AddSeconds(45)
                 $useParquet = $false
                 while ((Get-Date) -lt $deadline) {
-                    $partitionCount = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
+                    $partitionCount = & kubectl exec -n dev $capturePod -c stream-orders -- python -c "
 from pathlib import Path
 p = Path('/data/sales_parquet')
 print(len([d for d in p.iterdir() if d.is_dir() and d.name.startswith('date=')]) if p.is_dir() else 0)
@@ -2557,11 +2558,11 @@ print(len([d for d in p.iterdir() if d.is_dir() and d.name.startswith('date=')])
                 # 3. Explicitly train the baseline champion model and track it in MLflow
                 # (without --auto, avoiding the 60-second stability delay and training immediately)
                 $trainingArgs = if ($useParquet) { "--input-parquet", "/data/sales_parquet" } else { "--input-csv", "/data/synthetic_sales.csv" }
-                $trainOutput = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/train_demand_model.py @trainingArgs 2>&1
+                $trainOutput = & kubectl exec -n dev $capturePod -c stream-orders -- python /app/train_demand_model.py @trainingArgs 2>&1
 
                 # Sync auto-training state file so background capture daemon knows this dataset is already trained
                 if ($useParquet) {
-                    & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
+                    & kubectl exec -n dev $capturePod -c stream-orders -- python -c "
 from pathlib import Path
 from train_demand_model import snapshot_dataset, CANDIDATE_STATE_FILENAME
 dataset_path = Path('/data/sales_parquet')
@@ -2575,7 +2576,7 @@ if fp:
                 }
 
                 # 4. Verify the baseline model run in MLflow
-                $verifyCheck = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c "
+                $verifyCheck = & kubectl exec -n dev $capturePod -c stream-orders -- python -c "
 import urllib.request, json
 try:
     with urllib.request.urlopen('http://mlflow:5000/api/2.0/mlflow/experiments/get-by-name?experiment_name=inventory-demand-forecast', timeout=5) as r:
@@ -3278,9 +3279,9 @@ stringData:
 
             Write-Host "`n[3/5] ⏳ Awaiting Workload Readiness in 'dev', 'auth', and 'data'..." -ForegroundColor Yellow
             $criticalWorkloads = @(
-                @{ Ns = "data"; App = "postgres-products"; Name = "PostgreSQL Products DB" },
-                @{ Ns = "data"; App = "postgres-orders"; Name = "PostgreSQL Orders DB" },
-                @{ Ns = "data"; App = "postgres-inventory"; Name = "PostgreSQL Inventory DB" },
+                @{ Ns = "data"; App = "db-products"; Name = "PostgreSQL Products DB" },
+                @{ Ns = "data"; App = "db-orders"; Name = "PostgreSQL Orders DB" },
+                @{ Ns = "data"; App = "db-inventory"; Name = "PostgreSQL Inventory DB" },
                 @{ Ns = "data"; App = "redis"; Name = "Redis Cache" },
                 @{ Ns = "data"; App = "kafka"; Name = "Kafka Event Broker" },
                 @{ Ns = "auth"; App = "keycloak"; Name = "Keycloak IAM" },
@@ -3294,6 +3295,11 @@ stringData:
                 & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
             }
             Write-Host "  [OK] Platform database, IAM, and microservice pods are Ready." -ForegroundColor Green
+
+            $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
+            if ($vaultPod) {
+                Initialize-LocalVault
+            }
 
             Write-Host "`n[4/5] 🌐 Reconciling Ingress & Mesh Routing..." -ForegroundColor Yellow
             if ($EnableIstioMesh) {
@@ -3346,7 +3352,7 @@ stringData:
                 Write-Host "Pausing Minikube cluster (preserves storage and state)..." -ForegroundColor Yellow
                 minikube stop
                 Write-Host "  [OK] Minikube cluster paused." -ForegroundColor Green
-                Write-Host "  [TIP] To fast-resume in <30s without rebuilding, run: .\platform-minikube.ps1 up -Fast" -ForegroundColor Cyan
+                Write-Host "  [TIP] To fast-resume in <30s without rebuilding, run: .\platform-minikube.ps1 start" -ForegroundColor Cyan
             }
         }
 
@@ -3439,11 +3445,65 @@ function Initialize-LocalVault {
         $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET } else { "super-secure-jwt-secret-key-for-microservices-dev-environment-12345" }
         kubectl exec -n vault $vaultPod -- vault secrets enable -path=secret kv-v2 2>$null | Out-Null
         kubectl exec -n vault $vaultPod -- vault kv put secret/application "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" "jwt.secret=$jwtSecret" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/products-service "spring.datasource.url=jdbc:postgresql://db-products:5432/ms_products" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.url=jdbc:postgresql://db-orders:5432/ms_orders" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" "spring.kafka.bootstrap-servers=kafka:9092" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.url=jdbc:postgresql://db-inventory:5432/ms_inventory" "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/notification-service "spring.kafka.bootstrap-servers=kafka:9092" "spring.mail.username=notification@microservices.local" "spring.mail.password=dev-mail-password" 2>$null | Out-Null
-        Write-Host "  [OK] Vault KV-v2 engine initialized and secrets seeded." -ForegroundColor Green
+        kubectl exec -n vault $vaultPod -- vault kv put secret/products-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault kv put secret/notification-service "spring.mail.username=notification@microservices.local" "spring.mail.password=dev-mail-password" 2>$null | Out-Null
+        
+        # Enable Transit Encryption Engine
+        kubectl exec -n vault $vaultPod -- vault secrets enable transit 2>$null | Out-Null
+        kubectl exec -n vault $vaultPod -- vault write -f transit/keys/microservices-data-key type=aes256-gcm96 2>$null | Out-Null
+
+        # Enable Dynamic Database Secrets Engine
+        kubectl exec -n vault $vaultPod -- vault secrets enable database 2>$null | Out-Null
+        
+        $sqlTemplate = 'CREATE ROLE "{{name}}" WITH LOGIN PASSWORD ' + "'" + '{{password}}' + "'" + ' VALID UNTIL ' + "'" + '{{expiration}}' + "'" + '; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{{name}}";'
+
+        # 1. Products Service Database
+        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-products `
+            plugin_name="postgresql-database-plugin" `
+            allowed_roles="products-db-role" `
+            connection_url="postgresql://{{username}}:{{password}}@db-products.data.svc.cluster.local:5432/ms_products?sslmode=disable" `
+            username="$pgUser" `
+            password="$pgPass" 2>$null | Out-Null
+        $rolePayloadProducts = @{
+            db_name = "postgres-products"
+            creation_statements = @($sqlTemplate)
+            default_ttl = "1h"
+            max_ttl = "24h"
+        } | ConvertTo-Json -Compress
+        $rolePayloadProducts | kubectl exec -i -n vault $vaultPod -- vault write database/roles/products-db-role - 2>$null | Out-Null
+
+        # 2. Orders Service Database
+        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-orders `
+            plugin_name="postgresql-database-plugin" `
+            allowed_roles="orders-db-role" `
+            connection_url="postgresql://{{username}}:{{password}}@db-orders.data.svc.cluster.local:5432/ms_orders?sslmode=disable" `
+            username="$pgUser" `
+            password="$pgPass" 2>$null | Out-Null
+        $rolePayloadOrders = @{
+            db_name = "postgres-orders"
+            creation_statements = @($sqlTemplate)
+            default_ttl = "1h"
+            max_ttl = "24h"
+        } | ConvertTo-Json -Compress
+        $rolePayloadOrders | kubectl exec -i -n vault $vaultPod -- vault write database/roles/orders-db-role - 2>$null | Out-Null
+
+        # 3. Inventory Service Database
+        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-inventory `
+            plugin_name="postgresql-database-plugin" `
+            allowed_roles="inventory-db-role" `
+            connection_url="postgresql://{{username}}:{{password}}@db-inventory.data.svc.cluster.local:5432/ms_inventory?sslmode=disable" `
+            username="$pgUser" `
+            password="$pgPass" 2>$null | Out-Null
+        $rolePayloadInventory = @{
+            db_name = "postgres-inventory"
+            creation_statements = @($sqlTemplate)
+            default_ttl = "1h"
+            max_ttl = "24h"
+        } | ConvertTo-Json -Compress
+        $rolePayloadInventory | kubectl exec -i -n vault $vaultPod -- vault write database/roles/inventory-db-role - 2>$null | Out-Null
+        Write-Host "  [OK] Vault KV-v2, Transit & Dynamic Database engines initialized and seeded." -ForegroundColor Green
     }
 }
 
