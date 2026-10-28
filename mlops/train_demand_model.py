@@ -356,6 +356,31 @@ def main() -> int:
     if resolved_parquet:
         args.input_parquet = resolved_parquet
 
+    lock_path = Path(os.getenv("MLOPS_TRAIN_LOCK_PATH", "/data/checkpoints/auto-training/train.lock")).resolve()
+    try:
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
+        if lock_path.exists():
+            try:
+                pid_str = lock_path.read_text(encoding="ascii").strip()
+                if pid_str.isdigit():
+                    pid = int(pid_str)
+                    try:
+                        os.kill(pid, 0)
+                        print(f"Training execution skipped: another training process (PID {pid}) is currently active.", flush=True)
+                        return 0
+                    except (ProcessLookupError, PermissionError):
+                        lock_path.unlink(missing_ok=True)
+                elif time.time() - lock_path.stat().st_mtime > 120:
+                    lock_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(lock_fd, "w") as f:
+            f.write(f"{os.getpid()}\n")
+    except (FileExistsError, OSError):
+        print("Training execution skipped: another training process is currently active.", flush=True)
+        return 0
+
     import mlflow
     import numpy as np
     from sklearn.ensemble import RandomForestRegressor as SklearnRandomForestRegressor
@@ -366,7 +391,14 @@ def main() -> int:
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(args.experiment)
 
-    spark = SparkSession.builder.appName("inventory-demand-training").master("local[*]").getOrCreate()
+    spark = (
+        SparkSession.builder.appName("inventory-demand-training")
+        .master("local[*]")
+        .config("spark.ui.enabled", "false")
+        .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
+        .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "4"))
+        .getOrCreate()
+    )
     spark.sparkContext.setLogLevel("ERROR")
     try:
         sales = read_sales(spark, args.input_csv, args.input_parquet)
@@ -482,7 +514,14 @@ def main() -> int:
         _record_completed_auto_state(args.auto, state_path, fingerprint)
         return 0
     finally:
-        spark.stop()
+        try:
+            spark.stop()
+        except Exception:
+            pass
+        try:
+            lock_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 if __name__ == "__main__":

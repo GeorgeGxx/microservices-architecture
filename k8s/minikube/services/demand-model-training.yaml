@@ -69,10 +69,14 @@ spec:
               value: /tmp
             - name: GIT_PYTHON_REFRESH
               value: quiet
+            - name: SPARK_DRIVER_MEMORY
+              value: "1g"
+            - name: SPARK_SHUFFLE_PARTITIONS
+              value: "4"
           resources:
             requests:
-              cpu: "1"
-              memory: 2Gi
+              cpu: 250m
+              memory: 1Gi
               ephemeral-storage: 1Gi
             limits:
               cpu: "4"

@@ -149,6 +149,9 @@ def run_spark_capture(
              .master("local[*]")
              .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0")
              .config("spark.jars.ivy", ivy_dir)
+             .config("spark.ui.enabled", "false")
+             .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
+             .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "4"))
              .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     try:
@@ -188,7 +191,7 @@ def run_spark_capture(
         print(f"Streaming {topic} from {bootstrap_servers} to Parquet at {output}", flush=True)
         print(f"Checkpoint: {checkpoint_location}. Stop with Ctrl+C.", flush=True)
 
-        auto_train_interval = int(os.getenv("MLOPS_AUTO_TRAIN_INTERVAL_SEC", "30"))
+        auto_train_interval = int(os.getenv("MLOPS_AUTO_TRAIN_INTERVAL_SEC", "60"))
         last_train_check = 0.0
 
         while query.isActive:
