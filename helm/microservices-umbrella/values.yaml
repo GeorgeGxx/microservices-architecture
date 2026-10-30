@@ -32,10 +32,16 @@ configMap:
     NOTIFICATION_SERVICE_NAME: "notification-service"
     ORDERS_SERVICE_NAME: "orders-service"
     PRODUCTS_SERVICE_NAME: "products-service"
+    PAYMENTS_SERVICE_NAME: "payments-service"
+    FULFILLMENT_SERVICE_NAME: "fulfillment-service"
+    ANALYTICS_SERVICE_NAME: "analytics-service"
     INVENTORY_SERVICE_URI: "http://inventory-service:8001"
     ORDERS_SERVICE_URI: "http://orders-service:8003"
     PRODUCTS_SERVICE_URI: "http://products-service:8004"
     NOTIFICATION_SERVICE_URI: "http://notification-service:8002"
+    PAYMENTS_SERVICE_URI: "http://payments-service:8085"
+    FULFILLMENT_SERVICE_URI: "http://fulfillment-service:8086"
+    ANALYTICS_SERVICE_URI: "http://analytics-service:8087"
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.observability.svc.cluster.local:4318"
     TRACING_SAMPLING_PROBABILITY: "1.0"
     REDIS_HOST: "redis"
@@ -66,6 +72,9 @@ secret:
   data: {}
 
 prometheusRule:
+  enabled: true
+
+networkPolicies:
   enabled: true
 
 alertmanagerConfig:
@@ -235,6 +244,96 @@ products-service:
       memory: 1536Mi
   probes:
     initialDelaySeconds: 45
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 1
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+payments-service:
+  serviceAccount:
+    create: false
+    name: "payments-service-sa"
+  resources:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  probes:
+    initialDelaySeconds: 15
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 1
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+fulfillment-service:
+  serviceAccount:
+    create: false
+    name: "fulfillment-service-sa"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  probes:
+    initialDelaySeconds: 20
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 1
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+analytics-service:
+  serviceAccount:
+    create: false
+    name: "analytics-service-sa"
+  resources:
+    requests:
+      cpu: 150m
+      memory: 192Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  probes:
+    initialDelaySeconds: 15
   autoscaling:
     enabled: true
     minReplicas: 1

@@ -46,6 +46,36 @@ spec:
             port:
               number: 8080
 
+    - name: payments-route
+      match:
+        - uri:
+            prefix: /api/v1/payments
+      route:
+        - destination:
+            host: payments-service.dev.svc.cluster.local
+            port:
+              number: 8085
+
+    - name: fulfillment-route
+      match:
+        - uri:
+            prefix: /api/v1/shipments
+      route:
+        - destination:
+            host: fulfillment-service.dev.svc.cluster.local
+            port:
+              number: 8086
+
+    - name: analytics-route
+      match:
+        - uri:
+            prefix: /api/v1/analytics
+      route:
+        - destination:
+            host: analytics-service.dev.svc.cluster.local
+            port:
+              number: 8087
+
     - name: frontend-routes
       match:
         - uri:

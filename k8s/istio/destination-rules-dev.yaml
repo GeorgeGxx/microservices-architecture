@@ -48,3 +48,39 @@ spec:
     - name: v1
       labels:
         version: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: payments-service-dr
+  namespace: dev
+spec:
+  host: payments-service
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: fulfillment-service-dr
+  namespace: dev
+spec:
+  host: fulfillment-service
+  subsets:
+    - name: v1
+      labels:
+        version: v1
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: analytics-service-dr
+  namespace: dev
+spec:
+  host: analytics-service
+  subsets:
+    - name: v1
+      labels:
+        version: v1

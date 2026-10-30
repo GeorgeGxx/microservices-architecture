@@ -14,5 +14,14 @@ dependencies:
 - name: products-service
   repository: file://../charts/products-service
   version: 1.0.1
-digest: sha256:df6d9ed36304dc65a0626bd7ee281e005ef2293106760213c58a3847fe7f694b
-generated: "2026-10-22T14:17:03.6122629-06:00"
+- name: payments-service
+  repository: file://../charts/payments-service
+  version: 1.0.1
+- name: fulfillment-service
+  repository: file://../charts/fulfillment-service
+  version: 1.0.1
+- name: analytics-service
+  repository: file://../charts/analytics-service
+  version: 1.0.1
+digest: sha256:7170cb7a9b0ab0749ed91bbb50c3a6ae94009ec521b522023ce6b1e8759d22a8
+generated: "2026-10-30T08:14:40.1968023-06:00"

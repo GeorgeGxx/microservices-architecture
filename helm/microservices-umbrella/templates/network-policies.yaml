@@ -1,12 +1,15 @@
+{{- if and .Values.networkPolicies .Values.networkPolicies.enabled }}
 # ==============================================================================
-# Zero-Trust L3/L4 Network Policies for namespace 'dev'
+# Zero-Trust L3/L4 Network Policies for Application Namespace ({{ .Release.Namespace }})
 # Defense-in-depth complement to Istio mTLS (Layer 7)
 # ==============================================================================
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-ingress
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector: {}
   policyTypes:
@@ -17,7 +20,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-dns-resolution
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector: {}
   policyTypes:
@@ -38,7 +43,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-ingress-gateway-traffic
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector:
     matchExpressions:
@@ -59,22 +66,34 @@ spec:
         - protocol: TCP
           port: 8080
 ---
-# 03. Allow East-West communication from Cosmo Router & Frontend to Microservices
+# 03. Allow East-West communication from Ingress Gateway, Cosmo Router & Frontend to Microservices
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-microservices-east-west
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector:
     matchExpressions:
       - key: app
         operator: In
-        values: ["products-service", "orders-service", "inventory-service", "notification-service"]
+        values:
+          - "products-service"
+          - "orders-service"
+          - "inventory-service"
+          - "notification-service"
+          - "payments-service"
+          - "fulfillment-service"
+          - "analytics-service"
   policyTypes:
     - Ingress
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
         - podSelector:
             matchLabels:
               app: cosmo-router
@@ -93,13 +112,21 @@ spec:
           port: 8003
         - protocol: TCP
           port: 8004
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8087
 ---
-# 04. Allow Egress to Backing Infrastructure (Data, Auth, Vault)
+# 04. Allow Egress to Backing Infrastructure (Data, Auth, Vault, Observability, Istio)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-backing-infra-egress
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector: {}
   policyTypes:
@@ -127,7 +154,7 @@ spec:
           port: 4318
         - protocol: TCP
           port: 3100
-    # Allow egress to 'data' namespace (PostgreSQL: 5432, Redis: 6379, Kafka: 9092)
+    # Allow egress to 'data' namespace (PostgreSQL 18: 5432, Redis: 6379, Kafka: 9092)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -155,7 +182,7 @@ spec:
       ports:
         - protocol: TCP
           port: 8200
-    # Allow intra-namespace egress between pods in 'dev'
+    # Allow intra-namespace egress between pods
     - to:
         - podSelector: {}
 ---
@@ -164,7 +191,9 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-observability-scraping
-  namespace: dev
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   podSelector: {}
   policyTypes:
@@ -188,8 +217,15 @@ spec:
         - protocol: TCP
           port: 8080
         - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8087
+        - protocol: TCP
           port: 9090
         - protocol: TCP
           port: 15020
         - protocol: TCP
           port: 15090
+{{- end }}

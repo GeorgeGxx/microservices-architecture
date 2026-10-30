@@ -44,3 +44,15 @@ products-service:
   image: { repository: "georgegxxmsaprodacr.azurecr.io/products-service", tag: "1.0.0" }
   replicaCount: 2
   autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+payments-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/payments-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+fulfillment-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/fulfillment-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }
+analytics-service:
+  image: { repository: "georgegxxmsaprodacr.azurecr.io/analytics-service", tag: "1.0.0" }
+  replicaCount: 2
+  autoscaling: { enabled: true, minReplicas: 2, maxReplicas: 6 }

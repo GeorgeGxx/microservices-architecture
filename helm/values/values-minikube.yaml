@@ -84,6 +84,30 @@ products-service:
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+payments-service:
+  image: { repository: georgegxx/payments-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "payments-service-sa"
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+fulfillment-service:
+  image: { repository: georgegxx/fulfillment-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "fulfillment-service-sa"
+  resources:
+    requests: { cpu: 200m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+analytics-service:
+  image: { repository: georgegxx/analytics-service, tag: "1.0.0" }
+  serviceAccount:
+    create: false
+    name: "analytics-service-sa"
+  resources:
+    requests: { cpu: 150m, memory: 192Mi }
+    limits: { cpu: 500m, memory: 512Mi }
 
 mlops:
   enabled: true

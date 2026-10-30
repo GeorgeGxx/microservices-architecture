@@ -103,6 +103,54 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: db-payments
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-payments.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-fulfillment
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-fulfillment.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-analytics
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: db-analytics.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: db-keycloak
   namespace: dev
   labels:

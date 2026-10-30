@@ -79,6 +79,45 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  name: db-payments
+  namespace: staging
+spec:
+  type: ExternalName
+  externalName: db-payments.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-fulfillment
+  namespace: staging
+spec:
+  type: ExternalName
+  externalName: db-fulfillment.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-analytics
+  namespace: staging
+spec:
+  type: ExternalName
+  externalName: db-analytics.data.svc.cluster.local
+  ports:
+    - name: tcp-postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: v1
+kind: Service
+metadata:
   name: db-keycloak
   namespace: staging
 spec:
