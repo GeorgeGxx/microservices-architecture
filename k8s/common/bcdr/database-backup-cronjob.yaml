@@ -70,13 +70,16 @@ spec:
               args:
                 - |
                   timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-                  databases="ms_keycloak ms_inventory ms_orders ms_products"
+                  databases="ms_keycloak ms_inventory ms_orders ms_products ms_payments ms_fulfillment ms_analytics"
                   for database in $databases; do
                     case "$database" in
                       ms_keycloak) host=db-keycloak.auth.svc.cluster.local ;;
                       ms_inventory) host=db-inventory.data.svc.cluster.local ;;
                       ms_orders) host=db-orders.data.svc.cluster.local ;;
                       ms_products) host=db-products.data.svc.cluster.local ;;
+                      ms_payments) host=db-payments.data.svc.cluster.local ;;
+                      ms_fulfillment) host=db-fulfillment.data.svc.cluster.local ;;
+                      ms_analytics) host=db-analytics.data.svc.cluster.local ;;
                     esac
                     final="/backups/${database}_${timestamp}.dump"
                     temporary="${final}.partial"
@@ -188,7 +191,7 @@ spec:
                   pg_ctl -D "$data_dir" -o "-h 127.0.0.1 -p 55432" -w start >/dev/null
                   cleanup() { pg_ctl -D "$data_dir" -m immediate -w stop >/dev/null || true; }
                   trap cleanup EXIT
-                  databases="ms_keycloak ms_inventory ms_orders ms_products"
+                  databases="ms_keycloak ms_inventory ms_orders ms_products ms_payments ms_fulfillment ms_analytics"
                   for database in $databases; do
                     latest="$(ls -1t "/backups/${database}_"*.dump 2>/dev/null | head -n 1 || true)"
                     if [ -z "$latest" ]; then

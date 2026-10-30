@@ -30,3 +30,33 @@ metadata:
     azure.workload.identity/client-id: "33333333-3333-3333-3333-333333333333"
   labels:
     azure.workload.identity/use: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-service
+  namespace: prod
+  annotations:
+    azure.workload.identity/client-id: "44444444-4444-4444-4444-444444444444"
+  labels:
+    azure.workload.identity/use: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fulfillment-service
+  namespace: prod
+  annotations:
+    azure.workload.identity/client-id: "55555555-5555-5555-5555-555555555555"
+  labels:
+    azure.workload.identity/use: "true"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: analytics-service
+  namespace: prod
+  annotations:
+    azure.workload.identity/client-id: "66666666-6666-6666-6666-666666666666"
+  labels:
+    azure.workload.identity/use: "true"

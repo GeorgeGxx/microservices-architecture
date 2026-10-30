@@ -87,6 +87,36 @@ spec:
             port:
               number: 8005
 
+    # 1.6 Payments Processing & Refunds API -> Routed to Payments Service
+    - match:
+        - uri:
+            prefix: /api/v1/payments
+      route:
+        - destination:
+            host: payments-service.dev.svc.cluster.local
+            port:
+              number: 8085
+
+    # 1.7 Fulfillment & Logistics Tracking API -> Routed to Fulfillment Service
+    - match:
+        - uri:
+            prefix: /api/v1/shipments
+      route:
+        - destination:
+            host: fulfillment-service.dev.svc.cluster.local
+            port:
+              number: 8086
+
+    # 1.8 Real-Time Analytics & Abandonment API -> Routed to Analytics Service
+    - match:
+        - uri:
+            prefix: /api/v1/analytics
+      route:
+        - destination:
+            host: analytics-service.dev.svc.cluster.local
+            port:
+              number: 8087
+
     # 2. Keycloak Auth requests -> Routed to Keycloak
     - match:
         - uri:

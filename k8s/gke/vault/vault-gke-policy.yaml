@@ -24,3 +24,27 @@ metadata:
   namespace: prod
   annotations:
     iam.gke.io/gcp-service-account: "cosmo-router@msa-production-project.iam.gserviceaccount.com"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-service
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "payments-service@msa-production-project.iam.gserviceaccount.com"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fulfillment-service
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "fulfillment-service@msa-production-project.iam.gserviceaccount.com"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: analytics-service
+  namespace: prod
+  annotations:
+    iam.gke.io/gcp-service-account: "analytics-service@msa-production-project.iam.gserviceaccount.com"

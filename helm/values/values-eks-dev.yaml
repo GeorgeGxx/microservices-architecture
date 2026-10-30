@@ -27,6 +27,24 @@ products-service:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/products-service"
     tag: "1.0.0"
   replicaCount: 1
+
+payments-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/payments-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+fulfillment-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/fulfillment-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+analytics-service:
+  image:
+    repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/analytics-service"
+    tag: "1.0.0"
+  replicaCount: 1
   # Example activation of Vault Agent Injector in EKS:
   # podAnnotations:
   #   vault.hashicorp.com/agent-inject: "true"

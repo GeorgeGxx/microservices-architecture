@@ -28,6 +28,24 @@ products-service:
     tag: "1.0.0"
   replicaCount: 1
 
+payments-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/payments-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+fulfillment-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/fulfillment-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
+analytics-service:
+  image:
+    repository: "<ACR_NAME>.azurecr.io/analytics-service"
+    tag: "1.0.0"
+  replicaCount: 1
+
 frontend:
   enabled: false
   image:

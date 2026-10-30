@@ -1,0 +1,94 @@
+replicaCount: 1
+
+image:
+  repository: georgegxx/analytics-service
+  tag: "1.0.0"
+  digest: ""
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8087
+
+containerPort: 8087
+
+resources:
+  requests:
+    cpu: 150m
+    memory: 192Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+
+keda:
+  enabled: false
+  minReplicaCount: 1
+  maxReplicaCount: 3
+  pollingInterval: 15
+  cooldownPeriod: 300
+  cpu:
+    enabled: true
+    targetUtilizationPercentage: 70
+  memory:
+    enabled: false
+    targetUtilizationPercentage: 80
+
+probes:
+  readinessPath: /health
+  livenessPath: /health
+  initialDelaySeconds: 15
+
+env:
+  PORT: "8087"
+  DB_HOST: "db-analytics"
+  DB_PORT: "5432"
+  DB_NAME: "ms_analytics"
+  KAFKA_ORDERS_TOPIC: "orders-topic"
+  KAFKA_PAYMENTS_TOPIC: "payments-topic"
+  KAFKA_FULFILLMENT_TOPIC: "fulfillment-topic"
+  KAFKA_GROUP_ID: "analytics-service-group"
+
+envFrom:
+  configMapRef: microservices-config
+  secretRef: microservices-secrets
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+serviceAccount:
+  create: true
+  name: ""
+  automountServiceAccountToken: false
+  annotations: {}
+
+serviceMonitor:
+  enabled: true
+  interval: 15s
+  path: /metrics
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8087"
+  prometheus.io/path: "/metrics"

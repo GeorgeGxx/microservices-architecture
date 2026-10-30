@@ -1,0 +1,13 @@
+{{- if and .Values.podDisruptionBudget .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "analytics-service.fullname" . }}
+  labels:
+    {{- include "analytics-service.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable | default 1 }}
+  selector:
+    matchLabels:
+      app: analytics-service
+{{- end }}

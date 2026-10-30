@@ -33,6 +33,30 @@ metadata:
   annotations:
     eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/CosmoRouterEKSRole"
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/PaymentsServiceEKSRole"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fulfillment-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/FulfillmentServiceEKSRole"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: analytics-service
+  namespace: prod
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/AnalyticsServiceEKSRole"
+---
 # Documentation ConfigMap for Vault EKS setup commands
 apiVersion: v1
 kind: ConfigMap
