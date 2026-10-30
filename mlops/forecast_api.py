@@ -406,6 +406,14 @@ def _forecast_product(
 
 @app.get("/health")
 def health() -> dict[str, str]:
+    try:
+        load_latest_model()
+        _, _, _, last_date = _daily_history()
+        LAST_OBSERVED_SALE.set(
+            datetime.combine(last_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
+        )
+    except Exception:
+        pass
     return {"status": "UP"}
 
 

@@ -11,6 +11,10 @@ from app.infrastructure.metrics import (
     cart_abandonment_gauge,
     cohort_orders_gauge,
     cohort_revenue_gauge,
+    orders_gauge,
+    revenue_gauge,
+    active_pipeline_gauge,
+    sku_sales_gauge,
 )
 
 logger = logging.getLogger("AnalyticsKafkaConsumer")
@@ -88,6 +92,8 @@ class AnalyticsKafkaConsumer:
             sales_totals = await state_repo.get_sales_totals()
             cart_adds = funnel_counts.get("CART_ADD", 0)
             completed = sales_totals.get("completed_orders", 0)
+            orders_gauge.labels("COMPLETED").set(completed)
+            revenue_gauge.set(round(sales_totals.get("total_revenue_usd", 0.0), 2))
             if cart_adds > 0:
                 abandonment = max(0.0, (cart_adds - completed) / cart_adds * 100.0)
                 cart_abandonment_gauge.set(round(abandonment, 2))
@@ -106,16 +112,37 @@ class AnalyticsKafkaConsumer:
     async def _process_message(self, msg):
         try:
             payload = json.loads(msg.value.decode("utf-8"))
-            if not self._is_completed_payment(msg.topic, payload):
-                return
+            topic = msg.topic
 
-            order_number = payload.get("order_number") or payload.get("orderNumber")
-            amount = float(payload.get("amount") or 0.0)
-            user_id = payload.get("user_id") or payload.get("userId") or "user"
-            items_count = int(payload.get("items_count") or 1)
+            # 1. Pipeline and SKU Sales Tracking from orders-topic
+            if topic == settings.kafka_orders_topic:
+                status = str(payload.get("orderStatus") or payload.get("status") or "").upper()
+                if status in ("PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"):
+                    active_pipeline_gauge.labels(status).inc()
+                if status == "CANCELLED":
+                    orders_gauge.labels("CANCELLED").inc()
+                for item in payload.get("items") or []:
+                    sku = str(item.get("sku") or "")
+                    qty = int(item.get("quantity") or 1)
+                    if sku:
+                        sku_sales_gauge.labels(sku).inc(qty)
 
-            if order_number and amount > 0:
-                await self._record_completed_payment(order_number, amount, user_id, items_count)
+            # 2. Fulfillment Tracking from fulfillment-topic
+            elif topic == settings.kafka_fulfillment_topic:
+                event_type = str(payload.get("eventType") or payload.get("event_type") or "").upper()
+                if event_type == "SHIPMENT_DISPATCHED":
+                    active_pipeline_gauge.labels("IN_TRANSIT").inc()
+                elif event_type == "SHIPMENT_DELIVERED":
+                    active_pipeline_gauge.labels("DELIVERED").inc()
+
+            # 3. Completed Payment Tracking
+            if self._is_completed_payment(topic, payload):
+                order_number = payload.get("order_number") or payload.get("orderNumber")
+                amount = float(payload.get("amount") or 0.0)
+                user_id = payload.get("user_id") or payload.get("userId") or "user"
+                items_count = int(payload.get("items_count") or 1)
+                if order_number and amount > 0:
+                    await self._record_completed_payment(order_number, amount, user_id, items_count)
         except Exception:
             logger.exception("Failed to handle Kafka message")
 

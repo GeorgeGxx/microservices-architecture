@@ -62,6 +62,26 @@ async def test_kafka_consumer_process_ignored_message():
     await consumer._process_message(raw_msg)
 
 @pytest.mark.asyncio
+async def test_kafka_consumer_process_orders_and_fulfillment_messages():
+    consumer = AnalyticsKafkaConsumer()
+    order_msg = MagicMock()
+    order_msg.topic = "orders-topic"
+    order_msg.value = json.dumps({
+        "orderNumber": "ORD-111",
+        "orderStatus": "PLACED",
+        "items": [{"sku": "SKU-1001", "quantity": 3}],
+    }).encode("utf-8")
+    await consumer._process_message(order_msg)
+
+    fulf_msg = MagicMock()
+    fulf_msg.topic = "fulfillment-topic"
+    fulf_msg.value = json.dumps({
+        "eventType": "SHIPMENT_DISPATCHED",
+        "orderNumber": "ORD-111",
+    }).encode("utf-8")
+    await consumer._process_message(fulf_msg)
+
+@pytest.mark.asyncio
 async def test_kafka_consumer_stop():
     import asyncio
     consumer = AnalyticsKafkaConsumer()
