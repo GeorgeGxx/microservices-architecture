@@ -17,8 +17,11 @@ class ForecastApiTests(unittest.TestCase):
         forecast_api._DAILY_HISTORY_CACHE = None
 
     def test_health_endpoint(self) -> None:
-        result = forecast_api.health()
-        self.assertEqual(result, {"status": "UP"})
+        with patch("forecast_api.load_latest_model"), patch(
+            "forecast_api._daily_history", return_value=(None, "test", None, date(2026, 10, 20))
+        ):
+            result = forecast_api.health()
+            self.assertEqual(result, {"status": "UP"})
 
     def test_metrics_endpoint_exposes_ml_gauges(self) -> None:
         response = forecast_api.metrics()
@@ -146,12 +149,12 @@ class ForecastApiTests(unittest.TestCase):
         from fastapi import HTTPException
 
         bad_df = pd.DataFrame([{"wrong_col": 1}])
-        with self.assertRaises(HTTPException) as ctx:
+        with self.assertRaises((HTTPException, forecast_api.SalesDataInvalidError)) as ctx:
             forecast_api._clean_and_aggregate_sales(bad_df, "test")
         self.assertEqual(ctx.exception.status_code, 422)
 
         empty_df = pd.DataFrame(columns=["date", "product_id", "units_sold"])
-        with self.assertRaises(HTTPException) as ctx:
+        with self.assertRaises((HTTPException, forecast_api.SalesDataInvalidError)) as ctx:
             forecast_api._clean_and_aggregate_sales(empty_df, "test")
         self.assertEqual(ctx.exception.status_code, 422)
 
@@ -199,7 +202,7 @@ class ForecastApiTests(unittest.TestCase):
             df_pq = forecast_api._read_sales_file(parquet_path)
             self.assertEqual(len(df_pq), 1)
 
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api._read_sales_file(Path(temp_dir) / "missing.csv")
             self.assertEqual(ctx.exception.status_code, 503)
 
@@ -266,7 +269,7 @@ class ForecastApiTests(unittest.TestCase):
         mock_client = MagicMock()
         mock_client.get_experiment_by_name.return_value = None
         with patch("forecast_api.MlflowClient", return_value=mock_client):
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api.load_latest_model()
             self.assertEqual(ctx.exception.status_code, 503)
 
@@ -370,7 +373,7 @@ class ForecastApiTests(unittest.TestCase):
         client.get_experiment_by_name.return_value.experiment_id = "exp-1"
         client.search_logged_models.return_value = []
         with patch("forecast_api.MlflowClient", return_value=client):
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api.load_latest_model()
         self.assertEqual(ctx.exception.status_code, 503)
 
@@ -378,7 +381,7 @@ class ForecastApiTests(unittest.TestCase):
         from fastapi import HTTPException
 
         with patch("forecast_api.MlflowClient", side_effect=RuntimeError("offline")):
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api.load_latest_model()
         self.assertEqual(ctx.exception.status_code, 503)
 
@@ -399,7 +402,7 @@ class ForecastApiTests(unittest.TestCase):
         negative_df = pd.DataFrame([
             {"date": "2026-10-01", "product_id": "SKU-A", "units_sold": -5},
         ])
-        with self.assertRaises(HTTPException) as ctx:
+        with self.assertRaises((HTTPException, forecast_api.SalesDataInvalidError)) as ctx:
             forecast_api._clean_and_aggregate_sales(negative_df, "test")
         self.assertEqual(ctx.exception.status_code, 422)
 
@@ -408,7 +411,7 @@ class ForecastApiTests(unittest.TestCase):
 
         missing_file = Path("definitely-missing-sales.csv")
         with patch.object(forecast_api, "SALES_DATA_PATH", missing_file):
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api._daily_history()
         self.assertEqual(ctx.exception.status_code, 503)
 
@@ -416,7 +419,7 @@ class ForecastApiTests(unittest.TestCase):
         from fastapi import HTTPException
 
         with patch("forecast_api.pd.read_csv", side_effect=OSError("permission denied")):
-            with self.assertRaises(HTTPException) as ctx:
+            with self.assertRaises((HTTPException, forecast_api.ModelUnavailableError)) as ctx:
                 forecast_api._read_sales_file(Path("sales.csv"))
         self.assertEqual(ctx.exception.status_code, 503)
 
