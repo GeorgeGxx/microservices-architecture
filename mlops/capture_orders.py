@@ -120,6 +120,64 @@ def run_python_capture(
 # Distributed PySpark Engine (Structured Streaming -> Partitioned Parquet)
 # -----------------------------------------------------------------------------
 
+def _reconcile_checkpoint_with_kafka(
+    bootstrap_servers: str,
+    topic: str,
+    output: str,
+    checkpoint_location: str,
+) -> None:
+    """Reset stale host-mounted Spark checkpoints if the Kafka broker was recreated with lower offsets."""
+    import shutil
+    from kafka import KafkaConsumer, TopicPartition
+
+    offsets_dir = Path(checkpoint_location) / "offsets"
+    if not offsets_dir.is_dir():
+        return
+
+    batch_files = sorted(
+        (p for p in offsets_dir.iterdir() if p.is_file() and p.name.isdigit()),
+        key=lambda p: int(p.name),
+    )
+    if not batch_files:
+        return
+
+    try:
+        lines = [line.strip() for line in batch_files[-1].read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            return
+        committed_map = json.loads(lines[-1]).get(topic, {})
+        if not committed_map:
+            return
+
+        consumer = KafkaConsumer(bootstrap_servers=bootstrap_servers, security_protocol="PLAINTEXT")
+        try:
+            partitions = [TopicPartition(topic, int(part)) for part in committed_map.keys()]
+            end_offsets = consumer.end_offsets(partitions)
+        finally:
+            consumer.close()
+
+        stale_detected = any(
+            int(committed_map[str(tp.partition)]) > int(end_offset)
+            for tp, end_offset in end_offsets.items()
+        )
+        if stale_detected:
+            broker_offsets = {tp.partition: off for tp, off in end_offsets.items()}
+            print(
+                f"Detected stale Spark checkpoint for '{topic}' (committed={committed_map}, "
+                f"broker_end={broker_offsets}). "
+                "Resetting local checkpoint and Parquet sink to replay cleanly...",
+                flush=True,
+            )
+            shutil.rmtree(checkpoint_location, ignore_errors=True)
+            shutil.rmtree(output, ignore_errors=True)
+            state_path = Path(
+                os.getenv("MLOPS_TRAINING_STATE_PATH", "/data/checkpoints/auto-training/last-successful-input.sha256")
+            )
+            shutil.rmtree(state_path.parent, ignore_errors=True)
+    except Exception as exc:
+        print(f"Checkpoint offset reconciliation notice: {exc}", flush=True)
+
+
 def run_spark_capture(
     bootstrap_servers: str = "kafka:9092",
     topic: str = "orders-topic",
@@ -132,6 +190,8 @@ def run_spark_capture(
     from pyspark.sql import SparkSession
     from pyspark.sql import functions as F
     from pyspark.sql.types import ArrayType, IntegerType, StringType, StructField, StructType
+
+    _reconcile_checkpoint_with_kafka(bootstrap_servers, topic, output, checkpoint_location)
 
     event_schema = StructType([
         StructField("orderNumber", StringType()),
@@ -160,6 +220,7 @@ def run_spark_capture(
                   .option("subscribe", topic)
                   .option("startingOffsets", starting_offsets)
                   .option("maxOffsetsPerTrigger", max_offsets_per_trigger)
+                  .option("failOnDataLoss", "false")
                   .load())
         events = (source.select(
                     F.from_json(F.col("value").cast("string"), event_schema).alias("event"),

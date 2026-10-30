@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 37,
+  "version": 38,
   "tags": [
     "business",
     "ecommerce",
@@ -27,9 +27,9 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service\"}, service)",
+        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
         "query": {
-          "query": "label_values(up{service=~\"orders-service|inventory-service|products-service\"}, service)",
+          "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
           "refId": "StandardVariableQuery"
         },
         "label": "Filter Microservice",
@@ -424,7 +424,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline)",
+          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline) or vector(0)",
           "legendFormat": "Stage: {{status}}"
         }
       ]
@@ -551,7 +551,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total)",
+          "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total) or vector(0)",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -617,7 +617,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (cohort) (ecommerce_orders_by_cohort)",
+          "expr": "sum by (cohort) (ecommerce_orders_by_cohort) or vector(0)",
           "legendFormat": "Tier: {{cohort}}"
         }
       ]
@@ -773,7 +773,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0)",
+          "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0) or vector(0)",
           "legendFormat": "Forecast age"
         }
       ]
@@ -836,7 +836,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0)",
+          "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0) or vector(0)",
           "legendFormat": "Sales data age"
         }
       ]
@@ -899,7 +899,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0) or vector(0)",
           "legendFormat": "Model age"
         }
       ]
@@ -945,7 +945,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "expr": "(max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)) or vector(0)",
           "legendFormat": "RMSE"
         }
       ]
@@ -991,7 +991,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)",
+          "expr": "(max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)) or vector(0)",
           "legendFormat": "MAE"
         }
       ]

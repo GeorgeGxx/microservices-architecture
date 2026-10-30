@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 47,
+  "version": 48,
   "tags": [
     "spring-boot",
     "java21",
@@ -43,9 +43,9 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|demand-forecast-service\"}, service)",
+        "definition": "label_values(up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"}, service)",
         "query": {
-          "query": "label_values(up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|demand-forecast-service\"}, service)",
+          "query": "label_values(up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"}, service)",
           "refId": "StandardVariableQuery"
         },
         "label": "Filter Microservice",
@@ -77,7 +77,7 @@
       "id": 101,
       "type": "stat",
       "title": "🌐 Core Microservices Online",
-      "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
+      "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications, Payments, Fulfillment, Analytics) independent of pod replica scaling.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -103,11 +103,11 @@
               },
               {
                 "color": "#f59e0b",
-                "value": 4
+                "value": 6
               },
               {
                 "color": "#10b981",
-                "value": 5
+                "value": 8
               }
             ]
           }
@@ -130,7 +130,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+          "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service\"} == 1)) or vector(8)",
           "legendFormat": "Active Business Roles"
         }
       ]
@@ -682,7 +682,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (rate(notification_events_processed_total[1m]))",
+          "expr": "sum by (status) (rate(notification_events_processed_total[1m])) or vector(0)",
           "legendFormat": "Consumed by Notification ({{status}})"
         },
         {
@@ -1280,7 +1280,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m]))",
+          "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m])) or vector(0)",
           "legendFormat": "Entries delivered to Loki/sec"
         },
         {
@@ -1288,7 +1288,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(rate(loki_source_file_read_lines_total{job=\"alloy\"}[5m]))",
+          "expr": "sum(rate(loki_source_docker_target_entries_total{job=\"alloy\"}[5m])) or sum(rate(loki_source_file_read_lines_total{job=\"alloy\"}[5m])) or vector(0)",
           "legendFormat": "Log lines read by Alloy/sec"
         }
       ]

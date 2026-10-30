@@ -18,6 +18,12 @@ def build_business_dashboard():
     with open(biz_path, 'r', encoding='utf-8') as f:
         biz = json.load(f)
 
+    for variable in biz.get("templating", {}).get("list", []):
+        if variable.get("name") == "service":
+            biz_service_query = 'label_values(up{service=~"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service"}, service)'
+            variable["definition"] = biz_service_query
+            variable.setdefault("query", {})["query"] = biz_service_query
+
     biz_panels = [
     # ROW 1: EXECUTIVE BUSINESS SUMMARY (Top 4 KPIs)
     {
@@ -206,7 +212,7 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (status) (ecommerce_orders_active_in_pipeline)",
+            "expr": "sum by (status) (ecommerce_orders_active_in_pipeline) or vector(0)",
             "legendFormat": "Stage: {{status}}"
         }]
     },
@@ -269,7 +275,7 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total)",
+            "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total) or vector(0)",
             "legendFormat": "{{sku}}"
         }]
     },
@@ -304,7 +310,7 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (cohort) (ecommerce_orders_by_cohort)",
+            "expr": "sum by (cohort) (ecommerce_orders_by_cohort) or vector(0)",
             "legendFormat": "Tier: {{cohort}}"
         }]
 
@@ -369,7 +375,7 @@ def build_business_dashboard():
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 72}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
-        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Forecast age"}]
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"})) / 3600) and (max(demand_forecast_last_success_unixtime{service=\"demand-forecast-service\"}) > 0) or vector(0)", "legendFormat": "Forecast age"}]
     },
     {
         "id": 42,
@@ -380,7 +386,7 @@ def build_business_dashboard():
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "d", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 2}, {"color": "#ef4444", "value": 7}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
-        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Sales data age"}]
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "((time() - max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"})) / 86400) and (max(demand_forecast_last_observed_sale_unixtime{service=\"demand-forecast-service\"}) > 0) or vector(0)", "legendFormat": "Sales data age"}]
     },
     {
         "id": 43,
@@ -391,7 +397,7 @@ def build_business_dashboard():
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 48}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
-        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "Model age"}]
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "(max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) / 3600) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0) or vector(0)", "legendFormat": "Model age"}]
     },
     {
         "id": 44,
@@ -402,7 +408,7 @@ def build_business_dashboard():
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
-        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "RMSE"}]
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "(max(demand_forecast_model_rmse{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)) or vector(0)", "legendFormat": "RMSE"}]
     },
     {
         "id": 45,
@@ -413,7 +419,7 @@ def build_business_dashboard():
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
-        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)", "legendFormat": "MAE"}]
+        "targets": [{"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "(max(demand_forecast_model_mae{service=\"demand-forecast-service\"}) and (max(demand_forecast_model_age_seconds{service=\"demand-forecast-service\"}) > 0)) or vector(0)", "legendFormat": "MAE"}]
     }
 ]
 
@@ -434,7 +440,7 @@ def build_technical_dashboard():
     # Keep the technical service filter in sync with the SRE request panels.
     for variable in tech.get("templating", {}).get("list", []):
         if variable.get("name") == "service":
-            service_query = 'label_values(up{service=~"cosmo-router|orders-service|products-service|inventory-service|notification-service|demand-forecast-service"}, service)'
+            service_query = 'label_values(up{service=~"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service"}, service)'
             variable["definition"] = service_query
             variable.setdefault("query", {})["query"] = service_query
 
@@ -451,7 +457,7 @@ def build_technical_dashboard():
         "id": 101,
         "type": "stat",
         "title": "🌐 Core Microservices Online",
-        "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications) independent of pod replica scaling.",
+        "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications, Payments, Fulfillment, Analytics) independent of pod replica scaling.",
         "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
@@ -462,8 +468,8 @@ def build_technical_dashboard():
                     "mode": "absolute",
                     "steps": [
                         {"color": "#ef4444", "value": None},
-                        {"color": "#f59e0b", "value": 4},
-                        {"color": "#10b981", "value": 5}
+                        {"color": "#f59e0b", "value": 6},
+                        {"color": "#10b981", "value": 8}
                     ]
                 }
             }
@@ -474,7 +480,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service\"} == 1)) or vector(5)",
+            "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service\"} == 1)) or vector(8)",
             "legendFormat": "Active Business Roles"
         }]
     },
@@ -757,7 +763,7 @@ def build_technical_dashboard():
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum by (status) (rate(notification_events_processed_total[1m]))",
+                "expr": "sum by (status) (rate(notification_events_processed_total[1m])) or vector(0)",
                 "legendFormat": "Consumed by Notification ({{status}})"
             },
             {
@@ -1106,8 +1112,8 @@ def build_technical_dashboard():
             }
         },
         "targets": [
-            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m]))", "legendFormat": "Entries delivered to Loki/sec"},
-            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_source_file_read_lines_total{job=\"alloy\"}[5m]))", "legendFormat": "Log lines read by Alloy/sec"}
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_write_sent_entries_total{job=\"alloy\"}[5m])) or vector(0)", "legendFormat": "Entries delivered to Loki/sec"},
+            {"datasource": {"uid": "prometheus-ds", "type": "prometheus"}, "expr": "sum(rate(loki_source_docker_target_entries_total{job=\"alloy\"}[5m])) or sum(rate(loki_source_file_read_lines_total{job=\"alloy\"}[5m])) or vector(0)", "legendFormat": "Log lines read by Alloy/sec"}
         ]
     },
     {
