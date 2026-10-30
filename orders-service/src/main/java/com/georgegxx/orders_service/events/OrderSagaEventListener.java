@@ -9,13 +9,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.function.BiConsumer;
 
-/**
- * Choreographed Saga Event Listener for orders-service.
- * Consumes asynchronous payment and fulfillment domain events from Kafka topics
- * (payments-topic, fulfillment-topic) to drive forward state transitions and
- * automated backward compensating transactions.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -23,25 +18,9 @@ public class OrderSagaEventListener {
 
     private final OrderService orderService;
 
-    @KafkaListener(
-            topics = OrderConstants.PAYMENTS_TOPIC,
-            groupId = OrderConstants.SAGA_CONSUMER_GROUP
-    )
+    @KafkaListener(topics = OrderConstants.PAYMENTS_TOPIC, groupId = OrderConstants.SAGA_CONSUMER_GROUP)
     public void onPaymentEvent(String payload) {
-        if (payload == null || payload.isBlank()) {
-            return;
-        }
-        try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> raw = JsonUtils.fromJson(payload, Map.class);
-            if (raw == null) {
-                return;
-            }
-            String orderNumber = extractString(raw, "order_number", "orderNumber");
-            if (orderNumber == null || orderNumber.isBlank()) {
-                return;
-            }
-
+        handleSagaEvent(payload, "payment", (orderNumber, raw) -> {
             String eventType = extractString(raw, "event_type", "eventType");
             String status = extractString(raw, "status", "paymentStatus");
             String errorCode = extractString(raw, "error_code", "errorCode");
@@ -54,19 +33,31 @@ public class OrderSagaEventListener {
                 String reason = extractString(raw, "reason", "failure_reason");
                 orderService.handleSagaFailureCompensation(orderNumber, reason != null ? reason : "Payment failure or refund");
             } else {
-                String transactionRef = extractString(raw, "transaction_ref", "transactionRef");
-                orderService.handleSagaPaymentCompleted(orderNumber, transactionRef);
+                orderService.handleSagaPaymentCompleted(orderNumber, extractString(raw, "transaction_ref", "transactionRef"));
             }
-        } catch (Exception ex) {
-            log.error("Failed to process Saga payment event payload: {}", ex.getMessage(), ex);
-        }
+        });
     }
 
-    @KafkaListener(
-            topics = OrderConstants.FULFILLMENT_TOPIC,
-            groupId = OrderConstants.SAGA_CONSUMER_GROUP
-    )
+    @KafkaListener(topics = OrderConstants.FULFILLMENT_TOPIC, groupId = OrderConstants.SAGA_CONSUMER_GROUP)
     public void onFulfillmentEvent(String payload) {
+        handleSagaEvent(payload, "fulfillment", (orderNumber, raw) -> {
+            String eventType = extractString(raw, "eventType", "event_type");
+            if (OrderConstants.EVENT_SHIPMENT_DISPATCHED.equalsIgnoreCase(eventType)) {
+                orderService.handleSagaShipmentDispatched(
+                        orderNumber,
+                        extractString(raw, "trackingNumber", "tracking_number"),
+                        extractString(raw, "carrier", "carrier_name")
+                );
+            } else if (OrderConstants.EVENT_SHIPMENT_DELIVERED.equalsIgnoreCase(eventType)) {
+                orderService.handleSagaShipmentDelivered(orderNumber);
+            } else if (OrderConstants.EVENT_SHIPMENT_FAILED.equalsIgnoreCase(eventType)) {
+                String reason = extractString(raw, "reason", "failureReason");
+                orderService.handleSagaFailureCompensation(orderNumber, reason != null ? reason : "Fulfillment shipment failed");
+            }
+        });
+    }
+
+    private void handleSagaEvent(String payload, String eventDomain, BiConsumer<String, Map<String, Object>> handler) {
         if (payload == null || payload.isBlank()) {
             return;
         }
@@ -76,32 +67,17 @@ public class OrderSagaEventListener {
             if (raw == null) {
                 return;
             }
-            String orderNumber = extractString(raw, "orderNumber", "order_number");
-            if (orderNumber == null || orderNumber.isBlank()) {
-                return;
-            }
-
-            String eventType = extractString(raw, "eventType", "event_type");
-            if (OrderConstants.EVENT_SHIPMENT_DISPATCHED.equalsIgnoreCase(eventType)) {
-                String trackingNumber = extractString(raw, "trackingNumber", "tracking_number");
-                String carrier = extractString(raw, "carrier", "carrier_name");
-                orderService.handleSagaShipmentDispatched(orderNumber, trackingNumber, carrier);
-            } else if (OrderConstants.EVENT_SHIPMENT_DELIVERED.equalsIgnoreCase(eventType)) {
-                orderService.handleSagaShipmentDelivered(orderNumber);
-            } else if (OrderConstants.EVENT_SHIPMENT_FAILED.equalsIgnoreCase(eventType)) {
-                String reason = extractString(raw, "reason", "failureReason");
-                orderService.handleSagaFailureCompensation(orderNumber, reason != null ? reason : "Fulfillment shipment failed");
+            String orderNumber = extractString(raw, "order_number", "orderNumber");
+            if (orderNumber != null && !orderNumber.isBlank()) {
+                handler.accept(orderNumber, raw);
             }
         } catch (Exception ex) {
-            log.error("Failed to process Saga fulfillment event payload: {}", ex.getMessage(), ex);
+            log.error("Failed to process Saga {} event payload: {}", eventDomain, ex.getMessage(), ex);
         }
     }
 
     private String extractString(Map<String, Object> map, String primaryKey, String fallbackKey) {
-        Object val = map.get(primaryKey);
-        if (val == null) {
-            val = map.get(fallbackKey);
-        }
+        Object val = map.getOrDefault(primaryKey, map.get(fallbackKey));
         return val != null ? String.valueOf(val) : null;
     }
 }

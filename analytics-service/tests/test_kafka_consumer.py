@@ -54,19 +54,21 @@ async def test_kafka_consumer_process_invalid_message():
     await consumer._process_message(raw_msg)
 
 @pytest.mark.asyncio
+async def test_kafka_consumer_process_ignored_message():
+    consumer = AnalyticsKafkaConsumer()
+    raw_msg = MagicMock()
+    raw_msg.topic = "payments-topic"
+    raw_msg.value = json.dumps({"event_type": "PAYMENT_FAILED", "status": "FAILED"}).encode("utf-8")
+    await consumer._process_message(raw_msg)
+
+@pytest.mark.asyncio
 async def test_kafka_consumer_stop():
+    import asyncio
     consumer = AnalyticsKafkaConsumer()
     consumer.is_running = True
     consumer.consumer = AsyncMock()
 
-    import asyncio
-    async def dummy_coro():
-        try:
-            await asyncio.sleep(10)
-        except asyncio.CancelledError:
-            pass
-
-    task = asyncio.create_task(dummy_coro())
+    task = asyncio.create_task(asyncio.sleep(10))
     consumer.consume_task = task
 
     await consumer.stop()

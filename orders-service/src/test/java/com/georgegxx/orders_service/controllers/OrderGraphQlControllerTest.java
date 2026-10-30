@@ -209,10 +209,10 @@ class OrderGraphQlControllerTest {
     @Test
     @DisplayName("exception handlers should return GraphQLError")
     void testExceptionHandlers() {
-        GraphQLError err1 = graphQlController.handleIllegalArgument(new IllegalArgumentException("Arg error"));
+        GraphQLError err1 = graphQlController.handleBadRequestException(new IllegalArgumentException("Arg error"));
         assertThat(err1.getMessage()).isEqualTo("Arg error");
 
-        GraphQLError err2 = graphQlController.handleIllegalState(new IllegalStateException("State error"));
+        GraphQLError err2 = graphQlController.handleBadRequestException(new IllegalStateException("State error"));
         assertThat(err2.getMessage()).isEqualTo("State error");
     }
 }

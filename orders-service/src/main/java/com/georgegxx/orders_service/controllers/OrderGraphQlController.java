@@ -146,16 +146,11 @@ public class OrderGraphQlController {
         }
     }
 
-    @org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler
-    public graphql.GraphQLError handleIllegalArgument(IllegalArgumentException ex) {
-        return graphql.GraphqlErrorBuilder.newError()
-                .errorType(org.springframework.graphql.execution.ErrorType.BAD_REQUEST)
-                .message(ex.getMessage())
-                .build();
-    }
-
-    @org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler
-    public graphql.GraphQLError handleIllegalState(IllegalStateException ex) {
+    @org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler({
+            IllegalArgumentException.class,
+            IllegalStateException.class
+    })
+    public graphql.GraphQLError handleBadRequestException(RuntimeException ex) {
         return graphql.GraphqlErrorBuilder.newError()
                 .errorType(org.springframework.graphql.execution.ErrorType.BAD_REQUEST)
                 .message(ex.getMessage())

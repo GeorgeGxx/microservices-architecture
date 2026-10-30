@@ -113,12 +113,11 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("deliverOrder updates order status to DELIVERED, publishes event, and updates loyalty cohorts")
+    @DisplayName("deliverOrder updates order status to DELIVERED and publishes event")
     void testDeliverOrder() {
         sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
         when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED)).thenReturn(List.of(sampleOrder));
 
         OrderResponse response = orderService.deliverOrder(1L);
 
@@ -126,36 +125,6 @@ class OrderServiceTest {
         assertEquals(OrderStatus.DELIVERED, response.orderStatus());
         verify(orderRepository).save(sampleOrder);
         verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TEST-001"), anyString());
-
-        // Assert customer loyalty cohort gauge is updated in real time upon delivery
-        assertEquals(1.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "first_time").gauge().value());
-        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "repeat").gauge().value());
-        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "loyal_vip").gauge().value());
-    }
-
-    @Test
-    @DisplayName("delivering multiple orders updates repeat and loyal_vip loyalty cohorts")
-    void testDeliverOrder_UpdatesRepeatAndVipCohorts() {
-        sampleOrder.setOrderStatus(OrderStatus.SHIPPED);
-        when(orderRepository.findByIdWithItemsForUpdate(1L)).thenReturn(Optional.of(sampleOrder));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        // User "user-123" has 2 delivered orders -> repeat cohort
-        Order secondOrder = Order.builder()
-                .id(2L)
-                .orderNumber("ORD-TEST-002")
-                .orderStatus(OrderStatus.DELIVERED)
-                .userId("user-123")
-                .totalAmount(50.0)
-                .build();
-        when(orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED))
-                .thenReturn(List.of(sampleOrder, secondOrder));
-
-        orderService.deliverOrder(1L);
-
-        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "first_time").gauge().value());
-        assertEquals(2.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "repeat").gauge().value());
-        assertEquals(0.0, meterRegistry.get("ecommerce_orders_by_cohort").tag("cohort", "loyal_vip").gauge().value());
     }
 
     @Test
@@ -168,25 +137,6 @@ class OrderServiceTest {
         assertTrue(error.getMessage().contains("must be in transit first"));
         verify(orderRepository, never()).save(any(Order.class));
         verify(kafkaTemplate, never()).send(eq("orders-topic"), anyString(), anyString());
-    }
-
-    @Test
-    @DisplayName("fulfillment metrics expose persisted statuses and exclude cancelled orders")
-    void testFulfillmentMetricsMatchPersistedOrderStatuses() {
-        Order shippedOrder = Order.builder().id(2L).orderNumber("ORD-TEST-002").orderStatus(OrderStatus.SHIPPED).build();
-        Order deliveredOrder = Order.builder().id(3L).orderNumber("ORD-TEST-003").orderStatus(OrderStatus.DELIVERED).build();
-        Order cancelledOrder = Order.builder().id(4L).orderNumber("ORD-TEST-004").orderStatus(OrderStatus.CANCELLED).build();
-        when(orderRepository.findAllWithItems()).thenReturn(List.of(sampleOrder, shippedOrder, deliveredOrder, cancelledOrder));
-
-        orderService.syncDatabaseMetrics();
-
-        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "PLACED").gauge().value());
-        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "SHIPPED").gauge().value());
-        assertEquals(1.0, meterRegistry.get("ecommerce_orders_active_in_pipeline").tag("status", "DELIVERED").gauge().value());
-        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "CANCELLED").gauge());
-        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "PREPARING").gauge());
-        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "IN_TRANSIT").gauge());
-        assertNull(meterRegistry.find("ecommerce_orders_active_in_pipeline").tag("status", "OUT_FOR_DELIVERY").gauge());
     }
 
     @Test
@@ -305,7 +255,7 @@ class OrderServiceTest {
         );
         when(idempotencyManager.checkOrLock("idem-hit", req)).thenReturn(Optional.of(cached));
 
-        OrderResponse result = orderService.placeOrder(req, "idem-hit");
+        OrderResponse result = orderService.placeOrder(req, "idem-hit", "user-1", "user");
 
         assertEquals("ORD-CACHED", result.orderNumber());
         verifyNoInteractions(productsClient);

@@ -251,8 +251,7 @@ class TrainDemandModelTests(unittest.TestCase):
         from train_demand_model import main
         with tempfile.TemporaryDirectory() as temp_dir:
             with patch("sys.argv", ["train_demand_model.py", "--auto", "--input-parquet", temp_dir]):
-                exit_code = main()
-                self.assertEqual(exit_code, 0)
+                self.assertIsNone(main())
 
     def test_sample_sales(self) -> None:
         from unittest.mock import MagicMock
@@ -349,7 +348,7 @@ class TrainDemandModelTests(unittest.TestCase):
                 patch("sys.argv", ["train_demand_model.py", "--auto", "--input-parquet", str(parquet_path)]),
                 patch("builtins.print"),
             ):
-                self.assertEqual(main(), 0)
+                self.assertIsNone(main())
             self.assertTrue(state_path.exists())
             self.assertEqual(state_path.read_text(encoding="ascii"), "fingerprint-123\n")
             self.assertTrue(mlflow.sklearn.log_model.called)
@@ -493,7 +492,7 @@ class TrainDemandModelTests(unittest.TestCase):
             patch("sys.argv", ["train_demand_model.py"]),
             patch("builtins.print"),
         ):
-            self.assertEqual(main(), 0)
+            self.assertIsNone(main())
         mlflow.set_tag.assert_any_call("model_role", "challenger_rejected")
 
         # 2. Champion promoted when improved over prior champion RMSE
@@ -506,7 +505,7 @@ class TrainDemandModelTests(unittest.TestCase):
             patch("sys.argv", ["train_demand_model.py"]),
             patch("builtins.print"),
         ):
-            self.assertEqual(main(), 0)
+            self.assertIsNone(main())
         mlflow2.set_tag.assert_any_call("model_role", "champion")
         mlflow2.log_metric.assert_any_call("prior_champion_rmse", 10.0)
 
