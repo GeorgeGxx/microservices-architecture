@@ -89,4 +89,38 @@ class OrderEventTest {
         assertThat(event.occurredAt()).isNotNull();
         assertThat(event.items()).isEmpty();
     }
+
+    @Test
+    @DisplayName("Should instantiate OrderEvent with full 18-arg Saga constructor")
+    void shouldCreateOrderEventWithFullSagaArgs() {
+        Instant now = Instant.now();
+        var item = new OrderEvent.LineItem("SKU-99", 2L);
+        var event = new OrderEvent(
+                "ORD-004",
+                2,
+                OrderStatus.PLACED,
+                "Charlie",
+                "789 Pine St",
+                "DHL-789",
+                149.99,
+                "user-4",
+                "charlie",
+                now,
+                now,
+                List.of(item),
+                "charlie@example.com",
+                "Austin",
+                "78701",
+                "+1555000",
+                "EXPRESS",
+                "CARD_VISA"
+        );
+
+        assertThat(event.customerEmail()).isEqualTo("charlie@example.com");
+        assertThat(event.city()).isEqualTo("Austin");
+        assertThat(event.postalCode()).isEqualTo("78701");
+        assertThat(event.phone()).isEqualTo("+1555000");
+        assertThat(event.deliveryMethod()).isEqualTo("EXPRESS");
+        assertThat(event.paymentMethod()).isEqualTo("CARD_VISA");
+    }
 }

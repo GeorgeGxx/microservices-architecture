@@ -3,6 +3,7 @@ package com.georgegxx.orders_service.controllers;
 import com.georgegxx.orders_service.exceptions.*;
 import com.georgegxx.orders_service.model.dtos.*;
 import com.georgegxx.orders_service.services.OrderService;
+import com.georgegxx.orders_service.utils.SecurityUtils;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.swagger.v3.oas.annotations.*;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -69,10 +70,10 @@ public class OrderController {
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public List<OrderResponse> getAllOrders(@AuthenticationPrincipal Jwt jwt) {
-        if (jwt != null && isUserAdmin(jwt)) {
+        if (SecurityUtils.isUserAdmin(jwt)) {
             return this.orderService.getAllOrders();
         }
-        String userId = jwt != null ? jwt.getSubject() : "";
+        String userId = SecurityUtils.getUserId(jwt);
         return this.orderService.getOrdersForUser(userId);
     }
 
@@ -91,7 +92,7 @@ public class OrderController {
             @PathVariable("id") Long id,
             @AuthenticationPrincipal Jwt jwt) {
         String currentUserId = jwt != null ? jwt.getSubject() : null;
-        boolean isAdmin = isUserAdmin(jwt);
+        boolean isAdmin = SecurityUtils.isUserAdmin(jwt);
         return this.orderService.cancelOrder(id, currentUserId, isAdmin);
     }
 
@@ -115,27 +116,15 @@ public class OrderController {
         return this.orderService.deliverOrder(id);
     }
 
-    private boolean isUserAdmin(Jwt jwt) {
-        if (jwt == null) return false;
-        Object realmAccess = jwt.getClaims().get("realm_access");
-        if (realmAccess instanceof java.util.Map<?, ?> accessMap) {
-            Object roles = accessMap.get("roles");
-            if (roles instanceof List<?> roleList) {
-                return roleList.contains("ADMIN");
-            }
-        }
-        return false;
-    }
-
     public ResponseEntity<OrderResponse> placeOrderFallback(
             OrderRequest orderRequest,
             Jwt jwt,
             String idempotencyKey,
             Throwable throwable) {
-        String user = jwt != null ? jwt.getSubject() : "anonymous";
+        String user = SecurityUtils.getUserId(jwt);
         log.warn("Circuit Breaker triggered in placeOrder fallback for idempotencyKey: {}, user: {}, customer: {}, error: {}",
                 idempotencyKey,
-                user,
+                user.isBlank() ? "anonymous" : user,
                 orderRequest != null ? orderRequest.getCustomerEmail() : "unknown",
                 throwable != null ? throwable.getMessage() : "unspecified");
 
@@ -147,23 +136,13 @@ public class OrderController {
     }
 
     private void rethrowIfBusinessException(Throwable throwable) {
-        if (throwable instanceof IllegalArgumentException ex) {
-            throw ex;
-        }
-        if (throwable instanceof com.georgegxx.orders_service.exceptions.InsufficientStockException ex) {
-            throw ex;
-        }
-        if (throwable instanceof IllegalStateException ex) {
-            throw ex;
-        }
-        if (throwable instanceof IdempotencyConflictException ex) {
-            throw ex;
-        }
-        if (throwable instanceof IdempotencyPayloadMismatchException ex) {
-            throw ex;
-        }
-        if (throwable instanceof ConstraintViolationException ex) {
-            throw ex;
+        if (throwable instanceof IllegalArgumentException
+                || throwable instanceof InsufficientStockException
+                || throwable instanceof IllegalStateException
+                || throwable instanceof IdempotencyConflictException
+                || throwable instanceof IdempotencyPayloadMismatchException
+                || throwable instanceof ConstraintViolationException) {
+            throw (RuntimeException) throwable;
         }
     }
 }

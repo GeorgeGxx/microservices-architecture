@@ -155,4 +155,24 @@ class OrderTest {
         assertThat(order.getTotalAmount()).isEqualTo(115.0);
         assertThat(order.getPaymentMethod()).isEqualTo("CREDIT_CARD");
     }
+
+    @Test
+    @DisplayName("calculateSubtotal and calculateTotalUnits correctly aggregate order items")
+    void testCalculateSubtotalAndTotalUnits() {
+        OrderItems item1 = OrderItems.builder().price(50.0).quantity(2L).build();
+        OrderItems item2 = OrderItems.builder().price(30.0).quantity(1L).build();
+        OrderItems item3 = OrderItems.builder().price(null).quantity(null).build();
+
+        assertThat(item1.getLineTotal()).isEqualTo(100.0);
+        assertThat(item2.getLineTotal()).isEqualTo(30.0);
+        assertThat(item3.getLineTotal()).isZero();
+
+        Order order = new Order();
+        assertThat(order.calculateSubtotal()).isZero();
+        assertThat(order.calculateTotalUnits()).isZero();
+
+        order.assignItems(List.of(item1, item2, item3));
+        assertThat(order.calculateSubtotal()).isEqualTo(130.0);
+        assertThat(order.calculateTotalUnits()).isEqualTo(4L);
+    }
 }

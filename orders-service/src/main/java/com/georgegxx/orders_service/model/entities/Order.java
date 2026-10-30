@@ -106,4 +106,32 @@ public class Order {
         this.orderItems = Objects.requireNonNullElseGet(items, ArrayList::new);
         this.orderItems.forEach(item -> item.setOrder(this));
     }
+
+    /**
+     * Calculates the order subtotal by summing the line total of all items.
+     *
+     * @return the subtotal amount with null-safety
+     */
+    public double calculateSubtotal() {
+        if (this.orderItems == null || this.orderItems.isEmpty()) {
+            return 0.0;
+        }
+        return this.orderItems.stream()
+                .mapToDouble(OrderItems::getLineTotal)
+                .sum();
+    }
+
+    /**
+     * Calculates the total item units across all order line items.
+     *
+     * @return total quantity of physical units
+     */
+    public long calculateTotalUnits() {
+        if (this.orderItems == null || this.orderItems.isEmpty()) {
+            return 0L;
+        }
+        return this.orderItems.stream()
+                .mapToLong(item -> item.getQuantity() != null ? item.getQuantity() : 1L)
+                .sum();
+    }
 }

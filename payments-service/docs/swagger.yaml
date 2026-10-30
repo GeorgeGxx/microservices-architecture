@@ -1,0 +1,278 @@
+basePath: /
+definitions:
+  models.Payment:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      currency:
+        type: string
+      customer_email:
+        type: string
+      failure_reason:
+        type: string
+      id:
+        type: string
+      idempotency_key:
+        type: string
+      order_number:
+        type: string
+      payment_method:
+        type: string
+      status:
+        $ref: '#/definitions/models.PaymentStatus'
+      transaction_ref:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.PaymentStatus:
+    enum:
+    - PENDING
+    - COMPLETED
+    - FAILED
+    - REFUNDED
+    type: string
+    x-enum-varnames:
+    - PaymentStatusPending
+    - PaymentStatusCompleted
+    - PaymentStatusFailed
+    - PaymentStatusRefunded
+  models.ProcessPaymentRequest:
+    properties:
+      amount:
+        example: 99.99
+        type: number
+      currency:
+        example: USD
+        type: string
+      customer_email:
+        example: buyer@example.com
+        type: string
+      idempotency_key:
+        example: idem-uuid-99
+        type: string
+      order_number:
+        example: ORD-12345
+        type: string
+      payment_method:
+        example: CARD_VISA
+        type: string
+    required:
+    - amount
+    - order_number
+    - payment_method
+    type: object
+  models.ProcessPaymentResponse:
+    properties:
+      amount:
+        type: number
+      created_at:
+        type: string
+      currency:
+        type: string
+      failure_reason:
+        type: string
+      id:
+        type: string
+      order_number:
+        type: string
+      payment_method:
+        type: string
+      status:
+        $ref: '#/definitions/models.PaymentStatus'
+      transaction_ref:
+        type: string
+    type: object
+  models.RefundPaymentRequest:
+    properties:
+      amount:
+        example: 99.99
+        type: number
+      order_number:
+        example: ORD-12345
+        type: string
+      reason:
+        example: Customer cancellation
+        type: string
+    required:
+    - order_number
+    type: object
+  models.StandardResponse:
+    properties:
+      data: {}
+      message:
+        example: Operation successful
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
+host: localhost:8085
+info:
+  contact:
+    name: GeorgeGxx Architecture
+  description: High-performance payments microservice with Go 1.26, Gin v1.12.0, GORM
+    v1.31.2, goroutines and PostgreSQL 18
+  title: Payments Service API
+  version: "1.0"
+paths:
+  /api/v1/payments/{id}:
+    get:
+      description: Returns a payment transaction by its UUID
+      parameters:
+      - description: Payment UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Retrieve payment details by ID
+      tags:
+      - payments
+  /api/v1/payments/order/{orderNumber}:
+    get:
+      description: Returns the latest payment record associated with a given order
+      parameters:
+      - description: Order Number
+        in: path
+        name: orderNumber
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Retrieve payment details by Order Number
+      tags:
+      - payments
+  /api/v1/payments/process:
+    post:
+      consumes:
+      - application/json
+      description: Creates and executes a payment charge with idempotency support
+        and gateway simulation
+      parameters:
+      - description: Unique idempotency key for safe retries
+        in: header
+        name: Idempotency-Key
+        type: string
+      - description: Payment Details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.ProcessPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.ProcessPaymentResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Process a customer payment transaction
+      tags:
+      - payments
+  /api/v1/payments/refund:
+    post:
+      consumes:
+      - application/json
+      description: Reverses a completed payment for an order and records refund telemetry
+      parameters:
+      - description: Refund Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.RefundPaymentRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/models.StandardResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Payment'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.StandardResponse'
+      summary: Refund an existing payment transaction
+      tags:
+      - payments
+  /health:
+    get:
+      description: Checks operational readiness and liveness of payments-service
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Service Health Check
+      tags:
+      - system
+swagger: "2.0"

@@ -1,5 +1,6 @@
 package com.georgegxx.orders_service.services;
 
+import com.georgegxx.orders_service.constants.OrderConstants;
 import com.georgegxx.orders_service.events.OrderEvent;
 import com.georgegxx.orders_service.exceptions.*;
 import com.georgegxx.orders_service.model.dtos.*;
@@ -7,30 +8,34 @@ import com.georgegxx.orders_service.model.entities.*;
 import com.georgegxx.orders_service.model.enums.OrderStatus;
 import com.georgegxx.orders_service.repositories.OrderRepository;
 import com.georgegxx.orders_service.utils.JsonUtils;
-import io.github.resilience4j.circuitbreaker.*;
-import io.micrometer.core.instrument.*;
-import lombok.*;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
-import org.springframework.cache.annotation.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
+import org.springframework.lang.NonNull;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import com.georgegxx.orders_service.clients.*;
+import com.georgegxx.orders_service.clients.InventoryClient;
+import com.georgegxx.orders_service.clients.ProductsClient;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OrderService implements InitializingBean {
     private final OrderRepository orderRepository;
@@ -40,52 +45,65 @@ public class OrderService implements InitializingBean {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final MeterRegistry meterRegistry;
     private final IdempotencyManager idempotencyManager;
+    private final OrderPricingCalculator orderPricingCalculator;
+    private final OrderMetricsService orderMetricsService;
 
-    private io.github.resilience4j.circuitbreaker.CircuitBreaker inventoryCircuitBreaker;
-    private io.github.resilience4j.circuitbreaker.CircuitBreaker productsCircuitBreaker;
+    private CircuitBreaker inventoryCircuitBreaker;
+    private CircuitBreaker productsCircuitBreaker;
 
-    private static final double STALE_PRICE_WARN_THRESHOLD = 0.01; // 1%
-    private static final double FREE_SHIPPING_THRESHOLD_USD = 100.0;
-    private static final double SHIPPING_FEE_USD = 9.99;
-    private static final double TAX_RATE = 0.08;
-    private static final String INVENTORY_SERVICE = "inventory-service";
-    private static final String PRODUCTS_SERVICE = "products-service";
-    private static final String ORDERS_TOPIC = "orders-topic";
-    private static final String STATUS_TAG = "status";
-    private static final String TAG_EVENT_TYPE = "event_type";
-    private static final String TAG_CATEGORY = "category";
-    private static final String TAG_STEP = "step";
-    private static final String ORDER_ID_NOT_NULL_MSG = "Order ID must not be null";
-    private static final String ORDER_NOT_FOUND_PREFIX = "Order with id ";
-    private static final String ORDER_NOT_FOUND_SUFFIX = " not found";
-    private static final String STATUS_PLACED = OrderStatus.PLACED.name();
-    private static final String STATUS_SHIPPED = OrderStatus.SHIPPED.name();
-    private static final String STATUS_DELIVERED = OrderStatus.DELIVERED.name();
-    private static final String METRIC_ECOMMERCE_SKU_SALES = "ecommerce_sku_sales";
-    private static final String METRIC_ECOMMERCE_FUNNEL_EVENTS = "ecommerce_funnel_events";
-    private static final String COHORT_FIRST_TIME = "first_time";
-    private static final String COHORT_REPEAT = "repeat";
-    private static final String COHORT_LOYAL_VIP = "loyal_vip";
-    private static final String BASKET_SINGLE_ITEM = "single_item";
-    private static final String BASKET_2_3_ITEMS = "2_3_items";
-    private static final String BASKET_BULK_4_PLUS = "bulk_4_plus";
-    private static final Set<String> FUNNEL_CATEGORIES = Set.of(
-            "Electronics", "Peripherals", "Computers", "Displays", "General");
-    private static final Set<String> FUNNEL_STEPS = Set.of("SHIPPING", "DELIVERY", "PAYMENT");
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager
+    ) {
+        this(orderRepository, inventoryClient, productsClient, kafkaTemplate,
+                circuitBreakerRegistry, meterRegistry, idempotencyManager,
+                new OrderPricingCalculator(),
+                new OrderMetricsService(meterRegistry, orderRepository));
+    }
 
-    // Database-backed Persistent Metric State Holders
-    private AtomicLong dbCompletedOrders = new AtomicLong(0);
-    private AtomicLong dbCancelledOrders = new AtomicLong(0);
-    private DoubleAdder dbRevenueUsd = new DoubleAdder();
-    private DoubleAdder dbCancelledRevenueUsd = new DoubleAdder();
-    private AtomicLong dbItemsSold = new AtomicLong(0);
-    private Map<String, AtomicLong> dbSkuSales = new ConcurrentHashMap<>();
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager,
+            OrderPricingCalculator orderPricingCalculator
+    ) {
+        this(orderRepository, inventoryClient, productsClient, kafkaTemplate,
+                circuitBreakerRegistry, meterRegistry, idempotencyManager,
+                orderPricingCalculator,
+                new OrderMetricsService(meterRegistry, orderRepository));
+    }
 
-    // Customer Retention & Cohort Metric State Holders (O(1) Bounded Cardinality)
-    private Map<String, AtomicLong> dbOrdersByCohort = new ConcurrentHashMap<>();
-    private Map<String, AtomicReference<Double>> dbRevenueByCohort = new ConcurrentHashMap<>();
-    private Map<String, AtomicLong> dbBasketSizes = new ConcurrentHashMap<>();
-    private Map<String, AtomicLong> dbPipelineOrders = new ConcurrentHashMap<>();
+    @Autowired
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager,
+            OrderPricingCalculator orderPricingCalculator,
+            OrderMetricsService orderMetricsService
+    ) {
+        this.orderRepository = orderRepository;
+        this.inventoryClient = inventoryClient;
+        this.productsClient = productsClient;
+        this.kafkaTemplate = kafkaTemplate;
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.meterRegistry = meterRegistry;
+        this.idempotencyManager = idempotencyManager;
+        this.orderPricingCalculator = orderPricingCalculator != null ? orderPricingCalculator : new OrderPricingCalculator();
+        this.orderMetricsService = orderMetricsService != null ? orderMetricsService : new OrderMetricsService(meterRegistry, orderRepository);
+    }
 
     @Override
     public void afterPropertiesSet() {
@@ -99,321 +117,22 @@ public class OrderService implements InitializingBean {
                 .automaticTransitionFromOpenToHalfOpenEnabled(true)
                 .build();
 
-        this.circuitBreakerRegistry.remove(INVENTORY_SERVICE);
-        this.circuitBreakerRegistry.remove(PRODUCTS_SERVICE);
-        this.circuitBreakerRegistry.remove("orders-service");
+        this.circuitBreakerRegistry.remove(OrderConstants.INVENTORY_SERVICE);
+        this.circuitBreakerRegistry.remove(OrderConstants.PRODUCTS_SERVICE);
+        this.circuitBreakerRegistry.remove(OrderConstants.ORDERS_SERVICE);
 
-        this.inventoryCircuitBreaker = this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE, config);
-        this.productsCircuitBreaker = this.circuitBreakerRegistry.circuitBreaker(PRODUCTS_SERVICE, config);
+        this.inventoryCircuitBreaker = this.circuitBreakerRegistry.circuitBreaker(OrderConstants.INVENTORY_SERVICE, config);
+        this.productsCircuitBreaker = this.circuitBreakerRegistry.circuitBreaker(OrderConstants.PRODUCTS_SERVICE, config);
 
         log.info("Initialized Resilience4j Circuit Breakers: inventoryCb minCalls={}, slidingWindow={}",
                 this.inventoryCircuitBreaker.getCircuitBreakerConfig().getMinimumNumberOfCalls(),
                 this.inventoryCircuitBreaker.getCircuitBreakerConfig().getSlidingWindowSize());
 
-        // Register Database-Backed Gauges in Micrometer / Prometheus (Native Gauge registration)
-        this.meterRegistry.gauge("ecommerce_orders", List.of(Tag.of(STATUS_TAG, "COMPLETED")), this.dbCompletedOrders);
-        this.meterRegistry.gauge("ecommerce_orders", List.of(Tag.of(STATUS_TAG, "CANCELLED")), this.dbCancelledOrders);
-        this.meterRegistry.gauge("ecommerce_revenue_usd", Collections.emptyList(), this.dbRevenueUsd);
-        this.meterRegistry.gauge("ecommerce_revenue_cancelled_usd", Collections.emptyList(), this.dbCancelledRevenueUsd);
-        this.meterRegistry.gauge("ecommerce_items_sold", Collections.emptyList(), this.dbItemsSold);
-
-        // Pre-initialize standard catalog SKUs
-        List.of("LAPTOP-PRO", "000001", "000002", "000003", "000004").forEach(sku ->
-            this.dbSkuSales.computeIfAbsent(sku, s -> {
-                AtomicLong val = new AtomicLong(0);
-                this.meterRegistry.gauge(METRIC_ECOMMERCE_SKU_SALES, List.of(Tag.of("sku", s)), val);
-                return val;
-            })
-        );
-
-        // Pre-register Customer Loyalty Cohorts (O(1) bounded cardinality)
-        List.of(COHORT_FIRST_TIME, COHORT_REPEAT, COHORT_LOYAL_VIP).forEach(cohort -> {
-            this.dbOrdersByCohort.computeIfAbsent(cohort, c -> {
-                AtomicLong val = new AtomicLong(0);
-                this.meterRegistry.gauge("ecommerce_orders_by_cohort", List.of(Tag.of("cohort", c)), val);
-                return val;
-            });
-            this.dbRevenueByCohort.computeIfAbsent(cohort, c -> {
-                AtomicReference<Double> val = new AtomicReference<>(0.0);
-                this.meterRegistry.gauge("ecommerce_revenue_by_cohort_usd", List.of(Tag.of("cohort", c)), val, ref -> ref.get());
-                return val;
-            });
-        });
-
-        // Pre-register Basket Size Distribution (O(1) bounded cardinality)
-        List.of(BASKET_SINGLE_ITEM, BASKET_2_3_ITEMS, BASKET_BULK_4_PLUS).forEach(range ->
-            this.dbBasketSizes.computeIfAbsent(range, r -> {
-                AtomicLong val = new AtomicLong(0);
-                this.meterRegistry.gauge("ecommerce_order_basket_size", List.of(Tag.of("size_range", r)), val);
-                return val;
-            })
-        );
-
-        // Pre-register the persisted OrderStatus lifecycle (cancelled orders are terminal, not active).
-        List.of(STATUS_PLACED, STATUS_SHIPPED, STATUS_DELIVERED).forEach(status ->
-            this.dbPipelineOrders.computeIfAbsent(status, s -> {
-                AtomicLong val = new AtomicLong(0);
-                this.meterRegistry.gauge("ecommerce_orders_active_in_pipeline", List.of(Tag.of(STATUS_TAG, s)), val);
-                return val;
-            })
-        );
-
-        // Immediately synchronize metrics from PostgreSQL on container startup
-        syncDatabaseMetrics();
-    }
-
-    private void recordPlacedOrderMetrics(Order order) {
-        // Increment PLACED in pipeline distribution
-        AtomicLong placed = this.dbPipelineOrders.computeIfAbsent(STATUS_PLACED, k -> new AtomicLong(0));
-        placed.incrementAndGet();
-
-        // Increment basket size distribution
-        long totalUnits = calculateTotalUnits(order);
-        String range = resolveBasketSizeRange(totalUnits);
-        this.dbBasketSizes.computeIfAbsent(range, k -> new AtomicLong(0)).incrementAndGet();
-    }
-
-    private long calculateTotalUnits(Order order) {
-        if (order.getOrderItems() == null) {
-            return 0L;
-        }
-        return order.getOrderItems().stream()
-                .mapToLong(i -> i.getQuantity() != null ? i.getQuantity() : 1L)
-                .sum();
-    }
-
-    private String resolveBasketSizeRange(long totalUnits) {
-        if (totalUnits <= 1) {
-            return BASKET_SINGLE_ITEM;
-        } else if (totalUnits <= 3) {
-            return BASKET_2_3_ITEMS;
-        } else {
-            return BASKET_BULK_4_PLUS;
-        }
-    }
-
-    private void recordCancelledOrderMetrics(Order order) {
-        this.dbCancelledOrders.incrementAndGet();
-
-        // Decrement PLACED count in pipeline
-        AtomicLong placed = this.dbPipelineOrders.get(STATUS_PLACED);
-        if (placed != null && placed.get() > 0) {
-            placed.decrementAndGet();
-        }
-
-        // Cancelled revenue accumulation
-        double cancelledRev = Optional.ofNullable(order.getOrderItems())
-                .orElse(Collections.emptyList())
-                .stream()
-                .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0))
-                .sum();
-        this.dbCancelledRevenueUsd.add(cancelledRev);
-    }
-
-    private void recordShippedOrderMetrics() {
-        AtomicLong placed = this.dbPipelineOrders.get(STATUS_PLACED);
-        if (placed != null && placed.get() > 0) {
-            placed.decrementAndGet();
-        }
-        this.dbPipelineOrders.computeIfAbsent(STATUS_SHIPPED, k -> new AtomicLong(0)).incrementAndGet();
-    }
-
-    private void recordDeliveredOrderMetrics(Order order) {
-        AtomicLong shipped = this.dbPipelineOrders.get(STATUS_SHIPPED);
-        if (shipped != null && shipped.get() > 0) {
-            shipped.decrementAndGet();
-        }
-        this.dbPipelineOrders.computeIfAbsent(STATUS_DELIVERED, k -> new AtomicLong(0)).incrementAndGet();
-
-        this.dbCompletedOrders.incrementAndGet();
-
-        double revenue = Optional.ofNullable(order.getOrderItems())
-                .orElse(Collections.emptyList())
-                .stream()
-                .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0))
-                .sum();
-        this.dbRevenueUsd.add(revenue);
-
-        long items = Optional.ofNullable(order.getOrderItems())
-                .orElse(Collections.emptyList())
-                .stream()
-                .mapToLong(i -> i.getQuantity() != null ? i.getQuantity() : 0)
-                .sum();
-        this.dbItemsSold.addAndGet(items);
-
-        // Update SKU counts
-        Optional.ofNullable(order.getOrderItems())
-                .orElse(Collections.emptyList())
-                .stream()
-                .filter(item -> item.getSku() != null)
-                .forEach(item -> {
-                    long qty = item.getQuantity() != null ? item.getQuantity() : 1L;
-                    this.dbSkuSales.computeIfAbsent(item.getSku(), s -> {
-                        AtomicLong val = new AtomicLong(0);
-                        this.meterRegistry.gauge(METRIC_ECOMMERCE_SKU_SALES, List.of(Tag.of("sku", s)), val);
-                        return val;
-                    }).addAndGet(qty);
-                });
-
-        // Update Customer Loyalty Cohort metrics for delivered orders
-        try {
-            List<Order> deliveredOrders = this.orderRepository.findByOrderStatusWithItems(OrderStatus.DELIVERED);
-            if (deliveredOrders != null && !deliveredOrders.isEmpty()) {
-                syncCustomerLoyaltyCohortMetrics(deliveredOrders);
-            }
-        } catch (Exception e) {
-            log.warn("Non-fatal: Failed to refresh loyalty cohort metrics upon delivery: {}", e.getMessage());
-        }
+        this.orderMetricsService.afterPropertiesSet();
     }
 
     public synchronized void syncDatabaseMetrics() {
-        try {
-            List<Order> allOrders = this.orderRepository.findAllWithItems();
-
-            Map<Boolean, List<Order>> partitionedOrders = allOrders.stream()
-                    .collect(Collectors.partitioningBy(o -> o.getOrderStatus() != OrderStatus.CANCELLED));
-
-            List<Order> activeOrders = partitionedOrders.getOrDefault(true, Collections.emptyList());
-            List<Order> cancelledOrders = partitionedOrders.getOrDefault(false, Collections.emptyList());
-            List<Order> deliveredOrders = activeOrders.stream()
-                    .filter(order -> order.getOrderStatus() == OrderStatus.DELIVERED)
-                    .toList();
-
-            double revenue = syncPrimaryBusinessMetrics(deliveredOrders, cancelledOrders);
-            syncSkuSalesMetrics(deliveredOrders);
-            syncCustomerLoyaltyCohortMetrics(deliveredOrders);
-            syncBasketSizeMetrics(activeOrders);
-            syncPipelineOrderMetrics(activeOrders);
-
-            log.info("Synchronized business metrics with PostgreSQL DB: {} completed orders, ${} revenue USD, 3 loyalty cohorts updated",
-                    deliveredOrders.size(), revenue);
-        } catch (Exception e) {
-            log.error("Error syncing metrics from PostgreSQL database: {}", e.getMessage(), e);
-        }
-    }
-
-    private double syncPrimaryBusinessMetrics(List<Order> deliveredOrders, List<Order> cancelledOrders) {
-        double revenue = calculateOrdersRevenue(deliveredOrders);
-        double cancelledRev = calculateOrdersRevenue(cancelledOrders);
-        long items = calculateOrdersTotalItems(deliveredOrders);
-
-        this.dbCompletedOrders.set(deliveredOrders.size());
-        this.dbCancelledOrders.set(cancelledOrders.size());
-        this.dbRevenueUsd.reset();
-        this.dbRevenueUsd.add(revenue);
-        this.dbCancelledRevenueUsd.reset();
-        this.dbCancelledRevenueUsd.add(cancelledRev);
-        this.dbItemsSold.set(items);
-        return revenue;
-    }
-
-    private double calculateOrdersRevenue(List<Order> orders) {
-        return orders.stream()
-                .filter(o -> o.getOrderItems() != null)
-                .flatMap(o -> o.getOrderItems().stream())
-                .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0))
-                .sum();
-    }
-
-    private long calculateOrdersTotalItems(List<Order> orders) {
-        return orders.stream()
-                .filter(o -> o.getOrderItems() != null)
-                .flatMap(o -> o.getOrderItems().stream())
-                .mapToLong(i -> i.getQuantity() != null ? i.getQuantity() : 0)
-                .sum();
-    }
-
-    private void syncSkuSalesMetrics(List<Order> deliveredOrders) {
-        this.dbSkuSales.values().forEach(val -> val.set(0));
-
-        deliveredOrders.stream()
-                .filter(o -> o.getOrderItems() != null)
-                .flatMap(o -> o.getOrderItems().stream())
-                .filter(item -> item.getSku() != null)
-                .forEach(item -> {
-                    long qty = item.getQuantity() != null ? item.getQuantity() : 1L;
-                    this.dbSkuSales.computeIfAbsent(item.getSku(), s -> {
-                        AtomicLong val = new AtomicLong(0);
-                        this.meterRegistry.gauge(METRIC_ECOMMERCE_SKU_SALES, List.of(Tag.of("sku", s)), val);
-                        return val;
-                    }).addAndGet(qty);
-                });
-    }
-
-    private void syncCustomerLoyaltyCohortMetrics(List<Order> deliveredOrders) {
-        Map<String, Long> userOrderCounts = new HashMap<>();
-        Map<String, Double> userSpending = new HashMap<>();
-        deliveredOrders.forEach(o -> {
-            String u = (o.getUserId() != null && !o.getUserId().isBlank()) ? o.getUserId() : o.getUsername();
-            if (u != null && !u.isBlank() && !"guest".equalsIgnoreCase(u)) {
-                userOrderCounts.put(u, userOrderCounts.getOrDefault(u, 0L) + 1L);
-                double orderTotal = o.getTotalAmount() != null ? o.getTotalAmount() : 0.0;
-                userSpending.put(u, userSpending.getOrDefault(u, 0.0) + orderTotal);
-            }
-        });
-
-        long firstTimeOrders = 0;
-        long repeatOrders = 0;
-        long vipOrders = 0;
-        double firstTimeRev = 0.0;
-        double repeatRev = 0.0;
-        double vipRev = 0.0;
-
-        for (Map.Entry<String, Long> entry : userOrderCounts.entrySet()) {
-            long count = entry.getValue();
-            double spend = userSpending.getOrDefault(entry.getKey(), 0.0);
-            if (count <= 1) {
-                firstTimeOrders += count;
-                firstTimeRev += spend;
-            } else if (count <= 4) {
-                repeatOrders += count;
-                repeatRev += spend;
-            } else {
-                vipOrders += count;
-                vipRev += spend;
-            }
-        }
-
-        this.dbOrdersByCohort.computeIfAbsent(COHORT_FIRST_TIME, k -> new AtomicLong(0)).set(firstTimeOrders);
-        this.dbOrdersByCohort.computeIfAbsent(COHORT_REPEAT, k -> new AtomicLong(0)).set(repeatOrders);
-        this.dbOrdersByCohort.computeIfAbsent(COHORT_LOYAL_VIP, k -> new AtomicLong(0)).set(vipOrders);
-
-        this.dbRevenueByCohort.computeIfAbsent(COHORT_FIRST_TIME, k -> new AtomicReference<>(0.0)).set(firstTimeRev);
-        this.dbRevenueByCohort.computeIfAbsent(COHORT_REPEAT, k -> new AtomicReference<>(0.0)).set(repeatRev);
-        this.dbRevenueByCohort.computeIfAbsent(COHORT_LOYAL_VIP, k -> new AtomicReference<>(0.0)).set(vipRev);
-    }
-
-    private void syncBasketSizeMetrics(List<Order> activeOrders) {
-        long singleItemOrders = 0;
-        long mediumOrders = 0;
-        long bulkOrders = 0;
-
-        for (Order o : activeOrders) {
-            long totalUnits = calculateTotalUnits(o);
-            if (totalUnits <= 1) {
-                singleItemOrders++;
-            } else if (totalUnits <= 3) {
-                mediumOrders++;
-            } else {
-                bulkOrders++;
-            }
-        }
-
-        this.dbBasketSizes.computeIfAbsent(BASKET_SINGLE_ITEM, k -> new AtomicLong(0)).set(singleItemOrders);
-        this.dbBasketSizes.computeIfAbsent(BASKET_2_3_ITEMS, k -> new AtomicLong(0)).set(mediumOrders);
-        this.dbBasketSizes.computeIfAbsent(BASKET_BULK_4_PLUS, k -> new AtomicLong(0)).set(bulkOrders);
-    }
-
-    private void syncPipelineOrderMetrics(List<Order> activeOrders) {
-        Map<String, Long> pipelineCounts = activeOrders.stream()
-                .collect(Collectors.groupingBy(
-                        o -> o.getOrderStatus() != null ? o.getOrderStatus().name() : STATUS_PLACED,
-                        Collectors.counting()
-                ));
-
-        List.of(STATUS_PLACED, STATUS_SHIPPED, STATUS_DELIVERED).forEach(status ->
-            this.dbPipelineOrders.computeIfAbsent(status, k -> new AtomicLong(0)).set(pipelineCounts.getOrDefault(status, 0L))
-        );
+        this.orderMetricsService.syncDatabaseMetrics();
     }
 
     public OrderResponse placeOrder(OrderRequest orderRequest) {
@@ -464,11 +183,11 @@ public class OrderService implements InitializingBean {
             Order savedOrder = saveOrder(orderRequest, authoritativeProducts, userId, username);
 
             // 5. Asynchronous resilient Kafka event publishing
-            publishOrderEvent(savedOrder);
+            publishOrderEvent(savedOrder, OrderStatus.PLACED);
 
             // 6. Fast O(1) incremental metric update for placed order
-            recordPlacedOrderMetrics(savedOrder);
-            recordOrderFinancialMetrics(savedOrder);
+            this.orderMetricsService.recordPlacedOrderMetrics(savedOrder);
+            this.orderMetricsService.recordOrderFinancialMetrics(savedOrder);
 
             OrderResponse orderResponse = mapOrderToOrderResponse(savedOrder);
 
@@ -510,7 +229,7 @@ public class OrderService implements InitializingBean {
 
     private void verifyInventoryStock(List<OrderItemsRequest> orderItems) {
         CircuitBreaker cb = Optional.ofNullable(this.inventoryCircuitBreaker)
-                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE));
+                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(OrderConstants.INVENTORY_SERVICE));
 
         BaseResponse result;
         try {
@@ -521,7 +240,7 @@ public class OrderService implements InitializingBean {
         }
 
         if (result == null || result.hasErrors()) {
-            this.meterRegistry.counter("orders_placed_total", STATUS_TAG, "FAILED").increment();
+            this.meterRegistry.counter("orders_placed_total", OrderConstants.STATUS_TAG, "FAILED").increment();
             String errorMsg = (result != null && result.errorMessages() != null && result.errorMessages().length > 0)
                     ? String.join(", ", result.errorMessages())
                     : "Some of the requested products are not in stock";
@@ -531,7 +250,7 @@ public class OrderService implements InitializingBean {
 
     private void decrementInventoryStock(List<OrderItemsRequest> orderItems) {
         CircuitBreaker cb = Optional.ofNullable(this.inventoryCircuitBreaker)
-                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE));
+                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(OrderConstants.INVENTORY_SERVICE));
 
         BaseResponse decrementResult;
         try {
@@ -550,27 +269,6 @@ public class OrderService implements InitializingBean {
                     : "Unknown error";
             throw new InsufficientStockException("Failed to decrement inventory: " + details);
         }
-    }
-
-    private void recordOrderFinancialMetrics(Order savedOrder) {
-        DistributionSummary.builder("ecommerce_order_value_usd")
-                .description("Order transaction total purchase value distribution in USD")
-                .baseUnit("USD")
-                .register(this.meterRegistry)
-                .record(savedOrder.getTotalAmount() != null ? savedOrder.getTotalAmount() : 0.0);
-
-        String deliveryMethod = (savedOrder.getDeliveryMethod() != null && !savedOrder.getDeliveryMethod().isBlank())
-                ? savedOrder.getDeliveryMethod() : "Standard";
-        this.meterRegistry.counter("ecommerce_shipping_revenue_usd", "method", deliveryMethod)
-                .increment(savedOrder.getShippingFee() != null ? savedOrder.getShippingFee() : 0.0);
-
-        if (savedOrder.getTaxAmount() != null && savedOrder.getTaxAmount() > 0) {
-            this.meterRegistry.counter("ecommerce_tax_collected_usd").increment(savedOrder.getTaxAmount());
-        }
-
-        String cardBrand = (savedOrder.getPaymentMethod() != null && !savedOrder.getPaymentMethod().isBlank())
-                ? savedOrder.getPaymentMethod() : "Visa";
-        this.meterRegistry.counter("ecommerce_payment_brand_total", "brand", cardBrand).increment();
     }
 
     private Order saveOrder(OrderRequest orderRequest, Map<String, ProductPriceResponse> authoritativeProducts, String userId, String username) {
@@ -593,80 +291,50 @@ public class OrderService implements InitializingBean {
         order.setPhone(orderRequest.getPhone());
 
         // Logistics & Tracking
-        String method = Optional.ofNullable(orderRequest.getDeliveryMethod()).orElse("STANDARD");
+        String method = Optional.ofNullable(orderRequest.getDeliveryMethod()).orElse(OrderConstants.DEFAULT_DELIVERY_METHOD);
         order.setDeliveryMethod(method);
-        order.setCarrier("DHL Express");
-        order.setTrackingNumber("DHL-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        order.setCarrier(OrderConstants.DEFAULT_CARRIER);
+        order.setTrackingNumber(OrderConstants.TRACKING_PREFIX + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
 
-        // Financial calculations
-        double subtotal = Optional.ofNullable(order.getOrderItems())
-                .orElseGet(Collections::emptyList)
-                .stream()
-                .mapToDouble(i -> (i.getPrice() != null ? i.getPrice() : 0.0) * (i.getQuantity() != null ? i.getQuantity() : 0L))
-                .sum();
-        // Financial totals are derived from authoritative catalog prices and the server policy.
-        // Legacy request amount fields are deliberately ignored to prevent client-side tampering.
-        double shipping = subtotal >= FREE_SHIPPING_THRESHOLD_USD ? 0.0 : SHIPPING_FEE_USD;
-        double tax = Math.round(subtotal * TAX_RATE * 100.0) / 100.0;
-        double total = Math.round((subtotal + shipping + tax) * 100.0) / 100.0;
-
-        order.setSubtotalAmount(subtotal);
-        order.setShippingFee(shipping);
-        order.setTaxAmount(tax);
-        order.setTotalAmount(total);
-        order.setPaymentMethod(Optional.ofNullable(orderRequest.getPaymentMethod()).orElse("CARD_VISA"));
+        // Financial calculations via OrderPricingCalculator (no hardcoding, clean BigDecimal rounding)
+        OrderPricingCalculator.FinancialBreakdown breakdown = this.orderPricingCalculator.calculateBreakdown(order.calculateSubtotal());
+        order.setSubtotalAmount(breakdown.subtotalAmount());
+        order.setShippingFee(breakdown.shippingFee());
+        order.setTaxAmount(breakdown.taxAmount());
+        order.setTotalAmount(breakdown.totalAmount());
+        order.setPaymentMethod(Optional.ofNullable(orderRequest.getPaymentMethod()).orElse(OrderConstants.DEFAULT_PAYMENT_METHOD));
 
         return this.orderRepository.save(order);
     }
 
-    private void publishOrderEvent(Order savedOrder) {
+    private void publishOrderEvent(Order order, OrderStatus status) {
         String payload = JsonUtils.toJson(
                 new OrderEvent(
-                        savedOrder.getOrderNumber(),
-                        savedOrder.getOrderItems().size(),
-                        OrderStatus.PLACED,
-                        savedOrder.getCustomerName(),
-                        savedOrder.getShippingAddress(),
-                        savedOrder.getTrackingNumber(),
-                        savedOrder.getTotalAmount(),
-                        savedOrder.getUserId(),
-                        savedOrder.getUsername(),
+                        order.getOrderNumber(),
+                        Optional.ofNullable(order.getOrderItems()).map(List::size).orElse(0),
+                        status,
+                        order.getCustomerName(),
+                        order.getShippingAddress(),
+                        order.getTrackingNumber(),
+                        order.getTotalAmount(),
+                        order.getUserId(),
+                        order.getUsername(),
                         Instant.now(),
-                        getOrderCreatedAt(savedOrder),
-                        mapEventItems(savedOrder)
+                        getOrderCreatedAt(order),
+                        mapEventItems(order),
+                        order.getCustomerEmail(),
+                        order.getCity(),
+                        order.getPostalCode(),
+                        order.getPhone(),
+                        order.getDeliveryMethod(),
+                        order.getPaymentMethod()
                 )
         );
-        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send(ORDERS_TOPIC, savedOrder.getOrderNumber(), payload);
+        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send(OrderConstants.ORDERS_TOPIC, order.getOrderNumber(), payload);
         future.whenComplete((result, throwable) ->
             Optional.ofNullable(throwable).ifPresentOrElse(
-                    err -> log.error("Failed to publish OrderEvent to Kafka: {}", err.getMessage(), err),
-                    () -> log.info("Successfully published OrderEvent to Kafka with offset: {}", result.getRecordMetadata().offset())
-            )
-        );
-    }
-
-    private void publishCancelOrderEvent(Order cancelledOrder) {
-        String payload = JsonUtils.toJson(
-                new OrderEvent(
-                        cancelledOrder.getOrderNumber(),
-                        cancelledOrder.getOrderItems().size(),
-                        OrderStatus.CANCELLED,
-                        cancelledOrder.getCustomerName(),
-                        cancelledOrder.getShippingAddress(),
-                        cancelledOrder.getTrackingNumber(),
-                        cancelledOrder.getTotalAmount(),
-                        cancelledOrder.getUserId(),
-                        cancelledOrder.getUsername(),
-                        Instant.now(),
-                        getOrderCreatedAt(cancelledOrder),
-                        mapEventItems(cancelledOrder)
-                )
-        );
-        CompletableFuture<SendResult<String, String>> future = this.kafkaTemplate.send(ORDERS_TOPIC, cancelledOrder.getOrderNumber(), payload);
-        future.whenComplete((result, throwable) ->
-            Optional.ofNullable(throwable).ifPresentOrElse(
-                    err -> log.error("Failed to publish Cancel OrderEvent to Kafka: {}", err.getMessage(), err),
-                    () -> log.info("Successfully published Cancel OrderEvent to Kafka for order #{}", cancelledOrder.getOrderNumber())
+                    err -> log.error("Failed to publish OrderEvent ({}) to Kafka for order #{}: {}", status, order.getOrderNumber(), err.getMessage(), err),
+                    () -> log.info("Successfully published OrderEvent ({}) to Kafka for order #{}", status, order.getOrderNumber())
             )
         );
     }
@@ -676,7 +344,7 @@ public class OrderService implements InitializingBean {
             log.warn("Executing compensating transaction: restoring inventory stock for {} items", orderItems.size());
             this.meterRegistry.counter("ecommerce_compensations_total").increment();
             this.meterRegistry.counter("ecommerce_saga_compensations_total", "reason", "downstream_failure").increment();
-            CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(INVENTORY_SERVICE);
+            CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(OrderConstants.INVENTORY_SERVICE);
             BaseResponse response = cb.executeSupplier(() -> this.inventoryClient.incrementStock(orderItems));
             if (response == null || response.hasErrors()) {
                 String details = response != null && response.errorMessages() != null
@@ -691,7 +359,7 @@ public class OrderService implements InitializingBean {
 
     private Map<String, ProductPriceResponse> resolveAuthoritativePrices(List<String> skus) {
         CircuitBreaker cb = Optional.ofNullable(this.productsCircuitBreaker)
-                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(PRODUCTS_SERVICE));
+                .orElseGet(() -> this.circuitBreakerRegistry.circuitBreaker(OrderConstants.PRODUCTS_SERVICE));
         List<ProductPriceResponse> products;
         try {
             products = cb.executeSupplier(() -> this.productsClient.getProductPrices(skus));
@@ -731,8 +399,8 @@ public class OrderService implements InitializingBean {
     @Transactional
     public OrderResponse cancelOrder(@NonNull Long id, String currentUserId, boolean isAdmin) {
         // 1. Load items initialized from the query
-        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
-                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, OrderConstants.ORDER_ID_NOT_NULL_MSG))
+                .orElseThrow(() -> new OrderNotFoundException(OrderConstants.ORDER_NOT_FOUND_PREFIX + id + OrderConstants.ORDER_NOT_FOUND_SUFFIX));
 
         if (!isAdmin && (order.getUserId() == null || !order.getUserId().equals(currentUserId))) {
             throw new AccessDeniedException("You are not authorized to cancel orders belonging to another account.");
@@ -758,8 +426,8 @@ public class OrderService implements InitializingBean {
         // External effects must not run until the state transition commits.
         afterCommit(() -> {
             if (!itemsToRestore.isEmpty()) compensateInventoryStock(itemsToRestore);
-            publishCancelOrderEvent(updatedOrder);
-            recordCancelledOrderMetrics(updatedOrder);
+            publishOrderEvent(updatedOrder, OrderStatus.CANCELLED);
+            this.orderMetricsService.recordCancelledOrderMetrics(updatedOrder);
             log.info("Order #{} successfully cancelled and stock restoration dispatched", updatedOrder.getOrderNumber());
         });
         return response;
@@ -771,14 +439,14 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse shipOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
-                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, OrderConstants.ORDER_ID_NOT_NULL_MSG))
+                .orElseThrow(() -> new OrderNotFoundException(OrderConstants.ORDER_NOT_FOUND_PREFIX + id + OrderConstants.ORDER_NOT_FOUND_SUFFIX));
 
         order.ship();
         Order updatedOrder = this.orderRepository.save(order);
         afterCommit(() -> {
-            publishOrderStatusEvent(updatedOrder, OrderStatus.SHIPPED);
-            recordShippedOrderMetrics();
+            publishOrderEvent(updatedOrder, OrderStatus.SHIPPED);
+            this.orderMetricsService.recordShippedOrderMetrics();
         });
         log.info("Order #{} marked as SHIPPED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
@@ -790,37 +458,17 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse deliverOrder(@NonNull Long id) {
-        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, ORDER_ID_NOT_NULL_MSG))
-                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOT_FOUND_PREFIX + id + ORDER_NOT_FOUND_SUFFIX));
+        Order order = this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, OrderConstants.ORDER_ID_NOT_NULL_MSG))
+                .orElseThrow(() -> new OrderNotFoundException(OrderConstants.ORDER_NOT_FOUND_PREFIX + id + OrderConstants.ORDER_NOT_FOUND_SUFFIX));
 
         order.deliver();
         Order updatedOrder = this.orderRepository.save(order);
         afterCommit(() -> {
-            publishOrderStatusEvent(updatedOrder, OrderStatus.DELIVERED);
-            recordDeliveredOrderMetrics(updatedOrder);
+            publishOrderEvent(updatedOrder, OrderStatus.DELIVERED);
+            this.orderMetricsService.recordDeliveredOrderMetrics(updatedOrder);
         });
         log.info("Order #{} marked as DELIVERED", updatedOrder.getOrderNumber());
         return mapOrderToOrderResponse(updatedOrder);
-    }
-
-    private void publishOrderStatusEvent(Order order, OrderStatus status) {
-        String payload = JsonUtils.toJson(
-                new OrderEvent(
-                        order.getOrderNumber(),
-                        order.getOrderItems().size(),
-                        status,
-                        order.getCustomerName(),
-                        order.getShippingAddress(),
-                        order.getTrackingNumber(),
-                        order.getTotalAmount(),
-                        order.getUserId(),
-                        order.getUsername(),
-                        Instant.now(),
-                        getOrderCreatedAt(order),
-                        mapEventItems(order)
-                )
-        );
-        this.kafkaTemplate.send(ORDERS_TOPIC, order.getOrderNumber(), payload);
     }
 
     private void afterCommit(Runnable action) {
@@ -900,7 +548,7 @@ public class OrderService implements InitializingBean {
         double clientPrice = Optional.ofNullable(orderItemsRequest.getPrice()).orElse(0.0);
 
         if (authoritativePrice > 0
-                && Math.abs(clientPrice - authoritativePrice) / authoritativePrice > STALE_PRICE_WARN_THRESHOLD) {
+                && Math.abs(clientPrice - authoritativePrice) / authoritativePrice > OrderConstants.STALE_PRICE_WARN_THRESHOLD) {
             log.warn("Stale/mismatched price for sku {}: client sent {}, authoritative is {}",
                     orderItemsRequest.getSku(), clientPrice, authoritativePrice);
         }
@@ -914,25 +562,114 @@ public class OrderService implements InitializingBean {
                 .build();
     }
 
-    public void recordFunnelEvent(com.georgegxx.orders_service.model.dtos.FunnelEventRequest request) {
-        if (request == null || request.getEventType() == null) return;
-        switch (request.getEventType().toUpperCase()) {
-            case "CART_ADD" -> {
-                String requestedCategory = request.getCategory() == null ? "" : request.getCategory().trim();
-                String category = FUNNEL_CATEGORIES.stream()
-                        .filter(allowed -> allowed.equalsIgnoreCase(requestedCategory))
-                        .findFirst()
-                        .orElse("General");
-                this.meterRegistry.counter(METRIC_ECOMMERCE_FUNNEL_EVENTS, TAG_EVENT_TYPE, "cart_add", TAG_CATEGORY, category, TAG_STEP, "").increment();
-            }
-            case "CHECKOUT_START" ->
-                this.meterRegistry.counter(METRIC_ECOMMERCE_FUNNEL_EVENTS, TAG_EVENT_TYPE, "checkout_start", TAG_CATEGORY, "", TAG_STEP, "").increment();
-            case "CHECKOUT_STEP" -> {
-                String requestedStep = request.getStep() == null ? "" : request.getStep().trim().toUpperCase(Locale.ROOT);
-                String step = FUNNEL_STEPS.contains(requestedStep) ? requestedStep : "OTHER";
-                this.meterRegistry.counter(METRIC_ECOMMERCE_FUNNEL_EVENTS, TAG_EVENT_TYPE, "checkout_step", TAG_CATEGORY, "", TAG_STEP, step).increment();
-            }
-            default -> log.debug("Ignored unrecognized funnel event: {}", request.getEventType());
+    public void recordFunnelEvent(FunnelEventRequest request) {
+        this.orderMetricsService.recordFunnelEvent(request);
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
+    public void handleSagaPaymentCompleted(String orderNumber, String transactionRef) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            return;
         }
+        this.orderRepository.findByOrderNumberWithItemsForUpdate(orderNumber).ifPresent(order -> {
+            log.info("Saga forward transition: Payment confirmed (txn={}) for order #{}", transactionRef, orderNumber);
+            this.meterRegistry.counter("ecommerce_saga_events_total", "event", OrderConstants.EVENT_PAYMENT_COMPLETED).increment();
+        });
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
+    public void handleSagaFailureCompensation(String orderNumber, String reason) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            return;
+        }
+        this.orderRepository.findByOrderNumberWithItemsForUpdate(orderNumber).ifPresent(order -> {
+            if (order.getOrderStatus() != OrderStatus.PLACED) {
+                log.info("Order #{} already in status {}, skipping Saga failure compensation", orderNumber, order.getOrderStatus());
+                return;
+            }
+            order.cancel();
+            Order updatedOrder = this.orderRepository.save(order);
+
+            List<OrderItemsRequest> itemsToRestore = Optional.ofNullable(order.getOrderItems())
+                    .orElse(Collections.emptyList())
+                    .stream()
+                    .map(item -> OrderItemsRequest.builder()
+                            .sku(item.getSku())
+                            .price(item.getPrice())
+                            .quantity(item.getQuantity())
+                            .build())
+                    .toList();
+
+            afterCommit(() -> {
+                if (!itemsToRestore.isEmpty()) {
+                    compensateInventoryStock(itemsToRestore);
+                }
+                publishOrderEvent(updatedOrder, OrderStatus.CANCELLED);
+                this.orderMetricsService.recordCancelledOrderMetrics(updatedOrder);
+                log.warn("Saga backward compensation completed for order #{} (reason: {})", orderNumber, reason);
+            });
+        });
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
+    public void handleSagaShipmentDispatched(String orderNumber, String trackingNumber, String carrier) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            return;
+        }
+        this.orderRepository.findByOrderNumberWithItemsForUpdate(orderNumber).ifPresent(order -> {
+            if (order.getOrderStatus() != OrderStatus.PLACED) {
+                return;
+            }
+            if (trackingNumber != null && !trackingNumber.isBlank()) {
+                order.setTrackingNumber(trackingNumber);
+            }
+            if (carrier != null && !carrier.isBlank()) {
+                order.setCarrier(carrier);
+            }
+            order.ship();
+            Order updatedOrder = this.orderRepository.save(order);
+            afterCommit(() -> {
+                publishOrderEvent(updatedOrder, OrderStatus.SHIPPED);
+                this.orderMetricsService.recordShippedOrderMetrics();
+                this.meterRegistry.counter("ecommerce_saga_events_total", "event", OrderConstants.EVENT_SHIPMENT_DISPATCHED).increment();
+                log.info("Saga forward transition: Order #{} marked as SHIPPED (tracking={})", orderNumber, updatedOrder.getTrackingNumber());
+            });
+        });
+    }
+
+    @Caching(evict = {
+            @CacheEvict(value = "orders", allEntries = true),
+            @CacheEvict(value = "user_orders", allEntries = true)
+    })
+    @Transactional
+    public void handleSagaShipmentDelivered(String orderNumber) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            return;
+        }
+        this.orderRepository.findByOrderNumberWithItemsForUpdate(orderNumber).ifPresent(order -> {
+            if (order.getOrderStatus() != OrderStatus.SHIPPED) {
+                return;
+            }
+            order.deliver();
+            Order updatedOrder = this.orderRepository.save(order);
+            afterCommit(() -> {
+                publishOrderEvent(updatedOrder, OrderStatus.DELIVERED);
+                this.orderMetricsService.recordDeliveredOrderMetrics(updatedOrder);
+                this.meterRegistry.counter("ecommerce_saga_events_total", "event", OrderConstants.EVENT_SHIPMENT_DELIVERED).increment();
+                log.info("Saga forward transition: Order #{} marked as DELIVERED", orderNumber);
+            });
+        });
     }
 }

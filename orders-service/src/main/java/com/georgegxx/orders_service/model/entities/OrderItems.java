@@ -21,4 +21,15 @@ public class OrderItems {
     @ManyToOne
     @JoinColumn(name = "order_id")
     private Order order;
+
+    /**
+     * Calculates the line item total amount (price * quantity) with null safety.
+     *
+     * @return the total price for this line item
+     */
+    public double getLineTotal() {
+        double unitPrice = this.price != null ? this.price : 0.0;
+        long qty = this.quantity != null ? this.quantity : 0L;
+        return unitPrice * qty;
+    }
 }
