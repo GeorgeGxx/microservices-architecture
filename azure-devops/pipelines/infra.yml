@@ -4,7 +4,7 @@ name: MSA-Terraform-Azure-Validation-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, staging, prod, release/*, main, master]
+    include: [develop, staging, master]
   paths:
     include:
       - terraform/environments/azure/**
@@ -15,7 +15,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, staging, prod, release/*, main, master]
+    include: [develop, staging, master]
   paths:
     include:
       - terraform/environments/azure/**

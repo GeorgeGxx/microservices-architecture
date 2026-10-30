@@ -27,7 +27,7 @@ gitGraph
     checkout staging
     merge develop id: "Promote to Staging"
     commit id: "QA: Newman + k6 Pass"
-    checkout main
+    checkout master
     merge staging id: "Release v1.1.0"
     commit id: "Istio Canary 10% -> 100%"
 ```
@@ -39,7 +39,7 @@ gitGraph
 | **`feature/*`**, **`fix/*`** | Local Workspace | N/A | Local Docker / Minikube | Isolated unit work, feature prototyping, local tests. |
 | **`develop`** | **`dev`** | `dev` | • Minikube (Local)<br/>• AWS EKS Dev<br/>• Azure AKS Dev<br/>• GCP GKE Dev | **Integration Trunk:** Continuous integration, daily developer merges, automated ArgoCD sync, rapid feedback. |
 | **`staging`** | **`staging`** | `staging` | • AWS EKS Staging<br/>• Azure AKS Staging<br/>• GCP GKE Staging | **Quality & Security Gate:** Medium-performance tier (2 replicas), Newman API suite, Cypress E2E, k6 load testing, OWASP ZAP DAST. |
-| **`master`** / **`main`** | **`production`** | `production` | • AWS EKS Prod<br/>• Azure AKS Prod<br/>• GCP GKE Prod | **Production Release:** High-availability HA tier (3-10 HPA replicas), Istio Canary traffic routing (90/10), Cloud Armor/WAF. |
+| **`master`** | **`production`** | `production` | • AWS EKS Prod<br/>• Azure AKS Prod<br/>• GCP GKE Prod | **Production Release:** High-availability HA tier (3-10 HPA replicas), Istio Canary traffic routing (90/10), Cloud Armor/WAF. |
 
 ---
 
@@ -96,9 +96,9 @@ git rebase origin/develop
 ## 🛡️ Branch Protection Rules & The Golden Rule
 
 ### 🚫 The Golden Rule of Shared Branches
-> **NEVER execute `git reset --hard` followed by a `git push --force` on shared collaboration branches (`develop`, `staging`, `main`/`master`).**
+> **NEVER execute `git reset --hard` followed by a `git push --force` on shared collaboration branches (`develop`, `staging`, `master`).**
 
-On GitHub, Azure DevOps, and Bitbucket, configure branch protection rules for `develop`, `staging`, and `main`:
+On GitHub, Azure DevOps, and Bitbucket, configure branch protection rules for `develop`, `staging`, and `master`:
 1. **Require pull request reviews** before merging (minimum 1 peer review).
 2. **Require status checks to pass** before merging (CI tests, Trivy, Gitleaks).
 3. **Do not allow bypassing the above settings**.
@@ -186,7 +186,7 @@ If you prefer not to use complex rebase arguments, this visual method guarantees
 # 1. Create a safety backup branch containing your current work:
 git branch backup/my-work
 
-# 2. Reset your main branch to match the clean remote:
+# 2. Reset your master branch to match the clean remote:
 git fetch origin
 git reset --hard origin/develop
 
@@ -209,7 +209,7 @@ To avoid causing sync issues for team members, choose the right undo tool based 
 | :--- | :--- | :--- |
 | **History Behavior** | **Appends** a new inverse commit that cancels out the changes. | **Deletes / moves** branch pointers backward in time. |
 | **Safety for Remote** | 🟢 **100% Safe:** No force-push required. Team members receive clean updates on standard `git pull`. | 🔴 **Destructive:** Requires `git push --force`. Will cause branch drift for teammates. |
-| **Where to Use** | Shared branches: `develop`, `staging`, `main`, `master`. | Private, unmerged personal branches (`feature/*`, `fix/*`). |
+| **Where to Use** | Shared branches: `develop`, `staging`, `master`. | Private, unmerged personal branches (`feature/*`, `fix/*`). |
 | **Audit Trail** | Preserves full auditability of the incident and correction. | Erases history completely. |
 
 ### Example: Reverting a Broken Commit on `develop`
@@ -240,8 +240,8 @@ git config --global rebase.autoStash true
 # 3. Enable Git's reuse recorded resolution (auto-resolves recurring conflicts):
 git config --global rerere.enabled true
 
-# 4. Set the default initial branch to 'main':
-git config --global init.defaultBranch main
+# 4. Set the default initial branch to 'master':
+git config --global init.defaultBranch master
 
 # 5. Convenient colorized log alias:
 git config --global alias.lg "log --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit"
@@ -308,11 +308,11 @@ gitGraph
     checkout develop
     commit id: "dev-feature-A"
     commit id: "dev-feature-B"
-    checkout main
+    checkout master
     branch hotfix/fix-jwt-replay
     checkout hotfix/fix-jwt-replay
     commit id: "fix(auth): sanitize JWT nonce"
-    checkout main
+    checkout master
     merge hotfix/fix-jwt-replay id: "Release v1.2.1" tag: "v1.2.1"
     checkout develop
     merge hotfix/fix-jwt-replay id: "Sync hotfix to develop"
@@ -324,18 +324,18 @@ gitGraph
 
 ```bash
 # 1. Branch from the exact broken production tag:
-git checkout main
+git checkout master
 git checkout -b hotfix/fix-jwt-replay v1.2.0
 
 # 2. Implement minimal, surgical fix and verify tests:
 npm test
 git commit -am "fix(auth): sanitize JWT nonce to prevent replay attacks"
 
-# 3. Merge into 'main' with a new patch tag:
-git checkout main
+# 3. Merge into 'master' with a new patch tag:
+git checkout master
 git merge --no-ff hotfix/fix-jwt-replay
 git tag -a v1.2.1 -m "hotfix: resolved JWT replay vulnerability"
-git push origin main --tags
+git push origin master --tags
 
 # 4. CRITICAL: Merge into 'develop' to prevent regressions in next releases:
 git checkout develop

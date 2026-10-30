@@ -2,9 +2,9 @@ name: Local Stack and Infrastructure Quality Gates
 
 on:
   push:
-    branches: [develop, staging, prod, main, master]
+    branches: [develop, staging, master]
   pull_request:
-    branches: [develop, staging, prod, main, master]
+    branches: [develop, staging, master]
   workflow_dispatch:
 
 permissions:

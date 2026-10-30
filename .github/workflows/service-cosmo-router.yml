@@ -2,14 +2,14 @@ name: Cosmo Router Federation CI
 
 on:
   push:
-    branches: [develop, staging, prod, main]
+    branches: [develop, staging, master]
     paths:
       - 'cosmo-router/**'
       - 'helm/charts/cosmo-router/**'
       - 'helm/microservices-umbrella/**'
       - '.github/workflows/service-cosmo-router.yml'
   pull_request:
-    branches: [develop, staging, prod, main]
+    branches: [develop, staging, master]
     paths:
       - 'cosmo-router/**'
       - 'helm/charts/cosmo-router/**'

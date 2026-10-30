@@ -729,7 +729,7 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
-    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/prod')
+    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master')
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
@@ -746,7 +746,7 @@ jobs:
       - name: Load Image from Tarball
         run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
 
-      - name: Tag and Push to Container Registry (Immutable Promotion on staging/prod)
+      - name: Tag and Push to Container Registry (Immutable Promotion on staging/master)
         id: registry-push
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
@@ -773,7 +773,7 @@ jobs:
 
             # On staging/prod promotion, check if the exact immutable artifact for this commit SHA
             # was already built and pushed in an earlier stage; if so, promote its digest without overwriting.
-            if [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.ref }}" = "refs/heads/prod" ]; then
+            if [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
               EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
               if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
                 echo "digest=$EXISTING_DIGEST" >> "$GITHUB_OUTPUT"
@@ -811,7 +811,7 @@ jobs:
   # STEP 7: 🐙 ArgoCD GitOps Continuous Delivery Synchronization
   #   - Branch develop/dev: Syncs 'microservices-dev' on Minikube/EKS Dev (namespace: dev)
   #   - Branch staging: Syncs 'microservices-staging' on AWS EKS Staging (namespace: staging)
-  #   - Branch prod/main/master: Syncs BOTH 'microservices-prod' (DP1) and 'microservices-prod-dp2' (DP2)
+  #   - Branch master: Syncs BOTH 'microservices-prod' (DP1) and 'microservices-prod-dp2' (DP2)
   # ==========================================================
   gitops-argocd-sync:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"

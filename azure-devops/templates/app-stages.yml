@@ -5,19 +5,18 @@
 #  1 UnitTests (+Sonar) -> 2 SASTSecurity -> 3 BuildContainer(+SBOM) -> 4 ContainerScan
 #  -> 5 ComplianceGate -> 6 PushCandidate (SHA tag to ACR)
 #       |-> DeployDev (develop)                   -> RollbackDev
-#       |-> DeployStaging (release/* | main)  -> Integration | E2E | Perf | DAST
+#       |-> DeployStaging (staging | master)  -> Integration | E2E | Perf | DAST
 #                                                  -> RollbackStaging (on any failure)
 #                                                  -> PromoteImage (semver/latest tags)
-#                                                      -> DeployProduction (main) -> RollbackProduction
+#                                                      -> DeployProduction (master) -> RollbackProduction
 #
 # GATE POLICY: Gitleaks always blocks; SAST/Trivy/Conftest block on protected
-# branches (release/*, main, master) and are advisory elsewhere (gates.yml).
+# branches (staging, master) and are advisory elsewhere (gates.yml).
 # Everything reaching staging is already a production candidate, so staging
 # test gates are always blocking.
 #
-# Branch model: develop -> dev | release/* -> staging | main/master -> staging + prod
-# Registries are environment-scoped by the matching Terraform workspace. A main
-# build is pushed to staging first, then copied to production only after QA.
+# Branch model: develop -> dev | staging -> staging | master -> staging + prod
+# Registries are environment-scoped by the matching Terraform workspace. A master\n# build is pushed to staging first, then copied to production only after QA.
 # Environments (ADO): dev, staging, production. Cluster/RG per env come from
 # <namePrefix>-<env>-aks / -rg, i.e. the ones created by infra-stages.yml.
 #
@@ -614,7 +613,7 @@ stages:
   - stage: PushCandidate
     displayName: "📦 6. Push Candidate to ACR - ${{ parameters.serviceName }}"
     dependsOn: ComplianceGate
-    condition: and(succeeded(), or(in(variables['Build.SourceBranch'], 'refs/heads/develop', 'refs/heads/staging', 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/')))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/develop', 'refs/heads/staging', 'refs/heads/master'))
     jobs:
       - job: PushSha
         displayName: "Push <sha> tag to ACR"
@@ -635,7 +634,7 @@ stages:
                 set -euo pipefail
                 case "$(Build.SourceBranch)" in
                   refs/heads/develop) ACR_NAME='${{ parameters.acrNameDev }}' ;;
-                  refs/heads/staging|refs/heads/release/*|refs/heads/prod|refs/heads/main|refs/heads/master) ACR_NAME='${{ parameters.acrNameStaging }}' ;;
+                  refs/heads/staging|refs/heads/master) ACR_NAME='${{ parameters.acrNameStaging }}' ;;
                   *) echo "##vso[task.logissue type=error]No ACR mapping for $(Build.SourceBranch)"; exit 1 ;;
                 esac
                 az acr login --name "$ACR_NAME"
@@ -698,12 +697,12 @@ stages:
               helmVersion: ${{ parameters.helmVersion }}
 
   # ==========================================================
-  # STAGING (staging, release/*, or prod/main/master)
+  # STAGING (staging or master)
   # ==========================================================
   - stage: DeployStaging
     displayName: "🚀 8. Deploy to AKS Staging - ${{ parameters.serviceName }}"
     dependsOn: PushCandidate
-    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master')))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/master'))
     jobs:
       - deployment: HelmDeployStaging
         displayName: "Helm upgrade on AKS Staging"
@@ -909,7 +908,7 @@ stages:
       - E2ETests
       - PerformanceTests
       - DASTScan
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/master'))
     jobs:
       - job: PromoteTags
         displayName: "Promote immutable digest in ACR"
@@ -947,13 +946,13 @@ stages:
                 echo "Certified immutable image ($SOURCE_DIGEST) promoted from $SOURCE_IMAGE to $TARGET:$(Build.SourceVersion)"
 
   # ==========================================================
-  # PRODUCTION (prod/main/master only) — Dual-Dataplane Deployment (DP1 + DP2)
+  # PRODUCTION (master only) — Dual-Dataplane Deployment (DP1 + DP2)
   # Approval check lives on the 'production' environment in the ADO portal.
   # ==========================================================
   - stage: DeployProduction
     displayName: "🚢 14. Deploy to AKS Production (Dual-Dataplane DP1 + DP2) - ${{ parameters.serviceName }}"
     dependsOn: PromoteImage
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/master'))
     jobs:
       - deployment: HelmCanaryProductionDP1
         displayName: "Production rollout — Primary AKS Dataplane (DP1: ${{ parameters.namePrefix }}-prod-aks)"

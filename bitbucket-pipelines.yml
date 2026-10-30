@@ -472,7 +472,7 @@ pipelines:
           steps: [{ step: *runtime-verify }]
       - stage: { name: '14. Staging release evidence', steps: [{ step: *release-evidence }] }
 
-    prod: &production-branch-pipeline
+    master: &production-branch-pipeline
       - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
       - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
       - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
@@ -564,8 +564,6 @@ pipelines:
                   - artifacts/images/**
             - step: *deploy-gke
 
-    main: *production-branch-pipeline
-    master: *production-branch-pipeline
 
   pull-requests:
     '**':

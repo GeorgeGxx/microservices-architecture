@@ -27,7 +27,7 @@ flowchart LR
 | **2** | [**DEVSECOPS_PIPELINES.md**](./DEVSECOPS_PIPELINES.md) | DevOps, CI/CD Engineers | Multi-stage pipeline architecture (GitHub Actions & Azure DevOps), secret scanning, container scanning, and artifact signing. |
 | **3** | [**QUALITY_GATES_AND_DOD.md**](./QUALITY_GATES_AND_DOD.md) | Developers, QA Leads | Definition of Ready (DoR), 3-tier Definition of Done (DoD), branch protection, and SonarQube / JaCoCo quality gate thresholds. |
 | **4** | [**DYNAMIC_AND_CHAOS_TESTING.md**](./DYNAMIC_AND_CHAOS_TESTING.md) | QA Automation, SREs | k6 performance SLO validation, Resilience4j circuit breaker state verification, rate limiting, and automated chaos injection. |
-| **5** | [**GIT_WORKFLOW_AND_COLLABORATION.md**](./GIT_WORKFLOW_AND_COLLABORATION.md) | All Contributors | GitFlow branching model (`main`, `develop`, `feature/*`, `hotfix/*`), Conventional Commits specification, and PR governance. |
+| **5** | [**GIT_WORKFLOW_AND_COLLABORATION.md**](./GIT_WORKFLOW_AND_COLLABORATION.md) | All Contributors | GitFlow branching model (`master`, `develop`, `feature/*`, `hotfix/*`), Conventional Commits specification, and PR governance. |
 
 ---
 

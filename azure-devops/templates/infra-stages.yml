@@ -10,8 +10,8 @@
 #
 # Branch model (aligned with the app pipelines):
 #   develop                 -> dev
-#   staging (or release/*)  -> staging
-#   prod (or main / master) -> prod (Dual-Dataplane: aks + aks_dp2)
+#   staging                 -> staging
+#   master                  -> prod (Dual-Dataplane: aks + aks_dp2)
 #   Pull requests           -> plan only, against the workspace of the TARGET branch.
 #
 # Requirements in Azure DevOps:
@@ -53,12 +53,12 @@ parameters:
         label: 'Staging (Medium Perf - Single Dataplane)'
         adoEnvironment: staging
         namespace: staging
-        branchCondition: "or(eq(variables['Build.SourceBranch'], 'refs/heads/staging'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))"
+        branchCondition: "eq(variables['Build.SourceBranch'], 'refs/heads/staging')"
       - name: prod
         label: 'Production (High Perf - Dual Dataplane DP1 + DP2)'
         adoEnvironment: production
         namespace: production
-        branchCondition: "in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master')"
+        branchCondition: "in(variables['Build.SourceBranch'], 'refs/heads/master')"
 
 stages:
   # ==========================================================
@@ -142,8 +142,8 @@ stages:
                 BRANCH="${BRANCH#refs/heads/}"
                 case "$BRANCH" in
                   develop)           ENV=dev ;;
-                  staging|release/*) ENV=staging ;;
-                  prod|main|master)  ENV=prod ;;
+                  staging)           ENV=staging ;;
+                  master)            ENV=prod ;;
                   *)                 ENV="" ;;
                 esac
                 echo "##vso[task.setvariable variable=TF_ENV]$ENV"

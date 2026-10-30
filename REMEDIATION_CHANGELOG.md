@@ -7,7 +7,7 @@
 - **AWS (`terraform/environments/aws/main.tf`, `outputs.tf`, `terraform/modules/aws/oidc_github/*`, `terraform/modules/aws/ecr/variables.tf`):**
   - Updated `allowed_security_group_ids` on `module.rds_postgres`, `module.elasticache_redis`, and `module.msk_kafka` to include both `module.eks.node_security_group_id` and `try(module.eks_dp2[0].node_security_group_id, null)`.
   - Added `module.irsa_lb_controller_dp2` (`count = local.env == "prod" ? 1 : 0`) and exported `irsa_lb_controller_role_arn` and `production_dataplane_2_irsa_lb_controller_role_arn`.
-  - Hardened `terraform/modules/aws/oidc_github/main.tf` and `variables.tf` to scope OIDC subject claims by environment (`refs/heads/develop`, `refs/heads/staging`, `refs/heads/prod`, and `environment:<env>`) instead of wildcard `*`, supporting both `GeorgeGxx/microservices-architecture` and `georgegxx/microservices-architecture`.
+  - Hardened `terraform/modules/aws/oidc_github/main.tf` and `variables.tf` to scope OIDC subject claims by environment (`refs/heads/develop`, `refs/heads/staging`, `refs/heads/master`, and `environment:<env>`) instead of wildcard `*`, supporting both `GeorgeGxx/microservices-architecture` and `georgegxx/microservices-architecture`.
   - Added `"payments-service"`, `"fulfillment-service"`, `"analytics-service"`, and `"mlops-training"` to `terraform/modules/aws/ecr/variables.tf`.
 - **Azure (`terraform/environments/azure/main.tf`, `locals.tf`, `versions.tf`, `outputs.tf`, `terraform/modules/azure/frontdoor/*`):**
   - Added `azurerm_role_assignment.aks_dp2_acr` (`AcrPull`), `azurerm_role_assignment.aks_dp2_secrets_reader` (`Key Vault Secrets User`), `module.workload_identity_dp2`, and `azurerm_public_ip.istio_gateway_dp2_public_ip` for `module.aks_dp2`.
@@ -22,16 +22,16 @@
 
 - **Argo CD (`argocd/appproject.yaml`, `argocd/application-prod.yaml`, `argocd/application-prod-dp2.yaml`):**
   - Replaced wildcards in `argocd/appproject.yaml` with explicit source repositories, cluster destinations (`https://kubernetes.default.svc` and `msa-aws-dp2-prod`), and Kubernetes resource whitelists.
-  - Updated `argocd/application-prod.yaml` from `targetRevision: main` to `targetRevision: prod`.
-  - Created `argocd/application-prod-dp2.yaml` tracking `targetRevision: prod` for the secondary production EKS dataplane (`msa-aws-dp2-prod`).
+  - Updated `argocd/application-prod.yaml` from a non-existent branch to `targetRevision: master`.
+  - Created `argocd/application-prod-dp2.yaml` tracking `targetRevision: master` for the secondary production EKS dataplane (`msa-aws-dp2-prod`).
 - **Azure DevOps (`azure-devops/templates/*`, `azure-devops/pipelines/*`):**
-  - Aligned all pipelines and templates with `develop` $\rightarrow$ `staging` $\rightarrow$ `prod`.
+  - Aligned all pipelines and templates with `develop` $\rightarrow$ `staging` $\rightarrow$ `master`.
   - Updated `azure-devops/pipelines/infra.yml` and `azure-devops/templates/infra-stages.yml` with production destructive-plan guards and dual-dataplane namespace provisioning.
   - Updated `azure-devops/templates/app-stages.yml` and `azure-devops/templates/steps/helm-deploy.yml` to promote immutable `@sha256` digests without rebuilding and deploy/rollback across both `msa-azure-prod-aks` (`DP1`) and `msa-azure-dp2-prod-aks` (`DP2`).
 - **Bitbucket Pipelines (`bitbucket-pipelines.yml`):**
-  - Fixed `BITBUCKET_DEPLOYMENT_ENVIRONMENT` (`dev|test)`), added `prod` branch pipeline, enabled GCP OIDC Workload Identity Federation (`BITBUCKET_STEP_OIDC_TOKEN`) with `GCP_SA_KEY` fallback, enforced immutable digest promotion, and configured dual-dataplane GKE deployment and verification (`$GKE_CLUSTER_NAME` + `${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}`).
+  - Fixed `BITBUCKET_DEPLOYMENT_ENVIRONMENT` (`dev|test)`), added `master` branch pipeline, enabled GCP OIDC Workload Identity Federation (`BITBUCKET_STEP_OIDC_TOKEN`) with `GCP_SA_KEY` fallback, enforced immutable digest promotion, and configured dual-dataplane GKE deployment and verification (`$GKE_CLUSTER_NAME` + `${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}`).
 - **GitHub Actions (`.github/workflows/*`):**
-  - Updated all `service-*.yml`, `security-scan.yml`, `local-quality-gates.yml`, and `helm-chart-release.yml` workflows to align with `develop`, `staging`, and `prod`.
+  - Updated all `service-*.yml`, `security-scan.yml`, `local-quality-gates.yml`, and `helm-chart-release.yml` workflows to align with `develop`, `staging`, and `master`.
   - Added production dual-dataplane destructive-change guard to `.github/workflows/terraform-aws.yml`.
   - Updated `.github/workflows/_service-ci-cd-template.yml` to promote immutable digests on `staging`/`prod`, remove hardcoded `--insecure` when TLS is active, and sync/rollback both `microservices-prod` and `microservices-prod-dp2`.
 
