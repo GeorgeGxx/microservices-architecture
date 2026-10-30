@@ -30,6 +30,8 @@ flowchart LR
 | **4** | [**CLOUDFLARE_TUNNELS.md**](./CLOUDFLARE_TUNNELS.md) | SecOps, Network Admins | Zero-Trust ingress without open inbound firewall ports, edge SSL offloading, and dynamic public DNS hostname synchronization. |
 | **5** | [**LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md**](./LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md) | Cloud Architects | Cost-optimized production alternatives: AWS ECS Fargate serverless containers and single-node EC2 with Ansible automation. |
 | **6** | [**RELEASE_CRITERIA_AND_GOVERNANCE.md**](./RELEASE_CRITERIA_AND_GOVERNANCE.md) | Release Managers, QA | Per-service SLOs (99.95% availability, p95 latencies), resource bounds, actionable Prometheus alerts, and rollback triggers. |
+| **7** | [**GITOPS_OPERATIONS.md**](./GITOPS_OPERATIONS.md) | GitOps & Platform Engineers | Argo CD `AppProject` least-privilege boundaries, multi-cluster registration (`DP1` + `DP2`), digest synchronization, and automated rollbacks. |
+| **8** | [**PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md**](./PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md) | SREs, Cloud Operations | Production Dual-Dataplane (`DP1` + `DP2`) operations across AWS EKS, Azure AKS, and GCP GKE, ingress load balancing, and failover drills. |
 
 ---
 

@@ -89,7 +89,7 @@ git rebase origin/develop
 4. Once approved, use **Squash and Merge** or **Rebase and Merge** to maintain a linear Git history on `develop`.
 
 > [!NOTE]
-> For the complete list of acceptance criteria, contract validation, and quality gates required before opening and merging a PR, consult [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md). For the canonical `develop` $\rightarrow$ `staging` $\rightarrow$ `master` promotion runbook (`gh pr create` / `gh pr merge`), GitHub Environment manual approval gates, and the current paused cloud deployment posture, see [`BRANCH_ENVIRONMENT_STRATEGY.md`](../../BRANCH_ENVIRONMENT_STRATEGY.md).
+> For the complete list of acceptance criteria, contract validation, and quality gates required before opening and merging a PR, consult [QUALITY_GATES_AND_DOD.md](./QUALITY_GATES_AND_DOD.md). For the canonical `develop` $\rightarrow$ `staging` $\rightarrow$ `master` promotion runbook (`gh pr create` / `gh pr merge`), GitHub Environment manual approval gates, and the current paused cloud deployment posture, see [`BRANCH_ENVIRONMENT_STRATEGY.md`](./BRANCH_ENVIRONMENT_STRATEGY.md).
 
 ---
 

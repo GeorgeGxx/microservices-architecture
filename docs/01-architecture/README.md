@@ -45,7 +45,11 @@ flowchart TD
 | **2** | [**API_DESIGN_AND_CONTRACTS.md**](./API_DESIGN_AND_CONTRACTS.md) | Backend Engineers, QA | OpenAPI 3.0 specs, RFC 7807 Problem Details error formats, RESTful standards, and Newman contract validation. |
 | **3** | [**MULTI_CLOUD_INFRASTRUCTURE.md**](./MULTI_CLOUD_INFRASTRUCTURE.md) | Cloud Engineers, DevOps | Terraform architecture for AWS (EKS), Azure (AKS), and GCP (GKE), remote state backends, and zero-lock-in networking. |
 | **4** | [**DISASTER_RECOVERY_STRATEGY.md**](./DISASTER_RECOVERY_STRATEGY.md) | SREs, Risk & Compliance | Business Impact Analysis (BIA), Warm Standby topology, RTO/RPO SLAs, and PostgreSQL / Kafka / MLflow recovery runbooks. |
-| **5** | [**ADR Catalog (Architecture Decision Records)**](./adr/README.md) | Entire Engineering Team | ADR-001 through ADR-010 documenting design decisions (Federation, Event Sourcing, IAM, Vault, KEDA, LGTM). |
+| **5** | [**ARCHITECTURE_AUDIT.md**](./ARCHITECTURE_AUDIT.md) | Principal Architects, Auditors | End-to-end multi-cloud production architecture audit across AWS, Azure, and GCP, including dual-dataplane readiness and findings matrix. |
+| **6** | [**TERRAFORM_GOVERNANCE.md**](./TERRAFORM_GOVERNANCE.md) | Cloud Architects, Platform Engineers | Workspace-per-environment governance (`dev`, `staging`, `prod`), remote state locking, deletion protection, and destructive-plan guards. |
+| **7** | [**IDENTITY_AND_SECRETS.md**](./IDENTITY_AND_SECRETS.md) | SecOps, Cloud Security Engineers | OIDC CI/CD federation, Kubernetes workload identity (IRSA, Azure Workload Identity, GKE WI), and External Secrets Operator (ESO). |
+| **8** | [**KUBERNETES_PLATFORM_SECURITY.md**](./KUBERNETES_PLATFORM_SECURITY.md) | Platform & Security Engineers | Istio `STRICT` mTLS, Pod Security Standards, non-root immutable rootfs hardening, NetworkPolicies, and OPA/Conftest/Gatekeeper enforcement. |
+| **9** | [**ADR Catalog (Architecture Decision Records)**](./adr/README.md) | Entire Engineering Team | ADR-001 through ADR-010 documenting design decisions (Federation, Event Sourcing, IAM, Vault, KEDA, LGTM). |
 
 ---
 
