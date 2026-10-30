@@ -178,36 +178,61 @@ definitions:
           - terraform fmt -check -recursive terraform/
           - cd terraform/environments/gcp
           - terraform init -backend=false -input=false
-          - terraform validate -no-color
-          - echo 'Cloud plan/apply is disabled here; configure durable state and locking first.'
+          - |
+            for ws in dev staging prod; do
+              terraform workspace select "$ws" 2>/dev/null || terraform workspace new "$ws"
+              terraform validate -no-color
+            done
+          - echo 'Offline validation passed for dev, staging, and prod (including dual-dataplane gke + gke_dp2).'
     - step: &publish-candidate
         name: '7. Publish immutable image to GAR'
         image: google/cloud-sdk:alpine
+        oidc: true
         services: [docker]
         script:
           - |
             set -euo pipefail
-            : "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"
             : "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"
             : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
             : "${GAR_REPOSITORY:?Set GAR_REPOSITORY from the matching Terraform workspace}"
             SERVICE_NAME="${SERVICE_NAME:-products-service}"
             IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
-            printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
-            trap 'rm -f /tmp/gcp-key.json' EXIT
-            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
+              printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
+              gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
+                --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
+                --credential-source-file=/tmp/oidc-token.jwt \
+                --output-file=/tmp/gcp-cred-config.json
+              trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
+              gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
+            else
+              : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or GCP_SA_KEY}"
+              printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+              trap 'rm -f /tmp/gcp-key.json' EXIT
+              gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            fi
             gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-            docker load -i "artifacts/images/${SERVICE_NAME}.tar"
             IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}:${IMAGE_TAG}"
-            docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
-            docker push "$IMAGE"
+            EXISTING_DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
+            if [[ "$EXISTING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              echo "Immutable image already exists in GAR ($EXISTING_DIGEST); reusing without overwriting."
+              printf '%s' "$EXISTING_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
+            else
+              docker load -i "artifacts/images/${SERVICE_NAME}.tar"
+              docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
+              docker push "$IMAGE"
+              PUSHED_DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
+              printf '%s' "$PUSHED_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
+            fi
+        artifacts:
+          - artifacts/images/**
     - step: &deploy-gke
-        name: '8. Deploy Helm release to GKE'
+        name: '8. Deploy Helm release to GKE (Single Dataplane in Dev/Staging; Dual Dataplane DP1 + DP2 in Production)'
         image: google/cloud-sdk:alpine
+        oidc: true
         script:
           - |
             set -Eeuo pipefail
-            : "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"
             : "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"
             : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
             : "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME to the Terraform output for this environment}"
@@ -217,15 +242,25 @@ definitions:
             SERVICE_NAME="${SERVICE_NAME:-products-service}"
             IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
             case "${BITBUCKET_DEPLOYMENT_ENVIRONMENT:?Deployment environment must be configured}" in
-              test) NAMESPACE=dev; SPRING_PROFILE=dev ;;
+              dev|test) NAMESPACE=dev; SPRING_PROFILE=dev ;;
               staging) NAMESPACE=staging; SPRING_PROFILE=staging ;;
               production) NAMESPACE=production; SPRING_PROFILE=prod ;;
-              *) echo "Unsupported Bitbucket deployment environment"; exit 2 ;;
+              *) echo "Unsupported Bitbucket deployment environment: ${BITBUCKET_DEPLOYMENT_ENVIRONMENT}"; exit 2 ;;
             esac
-            printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
-            trap 'rm -f /tmp/gcp-key.json' EXIT
-            gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
-            gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
+            if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
+              printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
+              gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
+                --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
+                --credential-source-file=/tmp/oidc-token.jwt \
+                --output-file=/tmp/gcp-cred-config.json
+              trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
+              gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
+            else
+              : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or GCP_SA_KEY}"
+              printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+              trap 'rm -f /tmp/gcp-key.json' EXIT
+              gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            fi
             bash scripts/install-helm4.sh v4.3.1
             bash scripts/install-yq.sh v4.44.3
             CHART_VERSION="$(yq '.version' helm/microservices-umbrella/Chart.yaml)"
@@ -233,20 +268,6 @@ definitions:
             [[ "$CHART_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
             [[ "$CHART_REPOSITORY" == oci://ghcr.io/*/microservices-umbrella ]]
             printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
-            kubectl get nodes
-            if helm status microservices --namespace "$NAMESPACE" >/dev/null 2>&1; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
-            PREVIOUS_REVISION=""
-            if [ "$RELEASE_EXISTS" = true ]; then
-              PREVIOUS_REVISION="$(helm history microservices --namespace "$NAMESPACE" --max 1 2>/dev/null | awk 'NR == 2 { print $1 }')"
-            fi
-            rollback_on_error() {
-              result=$?
-              if [ "$result" -ne 0 ] && [ "$RELEASE_EXISTS" = true ] && [ -n "$PREVIOUS_REVISION" ]; then
-                helm rollback microservices "$PREVIOUS_REVISION" --namespace "$NAMESPACE" --wait --timeout 5m || true
-              fi
-              exit "$result"
-            }
-            trap rollback_on_error ERR
             HELM_SET_KEY="${SERVICE_NAME}"
             DEPLOYMENT_NAME="${SERVICE_NAME}"
             if [ "$SERVICE_NAME" = "demand-forecast" ]; then
@@ -259,14 +280,45 @@ definitions:
               HELM_SET_KEY="mlops.mlflow"
               DEPLOYMENT_NAME="mlflow"
             fi
-            helm upgrade --install microservices "$CHART_REPOSITORY" \
-              --version "$CHART_VERSION" \
-              --namespace "$NAMESPACE" --create-namespace --reuse-values \
-              --set "${HELM_SET_KEY}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
-              --set "${HELM_SET_KEY}.image.tag=${IMAGE_TAG}" \
-              --set global.environment="$SPRING_PROFILE" \
-              --wait --timeout 8m --atomic
-            kubectl rollout status "deployment/${DEPLOYMENT_NAME}" --namespace "$NAMESPACE" --timeout=5m
+            IMAGE_DIGEST=""
+            if [ -f "artifacts/images/${SERVICE_NAME}.digest" ]; then
+              IMAGE_DIGEST="$(cat "artifacts/images/${SERVICE_NAME}.digest")"
+            fi
+            DIGEST_ARGS=()
+            if [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+              DIGEST_ARGS=(--set "${HELM_SET_KEY}.image.digest=${IMAGE_DIGEST}")
+            fi
+            TARGET_CLUSTERS=("$GKE_CLUSTER_NAME")
+            if [ "${BITBUCKET_DEPLOYMENT_ENVIRONMENT}" = "production" ]; then
+              TARGET_CLUSTERS+=("${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}")
+            fi
+            for CLUSTER in "${TARGET_CLUSTERS[@]}"; do
+              echo "Deploying ${SERVICE_NAME} to GKE cluster ${CLUSTER} (namespace: ${NAMESPACE})..."
+              gcloud container clusters get-credentials "$CLUSTER" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
+              kubectl get nodes
+              if helm status microservices --namespace "$NAMESPACE" >/dev/null 2>&1; then RELEASE_EXISTS=true; else RELEASE_EXISTS=false; fi
+              PREVIOUS_REVISION=""
+              if [ "$RELEASE_EXISTS" = true ]; then
+                PREVIOUS_REVISION="$(helm history microservices --namespace "$NAMESPACE" --max 1 2>/dev/null | awk 'NR == 2 { print $1 }')"
+              fi
+              rollback_on_error() {
+                result=$?
+                if [ "$result" -ne 0 ] && [ "$RELEASE_EXISTS" = true ] && [ -n "$PREVIOUS_REVISION" ]; then
+                  helm rollback microservices "$PREVIOUS_REVISION" --namespace "$NAMESPACE" --wait --timeout 5m || true
+                fi
+                exit "$result"
+              }
+              trap rollback_on_error ERR
+              helm upgrade --install microservices "$CHART_REPOSITORY" \
+                --version "$CHART_VERSION" \
+                --namespace "$NAMESPACE" --create-namespace --reuse-values \
+                --set "${HELM_SET_KEY}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
+                --set "${HELM_SET_KEY}.image.tag=${IMAGE_TAG}" \
+                "${DIGEST_ARGS[@]}" \
+                --set global.environment="$SPRING_PROFILE" \
+                --wait --timeout 8m --atomic
+              kubectl rollout status "deployment/${DEPLOYMENT_NAME}" --namespace "$NAMESPACE" --timeout=5m
+            done
     - step: &api-contract
         name: '9. API contract smoke tests'
         image: node:22-slim
@@ -304,18 +356,37 @@ definitions:
     - step: &runtime-verify
         name: '13. Kubernetes rollout and endpoint verification'
         image: google/cloud-sdk:alpine
+        oidc: true
         script:
-          - set -euo pipefail
-          - ': "${GCP_SA_KEY:?Set GCP_SA_KEY as a secured deployment variable}"'
-          - ': "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME in the deployment environment}"'
-          - ': "${GCP_REGION:?Set GCP_REGION in the deployment environment}"'
-          - ': "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"'
-          - printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
-          - trap 'rm -f /tmp/gcp-key.json' EXIT
-          - gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
-          - gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
-          - kubectl get deployments,pods,services --namespace "${K8S_NAMESPACE:?Set K8S_NAMESPACE in deployment environment}"
-          - curl --fail --silent --show-error "$GKE_FRONTEND_URL/healthz"
+          - |
+            set -euo pipefail
+            : "${GKE_CLUSTER_NAME:?Set GKE_CLUSTER_NAME in the deployment environment}"
+            : "${GCP_REGION:?Set GCP_REGION in the deployment environment}"
+            : "${GCP_PROJECT_ID:?Set GCP_PROJECT_ID in the deployment environment}"
+            : "${K8S_NAMESPACE:?Set K8S_NAMESPACE in deployment environment}"
+            if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
+              printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
+              gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
+                --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
+                --credential-source-file=/tmp/oidc-token.jwt \
+                --output-file=/tmp/gcp-cred-config.json
+              trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
+              gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
+            else
+              : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or GCP_SA_KEY}"
+              printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+              trap 'rm -f /tmp/gcp-key.json' EXIT
+              gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+            fi
+            TARGET_CLUSTERS=("$GKE_CLUSTER_NAME")
+            if [ "$K8S_NAMESPACE" = "production" ]; then
+              TARGET_CLUSTERS+=("${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}")
+            fi
+            for CLUSTER in "${TARGET_CLUSTERS[@]}"; do
+              gcloud container clusters get-credentials "$CLUSTER" --region "$GCP_REGION" --project "$GCP_PROJECT_ID"
+              kubectl get deployments,pods,services --namespace "$K8S_NAMESPACE"
+            done
+            curl --fail --silent --show-error "$GKE_FRONTEND_URL/healthz"
     - step: &release-evidence
         name: '14. Release evidence and immutable artifact verification'
         image: alpine:3.21
@@ -401,7 +472,7 @@ pipelines:
           steps: [{ step: *runtime-verify }]
       - stage: { name: '14. Staging release evidence', steps: [{ step: *release-evidence }] }
 
-    main: &production-branch-pipeline
+    prod: &production-branch-pipeline
       - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
       - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
       - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
@@ -437,32 +508,63 @@ pipelines:
           environment: staging
           steps: [{ step: *runtime-verify }]
       - stage:
-          name: '14. Production promotion and deployment (rolling; manual approval)'
+          name: '14. Production promotion and dual-dataplane deployment (DP1 + DP2; manual approval)'
           deployment: production
           trigger: manual
           steps:
             - step:
-                name: Promote tested image to production GAR
+                name: Promote exact immutable staging digest to production GAR (no rebuild)
                 image: google/cloud-sdk:alpine
+                oidc: true
                 services: [docker]
                 script:
                   - |
                     set -euo pipefail
-                    : "${GCP_SA_KEY:?Set secured production GCP_SA_KEY}"
                     : "${GCP_PROJECT_ID:?Set production GCP_PROJECT_ID}"
                     : "${GCP_REGION:?Set production GCP_REGION}"
                     SERVICE_NAME="${SERVICE_NAME:-products-service}"
                     IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
-                    printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
-                    trap 'rm -f /tmp/gcp-key.json' EXIT
-                    gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+                    if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
+                      printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
+                      gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
+                        --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
+                        --credential-source-file=/tmp/oidc-token.jwt \
+                        --output-file=/tmp/gcp-cred-config.json
+                      trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
+                      gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
+                    else
+                      : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or secured production GCP_SA_KEY}"
+                      printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+                      trap 'rm -f /tmp/gcp-key.json' EXIT
+                      gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+                    fi
                     gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-                    docker load -i "artifacts/images/${SERVICE_NAME}.tar"
-                    IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/msa-gcp-prod/${SERVICE_NAME}:${IMAGE_TAG}"
-                    docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
-                    docker push "$IMAGE"
+                    STAGING_REPO="${STAGING_GAR_REPOSITORY:-msa-gcp-staging}"
+                    PROD_REPO="${GAR_REPOSITORY:-msa-gcp-prod}"
+                    STAGING_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+                    STAGING_DIGEST="$(gcloud artifacts docker images describe "$STAGING_IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
+                    if [[ "$STAGING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+                      SOURCE_REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}@${STAGING_DIGEST}"
+                      docker pull "$SOURCE_REF"
+                      PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+                      docker tag "$SOURCE_REF" "$PROD_IMAGE"
+                      docker push "$PROD_IMAGE"
+                      PROD_DIGEST="$(gcloud artifacts docker images describe "$PROD_IMAGE" --format='value(image_summary.digest)')"
+                      [ "$STAGING_DIGEST" = "$PROD_DIGEST" ] || { echo "ERROR: Digest mismatch between Staging ($STAGING_DIGEST) and Prod ($PROD_DIGEST)"; exit 1; }
+                      mkdir -p artifacts/images
+                      printf '%s' "$PROD_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
+                    else
+                      echo "Staging GAR lookup unavailable; promoting verified pipeline artifact tarball without rebuilding."
+                      docker load -i "artifacts/images/${SERVICE_NAME}.tar"
+                      PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+                      docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$PROD_IMAGE"
+                      docker push "$PROD_IMAGE"
+                    fi
+                artifacts:
+                  - artifacts/images/**
             - step: *deploy-gke
 
+    main: *production-branch-pipeline
     master: *production-branch-pipeline
 
   pull-requests:

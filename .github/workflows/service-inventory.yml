@@ -2,14 +2,14 @@ name: Inventory Service CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'inventory-service/**'
       - 'pom.xml'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-inventory.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'inventory-service/**'
       - 'pom.xml'

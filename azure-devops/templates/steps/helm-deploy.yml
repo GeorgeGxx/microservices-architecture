@@ -78,6 +78,13 @@ steps:
         HELM_KEY="${{ parameters.helmValuesKey }}"
         if [ -z "$HELM_KEY" ]; then HELM_KEY="${{ parameters.serviceName }}"; fi
 
+        IMAGE_DIGEST="$(az acr repository show --name "${{ parameters.acrName }}" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv 2>/dev/null || true)"
+        DIGEST_ARGS=()
+        if [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+          echo "Resolved immutable ACR image digest: ${IMAGE_DIGEST}"
+          DIGEST_ARGS=(--set "${HELM_KEY}.image.digest=${IMAGE_DIGEST}")
+        fi
+
         helm upgrade --install ${{ parameters.helmRelease }} "$CHART_REPOSITORY" \
           --version "$CHART_VERSION" \
           --reuse-values \
@@ -85,6 +92,7 @@ steps:
           --create-namespace \
           --set ${HELM_KEY}.image.repository=${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }} \
           --set ${HELM_KEY}.image.tag=$(Build.SourceVersion) \
+          "${DIGEST_ARGS[@]}" \
           --set ${HELM_KEY}.service.port=${{ parameters.servicePort }} \
           --set global.environment=${{ parameters.envName }} \
           --set configMap.data.SPRING_PROFILES_ACTIVE=${{ parameters.springProfile }} \

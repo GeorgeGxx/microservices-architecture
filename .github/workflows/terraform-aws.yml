@@ -97,10 +97,13 @@ jobs:
           cd ${{ env.TF_WORKING_DIR }}
           terraform init -backend=false
 
-      - name: Terraform Validate
+      - name: Terraform Validate (dev, staging, prod workspaces)
         run: |
           cd ${{ env.TF_WORKING_DIR }}
-          terraform validate
+          for ws in dev staging prod; do
+            terraform workspace select "$ws" 2>/dev/null || terraform workspace new "$ws"
+            terraform validate
+          done
 
   # ==========================================================
   # STAGE 1B: Trivy IaC Misconfiguration Scan (Parallel with 1A)
@@ -236,7 +239,7 @@ jobs:
             case "$DATA_PLANE" in
               all) ;;
               primary) PLAN_ARGS+=("-target=module.eks" "-target=module.irsa_lb_controller") ;;
-              secondary) PLAN_ARGS+=("-target=module.eks_dp2") ;;
+              secondary) PLAN_ARGS+=("-target=module.eks_dp2" "-target=module.irsa_lb_controller_dp2") ;;
               *) echo "::error::Unsupported production data plane '$DATA_PLANE'."; exit 1 ;;
             esac
           fi
@@ -266,6 +269,38 @@ jobs:
             python scripts/local-cost-estimator.py --plan-delta "$RUNNER_TEMP/tfplan.json"
             echo "Terraform delta ceiling is not configured; mapped resource changes are informational. Set repository variable FINOPS_MAX_MONTHLY_DELTA_USD to enable the increase gate."
           fi
+
+      - name: Production Dual-Dataplane & Stateful Resource Destructive Change Guard
+        if: steps.resolve-env.outputs.target_env == 'prod'
+        env:
+          ALLOW_DESTRUCTIVE_TERRAFORM: ${{ vars.ALLOW_DESTRUCTIVE_TERRAFORM || 'false' }}
+        run: |
+          if [ "$ALLOW_DESTRUCTIVE_TERRAFORM" = "true" ]; then
+            echo "::warning::ALLOW_DESTRUCTIVE_TERRAFORM=true is set; bypassing production destructive change guard."
+            exit 0
+          fi
+          python3 - "$RUNNER_TEMP/tfplan.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1], encoding="utf-8") as f:
+              plan = json.load(f)
+          protected_prefixes = (
+              "module.eks.",
+              "module.eks_dp2",
+              "module.rds_postgres",
+              "module.elasticache_redis",
+              "module.msk_kafka",
+          )
+          destructive = []
+          for rc in plan.get("resource_changes", []):
+              actions = rc.get("change", {}).get("actions", [])
+              addr = rc.get("address", "")
+              if "delete" in actions and addr.startswith(protected_prefixes):
+                  destructive.append(f"{addr} ({actions})")
+          if destructive:
+              print("::error::Destructive production plan detected on protected dataplane/stateful resources: " + ", ".join(destructive))
+              sys.exit(1)
+          print("Production plan verified: no destructive actions on primary/secondary EKS dataplanes or stateful backends.")
+          PY
 
       - name: Upload Terraform Plan Artifact
         uses: actions/upload-artifact@v7

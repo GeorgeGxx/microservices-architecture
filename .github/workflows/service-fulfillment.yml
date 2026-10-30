@@ -2,13 +2,13 @@ name: Fulfillment Service CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'fulfillment-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-fulfillment.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'fulfillment-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'
