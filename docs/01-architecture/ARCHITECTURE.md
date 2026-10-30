@@ -14,19 +14,37 @@
 The ecosystem adopts **Domain-Driven Design (DDD)** across all bounded contexts:
 
 ### 🧩 1. Bounded Contexts & Aggregate Roots
-* **🛍️ Catalog & Product Context (`products-service`):**
+* **🛍️ Catalog & Product Context (`products-service` — Java 21 / Spring Boot 4):**
   * **Aggregate Root `Product`:** Encapsulates catalog pricing rules in US Dollars (USD) and guarantees catalog status invariants.
-* **📦 Order Lifecycle & Fulfillment Context (`orders-service`):**
-  * **Aggregate Root `Order`:** Directly guards the lifecycle `PLACED → SHIPPED → DELIVERED`; cancellation is allowed only from `PLACED`. This rejects delivery before dispatch, duplicate dispatch transitions, and cancellation after dispatch.
-* **🏭 Warehouse Stock Allocation Context (`inventory-service`):**
-  * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and Saga compensations.
-* **🔔 Notification & Real-Time Stream Context (`notification-service`):**
+* **📦 Order Lifecycle & Saga Entrypoint Context (`orders-service` — Java 21 / Spring Boot 4):**
+  * **Aggregate Root `Order`:** Guards the lifecycle `PLACED → CONFIRMED → SHIPPED → DELIVERED` (with `CANCELLED` compensation transitions); coordinates initial stock reservation and participates in the 100% Asynchronous Choreographed Saga across `orders-topic`, `payments-topic`, and `fulfillment-topic`.
+* **🏭 Warehouse Stock Allocation Context (`inventory-service` — Java 21 / Spring Boot 4):**
+  * **Entity `Inventory`:** Handles atomic, thread-safe stock reservations, batch multi-item evaluations, and automated Saga stock rollbacks (`incrementStock`).
+* **💳 Payment Processing & Audit Context (`payments-service` — Go 1.26 / Gin v1.12.0 / GORM v1.31.2):**
+  * **Aggregate Root `Payment`:** Processes idempotent charges against isolated **PostgreSQL 18 (`db-payments :5436`)**, streams non-blocking audit trails via Go goroutines & buffered channels (`chan AuditEvent`), publishes `PAYMENT_PROCESSED` / `PAYMENT_FAILED` / `PAYMENT_REFUNDED` to `payments-topic`, and executes automated compensating refunds on `SHIPMENT_FAILED` or `CANCELLED` events.
+* **🚚 Logistics & Carrier Dispatch Context (`fulfillment-service` — TypeScript 7 / NestJS v12.2.0 / TypeORM 1.1.2):**
+  * **Aggregate Root `Shipment`:** Decouples carrier tracking (`DHL-XXXXXXXX`) and shipping state transitions (`PENDING → IN_TRANSIT → DELIVERED / CANCELLED`) into an isolated **PostgreSQL 18 (`db-fulfillment :5437`)** bounded context; consumes `PAYMENT_PROCESSED` from `payments-topic` and emits `SHIPMENT_DISPATCHED`, `SHIPMENT_DELIVERED`, or `SHIPMENT_FAILED` to `fulfillment-topic`.
+* **📈 Funnel Telemetry & Abandonment Context (`analytics-service` — Python 3.12 / FastAPI v0.162.0 / SQLAlchemy 2.0 `asyncpg` / Pydantic v2):**
+  * **Aggregate `FunnelEvent`:** Persists real-time e-commerce funnel telemetry in isolated **PostgreSQL 18 (`db-analytics :5438`)**, consumes `orders-topic`, `payments-topic`, and `fulfillment-topic`, and computes the live Prometheus gauge `ecommerce_cart_abandonment_rate_percent`.
+* **🔔 Notification & Real-Time Stream Context (`notification-service` — Java 21 / Spring Boot 4):**
   * **Reactive Hub:** Implements idempotent event ingestion with Redis `SETNX` (7-day TTL) and dispatches real-time Server-Sent Events (SSE) to connected clients.
 
-### 🛡️ 2. Functional Programming & RFC 7807 Error Handling
+### 🔄 2. 100% Asynchronous Choreographed Saga Pattern (`orders-topic` ⇄ `payments-topic` ⇄ `fulfillment-topic`)
+All cross-domain order lifecycle transitions and failure compensations execute asynchronously over Apache Kafka without central orchestrator coupling:
+1. **Forward Choreography (Happy Path):**
+   * `orders-service` reserves stock in `inventory-service`, persists `Order(PLACED)`, and emits `OrderEvent(PLACED)` to `orders-topic`.
+   * `payments-service` consumes `orders-topic`, processes the payment in `db-payments`, logs asynchronously via goroutine channels, and emits `PaymentEvent(PAYMENT_PROCESSED)` to `payments-topic`.
+   * `orders-service` consumes `PAYMENT_PROCESSED` from `payments-topic` and transitions the order to `CONFIRMED`.
+   * `fulfillment-service` consumes `PAYMENT_PROCESSED` from `payments-topic`, creates and dispatches the shipment (`DHL-XXXXXXXX`) in `db-fulfillment`, and emits `FulfillmentEvent(SHIPMENT_DISPATCHED)` to `fulfillment-topic`.
+   * `orders-service` consumes `SHIPMENT_DISPATCHED` (and subsequent `SHIPMENT_DELIVERED`) from `fulfillment-topic`, updating the order to `SHIPPED` / `DELIVERED`.
+2. **Automated Backward Compensations (Rollback Path):**
+   * **Payment Failure (`PAYMENT_FAILED`):** `payments-service` emits `PAYMENT_FAILED` to `payments-topic` → `orders-service` consumes the event, transitions the order to `CANCELLED`, and calls `inventory-service` (`incrementStock`) to restore reserved warehouse units.
+   * **Fulfillment Failure (`SHIPMENT_FAILED`):** `fulfillment-service` emits `SHIPMENT_FAILED` to `fulfillment-topic` → `payments-service` consumes the event, refunds the payment (`REFUNDED`), and emits `PAYMENT_REFUNDED` to `payments-topic` → `orders-service` marks the order `CANCELLED` and restores inventory stock idempotently.
+
+### 🛡️ 3. Functional Programming & RFC 7807 Error Handling
 * **Monadic Try/Result Pipelines:** Elimination of procedural `try-catch` blocks in favor of Java 21 Streams and monadic Optional chains (`Optional.filter().map().ifPresentOrElse()`).
 * **Typed Domain Exceptions:** `OrderNotFoundException` (404), `InsufficientStockException` (409), `ProductNotFoundException` (404), and `ServiceUnavailableException` (503).
-* **RFC 7807 Problem Details:** Unified `GlobalExceptionHandler` returning consistent JSON error payloads across all 4 microservices.
+* **RFC 7807 Problem Details & Polyglot Validation:** Unified `GlobalExceptionHandler`, Gin recovery/validation middleware, NestJS `ValidationPipe`, and FastAPI Pydantic v2 schemas returning consistent structured error payloads across all 7 microservices.
 
 ---
 
@@ -42,6 +60,9 @@ The platform separates client-facing traffic routing and interactive developer i
 | 📖 **Orders Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & Subgraph`<br>`/api/order/**`, `/graphql` | `POST /api/order`, `GET /api/order`, `POST /api/order/funnel`, `POST /graphql` (v2.5 subgraph), [Swagger UI](http://localhost:8003/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8003/swagger-ui.html](http://localhost:8003/swagger-ui.html)<br>Internal ClusterIP (`:8003` via port-forward) | Order placement & cancellation, multi-tenant user isolation, automated DHL tracking (`DHL-XXXXXXXX`), OAuth2 S2S inventory client (`ServiceTokenProvider`), Kafka producer (`orders-topic`), compulsive buyer & funnel drop-off analytics, Saga coordinator |
 | 📖 **Inventory Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & Subgraph`<br>`/api/inventory/**`, `/graphql` | `GET /api/inventory/{sku}`, `POST /api/inventory/in-stock`, `POST /api/inventory/decrement`, `POST /api/inventory/increment`, `POST /graphql`, [Swagger UI](http://localhost:8001/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8001/swagger-ui.html](http://localhost:8001/swagger-ui.html)<br>Internal ClusterIP (`:8001` via port-forward) | Real-time SKU stock verification, S2S-protected (`ROLE_INTERNAL_SERVICE` / `ROLE_ADMIN`) $O(1)$ atomic delta allocation & Saga compensation, post-commit Redis cache eviction (`inventory-cache`), OpenAPI 3.0 documentation |
 | 📖 **Notification Service**<br>`Spring Boot 4 / Java 21` | `HTTP REST & SSE`<br>`/api/notifications/**` | `GET /api/notifications/stream` (SSE live stream), [Swagger UI](http://localhost:8002/swagger-ui.html) (`/swagger-ui.html`), `/v3/api-docs` | [http://localhost:8002/swagger-ui.html](http://localhost:8002/swagger-ui.html)<br>Internal ClusterIP (`:8002` via port-forward) | Consumes `OrderEvent` from Kafka (`orders-topic`), customer communication dispatch, JWT-authenticated & tenant-scoped SSE real-time event streaming, OpenAPI 3.0 documentation |
+| 💳 **Payments Service**<br>`Go 1.26 / Gin v1.12.0 / GORM v1.31.2` | `HTTP REST`<br>`/api/v1/payments/**` | `POST /api/v1/payments`, `GET /api/v1/payments/:orderNumber`, `GET /health`, `GET /metrics`, [Swagger UI](http://localhost:8085/swagger/index.html) (`/swagger/index.html`) | [http://localhost:8085/swagger/index.html](http://localhost:8085/swagger/index.html)<br>Internal ClusterIP (`:8085` via port-forward) | Idempotent payment processing (`db-payments :5436`), goroutines & buffered channels audit logging, Kafka consumer (`orders-topic`, `fulfillment-topic`) & producer (`payments-topic`), automated Saga refunds |
+| 🚚 **Fulfillment Service**<br>`TypeScript 7 / NestJS v12.2.0 / TypeORM 1.1.2` | `HTTP REST`<br>`/api/v1/shipments/**` | `POST /api/v1/shipments`, `PATCH /api/v1/shipments/:orderNumber/dispatch`, `PATCH /api/v1/shipments/:orderNumber/deliver`, `GET /health`, `GET /metrics`, [Swagger UI](http://localhost:8086/swagger) (`/swagger`) | [http://localhost:8086/swagger](http://localhost:8086/swagger)<br>Internal ClusterIP (`:8086` via port-forward) | Decoupled logistics & carrier tracking (`DHL-XXXXXXXX`, `db-fulfillment :5437`), DDD ports/adapters, Kafka consumer (`payments-topic`) & producer (`fulfillment-topic`), OpenAPI 3.0 documentation |
+| 📊 **Analytics Service**<br>`Python 3.12 / FastAPI v0.162.0 / SQLAlchemy 2.0` | `HTTP REST (FastAPI)`<br>`/api/v1/analytics/**` | `POST /api/v1/analytics/funnel`, `GET /api/v1/analytics/abandonment`, `GET /health`, `GET /metrics`, [Swagger UI](http://localhost:8087/docs) (`/docs`), `/redoc` | [http://localhost:8087/docs](http://localhost:8087/docs)<br>Internal ClusterIP (`:8087` via port-forward) | Async funnel event ingestion (`asyncpg` on `db-analytics :5438`), Pydantic v2 validation, multi-topic Kafka consumer (`orders-topic`, `payments-topic`, `fulfillment-topic`), real-time `ecommerce_cart_abandonment_rate_percent` Prometheus gauge |
 | 📈 **Demand Forecast API**<br>`FastAPI 0.160.0 / Python 3.12` | `HTTP REST (FastAPI)`<br>`/api/forecast/**` | `POST /api/forecast`, `GET /health`, `GET /metrics`, [Swagger UI](http://localhost:8005/docs) (`/docs`), `/redoc` | [http://localhost:8005/docs](http://localhost:8005/docs)<br>Internal ClusterIP (`:8005` via port-forward) | Real-time 7-day SKU demand inference engine serving trained PySpark/MLflow GBT regressor models, Keycloak JWT Bearer authentication (`ROLE_ADMIN`), Prometheus latency metrics |
 | 🧪 **MLflow Tracking UI**<br>`v3.17.2` | `HTTP REST & Web UI`<br>`/`, `/api/2.0/mlflow/**` | `GET /` (Experiments & Registry UI), `/api/2.0/mlflow/runs/create`, `/api/2.0/mlflow/model-versions/create` | [http://localhost:5000](http://localhost:5000)<br>Internal ClusterIP (`:5000` via port-forward) | Experiment tracking dashboard, model parameter comparison, metric runs (RMSE, MAE, R²), Champion/Challenger promotion & artifact repository |
 | 🔑 **Keycloak Admin Console**<br>`v26.8.1 / Quarkus` | `HTTP OIDC / OAuth2`<br>`/admin/*`, `/realms/*` | `/admin/master/console/`, `/realms/{realm}/.well-known/openid-configuration`, `/realms/{realm}/protocol/openid-connect/certs` (JWKS) | [http://localhost:8181](http://localhost:8181)<br>`http://$(minikube ip):30181` | Centralized OIDC identity provider, realm administration, user provisioning (`admin_user`, `basic_user`), client scopes, RS256 JWKS key rotation & RBAC token issuance |
@@ -57,7 +78,7 @@ The platform separates client-facing traffic routing and interactive developer i
 
 ## 🔌 Workload Matrix, Infrastructure Sizing & Cloud Target Mapping
 
-Complementing the [Unified Endpoints, API Routing & Swagger Access Matrix](#-unified-endpoints-api-routing--swagger-access-matrix) above, this matrix provides the platform engineering, capacity planning, and DevSecOps specification across all 29 components. It details container listener ports, host port bindings, Kubernetes controller types, CPU/memory right-sizing reservations (requests and limits), cloud target services across AWS, Azure, and GCP, and security credential contexts.
+Complementing the [Unified Endpoints, API Routing & Swagger Access Matrix](#-unified-endpoints-api-routing--swagger-access-matrix) above, this matrix provides the platform engineering, capacity planning, and DevSecOps specification across all 32 components. It details container listener ports, host port bindings, Kubernetes controller types, CPU/memory right-sizing reservations (requests and limits), cloud target services across AWS, Azure, and GCP, and security credential contexts.
 
 Port numbers are scoped to their listener: container ports belong to individual pods, and Kubernetes `ClusterIP` ports are reached through each Service's own DNS/IP. Reusing `9090` for Prometheus, Cosmo Router metrics, Kiali metrics, and the OpenCost UI is intentional; it does **not** bind all four to host port `9090`. In Docker Compose, only Prometheus publishes host `9090` (`9090:9090`) and Cosmo Router publishes `8080`; in Minikube, the local tunnels use Prometheus `9090`, Kiali `20001`, and OpenCost `7000`, while Cosmo Router metrics remain internal. Host conflicts occur only when two processes attempt to bind the same host IP and port.
 
@@ -66,9 +87,12 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **React Frontend SPA**<br>`React 19 / Nginx 1.27` | Vite host `5173`<br>Nginx container `8080`<br>Service `80` | `Deployment`<br>(NodePort `30080` / Ingress) | CPU: `50m` / `200m`<br>Mem: `64Mi` / `128Mi`<br>Storage: `256Mi` | CloudFront + S3 / Azure Static Web Apps / Cloud Storage + CDN | `admin_user` / `admin`<br>`basic_user` / `password` | Stateless Web UI client, WebRTC & USB camera POS scanner |
 | **Cosmo Router Gateway**<br>`v0.362.0 / Go` | Container `8080` (HTTP)<br>`9090` (Metrics) | `Deployment`<br>(ClusterIP `http-router:8080`) | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | AWS NLB + EKS / Azure App Gateway + AKS / GCP Cloud Armor + GKE | Keycloak JWKS JWT validation, `@authenticated` order mutations | Stateless GraphQL Edge Router, Supergraph composition gateway |
 | **Products Service**<br>`Spring Boot 4 / Java 21` | Container `8004`<br>*(host `8004`)* | `Deployment`<br>(ClusterIP `8004`) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS EKS / Azure AKS / GCP GKE | JWT Bearer validation, Spring Security RBAC | Stateless domain service, multi-level Redis cache (`products-cache`) |
-| **Orders Service**<br>`Spring Boot 4 / Java 21` | Container `8003`<br>*(host `8003`)* | `Deployment`<br>(ClusterIP `8003`) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS EKS / Azure AKS / GCP GKE | OAuth2 S2S `ServiceTokenProvider`, JWT Bearer | Stateless domain service, Saga coordinator & Kafka producer |
+| **Orders Service**<br>`Spring Boot 4 / Java 21` | Container `8003`<br>*(host `8003`)* | `Deployment`<br>(ClusterIP `8003`) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS EKS / Azure AKS / GCP GKE | OAuth2 S2S `ServiceTokenProvider`, JWT Bearer | Stateless domain service, Choreographed Saga participant & Kafka producer/consumer |
 | **Inventory Service**<br>`Spring Boot 4 / Java 21` | Container `8001`<br>*(host `8001`)* | `Deployment`<br>(ClusterIP `8001`) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS EKS / Azure AKS / GCP GKE | S2S-protected (`ROLE_INTERNAL_SERVICE` / `ROLE_ADMIN`) | Stateless domain service, $O(1)$ atomic stock allocations & Saga rollback |
 | **Notification Service**<br>`Spring Boot 4 / Java 21` | Container `8002`<br>*(host `8002`)* | `Deployment`<br>(ClusterIP `8002`) | CPU: `300m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS EKS / Azure AKS / GCP GKE | JWT-authenticated SSE stream, Kafka consumer group | Stateful SSE client connection pool, transactional messaging consumer |
+| **Payments Service**<br>`Go 1.26 / Gin v1.12.0 / GORM v1.31.2` | Container `8085`<br>*(host `8085`)* | `Deployment`<br>(ClusterIP `8085`) | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `512Mi` | AWS EKS / Azure AKS / GCP GKE | Distroless UID 65532, Vault `payments-db-role` | Stateless Go service, goroutines & buffered channels audit logging, automated Saga refunds |
+| **Fulfillment Service**<br>`TS 7 / NestJS v12.2.0 / TypeORM 1.1.2` | Container `8086`<br>*(host `8086`)* | `Deployment`<br>(ClusterIP `8086`) | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` | AWS EKS / Azure AKS / GCP GKE | Non-root UID 1001, Vault `fulfillment-db-role` | Stateless DDD logistics service, carrier tracking (`DHL-XXXXXXXX`) & Kafka choreography |
+| **Analytics Service**<br>`Python 3.12 / FastAPI v0.162.0 / SQLAlchemy 2.0` | Container `8087`<br>*(host `8087`)* | `Deployment`<br>(ClusterIP `8087`) | CPU: `100m` / `500m`<br>Mem: `192Mi` / `384Mi`<br>Storage: `512Mi` | AWS EKS / Azure AKS / GCP GKE | Non-root UID 10001, Vault `analytics-db-role` | Stateless async telemetry engine (`asyncpg`), live `ecommerce_cart_abandonment_rate_percent` gauge |
 | **Keycloak IAM**<br>`v26.8.1 / Quarkus` | Container `8181` (HTTP)<br>`9000` (Management) | `Deployment`<br>(NodePort `30181` / Ingress) | CPU: `300m` / `800m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `1Gi` | AWS Cognito / Azure AD B2C / Google Identity Platform (or Self-Hosted EKS/AKS/GKE) | `admin` / `admin` (dev seed), JWKS RSA256 private keys | Clustered IAM with PostgreSQL backing store (`keycloak_db`) |
 | **HashiCorp Vault**<br>`v2.2.0 / Go` | Container `8200`<br>*(host `8200`)* | `Deployment`<br>(NodePort `30820`) | CPU: `150m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: Standard PVC | AWS Secrets Manager + KMS / Azure Key Vault / GCP Secret Manager + Cloud KMS | Dev Root Token: `root`, AppRole / Token auth | Stateful KV-v2 dynamic secret engine & Transit cryptographic KMS |
 | **OPA Gatekeeper**<br>`v3.23.0` | Container `8888` (Metrics)<br>`8443` (Webhook) | `Deployment`<br>(Admission Webhook) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi` | AWS EKS / Azure Policy for AKS / GKE Policy Controller | In-cluster webhook TLS certificates & Controller RBAC | Stateless admission controller enforcing Rego policies-as-code |
@@ -82,9 +106,9 @@ Port numbers are scoped to their listener: container ports belong to individual 
 | **Grafana Alloy**<br>`v1.21.0` | Container `3300`<br>*(host `3300`)* | `DaemonSet`<br>(runs on all cluster nodes) | CPU: `50m` / `200m`<br>Mem: `64Mi` / `256Mi`<br>Storage: `256Mi` | CloudWatch Agent / Azure Monitor Agent / Google Cloud Ops Agent | Node host-path log mount & cluster ServiceAccount | Stateless node telemetry agent scraping `/var/log/pods` |
 | **OpenTelemetry Collector**<br>`Contrib v0.159` | Container `4317` (gRPC)<br>`4318` (HTTP) | `Deployment`<br>(ClusterIP `4317`/`4318`) | CPU: `100m` / `400m`<br>Mem: `128Mi` / `512Mi` | AWS Distro for OpenTelemetry (ADOT) / Azure Monitor / Google Cloud Trace | In-cluster OTLP ingestion pipeline | Stateless pipeline processor with batching and retry memory queues |
 | **Redis & Exporter**<br>`Redis 8.8.1 / Exporter v1.94.0` | Container `6379` (Redis)<br>`9121` (Exporter) | `Deployment`<br>(ClusterIP `6379`/`9121`) | CPU: `100m` / `250m`<br>Mem: `128Mi` / `256Mi`<br>Storage: `256Mi` | AWS ElastiCache / Azure Managed Redis / GCP Memorystore | Password protected (`redis_pass`), Auth header | In-memory cache with optional RDB snapshots (Rate limiting & Idempotency) |
-| **PostgreSQL Databases (x4)**<br>`PostgreSQL 18` | Container `5432`<br>Host `5431`–`5435` | `Deployment` / `StatefulSet`<br>(4 services in `data`/`auth`) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | AWS Aurora PostgreSQL / Azure Database for PostgreSQL Flexible Server / GCP Cloud SQL | `postgres` / `postgres` (dev seed per DB: `orders`, `products`, `inventory`, `keycloak`) | Stateful isolated relational databases with persistent block volumes |
+| **PostgreSQL Databases (x7)**<br>`PostgreSQL 18` | Container `5432`<br>Host `5431`–`5438` | `Deployment` / `StatefulSet`<br>(7 services in `data`/`auth`) | CPU: `100m` / `500m`<br>Mem: `256Mi` / `512Mi`<br>Storage: `512Mi` each | AWS Aurora PostgreSQL / Azure Database for PostgreSQL Flexible Server / GCP Cloud SQL | `postgres` / `postgres` (dev seed per DB: `orders`, `products`, `inventory`, `payments`, `fulfillment`, `analytics`, `keycloak`) | Stateful isolated relational databases with persistent block volumes |
 | **Postgres Exporter**<br>`v0.20` | Container `9187`<br>*(host `9187`)* | `Deployment`<br>(ClusterIP `9187`) | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Cloud native RDS/Flexible Server performance insights | Read-only `pg_stat_statements` database user | Stateless connection pool and query execution latency exporter |
-| **Apache Kafka Broker**<br>`Confluent 8.3.2 / Kafka 4.3.x KRaft` | Container `9092` (Client)<br>`9093` (Controller)<br>Host `29092` | `StatefulSet`<br>(ClusterIP `9092`/`9093`) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Amazon Managed Streaming for Apache Kafka (MSK) / Azure Event Hubs (Kafka protocol) / Confluent Cloud on GCP | PLAINTEXT local dev, SASL_SSL / SCRAM for production | Stateful event log with KRaft distributed quorum consensus (Topic: `orders-topic`) |
+| **Apache Kafka Broker**<br>`Confluent 8.3.2 / Kafka 4.3.x KRaft` | Container `9092` (Client)<br>`9093` (Controller)<br>Host `29092` | `StatefulSet`<br>(ClusterIP `9092`/`9093`) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1024Mi`<br>Storage: `2Gi` | Amazon Managed Streaming for Apache Kafka (MSK) / Azure Event Hubs (Kafka protocol) / Confluent Cloud on GCP | PLAINTEXT local dev, SASL_SSL / SCRAM for production | Stateful event log with KRaft distributed quorum consensus (`orders-topic`, `orders-topic.DLT`, `payments-topic`, `fulfillment-topic`) |
 | **Kafka Exporter**<br>`v1.9` | Container `9308`<br>*(host `9308`)* | `Deployment`<br>(ClusterIP `9308`) | CPU: `50m` / `100m`<br>Mem: `64Mi` / `128Mi` | Cloud native streaming lag metrics | Read-only consumer group access | Stateless consumer group partition lag and offset scraper |
 | **KEDA Operator & Metrics**<br>`v2.21.0` | N/A<br>*(In-Cluster operator)* | `Deployment`<br>(Kubernetes CRD Controller) | CPU: `100m` / `500m`<br>Mem: `128Mi` / `256Mi` | Kubernetes Event-Driven Autoscaling (EKS / AKS / GKE) | In-cluster ServiceAccount with CRD mutation RBAC | Stateless event-driven autoscaler querying Kafka lag & Prometheus RPS |
 | **MLflow Tracking Server**<br>`v3.17.2` | Container `5000`<br>*(host `5000`)* | `Deployment`<br>(ClusterIP `:5000` / tunnel) | CPU: `200m` / `1000m`<br>Mem: `512Mi` / `1536Mi` | Amazon SageMaker / Azure Machine Learning / Vertex AI Model Registry | *(No auth required locally)*, S3/IAM role for artifacts | Stateful model metadata store with persistent artifact backend |
@@ -266,10 +290,10 @@ The platform provides enterprise-grade secret management across **4 distinct arc
   * Decouples the application code entirely from HashiCorp Vault using a Kubernetes-native controller pattern.
   * An operator (e.g., **External Secrets Operator** via `SecretStore` & `ExternalSecret`, or the **Azure Key Vault / AWS Secrets Store CSI Driver** with `SecretProviderClass`) periodically polls Vault or Cloud Key Vaults.
   * The operator synchronizes secrets directly into standard Kubernetes `Secret` resources (`name: microservices-secrets`).
-  * The Deployment manifests ([`k8s/minikube/services/products-service.yaml`](../../k8s/minikube/services/products-service.yaml)) consume the secrets transparently via `envFrom.secretRef` or volume mounts.
+  * The Helm chart Deployment templates ([`helm/charts/products-service/templates/deployment.yaml`](../../helm/charts/products-service/templates/deployment.yaml)) consume the secrets transparently via `envFrom.secretRef` or volume mounts.
 * **`VAULT_ENABLED` Environment Variable Setting:**
-  * **`VAULT_ENABLED=false`** (default in Helm values [`helm/microservices-umbrella/values.yaml`](../../helm/microservices-umbrella/values.yaml#L46)).
-  * The Java application remains a pure Twelve-Factor App: it reads ordinary environment variables (`POSTGRES_PASSWORD`, `JWT_SECRET`, etc.) injected by the kubelet.
+  * **`VAULT_ENABLED=false`** (default in Helm values [`helm/microservices-umbrella/values.yaml`](../../helm/microservices-umbrella/values.yaml)).
+  * The application remains a pure Twelve-Factor App: it reads ordinary environment variables (`POSTGRES_PASSWORD`, `JWT_SECRET`, etc.) injected by the kubelet.
 * **Manifests & Deployment:**
   * Located in [`k8s/minikube/vault/external-secrets/`](../../k8s/minikube/vault/external-secrets/) and [`helm/microservices-umbrella/templates/secretproviderclass.yaml`](../../helm/microservices-umbrella/templates/secretproviderclass.yaml).
   ```powershell
@@ -340,74 +364,17 @@ The platform provides enterprise-grade secret management across **4 distinct arc
 
 ---
 
-### 🛠️ Strategic Verification Playbook: Dynamic Database Secrets & Rotation
+### 🛠️ Dynamic Database Secrets Engine & Rotation Architecture
 
-The platform implements HashiCorp Vault's **Database Secrets Engine**, which generates dynamic, ephemeral, high-entropy PostgreSQL credentials on-demand with automated lease expiration (TTL: 1h, Max: 24h). Below are the strategic operational commands for **Docker Compose** and **Minikube**:
+The platform implements HashiCorp Vault's **Database Secrets Engine** ([`scripts/vault-init.sh`](../../scripts/vault-init.sh)), generating ephemeral, high-entropy PostgreSQL 18 credentials on-demand (`v-token-<svc>-...`) with automated lease expiration (default TTL: `1h`, max TTL: `24h`) across all 6 isolated microservice databases:
+- `products-db-role` → `postgres-products` (`db-products:5432` / `ms_products`)
+- `orders-db-role` → `postgres-orders` (`db-orders:5432` / `ms_orders`)
+- `inventory-db-role` → `postgres-inventory` (`db-inventory:5432` / `ms_inventory`)
+- `payments-db-role` → `postgres-payments` (`db-payments:5432` / `ms_payments`)
+- `fulfillment-db-role` → `postgres-fulfillment` (`db-fulfillment:5432` / `ms_fulfillment`)
+- `analytics-db-role` → `postgres-analytics` (`db-analytics:5432` / `ms_analytics`)
 
-#### 1. 🐳 Docker Compose Environment
-
-| Operational Action | Command Line | Verification & Expected Result |
-| :--- | :--- | :--- |
-| **Request Dynamic Credential** | `docker exec -e VAULT_TOKEN=root vault vault read database/creds/products-db-role` | Emits ephemeral `username` (`v-token-...`), random `password`, and unique `lease_id`. |
-| **Audit Active Roles in PostgreSQL** | `docker exec -it db-products psql -U postgres -d ms_products -c "\du"` | Confirms PostgreSQL created the dynamic role with `Password valid until <timestamp>`. |
-| **List Active Leases in Vault** | `docker exec -e VAULT_TOKEN=root vault vault list sys/leases/lookup/database/creds/products-db-role` | Displays all active database leases currently held by clients. |
-| **Inspect Specific Lease TTL** | `docker exec -e VAULT_TOKEN=root vault vault lease lookup <lease_id>` | Shows remaining lease time (`ttl`), renewal count, and expiration date. |
-| **Force Immediate Revocation** | `docker exec -e VAULT_TOKEN=root vault vault lease revoke <lease_id>` | Immediately revokes lease; re-checking PostgreSQL `\du` confirms the role was automatically dropped. |
-
-#### 2. ☸️ Minikube Kubernetes Environment
-
-| Operational Action | Command Line | Verification & Expected Result |
-| :--- | :--- | :--- |
-| **Seed / Initialize Vault** | `pwsh .\platform-minikube.ps1 secrets` | Automatically configures KV-v2, Transit KMS, and connects Vault to PostgreSQL instances across the `data` namespace. |
-| **Request Dynamic Credential** | `$vPod = kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}"`<br>`kubectl exec -n vault $vPod -- vault read database/creds/products-db-role` | Emits dynamic user `v-token-products-...` and password directly from the in-cluster Vault pod. |
-| **Audit Active Roles in PostgreSQL** | `$pPod = kubectl get pods -n data -l app=db-products -o jsonpath="{.items[0].metadata.name}"`<br>`kubectl exec -n data $pPod -c postgres -- psql -U postgres -d ms_products -c "\du"` | Confirms the ephemeral role is live inside the `data` namespace PostgreSQL pod. |
-| **Revoke All Dynamic Leases** | `kubectl exec -n vault $vPod -- vault lease revoke -prefix database/creds/products-db-role` | Revokes all dynamic database credentials for the role across the cluster in one step. |
-
-#### 3. 💻 Local Windows CLI Environment (HashiCorp Vault CLI `vault.exe`)
-
-When developers install HashiCorp Vault CLI locally on Windows (`winget install Hashicorp.Vault`), the CLI connects to the Vault server running in Minikube or Docker Compose through the published port `8200` (`http://127.0.0.1:8200`).
-
-> [!WARNING]
-> **Windows Session Environment Variables vs. Registry (`User`) Scope:**
-> Running `[System.Environment]::SetEnvironmentVariable('VAULT_ADDR', 'http://127.0.0.1:8200', 'User')` writes the variable to the Windows Registry (`HKCU\Environment`), which is only inherited by **new** processes. The current active PowerShell session retains an empty `$env:VAULT_ADDR`.
-> If `$env:VAULT_ADDR` is unset in the current session, `vault.exe` defaults to HTTPS (`https://127.0.0.1:8200`), causing:
-> `Error checking seal status: Get "https://127.0.0.1:8200/v1/sys/seal-status": http: server gave HTTP response to HTTPS client`
-> **Always initialize the current PowerShell session directly:**
-> ```powershell
-> $env:VAULT_ADDR = "http://127.0.0.1:8200"
-> $env:VAULT_TOKEN = "root"
-> ```
-
-##### Dynamic Database Role Minting & Verification Commands:
-
-```powershell
-# 1. Set terminal session environment
-$env:VAULT_ADDR = "http://127.0.0.1:8200"
-$env:VAULT_TOKEN = "root"
-
-# 2. Check cluster Vault status
-vault status
-
-# 3. Mint ephemeral dynamic PostgreSQL credentials (1h TTL)
-vault read database/creds/products-db-role     # Generates v-token-products-... for ms_products
-vault read database/creds/orders-db-role       # Generates v-token-orders-... for ms_orders
-vault read database/creds/inventory-db-role    # Generates v-token-inventor-... for ms_inventory
-
-# 4. Audit active database leases in Vault
-vault list sys/leases/lookup/database/creds/products-db-role
-vault list sys/leases/lookup/database/creds/orders-db-role
-vault list sys/leases/lookup/database/creds/inventory-db-role
-
-# 5. Verify ephemeral users in PostgreSQL databases
-kubectl exec -n data db-products-0 -c postgres -- psql -U postgres -d ms_products -c "\du v-token*"
-kubectl exec -n data db-orders-0 -c postgres -- psql -U postgres -d ms_orders -c "\du v-token*"
-kubectl exec -n data db-inventory-0 -c postgres -- psql -U postgres -d ms_inventory -c "\du v-token*"
-
-# 6. Revoke a specific lease or all leases by role prefix
-vault lease revoke <lease_id>
-vault lease revoke -prefix database/creds/products-db-role
-vault lease revoke -prefix database/creds/
-```
+Each connection is registered with `verify_connection=false` during bootstrap to eliminate startup race conditions between Vault and PostgreSQL StatefulSets. For interactive CLI verification commands (Docker Compose, Minikube `kubectl exec`, and local Windows `vault.exe` CLI with `$env:VAULT_ADDR` session configuration), see the **[Local Deployment Runbook — Vault Dynamic Credentials](../02-operations/LOCAL_DEPLOYMENT.md#useful-commands)** and **[Platform CLI Reference](../02-operations/PLATFORM_CLI_REFERENCE.md#-hashicorp-vault-management--cli-integration)**.
 
 ---
 
@@ -420,16 +387,19 @@ To balance zero-downtime rolling upgrades with single-replica stateful integrity
 | **`frontend`** | Stateless SPA | `RollingUpdate` | Zero downtime. Distroless Nginx UID 65532 with `tmpfs` mounts. | `50m` / `64Mi` | `250m` / `128Mi` |
 | **`cosmo-router`** | Stateless Gateway | `RollingUpdate` | Zero downtime. Federated GraphQL router handling all client traffic. | `100m` / `128Mi` | `500m` / `256Mi` |
 | **`products-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot REST/GraphQL subgraph. | `150m` / `512Mi` | `500m` / `1Gi` |
-| **`orders-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with Kafka producer. | `150m` / `512Mi` | `500m` / `1Gi` |
-| **`inventory-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with Kafka consumer. | `150m` / `512Mi` | `500m` / `1Gi` |
+| **`orders-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot Choreographed Saga participant. | `150m` / `512Mi` | `500m` / `1Gi` |
+| **`inventory-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with stock reservation & rollback. | `150m` / `512Mi` | `500m` / `1Gi` |
 | **`notification-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Java 21 Distroless Spring Boot with KEDA auto-scaler. | `150m` / `384Mi` | `500m` / `768Mi` |
+| **`payments-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Go 1.26 Distroless Gin/GORM with goroutine channels audit logging. | `100m` / `128Mi` | `500m` / `256Mi` |
+| **`fulfillment-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. TypeScript 7 NestJS/TypeORM DDD logistics & carrier dispatch. | `150m` / `256Mi` | `500m` / `512Mi` |
+| **`analytics-service`** | Stateless Microservice | `RollingUpdate` | Zero downtime. Python 3.12 FastAPI/SQLAlchemy 2.0 `asyncpg` funnel & abandonment gauge. | `100m` / `192Mi` | `500m` / `384Mi` |
 | **`demand-forecast-service`** | Stateless ML Inference | `RollingUpdate` / `Recreate` | Serves FastAPI predictions from MLflow champion model artifacts. | `150m` / `512Mi` | `1000m` / `2Gi` |
 | **`demand-sales-capture`** | Stateful Streaming | `Recreate` | **Exclusive Lock & PVC Integrity:** Consumes Kafka order events and writes Parquet snapshots with structured checkpoints to `mlops-sales-data` PVC. `RollingUpdate` is prohibited to prevent checkpoint file lock collisions. | `250m` / `1Gi` | `4000m` / `4Gi` |
 | **`mlflow`** | Stateful Registry | `Recreate` | Single-replica experiment tracking and artifact storage backed by `mlflow-data` PVC. | `100m` / `256Mi` | `500m` / `1Gi` |
 | **`vault`** | Security Vault | `Recreate` | Stateful dev vault server with file storage and in-memory key shares. | `100m` / `256Mi` | `500m` / `512Mi` |
 | **`keycloak`** | Identity Provider | `RollingUpdate` | OIDC provider backed by high-availability PostgreSQL database. | `250m` / `768Mi` | `1000m` / `1.5Gi` |
 | **`kafka` / `zookeeper`** | Messaging Cluster | `StatefulSet` | Ordered identity, persistent volume claims, and stable network identifiers. | `250m` / `512Mi` | `1000m` / `1Gi` |
-| **PostgreSQL Databases** | Database Per Service | `StatefulSet` | `db-products`, `db-orders`, `db-inventory`, `db-keycloak` with dedicated durable PVCs. | `100m` / `256Mi` | `500m` / `1Gi` |
+| **PostgreSQL 18 Databases** | Database Per Service | `StatefulSet` | `db-products`, `db-orders`, `db-inventory`, `db-payments`, `db-fulfillment`, `db-analytics`, `db-keycloak` with dedicated durable PVCs. | `100m` / `256Mi` | `500m` / `1Gi` |
 
 > [!TIP]
 > **PySpark Resource Guardrails:**
@@ -551,7 +521,7 @@ In Docker Compose and Minikube, the frontend Nginx is the shared local edge for 
 | **AWS EKS (`staging`/`prod`)** | **AWS S3 Assets Bucket** (`module.s3_assets`) | AWS NLB (`module.nlb`) | **CloudFront Distribution + WAFv2** (`s3Origin` + `nlbOrigin`) | Edge cached, zero pod CPU/RAM footprint |
 | **Azure AKS (`staging`/`prod`)** | **Azure Storage Account Blob** (`module.storage_account`) | Azure SLB (`istio_gateway_public_ip`) | **Azure Front Door Premium** (`static-frontend-group` + `aks-api-group`) | Edge cached, zero pod CPU/RAM footprint |
 | **Google Cloud GKE (`staging`/`prod`)** | **Google Cloud Storage Bucket** (`module.gcs`) | GCP Passthrough NLB (`api_backend`) | **Google Cloud Armor + Cloud CDN** (Backend Bucket + Backend Service) | Edge cached, zero pod CPU/RAM footprint |
-| **Local Minikube (`dev`)** | **Data Plane Pod** (`frontend.yaml` in `dev` ns) | Cosmo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
+| **Local Minikube (`dev`)** | **Data Plane Pod** (`helm/charts/frontend` in `dev` ns) | Cosmo Router Gateway (`:8080`) | Minikube Ingress / Istio Gateway | **$0.00 / 100% Offline** |
 
 ---
 
@@ -577,10 +547,9 @@ This section consolidates the router capabilities enabled across the platform an
 
 ### 2. Configuration Sources of Truth
 Keep these aligned when changing Router behavior:
-* `cosmo-router/router.yaml` — Docker Compose runtime configuration.
-* `cosmo-router/subgraphs/orders.graphql` — Local Federation composition source of truth.
-* `helm/charts/cosmo-router/{values.yaml,templates/configmap.yaml}` — Helm/ArgoCD deployments.
-* `k8s/minikube/services/cosmo-router.yaml` — Standalone Minikube manifest and embedded composition SDL.
+* [`cosmo-router/router.yaml`](../../cosmo-router/router.yaml) — Docker Compose runtime configuration.
+* [`cosmo-router/subgraphs/orders.graphql`](../../cosmo-router/subgraphs/orders.graphql) — Local Federation composition source of truth.
+* [`helm/charts/cosmo-router/values.yaml`](../../helm/charts/cosmo-router/values.yaml) & [`helm/charts/cosmo-router/templates/configmap.yaml`](../../helm/charts/cosmo-router/templates/configmap.yaml) — Single source of truth for Minikube, Helm, and ArgoCD Kubernetes deployments.
 
 ---
 
@@ -1003,13 +972,16 @@ To protect against container escape, privilege escalation, and lateral movement 
 ```mermaid
 flowchart TD
     subgraph K8sEnvs["Namespaces: dev • staging • prod (Least-Privilege Security Boundaries)"]
-        subgraph Workloads["Microservice Workloads & MLOps"]
+        subgraph Workloads["Microservice Workloads & MLOps (Helm Single Source of Truth)"]
             SA_CR["cosmo-router-sa"] --> Pod_CR["Pod: cosmo-router"]
             SA_FE["frontend-sa"] --> Pod_FE["Pod: frontend"]
             SA_ORD["orders-service-sa"] --> Pod_ORD["Pod: orders-service"]
             SA_PRD["products-service-sa"] --> Pod_PRD["Pod: products-service"]
             SA_INV["inventory-service-sa"] --> Pod_INV["Pod: inventory-service"]
             SA_NTF["notification-service-sa"] --> Pod_NTF["Pod: notification-service"]
+            SA_PAY["payments-service-sa"] --> Pod_PAY["Pod: payments-service"]
+            SA_FUL["fulfillment-service-sa"] --> Pod_FUL["Pod: fulfillment-service"]
+            SA_ANA["analytics-service-sa"] --> Pod_ANA["Pod: analytics-service"]
             SA_MLF["mlflow-sa"] --> Pod_MLF["Pod: mlflow"]
             SA_MLP["demand-sales-capture-sa"] --> Pod_MLP["Pod: demand-sales-capture"]
             SA_FC["demand-forecast-sa"] --> Pod_FC["Pod: demand-forecast-service"]
@@ -1031,7 +1003,7 @@ flowchart TD
 ```
 
 ### 1. Dedicated Workload ServiceAccounts
-- Every microservice and MLOps component runs under an isolated, dedicated `ServiceAccount` (`cosmo-router-sa`, `frontend-sa`, `orders-service-sa`, `products-service-sa`, `inventory-service-sa`, `notification-service-sa`, `mlflow-sa`, `demand-sales-capture-sa`, `demand-forecast-sa`, `demand-training-sa`).
+- Every microservice and MLOps component runs under an isolated, dedicated `ServiceAccount` (`cosmo-router-sa`, `frontend-sa`, `orders-service-sa`, `products-service-sa`, `inventory-service-sa`, `notification-service-sa`, `payments-service-sa`, `fulfillment-service-sa`, `analytics-service-sa`, `mlflow-sa`, `demand-sales-capture-sa`, `demand-forecast-sa`, `demand-training-sa`) rendered from [`helm/microservices-umbrella/templates/rbac.yaml`](../../helm/microservices-umbrella/templates/rbac.yaml).
 - **`automountServiceAccountToken: false`** is enforced across all Deployments, Jobs, and CronJobs. Containers cannot make unauthenticated or authenticated calls to the Kubernetes API server (`https://kubernetes.default.svc`).
 - The `default` ServiceAccount in the `dev` namespace is completely bypassed.
 
