@@ -1,0 +1,54 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: microservices-prod-dp2
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: prod
+    dataplane: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: microservices-architecture
+  source:
+    repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
+    targetRevision: prod
+    path: helm/microservices-umbrella
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../values/values-eks-prod.yaml
+  destination:
+    # Secondary production EKS dataplane registered in Argo CD (msa-aws-dp2-prod).
+    name: msa-aws-dp2-prod
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: microservices-secrets
+      jsonPointers:
+        - /data
+        - /stringData
+    - group: "monitoring.coreos.com"
+      kind: ServiceMonitor
+      jsonPointers:
+        - /spec/endpoints
+    - group: "apps"
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

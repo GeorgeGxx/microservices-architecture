@@ -6,9 +6,13 @@ metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
-  description: Enterprise Microservices Architecture
+  description: Enterprise Microservices Architecture (AWS EKS Primary & Secondary Production Dataplanes)
   sourceRepos:
-    - '*'
+    - https://github.com/GeorgeGxx/microservices-architecture.git
+    - https://github.com/georgegxx/microservices-architecture.git
+    - oci://ghcr.io/georgegxx/microservices-architecture/charts/microservices-umbrella
+    - https://opencost.github.io/opencost-helm-chart
+    - https://prometheus-community.github.io/helm-charts
   destinations:
     - namespace: dev
       server: https://kubernetes.default.svc
@@ -18,13 +22,69 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: production
       server: https://kubernetes.default.svc
+    - namespace: prod
+      name: msa-aws-dp2-prod
+    - namespace: production
+      name: msa-aws-dp2-prod
     - namespace: opencost
-      server: "*"
+      server: https://kubernetes.default.svc
+    - namespace: opencost
+      name: msa-aws-dp2-prod
     - namespace: observability
-      server: "*"
+      server: https://kubernetes.default.svc
+    - namespace: observability
+      name: msa-aws-dp2-prod
   clusterResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
-    - group: '*'
-      kind: '*'
+    - group: ""
+      kind: ConfigMap
+    - group: ""
+      kind: Secret
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: apps
+      kind: Deployment
+    - group: apps
+      kind: StatefulSet
+    - group: batch
+      kind: Job
+    - group: batch
+      kind: CronJob
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+    - group: monitoring.coreos.com
+      kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PrometheusRule
+    - group: networking.istio.io
+      kind: VirtualService
+    - group: networking.istio.io
+      kind: DestinationRule
+    - group: networking.istio.io
+      kind: Gateway
+    - group: security.istio.io
+      kind: PeerAuthentication
+    - group: security.istio.io
+      kind: AuthorizationPolicy
+    - group: security.istio.io
+      kind: RequestAuthentication
