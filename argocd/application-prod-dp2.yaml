@@ -24,9 +24,6 @@ spec:
     name: msa-aws-dp2-prod
     namespace: production
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true

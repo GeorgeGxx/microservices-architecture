@@ -812,11 +812,13 @@ jobs:
   #   - Branch develop/dev: Syncs 'microservices-dev' on Minikube/EKS Dev (namespace: dev)
   #   - Branch staging: Syncs 'microservices-staging' on AWS EKS Staging (namespace: staging)
   #   - Branch master: Syncs BOTH 'microservices-prod' (DP1) and 'microservices-prod-dp2' (DP2)
+  #     gated by the 'production' environment (manual approval / protection rules)
   # ==========================================================
   gitops-argocd-sync:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"
     needs: push-dockerhub
     if: needs.push-dockerhub.outputs.image-published == 'true'
+    environment: ${{ (github.ref == 'refs/heads/master') && 'production' || ((github.ref == 'refs/heads/staging') && 'staging' || 'dev') }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
