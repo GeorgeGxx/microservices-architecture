@@ -1,0 +1,43 @@
+name: MSA-Fulfillment-Service-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - fulfillment-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/fulfillment-service.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - fulfillment-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/fulfillment-service.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: fulfillment-service
+      serviceDir: fulfillment-service
+      serviceType: nestjs
+      servicePort: 8086
+      contextDir: fulfillment-service
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure

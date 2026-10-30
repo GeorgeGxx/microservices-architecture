@@ -1,0 +1,43 @@
+name: MSA-Payments-Service-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - payments-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/payments-service.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - payments-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/payments-service.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: payments-service
+      serviceDir: payments-service
+      serviceType: go
+      servicePort: 8085
+      contextDir: payments-service
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure

@@ -36,6 +36,14 @@ SERVICE_ENDPOINTS = {
     "orders-service": "http://127.0.0.1:8003",
     "inventory-service": "http://127.0.0.1:8001",
     "notification-service": "http://127.0.0.1:8002",
+    "payments-service": "http://127.0.0.1:8085",
+    "fulfillment-service": "http://127.0.0.1:8086",
+    "analytics-service": "http://127.0.0.1:8087",
+}
+SERVICE_SWAGGER_PATHS = {
+    "payments-service": ("/swagger/index.html", "/swagger/doc.json"),
+    "fulfillment-service": ("/swagger", "/swagger-json"),
+    "analytics-service": ("/docs", "/openapi.json"),
 }
 GRAFANA_DASHBOARDS = ["business-operations", "technical-security"]
 
@@ -99,10 +107,11 @@ def verify_swagger(router_url: str):
     except Exception as e:
         print(f"  [\033[93mWARN\033[0m] Cosmo Router Gateway at {router_url}: {e}")
 
-    # 2. Verify individual Spring Boot Microservice Swagger UIs & OpenAPI v3 Specs
+    # 2. Verify individual Polyglot Microservice Swagger UIs & OpenAPI v3 Specs
     for svc, base_url in SERVICE_ENDPOINTS.items():
         is_reachable = False
-        swagger_url = f"{base_url}/swagger-ui.html"
+        ui_path, spec_path = SERVICE_SWAGGER_PATHS.get(svc, ("/swagger-ui.html", "/v3/api-docs"))
+        swagger_url = f"{base_url}{ui_path}"
         try:
             req = urllib.request.Request(swagger_url)
             with urllib.request.urlopen(req, timeout=2) as resp:
@@ -112,7 +121,7 @@ def verify_swagger(router_url: str):
             pass
 
         if is_reachable:
-            doc_url = f"{base_url}/v3/api-docs"
+            doc_url = f"{base_url}{spec_path}"
             try:
                 req = urllib.request.Request(doc_url)
                 with urllib.request.urlopen(req, timeout=2) as resp:
@@ -278,10 +287,10 @@ def check_jvm(prom_url: str):
 
 
 def check_funnel_activity(prom_url: str):
-    """Check observed funnel metrics in Prometheus."""
-    print("\n\033[96m[2/3] 🛒 CHECKING OBSERVED E-COMMERCE FUNNEL ACTIVITY\033[0m")
-    print("  Event counters are process-local and are not correlated by shopper session; no abandonment rate is inferred.")
+    """Check observed funnel and real-time abandonment metrics in Prometheus."""
+    print("\n\033[96m[2/3] 🛒 CHECKING OBSERVED E-COMMERCE FUNNEL & CART ABANDONMENT ACTIVITY\033[0m")
     queries = [
+        ("Cart Abandonment Rate (%)", 'max(ecommerce_cart_abandonment_rate_percent) or vector(0)'),
         ("Cart add events in 1h", 'sum(increase(ecommerce_funnel_events_total{event_type="cart_add"}[1h])) or vector(0)'),
         ("Checkout start events in 1h", 'sum(increase(ecommerce_funnel_events_total{event_type="checkout_start"}[1h])) or vector(0)'),
         ("Payment step events in 1h", 'sum(increase(ecommerce_funnel_events_total{event_type="checkout_step",step="PAYMENT"}[1h])) or vector(0)'),

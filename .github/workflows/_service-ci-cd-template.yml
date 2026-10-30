@@ -10,7 +10,7 @@ on:
       service-type:
         required: true
         type: string
-        description: 'Type: spring-boot, react, cosmo-router, or python'
+        description: 'Type: spring-boot, react, cosmo-router, python, go, or nestjs'
       service-dir:
         required: true
         type: string
@@ -176,7 +176,54 @@ jobs:
           path: ${{ inputs.service-dir }}/coverage/
           retention-days: 7
 
-      # Python / MLOps (PySpark / FastAPI / Auto-train)
+      # Go (Payments Service)
+      - name: Set up Go
+        if: inputs.service-type == 'go'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: ${{ inputs.service-dir }}/go.sum
+
+      - name: Run Go Unit Tests & Coverage
+        if: inputs.service-type == 'go'
+        run: |
+          cd ${{ inputs.service-dir }}
+          go test -v -coverprofile=coverage.out ./...
+
+      - name: Upload Go Coverage Artifact
+        if: inputs.service-type == 'go' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage.out
+          retention-days: 7
+
+      # NestJS / TypeScript (Fulfillment Service)
+      - name: Set up Node.js 22 for NestJS
+        if: inputs.service-type == 'nestjs'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.service-dir }}/package.json
+
+      - name: Install & Run NestJS Tests with Coverage
+        if: inputs.service-type == 'nestjs'
+        run: |
+          cd ${{ inputs.service-dir }}
+          npm ci || npm install
+          npm run test:cov
+          npm run build
+
+      - name: Upload NestJS Coverage Artifact
+        if: inputs.service-type == 'nestjs' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage/
+          retention-days: 7
+
+      # Python / MLOps & Analytics
       - name: Set up Python 3.12
         if: inputs.service-type == 'python'
         uses: actions/setup-python@v7
@@ -192,18 +239,23 @@ jobs:
           if [ -f "${{ inputs.service-dir }}/requirements.txt" ]; then
             pip install -r "${{ inputs.service-dir }}/requirements.txt"
           fi
-          pip install coverage
+          pip install coverage pytest pytest-cov pytest-asyncio
           if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
-            if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
-              OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
-            elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
-              OMIT="$OMIT,*/forecast_api.py"
-            elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
-              OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
+            cd "${{ inputs.service-dir }}"
+            if [ -d "app" ]; then
+              pytest --cov=app --cov-report=xml:coverage.xml tests/ -v
+            else
+              OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
+              if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
+                OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
+              elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
+                OMIT="$OMIT,*/forecast_api.py"
+              elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
+                OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
+              fi
+              coverage run --source=. --omit="$OMIT" -m unittest discover -s tests -v
+              coverage xml -o coverage.xml
             fi
-            coverage run --source=${{ inputs.service-dir }} --omit="$OMIT" -m unittest discover -s "${{ inputs.service-dir }}/tests" -v
-            coverage xml -o ${{ inputs.service-dir }}/coverage.xml
           fi
 
       - name: Upload Python Coverage Artifact
@@ -380,6 +432,94 @@ jobs:
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
+      # Go Sonar Analysis
+      - name: Download Go Coverage Artifacts
+        if: inputs.service-type == 'go'
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}
+
+      - name: Set up Node.js for Go Sonar Scanner
+        if: inputs.service-type == 'go'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Sonar Analysis (Go)
+        if: inputs.service-type == 'go'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          npx --yes sonarqube-scanner \
+            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
+            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.sources=. \
+            -Dsonar.tests=. \
+            -Dsonar.test.inclusions="**/*_test.go" \
+            -Dsonar.exclusions="**/*_test.go,docs/**,scripts/**" \
+            -Dsonar.go.coverage.reportPaths=coverage.out \
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+
+      # NestJS Sonar Analysis
+      - name: Set up Java for NestJS Sonar Scanner
+        if: inputs.service-type == 'nestjs'
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Node.js for NestJS Sonar Scanner
+        if: inputs.service-type == 'nestjs'
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Download NestJS Coverage Artifacts
+        if: inputs.service-type == 'nestjs'
+        uses: actions/download-artifact@v8
+        with:
+          name: coverage-${{ inputs.service-name }}
+          path: ${{ inputs.service-dir }}/coverage
+
+      - name: Sonar Analysis (NestJS)
+        if: inputs.service-type == 'nestjs'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
+        run: |
+          if [ -z "$SONAR_TOKEN" ]; then
+            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+            exit 0
+          fi
+          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
+          cd "${{ inputs.service-dir }}"
+          npx --yes sonarqube-scanner \
+            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
+            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.organization="$SONAR_ORGANIZATION" \
+            -Dsonar.host.url="$SONAR_HOST_URL" \
+            -Dsonar.sources=src \
+            -Dsonar.tests=src \
+            -Dsonar.test.inclusions="**/*.spec.ts" \
+            -Dsonar.exclusions="**/*.spec.ts,dist/**,node_modules/**" \
+            -Dsonar.coverage.exclusions="src/main.ts,src/**/*.module.ts,src/**/*.orm-entity.ts,**/*.spec.ts" \
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+            -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
+
       # Python / MLOps Sonar Analysis
       - name: Download Python Coverage Artifacts
         if: inputs.service-type == 'python'
@@ -426,6 +566,9 @@ jobs:
           elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,Dockerfile.training,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
+          elif [ "${{ inputs.service-name }}" = "analytics-service" ]; then
+            EXCLUSIONS="$EXCLUSIONS,scripts/**"
+            COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,scripts/**"
           fi
           npx --yes sonarqube-scanner \
             -Dsonar.projectKey=msa-${{ inputs.service-name }} \

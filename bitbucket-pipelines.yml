@@ -78,6 +78,12 @@ definitions:
               else
                 echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
               fi
+            elif [ "$SERVICE_NAME" = "payments-service" ]; then
+              docker run --rm -v "$PWD/payments-service:/workspace" -w /workspace golang:1.26-alpine sh -c "apk add --no-cache git && go test -v -coverprofile=coverage.out ./..."
+            elif [ "$SERVICE_NAME" = "fulfillment-service" ]; then
+              docker run --rm -v "$PWD/fulfillment-service:/workspace" -w /workspace node:24-alpine sh -c "npm ci && npm run test:cov && npm run build"
+            elif [ "$SERVICE_NAME" = "analytics-service" ]; then
+              docker run --rm -v "$PWD/analytics-service:/workspace" -w /workspace -e PYTHONPATH=/workspace python:3.12-slim bash -c "pip install --no-cache-dir -r requirements.txt pytest pytest-cov pytest-asyncio && pytest --cov=app --cov-report=xml:coverage.xml tests/ -v"
             else
               SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
               test -f "$SERVICE_DIR/pom.xml" || { echo "Unknown Spring service: $SERVICE_DIR"; exit 1; }
@@ -116,8 +122,8 @@ definitions:
             SERVICE_DIR="${SERVICE_DIR:-$SERVICE_NAME}"
             IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
             mkdir -p artifacts/images artifacts/sbom
-            if [ "$SERVICE_NAME" = "frontend" ]; then
-              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f frontend/Dockerfile frontend
+            if [ "$SERVICE_NAME" = "frontend" ] || [ "$SERVICE_NAME" = "payments-service" ] || [ "$SERVICE_NAME" = "fulfillment-service" ] || [ "$SERVICE_NAME" = "analytics-service" ]; then
+              docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f "${SERVICE_NAME}/Dockerfile" "${SERVICE_NAME}"
             elif [ "$SERVICE_NAME" = "demand-forecast" ]; then
               docker build --pull -t "local/${SERVICE_NAME}:${IMAGE_TAG}" -f mlops/Dockerfile.forecast mlops
             elif [ "$SERVICE_NAME" = "mlops-training" ]; then
@@ -472,7 +478,7 @@ pipelines:
       - variables:
           - name: SERVICE_NAME
             default: products-service
-            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service, cosmo-router, demand-forecast, mlops-training]
+            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service, payments-service, fulfillment-service, analytics-service, cosmo-router, demand-forecast, mlops-training]
           - name: GKE_INGRESS_URL
       - step: *unit-tests
       - step: *sast

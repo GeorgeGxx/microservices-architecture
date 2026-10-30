@@ -22,7 +22,7 @@ export const options = {
 };
 
 export default function () {
-  // Test Products Service via Ingress / Edge
+  // Test Products Service and Analytics Summary via Ingress / Edge
   const res = http.get(`${TARGET_URL}/api/product`);
   const isOkOrRateLimited = res.status === 200 || res.status === 429;
   
@@ -31,5 +31,9 @@ export default function () {
   check(res, {
     'status is 200 or gateway rate-limited (429)': () => isOkOrRateLimited,
   });
+
+  const analyticsRes = http.get(`${TARGET_URL}/api/v1/analytics/summary`);
+  serverErrors.add(analyticsRes.status >= 500);
+
   sleep(0.5);
 }

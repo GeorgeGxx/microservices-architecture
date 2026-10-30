@@ -383,6 +383,192 @@ services:
       interval: 5s
       retries: 10
 
+  ### Postgres database for payments (PostgreSQL 18 - Isolated Bounded Context)
+  db-payments:
+    container_name: db-payments
+    image: "postgres:${POSTGRES_VERSION}"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${PAYMENTS_POSTGRES_DB:-ms_payments}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - payments-pgdata:/var/lib/postgresql/data
+    ports:
+      - "5436:${POSTGRES_PORT}"
+    networks:
+      - spring
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  ### Payments Service (Go 1.26, Gin v1.12.0, GORM v1.31.2, Goroutines, Swagger)
+  payments-service:
+    container_name: payments-service
+    image: georgegxx/payments-service:1.0.0
+    build:
+      context: ./payments-service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8085:8085"
+    environment:
+      SERVER_PORT: "8085"
+      DB_HOST: db-payments
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${PAYMENTS_POSTGRES_DB:-ms_payments}
+      DB_SSLMODE: disable
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ORDERS_TOPIC: orders-topic
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: payments-service-group
+      ENV: production
+    restart: unless-stopped
+    depends_on:
+      db-payments:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "/app/payments-service", "-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - spring
+
+  ### Postgres database for fulfillment (PostgreSQL 18 - Isolated Bounded Context)
+  db-fulfillment:
+    container_name: db-fulfillment
+    image: "postgres:${POSTGRES_VERSION}"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${FULFILLMENT_POSTGRES_DB:-ms_fulfillment}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - fulfillment-pgdata:/var/lib/postgresql/data
+    ports:
+      - "5437:${POSTGRES_PORT}"
+    networks:
+      - spring
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  ### Fulfillment Service (TypeScript 7, NestJS v12.2.0, TypeORM 1.1.2, DDD, Swagger)
+  fulfillment-service:
+    container_name: fulfillment-service
+    image: georgegxx/fulfillment-service:1.0.0
+    build:
+      context: ./fulfillment-service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8086:8086"
+    environment:
+      PORT: "8086"
+      DB_HOST: db-fulfillment
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${FULFILLMENT_POSTGRES_DB:-ms_fulfillment}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: fulfillment-service-group
+      NODE_ENV: production
+    restart: unless-stopped
+    depends_on:
+      db-fulfillment:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks:
+      - spring
+
+  ### Postgres database for analytics (PostgreSQL 18 - Isolated Bounded Context)
+  db-analytics:
+    container_name: db-analytics
+    image: "postgres:${POSTGRES_VERSION}"
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${ANALYTICS_POSTGRES_DB:-ms_analytics}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - analytics-pgdata:/var/lib/postgresql/data
+    ports:
+      - "5438:${POSTGRES_PORT}"
+    networks:
+      - spring
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 10
+
+  ### Analytics Service (FastAPI v0.162.0, SQLAlchemy ORM v2.0, DDD, Swagger)
+  analytics-service:
+    container_name: analytics-service
+    image: georgegxx/analytics-service:1.0.0
+    build:
+      context: ./analytics-service
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "8087:8087"
+    environment:
+      PORT: "8087"
+      DB_HOST: db-analytics
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${ANALYTICS_POSTGRES_DB:-ms_analytics}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ORDERS_TOPIC: orders-topic
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: analytics-service-group
+      ENV: production
+    restart: unless-stopped
+    depends_on:
+      db-analytics:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8087/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    networks:
+      - spring
+
   ### Products Service
   products-service:
     container_name: products-service
@@ -707,6 +893,9 @@ volumes:
   mlops_mlflow_artifacts:
   inventory-pgdata:
   orders-pgdata:
+  payments-pgdata:
+  fulfillment-pgdata:
+  analytics-pgdata:
   products-pgdata:
   keycloak-pgdata:
   kafka_data:
