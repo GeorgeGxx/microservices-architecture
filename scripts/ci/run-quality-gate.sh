@@ -26,33 +26,33 @@ log_error() {
 
 # 1. Gitleaks Secrets Scan
 run_gitleaks() {
-  log "Comprobando fuga de credenciales con Gitleaks..."
+  log "Checking for credential leaks with Gitleaks..."
   if command -v gitleaks >/dev/null 2>&1; then
-    gitleaks detect --source . --verbose --config devsecops/compliance/gitleaks/.gitleaks.toml || {
-      log_error "Gitleaks detectó posibles secretos en el repositorio."
+    gitleaks detect --source . --verbose --config devsecops/sast/gitleaks/.gitleaks.toml || {
+      log_error "Gitleaks detected potential secrets in the repository."
       FAILURES=$((FAILURES + 1))
     }
   elif command -v docker >/dev/null 2>&1; then
     docker run --rm -v "$(pwd):/path:ro" zricethezav/gitleaks:latest detect --source="/path" --verbose || {
-      log_error "Gitleaks detectó posibles secretos."
+      log_error "Gitleaks detected potential secrets."
       FAILURES=$((FAILURES + 1))
     }
   else
-    log_error "Gitleaks no está instalado y Docker no está disponible."
+    log_error "Gitleaks is not installed and Docker is unavailable."
   fi
 }
 
 # 2. Trivy IaC Scan
 run_trivy() {
-  log "Escaneando código de infraestructura (Terraform & Helm) con Trivy..."
+  log "Scanning infrastructure code (Terraform & Helm) with Trivy..."
   if command -v trivy >/dev/null 2>&1; then
     trivy config terraform/ --severity HIGH,CRITICAL || {
-      log_error "Trivy encontró problemas de seguridad severos en Terraform."
+      log_error "Trivy found high/critical security issues in Terraform."
       FAILURES=$((FAILURES + 1))
     }
   elif command -v docker >/dev/null 2>&1; then
     docker run --rm -v "$(pwd):/app:ro" aquasec/trivy:latest config /app/terraform/ --severity HIGH,CRITICAL || {
-      log_error "Trivy encontró vulnerabilidades críticas en Terraform."
+      log_error "Trivy found critical vulnerabilities in Terraform."
       FAILURES=$((FAILURES + 1))
     }
   fi
@@ -61,9 +61,9 @@ run_trivy() {
 # 3. Terraform Format & Lint
 run_terraform() {
   if command -v terraform >/dev/null 2>&1; then
-    log "Validando formato de código Terraform (terraform fmt)..."
+    log "Validating Terraform code formatting (terraform fmt)..."
     terraform fmt -check -recursive terraform/ || {
-      log_error "Archivos de Terraform con formato incorrecto. Ejecuta 'terraform fmt -recursive terraform/'."
+      log_error "Terraform files have formatting issues. Run 'terraform fmt -recursive terraform/'."
       FAILURES=$((FAILURES + 1))
     }
   fi
@@ -86,9 +86,9 @@ esac
 
 echo ""
 if [[ "$FAILURES" -eq 0 ]]; then
-  log_success "Todos los controles de calidad y DevSecOps pasaron satisfactoriamente."
+  log_success "All quality and DevSecOps gates passed successfully."
   exit 0
 else
-  log_error "Se detectaron ${FAILURES} fallos en los Quality Gates."
+  log_error "Detected ${FAILURES} Quality Gate failure(s)."
   exit 1
 fi

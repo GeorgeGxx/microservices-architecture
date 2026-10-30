@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 🩺 Enterprise SRE Production Health Audit & Triaje Toolkit
+# 🩺 Enterprise SRE Production Health Audit & Triage Toolkit
 # ==============================================================================
 # Zero-dependency Bash diagnostic tool for high-pressure production incident triage.
 #
@@ -65,7 +65,7 @@ check_http() {
   if [[ "$http_code" == "$expected_code" ]]; then
     printf "  ✅ %-30s | HTTP %-3s | OK (%s)\n" "$service_name" "$http_code" "$url"
   else
-    printf "  ❌ %-30s | HTTP %-3s | FAIL (Esperado %s en %s)\n" "$service_name" "$http_code" "$expected_code" "$url"
+    printf "  ❌ %-30s | HTTP %-3s | FAIL (Expected %s at %s)\n" "$service_name" "$http_code" "$expected_code" "$url"
     FAILURES=$((FAILURES + 1))
   fi
 }
@@ -78,48 +78,48 @@ check_socket() {
   if timeout 2 bash -c "</dev/tcp/${host}/${port}" 2>/dev/null; then
     printf "  ✅ %-30s | PORT %-5s | OK (${host}:${port})\n" "$service_name" "$port"
   else
-    printf "  ❌ %-30s | PORT %-5s | FAIL (No responde en ${host}:${port})\n" "$service_name" "$port"
+    printf "  ❌ %-30s | PORT %-5s | FAIL (Unreachable at ${host}:${port})\n" "$service_name" "$port"
     FAILURES=$((FAILURES + 1))
   fi
 }
 
 dump_jvm_triage() {
   local pid="$1"
-  log_header "TRIAGE DE EMERGENCIA: Volcado de Threads y Memoria JVM (PID: ${pid})"
+  log_header "EMERGENCY TRIAGE: JVM Thread & Memory Dump (PID: ${pid})"
 
   if ! command -v jcmd >/dev/null 2>&1; then
-    echo "❌ Error: 'jcmd' (OpenJDK JDK) no está disponible en este host." >&2
+    echo "❌ Error: 'jcmd' (OpenJDK JDK) is not available on this host." >&2
     exit 1
   fi
 
   local dump_dir="artifacts/triage-$(date +%Y%m%d_%H%M%S)"
   mkdir -p "$dump_dir"
 
-  echo "Capturando Thread Dump (Deadlocks / Stacktraces)..."
+  echo "Capturing Thread Dump (Deadlocks / Stacktraces)..."
   jcmd "$pid" Thread.print > "${dump_dir}/threads.tdump"
 
-  echo "Capturando resumen de Memoria Heap (Objetos más pesados)..."
+  echo "Capturing Heap Memory Histogram (Top objects)..."
   jcmd "$pid" GC.class_histogram > "${dump_dir}/class_histogram.txt"
 
-  echo "Capturando banderas de VM y consumo de memoria nativa..."
+  echo "Capturing VM flags and native memory summary..."
   jcmd "$pid" VM.flags > "${dump_dir}/vm_flags.txt"
   jcmd "$pid" VM.native_memory summary > "${dump_dir}/native_memory.txt" 2>/dev/null || true
 
-  echo "✅ Archivos de diagnóstico guardados en: ${dump_dir}"
+  echo "✅ Diagnostic artifacts saved in: ${dump_dir}"
   exit 0
 }
 
-# --- Dispatcher de subcomandos ---
+# --- Subcommand Dispatcher ---
 if [[ "${1:-}" == "--dump-jvm" ]]; then
   if [[ -z "${2:-}" ]]; then
-    echo "Uso: $0 --dump-jvm <PID>"
+    echo "Usage: $0 --dump-jvm <PID>"
     exit 1
   fi
   dump_jvm_triage "$2"
 fi
 
-# --- Auditoría de Salud ---
-log_header "MICROSERVICES ARCHITECTURE: AUDITORÍA DE SALUD EN PRODUCCIÓN (${ENV_MODE})"
+# --- Health Audit ---
+log_header "MICROSERVICES ARCHITECTURE: PRODUCTION HEALTH AUDIT (${ENV_MODE})"
 
 echo "🌐 GATEWAY & FEDERATION LAYER:"
 check_http "Cosmo Router GraphQL Health" "${COSMO_ROUTER_URL}/health/live" 200
@@ -144,11 +144,11 @@ check_socket "Apache Kafka KRaft Broker" "${KAFKA_HOST}" "${KAFKA_PORT}"
 check_socket "Redis Cache & Rate Limit"  "${REDIS_HOST}" "${REDIS_PORT}"
 
 echo ""
-log_header "RESUMEN DEL ESTADO DE LA PLATAFORMA"
+log_header "PLATFORM HEALTH SUMMARY"
 if [[ "$FAILURES" -eq 0 ]]; then
-  echo -e "\033[1;32m✅ TODOS LOS COMPONENTES DE PRODUCCIÓN ESTÁN SALUDABLES Y OPERATIVOS.\033[0m\n"
+  echo -e "\033[1;32m✅ ALL PRODUCTION COMPONENTS ARE HEALTHY AND OPERATIONAL.\033[0m\n"
   exit 0
 else
-  echo -e "\033[1;31m❌ SE DETECTARON ${FAILURES} COMPONENTES DEGRADADOS O CAÍDOS.\033[0m\n"
+  echo -e "\033[1;31m❌ DETECTED ${FAILURES} DEGRADED OR UNREACHABLE COMPONENT(S).\033[0m\n"
   exit 1
 fi

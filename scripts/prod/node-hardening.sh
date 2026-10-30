@@ -13,7 +13,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 if [[ "$EUID" -ne 0 ]]; then
-  echo "❌ Error: Este script requiere privilegios de superusuario (root o sudo)." >&2
+  echo "❌ Error: This script requires superuser privileges (root or sudo)." >&2
   exit 1
 fi
 
@@ -24,30 +24,30 @@ log_success() {
   echo -e "\033[1;32m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [SUCCESS]\033[0m $*"
 }
 
-# 1. Optimización del Kernel de Linux (sysctl)
-log "Configurando parámetros de red, memoria y descriptores de archivo en /etc/sysctl.d/99-microservices.conf..."
+# 1. Linux Kernel Tuning (sysctl)
+log "Configuring network, memory, and file descriptor parameters in /etc/sysctl.d/99-microservices.conf..."
 cat << 'EOF' > /etc/sysctl.d/99-microservices.conf
-# Memoria virtual requerida para Kafka, OpenSearch y bases de datos
+# Virtual memory required for Kafka, OpenSearch, and databases
 vm.max_map_count=262144
 vm.overcommit_memory=1
 vm.swappiness=10
 
-# Descriptores de archivo del sistema
+# System-wide file descriptors
 fs.file-max=2097152
 fs.inotify.max_user_watches=524288
 fs.inotify.max_user_instances=8192
 
-# Optimización de conexiones TCP de alto rendimiento (Cosmo Router, Ingress & Mesh)
+# High-throughput TCP connection tuning (Cosmo Router, Ingress & Mesh)
 net.core.somaxconn=32768
 net.ipv4.tcp_max_syn_backlog=16384
 net.core.netdev_max_backlog=16384
 net.ipv4.ip_local_port_range=1024 65535
 
-# Reutilización rápida de sockets TIME_WAIT
+# Fast TIME_WAIT socket reuse
 net.ipv4.tcp_tw_reuse=1
 net.ipv4.tcp_fin_timeout=15
 
-# Buffer sizes para tráfico masivo
+# Socket buffer sizes for high-volume traffic
 net.core.rmem_max=16777216
 net.core.wmem_max=16777216
 net.ipv4.tcp_rmem=4096 87380 16777216
@@ -55,10 +55,10 @@ net.ipv4.tcp_wmem=4096 65536 16777216
 EOF
 
 sysctl --system >/dev/null
-log_success "Parámetros sysctl aplicados correctamente."
+log_success "sysctl parameters applied successfully."
 
-# 2. Configurar Límites de Recursos (Limits.conf)
-log "Configurando límites de descriptores y procesos en /etc/security/limits.d/99-microservices.conf..."
+# 2. Configure Resource Limits (limits.conf)
+log "Configuring file descriptor and process limits in /etc/security/limits.d/99-microservices.conf..."
 cat << 'EOF' > /etc/security/limits.d/99-microservices.conf
 * soft nofile 65536
 * hard nofile 65536
@@ -68,12 +68,12 @@ root soft nofile 65536
 root hard nofile 65536
 EOF
 
-# 3. Hardening de Docker Daemon (Rotación de Logs y Resiliencia)
+# 3. Docker Daemon Hardening (Log Rotation & Resiliency)
 if command -v docker >/dev/null 2>&1 || [[ -d /etc/docker ]]; then
-  log "Configurando /etc/docker/daemon.json para evitar saturación de disco y caídas de contenedores..."
+  log "Configuring /etc/docker/daemon.json to prevent disk exhaustion and container restarts..."
   mkdir -p /etc/docker
 
-  # Generar configuración segura sin sobrescribir llaves existentes de forma destructiva
+  # Generate safe daemon configuration
   cat << 'EOF' > /etc/docker/daemon.json
 {
   "log-driver": "json-file",
@@ -94,16 +94,16 @@ if command -v docker >/dev/null 2>&1 || [[ -d /etc/docker ]]; then
 EOF
 
   if systemctl is-active --quiet docker; then
-    log "Recargando Docker Daemon..."
+    log "Reloading Docker Daemon..."
     systemctl reload docker || systemctl restart docker
   fi
-  log_success "Docker Daemon configurado con live-restore y rotación de logs."
+  log_success "Docker Daemon configured with live-restore and log rotation."
 fi
 
-# 4. Asegurar Time Synchronization (NTP / Chrony / systemd-timesyncd)
+# 4. Ensure Time Synchronization (NTP / Chrony / systemd-timesyncd)
 if command -v timedatectl >/dev/null 2>&1; then
   timedatectl set-ntp true || true
-  log_success "Sincronización de reloj NTP habilitada."
+  log_success "NTP clock synchronization enabled."
 fi
 
-log_success "Hardening del nodo completado satisfactoriamente."
+log_success "Node hardening completed successfully."

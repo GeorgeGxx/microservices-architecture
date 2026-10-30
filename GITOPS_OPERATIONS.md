@@ -5,10 +5,10 @@
 | Argo CD Resource | File | Target Branch (`targetRevision`) | Target Cluster | Namespace | Purpose |
 |---|---|---|---|---|---|
 | `AppProject/microservices-architecture` | `argocd/appproject.yaml` | N/A | `https://kubernetes.default.svc`, `msa-aws-dp2-prod` | `dev`, `staging`, `prod`, `production`, `opencost`, `observability` | Least-privilege project scoping allowed repositories, destinations, and Kubernetes API kinds. |
-| `Application/microservices-dev` | `argocd/application-dev.yaml` | `develop` | `https://kubernetes.default.svc` | `dev` | Continuous GitOps sync for DEV (`values-minikube.yaml`). |
-| `Application/microservices-staging` | `argocd/application-staging.yaml` | `staging` | `https://kubernetes.default.svc` | `staging` | Continuous GitOps sync for AWS EKS Staging (`values-eks-staging.yaml`). |
-| `Application/microservices-prod` | `argocd/application-prod.yaml` | `master` | `https://kubernetes.default.svc` | `production` | Primary Production AWS EKS Dataplane (`DP1`: `msa-aws-prod`) using `values-eks-prod.yaml`. |
-| `Application/microservices-prod-dp2` | `argocd/application-prod-dp2.yaml` | `master` | `msa-aws-dp2-prod` | `production` | Secondary Production AWS EKS Dataplane (`DP2`: `msa-aws-dp2-prod`) using `values-eks-prod.yaml`. |
+| `Application/microservices-dev` | `argocd/application-dev.yaml` | `develop` | `https://kubernetes.default.svc` | `dev` | Continuous automated GitOps sync for DEV (`values-minikube.yaml`). |
+| `Application/microservices-staging` | `argocd/application-staging.yaml` | `staging` | `https://kubernetes.default.svc` | `staging` | GitOps sync for AWS EKS Staging (`values-eks-staging.yaml`). *(`automated` sync currently paused until AWS cloud deployment is enabled; see [`BRANCH_ENVIRONMENT_STRATEGY.md`](./BRANCH_ENVIRONMENT_STRATEGY.md#4-paused-multi-cloud-deployment-posture-staging--master--reactivation-checklist)).* |
+| `Application/microservices-prod` | `argocd/application-prod.yaml` | `master` | `https://kubernetes.default.svc` | `production` | Primary Production AWS EKS Dataplane (`DP1`: `msa-aws-prod`) using `values-eks-prod.yaml`. *(Manual sync only — gated by GitHub `production` environment approval).* |
+| `Application/microservices-prod-dp2` | `argocd/application-prod-dp2.yaml` | `master` | `msa-aws-dp2-prod` | `production` | Secondary Production AWS EKS Dataplane (`DP2`: `msa-aws-dp2-prod`) using `values-eks-prod.yaml`. *(Manual sync only — gated by GitHub `production` environment approval).* |
 
 ---
 
