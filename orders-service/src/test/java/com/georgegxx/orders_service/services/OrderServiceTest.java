@@ -477,4 +477,57 @@ class OrderServiceTest {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }
     }
+
+    @Test
+    @DisplayName("Saga handlers transition orders forward and execute backward compensation")
+    void testSagaHandlersForwardAndBackward() {
+        OrderItems item = OrderItems.builder().id(1L).sku("SKU-1").price(25.0).quantity(2L).build();
+        Order placedOrder = Order.builder()
+                .id(10L)
+                .orderNumber("ORD-SAGA-1")
+                .orderStatus(OrderStatus.PLACED)
+                .orderItems(List.of(item))
+                .build();
+
+        when(orderRepository.findByOrderNumberWithItemsForUpdate("ORD-SAGA-1"))
+                .thenReturn(Optional.of(placedOrder));
+        when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(kafkaTemplate.send(anyString(), anyString(), anyString()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        // 1. Payment completed
+        orderService.handleSagaPaymentCompleted("ORD-SAGA-1", "TXN-001");
+        orderService.handleSagaPaymentCompleted("", "TXN-001");
+
+        // 2. Shipment dispatched -> SHIPPED
+        orderService.handleSagaShipmentDispatched("ORD-SAGA-1", "DHL-TRACK-99", "DHL Express");
+        assertEquals(OrderStatus.SHIPPED, placedOrder.getOrderStatus());
+        assertEquals("DHL-TRACK-99", placedOrder.getTrackingNumber());
+
+        // 3. Shipment delivered -> DELIVERED
+        orderService.handleSagaShipmentDelivered("ORD-SAGA-1");
+        assertEquals(OrderStatus.DELIVERED, placedOrder.getOrderStatus());
+
+        // 4. Backward compensation on a PLACED order -> CANCELLED + inventory restored
+        Order failedOrder = Order.builder()
+                .id(11L)
+                .orderNumber("ORD-SAGA-FAIL")
+                .orderStatus(OrderStatus.PLACED)
+                .orderItems(List.of(item))
+                .build();
+        when(orderRepository.findByOrderNumberWithItemsForUpdate("ORD-SAGA-FAIL"))
+                .thenReturn(Optional.of(failedOrder));
+        when(inventoryClient.incrementStock(any()))
+                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+
+        orderService.handleSagaFailureCompensation("ORD-SAGA-FAIL", "PAYMENT_DECLINED");
+        assertEquals(OrderStatus.CANCELLED, failedOrder.getOrderStatus());
+        verify(inventoryClient, atLeastOnce()).incrementStock(any());
+
+        // Calling compensation again when already CANCELLED is a no-op
+        orderService.handleSagaFailureCompensation("ORD-SAGA-FAIL", "DUPLICATE");
+        orderService.handleSagaFailureCompensation(null, "NULL");
+        orderService.handleSagaShipmentDispatched(null, null, null);
+        orderService.handleSagaShipmentDelivered(null);
+    }
 }

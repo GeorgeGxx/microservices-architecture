@@ -216,4 +216,48 @@ class GlobalExceptionHandlerTest {
                 .isNotNull()
                 .containsEntry("error", "Service Temporarily Unavailable");
     }
+
+    @Test
+    @DisplayName("handleCompletionException should handle all other specific wrapped causes")
+    void testHandleCompletionException_OtherCauses() {
+        // CallNotPermittedException
+        io.github.resilience4j.circuitbreaker.CallNotPermittedException cnpe =
+                mock(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class);
+        assertThat(handler.handleCompletionException(new CompletionException(cnpe)).getStatusCode())
+                .isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+
+        // IllegalArgumentException
+        assertThat(handler.handleCompletionException(new CompletionException(new IllegalArgumentException("arg"))).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        // IllegalStateException
+        assertThat(handler.handleCompletionException(new CompletionException(new IllegalStateException("state"))).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        // IdempotencyConflictException
+        assertThat(handler.handleCompletionException(new CompletionException(new IdempotencyConflictException("conflict"))).getStatusCode())
+                .isEqualTo(HttpStatus.CONFLICT);
+
+        // IdempotencyPayloadMismatchException
+        assertThat(handler.handleCompletionException(new CompletionException(new IdempotencyPayloadMismatchException("mismatch"))).getStatusCode())
+                .isEqualTo(HttpStatus.UNPROCESSABLE_CONTENT);
+
+        // OrderNotFoundException
+        assertThat(handler.handleCompletionException(new CompletionException(new OrderNotFoundException("not found"))).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Null cause
+        CompletionException nullCauseEx = new CompletionException(null);
+        assertThat(handler.handleCompletionException(nullCauseEx).getStatusCode())
+                .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @Test
+    @DisplayName("handleAccessDenied supports AuthorizationDeniedException")
+    void testHandleAuthorizationDeniedException() {
+        org.springframework.security.authorization.AuthorizationDeniedException ex =
+                new org.springframework.security.authorization.AuthorizationDeniedException("Denied");
+        ResponseEntity<Map<String, Object>> response = handler.handleAccessDenied(ex);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+    }
 }

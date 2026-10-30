@@ -4,6 +4,7 @@ import com.georgegxx.orders_service.model.dtos.*;
 import com.georgegxx.orders_service.config.IdempotencyKeyGraphQlInterceptor;
 import com.georgegxx.orders_service.repositories.OrderRepository;
 import com.georgegxx.orders_service.services.OrderService;
+import com.georgegxx.orders_service.utils.SecurityUtils;
 import graphql.schema.DataFetchingEnvironment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.graphql.data.method.annotation.Argument;
@@ -122,14 +123,11 @@ public class OrderGraphQlController {
     }
 
     private boolean isUser(Authentication auth) {
-        return auth != null && auth.isAuthenticated() && auth.getPrincipal() instanceof Jwt
-                && (auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_USER"))
-                || isAdmin(auth));
+        return SecurityUtils.isUser(auth);
     }
 
     private boolean isAdmin(Authentication auth) {
-        return auth != null && auth.isAuthenticated()
-                && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return SecurityUtils.isAdmin(auth);
     }
 
     private boolean belongsToCurrentUser(OrderResponse order, Authentication auth) {
