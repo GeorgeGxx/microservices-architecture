@@ -33,8 +33,8 @@ class BaseResponseTest {
                 .isEqualTo(r2)
                 .isNotEqualTo(r3)
                 .isNotEqualTo(nonResponse)
+                .isNotEqualTo(null)
                 .hasSameHashCodeAs(r2);
-        assertThat(r1.equals(null)).isFalse();
         assertThat(r1.toString()).contains("e1");
     }
 }
