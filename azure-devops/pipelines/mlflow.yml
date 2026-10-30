@@ -7,7 +7,7 @@ name: MSA-MLflow-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, release/*, main, master]
+    include: [develop, staging, prod, release/*, main, master]
   paths:
     include:
       - mlops/**
@@ -18,7 +18,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, release/*, main, master]
+    include: [develop, staging, prod, release/*, main, master]
   paths:
     include:
       - mlops/**

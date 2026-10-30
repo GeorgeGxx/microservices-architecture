@@ -614,7 +614,7 @@ stages:
   - stage: PushCandidate
     displayName: "📦 6. Push Candidate to ACR - ${{ parameters.serviceName }}"
     dependsOn: ComplianceGate
-    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    condition: and(succeeded(), or(in(variables['Build.SourceBranch'], 'refs/heads/develop', 'refs/heads/staging', 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/')))
     jobs:
       - job: PushSha
         displayName: "Push <sha> tag to ACR"
@@ -626,7 +626,7 @@ stages:
               targetPath: '$(Pipeline.Workspace)/images'
 
           - task: AzureCLI@2
-            displayName: "Login to ACR and push candidate"
+            displayName: "Login to ACR and push candidate (skip rebuild push if immutable SHA already in Staging ACR)"
             inputs:
               azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
@@ -635,10 +635,15 @@ stages:
                 set -euo pipefail
                 case "$(Build.SourceBranch)" in
                   refs/heads/develop) ACR_NAME='${{ parameters.acrNameDev }}' ;;
-                  refs/heads/release/*|refs/heads/main|refs/heads/master) ACR_NAME='${{ parameters.acrNameStaging }}' ;;
+                  refs/heads/staging|refs/heads/release/*|refs/heads/prod|refs/heads/main|refs/heads/master) ACR_NAME='${{ parameters.acrNameStaging }}' ;;
                   *) echo "##vso[task.logissue type=error]No ACR mapping for $(Build.SourceBranch)"; exit 1 ;;
                 esac
                 az acr login --name "$ACR_NAME"
+                EXISTING_DIGEST="$(az acr repository show --name "$ACR_NAME" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv 2>/dev/null || true)"
+                if [[ "$EXISTING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+                  echo "Immutable artifact ${{ parameters.serviceName }}@$(EXISTING_DIGEST) already exists in $ACR_NAME; reusing without overwriting."
+                  exit 0
+                fi
                 docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
                 TARGET="$ACR_NAME.azurecr.io/${{ parameters.serviceName }}"
                 docker tag local/${{ parameters.serviceName }}:$(Build.SourceVersion) $TARGET:$(Build.SourceVersion)
@@ -693,12 +698,12 @@ stages:
               helmVersion: ${{ parameters.helmVersion }}
 
   # ==========================================================
-  # STAGING (release/* or main/master only)
+  # STAGING (staging, release/*, or prod/main/master)
   # ==========================================================
   - stage: DeployStaging
     displayName: "🚀 8. Deploy to AKS Staging - ${{ parameters.serviceName }}"
     dependsOn: PushCandidate
-    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')))
+    condition: and(succeeded(), or(startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master')))
     jobs:
       - deployment: HelmDeployStaging
         displayName: "Helm upgrade on AKS Staging"
@@ -895,7 +900,7 @@ stages:
               helmVersion: ${{ parameters.helmVersion }}
 
   # ==========================================================
-  # PROMOTE: add semantic / latest tags to the image that PASSED staging
+  # PROMOTE: copy the exact immutable digest that PASSED staging to Prod ACR
   # ==========================================================
   - stage: PromoteImage
     displayName: "🏷️ 13. Promote Certified Image - ${{ parameters.serviceName }}"
@@ -904,14 +909,14 @@ stages:
       - E2ETests
       - PerformanceTests
       - DASTScan
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'))
     jobs:
       - job: PromoteTags
-        displayName: "Tag certified image in ACR"
+        displayName: "Promote immutable digest in ACR"
         steps:
           - checkout: none
           - task: AzureCLI@2
-            displayName: "Add release tags"
+            displayName: "Promote exact digest from Staging ACR to Production ACR"
             inputs:
               azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
@@ -920,34 +925,38 @@ stages:
                 set -euo pipefail
                 SOURCE_ACR='${{ parameters.acrNameStaging }}'
                 TARGET_ACR='${{ parameters.acrNameProd }}'
-                SOURCE_IMAGE="$SOURCE_ACR.azurecr.io/${{ parameters.serviceName }}:$(Build.SourceVersion)"
+                SOURCE_DIGEST="$(az acr repository show --name "$SOURCE_ACR" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv)"
+                [[ "$SOURCE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "##vso[task.logissue type=error]Could not resolve immutable digest in $SOURCE_ACR"; exit 1; }
+                SOURCE_IMAGE="$SOURCE_ACR.azurecr.io/${{ parameters.serviceName }}@$SOURCE_DIGEST"
                 TARGET="$TARGET_ACR.azurecr.io/${{ parameters.serviceName }}"
                 az acr login --name "$SOURCE_ACR"
                 az acr login --name "$TARGET_ACR"
                 docker pull "$SOURCE_IMAGE"
                 docker tag "$SOURCE_IMAGE" "$TARGET:$(Build.SourceVersion)"
                 docker push "$TARGET:$(Build.SourceVersion)"
+                TARGET_DIGEST="$(az acr repository show --name "$TARGET_ACR" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv)"
+                [ "$SOURCE_DIGEST" = "$TARGET_DIGEST" ] || { echo "##vso[task.logissue type=error]Digest mismatch between Staging ($SOURCE_DIGEST) and Prod ($TARGET_DIGEST)"; exit 1; }
                 if [ -n "${{ parameters.imageVersion }}" ]; then
-                  docker tag "$TARGET:$(Build.SourceVersion)" "$TARGET:${{ parameters.imageVersion }}"
+                  docker tag "$SOURCE_IMAGE" "$TARGET:${{ parameters.imageVersion }}"
                   docker push "$TARGET:${{ parameters.imageVersion }}"
                 fi
                 if [ "${{ parameters.tagLatest }}" = "True" ]; then
-                  docker tag "$TARGET:$(Build.SourceVersion)" "$TARGET:latest"
+                  docker tag "$SOURCE_IMAGE" "$TARGET:latest"
                   docker push "$TARGET:latest"
                 fi
-                echo "Certified image copied from $SOURCE_IMAGE to $TARGET:$(Build.SourceVersion)"
+                echo "Certified immutable image ($SOURCE_DIGEST) promoted from $SOURCE_IMAGE to $TARGET:$(Build.SourceVersion)"
 
   # ==========================================================
-  # PRODUCTION (main/master only) — approval check lives on the 'production'
-  # environment in the ADO portal (it cannot be declared in YAML).
+  # PRODUCTION (prod/main/master only) — Dual-Dataplane Deployment (DP1 + DP2)
+  # Approval check lives on the 'production' environment in the ADO portal.
   # ==========================================================
   - stage: DeployProduction
-    displayName: "🚢 14. Deploy to AKS Production - ${{ parameters.serviceName }}"
+    displayName: "🚢 14. Deploy to AKS Production (Dual-Dataplane DP1 + DP2) - ${{ parameters.serviceName }}"
     dependsOn: PromoteImage
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master'))
+    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master'))
     jobs:
-      - deployment: HelmCanaryProduction
-        displayName: "Production rollout"
+      - deployment: HelmCanaryProductionDP1
+        displayName: "Production rollout — Primary AKS Dataplane (DP1: ${{ parameters.namePrefix }}-prod-aks)"
         environment: 'production'
         strategy:
           runOnce:
@@ -972,7 +981,7 @@ stages:
 
                 - ${{ if and(eq(parameters.canaryEnabled, true), ne(parameters.canaryVirtualServicePath, '')) }}:
                   - task: AzureCLI@2
-                    displayName: "Istio canary traffic shifting"
+                    displayName: "Istio canary traffic shifting (DP1)"
                     inputs:
                       azureSubscription: ${{ parameters.serviceConnection }}
                       scriptType: bash
@@ -984,23 +993,74 @@ stages:
                           echo "##vso[task.logissue type=error]Production canary manifest not found: $MANIFEST"
                           exit 1
                         fi
-                        # The manifest must declare production namespace and include its
-                        # production DestinationRule/VirtualService; never apply dev files here.
+                        kubectl apply -f "$MANIFEST"
+
+      - deployment: HelmCanaryProductionDP2
+        displayName: "Production rollout — Secondary AKS Dataplane (DP2: ${{ parameters.namePrefix }}-dp2-prod-aks)"
+        dependsOn: HelmCanaryProductionDP1
+        environment: 'production'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - template: steps/helm-deploy.yml
+                  parameters:
+                    serviceConnection: ${{ parameters.serviceConnection }}
+                    resourceGroup: ${{ parameters.namePrefix }}-prod-rg
+                    cluster: ${{ parameters.namePrefix }}-dp2-prod-aks
+                    namespace: production
+                    envName: production
+                    springProfile: prod
+                    acrName: ${{ parameters.acrNameProd }}
+                    serviceName: ${{ parameters.serviceName }}
+                    servicePort: ${{ parameters.servicePort }}
+                    helmRelease: ${{ parameters.helmRelease }}
+                    helmVersion: ${{ parameters.helmVersion }}
+                    helmValuesKey: ${{ parameters.helmValuesKey }}
+                    deploymentName: ${{ parameters.deploymentName }}
+                    verifyRollout: true
+
+                - ${{ if and(eq(parameters.canaryEnabled, true), ne(parameters.canaryVirtualServicePath, '')) }}:
+                  - task: AzureCLI@2
+                    displayName: "Istio canary traffic shifting (DP2)"
+                    inputs:
+                      azureSubscription: ${{ parameters.serviceConnection }}
+                      scriptType: bash
+                      scriptLocation: inlineScript
+                      inlineScript: |
+                        set -euo pipefail
+                        MANIFEST='${{ parameters.canaryVirtualServicePath }}'
+                        if [ ! -f "$MANIFEST" ]; then
+                          echo "##vso[task.logissue type=error]Production canary manifest not found: $MANIFEST"
+                          exit 1
+                        fi
                         kubectl apply -f "$MANIFEST"
 
   - stage: RollbackProduction
-    displayName: "🔄 Rollback Production - ${{ parameters.serviceName }}"
+    displayName: "🔄 Rollback Production (DP1 + DP2) - ${{ parameters.serviceName }}"
     dependsOn: DeployProduction
     condition: failed()
     jobs:
-      - job: ExecuteProdRollback
-        displayName: "Helm rollback on Production"
+      - job: ExecuteProdRollbackDP1
+        displayName: "Helm rollback on Production DP1 (${{ parameters.namePrefix }}-prod-aks)"
         steps:
           - template: steps/helm-rollback.yml
             parameters:
               serviceConnection: ${{ parameters.serviceConnection }}
               resourceGroup: ${{ parameters.namePrefix }}-prod-rg
               cluster: ${{ parameters.namePrefix }}-prod-aks
+              namespace: production
+              helmRelease: ${{ parameters.helmRelease }}
+              helmVersion: ${{ parameters.helmVersion }}
+
+      - job: ExecuteProdRollbackDP2
+        displayName: "Helm rollback on Production DP2 (${{ parameters.namePrefix }}-dp2-prod-aks)"
+        steps:
+          - template: steps/helm-rollback.yml
+            parameters:
+              serviceConnection: ${{ parameters.serviceConnection }}
+              resourceGroup: ${{ parameters.namePrefix }}-prod-rg
+              cluster: ${{ parameters.namePrefix }}-dp2-prod-aks
               namespace: production
               helmRelease: ${{ parameters.helmRelease }}
               helmVersion: ${{ parameters.helmVersion }}

@@ -2,14 +2,14 @@ name: Notification Service CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'notification-service/**'
       - 'pom.xml'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-notifications.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'notification-service/**'
       - 'pom.xml'

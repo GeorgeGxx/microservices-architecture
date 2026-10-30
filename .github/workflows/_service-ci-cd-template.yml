@@ -729,7 +729,7 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
-    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/'))
+    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/prod')
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
@@ -746,7 +746,7 @@ jobs:
       - name: Load Image from Tarball
         run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
 
-      - name: Tag and Push to Container Registry
+      - name: Tag and Push to Container Registry (Immutable Promotion on staging/prod)
         id: registry-push
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
@@ -770,6 +770,19 @@ jobs:
 
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+            # On staging/prod promotion, check if the exact immutable artifact for this commit SHA
+            # was already built and pushed in an earlier stage; if so, promote its digest without overwriting.
+            if [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.ref }}" = "refs/heads/prod" ]; then
+              EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
+              if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+                echo "digest=$EXISTING_DIGEST" >> "$GITHUB_OUTPUT"
+                echo "published=true" >> "$GITHUB_OUTPUT"
+                echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+                echo "Promoted existing immutable artifact $FINAL_IMAGE@$EXISTING_DIGEST without rebuilding."
+                exit 0
+              fi
+            fi
 
             # If target tag differs from github.sha, tag the loaded image
             if [ "$TARGET_TAG" != "${{ github.sha }}" ]; then
@@ -796,9 +809,9 @@ jobs:
 
   # ==========================================================
   # STEP 7: 🐙 ArgoCD GitOps Continuous Delivery Synchronization
-  #   - Branch develop/dev: Syncs 'microservices-dev' on Minikube (namespace: dev)
-  #   - Branch staging: Syncs 'microservices-staging' on AWS (namespace: staging)
-  #   - Branch master/main: Syncs 'microservices-prod' on AWS (namespace: production)
+  #   - Branch develop/dev: Syncs 'microservices-dev' on Minikube/EKS Dev (namespace: dev)
+  #   - Branch staging: Syncs 'microservices-staging' on AWS EKS Staging (namespace: staging)
+  #   - Branch prod/main/master: Syncs BOTH 'microservices-prod' (DP1) and 'microservices-prod-dp2' (DP2)
   # ==========================================================
   gitops-argocd-sync:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"
@@ -818,19 +831,22 @@ jobs:
             chmod +x /usr/local/bin/argocd 2>/dev/null || true
           fi
 
-      - name: Determine Target ArgoCD Application & Namespace
+      - name: Determine Target ArgoCD Application(s) & Namespace
         id: app-target
         run: |
           if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
             echo "APP_NAME=microservices-dev" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-dev" >> $GITHUB_ENV
             echo "TARGET_ENV=dev" >> $GITHUB_ENV
             echo "TARGET_NS=dev" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
             echo "APP_NAME=microservices-staging" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-staging" >> $GITHUB_ENV
             echo "TARGET_ENV=staging" >> $GITHUB_ENV
             echo "TARGET_NS=staging" >> $GITHUB_ENV
           else
             echo "APP_NAME=microservices-prod" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> $GITHUB_ENV
             echo "TARGET_ENV=prod" >> $GITHUB_ENV
             echo "TARGET_NS=production" >> $GITHUB_ENV
           fi
@@ -839,20 +855,28 @@ jobs:
         env:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || inputs.argocd-server || 'localhost:8088' }}
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          ARGOCD_INSECURE: ${{ vars.ARGOCD_INSECURE || 'false' }}
         run: |
-          echo "Connecting to ArgoCD for $APP_NAME in namespace $TARGET_NS..."
+          echo "Connecting to ArgoCD for [$APP_NAMES] in namespace $TARGET_NS..."
           IMAGE_DIGEST="${{ needs.push-dockerhub.outputs.image-digest }}"
           PUBLISHED_TAG="${{ needs.push-dockerhub.outputs.image-tag || github.sha }}"
           HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
+          TLS_FLAGS=()
+          if [[ "$ARGOCD_SERVER" == localhost* ]] || [[ "$ARGOCD_SERVER" == 127.0.0.1* ]] || [ "$ARGOCD_INSECURE" = "true" ]; then
+            TLS_FLAGS=(--insecure)
+          fi
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
-            if [ -n "$IMAGE_DIGEST" ]; then
-              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
-            else
-              argocd app set "$APP_NAME" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag="$PUBLISHED_TAG" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
-            fi
-            argocd app sync "$APP_NAME" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
-            argocd app wait "$APP_NAME" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure
-            echo "Successfully synchronized and validated $APP_NAME via ArgoCD."
+            for APP in $APP_NAMES; do
+              echo "Synchronizing ArgoCD application: $APP..."
+              if [ -n "$IMAGE_DIGEST" ]; then
+                argocd app set "$APP" --helm-set ${HELM_KEY}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              else
+                argocd app set "$APP" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag="$PUBLISHED_TAG" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              fi
+              argocd app sync "$APP" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              argocd app wait "$APP" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              echo "Successfully synchronized and validated $APP via ArgoCD."
+            done
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             echo "Using direct cluster fallback for $TARGET_ENV..."
             IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest= --set ${HELM_KEY}.image.tag="$PUBLISHED_TAG")
@@ -869,7 +893,7 @@ jobs:
               --cleanup-on-fail
             echo "Cluster deployment healthy in $TARGET_NS."
           else
-            echo "::notice::ArgoCD server not connected in this runner — GitOps delivery dispatched for $APP_NAME (Tag: $PUBLISHED_TAG)."
+            echo "::notice::ArgoCD server not connected in this runner — GitOps delivery dispatched for [$APP_NAMES] (Tag: $PUBLISHED_TAG, Digest: $IMAGE_DIGEST)."
           fi
 
   # Opt-in because the GitHub runner must have network access to the deployed app.
@@ -948,16 +972,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Determine Target Application for Rollback
+      - name: Determine Target Application(s) for Rollback
         run: |
           if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            echo "APP_NAME=microservices-dev" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-dev" >> $GITHUB_ENV
             echo "TARGET_NS=dev" >> $GITHUB_ENV
           elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
-            echo "APP_NAME=microservices-staging" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-staging" >> $GITHUB_ENV
             echo "TARGET_NS=staging" >> $GITHUB_ENV
           else
-            echo "APP_NAME=microservices-prod" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> $GITHUB_ENV
             echo "TARGET_NS=production" >> $GITHUB_ENV
           fi
 
@@ -965,14 +989,21 @@ jobs:
         env:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || inputs.argocd-server || 'localhost:8088' }}
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
+          ARGOCD_INSECURE: ${{ vars.ARGOCD_INSECURE || 'false' }}
         run: |
-          echo "::error::Deployment/sync failed for $APP_NAME. Executing automated emergency rollback..."
+          echo "::error::Deployment/sync failed for [$APP_NAMES]. Executing automated emergency rollback..."
+          TLS_FLAGS=()
+          if [[ "$ARGOCD_SERVER" == localhost* ]] || [[ "$ARGOCD_SERVER" == 127.0.0.1* ]] || [ "$ARGOCD_INSECURE" = "true" ]; then
+            TLS_FLAGS=(--insecure)
+          fi
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
-            argocd app rollback "$APP_NAME" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" --insecure || true
-            echo "ArgoCD app $APP_NAME rolled back to last healthy state."
+            for APP in $APP_NAMES; do
+              argocd app rollback "$APP" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}" || true
+              echo "ArgoCD app $APP rolled back to last healthy state."
+            done
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             helm rollback microservices --namespace "$TARGET_NS" --wait --timeout 5m || true
             echo "Cluster release rolled back in namespace $TARGET_NS."
           else
-            echo "::warning::Automated rollback event recorded for $APP_NAME."
+            echo "::warning::Automated rollback event recorded for [$APP_NAMES]."
           fi

@@ -2,14 +2,14 @@ name: Orders Service CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'orders-service/**'
       - 'pom.xml'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-orders.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'orders-service/**'
       - 'pom.xml'

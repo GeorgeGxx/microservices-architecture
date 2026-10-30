@@ -2,13 +2,13 @@ name: Payments Service CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'payments-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-payments.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'payments-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'

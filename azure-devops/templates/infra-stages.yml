@@ -9,10 +9,10 @@
 #         -> TerraformDiagnostics (only on failure; NO automatic force-unlock)
 #
 # Branch model (aligned with the app pipelines):
-#   develop        -> dev
-#   release/*      -> staging
-#   main / master  -> prod
-#   Pull requests  -> plan only, against the workspace of the TARGET branch.
+#   develop                 -> dev
+#   staging (or release/*)  -> staging
+#   prod (or main / master) -> prod (Dual-Dataplane: aks + aks_dp2)
+#   Pull requests           -> plan only, against the workspace of the TARGET branch.
 #
 # Requirements in Azure DevOps:
 #   - Environments: dev, staging, production  (put approvals on staging/production;
@@ -45,20 +45,20 @@ parameters:
     type: object
     default:
       - name: dev
-        label: 'Dev (Burstable)'
+        label: 'Dev (Burstable - Single Dataplane)'
         adoEnvironment: dev
         namespace: dev
         branchCondition: "eq(variables['Build.SourceBranch'], 'refs/heads/develop')"
       - name: staging
-        label: 'Staging (Medium Perf)'
+        label: 'Staging (Medium Perf - Single Dataplane)'
         adoEnvironment: staging
         namespace: staging
-        branchCondition: "startsWith(variables['Build.SourceBranch'], 'refs/heads/release/')"
+        branchCondition: "or(eq(variables['Build.SourceBranch'], 'refs/heads/staging'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))"
       - name: prod
-        label: 'Production (High Perf)'
+        label: 'Production (High Perf - Dual Dataplane DP1 + DP2)'
         adoEnvironment: production
         namespace: production
-        branchCondition: "in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/master')"
+        branchCondition: "in(variables['Build.SourceBranch'], 'refs/heads/prod', 'refs/heads/main', 'refs/heads/master')"
 
 stages:
   # ==========================================================
@@ -141,10 +141,10 @@ stages:
                 if [ "$BUILD_REASON" = "PullRequest" ]; then BRANCH="$PR_TARGET"; fi
                 BRANCH="${BRANCH#refs/heads/}"
                 case "$BRANCH" in
-                  develop)     ENV=dev ;;
-                  release/*)   ENV=staging ;;
-                  main|master) ENV=prod ;;
-                  *)           ENV="" ;;
+                  develop)           ENV=dev ;;
+                  staging|release/*) ENV=staging ;;
+                  prod|main|master)  ENV=prod ;;
+                  *)                 ENV="" ;;
                 esac
                 echo "##vso[task.setvariable variable=TF_ENV]$ENV"
                 if [ -z "$ENV" ]; then
@@ -174,6 +174,24 @@ stages:
                 mkdir -p "$(Build.ArtifactStagingDirectory)/plan"
                 cp tfplan "$(Build.ArtifactStagingDirectory)/plan/tfplan"
                 terraform show -no-color tfplan > "$(Build.ArtifactStagingDirectory)/plan/tfplan.txt"
+                terraform show -json tfplan > "$(Build.ArtifactStagingDirectory)/plan/tfplan.json"
+
+                if [ "$ENV" = "prod" ] && [ "${ALLOW_DESTRUCTIVE_TERRAFORM:-false}" != "true" ]; then
+                  python3 -c '
+                import json, sys
+                with open("'"$(Build.ArtifactStagingDirectory)/plan/tfplan.json"'") as f:
+                    plan = json.load(f)
+                destructive = []
+                for rc in plan.get("resource_changes", []):
+                    actions = rc.get("change", {}).get("actions", [])
+                    addr = rc.get("address", "")
+                    if "delete" in actions and (addr.startswith("module.aks") or addr.startswith("module.aks_dp2") or addr.startswith("module.postgresql")):
+                        destructive.append(f"{addr} ({actions})")
+                if destructive:
+                    print("ERROR: Destructive production plan detected on critical dataplane/database resources:", ", ".join(destructive), file=sys.stderr)
+                    sys.exit(1)
+                '
+                fi
 
           # The binary plan can contain secrets: restrict who can read pipeline artifacts.
           - task: PublishPipelineArtifact@1
@@ -245,6 +263,16 @@ stages:
                           --overwrite-existing
                         if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
                         kubectl create namespace ${{ env.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+
+                        if [ "${{ env.name }}" = "prod" ]; then
+                          echo "Ensuring namespace '${{ env.namespace }}' on secondary production AKS dataplane (${{ parameters.namePrefix }}-dp2-prod-aks)..."
+                          az aks get-credentials \
+                            --resource-group ${{ parameters.namePrefix }}-prod-rg \
+                            --name ${{ parameters.namePrefix }}-dp2-prod-aks \
+                            --overwrite-existing
+                          if command -v kubelogin >/dev/null 2>&1; then kubelogin convert-kubeconfig -l azurecli; fi
+                          kubectl create namespace ${{ env.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+                        fi
 
   # ==========================================================
   # STAGE F: Diagnostics on failure

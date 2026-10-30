@@ -2,13 +2,13 @@ name: MLOps Demand Forecasting CI/CD
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'mlops/**'
       - '.github/workflows/service-mlops.yml'
       - '.github/workflows/_service-ci-cd-template.yml'
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, staging, prod ]
     paths:
       - 'mlops/**'
       - '.github/workflows/service-mlops.yml'
