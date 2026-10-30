@@ -45,7 +45,6 @@ probes:
   initialDelaySeconds: 20
 
 env:
-  PORT: "8086"
   DB_HOST: "db-fulfillment"
   DB_PORT: "5432"
   DB_NAME: "ms_fulfillment"

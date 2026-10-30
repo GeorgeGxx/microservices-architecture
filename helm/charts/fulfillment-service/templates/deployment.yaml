@@ -46,8 +46,10 @@ spec:
             - name: PORT
               value: "{{ .Values.containerPort }}"
             {{- range $key, $value := .Values.env }}
+            {{- if ne $key "PORT" }}
             - name: {{ $key }}
               value: "{{ $value }}"
+            {{- end }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
