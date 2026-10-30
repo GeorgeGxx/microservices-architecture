@@ -26,14 +26,15 @@ class BaseResponseTest {
         BaseResponse r1 = new BaseResponse(new String[]{"e1"});
         BaseResponse r2 = new BaseResponse(new String[]{"e1"});
         BaseResponse r3 = new BaseResponse(new String[]{"e2"});
+        Object nonResponse = "otherType";
 
-        assertThat(r1).isEqualTo(r1);
-        assertThat(r1).isEqualTo(r2);
-        assertThat(r1).isNotEqualTo(r3);
-        assertThat(r1).isNotEqualTo(null);
-        assertThat(r1).isNotEqualTo("otherType");
-
-        assertThat(r1.hashCode()).isEqualTo(r2.hashCode());
+        assertThat(r1)
+                .isNotNull()
+                .isEqualTo(r2)
+                .isNotEqualTo(r3)
+                .isNotEqualTo(nonResponse)
+                .hasSameHashCodeAs(r2);
+        assertThat(r1.equals(null)).isFalse();
         assertThat(r1.toString()).contains("e1");
     }
 }

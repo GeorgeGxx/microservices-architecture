@@ -41,21 +41,10 @@ public final class OrderConstants {
 
     // Metric Tags and Names
     public static final String STATUS_TAG = "status";
+    public static final String TAG_EVENT = "event";
     public static final String TAG_EVENT_TYPE = "event_type";
-    public static final String TAG_CATEGORY = "category";
-    public static final String TAG_STEP = "step";
-    public static final String METRIC_ECOMMERCE_SKU_SALES = "ecommerce_sku_sales";
+    public static final String METRIC_SAGA_EVENTS = "ecommerce_saga_events_total";
     public static final String METRIC_ECOMMERCE_FUNNEL_EVENTS = "ecommerce_funnel_events";
-
-    // Customer Loyalty Cohorts
-    public static final String COHORT_FIRST_TIME = "first_time";
-    public static final String COHORT_REPEAT = "repeat";
-    public static final String COHORT_LOYAL_VIP = "loyal_vip";
-
-    // Basket Size Distributions
-    public static final String BASKET_SINGLE_ITEM = "single_item";
-    public static final String BASKET_2_3_ITEMS = "2_3_items";
-    public static final String BASKET_BULK_4_PLUS = "bulk_4_plus";
 
     // Error Messages & Templates
     public static final String ORDER_ID_NOT_NULL_MSG = "Order ID must not be null";

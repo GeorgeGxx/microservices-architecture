@@ -370,48 +370,22 @@ def _release_training_lock(lock_path: Path | None) -> None:
             pass
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    inputs = parser.add_mutually_exclusive_group()
-    inputs.add_argument("--input-csv", help="CSV containing date, product_id, units_sold")
-    inputs.add_argument("--input-parquet", help="Parquet dataset directory with date, product_id, units_sold")
-    parser.add_argument(
-        "--experiment",
-        default=os.getenv("MLFLOW_EXPERIMENT_NAME", "inventory-demand-forecast"),
-    )
-    parser.add_argument(
-        "--max-staleness-days",
-        type=int,
-        default=int(os.getenv("MLOPS_MAX_SALES_STALENESS_DAYS", "7")),
-        help="Maximum allowed age in days of latest sales record before failing the quality gate (default: 7)",
-    )
-    parser.add_argument(
-        "--auto",
-        action="store_true",
-        help="Check dataset readiness (partitions >= 9 and sha256 drift) before training",
-    )
-    args = parser.parse_args()
-
-    should_proceed, state_path, fingerprint, resolved_parquet = _check_auto_training_readiness(
-        args.auto, args.input_parquet
-    )
-    if not should_proceed:
-        return 0
-    if resolved_parquet:
-        args.input_parquet = resolved_parquet
-
-    lock_path: Path | None = None
+def _resolve_training_lock_path(auto: bool, state_path: Path | None) -> Path | None:
     if os.getenv("MLOPS_TRAIN_LOCK_PATH"):
-        lock_path = Path(os.environ["MLOPS_TRAIN_LOCK_PATH"]).resolve()
-    elif args.auto and state_path:
-        lock_path = state_path.with_name("train.lock")
-    elif args.auto:
-        lock_path = Path("/data/checkpoints/auto-training/train.lock")
+        return Path(os.environ["MLOPS_TRAIN_LOCK_PATH"]).resolve()
+    if auto and state_path:
+        return state_path.with_name("train.lock")
+    if auto:
+        return Path("/data/checkpoints/auto-training/train.lock")
+    return None
 
-    if lock_path is not None:
-        if not _acquire_training_lock(lock_path):
-            return 0
 
+def _run_spark_training(
+    args: argparse.Namespace,
+    state_path: Path | None,
+    fingerprint: str | None,
+    lock_path: Path | None,
+) -> None:
     import mlflow
     import numpy as np
     from sklearn.ensemble import RandomForestRegressor as SklearnRandomForestRegressor
@@ -543,7 +517,6 @@ def main() -> int:
             print(f"MLflow UI: {os.getenv('MLFLOW_UI_URL', tracking_uri)}")
 
         _record_completed_auto_state(args.auto, state_path, fingerprint)
-        return 0
     finally:
         try:
             spark.stop()
@@ -552,5 +525,38 @@ def main() -> int:
         _release_training_lock(lock_path)
 
 
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    inputs = parser.add_mutually_exclusive_group()
+    inputs.add_argument("--input-csv", help="CSV containing date, product_id, units_sold")
+    inputs.add_argument("--input-parquet", help="Parquet dataset directory with date, product_id, units_sold")
+    parser.add_argument(
+        "--experiment",
+        default=os.getenv("MLFLOW_EXPERIMENT_NAME", "inventory-demand-forecast"),
+    )
+    parser.add_argument(
+        "--max-staleness-days",
+        type=int,
+        default=int(os.getenv("MLOPS_MAX_SALES_STALENESS_DAYS", "7")),
+        help="Maximum allowed age in days of latest sales record before failing the quality gate (default: 7)",
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Check dataset readiness (partitions >= 9 and sha256 drift) before training",
+    )
+    args = parser.parse_args()
+
+    should_proceed, state_path, fingerprint, resolved_parquet = _check_auto_training_readiness(
+        args.auto, args.input_parquet
+    )
+    if should_proceed:
+        if resolved_parquet:
+            args.input_parquet = resolved_parquet
+        lock_path = _resolve_training_lock_path(args.auto, state_path)
+        if lock_path is None or _acquire_training_lock(lock_path):
+            _run_spark_training(args, state_path, fingerprint, lock_path)
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
