@@ -7,7 +7,7 @@ image:
   tag: v1.18.3
   pullPolicy: IfNotPresent
 
-# Plugins para almacenamiento de respaldo en Cloud u On-Prem / Minikube
+# Backup storage plugins for Cloud or On-Prem / Minikube
 initContainers:
   - name: velero-plugin-for-aws
     image: velero/velero-plugin-for-aws:v1.11.0
@@ -16,8 +16,8 @@ initContainers:
       - mountPath: /plugins
         name: plugins
 
-# Habilitar DaemonSet Node-Agent (Kopia) para respaldar PVCs a nivel de archivos.
-# Requerido por: defaultVolumesToFsBackup: true en velero-schedule.yaml
+# Enable Node-Agent (Kopia) DaemonSet for file-system level PVC backups.
+# Required by: defaultVolumesToFsBackup: true in velero-schedule.yaml
 deployNodeAgent: true
 
 nodeAgent:
@@ -31,7 +31,7 @@ nodeAgent:
       cpu: 1000m
       memory: 1024Mi
 
-# Configuración del Backend de Almacenamiento
+# Storage Backend Configuration
 configuration:
   backupStorageLocation:
     - name: default
@@ -40,7 +40,7 @@ configuration:
       prefix: ${VELERO_PREFIX:-cluster-backups}
       config:
         region: ${AWS_DEFAULT_REGION:-us-east-1}
-        # Para MinIO local (Minikube / Dev):
+        # For local MinIO (Minikube / Dev):
         # s3Url: http://minio.data.svc.cluster.local:9000
         # s3ForcePathStyle: "true"
   volumeSnapshotLocation:
@@ -49,12 +49,12 @@ configuration:
       config:
         region: ${AWS_DEFAULT_REGION:-us-east-1}
 
-  # Configuración global de respaldos
+  # Global backup configuration
   features: EnableCSI
   extraEnvVars:
     VELERO_SCRATCH_DIR: /scratch
 
-# Políticas de ejecución y recursos del Server
+# Server execution policies and resource limits
 resources:
   requests:
     cpu: 200m
@@ -70,7 +70,7 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Exposición de métricas para el Prometheus TSDB del stack LGTM (:9090)
+# Metrics exposure for the LGTM stack Prometheus TSDB (:9090)
 metrics:
   enabled: true
   scrapeInterval: 30s

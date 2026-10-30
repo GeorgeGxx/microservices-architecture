@@ -39,3 +39,11 @@
 
 - Created `helm/values/values-aks-staging.yaml`, `helm/values/values-gke-staging.yaml`, and `helm/values/values-gke-prod.yaml`.
 - Verified `terraform fmt -check -recursive`, `terraform validate` across AWS, Azure, and GCP, and `helm lint` across all 7 environment value files with 0 errors.
+
+### 4. `P3` — Git Governance Enforcement, Manual Production Approval Gate & Paused Cloud Posture
+
+- Standardized the repository's canonical Git branch model exclusively to `develop`, `staging`, and `master` across all workflows, pipelines, GitOps manifests, Terraform OIDC claims, scripts, and documentation.
+- Gated `gitops-argocd-sync` in `.github/workflows/_service-ci-cd-template.yml` with the GitHub `production` environment (requiring manual reviewer approval) and disabled `automated` sync in `argocd/application-prod.yaml` and `argocd/application-prod-dp2.yaml`.
+- Configured GitHub repository governance via `gh` CLI: environment branch policies (`dev` $\rightarrow$ `develop`, `staging` $\rightarrow$ `staging`, `production` $\rightarrow$ `master` with required reviewer), branch protection rules on `develop`, `staging`, and `master`, and `delete_branch_on_merge: true`.
+- Paused `staging` and `master` cloud deployments across GitHub Actions, Argo CD, Azure DevOps, and Bitbucket Pipelines until cloud environments are actively provisioned (documented with full reactivation and promotion runbooks in [`BRANCH_ENVIRONMENT_STRATEGY.md`](./BRANCH_ENVIRONMENT_STRATEGY.md)).
+- Translated all remaining Spanish comments and log strings in BCDR and operational scripts (`k8s/common/bcdr/velero-values.yaml`, `scripts/deploy-velero.sh`, `scripts/install-velero.sh`, `scripts/ci/*`, `scripts/prod/*`) to English.

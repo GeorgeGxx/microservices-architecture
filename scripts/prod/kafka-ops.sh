@@ -27,7 +27,7 @@ log_error() {
   echo -e "\033[1;31m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [ERROR]\033[0m $*" >&2
 }
 
-# Ejecutar comandos de Kafka dentro del contenedor o directamente si los binarios existen
+# Execute Kafka commands inside the container or directly if local binaries exist
 exec_kafka() {
   local cmd="$1"
   shift
@@ -41,11 +41,11 @@ exec_kafka() {
     if [[ -n "$pod" ]]; then
       kubectl exec -n data "${pod}" -c kafka -- "$cmd" --bootstrap-server "localhost:9092" "$@"
     else
-      log_error "No se pudo conectar a Kafka (ni CLI local, ni Docker, ni Pod de K8s encontrado)."
+      log_error "Could not connect to Kafka (no local CLI, Docker container, or K8s Pod found)."
       exit 1
     fi
   else
-    log_error "No se encontró el ejecutable de Kafka ni el contenedor '${CONTAINER_NAME}'."
+    log_error "Neither Kafka binary nor container '${CONTAINER_NAME}' was found."
     exit 1
   fi
 }
@@ -55,7 +55,7 @@ shift || true
 
 case "$COMMAND" in
   list-topics)
-    log "Listando topics activos en Kafka (${BOOTSTRAP_SERVER})..."
+    log "Listing active Kafka topics (${BOOTSTRAP_SERVER})..."
     exec_kafka kafka-topics --list
     ;;
 
@@ -66,7 +66,7 @@ case "$COMMAND" in
     fi
 
     if [[ "$TARGET_GROUP" == "all" || -z "$TARGET_GROUP" ]]; then
-      log "Obteniendo lista de grupos de consumidores..."
+      log "Retrieving consumer group list..."
       GROUPS=$(exec_kafka kafka-consumer-groups --list)
       echo "$GROUPS" | while read -r group; do
         if [[ -n "$group" ]]; then
@@ -75,7 +75,7 @@ case "$COMMAND" in
         fi
       done
     else
-      log "Describiendo lag para el grupo '${TARGET_GROUP}'..."
+      log "Describing lag for group '${TARGET_GROUP}'..."
       exec_kafka kafka-consumer-groups --describe --group "${TARGET_GROUP}"
     fi
     ;;
@@ -90,7 +90,7 @@ case "$COMMAND" in
         *) shift ;;
       esac
     done
-    log "Inspeccionando los últimos ${LIMIT} mensajes en la Dead Letter Queue (${TOPIC})..."
+    log "Inspecting the last ${LIMIT} messages in the Dead Letter Queue (${TOPIC})..."
     exec_kafka kafka-console-consumer --topic "${TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000 || true
     ;;
 
@@ -109,27 +109,27 @@ case "$COMMAND" in
     done
 
     if [[ -z "$GROUP" || -z "$TOPIC" ]]; then
-      log_error "Uso: $0 reset-offset --group <name> --topic <name> [--dry-run|--execute]"
+      log_error "Usage: $0 reset-offset --group <name> --topic <name> [--dry-run|--execute]"
       exit 1
     fi
 
-    log "Ejecutando reseteo de offsets para Grupo: '${GROUP}' en Topic: '${TOPIC}' (Modo: ${MODE})..."
+    log "Executing offset reset for Group: '${GROUP}' on Topic: '${TOPIC}' (Mode: ${MODE})..."
     exec_kafka kafka-consumer-groups --group "${GROUP}" --topic "${TOPIC}" --reset-offsets --to-earliest ${MODE}
     ;;
 
   help|--help|-h)
-    echo "Uso: $0 {list-topics|lag|inspect-dlq|reset-offset} [opciones]"
+    echo "Usage: $0 {list-topics|lag|inspect-dlq|reset-offset} [options]"
     echo ""
-    echo "Comandos:"
-    echo "  list-topics                   Lista todos los topics configurados"
-    echo "  lag [--group <nombre>]        Inspecciona el lag y particiones de consumidores"
-    echo "  inspect-dlq [--limit N]       Inspecciona mensajes en la cola de errores (DLT)"
-    echo "  reset-offset --group G --topic T [--dry-run|--execute]  Resetea offsets de forma controlada"
+    echo "Commands:"
+    echo "  list-topics                   List all configured topics"
+    echo "  lag [--group <name>]          Inspect consumer group lag and partitions"
+    echo "  inspect-dlq [--limit N]       Inspect messages in the Dead Letter Topic (DLT)"
+    echo "  reset-offset --group G --topic T [--dry-run|--execute]  Controlled consumer offset reset"
     exit 0
     ;;
 
   *)
-    log_error "Comando desconocido: $COMMAND. Ejecuta '$0 help' para más detalles."
+    log_error "Unknown command: $COMMAND. Run '$0 help' for details."
     exit 1
     ;;
 esac
