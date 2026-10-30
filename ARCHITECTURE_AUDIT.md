@@ -26,7 +26,7 @@ In accordance with the non-negotiable multi-cloud architecture mandate, the thre
 |---|---|---|---|---|---|
 | **DEV** | `develop` | **1** | `msa-aws-dev` | `msa-azure-dev-aks` | `msa-gcp-dev-cluster` |
 | **STAGING** | `staging` | **1** | `msa-aws-staging` | `msa-azure-staging-aks` | `msa-gcp-staging-cluster` |
-| **PRODUCTION** | `prod` | **2 (Dual-Dataplane)** | `msa-aws-prod` (`eks`) + `msa-aws-dp2-prod` (`eks_dp2`) | `msa-azure-prod-aks` (`aks`) + `msa-azure-dp2-prod-aks` (`aks_dp2`) | `msa-gcp-prod-cluster` (`gke`) + `msa-gcp-dp2-prod-cluster` (`gke_dp2`) |
+| **PRODUCTION** | `master` | **2 (Dual-Dataplane)** | `msa-aws-prod` (`eks`) + `msa-aws-dp2-prod` (`eks_dp2`) | `msa-azure-prod-aks` (`aks`) + `msa-azure-dp2-prod-aks` (`aks_dp2`) | `msa-gcp-prod-cluster` (`gke`) + `msa-gcp-dp2-prod-cluster` (`gke_dp2`) |
 
 ### Key Findings & Remediations in Production Dual-Dataplane
 
@@ -40,5 +40,5 @@ In accordance with the non-negotiable multi-cloud architecture mandate, the thre
    - *Finding:* `google_container_cluster.this` in `terraform/modules/gcp/gke/main.tf` did not enforce `deletion_protection = var.environment == "prod"`, and `bitbucket-pipelines.yml` only deployed to a single cluster in `production`.
    - *Remediation:* Enabled `deletion_protection = var.environment == "prod"` on GKE clusters (`gke` and `gke_dp2`) and updated `bitbucket-pipelines.yml` to deploy and verify rollouts across both `$GKE_CLUSTER_NAME` and `${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}`.
 4. **Argo CD Dual-Dataplane GitOps Synchronization (`P1` — Fixed):**
-   - *Finding:* `argocd/` only defined `application-prod.yaml` targeting a single cluster and tracking `targetRevision: main`.
-   - *Remediation:* Updated `argocd/application-prod.yaml` to track `targetRevision: prod`, created `argocd/application-prod-dp2.yaml` targeting `msa-aws-dp2-prod`, hardened `argocd/appproject.yaml`, and updated `.github/workflows/_service-ci-cd-template.yml` to sync and verify both `microservices-prod` and `microservices-prod-dp2`.
+   - *Finding:* `argocd/` only defined `application-prod.yaml` targeting a single cluster and tracking a branch that does not exist in the repository.
+   - *Remediation:* Updated `argocd/application-prod.yaml` to track `targetRevision: master`, created `argocd/application-prod-dp2.yaml` targeting `msa-aws-dp2-prod`, hardened `argocd/appproject.yaml`, and updated `.github/workflows/_service-ci-cd-template.yml` to sync and verify both `microservices-prod` and `microservices-prod-dp2`.

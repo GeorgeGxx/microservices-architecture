@@ -4,7 +4,7 @@
 
 | CI/CD Platform | Cloud Target | Federation Mechanism | Scope & Least-Privilege Controls |
 |---|---|---|---|
-| **GitHub Actions** | AWS (`sts.amazonaws.com`) | `terraform/modules/aws/oidc_github` (`aws_iam_openid_connect_provider`) | Scoped by environment in `terraform/modules/aws/oidc_github/main.tf` so `prod-github-actions-role` only trusts `repo:GeorgeGxx/microservices-architecture:ref:refs/heads/prod` and `repo:GeorgeGxx/microservices-architecture:environment:prod` (no wildcard `*`). |
+| **GitHub Actions** | AWS (`sts.amazonaws.com`) | `terraform/modules/aws/oidc_github` (`aws_iam_openid_connect_provider`) | Scoped by environment in `terraform/modules/aws/oidc_github/main.tf` so `prod-github-actions-role` only trusts `repo:GeorgeGxx/microservices-architecture:ref:refs/heads/master` and `repo:GeorgeGxx/microservices-architecture:environment:prod` (no wildcard `*`). |
 | **Azure DevOps** | Azure RM / AKS / ACR | Workload Identity Federation Service Connections (`azure-infra-service-connection`, `azure-service-connection`) | Infra connection is separated from app deployment connection (`AcrPush` + AKS RBAC). |
 | **Bitbucket Pipelines** | GCP IAM Credentials | Workload Identity Pool (`BITBUCKET_STEP_OIDC_TOKEN` + `GCP_WORKLOAD_IDENTITY_PROVIDER`) | `bitbucket-pipelines.yml` enables `oidc: true` on all GCP steps and exchanges `BITBUCKET_STEP_OIDC_TOKEN` for short-lived credentials, with fallback to `GCP_SA_KEY` only when OIDC variables are unset. |
 

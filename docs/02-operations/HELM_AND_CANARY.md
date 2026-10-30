@@ -15,7 +15,7 @@ oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella:<Chart.yaml version>
 
 1. Use the current `version` in `helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version. The checked-in umbrella chart is currently `1.0.1`.
 2. If Federation composition inputs changed, run `platform-minikube.ps1 compose-router` and commit the generated router config with the source change.
-3. Merge the chart change to `main`.
+3. Merge the chart change to `master`.
 4. Create and push the matching release tag. For the current `1.0.1` version:
 
    ```powershell
@@ -25,7 +25,7 @@ oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella:<Chart.yaml version>
 
    Future releases use the matching bumped version, such as `helm-v1.0.2`.
 
-The `.github/workflows/helm-chart-release.yml` workflow builds dependencies from the committed `Chart.lock`, validates and renders production values, packages the umbrella chart, then publishes it to GHCR. A manual run is also available from `main` with the exact version from `Chart.yaml`.
+The `.github/workflows/helm-chart-release.yml` workflow builds dependencies from the committed `Chart.lock`, validates and renders production values, packages the umbrella chart, then publishes it to GHCR. A manual run is also available from `master` with the exact version from `Chart.yaml`.
 
 The `production` GitHub Environment should require an authorized reviewer. The workflow uses the repository-scoped `GITHUB_TOKEN` with `packages: write`; no long-lived registry password is needed for publishing. GHCR packages are private by default. For Argo CD to pull a private package, configure read-only GHCR credentials in each Argo CD installation; never commit that credential. A public chart package can instead be made public in GitHub package settings if its contents are suitable for public access.
 
@@ -39,7 +39,7 @@ The umbrella chart is the supported full-stack deployment and creates its shared
 
 ## Immutability checks
 
-- The release tag must point to a commit reachable from `main`, and its version must match `Chart.yaml` exactly.
+- The release tag must point to a commit reachable from `master`, and its version must match `Chart.yaml` exactly.
 - Re-publishing the same version and identical package bytes is an idempotent no-op.
 - If that version already exists with different bytes, publication fails. Increment the chart version instead of overwriting it.
 - The workflow downloads the published artifact and compares its SHA-256 with the package built from the release commit.

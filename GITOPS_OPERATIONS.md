@@ -7,8 +7,8 @@
 | `AppProject/microservices-architecture` | `argocd/appproject.yaml` | N/A | `https://kubernetes.default.svc`, `msa-aws-dp2-prod` | `dev`, `staging`, `prod`, `production`, `opencost`, `observability` | Least-privilege project scoping allowed repositories, destinations, and Kubernetes API kinds. |
 | `Application/microservices-dev` | `argocd/application-dev.yaml` | `develop` | `https://kubernetes.default.svc` | `dev` | Continuous GitOps sync for DEV (`values-minikube.yaml`). |
 | `Application/microservices-staging` | `argocd/application-staging.yaml` | `staging` | `https://kubernetes.default.svc` | `staging` | Continuous GitOps sync for AWS EKS Staging (`values-eks-staging.yaml`). |
-| `Application/microservices-prod` | `argocd/application-prod.yaml` | `prod` | `https://kubernetes.default.svc` | `production` | Primary Production AWS EKS Dataplane (`DP1`: `msa-aws-prod`) using `values-eks-prod.yaml`. |
-| `Application/microservices-prod-dp2` | `argocd/application-prod-dp2.yaml` | `prod` | `msa-aws-dp2-prod` | `production` | Secondary Production AWS EKS Dataplane (`DP2`: `msa-aws-dp2-prod`) using `values-eks-prod.yaml`. |
+| `Application/microservices-prod` | `argocd/application-prod.yaml` | `master` | `https://kubernetes.default.svc` | `production` | Primary Production AWS EKS Dataplane (`DP1`: `msa-aws-prod`) using `values-eks-prod.yaml`. |
+| `Application/microservices-prod-dp2` | `argocd/application-prod-dp2.yaml` | `master` | `msa-aws-dp2-prod` | `production` | Secondary Production AWS EKS Dataplane (`DP2`: `msa-aws-dp2-prod`) using `values-eks-prod.yaml`. |
 
 ---
 
@@ -28,7 +28,7 @@ kubectl apply -n argocd -f argocd/application-prod-dp2.yaml
 
 ## 3. Dual-Dataplane Synchronization & Rollback Procedures
 
-During production releases on branch `prod`, `.github/workflows/_service-ci-cd-template.yml` pins the verified `@sha256` image digest and synchronizes both `microservices-prod` and `microservices-prod-dp2` sequentially:
+During production releases on branch `master`, `.github/workflows/_service-ci-cd-template.yml` pins the verified `@sha256` image digest and synchronizes both `microservices-prod` and `microservices-prod-dp2` sequentially:
 
 ```bash
 for APP in microservices-prod microservices-prod-dp2; do

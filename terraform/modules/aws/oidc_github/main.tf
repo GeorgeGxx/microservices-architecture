@@ -32,10 +32,10 @@ locals {
   env_branch_map = {
     dev     = ["refs/heads/develop"]
     staging = ["refs/heads/staging"]
-    prod    = ["refs/heads/prod"]
+    prod    = ["refs/heads/master"]
   }
 
-  target_branches = lookup(local.env_branch_map, var.environment, ["refs/heads/develop", "refs/heads/staging", "refs/heads/prod"])
+  target_branches = lookup(local.env_branch_map, var.environment, ["refs/heads/develop", "refs/heads/staging", "refs/heads/master"])
 
   default_allowed_subjects = flatten([
     for repo in local.repo_variants : concat(

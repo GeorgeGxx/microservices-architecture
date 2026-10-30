@@ -6,7 +6,7 @@ name: Microservices Architecture - Terraform AWS Infrastructure Pipeline
 on:
   workflow_dispatch:
   # push:
-  #   branches: [ develop, staging, master, main ]
+  #   branches: [develop, staging, master]
   #   paths:
   #     - 'terraform/**'
   #     - 'argocd/**'
@@ -14,7 +14,7 @@ on:
   #     - 'helm/values/prometheus-cloud.yaml'
   #     - 'scripts/validate-opencost.sh'
   # pull_request:
-  #   branches: [ develop, staging, master, main ]
+  #   branches: [develop, staging, master]
   #   paths:
   #     - 'terraform/**'
   #     - 'argocd/**'

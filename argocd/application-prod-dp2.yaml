@@ -13,7 +13,7 @@ spec:
   project: microservices-architecture
   source:
     repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
-    targetRevision: prod
+    targetRevision: master
     path: helm/microservices-umbrella
     helm:
       valueFiles:

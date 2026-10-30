@@ -7,7 +7,7 @@
 | **1. Quality & TDD** | Unit Testing & Coverage | JUnit 5 / JaCoCo, Go `test -coverprofile`, Jest, `pytest-cov` / `unittest`, Vitest | **Hard Gate** on every branch and PR |
 | **2. Static Code Quality** | Code Smells, Bugs, Duplication | SonarQube Cloud (`sonar-maven-plugin`, `sonarqube-scanner`) | **Quality Gate** across all polyglot services |
 | **3. Secret Detection** | Credential & Key Leak Prevention | Gitleaks (`devsecops/sast/gitleaks/.gitleaks.toml`) | **Hard Gate** on every branch and PR |
-| **4. SAST** | Static Application Security Testing | Semgrep (`--severity ERROR --error`) | **Hard Gate** on protected branches (`staging`, `prod`) |
+| **4. SAST** | Static Application Security Testing | Semgrep (`--severity ERROR --error`) | **Hard Gate** on protected branches (`staging`, `master`) |
 | **5. IaC Security** | Terraform, Dockerfile & K8s Misconfigurations | Trivy Config (`devsecops/compliance/trivy/trivy.yaml`) + TFLint | **Hard Gate** on protected branches; SARIF uploaded to GitHub Security |
 | **6. Supply Chain & SBOM** | Software Bill of Materials & Provenance | Trivy CycloneDX SBOM (`*.cdx.json`) + Sigstore Cosign (`devsecops/compliance/cosign/`) | **Hard Gate** (`security-scan.yml` verifies Cosign bundle) |
 | **7. Container Security** | OS & Library Vulnerability Scanning | Trivy Image (`--severity HIGH,CRITICAL --ignore-unfixed`) | **Hard Gate** on fixed `CRITICAL` (and `HIGH` on protected branches) |

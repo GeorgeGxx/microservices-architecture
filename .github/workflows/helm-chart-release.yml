@@ -50,18 +50,14 @@ jobs:
               exit 1
             }
             CHART_VERSION="${BASH_REMATCH[1]}"
-            git fetch origin prod --no-tags 2>/dev/null || git fetch origin main --no-tags
-            TARGET_BRANCH_REF="origin/prod"
-            if ! git rev-parse --verify "$TARGET_BRANCH_REF" >/dev/null 2>&1; then
-              TARGET_BRANCH_REF="origin/main"
-            fi
-            git merge-base --is-ancestor "$GITHUB_SHA" "$TARGET_BRANCH_REF" || {
-              echo "::error::Production chart tags must point to a commit reachable from prod."
+            git fetch origin master --no-tags
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/master || {
+              echo "::error::Production chart tags must point to a commit reachable from master."
               exit 1
             }
           else
-            [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && ("$GITHUB_REF" == "refs/heads/prod" || "$GITHUB_REF" == "refs/heads/main") ]] || {
-              echo "::error::Manual production chart releases must run from prod."
+            [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/master" ]] || {
+              echo "::error::Manual production chart releases must run from master."
               exit 1
             }
             CHART_VERSION="$REQUESTED_VERSION"

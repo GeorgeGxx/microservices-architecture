@@ -312,7 +312,7 @@ helm rollback microservices 3 -n production --wait --timeout 5m
 * **The GitOps Way (Recommended):** Revert the commit in Git so that Git history remains the single source of truth:
   ```bash
   git revert HEAD
-  git push origin main
+  git push origin master
   ```
   ArgoCD detects the revert and automatically reconciles (`selfHeal: true`) the cluster to the restored state.
 * **Emergency UI / CLI Rollback:**

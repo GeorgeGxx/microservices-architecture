@@ -39,9 +39,9 @@ flowchart TD
 
     subgraph Phase3 ["🚀 Level 3: Production & Operations Gate"]
         Staging["staging Branch<br/>(Environment: staging)"]
-        MainPR["Release to main / master"]
+        MainPR["Release to master"]
         DoD3{"DoD Level 3<br/>Istio Canary, Tempo Tracing, SLOs"}
-        Prod["main Branch<br/>(Environment: production)"]
+        Prod["master Branch<br/>(Environment: production)"]
     end
 
     Issue --> DoR
@@ -135,10 +135,10 @@ Because microservices operate across isolated containers, federated gateways, Gi
 
 ---
 
-### 🔴 DoD Level 3: `staging` $\to$ Release to `main` (Production)
+### 🔴 DoD Level 3: `staging` $\to$ Release to `master` (Production)
 
 * **Objective:** Ensure operational readiness, high availability, Canary progressive rollout, full distributed telemetry, and automated rollback capability.
-* **Target Branch:** Merging `staging` into `main` / `master` (tagged release `vX.Y.Z`).
+* **Target Branch:** Merging `staging` into `master` (tagged release `vX.Y.Z`).
 * **Execution:** Production GitOps pipeline + Istio Service Mesh Canary traffic routing.
 
 #### Mandatory Verification Criteria:
@@ -164,7 +164,7 @@ Because microservices operate across isolated containers, federated gateways, Gi
 | :--- | :--- | :--- | :--- |
 | **`feature/*` $\to$ `develop`** | **DoD Level 1** | JaCoCo, Maven, Gitleaks, Semgrep, Trivy, `docker compose config` | Automated CI Pull Request Checks + 1 Peer Approval |
 | **`develop` $\to$ `staging`** | **DoD Level 2** | Cosmo Router CLI, ArgoCD GitOps, k6 performance pipeline, Newman, OPA | Automated CD Pipeline + Staging Health Checks |
-| **`staging` $\to$ `main`** | **DoD Level 3** | Istio Canary Rollouts, Prometheus, Grafana, Tempo, Loki, Semantic Tagging | Tech Lead Sign-off + Canary SLO Evaluation |
+| **`staging` $\to$ `master`** | **DoD Level 3** | Istio Canary Rollouts, Prometheus, Grafana, Tempo, Loki, Semantic Tagging | Tech Lead Sign-off + Canary SLO Evaluation |
 
 ---
 

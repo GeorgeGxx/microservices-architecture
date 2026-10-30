@@ -2,13 +2,13 @@ name: Novashop Frontend CI/CD
 
 on:
   push:
-    branches: [ develop, staging, prod ]
+    branches: [develop, staging, master]
     paths:
       - 'frontend/**'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-frontend.yml'
   pull_request:
-    branches: [ develop, staging, prod ]
+    branches: [develop, staging, master]
     paths:
       - 'frontend/**'
       - '.github/workflows/_service-ci-cd-template.yml'
