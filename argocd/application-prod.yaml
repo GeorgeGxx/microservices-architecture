@@ -19,6 +19,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: production
   syncPolicy:
+    # Note: Automated sync is disabled on production (master) — sync is gated by
+    # manual approval and currently paused until AWS cloud deployment is enabled.
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true

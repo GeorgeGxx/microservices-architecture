@@ -729,7 +729,8 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
-    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master')
+    # Note: Branch staging and master registry pushes are paused until AWS cloud deployment is enabled (set repository variable ENABLE_CLOUD_DEPLOY=true to activate).
+    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || (vars.ENABLE_CLOUD_DEPLOY == 'true' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master')))
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
@@ -817,7 +818,8 @@ jobs:
   gitops-argocd-sync:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"
     needs: push-dockerhub
-    if: needs.push-dockerhub.outputs.image-published == 'true'
+    # Note: ArgoCD sync on staging and master is paused until AWS cloud deployment is enabled (set repository variable ENABLE_CLOUD_DEPLOY=true to activate).
+    if: needs.push-dockerhub.outputs.image-published == 'true' && (github.ref == 'refs/heads/develop' || vars.ENABLE_CLOUD_DEPLOY == 'true')
     environment: ${{ (github.ref == 'refs/heads/master') && 'production' || ((github.ref == 'refs/heads/staging') && 'staging' || 'dev') }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15

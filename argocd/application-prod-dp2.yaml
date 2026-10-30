@@ -24,6 +24,8 @@ spec:
     name: msa-aws-dp2-prod
     namespace: production
   syncPolicy:
+    # Note: Automated sync is disabled on production DP2 (master) — sync is gated by
+    # manual approval and currently paused until AWS cloud deployment is enabled.
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true

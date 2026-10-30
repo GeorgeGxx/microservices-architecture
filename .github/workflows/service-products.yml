@@ -2,14 +2,14 @@ name: Products Service CI/CD
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'products-service/**'
       - 'pom.xml'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-products.yml'
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'products-service/**'
       - 'pom.xml'

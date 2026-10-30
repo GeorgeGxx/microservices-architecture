@@ -2,9 +2,9 @@ name: Microservices Architecture Security & Vulnerability Scan
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
   schedule:
     - cron: '0 0 * * 0' # Weekly scan every Sunday
   workflow_dispatch:

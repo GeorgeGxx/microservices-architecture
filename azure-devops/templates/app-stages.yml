@@ -63,6 +63,9 @@ parameters:
   - name: canaryVirtualServicePath
     type: string
     default: ''
+  - name: enableCloudStagingProdDeploy # Paused until Azure AKS staging/prod cloud deployment is enabled
+    type: boolean
+    default: false
   # ---- environment wiring (previously undeclared pipeline variables) ----
   - name: serviceConnection    # app-deploy connection: AcrPush + AKS RBAC only (NOT the infra one)
     type: string
@@ -613,7 +616,8 @@ stages:
   - stage: PushCandidate
     displayName: "📦 6. Push Candidate to ACR - ${{ parameters.serviceName }}"
     dependsOn: ComplianceGate
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/develop', 'refs/heads/staging', 'refs/heads/master'))
+    # Note: Staging and master ACR pushes are paused until enableCloudStagingProdDeploy=true
+    condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), and(eq('${{ parameters.enableCloudStagingProdDeploy }}', 'true'), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/master'))))
     jobs:
       - job: PushSha
         displayName: "Push <sha> tag to ACR"
@@ -702,7 +706,8 @@ stages:
   - stage: DeployStaging
     displayName: "🚀 8. Deploy to AKS Staging - ${{ parameters.serviceName }}"
     dependsOn: PushCandidate
-    condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/master'))
+    # Note: Staging and master AKS deployments are paused until enableCloudStagingProdDeploy=true
+    condition: and(succeeded(), eq('${{ parameters.enableCloudStagingProdDeploy }}', 'true'), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/master'))
     jobs:
       - deployment: HelmDeployStaging
         displayName: "Helm upgrade on AKS Staging"

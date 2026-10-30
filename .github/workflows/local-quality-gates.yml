@@ -2,9 +2,9 @@ name: Local Stack and Infrastructure Quality Gates
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
   workflow_dispatch:
 
 permissions:
