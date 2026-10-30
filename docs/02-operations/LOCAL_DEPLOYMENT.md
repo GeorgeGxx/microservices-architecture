@@ -465,16 +465,15 @@ kubectl get pods -n dev # Or -A for all namespaces
 
 # Check the keycloak startup
 kubectl describe pod -l app=keycloak -n dev | Select-String -Pattern "Startup" -Context 2,10
-```
-```powershell
-# 1. Orchestrated Vault Management (Automatic status, seed, rotate & init):
+
+# 1. Orchestrated Vault Management (status, k8s-auth, istio-pki, seed):
 .\platform-minikube.ps1 vault -VaultAction status
 .\platform-minikube.ps1 vault -VaultAction seed
-.\platform-minikube.ps1 vault -VaultAction rotate
+.\platform-minikube.ps1 vault -VaultAction k8s-auth
 
-# 2. Direct CLI Inspection (Troubleshooting & Debugging):
-# Via host Vault CLI (when port-forward or tunnel is active on localhost:8200):
-# NOTE: Set $env:VAULT_ADDR in the active session to avoid HTTPS fallback errors.
+# 2. Direct Local Windows CLI Inspection (vault.exe on localhost:8200):
+# NOTE: Set $env:VAULT_ADDR in the active PowerShell session ([Environment]::SetEnvironmentVariable(..., 'User')
+# only applies to future processes; an unset session variable defaults to HTTPS and triggers a TLS error).
 $env:VAULT_ADDR = "http://127.0.0.1:8200"
 $env:VAULT_TOKEN = "root"
 vault status
@@ -482,18 +481,20 @@ vault status
 # Read static KV-v2 service secrets:
 vault kv get secret/products-service
 
-# Request dynamic PostgreSQL credentials (ephemeral 1h TTL):
+# Request dynamic PostgreSQL 18 credentials (ephemeral 1h TTL across all 6 isolated DBs):
 vault read database/creds/products-db-role
 vault read database/creds/orders-db-role
 vault read database/creds/inventory-db-role
+vault read database/creds/payments-db-role
+vault read database/creds/fulfillment-db-role
+vault read database/creds/analytics-db-role
 
-# List and audit active dynamic leases:
+# List and revoke active dynamic database leases:
 vault list sys/leases/lookup/database/creds/products-db-role
+vault lease revoke -prefix database/creds/products-db-role
 
-# Via Minikube container exec (pod-level direct execution):
-$vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}")
-kubectl exec -it -n vault $vaultPod -- vault kv get secret/products-service
-kubectl exec -it -n vault $vaultPod -- vault policy list
+# Verify ephemeral roles inside a PostgreSQL 18 container/pod:
+kubectl exec -n data db-products-0 -c postgres -- psql -U postgres -d ms_products -c "\du v-token*"
 
 # 3. Vault Agent Sidecar Injector Verification:
 kubectl exec -it <pod-name> -n dev -c <app-container> -- cat /vault/secrets/database.env

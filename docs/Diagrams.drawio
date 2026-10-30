@@ -32,35 +32,53 @@
         <mxCell id="n_db_kc" parent="1" value="&lt;b&gt;PostgreSQL Keycloak&lt;/b&gt;&lt;br&gt;db-keycloak (Port 5434)&lt;br&gt;Persistent Realm Database" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;" vertex="1">
           <mxGeometry x="550" y="400" width="160" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 CORE MICROSERVICES LAYER (Spring Boot 4 / Java 21)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="c_ms" parent="1" value="&lt;b&gt;📦 POLYGLOT MICROSERVICES LAYER (Java 21 • Go 1.26 • NestJS 12 • FastAPI 0.162)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="860" y="110" width="520" height="780" as="geometry" />
         </mxCell>
-        <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service&lt;/b&gt;&lt;br&gt;Port 8004&lt;br&gt;Catalog Management • Redis Cache&lt;br&gt;Base64 Image Upload • RFC 7807" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="170" width="220" height="80" as="geometry" />
+        <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Catalog &amp;amp; Redis Cache&lt;br&gt;Base64 Image Upload • RFC 7807" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="160" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service&lt;/b&gt;&lt;br&gt;Port 8003&lt;br&gt;Saga Coordinator • Resilience4j • OAuth2 S2S&lt;br&gt;Multi-Tenant User Isolation (JWT sub)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="350" width="220" height="80" as="geometry" />
+        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service (:8003)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Choreographed Saga&lt;br&gt;Resilience4j • OAuth2 S2S • Multi-Tenant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="255" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service&lt;/b&gt;&lt;br&gt;Port 8001&lt;br&gt;Stock Validation • S2S Lock/Deduct&lt;br&gt;Live POS Stock Check &amp; +1 Adjustment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="530" width="220" height="80" as="geometry" />
+        <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service (:8001)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Stock Lock/Deduct&lt;br&gt;Saga Stock Rollback • POS Stock +1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="350" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service&lt;/b&gt;&lt;br&gt;Port 8002&lt;br&gt;Email Dispatcher • Event Consumer&lt;br&gt;Authenticated Tenant-Scoped SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
-          <mxGeometry x="900" y="710" width="220" height="80" as="geometry" />
+        <mxCell id="n_pay" parent="1" value="&lt;b&gt;Payments Service (:8085)&lt;/b&gt;&lt;br&gt;Go 1.26 • Gin v1.12 • GORM v1.31.2&lt;br&gt;Goroutines &amp;amp; Channels Audit • Auto Refund" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=2;fontColor=#0C4A6E;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="445" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_prod" parent="1" value="&lt;b&gt;db-products&lt;/b&gt;&lt;br&gt;PostgreSQL 18&lt;br&gt;Port 5433" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="175" width="160" height="70" as="geometry" />
+        <mxCell id="n_ful" parent="1" value="&lt;b&gt;Fulfillment Service (:8086)&lt;/b&gt;&lt;br&gt;TS 7 • NestJS v12.2 • TypeORM 1.1.2&lt;br&gt;DDD Carrier Tracking (DHL-XXXXXXXX)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="540" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_orders" parent="1" value="&lt;b&gt;db-orders&lt;/b&gt;&lt;br&gt;PostgreSQL 18&lt;br&gt;Port 5432" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="355" width="160" height="70" as="geometry" />
+        <mxCell id="n_ana" parent="1" value="&lt;b&gt;Analytics Service (:8087)&lt;/b&gt;&lt;br&gt;Python 3.12 • FastAPI v0.162 • asyncpg&lt;br&gt;Cart Abandonment Rate Gauge • Funnel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="635" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_db_inv" parent="1" value="&lt;b&gt;db-inventory&lt;/b&gt;&lt;br&gt;PostgreSQL 18&lt;br&gt;Port 5431" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=10;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;" vertex="1">
-          <mxGeometry x="1180" y="535" width="160" height="70" as="geometry" />
+        <mxCell id="n_notif" parent="1" value="&lt;b&gt;Notification Service (:8002)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Email &amp;amp; Event Consumer&lt;br&gt;Authenticated Tenant-Scoped SSE" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+          <mxGeometry x="890" y="730" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="c_async" parent="1" value="&lt;b&gt;⚡ EVENT STREAMING &amp; CACHE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="n_db_prod" parent="1" value="&lt;b&gt;db-products&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5433)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="165" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_orders" parent="1" value="&lt;b&gt;db-orders&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5432)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="260" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_inv" parent="1" value="&lt;b&gt;db-inventory&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5431)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="355" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_pay" parent="1" value="&lt;b&gt;db-payments&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5436)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="450" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_ful" parent="1" value="&lt;b&gt;db-fulfillment&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5437)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="545" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_db_ana" parent="1" value="&lt;b&gt;db-analytics&lt;/b&gt;&lt;br&gt;PostgreSQL 18 (:5438)" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10;" vertex="1">
+          <mxGeometry x="1170" y="640" width="170" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_async" parent="1" value="&lt;b&gt;⚡ EVENT STREAMING &amp;amp; CHOREOGRAPHED SAGA&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1420" y="110" width="440" height="340" as="geometry" />
         </mxCell>
-        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 8.3.2 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9092 (PLAINTEXT) • host localhost:29092&lt;br&gt;Topics: orders-topic, orders-topic-dlt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
-          <mxGeometry x="1450" y="170" width="380" height="80" as="geometry" />
+        <mxCell id="n_kafka" parent="1" value="&lt;b&gt;Apache Kafka 8.3.2 (KRaft)&lt;/b&gt;&lt;br&gt;kafka:9092 (PLAINTEXT) • host localhost:29092&lt;br&gt;Choreographed Saga Topics: orders-topic,&lt;br&gt;payments-topic, fulfillment-topic, orders-topic.DLT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="1450" y="170" width="380" height="90" as="geometry" />
         </mxCell>
         <mxCell id="n_redis" parent="1" value="&lt;b&gt;Redis 8.8 (Cache &amp; Rate Limiting)&lt;/b&gt;&lt;br&gt;redis:6379&lt;br&gt;Products &amp; Session Caching" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
           <mxGeometry x="1450" y="290" width="380" height="80" as="geometry" />
@@ -176,6 +194,24 @@
         <mxCell id="e10" parent="1" value="JDBC" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n_inv" target="n_db_inv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
+        <mxCell id="e10_pay" parent="1" value="GORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0284C7;strokeWidth=1.5;" edge="1" source="n_pay" target="n_db_pay">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10_ful" parent="1" value="TypeORM" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_ful" target="n_db_ful">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10_ana" parent="1" value="asyncpg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n_ana" target="n_db_ana">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_saga_pay" parent="1" value="payments-topic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#0284C7;strokeWidth=1.5;" edge="1" source="n_pay" target="n_kafka">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_saga_ful" parent="1" value="fulfillment-topic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n_ful" target="n_kafka">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_saga_ana" parent="1" value="Consume Saga Topics" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n_kafka" target="n_ana">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
         <mxCell id="e11" parent="1" value="Zero-Touch Seed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#A855F7;strokeWidth=2;" edge="1" source="n_vault_init" target="n_vault">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
@@ -202,10 +238,10 @@
         <mxCell id="v_box_cli" parent="1" value="&lt;b&gt;3. OPERATOR &amp; CLI CLIENT (Host)&lt;/b&gt;&lt;br&gt;• Windows Host CLI: Hashicorp.Vault (v2.2.0)&lt;br&gt;• $env:VAULT_ADDR = 'http://127.0.0.1:8200'&lt;br&gt;• $env:VAULT_TOKEN = 'root'&lt;br&gt;• vault read database/creds/*-db-role&lt;br&gt;• platform-minikube.ps1 vault -VaultAction seed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#EAB308;strokeWidth=2;fontColor=#854D0E;fontSize=12;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="1040" y="120" width="380" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="e_kv" parent="1" value="&lt;b&gt;KV-v2 Secrets Engine&lt;/b&gt;&lt;br&gt;secret/application&lt;br&gt;secret/products-service&lt;br&gt;secret/orders-service&lt;br&gt;secret/inventory-service&lt;br&gt;secret/notification-service&lt;br&gt;secret/cosmo-router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="e_kv" parent="1" value="&lt;b&gt;KV-v2 Secrets Engine&lt;/b&gt;&lt;br&gt;secret/application&lt;br&gt;secret/products-service • orders-service&lt;br&gt;secret/inventory-service • notification-service&lt;br&gt;secret/payments-service • fulfillment-service&lt;br&gt;secret/analytics-service • cosmo-router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10.5;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="100" y="320" width="240" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="e_db" parent="1" value="&lt;b&gt;Dynamic Database Engine&lt;/b&gt;&lt;br&gt;database/config/postgres-[products|orders|inventory]&lt;br&gt;database/roles/[products|orders|inventory]-db-role&lt;br&gt;• On-the-fly PostgreSQL user creation&lt;br&gt;• Automatic 1h TTL &amp; Auto-drop on lease expiry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="e_db" parent="1" value="&lt;b&gt;Dynamic Database Engine (PostgreSQL 18 x6)&lt;/b&gt;&lt;br&gt;database/config/postgres-[products|orders|inventory|&lt;br&gt;payments|fulfillment|analytics]&lt;br&gt;database/roles/*-db-role (verify_connection=false)&lt;br&gt;• Automatic 1h TTL &amp;amp; Auto-drop on lease expiry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=10.5;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="380" y="320" width="280" height="140" as="geometry" />
         </mxCell>
         <mxCell id="e_tr" parent="1" value="&lt;b&gt;Transit Encryption Engine&lt;/b&gt;&lt;br&gt;transit/keys/microservices-data-key&lt;br&gt;• Encryption as a Service&lt;br&gt;• AES256-GCM96&lt;br&gt;• Protects Credit Cards &amp; PII&lt;br&gt;• Zero app key storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=11;align=left;spacingLeft=10;" vertex="1">
@@ -417,16 +453,16 @@
         <mxCell id="ns_data" parent="1" value="&lt;b&gt;💾 NAMESPACE: data (Stateful &amp; Exporters)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="680" y="110" width="380" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_data_pods" parent="1" value="&lt;b&gt;StatefulSets:&lt;/b&gt;&lt;br&gt;• Kafka KRaft (9092)&lt;br&gt;• Redis 8.8 (6379)&lt;br&gt;• Postgres (orders, inventory, products: 5432)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
-          <mxGeometry x="700" y="160" width="340" height="90" as="geometry" />
+        <mxCell id="k_data_pods" parent="1" value="&lt;b&gt;StatefulSets (PostgreSQL 18 x6 + Kafka + Redis):&lt;/b&gt;&lt;br&gt;• Kafka KRaft (9092: orders, payments, fulfillment)&lt;br&gt;• Redis 8.8 (6379)&lt;br&gt;• Postgres 18 (orders, inventory, products,&lt;br&gt;  payments, fulfillment, analytics: 5432)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=10.5;" vertex="1">
+          <mxGeometry x="700" y="160" width="340" height="95" as="geometry" />
         </mxCell>
         <mxCell id="k_data_exp" parent="1" value="&lt;b&gt;Infrastructure Exporters:&lt;/b&gt;&lt;br&gt;• kafka-exporter v1.9.0 (Port 9308)&lt;br&gt;• postgres-exporter v0.20.1 (Port 9187)&lt;br&gt;• redis-exporter (Port 9121)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;" vertex="1">
           <mxGeometry x="700" y="270" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="ns_staging" parent="1" value="&lt;b&gt;📦 NAMESPACE: dev (Core Microservices &amp; RBAC Boundary)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="ns_staging" parent="1" value="&lt;b&gt;📦 NAMESPACE: dev (Helm Umbrella Workloads &amp; RBAC)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="1080" y="110" width="400" height="420" as="geometry" />
         </mxCell>
-        <mxCell id="k_apps_pods" parent="1" value="&lt;b&gt;Deployments &amp; MLOps (Istio Sidecars Injected):&lt;/b&gt;&lt;br&gt;• cosmo-router (8080)&lt;br&gt;• products-service (8004)&lt;br&gt;• orders-service (8003)&lt;br&gt;• inventory-service (8001)&lt;br&gt;• notification-service (8002)&lt;br&gt;• frontend React 19 SPA (80)&lt;br&gt;• demand-sales-capture (Kafka → Parquet :1.0.0)&lt;br&gt;• demand-forecast-service (8005 :1.0.0)&lt;br&gt;• mlflow tracking server (3.17.2, image :1.0.0, port 5000)&lt;br&gt;• demand-model-training-scheduler (CronJob)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+        <mxCell id="k_apps_pods" parent="1" value="&lt;b&gt;Deployments &amp; MLOps (Helm Single Source of Truth):&lt;/b&gt;&lt;br&gt;• cosmo-router (8080) • frontend SPA (80)&lt;br&gt;• products-service (8004) • orders-service (8003)&lt;br&gt;• inventory-service (8001) • notification-service (8002)&lt;br&gt;• payments-service (8085) • fulfillment-service (8086)&lt;br&gt;• analytics-service (8087)&lt;br&gt;• demand-sales-capture • demand-forecast-service (8005)&lt;br&gt;• mlflow tracking (5000) • demand-model-training (CronJob)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=9.5;" vertex="1">
           <mxGeometry x="1100" y="155" width="360" height="125" as="geometry" />
         </mxCell>
         <mxCell id="k_rbac_dev" parent="1" value="&lt;b&gt;🛡️ K8s RBAC Least-Privilege Hardening:&lt;/b&gt;&lt;br&gt;• Dedicated SAs: *-sa (automountToken: false)&lt;br&gt;• Empty Workload Role: 0 API privileges&lt;br&gt;• Scoped Roles: dev-developer, dev-cicd-deployer&lt;br&gt;• OPA Conftest: Deny default ServiceAccount" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=1.5;fontColor=#064E3B;fontSize=9.5;" vertex="1">

@@ -61,44 +61,17 @@ The CLI provisions infrastructure and validates deployment readiness, handing of
 
 ## 🔐 HashiCorp Vault Management & CLI Integration
 
-The platform provides a dual-layer interface for HashiCorp Vault management: scripted orchestration via `platform-minikube.ps1` and direct interactive operations using the local Windows `vault.exe` CLI.
-
-### 1. Scripted Vault Automation (`platform-minikube.ps1`)
+The platform provides scripted Vault orchestration via `platform-minikube.ps1`:
 
 | Command | Action | Description |
 | :--- | :--- | :--- |
 | `.\platform-minikube.ps1 vault -VaultAction status` | Status Check | Inspects seal status, engine health, and cluster endpoint. |
-| `.\platform-minikube.ps1 vault -VaultAction init` | Cluster Bootstrap | Enables KV-v2 engine, mounts Transit engine, and provisions encryption keys. |
-| `.\platform-minikube.ps1 vault -VaultAction seed` | Dynamic & Static Seeding | Configures PostgreSQL connections, creates dynamic DB roles (`products-db-role`, `orders-db-role`, `inventory-db-role`), and seeds KV-v2 service secrets. |
-| `.\platform-minikube.ps1 vault -VaultAction rotate` | Key Rotation | Rotates Transit KMS data-key versions without downtime. |
-| `.\platform-minikube.ps1 secrets` | High-Level Wrapper | Shorthand for full Vault initialization, policy creation, and secret synchronization. |
+| `.\platform-minikube.ps1 vault -VaultAction seed` | Dynamic & Static Seeding | Runs [`scripts/vault-init.sh`](../../scripts/vault-init.sh) to configure KV-v2, Transit KMS, and all 6 PostgreSQL 18 dynamic DB roles (`products`, `orders`, `inventory`, `payments`, `fulfillment`, `analytics`). |
+| `.\platform-minikube.ps1 vault -VaultAction k8s-auth` | Kubernetes Auth & Policies | Binds isolated Vault policies and Kubernetes auth roles for all 7 microservices. |
+| `.\platform-minikube.ps1 vault -VaultAction istio-pki` | Istio Mesh PKI CA | Provisions or rotates the Vault Intermediate CA signing `istio-system/cacerts`. |
+| `.\platform-minikube.ps1 secrets` | High-Level Wrapper | Generates CSPRNG secrets and synchronizes Kubernetes Secrets and Vault KV-v2. |
 
-### 2. Local Windows CLI (`vault.exe`) Workflow
-
-When debugging or generating ephemeral tokens locally on Windows:
-
-```powershell
-# Mandatory: Set session environment variables (avoids HTTPS default error)
-$env:VAULT_ADDR = "http://127.0.0.1:8200"
-$env:VAULT_TOKEN = "root"
-
-# Verify connectivity
-vault status
-
-# Generate dynamic database credentials (1h TTL)
-vault read database/creds/products-db-role
-vault read database/creds/orders-db-role
-vault read database/creds/inventory-db-role
-
-# List and audit active database leases
-vault list sys/leases/lookup/database/creds/products-db-role
-
-# Revoke dynamic leases
-vault lease revoke <lease_id>
-vault lease revoke -prefix database/creds/
-```
-
----
+> For interactive `vault.exe` Windows CLI commands (`$env:VAULT_ADDR`, minting dynamic PostgreSQL credentials, and auditing/revoking leases), see [Local Deployment Runbook — Useful Commands](./LOCAL_DEPLOYMENT.md#useful-commands).
 
 ---
 
@@ -106,7 +79,7 @@ vault lease revoke -prefix database/creds/
 
 For detailed architectural runbooks, security benchmarks, and deep-dive documentation, see:
 - [Local Deployment Runbook](./LOCAL_DEPLOYMENT.md)
-- [HashiCorp Vault Dynamic Secrets & Rotation Playbook](../01-architecture/ARCHITECTURE.md#-strategic-verification-playbook-dynamic-database-secrets--rotation)
+- [HashiCorp Vault Dynamic Secrets & Rotation Architecture](../01-architecture/ARCHITECTURE.md#-dynamic-database-secrets-engine--rotation-architecture)
 - [Helm Umbrella & Canary Progressive Delivery](./HELM_AND_CANARY.md)
 - [Cloudflare Anycast Tunnels](./CLOUDFLARE_TUNNELS.md)
 - [DevSecOps Pipelines & Verification](../03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)
