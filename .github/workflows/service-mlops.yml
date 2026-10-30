@@ -2,13 +2,13 @@ name: MLOps Demand Forecasting CI/CD
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'mlops/**'
       - '.github/workflows/service-mlops.yml'
       - '.github/workflows/_service-ci-cd-template.yml'
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'mlops/**'
       - '.github/workflows/service-mlops.yml'

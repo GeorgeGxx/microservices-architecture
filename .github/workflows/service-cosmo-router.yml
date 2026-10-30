@@ -2,14 +2,14 @@ name: Cosmo Router Federation CI
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'cosmo-router/**'
       - 'helm/charts/cosmo-router/**'
       - 'helm/microservices-umbrella/**'
       - '.github/workflows/service-cosmo-router.yml'
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'cosmo-router/**'
       - 'helm/charts/cosmo-router/**'

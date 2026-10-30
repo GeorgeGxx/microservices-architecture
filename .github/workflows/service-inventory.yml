@@ -2,14 +2,14 @@ name: Inventory Service CI/CD
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'inventory-service/**'
       - 'pom.xml'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-inventory.yml'
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'inventory-service/**'
       - 'pom.xml'

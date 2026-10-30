@@ -19,9 +19,11 @@ spec:
     server: https://kubernetes.default.svc
     namespace: staging
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # Note: Automated sync for staging (AWS EKS Staging) is temporarily paused
+    # until AWS cloud deployment is enabled. Uncomment 'automated' when ready.
+    # automated:
+    #   prune: true
+    #   selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true

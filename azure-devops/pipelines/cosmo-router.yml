@@ -2,7 +2,7 @@ name: MSA-Cosmo-Router-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - cosmo-router/**
@@ -12,7 +12,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - cosmo-router/**

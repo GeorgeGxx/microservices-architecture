@@ -2,7 +2,7 @@ name: MSA-Inventory-Service-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - inventory-service/**
@@ -13,7 +13,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - inventory-service/**

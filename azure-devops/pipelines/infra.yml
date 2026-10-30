@@ -4,7 +4,7 @@ name: MSA-Terraform-Azure-Validation-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - terraform/environments/azure/**
@@ -15,7 +15,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, staging, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - terraform/environments/azure/**

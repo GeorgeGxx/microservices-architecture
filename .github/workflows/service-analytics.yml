@@ -2,13 +2,13 @@ name: Analytics Service CI/CD
 
 on:
   push:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'analytics-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/service-analytics.yml'
   pull_request:
-    branches: [develop, staging, master]
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'analytics-service/**'
       - '.github/workflows/_service-ci-cd-template.yml'

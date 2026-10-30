@@ -435,134 +435,139 @@ pipelines:
           steps: [{ step: *runtime-verify }]
       - stage: { name: '14. Dev release evidence', steps: [{ step: *release-evidence }] }
 
-    staging:
-      - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
-      - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
-      - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
-      - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
-      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
-      - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
-      - stage:
-          name: '7. Publish staging image'
-          environment: staging
-          steps: [{ step: *publish-candidate }]
-      - stage:
-          name: '8. Deploy staging to GKE'
-          deployment: staging
-          steps: [{ step: *deploy-gke }]
-      - stage:
-          name: '9. Staging API contract'
-          environment: staging
-          steps: [{ step: *api-contract }]
-      - stage:
-          name: '10. Staging storefront E2E'
-          environment: staging
-          steps: [{ step: *frontend-e2e }]
-      - stage:
-          name: '11. Staging performance SLO'
-          environment: staging
-          steps: [{ step: *performance }]
-      - stage:
-          name: '12. Staging DAST'
-          environment: staging
-          steps: [{ step: *dast }]
-      - stage:
-          name: '13. Verify staging rollout'
-          environment: staging
-          steps: [{ step: *runtime-verify }]
-      - stage: { name: '14. Staging release evidence', steps: [{ step: *release-evidence }] }
-
-    master: &production-branch-pipeline
-      - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
-      - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
-      - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
-      - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
-      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
-      - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
-      - stage:
-          name: '7. Publish staging candidate'
-          environment: staging
-          steps: [{ step: *publish-candidate }]
-      - stage:
-          name: '8. Deploy staging candidate'
-          deployment: staging
-          steps: [{ step: *deploy-gke }]
-      - stage:
-          name: '9. Staging API contract'
-          environment: staging
-          steps: [{ step: *api-contract }]
-      - stage:
-          name: '10. Staging storefront E2E'
-          environment: staging
-          steps: [{ step: *frontend-e2e }]
-      - stage:
-          name: '11. Staging performance SLO'
-          environment: staging
-          steps: [{ step: *performance }]
-      - stage:
-          name: '12. Staging DAST'
-          environment: staging
-          steps: [{ step: *dast }]
-      - stage:
-          name: '13. Final staging readiness verification'
-          environment: staging
-          steps: [{ step: *runtime-verify }]
-      - stage:
-          name: '14. Production promotion and dual-dataplane deployment (DP1 + DP2; manual approval)'
-          deployment: production
-          trigger: manual
-          steps:
-            - step:
-                name: Promote exact immutable staging digest to production GAR (no rebuild)
-                image: google/cloud-sdk:alpine
-                oidc: true
-                services: [docker]
-                script:
-                  - |
-                    set -euo pipefail
-                    : "${GCP_PROJECT_ID:?Set production GCP_PROJECT_ID}"
-                    : "${GCP_REGION:?Set production GCP_REGION}"
-                    SERVICE_NAME="${SERVICE_NAME:-products-service}"
-                    IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
-                    if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
-                      printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
-                      gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
-                        --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
-                        --credential-source-file=/tmp/oidc-token.jwt \
-                        --output-file=/tmp/gcp-cred-config.json
-                      trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
-                      gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
-                    else
-                      : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or secured production GCP_SA_KEY}"
-                      printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
-                      trap 'rm -f /tmp/gcp-key.json' EXIT
-                      gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
-                    fi
-                    gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
-                    STAGING_REPO="${STAGING_GAR_REPOSITORY:-msa-gcp-staging}"
-                    PROD_REPO="${GAR_REPOSITORY:-msa-gcp-prod}"
-                    STAGING_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
-                    STAGING_DIGEST="$(gcloud artifacts docker images describe "$STAGING_IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
-                    if [[ "$STAGING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-                      SOURCE_REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}@${STAGING_DIGEST}"
-                      docker pull "$SOURCE_REF"
-                      PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
-                      docker tag "$SOURCE_REF" "$PROD_IMAGE"
-                      docker push "$PROD_IMAGE"
-                      PROD_DIGEST="$(gcloud artifacts docker images describe "$PROD_IMAGE" --format='value(image_summary.digest)')"
-                      [ "$STAGING_DIGEST" = "$PROD_DIGEST" ] || { echo "ERROR: Digest mismatch between Staging ($STAGING_DIGEST) and Prod ($PROD_DIGEST)"; exit 1; }
-                      mkdir -p artifacts/images
-                      printf '%s' "$PROD_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
-                    else
-                      echo "Staging GAR lookup unavailable; promoting verified pipeline artifact tarball without rebuilding."
-                      docker load -i "artifacts/images/${SERVICE_NAME}.tar"
-                      PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
-                      docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$PROD_IMAGE"
-                      docker push "$PROD_IMAGE"
-                    fi
-                artifacts:
-                  - artifacts/images/**
-            - step: *deploy-gke
+    # =========================================================================
+    # NOTE: Branch 'staging' and 'master' pipelines are temporarily paused
+    # until GCP cloud deployment (GAR + GKE single/dual-dataplane) is enabled.
+    # Uncomment the 'staging:' and 'master:' blocks below when ready to deploy.
+    # =========================================================================
+    # staging:
+    #   - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
+    #   - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
+    #   - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
+    #   - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
+    #   - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+    #   - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
+    #   - stage:
+    #       name: '7. Publish staging image'
+    #       environment: staging
+    #       steps: [{ step: *publish-candidate }]
+    #   - stage:
+    #       name: '8. Deploy staging to GKE'
+    #       deployment: staging
+    #       steps: [{ step: *deploy-gke }]
+    #   - stage:
+    #       name: '9. Staging API contract'
+    #       environment: staging
+    #       steps: [{ step: *api-contract }]
+    #   - stage:
+    #       name: '10. Staging storefront E2E'
+    #       environment: staging
+    #       steps: [{ step: *frontend-e2e }]
+    #   - stage:
+    #       name: '11. Staging performance SLO'
+    #       environment: staging
+    #       steps: [{ step: *performance }]
+    #   - stage:
+    #       name: '12. Staging DAST'
+    #       environment: staging
+    #       steps: [{ step: *dast }]
+    #   - stage:
+    #       name: '13. Verify staging rollout'
+    #       environment: staging
+    #       steps: [{ step: *runtime-verify }]
+    #   - stage: { name: '14. Staging release evidence', steps: [{ step: *release-evidence }] }
+    #
+    # master: &production-branch-pipeline
+    #   - stage: { name: '1. Unit tests', steps: [{ step: *unit-tests }] }
+    #   - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
+    #   - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
+    #   - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
+    #   - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+    #   - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
+    #   - stage:
+    #       name: '7. Publish staging candidate'
+    #       environment: staging
+    #       steps: [{ step: *publish-candidate }]
+    #   - stage:
+    #       name: '8. Deploy staging candidate'
+    #       deployment: staging
+    #       steps: [{ step: *deploy-gke }]
+    #   - stage:
+    #       name: '9. Staging API contract'
+    #       environment: staging
+    #       steps: [{ step: *api-contract }]
+    #   - stage:
+    #       name: '10. Staging storefront E2E'
+    #       environment: staging
+    #       steps: [{ step: *frontend-e2e }]
+    #   - stage:
+    #       name: '11. Staging performance SLO'
+    #       environment: staging
+    #       steps: [{ step: *performance }]
+    #   - stage:
+    #       name: '12. Staging DAST'
+    #       environment: staging
+    #       steps: [{ step: *dast }]
+    #   - stage:
+    #       name: '13. Final staging readiness verification'
+    #       environment: staging
+    #       steps: [{ step: *runtime-verify }]
+    #   - stage:
+    #       name: '14. Production promotion and dual-dataplane deployment (DP1 + DP2; manual approval)'
+    #       deployment: production
+    #       trigger: manual
+    #       steps:
+    #         - step:
+    #             name: Promote exact immutable staging digest to production GAR (no rebuild)
+    #             image: google/cloud-sdk:alpine
+    #             oidc: true
+    #             services: [docker]
+    #             script:
+    #               - |
+    #                 set -euo pipefail
+    #                 : "${GCP_PROJECT_ID:?Set production GCP_PROJECT_ID}"
+    #                 : "${GCP_REGION:?Set production GCP_REGION}"
+    #                 SERVICE_NAME="${SERVICE_NAME:-products-service}"
+    #                 IMAGE_TAG="${BITBUCKET_COMMIT:0:12}"
+    #                 if [ -n "${BITBUCKET_STEP_OIDC_TOKEN:-}" ] && [ -n "${GCP_WORKLOAD_IDENTITY_PROVIDER:-}" ] && [ -n "${GCP_SERVICE_ACCOUNT_EMAIL:-}" ]; then
+    #                   printf '%s' "$BITBUCKET_STEP_OIDC_TOKEN" > /tmp/oidc-token.jwt
+    #                   gcloud iam workload-identity-pools create-cred-config "$GCP_WORKLOAD_IDENTITY_PROVIDER" \
+    #                     --service-account="$GCP_SERVICE_ACCOUNT_EMAIL" \
+    #                     --credential-source-file=/tmp/oidc-token.jwt \
+    #                     --output-file=/tmp/gcp-cred-config.json
+    #                   trap 'rm -f /tmp/oidc-token.jwt /tmp/gcp-cred-config.json' EXIT
+    #                   gcloud auth login --cred-file=/tmp/gcp-cred-config.json --project="$GCP_PROJECT_ID"
+    #                 else
+    #                   : "${GCP_SA_KEY:?Set GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_SERVICE_ACCOUNT_EMAIL (OIDC) or secured production GCP_SA_KEY}"
+    #                   printf '%s' "$GCP_SA_KEY" | base64 -d > /tmp/gcp-key.json
+    #                   trap 'rm -f /tmp/gcp-key.json' EXIT
+    #                   gcloud auth activate-service-account --key-file=/tmp/gcp-key.json --project="$GCP_PROJECT_ID"
+    #                 fi
+    #                 gcloud auth configure-docker "${GCP_REGION}-docker.pkg.dev" --quiet
+    #                 STAGING_REPO="${STAGING_GAR_REPOSITORY:-msa-gcp-staging}"
+    #                 PROD_REPO="${GAR_REPOSITORY:-msa-gcp-prod}"
+    #                 STAGING_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+    #                 STAGING_DIGEST="$(gcloud artifacts docker images describe "$STAGING_IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
+    #                 if [[ "$STAGING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+    #                   SOURCE_REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${STAGING_REPO}/${SERVICE_NAME}@${STAGING_DIGEST}"
+    #                   docker pull "$SOURCE_REF"
+    #                   PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+    #                   docker tag "$SOURCE_REF" "$PROD_IMAGE"
+    #                   docker push "$PROD_IMAGE"
+    #                   PROD_DIGEST="$(gcloud artifacts docker images describe "$PROD_IMAGE" --format='value(image_summary.digest)')"
+    #                   [ "$STAGING_DIGEST" = "$PROD_DIGEST" ] || { echo "ERROR: Digest mismatch between Staging ($STAGING_DIGEST) and Prod ($PROD_DIGEST)"; exit 1; }
+    #                   mkdir -p artifacts/images
+    #                   printf '%s' "$PROD_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
+    #                 else
+    #                   echo "Staging GAR lookup unavailable; promoting verified pipeline artifact tarball without rebuilding."
+    #                   docker load -i "artifacts/images/${SERVICE_NAME}.tar"
+    #                   PROD_IMAGE="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${PROD_REPO}/${SERVICE_NAME}:${IMAGE_TAG}"
+    #                   docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$PROD_IMAGE"
+    #                   docker push "$PROD_IMAGE"
+    #                 fi
+    #             artifacts:
+    #               - artifacts/images/**
+    #         - step: *deploy-gke
 
 
   pull-requests:

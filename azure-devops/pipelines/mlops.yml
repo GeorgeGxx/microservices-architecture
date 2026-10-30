@@ -8,7 +8,7 @@ name: MSA-MLOps-$(Date:yyyyMMdd)$(Rev:.r)
 
 trigger:
   branches:
-    include: [develop, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - mlops/**
@@ -19,7 +19,7 @@ trigger:
 
 pr:
   branches:
-    include: [develop, master]
+    include: [develop] # Paused until Azure cloud deployment is enabled: staging, master
   paths:
     include:
       - mlops/**
