@@ -23,6 +23,12 @@ variable "api_backend_address" {
   type        = string
 }
 
+variable "secondary_api_backend_address" {
+  description = "Optional Public IP or FQDN of the Secondary Production AKS Dataplane (DP2) Load Balancer fronting Istio ingress"
+  type        = string
+  default     = ""
+}
+
 variable "domain_name" {
   description = "Custom domain name (optional)"
   type        = string

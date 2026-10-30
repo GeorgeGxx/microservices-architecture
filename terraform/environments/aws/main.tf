@@ -57,17 +57,20 @@ module "rds_postgres" {
   count  = local.cfg.enable_managed_rds ? 1 : 0
   source = "../../modules/aws/rds"
 
-  name                       = "${local.name}-postgres"
-  environment                = local.env
-  db_name                    = "microservices_db"
-  master_password            = var.db_master_password
-  vpc_id                     = module.vpc.vpc_id
-  private_subnet_ids         = module.vpc.private_subnet_ids
-  allowed_security_group_ids = [module.eks.node_security_group_id]
-  instance_class             = local.cfg.db_instance_class
-  multi_az                   = local.cfg.db_multi_az
-  deletion_protection        = local.cfg.deletion_protection
-  tags                       = local.tags
+  name               = "${local.name}-postgres"
+  environment        = local.env
+  db_name            = "microservices_db"
+  master_password    = var.db_master_password
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  allowed_security_group_ids = compact([
+    module.eks.node_security_group_id,
+    try(module.eks_dp2[0].node_security_group_id, null)
+  ])
+  instance_class      = local.cfg.db_instance_class
+  multi_az            = local.cfg.db_multi_az
+  deletion_protection = local.cfg.deletion_protection
+  tags                = local.tags
 }
 
 module "nlb" {
@@ -92,6 +95,19 @@ module "irsa_lb_controller" {
   tags                 = local.tags
 }
 
+module "irsa_lb_controller_dp2" {
+  count  = local.env == "prod" ? 1 : 0
+  source = "../../modules/aws/iam-irsa"
+
+  name                 = "${local.name}-dp2"
+  oidc_provider_arn    = module.eks_dp2[0].oidc_provider_arn
+  oidc_issuer_url      = module.eks_dp2[0].oidc_issuer_url
+  namespace            = "kube-system"
+  service_account_name = "aws-load-balancer-controller"
+  policy_arns          = ["arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess"]
+  tags                 = merge(local.tags, { DataPlane = "2" })
+}
+
 module "kms" {
   count       = local.cfg.enable_kms ? 1 : 0
   source      = "../../modules/aws/kms"
@@ -110,13 +126,16 @@ module "s3_assets" {
 }
 
 module "elasticache_redis" {
-  count                      = local.cfg.enable_elasticache ? 1 : 0
-  source                     = "../../modules/aws/elasticache"
-  name                       = local.name
-  environment                = local.env
-  vpc_id                     = module.vpc.vpc_id
-  subnet_ids                 = module.vpc.private_subnet_ids
-  allowed_security_group_ids = [module.eks.node_security_group_id]
+  count       = local.cfg.enable_elasticache ? 1 : 0
+  source      = "../../modules/aws/elasticache"
+  name        = local.name
+  environment = local.env
+  vpc_id      = module.vpc.vpc_id
+  subnet_ids  = module.vpc.private_subnet_ids
+  allowed_security_group_ids = compact([
+    module.eks.node_security_group_id,
+    try(module.eks_dp2[0].node_security_group_id, null)
+  ])
   node_type                  = local.cfg.elasticache_node_type
   num_cache_clusters         = local.cfg.elasticache_num_clusters
   multi_az_enabled           = local.cfg.elasticache_multi_az
@@ -126,17 +145,20 @@ module "elasticache_redis" {
 }
 
 module "msk_kafka" {
-  count                      = local.cfg.enable_msk ? 1 : 0
-  source                     = "../../modules/aws/msk"
-  name                       = local.name
-  environment                = local.env
-  vpc_id                     = module.vpc.vpc_id
-  client_subnet_ids          = module.vpc.private_subnet_ids
-  allowed_security_group_ids = [module.eks.node_security_group_id]
-  number_of_broker_nodes     = local.cfg.msk_broker_nodes
-  instance_type              = local.cfg.msk_instance_type
-  kms_key_arn                = local.cfg.enable_kms ? module.kms[0].key_arn : null
-  tags                       = local.tags
+  count             = local.cfg.enable_msk ? 1 : 0
+  source            = "../../modules/aws/msk"
+  name              = local.name
+  environment       = local.env
+  vpc_id            = module.vpc.vpc_id
+  client_subnet_ids = module.vpc.private_subnet_ids
+  allowed_security_group_ids = compact([
+    module.eks.node_security_group_id,
+    try(module.eks_dp2[0].node_security_group_id, null)
+  ])
+  number_of_broker_nodes = local.cfg.msk_broker_nodes
+  instance_type          = local.cfg.msk_instance_type
+  kms_key_arn            = local.cfg.enable_kms ? module.kms[0].key_arn : null
+  tags                   = local.tags
 }
 
 module "cloudfront" {
@@ -177,7 +199,7 @@ module "github_actions_oidc" {
   source = "../../modules/aws/oidc_github"
 
   environment          = local.env
-  github_repo          = "georgegxx/microservices-architecture"
+  github_repo          = "GeorgeGxx/microservices-architecture"
   create_oidc_provider = true
   tags                 = local.tags
 }
