@@ -19,11 +19,21 @@ if sys.platform == "win32":
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+JAVA_SERVICES = {
+    "inventory-service",
+    "notification-service",
+    "orders-service",
+    "products-service",
+}
+
 SERVICES = [
     "inventory-service",
     "notification-service",
     "orders-service",
     "products-service",
+    "payments-service",
+    "fulfillment-service",
+    "analytics-service",
 ]
 
 MLOPS_SERVICES = [
@@ -106,20 +116,22 @@ def main():
         mlops_to_build = [ml for ml in MLOPS_SERVICES if ml["name"] == target_svc]
 
     if not args.push_only:
-        # 1. Build Spring Boot Microservices
+        # 1. Build Polyglot Microservices
         for svc in services_to_build:
             image_name = f"{prefix}/{svc}:{tag}"
             print(f"\n📦 Building service '{image_name}'...")
-            dockerfile = os.path.join(ROOT_DIR, svc, "Dockerfile")
+            svc_dir = os.path.join(ROOT_DIR, svc)
+            dockerfile = os.path.join(svc_dir, "Dockerfile")
+            build_ctx = ROOT_DIR if svc in JAVA_SERVICES else svc_dir
             cmd = [
                 "docker", "build",
                 "-t", image_name,
                 "-f", dockerfile,
-                ROOT_DIR
+                build_ctx
             ]
             if args.no_cache:
                 cmd.insert(2, "--no-cache")
-            run_command(cmd, cwd=ROOT_DIR)
+            run_command(cmd, cwd=build_ctx)
             built_images.append(image_name)
 
         # 2. Build Frontend SPA

@@ -1,0 +1,44 @@
+name: Fulfillment Service CI/CD
+
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'fulfillment-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-fulfillment.yml'
+  pull_request:
+    branches: [ develop ]
+    paths:
+      - 'fulfillment-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-fulfillment.yml'
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Explicit image tag to publish (leave empty for git sha or semver from tag)'
+        required: false
+        type: string
+        default: ''
+      publish-to-registry:
+        description: 'Publish image to Docker Registry'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: fulfillment-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: fulfillment-service
+      service-type: nestjs
+      service-dir: fulfillment-service
+      context-dir: fulfillment-service
+      dockerfile-path: fulfillment-service/Dockerfile
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+    secrets: inherit

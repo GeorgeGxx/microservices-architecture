@@ -1,0 +1,43 @@
+name: MSA-Analytics-Service-$(Date:yyyyMMdd)$(Rev:.r)
+
+trigger:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - analytics-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/analytics-service.yml
+      - azure-devops/templates/**
+
+pr:
+  branches:
+    include: [develop, release/*, main, master]
+  paths:
+    include:
+      - analytics-service/**
+      - helm/**
+      - devsecops/**
+      - azure-devops/pipelines/analytics-service.yml
+      - azure-devops/templates/**
+
+variables:
+  - template: ../templates/gates.yml
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - template: ../templates/app-stages.yml
+    parameters:
+      serviceName: analytics-service
+      serviceDir: analytics-service
+      serviceType: python
+      servicePort: 8087
+      contextDir: analytics-service
+      serviceConnection: azure-service-connection
+      acrNameDev: msaazuredevacr
+      acrNameStaging: msaazurestagingacr
+      acrNameProd: msaazureprodacr
+      namePrefix: msa-azure

@@ -42,6 +42,18 @@ export default defineConfig({
         target: 'http://localhost:8003',
         changeOrigin: true,
       },
+      '/api/v1/payments': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+      },
+      '/api/v1/shipments': {
+        target: 'http://localhost:8086',
+        changeOrigin: true,
+      },
+      '/api/v1/analytics': {
+        target: 'http://localhost:8087',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

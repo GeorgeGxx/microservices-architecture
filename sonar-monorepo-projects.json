@@ -16,6 +16,18 @@
     "projectName": "Notification Service"
   },
   {
+    "projectKey": "msa-payments-service",
+    "projectName": "Payments Service"
+  },
+  {
+    "projectKey": "msa-fulfillment-service",
+    "projectName": "Fulfillment Service"
+  },
+  {
+    "projectKey": "msa-analytics-service",
+    "projectName": "Analytics Service"
+  },
+  {
     "projectKey": "msa-frontend",
     "projectName": "Novashop Storefront"
   },

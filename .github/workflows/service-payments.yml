@@ -1,0 +1,44 @@
+name: Payments Service CI/CD
+
+on:
+  push:
+    branches: [ develop ]
+    paths:
+      - 'payments-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-payments.yml'
+  pull_request:
+    branches: [ develop ]
+    paths:
+      - 'payments-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-payments.yml'
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Explicit image tag to publish (leave empty for git sha or semver from tag)'
+        required: false
+        type: string
+        default: ''
+      publish-to-registry:
+        description: 'Publish image to Docker Registry'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: payments-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: payments-service
+      service-type: go
+      service-dir: payments-service
+      context-dir: payments-service
+      dockerfile-path: payments-service/Dockerfile
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+    secrets: inherit

@@ -482,6 +482,22 @@ function Invoke-LocalJavaMavenTests {
             Pop-Location
         }
     }
+
+    $goCmd = Get-Command go -ErrorAction SilentlyContinue | Select-Object -First 1
+    $paymentsDir = Join-Path $root "payments-service"
+    if ($goCmd -and (Test-Path -LiteralPath (Join-Path $paymentsDir "go.mod") -PathType Leaf)) {
+        Write-Host "`n  ▶ Running Go unit tests for 'payments-service'..." -ForegroundColor Cyan
+        Push-Location $paymentsDir
+        try {
+            & $goCmd.Source test ./...
+            if ($LASTEXITCODE -ne 0) {
+                throw "Go unit tests failed for 'payments-service' (exit $LASTEXITCODE)."
+            }
+            Write-Host "  [OK] payments-service: Go unit tests passed." -ForegroundColor Green
+        } finally {
+            Pop-Location
+        }
+    }
 }
 
 function Invoke-VaultKubernetesAuthSetup {
@@ -500,12 +516,20 @@ function Invoke-VaultKubernetesAuthSetup {
     }
     Invoke-LocalVaultCli -Pod $pod -VaultArguments @('write', 'auth/kubernetes/config', 'kubernetes_host=https://kubernetes.default.svc:443') | Out-Null
 
-    $services = @('products-service', 'orders-service', 'inventory-service', 'notification-service', 'cosmo-router')
+    $services = @(
+        'products-service', 'orders-service', 'inventory-service', 'notification-service',
+        'payments-service', 'fulfillment-service', 'analytics-service', 'cosmo-router'
+    )
     foreach ($service in $services) {
-        $policy = @(
+        $dbPrefix = $service -replace '-service$', ''
+        $policyLines = @(
             'path "secret/data/application" { capabilities = ["read"] }',
             "path `"secret/data/$service`" { capabilities = [`"read`"] }"
-        ) -join "`n"
+        )
+        if ($dbPrefix -in @('products', 'orders', 'inventory', 'payments', 'fulfillment', 'analytics')) {
+            $policyLines += "path `"database/creds/$dbPrefix-db-role`" { capabilities = [`"read`"] }"
+        }
+        $policy = $policyLines -join "`n"
         Invoke-LocalVaultCliWithInput -Pod $pod -VaultArguments @('policy', 'write', "$service-policy", '-') -InputText $policy | Out-Null
         Invoke-LocalVaultCli -Pod $pod -VaultArguments @(
             'write', "auth/kubernetes/role/$service-role",
@@ -2212,6 +2236,9 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Payments Swagger UI       │ http://localhost:8085/swagger/index.html   │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Fulfillment Swagger UI    │ http://localhost:8086/swagger              │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Analytics Swagger UI      │ http://localhost:8087/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
@@ -2274,8 +2301,7 @@ function Invoke-MinikubeMlopsDeployment {
     param([switch]$StartMlflowPortForward = $false)
 
     $mlopsDir = Join-Path $root "mlops"
-    $manifest = Join-Path $root "k8s\minikube\services\demand-forecast.yaml"
-    $trainingScheduleManifest = Join-Path $root "k8s\minikube\services\demand-model-training-schedule.yaml"
+    $minikubeValuesFile = Join-Path $root "helm\values\values-minikube.yaml"
     $imageBuilds = @(
         @{ Name = "MLflow"; Image = "georgegxx/mlflow:1.0.0"; Context = $mlopsDir; Dockerfile = "Dockerfile"; ExcludedDirectories = @(".venv*", "data", "__pycache__", ".pytest_cache", ".git"); ExcludedFiles = @("*.py[cod]") },
         @{ Name = "PySpark"; Image = "georgegxx/mlops-training:1.0.0"; Context = $mlopsDir; Dockerfile = "Dockerfile.training"; ExcludedDirectories = @(".venv*", "data", "__pycache__", ".pytest_cache", ".git"); ExcludedFiles = @("*.py[cod]") },
@@ -2288,8 +2314,9 @@ function Invoke-MinikubeMlopsDeployment {
         (Join-Path $mlopsDir "Dockerfile.training"),
         (Join-Path $mlopsDir "Dockerfile.forecast"),
         (Join-Path $root "frontend\Dockerfile"),
-        $manifest,
-        $trainingScheduleManifest,
+        (Join-Path $umbrellaDir "templates\mlops.yaml"),
+        (Join-Path $umbrellaDir "templates\rbac.yaml"),
+        $minikubeValuesFile,
         (Join-Path $mlopsDir "train_demand_model.py")
     )) {
         if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
@@ -2455,14 +2482,14 @@ function Invoke-MinikubeMlopsDeployment {
         }
     }
 
-    Write-Host "  ▶ Applying MLOps manifests..." -ForegroundColor White
-    & kubectl apply -f $manifest 2>&1 | Out-Null
+    Write-Host "  ▶ Applying MLOps manifests from Helm umbrella chart..." -ForegroundColor White
+    $mlopsManifests = & helm template microservices $umbrellaDir --namespace dev --set global.environment=dev --values $minikubeValuesFile -s templates/rbac.yaml -s templates/mlops.yaml 2>&1
     if ($LASTEXITCODE -ne 0) {
-        throw "Could not apply the Minikube MLOps manifest '$manifest'."
+        throw "Could not render MLOps templates from '$umbrellaDir'."
     }
-    & kubectl apply -f $trainingScheduleManifest 2>&1 | Out-Null
+    $mlopsManifests | kubectl apply -n dev -f - 2>&1 | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Could not apply the automatic Minikube model-training schedule '$trainingScheduleManifest'."
+        throw "Could not apply the rendered Minikube MLOps manifests from '$umbrellaDir'."
     }
 
     if ($kafkaConfigNeedsUpdate) {
@@ -2827,9 +2854,9 @@ function Invoke-MinikubePlatform {
             $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
                 @($cleanSvc)
             } elseif ($DeployCanaryOption) {
-                @("orders-service", "inventory-service", "notification-service", "frontend")
+                @("orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
             } else {
-                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
                 if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                 $allSvc
             }
@@ -2913,20 +2940,6 @@ function Invoke-MinikubePlatform {
                 Write-Host "  [OK] Istio STRICT mTLS and Gateway active." -ForegroundColor Green
             }
 
-            $networkPolicyFile = Join-Path $root "k8s\minikube\network-policies\dev-network-policies.yaml"
-            if (Test-Path $networkPolicyFile) {
-                kubectl apply -f $networkPolicyFile 2>$null | Out-Null
-                Write-Host "  [OK] Zero-Trust L3/L4 NetworkPolicies applied to dev namespace." -ForegroundColor Green
-            }
-
-            $rbacManifest = Join-Path $root "k8s\minikube\rbac\dev-rbac.yaml"
-            if (Test-Path $rbacManifest) {
-                kubectl apply -f $rbacManifest 2>$null | Out-Null
-                kubectl annotate -f $rbacManifest -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>&1 | Out-Null
-                kubectl label -f $rbacManifest -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
-                Write-Host "  [OK] Hardened RBAC ServiceAccounts & Roles applied to dev namespace." -ForegroundColor Green
-            }
-
             Write-Host "`n[7/10] 🔒 Deploying Vault, Keycloak & Data Persistence..." -ForegroundColor Yellow
             $vaultManifest = Join-Path $root "k8s\minikube\vault\vault-dev.yaml"
             if (Test-Path $vaultManifest) {
@@ -2980,13 +2993,17 @@ stringData:
             kubectl apply -f "$infraDir\postgres-products.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\postgres-orders.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\postgres-inventory.yaml" -n data 2>$null
+            kubectl apply -f "$infraDir\postgres-payments.yaml" -n data 2>$null
+            kubectl apply -f "$infraDir\postgres-fulfillment.yaml" -n data 2>$null
+            kubectl apply -f "$infraDir\postgres-analytics.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\redis.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka-exporter.yaml" -n data 2>$null
-            Write-Host "  ▶ Waiting for Kafka broker and initializing topics 'orders-topic' & 'orders-topic.DLT'..." -ForegroundColor White
+            Write-Host "  ▶ Waiting for Kafka broker and initializing Saga topics ('orders-topic', 'payments-topic', 'fulfillment-topic', 'orders-topic.DLT')..." -ForegroundColor White
             kubectl wait --namespace data --for=condition=ready pod -l app=kafka --timeout=180s 2>$null | Out-Null
-            kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic 2>$null | Out-Null
-            kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic orders-topic.DLT 2>$null | Out-Null
+            foreach ($kafkaTopic in @("orders-topic", "orders-topic.DLT", "payments-topic", "fulfillment-topic")) {
+                kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic $kafkaTopic 2>$null | Out-Null
+            }
             kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth 2>$null
             $bcdrBackupManifest = Join-Path $root "k8s\common\bcdr\database-backup-cronjob.yaml"
             if (Test-Path $bcdrBackupManifest) {
@@ -3028,11 +3045,6 @@ stringData:
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
             # Ensure any pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
             Write-Host "  ▶ Reconciling Helm ownership metadata for pre-existing resources..." -ForegroundColor White
-            $rbacManifest = Join-Path $root "k8s\minikube\rbac\dev-rbac.yaml"
-            if (Test-Path $rbacManifest) {
-                kubectl annotate -f $rbacManifest -n dev meta.helm.sh/release-name=microservices meta.helm.sh/release-namespace=dev --overwrite 2>&1 | Out-Null
-                kubectl label -f $rbacManifest -n dev app.kubernetes.io/managed-by=Helm --overwrite 2>&1 | Out-Null
-            }
             $renderedYaml = & helm template microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev --values $minikubeValues --include-crds 2>$null
             $currentKind = ""
             $inMetadata = $false
@@ -3245,9 +3257,9 @@ stringData:
                 $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
                     @($cleanSvc)
                 } elseif ($DeployCanaryOption) {
-                    @("orders-service", "inventory-service", "notification-service", "frontend")
+                    @("orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
                 } else {
-                    $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                    $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
                     if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                     $allSvc
                 }
@@ -3282,6 +3294,9 @@ stringData:
                 @{ Ns = "data"; App = "db-products"; Name = "PostgreSQL Products DB" },
                 @{ Ns = "data"; App = "db-orders"; Name = "PostgreSQL Orders DB" },
                 @{ Ns = "data"; App = "db-inventory"; Name = "PostgreSQL Inventory DB" },
+                @{ Ns = "data"; App = "db-payments"; Name = "PostgreSQL Payments DB" },
+                @{ Ns = "data"; App = "db-fulfillment"; Name = "PostgreSQL Fulfillment DB" },
+                @{ Ns = "data"; App = "db-analytics"; Name = "PostgreSQL Analytics DB" },
                 @{ Ns = "data"; App = "redis"; Name = "Redis Cache" },
                 @{ Ns = "data"; App = "kafka"; Name = "Kafka Event Broker" },
                 @{ Ns = "auth"; App = "keycloak"; Name = "Keycloak IAM" },
@@ -3289,7 +3304,10 @@ stringData:
                 @{ Ns = "dev"; App = "frontend"; Name = "Presentation Frontend" },
                 @{ Ns = "dev"; App = "orders-service"; Name = "Orders Microservice" },
                 @{ Ns = "dev"; App = "products-service"; Name = "Products Microservice" },
-                @{ Ns = "dev"; App = "inventory-service"; Name = "Inventory Microservice" }
+                @{ Ns = "dev"; App = "inventory-service"; Name = "Inventory Microservice" },
+                @{ Ns = "dev"; App = "payments-service"; Name = "Payments Microservice" },
+                @{ Ns = "dev"; App = "fulfillment-service"; Name = "Fulfillment Microservice" },
+                @{ Ns = "dev"; App = "analytics-service"; Name = "Analytics Microservice" }
             )
             foreach ($item in $criticalWorkloads) {
                 & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
@@ -3382,7 +3400,7 @@ stringData:
             $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
                 @($cleanSvc)
             } else {
-                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "frontend")
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
                 if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                 $allSvc
             }
@@ -3436,74 +3454,20 @@ function Initialize-LocalVault {
         [string]$VaultAddr = "http://localhost:8200",
         [string]$VaultToken = "root"
     )
-    Write-Host "  >> Initializing Vault KV-v2 Secrets Engine..." -ForegroundColor Cyan
+    Write-Host "  >> Initializing Vault KV-v2, Transit & Dynamic PostgreSQL 18 Engines via scripts/vault-init.sh..." -ForegroundColor Cyan
     $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
     if ($vaultPod) {
         $envMap = Get-EnvMap
         $pgUser = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
         $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "admin" }
         $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET } else { "super-secure-jwt-secret-key-for-microservices-dev-environment-12345" }
-        kubectl exec -n vault $vaultPod -- vault secrets enable -path=secret kv-v2 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/application "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" "jwt.secret=$jwtSecret" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/products-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/orders-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/inventory-service "spring.datasource.username=$pgUser" "spring.datasource.password=$pgPass" 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault kv put secret/notification-service "spring.mail.username=notification@microservices.local" "spring.mail.password=dev-mail-password" 2>$null | Out-Null
-        
-        # Enable Transit Encryption Engine
-        kubectl exec -n vault $vaultPod -- vault secrets enable transit 2>$null | Out-Null
-        kubectl exec -n vault $vaultPod -- vault write -f transit/keys/microservices-data-key type=aes256-gcm96 2>$null | Out-Null
-
-        # Enable Dynamic Database Secrets Engine
-        kubectl exec -n vault $vaultPod -- vault secrets enable database 2>$null | Out-Null
-        
-        $sqlTemplate = 'CREATE ROLE "{{name}}" WITH LOGIN PASSWORD ' + "'" + '{{password}}' + "'" + ' VALID UNTIL ' + "'" + '{{expiration}}' + "'" + '; GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "{{name}}";'
-
-        # 1. Products Service Database
-        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-products `
-            plugin_name="postgresql-database-plugin" `
-            allowed_roles="products-db-role" `
-            connection_url="postgresql://{{username}}:{{password}}@db-products.data.svc.cluster.local:5432/ms_products?sslmode=disable" `
-            username="$pgUser" `
-            password="$pgPass" 2>$null | Out-Null
-        $rolePayloadProducts = @{
-            db_name = "postgres-products"
-            creation_statements = @($sqlTemplate)
-            default_ttl = "1h"
-            max_ttl = "24h"
-        } | ConvertTo-Json -Compress
-        $rolePayloadProducts | kubectl exec -i -n vault $vaultPod -- vault write database/roles/products-db-role - 2>$null | Out-Null
-
-        # 2. Orders Service Database
-        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-orders `
-            plugin_name="postgresql-database-plugin" `
-            allowed_roles="orders-db-role" `
-            connection_url="postgresql://{{username}}:{{password}}@db-orders.data.svc.cluster.local:5432/ms_orders?sslmode=disable" `
-            username="$pgUser" `
-            password="$pgPass" 2>$null | Out-Null
-        $rolePayloadOrders = @{
-            db_name = "postgres-orders"
-            creation_statements = @($sqlTemplate)
-            default_ttl = "1h"
-            max_ttl = "24h"
-        } | ConvertTo-Json -Compress
-        $rolePayloadOrders | kubectl exec -i -n vault $vaultPod -- vault write database/roles/orders-db-role - 2>$null | Out-Null
-
-        # 3. Inventory Service Database
-        kubectl exec -n vault $vaultPod -- vault write database/config/postgres-inventory `
-            plugin_name="postgresql-database-plugin" `
-            allowed_roles="inventory-db-role" `
-            connection_url="postgresql://{{username}}:{{password}}@db-inventory.data.svc.cluster.local:5432/ms_inventory?sslmode=disable" `
-            username="$pgUser" `
-            password="$pgPass" 2>$null | Out-Null
-        $rolePayloadInventory = @{
-            db_name = "postgres-inventory"
-            creation_statements = @($sqlTemplate)
-            default_ttl = "1h"
-            max_ttl = "24h"
-        } | ConvertTo-Json -Compress
-        $rolePayloadInventory | kubectl exec -i -n vault $vaultPod -- vault write database/roles/inventory-db-role - 2>$null | Out-Null
-        Write-Host "  [OK] Vault KV-v2, Transit & Dynamic Database engines initialized and seeded." -ForegroundColor Green
+        $vaultInitScript = Join-Path $scriptsDir "vault-init.sh"
+        if (-not (Test-Path -LiteralPath $vaultInitScript -PathType Leaf)) {
+            throw "Vault initialization script is missing: $vaultInitScript"
+        }
+        $scriptContent = (Get-Content -LiteralPath $vaultInitScript -Raw).Replace("`r`n", "`n")
+        $scriptContent | kubectl exec -i -n vault $vaultPod -- env "POSTGRES_USER=$pgUser" "POSTGRES_PASSWORD=$pgPass" "JWT_SECRET=$jwtSecret" "DB_HOST_SUFFIX=.data.svc.cluster.local" sh 2>$null | Out-Null
+        Write-Host "  [OK] Vault KV-v2, Transit & Dynamic Database engines initialized and seeded for all 6 PostgreSQL 18 databases." -ForegroundColor Green
     }
 }
 

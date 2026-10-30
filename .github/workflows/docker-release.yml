@@ -92,6 +92,51 @@ jobs:
     secrets: inherit
 
   # ==========================================================
+  # ⚡ Polyglot Saga Microservices (Go / NestJS / FastAPI)
+  # ==========================================================
+  release-payments:
+    name: "💳 Release payments-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: payments-service
+      service-type: go
+      service-dir: payments-service
+      context-dir: payments-service
+      dockerfile-path: payments-service/Dockerfile
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-fulfillment:
+    name: "🚚 Release fulfillment-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: fulfillment-service
+      service-type: nestjs
+      service-dir: fulfillment-service
+      context-dir: fulfillment-service
+      dockerfile-path: fulfillment-service/Dockerfile
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  release-analytics:
+    name: "📊 Release analytics-service"
+    needs: resolve-tag
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: analytics-service
+      service-type: python
+      service-dir: analytics-service
+      context-dir: analytics-service
+      dockerfile-path: analytics-service/Dockerfile
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    secrets: inherit
+
+  # ==========================================================
   # 🌐 Frontend React 19 SPA
   # ==========================================================
   release-frontend:
@@ -165,6 +210,9 @@ jobs:
       - release-orders
       - release-inventory
       - release-notifications
+      - release-payments
+      - release-fulfillment
+      - release-analytics
       - release-frontend
       - release-demand-forecast
       - release-mlops-training

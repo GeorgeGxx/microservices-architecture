@@ -1173,6 +1173,48 @@
             "description": "Direct REST endpoint to Orders Service (:8003/api/order)."
           },
           "response": []
+        },
+        {
+          "name": "4. Analytics Service Real-Time Summary & Abandonment Rate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', () => {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "const res = pm.response.json();",
+                  "pm.test('Analytics summary includes abandonmentRatePercent', () => {",
+                  "    pm.expect(res).to.have.property('abandonmentRatePercent');",
+                  "    pm.expect(res.abandonmentRatePercent).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/analytics/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "summary"
+              ]
+            },
+            "description": "Direct REST endpoint to Analytics Service (:8087/api/v1/analytics/summary) via Nginx proxy.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": []
         }
       ]
     },

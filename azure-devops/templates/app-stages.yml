@@ -28,7 +28,7 @@ parameters:
     type: string
   - name: serviceDir
     type: string
-  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'cosmo-router' | 'python'
+  - name: serviceType          # 'spring-boot' | 'react' | 'frontend' | 'cosmo-router' | 'python' | 'go' | 'nestjs'
     type: string
     default: 'spring-boot'
   - name: servicePort
@@ -240,6 +240,103 @@ stages:
                 SONAR_TOKEN: $(SONAR_TOKEN)
                 SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
 
+          - ${{ if eq(parameters.serviceType, 'go') }}:
+            - task: GoTool@0
+              displayName: "Set up Go 1.24+"
+              inputs:
+                version: '1.24.x'
+
+            - script: |
+                set -euo pipefail
+                cd ${{ parameters.serviceDir }}
+                go test -v -coverprofile=coverage.out ./...
+              displayName: "Go Unit Tests & Coverage"
+
+            - task: NodeTool@0
+              displayName: "Set up Node.js for Sonar Scanner"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              inputs:
+                versionSpec: '22.x'
+
+            - script: |
+                set -euo pipefail
+                if [ -z "$SONAR_TOKEN" ] || [ "$SONAR_TOKEN" = '$(SONAR_TOKEN)' ]; then
+                  echo "SonarQube Cloud token is not configured; skipping Go analysis."
+                  exit 0
+                fi
+                if [ -z "$SONAR_ORGANIZATION" ] || [ "$SONAR_ORGANIZATION" = '$(SONAR_ORGANIZATION)' ]; then
+                  echo "SONAR_ORGANIZATION must match the SonarQube Cloud organization key."
+                  exit 1
+                fi
+                cd ${{ parameters.serviceDir }}
+                npx --yes sonarqube-scanner \
+                  -Dsonar.projectKey=msa-${{ parameters.serviceName }} \
+                  -Dsonar.projectName="MSA ${{ parameters.serviceName }}" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
+                  -Dsonar.sources=. \
+                  -Dsonar.tests=. \
+                  -Dsonar.test.inclusions="**/*_test.go" \
+                  -Dsonar.exclusions="**/*_test.go,docs/**,scripts/**" \
+                  -Dsonar.go.coverage.reportPaths=coverage.out \
+                  -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
+              displayName: "SonarQube Cloud Go Analysis & Quality Gate"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              env:
+                SONAR_TOKEN: $(SONAR_TOKEN)
+                SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
+
+          - ${{ if eq(parameters.serviceType, 'nestjs') }}:
+            - task: NodeTool@0
+              displayName: "Set up Node.js 22"
+              inputs:
+                versionSpec: '22.x'
+
+            - script: |
+                set -euo pipefail
+                cd ${{ parameters.serviceDir }}
+                npm ci || npm install
+                npm run test:cov
+                npm run build
+              displayName: "NestJS Unit Tests, Coverage & Build"
+
+            - task: JavaToolInstaller@0
+              displayName: "Set up Java for Sonar Scanner"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              inputs:
+                versionSpec: '21'
+                jdkArchitectureOption: 'x64'
+                jdkSourceOption: 'PreInstalled'
+
+            - script: |
+                set -euo pipefail
+                if [ -z "$SONAR_TOKEN" ] || [ "$SONAR_TOKEN" = '$(SONAR_TOKEN)' ]; then
+                  echo "SonarQube Cloud token is not configured; skipping NestJS analysis."
+                  exit 0
+                fi
+                if [ -z "$SONAR_ORGANIZATION" ] || [ "$SONAR_ORGANIZATION" = '$(SONAR_ORGANIZATION)' ]; then
+                  echo "SONAR_ORGANIZATION must match the SonarQube Cloud organization key."
+                  exit 1
+                fi
+                cd ${{ parameters.serviceDir }}
+                npx --yes sonarqube-scanner \
+                  -Dsonar.projectKey=msa-${{ parameters.serviceName }} \
+                  -Dsonar.projectName="MSA ${{ parameters.serviceName }}" \
+                  -Dsonar.organization="$SONAR_ORGANIZATION" \
+                  -Dsonar.host.url="${{ parameters.sonarHostUrl }}" \
+                  -Dsonar.sources=src \
+                  -Dsonar.tests=src \
+                  -Dsonar.test.inclusions="**/*.spec.ts" \
+                  -Dsonar.exclusions="**/*.spec.ts,dist/**,node_modules/**" \
+                  -Dsonar.coverage.exclusions="src/main.ts,src/**/*.module.ts,src/**/*.orm-entity.ts,**/*.spec.ts" \
+                  -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                  -Dsonar.qualitygate.wait=${{ parameters.sonarQualityGateWait }}
+              displayName: "SonarQube Cloud NestJS Analysis & Quality Gate"
+              condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
+              env:
+                SONAR_TOKEN: $(SONAR_TOKEN)
+                SONAR_ORGANIZATION: $(SONAR_ORGANIZATION)
+
           - ${{ if eq(parameters.serviceType, 'python') }}:
             - task: UsePythonVersion@0
               displayName: "Set up Python 3.12"
@@ -254,18 +351,23 @@ stages:
                 if [ -f "${{ parameters.serviceDir }}/requirements.txt" ]; then
                   pip install -r "${{ parameters.serviceDir }}/requirements.txt"
                 fi
-                pip install coverage
+                pip install coverage pytest pytest-cov pytest-asyncio
                 if [ -d "${{ parameters.serviceDir }}/tests" ]; then
-                  OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
-                  if [ "${{ parameters.serviceName }}" = "demand-forecast" ]; then
-                    OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
-                  elif [ "${{ parameters.serviceName }}" = "mlops-training" ]; then
-                    OMIT="$OMIT,*/forecast_api.py"
-                  elif [ "${{ parameters.serviceName }}" = "mlflow" ]; then
-                    OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
+                  if [ -d "${{ parameters.serviceDir }}/app" ]; then
+                    cd "${{ parameters.serviceDir }}"
+                    pytest --cov=app --cov-report=xml:coverage.xml tests/ -v
+                  else
+                    OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
+                    if [ "${{ parameters.serviceName }}" = "demand-forecast" ]; then
+                      OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
+                    elif [ "${{ parameters.serviceName }}" = "mlops-training" ]; then
+                      OMIT="$OMIT,*/forecast_api.py"
+                    elif [ "${{ parameters.serviceName }}" = "mlflow" ]; then
+                      OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
+                    fi
+                    coverage run --source=${{ parameters.serviceDir }} --omit="$OMIT" -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
+                    coverage xml -o ${{ parameters.serviceDir }}/coverage.xml
                   fi
-                  coverage run --source=${{ parameters.serviceDir }} --omit="$OMIT" -m unittest discover -s "${{ parameters.serviceDir }}/tests" -v
-                  coverage xml -o ${{ parameters.serviceDir }}/coverage.xml
                 fi
               displayName: "Python Unit Tests & Coverage"
 
@@ -403,7 +505,7 @@ stages:
               fi
               CONTEXT="${{ parameters.contextDir }}"
               if [ -z "$CONTEXT" ]; then
-                if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ] || [ "${{ parameters.serviceType }}" = "python" ]; then
+                if [ "${{ parameters.serviceType }}" = "react" ] || [ "${{ parameters.serviceType }}" = "frontend" ] || [ "${{ parameters.serviceType }}" = "python" ] || [ "${{ parameters.serviceType }}" = "go" ] || [ "${{ parameters.serviceType }}" = "nestjs" ]; then
                   CONTEXT="${{ parameters.serviceDir }}"
                 else
                   CONTEXT="."
