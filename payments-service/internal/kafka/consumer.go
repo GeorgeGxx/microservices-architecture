@@ -34,8 +34,9 @@ func NewOrderEventConsumer(brokers []string, topic, groupID string, processor Pa
 		Brokers:        brokers,
 		Topic:          topic,
 		GroupID:        groupID,
-		MinBytes:       10e3, // 10KB
+		MinBytes:       1,
 		MaxBytes:       10e6, // 10MB
+		MaxWait:        500 * time.Millisecond,
 		CommitInterval: time.Second,
 		StartOffset:    kafka.LastOffset,
 	})

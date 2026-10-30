@@ -30,11 +30,12 @@ type eventProducer struct {
 
 func NewEventProducer(brokers []string, topic string) EventProducer {
 	writer := &kafka.Writer{
-		Addr:         kafka.TCP(brokers...),
-		Topic:        topic,
-		Balancer:     &kafka.LeastBytes{},
-		BatchTimeout: 10 * time.Millisecond,
-		Async:        false,
+		Addr:                   kafka.TCP(brokers...),
+		Topic:                  topic,
+		Balancer:               &kafka.LeastBytes{},
+		BatchTimeout:           10 * time.Millisecond,
+		Async:                  false,
+		AllowAutoTopicCreation: true,
 	}
 	return &eventProducer{
 		writer: writer,
