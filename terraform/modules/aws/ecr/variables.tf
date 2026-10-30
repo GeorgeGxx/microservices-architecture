@@ -7,6 +7,10 @@ variable "repository_names" {
     "notification-service",
     "orders-service",
     "products-service",
+    "payments-service",
+    "fulfillment-service",
+    "analytics-service",
+    "mlops-training",
     "frontend",
   ]
 }

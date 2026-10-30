@@ -5,8 +5,14 @@ variable "environment" {
 
 variable "github_repo" {
   type        = string
-  description = "GitHub repository in format organization/repository (e.g. georgegxx/microservices-architecture)"
-  default     = "*/*"
+  description = "GitHub repository in format organization/repository (e.g. GeorgeGxx/microservices-architecture)"
+  default     = "GeorgeGxx/microservices-architecture"
+}
+
+variable "allowed_subjects" {
+  type        = list(string)
+  description = "Explicit OIDC sub claim patterns allowed to assume the role. If empty, defaults to environment-scoped branch/environment claims."
+  default     = []
 }
 
 variable "create_oidc_provider" {

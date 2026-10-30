@@ -36,6 +36,16 @@ output "production_dataplane_2_cluster_endpoint" {
   value       = try(module.eks_dp2[0].cluster_endpoint, null)
 }
 
+output "irsa_lb_controller_role_arn" {
+  description = "IAM Role ARN for AWS Load Balancer Controller on primary EKS dataplane."
+  value       = module.irsa_lb_controller.role_arn
+}
+
+output "production_dataplane_2_irsa_lb_controller_role_arn" {
+  description = "IAM Role ARN for AWS Load Balancer Controller on secondary production EKS dataplane; null outside prod."
+  value       = try(module.irsa_lb_controller_dp2[0].role_arn, null)
+}
+
 output "ecr_repository_urls" {
   value = module.ecr.repository_urls
 }

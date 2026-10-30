@@ -50,6 +50,16 @@ output "workload_identity_client_id" {
   value = module.workload_identity.client_id
 }
 
+output "production_dataplane_2_workload_identity_client_id" {
+  description = "Workload identity client ID for the secondary production AKS data-plane cluster; null outside prod."
+  value       = try(module.workload_identity_dp2[0].client_id, null)
+}
+
+output "production_dataplane_2_istio_ingress_public_ip" {
+  description = "Public IP address for the secondary production AKS Istio ingress gateway; null outside prod."
+  value       = try(azurerm_public_ip.istio_gateway_dp2_public_ip[0].ip_address, null)
+}
+
 output "storage_account_name" {
   value = module.storage_account.name
 }

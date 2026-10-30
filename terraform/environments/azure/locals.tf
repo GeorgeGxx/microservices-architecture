@@ -17,6 +17,9 @@ locals {
     "ms_products",
     "ms_inventory",
     "ms_orders",
+    "ms_payments",
+    "ms_fulfillment",
+    "ms_analytics",
     "keycloak_db"
   ]
 

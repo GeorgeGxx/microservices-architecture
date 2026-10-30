@@ -3,7 +3,8 @@ resource "google_container_cluster" "this" {
   location        = var.region
   resource_labels = var.labels
 
-  enable_autopilot = var.enable_autopilot
+  enable_autopilot    = var.enable_autopilot
+  deletion_protection = var.environment == "prod"
 
   network    = var.network_name
   subnetwork = var.subnetwork_name

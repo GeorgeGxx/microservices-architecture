@@ -140,12 +140,30 @@ resource "azurerm_cdn_frontdoor_origin" "api_origin" {
   weight                         = 1000
 }
 
+resource "azurerm_cdn_frontdoor_origin" "api_origin_dp2" {
+  count                         = var.secondary_api_backend_address != "" ? 1 : 0
+  name                          = "aks-dp2-istio-gateway-origin"
+  cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api_group.id
+  enabled                       = true
+
+  certificate_name_check_enabled = var.certificate_name_check_enabled
+  host_name                      = var.secondary_api_backend_address
+  http_port                      = 80
+  https_port                     = 443
+  origin_host_header             = var.domain_name != "" ? var.domain_name : var.secondary_api_backend_address
+  priority                       = 1
+  weight                         = 1000
+}
+
 # Dynamic Route (/graphql*, /api/*, /realms/*): Dispatches dynamic API and GraphQL calls to the AKS Istio ingress gateway
 resource "azurerm_cdn_frontdoor_route" "api_route" {
   name                          = "api-backend-route"
   cdn_frontdoor_endpoint_id     = azurerm_cdn_frontdoor_endpoint.this.id
   cdn_frontdoor_origin_group_id = azurerm_cdn_frontdoor_origin_group.api_group.id
-  cdn_frontdoor_origin_ids      = [azurerm_cdn_frontdoor_origin.api_origin.id]
+  cdn_frontdoor_origin_ids = compact([
+    azurerm_cdn_frontdoor_origin.api_origin.id,
+    try(azurerm_cdn_frontdoor_origin.api_origin_dp2[0].id, null)
+  ])
 
   supported_protocols    = ["Http", "Https"]
   patterns_to_match      = ["/graphql*", "/api/*", "/realms/*"]

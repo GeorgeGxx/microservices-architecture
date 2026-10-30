@@ -43,10 +43,19 @@ variable "deletion_protection" {
 variable "database_names" {
   type = list(string)
   default = [
+    "ms_products",
+    "ms_inventory",
+    "ms_orders",
+    "ms_payments",
+    "ms_fulfillment",
+    "ms_analytics",
     "products_service_db",
     "orders_service_db",
     "inventory_service_db",
     "notification_service_db",
+    "payments_service_db",
+    "fulfillment_service_db",
+    "analytics_service_db",
     "keycloak_db"
   ]
 }

@@ -23,6 +23,28 @@ data "aws_iam_openid_connect_provider" "existing" {
 
 locals {
   oidc_provider_arn = var.create_oidc_provider ? aws_iam_openid_connect_provider.github_actions[0].arn : data.aws_iam_openid_connect_provider.existing[0].arn
+
+  repo_variants = distinct([
+    var.github_repo,
+    lower(var.github_repo)
+  ])
+
+  env_branch_map = {
+    dev     = ["refs/heads/develop"]
+    staging = ["refs/heads/staging"]
+    prod    = ["refs/heads/prod"]
+  }
+
+  target_branches = lookup(local.env_branch_map, var.environment, ["refs/heads/develop", "refs/heads/staging", "refs/heads/prod"])
+
+  default_allowed_subjects = flatten([
+    for repo in local.repo_variants : concat(
+      [for ref in local.target_branches : "repo:${repo}:ref:${ref}"],
+      ["repo:${repo}:environment:${var.environment}"]
+    )
+  ])
+
+  effective_allowed_subjects = length(var.allowed_subjects) > 0 ? var.allowed_subjects : local.default_allowed_subjects
 }
 
 resource "aws_iam_role" "github_actions_ci_cd" {
@@ -43,7 +65,7 @@ resource "aws_iam_role" "github_actions_ci_cd" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repo}:*"
+            "token.actions.githubusercontent.com:sub" = local.effective_allowed_subjects
           }
         }
       }

@@ -80,6 +80,14 @@ resource "azurerm_role_assignment" "aks_acr" {
   principal_id         = module.aks.kubelet_identity_object_id
 }
 
+# Attach ACR Pull role to Secondary Production AKS Dataplane Kubelet identity
+resource "azurerm_role_assignment" "aks_dp2_acr" {
+  count                = local.env == "prod" ? 1 : 0
+  scope                = module.acr.acr_id
+  role_definition_name = "AcrPull"
+  principal_id         = module.aks_dp2[0].kubelet_identity_object_id
+}
+
 # Private DNS Zone for PostgreSQL Flexible Server
 resource "azurerm_private_dns_zone" "postgres" {
   count               = local.cfg.enable_managed_db ? 1 : 0
@@ -149,6 +157,13 @@ module "keyvault" {
   tags                           = local.tags
 }
 
+resource "azurerm_role_assignment" "aks_dp2_secrets_reader" {
+  count                = local.env == "prod" ? 1 : 0
+  scope                = module.keyvault.key_vault_id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = module.aks_dp2[0].kubelet_identity_object_id
+}
+
 module "monitor" {
   source = "../../modules/azure/monitor"
 
@@ -171,6 +186,20 @@ module "workload_identity" {
   service_account_namespace = "default"
   service_account_name      = "backend-workload-identity"
   tags                      = local.tags
+}
+
+module "workload_identity_dp2" {
+  count  = local.env == "prod" ? 1 : 0
+  source = "../../modules/azure/workload_identity"
+
+  name                      = "${local.name}-dp2"
+  environment               = local.env
+  location                  = var.location
+  resource_group_name       = azurerm_resource_group.this.name
+  aks_oidc_issuer_url       = module.aks_dp2[0].oidc_issuer_url
+  service_account_namespace = "default"
+  service_account_name      = "backend-workload-identity"
+  tags                      = merge(local.tags, { DataPlane = "2" })
 }
 
 module "storage_account" {
@@ -222,19 +251,31 @@ resource "azurerm_public_ip" "istio_gateway_public_ip" {
   tags                = local.tags
 }
 
-# Azure Front Door Premium Dual-Origin (Storage Account Blob Frontend + AKS Istio gateway API)
+# Public IP for Secondary Production AKS Dataplane Standard Load Balancer fronting Istio ingress gateway (L4)
+resource "azurerm_public_ip" "istio_gateway_dp2_public_ip" {
+  count               = local.env == "prod" ? 1 : 0
+  name                = "${local.name}-dp2-${local.env}-istio-gw-pip"
+  resource_group_name = azurerm_resource_group.this.name
+  location            = var.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  tags                = merge(local.tags, { DataPlane = "2" })
+}
+
+# Azure Front Door Premium Dual-Origin (Storage Account Blob Frontend + AKS Istio gateway API across Dataplanes)
 # Protected by Managed Azure WAF Policy (OWASP Top 10 + Bot Protection)
 module "frontdoor" {
   count  = local.cfg.enable_frontdoor ? 1 : 0
   source = "../../modules/azure/frontdoor"
 
-  name                  = local.name
-  environment           = local.env
-  resource_group_name   = azurerm_resource_group.this.name
-  storage_blob_endpoint = module.storage_account.primary_blob_endpoint
-  api_backend_address   = azurerm_public_ip.istio_gateway_public_ip.ip_address
-  domain_name           = var.domain_name
-  tags                  = local.tags
+  name                          = local.name
+  environment                   = local.env
+  resource_group_name           = azurerm_resource_group.this.name
+  storage_blob_endpoint         = module.storage_account.primary_blob_endpoint
+  api_backend_address           = azurerm_public_ip.istio_gateway_public_ip.ip_address
+  secondary_api_backend_address = try(azurerm_public_ip.istio_gateway_dp2_public_ip[0].ip_address, "")
+  domain_name                   = var.domain_name
+  tags                          = local.tags
 }
 
 module "dns_zone" {
