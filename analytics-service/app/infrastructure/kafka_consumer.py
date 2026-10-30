@@ -42,6 +42,12 @@ class AnalyticsKafkaConsumer:
                 self.consume_task = asyncio.create_task(self._consume_loop())
                 return
             except Exception as e:
+                if self.consumer is not None:
+                    try:
+                        await self.consumer.stop()
+                    except Exception:
+                        pass
+                    self.consumer = None
                 logger.warning(f"Kafka connection attempt {attempt}/15 failed: {e}. Retrying in 2s...")
                 await asyncio.sleep(2)
 

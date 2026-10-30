@@ -10,23 +10,34 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly kafka: Kafka;
   private readonly consumer: Consumer;
   private readonly paymentsTopic = process.env.KAFKA_PAYMENTS_TOPIC || 'payments-topic';
+  private isShuttingDown = false;
+  private reconnectTimer?: ReturnType<typeof setTimeout>;
 
   constructor(
     private readonly createShipmentUseCase: CreateShipmentUseCase,
     @Optional() private readonly dispatchShipmentUseCase?: DispatchShipmentUseCase,
     @Optional() @Inject(EVENT_PUBLISHER) private readonly eventPublisher?: EventPublisher,
   ) {
-    const brokers = (process.env.KAFKA_BOOTSTRAP_SERVERS || 'localhost:9092').split(',');
+    const brokers = (process.env.KAFKA_BOOTSTRAP_SERVERS || process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
     this.kafka = new Kafka({
       clientId: 'fulfillment-service-consumer',
       brokers,
+      retry: {
+        initialRetryTime: 500,
+        retries: 15,
+      },
     });
     this.consumer = this.kafka.consumer({
-      groupId: process.env.KAFKA_GROUP_ID || 'fulfillment-service-group',
+      groupId: process.env.KAFKA_GROUP_ID || process.env.KAFKA_CONSUMER_GROUP || 'fulfillment-service-group',
     });
   }
 
   async onModuleInit() {
+    await this.connectAndSubscribe();
+  }
+
+  private async connectAndSubscribe() {
+    if (this.isShuttingDown) return;
     try {
       await this.consumer.connect();
       await this.consumer.subscribe({ topic: this.paymentsTopic, fromBeginning: false });
@@ -85,11 +96,21 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
         },
       });
     } catch (err) {
-      this.logger.warn(`Could not connect Kafka consumer immediately: ${err.message}`);
+      this.logger.warn(`Could not connect Kafka consumer immediately: ${err.message}. Retrying in 5s...`);
+      if (!this.isShuttingDown) {
+        this.reconnectTimer = setTimeout(() => {
+          void this.connectAndSubscribe();
+        }, 5000);
+        this.reconnectTimer.unref?.();
+      }
     }
   }
 
   async onModuleDestroy() {
+    this.isShuttingDown = true;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
     await this.consumer.disconnect();
   }
 }

@@ -325,9 +325,12 @@ services:
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
     restart: unless-stopped
     depends_on:
-      - kafka
-      - redis
-      - otel-collector
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - spring
 
@@ -353,7 +356,7 @@ services:
       db-orders:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
       redis:
         condition: service_healthy
       otel-collector:
@@ -436,7 +439,7 @@ services:
       db-payments:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "/app/payments-service", "-healthcheck"]
       interval: 10s
@@ -491,13 +494,14 @@ services:
       KAFKA_PAYMENTS_TOPIC: payments-topic
       KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
       KAFKA_GROUP_ID: fulfillment-service-group
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
       NODE_ENV: production
     restart: unless-stopped
     depends_on:
       db-fulfillment:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/health || exit 1"]
       interval: 10s
@@ -559,7 +563,7 @@ services:
       db-analytics:
         condition: service_healthy
       kafka:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8087/health')"]
       interval: 10s
@@ -651,7 +655,11 @@ services:
     volumes:
       - kafka_data:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:9092 --list | grep -q fulfillment-topic || (for t in orders-topic payments-topic fulfillment-topic; do kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic $$t --partitions 1 --replication-factor 1 >/dev/null 2>&1; done)",
+        ]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -668,7 +676,7 @@ services:
     restart: unless-stopped
     depends_on:
       kafka:
-        condition: service_started
+        condition: service_healthy
     networks:
       - spring
   
