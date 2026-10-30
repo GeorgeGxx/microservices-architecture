@@ -13,7 +13,6 @@ import pandas as pd
 
 class DataContractViolation(ValueError):
     """Raised when an incoming event or dataset violates the MLOps data contract."""
-    pass
 
 
 def _validate_event_items(items: Any) -> None:

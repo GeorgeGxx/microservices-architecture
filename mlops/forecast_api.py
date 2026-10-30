@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -28,6 +29,26 @@ from prometheus_client import (
 )
 from sklearn.ensemble import RandomForestRegressor
 from starlette.responses import Response
+
+logger = logging.getLogger("DemandForecastApi")
+
+
+class ModelUnavailableError(RuntimeError):
+    """Raised when no usable model or historical sales data is available."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.status_code = 503
+
+
+class SalesDataInvalidError(ValueError):
+    """Raised when sales input data fails structure or content validation."""
+
+    def __init__(self, detail: str) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.status_code = 422
 
 
 app = FastAPI(title="Demand Forecast API", version="1.0.0")
@@ -222,8 +243,8 @@ def _fallback_or_fail_model(detail: str, cause: Exception | None = None) -> tupl
         return _ACTIVE_MODEL_ENTRY[0], _ACTIVE_MODEL_ENTRY[1], _ACTIVE_MODEL_ENTRY[2]
     MODEL_AVAILABLE.set(0)
     if cause is not None:
-        raise HTTPException(status_code=503, detail=detail) from cause
-    raise HTTPException(status_code=503, detail=detail)
+        raise ModelUnavailableError(detail) from cause
+    raise ModelUnavailableError(detail)
 
 
 def _update_model_metrics(chosen_run: Any, created: datetime) -> None:
@@ -271,9 +292,9 @@ def load_latest_model() -> tuple[RandomForestRegressor, str, datetime]:
         MODEL_AVAILABLE.set(1)
         return model, chosen_run.info.run_id, created
 
-    except HTTPException:
-        raise
     except Exception as exc:
+        if isinstance(exc, (ModelUnavailableError, SalesDataInvalidError)):
+            raise
         return _fallback_or_fail_model("Could not load the latest trained model", exc)
 
 
@@ -299,13 +320,13 @@ def _read_sales_file(path: Path) -> pd.DataFrame:
             return pd.read_parquet(path)
         return pd.read_csv(path)
     except (OSError, ValueError, ImportError) as exc:
-        raise HTTPException(status_code=503, detail="Could not read the sales data") from exc
+        raise ModelUnavailableError("Could not read the sales data") from exc
 
 
 def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.DataFrame, str]:
     required = {"date", "product_id", "units_sold"}
     if not required.issubset(sales.columns):
-        raise HTTPException(status_code=422, detail="Sales data requires date, product_id, and units_sold columns")
+        raise SalesDataInvalidError("Sales data requires date, product_id, and units_sold columns")
     sales["date"] = pd.to_datetime(sales["date"], errors="coerce").dt.date
     sales["units_sold"] = pd.to_numeric(sales["units_sold"], errors="coerce")
     sales = sales.dropna(subset=["date", "product_id", "units_sold"])
@@ -315,7 +336,7 @@ def _clean_and_aggregate_sales(sales: pd.DataFrame, file_stem: str) -> tuple[pd.
             sales = sales.sort_values("kafka_timestamp")
         sales = sales.drop_duplicates(subset=["order_number", "product_id"], keep="last")
     if sales.empty:
-        raise HTTPException(status_code=422, detail="Sales data has no usable dated rows")
+        raise SalesDataInvalidError("Sales data has no usable dated rows")
 
     # Bound historical depth to the most recent 90 days for inference efficiency
     max_history_date = sales["date"].max()
@@ -340,7 +361,7 @@ def _daily_history() -> tuple[pd.DataFrame, str, date, date]:
     global _DAILY_HISTORY_CACHE
     active_sales_path = _resolve_active_sales_path()
     if not active_sales_path.exists():
-        raise HTTPException(status_code=503, detail=f"Sales data is missing: {active_sales_path.name}")
+        raise ModelUnavailableError(f"Sales data is missing: {active_sales_path.name}")
 
     now_mono = perf_counter()
     current_mtime = _get_path_mtime(active_sales_path)
@@ -412,8 +433,8 @@ def health() -> dict[str, str]:
         LAST_OBSERVED_SALE.set(
             datetime.combine(last_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Health probe telemetry refresh skipped: %s", exc)
     return {"status": "UP"}
 
 
@@ -440,23 +461,28 @@ def info() -> dict[str, Any]:
 )
 def get_forecast(_: Annotated[dict[str, Any], Depends(require_admin)]) -> dict[str, Any]:
     """Return daily SKU predictions for seven days after the last observed date."""
-    model, run_id, model_created_at = load_latest_model()
-    history, source, first_date, last_date = _daily_history()
-    LAST_SUCCESS.set(time.time())
-    LAST_OBSERVED_SALE.set(
-        datetime.combine(last_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
-    )
-    products = [
-        _forecast_product(model, history, str(sku))
-        for sku in sorted(history["sku"].unique())
-    ]
-    return {
-        "horizonDays": HORIZON_DAYS,
-        "dataSource": source,
-        "generatedAt": datetime.now(timezone.utc).isoformat(),
-        "modelRunId": run_id,
-        "modelCreatedAt": model_created_at.isoformat(),
-        "historyStartDate": first_date.isoformat(),
-        "historyEndDate": last_date.isoformat(),
-        "products": products,
-    }
+    try:
+        model, run_id, model_created_at = load_latest_model()
+        history, source, first_date, last_date = _daily_history()
+        LAST_SUCCESS.set(time.time())
+        LAST_OBSERVED_SALE.set(
+            datetime.combine(last_date, datetime.min.time(), tzinfo=timezone.utc).timestamp()
+        )
+        products = [
+            _forecast_product(model, history, str(sku))
+            for sku in sorted(history["sku"].unique())
+        ]
+        return {
+            "horizonDays": HORIZON_DAYS,
+            "dataSource": source,
+            "generatedAt": datetime.now(timezone.utc).isoformat(),
+            "modelRunId": run_id,
+            "modelCreatedAt": model_created_at.isoformat(),
+            "historyStartDate": first_date.isoformat(),
+            "historyEndDate": last_date.isoformat(),
+            "products": products,
+        }
+    except ModelUnavailableError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except SalesDataInvalidError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

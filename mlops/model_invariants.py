@@ -42,16 +42,15 @@ def generate_bounded_forecast(
     """Generate a multi-step bounded forecast projecting continuous future dates."""
     forecasts = []
     # Base prediction seed from model or fallback
-    raw_pred = 0.0
+    fallback_mean = float(np.mean(recent_lags)) if recent_lags else 0.0
+    raw_pred = fallback_mean
     if hasattr(model, "predict"):
         try:
             # Synthetic feature vector: [lag_1, lag_7, day_of_week, day_of_year]
             feature_vector = np.array([[recent_lags[0], recent_lags[-1], last_date.weekday(), last_date.timetuple().tm_yday]])
             raw_pred = float(model.predict(feature_vector)[0])
         except Exception:
-            raw_pred = float(np.mean(recent_lags)) if len(recent_lags) > 0 else 0.0
-    else:
-        raw_pred = float(np.mean(recent_lags)) if len(recent_lags) > 0 else 0.0
+            raw_pred = fallback_mean
 
     bounded_val = float(clamp_predictions(np.array([raw_pred]))[0])
 
