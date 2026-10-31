@@ -103,7 +103,7 @@ spec:
             principals:
               - "cluster.local/ns/production/sa/orders-service-sa"
 ---
-# 5. Allow Prometheus and Observability Scrapers to reach Metrics endpoints
+# 5. Allow Prometheus and Observability Scrapers to reach Metrics and Health endpoints
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -112,9 +112,15 @@ metadata:
 spec:
   action: ALLOW
   rules:
+    # Authenticated in-mesh telemetry collectors (mTLS SPIFFE ID)
     - from:
         - source:
             namespaces: ["observability", "istio-system"]
       to:
         - operation:
+            paths: ["/actuator*", "/metrics*", "/stats/prometheus*", "/health*"]
+    # Telemetry scraping without sidecar (L3/L4 NetworkPolicy restricts network origin to observability)
+    - to:
+        - operation:
+            methods: ["GET", "HEAD"]
             paths: ["/actuator*", "/metrics*", "/stats/prometheus*", "/health*"]
