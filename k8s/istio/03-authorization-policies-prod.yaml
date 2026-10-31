@@ -72,7 +72,7 @@ spec:
         - operation:
             ports: ["8001", "8002", "8003", "8004", "8085", "8086", "8087"]
 ---
-# 4. Allow Service-to-Service East-West Communication (Orders -> Inventory, Payments, Notifications)
+# 4. Allow Service-to-Service East-West Communication (Orders -> Products, Inventory, Payments, Notifications)
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -87,7 +87,7 @@ spec:
               - "cluster.local/ns/production/sa/orders-service-sa"
       to:
         - operation:
-            ports: ["8001", "8002", "8085"]
+            ports: ["8001", "8002", "8004", "8085"]
 ---
 # 5. Allow Frontend to call Demand Forecast Service
 apiVersion: security.istio.io/v1beta1
