@@ -852,8 +852,6 @@ graph LR
   ```powershell
   # Launch the resilient background port-forwarding supervisor daemon:
   .\platform-minikube.ps1 tunnels
-  # Direct script execution:
-  python scripts/supervise-tunnels.py
   ```
 * **Keycloak Reverse Proxy Compliance:** Configured with `KC_PROXY_HEADERS: "xforwarded"`, `KC_HOSTNAME_STRICT: "false"`, and `KC_HOSTNAME_STRICT_HTTPS: "false"` across [`compose.yaml`](../../compose.yaml) and [`keycloak.yaml`](../../k8s/minikube/infra/keycloak.yaml) to eliminate untrusted proxy header rejections.
 

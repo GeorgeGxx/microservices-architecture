@@ -5,17 +5,11 @@ Enterprise Microservices Smoke Testing Super-Script (smoke.py)
 Combines functional frontend-to-backend checks, a dual-target deployment gate,
 and an optional bounded, read-only GraphQL resilience probe.
 ==============================================================================
-Orchestrator Shortcut (Recommended):
+Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 smoke
-
-Direct CLI Usage:
-  python scripts/testing/smoke.py
-  python scripts/testing/smoke.py --base-url http://localhost:5173 --max-latency-ms 300
-  python scripts/testing/smoke.py --resilience
-  python scripts/testing/smoke.py --resilience --vus 2 --duration-seconds 30
-  python scripts/testing/smoke.py --deployment --base-url http://localhost:8080 --frontend-url http://localhost:5173
-  python scripts/testing/smoke.py --json
-  python scripts/testing/smoke.py --strict
+  .\platform-minikube.ps1 smoke -Resilience [-Vus 2] [-Duration 30]
+  .\platform-minikube.ps1 smoke -Strict -Json
+==============================================================================
 """
 
 import os

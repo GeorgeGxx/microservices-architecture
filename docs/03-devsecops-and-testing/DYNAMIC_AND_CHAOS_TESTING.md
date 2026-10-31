@@ -68,14 +68,14 @@ Enterprise testing scripts located in `scripts/testing/` (fully orchestrated via
 Simulates shopping journeys through Cosmo Router GraphQL, sends funnel events through the frontend REST proxy, and places authenticated orders.
 
 ```powershell
-# Recommended (Unified Orchestrator):
+# Run a default batch of 15 orders:
 .\platform-minikube.ps1 simulate
-.\platform-minikube.ps1 simulate -Orders 50
 
-# Direct script execution:
-python scripts/testing/simulate.py --scenario traffic
-python scripts/testing/simulate.py --scenario traffic --orders 50 --concurrency 5
-python scripts/testing/simulate.py --scenario traffic --continuous
+# Place custom number of orders with specified concurrency:
+.\platform-minikube.ps1 simulate -Orders 50 -Concurrency 5
+
+# Run continuous background shopper simulation:
+.\platform-minikube.ps1 simulate -Continuous
 ```
 
 ### 2. ⚡ Resilience4j Circuit Breaker State Verification
@@ -105,7 +105,7 @@ docker compose stop inventory-service
 kubectl scale deployment inventory-service --replicas=0 -n dev
 
 # 2. Run continuous traffic to keep the circuit in steady OPEN (Red #ef4444):
-python scripts/testing/simulate.py --scenario traffic --continuous
+.\platform-minikube.ps1 simulate -Continuous
 ```
 * **Grafana Verification:** The panel **⚡ Resilience4j Circuit Breakers Health** will display **`OPEN / TRIPPED` (🔴 Red)**.
 
@@ -134,7 +134,7 @@ docker compose start inventory-service
 kubectl scale deployment inventory-service --replicas=1 -n dev
 
 # 2. Send 2 trial orders (sequential concurrency) to satisfy the 2-call probe:
-python scripts/testing/simulate.py --scenario traffic --orders 2 --concurrency 1
+.\platform-minikube.ps1 simulate -Orders 2 -Concurrency 1
 ```
 * **Grafana Verification:** Both trial orders succeed with HTTP 201, and the panel instantly resets to **`CLOSED / HEALTHY` (🟢 Green)**.
 
@@ -142,45 +142,47 @@ python scripts/testing/simulate.py --scenario traffic --orders 2 --concurrency 1
 ### 3. 🧪 GraphQL Checkout Validation (`platform-minikube.ps1 chaos`)
 Exercises valid, out-of-stock, and unknown SKU checkout mutations through Cosmo Router and reports successful orders, business rejections, and upstream HTTP failures:
 ```powershell
-# Recommended (Unified Orchestrator):
+# Default chaos simulation run (30 iterations):
 .\platform-minikube.ps1 chaos
-.\platform-minikube.ps1 chaos -ChaosRuns 50
 
-# Automated Level 5 Chaos Drills (Latency, Poison Pills, DLQ, Cell Evacuation):
+# Custom iterations and concurrency:
+.\platform-minikube.ps1 chaos -ChaosRuns 50 -Concurrency 4
+
+# Automated Level 5 Chaos Drills (Poison Pills, Network Latency, DLQ, Cell Evacuation):
 .\platform-minikube.ps1 chaos-drills -TargetService orders-service
-
-# Direct script execution:
-python scripts/testing/simulate.py --scenario chaos
 ```
 
 ### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`platform-minikube.ps1 ddos`)
 Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, override `--ddos-url`:
 ```powershell
-# Recommended (Unified Orchestrator):
+# Default rate-limiting flood probe (30s, 32 concurrent workers):
 .\platform-minikube.ps1 ddos
+
+# Custom duration and worker concurrency:
 .\platform-minikube.ps1 ddos -Duration 30 -Workers 32
 
-# Direct script execution:
-python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 32
-python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:5173 --duration 30 --workers 32
-python scripts/testing/simulate.py --scenario ddos --single-source
-python scripts/testing/simulate.py --scenario ddos --no-auth
+# Disable synthetic X-Forwarded-For IP rotation:
+.\platform-minikube.ps1 ddos -SingleSource
+
+# Send anonymous GraphQL requests without Keycloak token:
+.\platform-minikube.ps1 ddos -NoAuth
 ```
 
 The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. A single worker or a short low-volume check will not cross that limit and therefore will not create 429 log records. The dashboard threat LED averages 429 events over one minute: it turns amber above 1 blocked request/second and red at 5/second; expect a short ingestion/refresh delay and up to one minute of decay after the load stops. `--distributed` sends synthetic `X-Forwarded-For` headers only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads actual HTTP 429 JSON records and peer IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `--no-auth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
-# Recommended (Unified Orchestrator):
+# Run frontend, Cosmo Router GraphQL, proxied catalog/order REST, and auth smoke checks:
 .\platform-minikube.ps1 smoke
-.\platform-minikube.ps1 diagnose -Action components
-.\platform-minikube.ps1 diagnose -Action all
 
-# Direct script execution:
-python scripts/testing/smoke.py
-python scripts/testing/diagnose.py components --target swagger
-python scripts/testing/diagnose.py components --target all
-```
+# Verify OpenAPI v3 / Swagger docs availability:
+.\platform-minikube.ps1 diagnose -Action components -Target swagger
+
+# Verify Prometheus metrics & Grafana dashboards:
+.\platform-minikube.ps1 diagnose -Action components -Target all
+
+# Run deep telemetry diagnostic (PromQL, JVM, Vault):
+.\platform-minikube.ps1 diagnose -Action telemetry
 ```
 
 ### 6. 🛒 Funnel Event Activity Verification
@@ -192,11 +194,7 @@ The event contract does not carry a shared shopper/session identifier. The dashb
 #### Method 1: Send CART_ADD demo events
 
 ```powershell
-# Recommended (Unified Orchestrator):
 .\platform-minikube.ps1 funnel-demo -Count 30 -Category Electronics
-
-# Direct script execution:
-python scripts/update_dashboards.py funnel-demo --count 30 --category Electronics
 ```
 
 The command sends 30 observed cart-add events through the frontend endpoint. It does not synthesize checkout stages, orders, or an abandonment percentage. After the next Prometheus scrape, select the matching time range in Grafana to see the event count.
@@ -206,7 +204,7 @@ The command sends 30 observed cart-add events through the frontend endpoint. It 
 The multi-threaded traffic scenario sends `CART_ADD`, `CHECKOUT_START`, and `CHECKOUT_STEP` events before a subset of shopper journeys place orders:
 
 ```powershell
-python scripts/testing/simulate.py --scenario traffic --orders 20 --concurrency 4
+.\platform-minikube.ps1 simulate -Orders 20 -Concurrency 4
 ```
 
 The panel shows stage-event activity and completed-order snapshot change over the selected range. It does not attribute an order to a particular cart.
@@ -214,7 +212,7 @@ The panel shows stage-event activity and completed-order snapshot change over th
 To support a true conversion or abandonment rate, the event contract must add a stable session/cart identifier and persist timestamped stage events so each journey can be correlated.
 
 ### 📦 Postman & Newman Test Suite (Unified Collection):
-The repository maintains a 23-request Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) for headless CI/CD execution with Newman (54 automated assertions, 100% pass rate). Its JSON export is generated by `scripts/generate_postman_collection.py`. The suite targets **Cosmo Router with GraphQL Federation v2**, **Keycloak OIDC**, and **MLOps Demand Forecasting**:
+The repository maintains a 23-request Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) for headless CI/CD execution with Newman (54 automated assertions, 100% pass rate). Its JSON export is generated via `.\platform-minikube.ps1 postman-gen`. The suite targets **Cosmo Router with GraphQL Federation v2**, **Keycloak OIDC**, and **MLOps Demand Forecasting**:
 
 * **Keycloak Login Requests:** The standard/admin requests save separate JWTs in `{{user_jwt_token}}` and `{{admin_jwt_token}}` via the public client (`microservices_frontend`). Provision the realm, enable the development test users and direct grants with `scripts/bootstrap-keycloak.ps1` before running them; the collection does not need a client secret.
 * **Federated GraphQL Operations:** Native queries and mutations against Cosmo Router (`POST {{base_url}}/graphql`):
@@ -229,10 +227,10 @@ The repository maintains a 23-request Postman collection in [`devsecops/testing/
 * **Telemetry & SSE Streams:** Funnel event ingestion (`POST {{base_url}}/api/order/funnel`) and live Server-Sent Events (`GET {{base_url}}/api/notifications/stream`). Requests use the frontend Nginx reverse proxy, so they work without separate host port-forwards to each ClusterIP service. Set `BASE_URL` to the reachable frontend URL (default `http://127.0.0.1:5173`, also used by the Minikube tunnel supervisor). The SSE stream is long-lived; run it individually rather than in the full Newman collection.
 * **CI/CD Quality Gate (Newman CLI):** Fully compatible with automated pipeline execution in GitHub Actions, Azure DevOps, and Bitbucket Pipelines (`newman run $COLLECTION --env-var "BASE_URL=${TARGET_URL}"`). Pre-request scripts automatically harmonize `base_url` and `BASE_URL`.
 
-### 7. 🔎 Read-Only Authenticated Order Check (`diagnose.py orders-readonly`)
+### 7. 🔎 Read-Only Authenticated Order Check (`platform-minikube.ps1 diagnose -Action orders-readonly`)
 Acquires a Keycloak token with the confidential `microservices_client` and performs `GET /api/order` through frontend Nginx. It requires `KEYCLOAK_CLIENT_SECRET` from the environment or project `.env` and does not create or mutate orders:
 ```powershell
-python scripts/testing/diagnose.py orders-readonly
+.\platform-minikube.ps1 diagnose -Action orders-readonly
 ```
 
 ### 8. 🧪 MLOps Unit & Model Governance Suite (`mlops/tests/`)

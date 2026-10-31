@@ -9,13 +9,10 @@ Supports:
 Can parse live 'tfplan.json', evaluate architectural baseline profiles, or
 calculate incremental plan deltas (--plan-delta).
 
-Orchestrator Shortcut (Recommended):
+Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 finops [-Environment dev|staging|prod]
+  .\platform-minikube.ps1 finops-rightsize
   .\platform-minikube.ps1 cost
-
-Direct CLI Usage:
-  python scripts/local-cost-estimator.py [--env staging] [--markdown-out report.md]
-  python scripts/local-cost-estimator.py rightsize [--prometheus-url http://127.0.0.1:9090]
 ==============================================================================
 """
 

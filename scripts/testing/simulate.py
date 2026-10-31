@@ -10,16 +10,11 @@ Consolidates:
   3. Chaos Engineering & Resilience: Concurrent high-load, out-of-stock SKUs,
      circuit breaker tripping, idempotency conflict handling.
 
-Orchestrator Shortcut (Recommended):
-  .\platform-minikube.ps1 simulate [-Orders 20]
-  .\platform-minikube.ps1 ddos [-Duration 30] [-Workers 32]
-  .\platform-minikube.ps1 chaos [-ChaosRuns 30]
-
-Direct CLI Usage:
-  python scripts/testing/simulate.py --scenario traffic [--orders 20] [--concurrency 4] [--continuous]
-  python scripts/testing/simulate.py --scenario ddos [--duration 30] [--workers 32] [--distributed]
-  python scripts/testing/simulate.py --scenario chaos [--chaos-runs 30] [--concurrency 8]
-  python scripts/testing/simulate.py --scenario all
+Orchestrator Commands (platform-minikube.ps1):
+  .\platform-minikube.ps1 simulate [-Orders 20] [-Concurrency 4] [-Continuous]
+  .\platform-minikube.ps1 ddos [-Duration 30] [-Workers 32] [-SingleSource] [-NoAuth]
+  .\platform-minikube.ps1 chaos [-ChaosRuns 30] [-Concurrency 4]
+  .\platform-minikube.ps1 chaos-drills [-TargetService orders-service]
 ==============================================================================
 """
 

@@ -200,7 +200,7 @@ Before promoting any container image to staging or production, the release opera
 docker compose --profile training run --rm demand-model-training --input-parquet /data/sales_parquet
 
 # 2. Run Full End-to-End User Journey Verification
-python scripts/testing/test-e2e-journey.py --router-url http://127.0.0.1:8080 --forecast-url http://127.0.0.1:8005
+.\platform-minikube.ps1 journey
 
 # 3. Verify Version Evidence Across Services
 Invoke-RestMethod -Uri "http://localhost:8003/actuator/orders/info" | ConvertTo-Json

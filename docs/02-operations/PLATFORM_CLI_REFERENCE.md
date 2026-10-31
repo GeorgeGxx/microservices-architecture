@@ -54,9 +54,9 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 ### 2. Simulation, Traffic & Chaos Engineering (Consolidated Python Engine)
 | Command | Key Parameters | Underlying Engine & Description |
 | :--- | :--- | :--- |
-| `simulate` | `-Scenario <traffic\|ddos\|chaos\|all>`, `-Orders <n>` | Executes realistic shopping sessions, cart events, and Keycloak-authenticated checkout. |
-| `ddos` | `-Duration <sec>`, `-Workers <n>` | Sends concurrent GraphQL flood against frontend Nginx rate-limiting edge (20 req/s threshold) to verify HTTP 429 backoff and edge defense. |
-| `chaos` | `-ChaosRuns <n>` | Executes runtime chaos tests (concurrent checkout load, out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling). |
+| `simulate` | `-Orders <n>`, `-Concurrency <n>`, `-Continuous`, `-Scenario <traffic\|ddos\|chaos\|all>` | Executes realistic shopping sessions, cart events, and Keycloak-authenticated checkout. |
+| `ddos` | `-Duration <sec>`, `-Workers <n>`, `-SingleSource`, `-NoAuth` | Sends concurrent GraphQL flood against frontend Nginx rate-limiting edge (20 req/s threshold) to verify HTTP 429 backoff and edge defense. |
+| `chaos` | `-ChaosRuns <n>`, `-Concurrency <n>` | Executes runtime chaos tests (concurrent checkout load, out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling). |
 | `chaos-drills` | `-TargetService <orders\|products\|...>` | Runs automated Level 5 Hyper-Scale Chaos Drills (Poison Pill injection, Network Latency, Cell Evacuation, Concurrent Duplicate Flooding). |
 | `journey` / `e2e` | | Executes full cross-service e-commerce and MLOps end-to-end user journey test suite. |
 
@@ -65,7 +65,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | :--- | :--- | :--- |
 | `dashboards` | `-Push` | Curates and generates Grafana Business & Technical JSON dashboards; pushes live to Grafana when `-Push` is supplied. |
 | `funnel-demo` | `-Count <n>`, `-Category <name>` | Emits demo `CART_ADD` telemetry events directly to test conversion funnels and abandonment panels. |
-| `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, and Keycloak auth. |
+| `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>`, `-Target <name>`, `-Query <promql>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, PromQL queries, and Keycloak auth. |
 | `doctor` | | Comprehensive cluster diagnostic: pods, endpoints, metrics pipeline, and health gates. |
 | `urls` | | Displays all active local port-forward URLs, ingress endpoints, and default credentials. |
 | `tunnels` | | Manages and supervises background port-forward tunnels for local services. |
@@ -77,7 +77,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | `set-tag` | `-ImageTag <tag>`, `-Service <name>`, `-TargetEnv <env>` | Synchronizes image tags across Helm values files via `yq`. |
 | `test` | | Executes Java 21 + Maven multi-module reactor unit tests on host. |
 | `security-scan` | | Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign). |
-| `smoke` | | Runs router and presentation frontend health & HTTP smoke checks. |
+| `smoke` | `-Resilience`, `-Strict`, `-Json`, `-Vus <n>`, `-Duration <sec>` | Runs router and presentation frontend health & HTTP smoke checks or bounded resilience load probes. |
 | `contract` | | Executes Newman/Postman API contract integration suite (23/23 tests, 54 assertions). |
 | `performance` | | Runs Grafana k6 SLA latency, throughput, and performance benchmarks. |
 | `dast` | | Executes OWASP ZAP baseline dynamic application security scan against frontend. |
@@ -87,7 +87,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | :--- | :--- | :--- |
 | `mlops` | | Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline demand model training. |
 | `mlops-train` | `-Days <n>` | Runs demand forecasting model training via `mlops/training.ps1`. |
-| `mlops-data` | `-Days <n>` | Generates synthetic historical sales dataset via `mlops/generate_sample_sales.py`. |
+| `mlops-data` | `-Days <n>`, `-Kafka` | Generates synthetic historical sales dataset, optionally streaming DELIVERED events directly to Kafka. |
 | `postman-gen` | | Generates the unified Newman/Postman 23-request collection JSON (`microservices.postman_collection.json`). |
 | `diagrams` | | Generates and synchronizes 17 architecture blueprint tabs in `docs/Diagrams.drawio`. |
 | `finops` | `-Environment <dev\|staging\|prod>` | Offline illustrative FinOps cost model estimate and rightsizing analysis. |

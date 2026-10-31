@@ -8,13 +8,9 @@ Generates and provisions:
      JVM heap, and edge rate-limiting telemetry.
   3. Demo Funnel Generator: Ingests CART_ADD events for conversion funnels.
 
-Orchestrator Shortcut (Recommended):
+Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 dashboards [-Push]
   .\platform-minikube.ps1 funnel-demo [-Count 30] [-Category Electronics]
-
-Direct CLI Usage:
-  python scripts/update_dashboards.py [--push]
-  python scripts/update_dashboards.py funnel-demo [--count 30] [--category Electronics]
 ==============================================================================
 """
 import json

@@ -1,12 +1,10 @@
 r"""
 Generate clearly labeled synthetic daily sales history for local MLOps runs.
 
-Orchestrator Shortcut (Recommended):
-  .\platform-minikube.ps1 mlops-data [-Days 14]
+Orchestrator Commands (platform-minikube.ps1):
+  .\platform-minikube.ps1 mlops-data [-Days 14] [-Kafka]
   .\platform-minikube.ps1 mlops-train [-Days 14]
-
-Direct CLI Usage:
-  python mlops/generate_sample_sales.py [--days 14]
+==============================================================================
 """
 
 from __future__ import annotations

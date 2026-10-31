@@ -123,7 +123,7 @@ Because microservices operate across isolated containers, federated gateways, Gi
   - ArgoCD synchronizes all affected Helm charts into the `staging` namespace with status `Synced` and health `Healthy`.
   - All Kubernetes pods achieve `Ready 1/1` without crash loops (`CrashLoopBackOff`) or OOM termination.
 - [ ] **Bounded Load & Resilience Smoke Test:**
-  - Execution of `python scripts/testing/smoke.py --resilience` passes baseline thresholds (p95 ≤ 2000 ms, failed requests < 2%); CI's dedicated performance stage continues to run k6:
+  - Execution of `.\platform-minikube.ps1 smoke -Resilience` passes baseline thresholds (p95 ≤ 2000 ms, failed requests < 2%); CI's dedicated performance stage continues to run k6:
     - **p95 Latency:** $\le$ 2000 ms.
     - **Error Rate:** $<$ 2% failed requests.
 - [ ] **Integration & End-to-End Functional Test Suite:**
@@ -175,9 +175,8 @@ These local checks let any engineer exercise production-grade reliability, secur
 ### 1. Resilience & Bounded Load Smoke Gate
 Drives the storefront `/graphql` endpoint through Nginx and Cosmo Router with 2 VUs for 30 seconds, enforcing p95 $\le$ 2000 ms and error rate $<$ 2%:
 ```powershell
-$env:FRONTEND_URL = 'http://127.0.0.1:5173'
-python scripts/testing/smoke.py --resilience
-python scripts/testing/smoke.py --resilience --vus 2 --duration-seconds 30 --p95-threshold-ms 2000 --max-error-rate-pct 2
+.\platform-minikube.ps1 smoke -Resilience
+.\platform-minikube.ps1 smoke -Resilience -Vus 2 -Duration 30
 ```
 
 ### 2. Observability & Dashboard Rule Validation
@@ -255,7 +254,7 @@ Copy and paste the template below when opening a Pull Request targeting `develop
 ### 🚀 Staging & Production Verification (DoD Levels 2 & 3 - Promotion Checks)
 - [ ] **Cosmo Router Composition:** Federated GraphQL schema composed cleanly without conflicts.
 - [ ] **GitOps Sync:** ArgoCD reports status `Synced` and health `Healthy` in target namespace.
-- [ ] **Bounded Load & Smoke:** `python scripts/testing/smoke.py --resilience` passes (p95 $\le$ 2000 ms, failed requests $<$ 2%).
+- [ ] **Bounded Load & Smoke:** `.\platform-minikube.ps1 smoke -Resilience` passes (p95 $\le$ 2000 ms, failed requests $<$ 2%).
 - [ ] **Observability:** Distributed traces visible in Tempo, metrics in Prometheus/Grafana, logs in Loki.
 - [ ] **Rollback Plan:** Revert commit or declarative ArgoCD tag rollback procedure verified.
 ```
