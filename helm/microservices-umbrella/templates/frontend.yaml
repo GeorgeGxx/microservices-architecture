@@ -8,6 +8,7 @@ metadata:
     tier: presentation
   annotations:
     argocd.argoproj.io/sync-wave: "3"
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   selector:

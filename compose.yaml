@@ -855,6 +855,16 @@ services:
     networks:
       - spring
 
+  ### Prometheus Blackbox Exporter (Layer D Synthetic Outside-In SLO Prober)
+  blackbox-exporter:
+    container_name: blackbox-exporter
+    image: prom/blackbox-exporter:v0.25.0
+    restart: unless-stopped
+    ports:
+      - "9115:9115"
+    networks:
+      - spring
+
   ### HashiCorp Vault - http://localhost:8200
   vault:
     container_name: vault

@@ -6,6 +6,7 @@ metadata:
     {{- include "payments-service.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    reloader.stakater.com/auto: "true"
 spec:
 {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}

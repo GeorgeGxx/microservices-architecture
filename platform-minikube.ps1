@@ -1043,6 +1043,10 @@ function Invoke-LocalContractChecks {
         $env:NODE_OPTIONS = if ($origNodeOptions) { "$origNodeOptions --no-deprecation" } else { "--no-deprecation" }
         & npx --yes --loglevel=error newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
         if ($LASTEXITCODE -ne 0) { throw "Newman contract suite failed (exit $LASTEXITCODE)." }
+
+        Write-Host "  >> Validating Polyglot Kafka Event Schema Contracts (Java, Go, TS, Python)..." -ForegroundColor Cyan
+        & python (Join-Path $root 'scripts\test_event_contracts.py')
+        if ($LASTEXITCODE -ne 0) { throw "Polyglot Kafka Schema contract validation failed (exit $LASTEXITCODE)." }
     } finally {
         $env:NODE_OPTIONS = $origNodeOptions
         Pop-Location

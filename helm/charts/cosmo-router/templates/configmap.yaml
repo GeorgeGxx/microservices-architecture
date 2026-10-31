@@ -156,5 +156,18 @@ data:
           network:
             enabled: true
           circuit_breaker: true
+{{- if .Values.responseCache.enabled }}
+    response_cache:
+      enabled: true
+      storage:
+        provider: {{ .Values.responseCache.storage.provider | default "memory" }}
+        max_entries: {{ .Values.responseCache.storage.maxEntries | default 10000 }}
+      all:
+        enabled: true
+        fallback_ttl: {{ .Values.responseCache.fallbackTtl | default "30s" }}
+      cache_tag_header:
+        enabled: {{ .Values.responseCache.cacheTagHeader | default true }}
+        name: Cache-Tag
+{{- end }}
   execution-config.json: |
 {{ required "Cosmo execution config is missing. Run platform-minikube.ps1 compose-router and commit files/execution-config.json for Argo CD." (.Files.Get "files/execution-config.json") | indent 4 }}

@@ -165,6 +165,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
 
 ### 🚀 Layer B: Edge Federation & Authentication
 * **WunderGraph Cosmo Router v2 Gateway:** High-performance Go gateway executing federated GraphQL queries across 9 microservice subgraphs using compiled static execution plans (`execution-config.json`).
+* **Edge GraphQL Query Response Caching:** In-memory LFU/LRU response cache (`response_cache.storage.provider: memory`, `max_entries: 10000`) in Cosmo Router v2 with `fallback_ttl: 30s` and automated cache tag headers (`Cache-Tag: ...`). Caches root queries and federation entity batches, serving reads at sub-millisecond (<0.5ms) wire speed without hitting backend services.
 * **Keycloak 26 IAM Integration:** OIDC / OAuth2 token issuance (`microservices-realm`) validating RS256 JWT signatures against the Keycloak JWKS certificates endpoint (`/realms/microservices-realm/protocol/openid-connect/certs`).
 * **JWKS Stale-While-Revalidate Caching:** Configured with `refresh_unknown_kid: enabled: true`, `max_wait: 10s`, and 5-minute background refresh intervals. Ensures transient Keycloak network fluctuations do not cause false edge token rejections.
 * **GraphQL Defense-in-Depth Guardrails:** Enforces query depth limiting ($\le 12$), query alias bounding ($\le 5$), 1 MiB body payload limits, and `@authenticated` pre-fetch directive field kill-switches.
@@ -172,6 +173,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
 
 ### ⚡ Layer C: Event-Driven Messaging & Sagas
 * **Confluent 8.3.2 / Apache Kafka 4.3.x (KRaft Mode):** Distributed consensus without Zookeeper overhead. Manages partitioned event topics (`orders-topic`, `payments-topic`, `fulfillment-topic`).
+* **Polyglot Kafka Schema Contracts & Validation:** Centralized JSON Schema event contracts in `contracts/events/` (`order-event.schema.json`, `payment-event.schema.json`, `fulfillment-event.schema.json`) enforced across Java 21, Go 1.26, TypeScript 7, and Python 3.12. Validated via `scripts/test_event_contracts.py` and `./platform-minikube.ps1 contract` to prevent cross-language deserialization drifts.
 * **Asynchronous Choreographed Sagas:** Decoupled multi-service transactions with forward actions and automated backward compensating workflows on payment or fulfillment rejections.
 * **Redis 8.8.1 (Redis 8) Distributed Idempotency:** Atomic `SETNX` locking with 24-hour TTL keyed by `X-Idempotency-Key` prevents double billing and duplicate order placement during network retries.
 * **Transactional Outbox Pattern:** Application state changes and domain events are persisted in the same ACID database transaction into an `outbox` table, polled asynchronously by a background dispatcher with zero phantom reads and at-least-once delivery.
@@ -183,6 +185,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
   - **Loki 3.x:** Multi-tenant structured log aggregation with Promtail / Alloy streaming.
   - **Tempo 3.x:** High-scale OpenTelemetry distributed trace store collecting span waterfalls.
   - **Grafana 13.x:** Central visualization with SRE Technical & Security Dashboard and Executive Business Operations Dashboard.
+* **Synthetic Blackbox Probing & Outside-In SLO Availability:** Prometheus Blackbox Exporter (`quay.io/prometheus/blackbox-exporter:v0.25.0`) deployed in namespace `observability` executing continuous outside-in `http_2xx` probes against the Storefront SPA (`:80/healthz`), Cosmo Router Gateway (`:8080/router-health`), and Keycloak IAM (`:8181/realms/microservices-realm`). Integrated with `OutsideInSLOAvailabilityDrop` multi-window alerts and Grafana SRE Dashboard Panels 700-703.
 * **Bidirectional Trace-to-Log Correlation:**
   - Loki is provisioned with `derivedFields` matching `(?:traceId|trace_id)[:=]\s*"?([a-f0-9]{32})"?` which automatically displays an interactive **"Tempo"** button on every log line containing a trace ID.
   - Tempo is provisioned with `tracesToLogsV2` linking spans directly into Loki query streams (`{service=~".+"} |= "$${__span.traceId}"`).
@@ -190,6 +193,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
 
 ### 🔒 Layer E: Secrets Management & Data Security
 * **HashiCorp Vault KV-v2 Engine:** Centralized encrypted secrets engine at `secret/`, providing strict hierarchical path isolation (`secret/application`, `secret/cosmo-router`, `secret/<service>`).
+* **Automated Zero-Touch Secret Rotation Reloader (`stakater/reloader`):** Kubernetes Reloader controller deployed in namespace `vault`, actively watching ConfigMaps and Secrets. Deployments annotated with `reloader.stakater.com/auto: "true"` automatically execute zero-downtime rolling rollouts upon dynamic Vault / ESO credential rotations in `microservices-secrets`.
 * **Transit Encryption Engine:** Cryptographic data encryption at rest using AES-256-GCM (`transit/keys/microservices-data-key`) ensuring sensitive customer data (PII) is encrypted before persisting to PostgreSQL.
 * **Dynamic Database Engine:** Automatically generates short-lived ephemeral PostgreSQL 18 user credentials with 1-hour leases and automated revocation.
 * **External Secrets Operator (ESO) & Compose Parity:** Kubernetes `SecretStore` connects to Vault KV-v2 and synchronizes dynamic credentials into native Kubernetes Secrets (`microservices-secrets`). In Docker Compose, the `vault-init` container automates secret seeding and engine provisioning via `scripts/vault-init.sh`.

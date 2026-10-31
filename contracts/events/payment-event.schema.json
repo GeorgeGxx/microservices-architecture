@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://georgegxx.io/contracts/events/payment-event.schema.json",
+  "title": "PaymentEvent",
+  "description": "Formal schema contract for payments-topic events emitted by payments-service (Go 1.26) and consumed by Java, TypeScript, and Python.",
+  "type": "object",
+  "required": [
+    "event_type",
+    "order_number",
+    "status"
+  ],
+  "properties": {
+    "event_type": {
+      "type": "string",
+      "enum": ["PAYMENT_COMPLETED", "PAYMENT_FAILED", "PAYMENT_REFUNDED"],
+      "description": "Type of financial transaction event"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED", "REFUNDED", "PENDING"]
+    },
+    "payment_id": {
+      "type": "string"
+    },
+    "order_number": {
+      "type": "string",
+      "minLength": 1
+    },
+    "amount": {
+      "type": "number",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3
+    },
+    "payment_method": {
+      "type": "string"
+    },
+    "transaction_ref": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "customer_name": {
+      "type": "string"
+    },
+    "customer_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "shipping_address": {
+      "type": "string"
+    },
+    "city": {
+      "type": "string"
+    },
+    "postal_code": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "delivery_method": {
+      "type": "string"
+    },
+    "user_id": {
+      "type": "string"
+    },
+    "items_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": true
+}

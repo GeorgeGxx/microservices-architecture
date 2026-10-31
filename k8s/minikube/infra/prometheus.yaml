@@ -160,11 +160,36 @@ data:
       - job_name: 'alloy'
         static_configs:
           - targets: ['alloy.observability.svc.cluster.local:3300']
+      - job_name: 'blackbox-synthetic'
+        metrics_path: /probe
+        params:
+          module: [http_2xx]
+        static_configs:
+          - targets:
+              - http://istio-ingressgateway.istio-system.svc.cluster.local/healthz
+              - http://istio-ingressgateway.istio-system.svc.cluster.local/router-health
+              - http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm
+        relabel_configs:
+          - source_labels: [__address__]
+            target_label: __param_target
+          - source_labels: [__param_target]
+            target_label: instance
+          - target_label: __address__
+            replacement: blackbox-exporter.observability.svc.cluster.local:9115
 
   prometheus-rules.yml: |
     groups:
       - name: microservices-architecture-alerts
         rules:
+          - alert: OutsideInSLOAvailabilityDrop
+            expr: probe_success{job="blackbox-synthetic"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              category: slo
+            annotations:
+              summary: "Outside-In SLO breach: {{ $labels.instance }} probe failing"
+              description: "Synthetic Blackbox probe targeting {{ $labels.instance }} failed for >2m. Fast error budget burn detected."
           - alert: ObservabilityTargetDown
             expr: up{job=~"prometheus|loki|tempo|alloy"} == 0
             for: 5m

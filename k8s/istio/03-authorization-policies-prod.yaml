@@ -52,6 +52,9 @@ spec:
       to:
         - operation:
             ports: ["8080", "80"]
+    - to:
+        - operation:
+            paths: ["/healthz", "/actuator/health"]
 ---
 # 3. Allow Cosmo Router to call Federated Subgraph Microservices
 apiVersion: security.istio.io/v1beta1

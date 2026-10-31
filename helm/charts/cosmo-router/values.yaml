@@ -67,6 +67,14 @@ telemetry:
     endpoint: "http://otel-collector.observability.svc.cluster.local:4318"
     samplingRate: 0.25
 
+responseCache:
+  enabled: true
+  storage:
+    provider: memory
+    maxEntries: 10000
+  fallbackTtl: 30s
+  cacheTagHeader: true
+
 resources:
   requests:
     cpu: 100m
