@@ -1,6 +1,8 @@
 package com.georgegxx.orders_service.events;
 
 import com.georgegxx.orders_service.services.OrderService;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,6 +10,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -15,6 +18,9 @@ class OrderSagaEventListenerTest {
 
     @Mock
     private OrderService orderService;
+
+    @Mock
+    private MeterRegistry meterRegistry;
 
     @InjectMocks
     private OrderSagaEventListener listener;
@@ -82,6 +88,9 @@ class OrderSagaEventListenerTest {
     @Test
     @DisplayName("Should safely ignore blank or malformed Saga payloads")
     void shouldIgnoreBlankOrMalformedPayloads() {
+        Counter counter = mock(Counter.class);
+        lenient().when(meterRegistry.counter(anyString(), anyString(), anyString())).thenReturn(counter);
+
         listener.onPaymentEvent("");
         listener.onPaymentEvent(null);
         listener.onPaymentEvent("{invalid-json");
@@ -93,5 +102,30 @@ class OrderSagaEventListenerTest {
         listener.onFulfillmentEvent("{\"eventType\":\"UNKNOWN\"}");
 
         verifyNoInteractions(orderService);
+    }
+
+    @Test
+    @DisplayName("Should rethrow transient failure to trigger Spring Kafka non-blocking retry")
+    void shouldRethrowTransientFailureForRetry() {
+        String payload = """
+                {"order_number":"ORD-ERR-1","event_type":"PAYMENT_COMPLETED","transaction_ref":"TXN-1"}
+                """;
+        doThrow(new IllegalStateException("Transient DB lock")).when(orderService)
+                .handleSagaPaymentCompleted("ORD-ERR-1", "TXN-1");
+
+        assertThatThrownBy(() -> listener.onPaymentEvent(payload))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Saga event processing failure in payment");
+    }
+
+    @Test
+    @DisplayName("Should record DLQ metrics when handleDltMessage is triggered")
+    void shouldRecordDlqMetrics() {
+        Counter counter = mock(Counter.class);
+        when(meterRegistry.counter("ecommerce_kafka_dlq_total", "topic", "payments-topic-dlt")).thenReturn(counter);
+
+        listener.handleDltMessage("{\"poison\":\"pill\"}", "payments-topic-dlt");
+
+        verify(counter).increment();
     }
 }

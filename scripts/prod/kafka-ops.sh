@@ -94,6 +94,24 @@ case "$COMMAND" in
     exec_kafka kafka-console-consumer --topic "${TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000 || true
     ;;
 
+  replay-dlq)
+    DLT_TOPIC="orders-topic-dlt"
+    TARGET_TOPIC="orders-topic"
+    LIMIT="10"
+    while [[ $# -gt 0 ]]; do
+      case "$1" in
+        --from) DLT_TOPIC="$2"; shift 2 ;;
+        --to) TARGET_TOPIC="$2"; shift 2 ;;
+        --limit) LIMIT="$2"; shift 2 ;;
+        *) shift ;;
+      esac
+    done
+    log "Replaying up to ${LIMIT} dead-lettered messages from '${DLT_TOPIC}' back to main topic '${TARGET_TOPIC}'..."
+    exec_kafka kafka-console-consumer --topic "${DLT_TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000 2>/dev/null \
+      | exec_kafka kafka-console-producer --topic "${TARGET_TOPIC}" || true
+    log "Dead Letter Queue replay completed successfully."
+    ;;
+
   reset-offset)
     GROUP=""
     TOPIC=""
@@ -118,12 +136,13 @@ case "$COMMAND" in
     ;;
 
   help|--help|-h)
-    echo "Usage: $0 {list-topics|lag|inspect-dlq|reset-offset} [options]"
+    echo "Usage: $0 {list-topics|lag|inspect-dlq|replay-dlq|reset-offset} [options]"
     echo ""
     echo "Commands:"
     echo "  list-topics                   List all configured topics"
     echo "  lag [--group <name>]          Inspect consumer group lag and partitions"
     echo "  inspect-dlq [--limit N]       Inspect messages in the Dead Letter Topic (DLT)"
+    echo "  replay-dlq [--from DLT] [--to TOPIC] [--limit N]  Replay dead-lettered messages to main topic"
     echo "  reset-offset --group G --topic T [--dry-run|--execute]  Controlled consumer offset reset"
     exit 0
     ;;

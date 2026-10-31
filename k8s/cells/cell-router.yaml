@@ -1,0 +1,85 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: orders-service-cell-router
+  namespace: prod
+spec:
+  hosts:
+    - "orders.prod.svc.cluster.local"
+    - "orders-api.ecommerce.internal"
+  http:
+    # Rule 1: Route explicitly to Cell Alpha when X-Cell-Id header is 'cell-alpha'
+    - match:
+        - headers:
+            X-Cell-Id:
+              exact: cell-alpha
+      route:
+        - destination:
+            host: orders-service-cell-alpha.prod.svc.cluster.local
+            port:
+              number: 8080
+
+    # Rule 2: Route explicitly to Cell Beta when X-Cell-Id header is 'cell-beta'
+    - match:
+        - headers:
+            X-Cell-Id:
+              exact: cell-beta
+      route:
+        - destination:
+            host: orders-service-cell-beta.prod.svc.cluster.local
+            port:
+              number: 8080
+
+    # Rule 3: Default routing (No cell header or unknown cell)
+    # Balanced 50/50 across cells with active health checking & circuit breaking
+    - route:
+        - destination:
+            host: orders-service-cell-alpha.prod.svc.cluster.local
+            port:
+              number: 8080
+          weight: 50
+        - destination:
+            host: orders-service-cell-beta.prod.svc.cluster.local
+            port:
+              number: 8080
+          weight: 50
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: orders-cell-alpha-dr
+  namespace: prod
+spec:
+  host: orders-service-cell-alpha.prod.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 100
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
+  name: orders-cell-beta-dr
+  namespace: prod
+spec:
+  host: orders-service-cell-beta.prod.svc.cluster.local
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 10
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 100
