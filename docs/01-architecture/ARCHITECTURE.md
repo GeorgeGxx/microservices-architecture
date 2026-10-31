@@ -859,7 +859,7 @@ graph LR
 * **React 19 / Vite Application Builder Output:** Configured in [`frontend/vercel.json`](../../frontend/vercel.json) to point directly to `"outputDirectory": "dist"` with root SPA rewrites (`"source": "/(.*)", "destination": "/index.html"`), preventing `404: NOT_FOUND` errors upon deployment.
 * **Dual Client IAM Architecture:**
   * **`microservices_frontend` (Public Client / PKCE):** `client_secret: OFF` for browser Single Page Applications. The standard Authorization Code + PKCE flow redirects the browser to Keycloak's hosted sign-in page; use a branded Keycloak theme if that page needs to match the storefront. Do not collect Keycloak passwords in the SPA or use Direct Access Grants to hide the identity provider.
-  * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Python automation (`smoke.py`, `simulate.py`, and `diagnose.py orders-readonly`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
+  * **`microservices_client` (Confidential Client):** `client_secret: ON` with generated secret synced to `.env`; Platform CLI automation (`.\platform-minikube.ps1 smoke`, `simulate`, and `diagnose -Action orders-readonly`) uses it for Keycloak password-grant test-user tokens. Newman uses the public frontend client for its local development login requests.
 
 ### 3. 📱 Responsive Web Storefront
 * **Universal Smartphone & Tablet Viewports:** Dedicated responsive media queries (`max-width: 768px` and `max-width: 480px`) across all views:

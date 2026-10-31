@@ -368,8 +368,9 @@ topk(5, sum by (peer_ip) (count_over_time({service="frontend"} | json | __error_
 The dashboard's blocked-request count uses the same JSON parse-error filter
 over a 15-minute window. With no matching events, the peer-IP query returns a
 `No blocked peers` series instead of an empty result. Run the authenticated
-`simulate.py --scenario ddos` against the local frontend edge to produce real
-Nginx 429 logs; synthetic `X-Forwarded-For` values do not create separate
+`.\platform-minikube.ps1 ddos` against the local frontend edge to produce real
+Nginx 429 logs; synthetic `X-Forwarded-For` values do not bypass the socket-peer limiter.
+
 ### ⚡ Grafana Alloy Collector Telemetry & Pipeline Health
 
 #### 🟢 Alloy Collector Daemon Uptime & Health

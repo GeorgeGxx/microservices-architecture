@@ -31,7 +31,7 @@ The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool
 | **Runtime & Engines** | `java` (JDK) | 21 LTS | `BellSoft.LibericaJDK.21` | Spring Boot 3.4 microservices standalone execution and compilation. |
 | **Runtime & Engines** | `mvn` (Maven) | 3.9+ | `Apache.Maven` | Multi-module Java reactor build (`platform-minikube.ps1 test`). |
 | **Runtime & Engines** | `node` & `npm` / `npx` | 22 LTS | `OpenJS.NodeJS.LTS` | React 19 + Vite storefront build and Cosmo Router Supergraph composition. |
-| **Runtime & Engines** | `python` (`python3`) | 3.11+ | `Python.Python.3.11` | Automated test suites (`smoke.py`, `simulate.py`, `diagnose.py`), MLOps, FinOps. |
+| **Runtime & Engines** | `python` (`python3`) | 3.11+ | `Python.Python.3.11` | Platform orchestrator test suites and tools (`platform-minikube.ps1`), MLOps, FinOps. |
 | **Runtime & Engines** | `pwsh` | 7.4+ | `Microsoft.PowerShell` | Master orchestrator CLI execution (`platform-minikube.ps1`, `platform-multicloud.ps1`). |
 | **Runtime & Engines** | `git` | 2.40+ | `Git.Git` | Distributed version control, secret diff scanning, GitOps ArgoCD tracking. |
 | **Kubernetes & Mesh** | `minikube` | 1.39.0+ | `Kubernetes.minikube` | Local single-node Kubernetes cluster hypervisor and driver. |
