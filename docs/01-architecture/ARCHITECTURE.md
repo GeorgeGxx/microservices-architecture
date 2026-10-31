@@ -137,7 +137,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
                                      │
  ┌───────────────────────────────────▼────────────────────────────────────┐
  │                      LAYER C: EVENT-DRIVEN MESSAGING & SAGAS           │
- │   Apache Kafka KRaft 3.x • Redis 7.x Idempotency • Transactional Outbox│
+ │   Confluent 8.3.2 / Kafka 4.3.x KRaft • Redis 8.8.1 • Outbox Pattern   │
  └───────┬───────────────────────────┬────────────────────────────┬───────┘
          │                           │                            │
  ┌───────▼───────────────────┐       │       ┌────────────────────▼───────┐
@@ -171,9 +171,9 @@ The enterprise platform architecture is structured into **5 mission-critical tec
 * **Contextual Token & Trace Propagation:** Automatically propagates `Authorization` (Bearer token), `X-Idempotency-Key`, W3C `traceparent` (OpenTelemetry), and `X-Correlation-ID` headers to all downstream subgraphs.
 
 ### ⚡ Layer C: Event-Driven Messaging & Sagas
-* **Apache Kafka 3.x (KRaft Mode):** Distributed consensus without Zookeeper overhead. Manages partitioned event topics (`orders-topic`, `payments-topic`, `fulfillment-topic`).
+* **Confluent 8.3.2 / Apache Kafka 4.3.x (KRaft Mode):** Distributed consensus without Zookeeper overhead. Manages partitioned event topics (`orders-topic`, `payments-topic`, `fulfillment-topic`).
 * **Asynchronous Choreographed Sagas:** Decoupled multi-service transactions with forward actions and automated backward compensating workflows on payment or fulfillment rejections.
-* **Redis 7.x Distributed Idempotency:** Atomic `SETNX` locking with 24-hour TTL keyed by `X-Idempotency-Key` prevents double billing and duplicate order placement during network retries.
+* **Redis 8.8.1 (Redis 8) Distributed Idempotency:** Atomic `SETNX` locking with 24-hour TTL keyed by `X-Idempotency-Key` prevents double billing and duplicate order placement during network retries.
 * **Transactional Outbox Pattern:** Application state changes and domain events are persisted in the same ACID database transaction into an `outbox` table, polled asynchronously by a background dispatcher with zero phantom reads and at-least-once delivery.
 * **Dead Letter Queues (DLQ) & Contract Safety:** Spring `@RetryableTopic` non-blocking backoff (1s, 2s, 4s) routes permanently failed poison pill events to `.DLT` topics. CLI operational replay tools (`scripts/prod/kafka-ops.sh`) allow safe inspection and reprocessing.
 
