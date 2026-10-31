@@ -17,7 +17,7 @@ flowchart TD
         E2E["🧭 Stage 8: E2E Functional Testing<br/>(Cypress • React 19 SPA • Keycloak OIDC)"]
         PERF["⚡ Stage 9: Performance & Load Testing<br/>(k6 • SLA Thresholds • Rollback Gates)"]
         INT["🔗 Stage 7: Integration & Contract Testing<br/>(Newman / Postman • 23 API Requests • 54 Assertions)"]
-        CHAOS["💥 Runtime Chaos & Simulation<br/>(Python simulate.py • Circuit Breakers • DDoS)"]
+        CHAOS["💥 Runtime Chaos & Simulation<br/>(platform-minikube.ps1 simulate • Circuit Breakers • DDoS)"]
         UNIT["🧪 Stage 1: Unit & Component Testing<br/>(JUnit 5 • Mockito • JaCoCo 80% Gate)"]
     end
     UNIT --> INT
@@ -35,7 +35,7 @@ flowchart TD
 | **Newman (Postman CLI)** | **Stage 7 (Integration)** | Runs the repository collection through the frontend Nginx proxy, covering GraphQL/REST responses, Keycloak logins, and order lifecycle assertions. | Container / CLI (`newman run`) |
 | **Cypress** | **Stage 8 (E2E)** | Executes real end-to-end user journeys inside the browser: login via Keycloak PKCE, product catalog browsing, cart operations, and order placement. | Headless Chrome/Electron in CI/CD |
 | **Grafana k6** | **Stage 9 (Performance)** | Generates concurrent load to validate system throughput, latency percentiles (p95 < 500 ms), and Resilience4j circuit breaker thresholds. | Lightweight Go binary in CI/CD |
-| **`simulate.py` / `smoke.py`** | **Runtime / Chaos** | `simulate.py` generates shopper/chaos traffic; `smoke.py` provides functional, read-only deployment, and bounded GraphQL resilience modes. | Minikube CLI (`.\platform-minikube.ps1 smoke`) |
+| **`simulate` / `smoke`** | **Runtime / Chaos** | `.\platform-minikube.ps1 simulate` generates shopper/chaos traffic; `.\platform-minikube.ps1 smoke` provides functional and bounded GraphQL resilience modes. | Minikube CLI (`.\platform-minikube.ps1 simulate / smoke`) |
 
 ---
 

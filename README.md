@@ -313,7 +313,16 @@ The platform provides an automated test, simulation, and quality gate suite orch
 # 8. Java 21 + Maven Reactor Unit Tests across microservices
 .\platform-minikube.ps1 test
 
-# 9. MLOps Quality & Model Governance Suite (15 automated tests)
+# 9. Edge Rate-Limiting & DDoS Flood Probe (30s, 32 workers against edge limiter)
+.\platform-minikube.ps1 ddos
+
+# 10. Runtime Circuit-Breaker & Idempotency Chaos Simulation
+.\platform-minikube.ps1 chaos
+
+# 11. Level 5 Hyper-Scale Chaos Drills (DLQ, Latency, Poison Pills, Cell Evacuation)
+.\platform-minikube.ps1 chaos-drills
+
+# 12. MLOps Quality & Model Governance Suite (15 automated tests)
 $env:PYTHONPATH = "mlops"; python -m unittest discover -s mlops/tests -v
 ```
 
