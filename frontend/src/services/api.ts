@@ -156,11 +156,25 @@ export interface FunnelTelemetryPayload {
 export async function recordFunnelTelemetry(payload: FunnelTelemetryPayload, token?: string): Promise<void> {
   try {
     const headers = await createHeaders(token, true);
-    await fetch('/api/order/funnel', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(payload),
-    });
+    const analyticsPayload = {
+      event_type: payload.eventType,
+      category: payload.category || 'General',
+      step: payload.step,
+      metadata: payload.sku ? { sku: payload.sku } : {},
+    };
+
+    await Promise.allSettled([
+      fetch('/api/v1/analytics/events', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(analyticsPayload),
+      }),
+      fetch('/api/order/funnel', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      }),
+    ]);
   } catch {
     // Non-blocking telemetry
   }
