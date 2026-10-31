@@ -58,6 +58,9 @@ param(
     [int]$Duration = 30,
     [int]$Workers = 32,
     [string]$DdosUrl = "",
+    [ValidateSet("red", "critical", "amber", "orange")]
+    [string]$Level = "red",
+    [switch]$Amber = $false,
     [int]$ChaosRuns = 30,
     [int]$Count = 30,
     [string]$Category = "Electronics",
@@ -2072,7 +2075,8 @@ switch ($Command) {
         $simScript = Join-Path $scriptsDir "testing\simulate.py"
         if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
         $edgeUrl = if ($DdosUrl) { $DdosUrl } elseif ($env:DDOS_EDGE_URL) { $env:DDOS_EDGE_URL } elseif ($env:FRONTEND_URL) { $env:FRONTEND_URL } else { "http://127.0.0.1:5173" }
-        $ddosArgs = @("--scenario", "ddos", "--ddos-url", $edgeUrl, "--duration", "$Duration", "--workers", "$Workers")
+        $threatLevel = if ($Amber -or $Level -in @("amber", "orange")) { "amber" } else { "red" }
+        $ddosArgs = @("--scenario", "ddos", "--ddos-url", $edgeUrl, "--duration", "$Duration", "--workers", "$Workers", "--level", $threatLevel)
         if ($SingleSource) { $ddosArgs += "--single-source" }
         if ($NoAuth) { $ddosArgs += "--no-auth" }
         python $simScript @ddosArgs
@@ -2323,6 +2327,7 @@ Options:
   -Duration <seconds>                  : Attack duration for ddos command (default: 30)
   -Workers <count>                     : Worker concurrency for ddos command (default: 32)
   -DdosUrl <url>                       : Target edge URL for ddos command (default: frontend 5173)
+  -Amber / -Level <amber|red>          : Simulate moderate threat level (amber: 1-5 req/s blocked) or full flood (red)
   -ChaosRuns <count>                   : Iteration count for chaos command (default: 30)
   -Count <count>                       : Event count for funnel-demo (default: 30)
   -Category <name>                     : Telemetry event category (default: Electronics)

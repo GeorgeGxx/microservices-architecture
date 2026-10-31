@@ -12,7 +12,7 @@ Consolidates:
 
 Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 simulate [-Orders 20] [-Concurrency 4] [-Continuous]
-  .\platform-minikube.ps1 ddos [-Duration 30] [-Workers 32] [-SingleSource] [-NoAuth]
+  .\platform-minikube.ps1 ddos [-Level amber|red] [-Duration 30] [-Workers 32] [-SingleSource] [-NoAuth]
   .\platform-minikube.ps1 chaos [-ChaosRuns 30] [-Concurrency 4]
   .\platform-minikube.ps1 chaos-drills [-TargetService orders-service]
 ==============================================================================
@@ -272,13 +272,14 @@ class TrafficSimulator:
 # 2. DDoS & Rate-Limit Attacker
 # ==============================================================================
 class GraphQLFloodProbe:
-    def __init__(self, edge_url, keycloak_url, duration=30, distributed=True, no_auth=False, workers=12):
+    def __init__(self, edge_url, keycloak_url, duration=30, distributed=True, no_auth=False, workers=12, delay_ms=0):
         self.edge_url = edge_url
         self.keycloak_url = keycloak_url
         self.duration = duration
         self.distributed = distributed
         self.no_auth = no_auth
         self.workers = max(1, workers)
+        self.delay_ms = max(0, delay_ms)
         self.request_count = 0
         self.status_counts = {}
         self.lock = threading.Lock()
@@ -324,6 +325,8 @@ class GraphQLFloodProbe:
                 with self.lock:
                     self.request_count += 1
                     self.status_counts[code] = self.status_counts.get(code, 0) + 1
+                if self.delay_ms > 0:
+                    time.sleep(self.delay_ms / 1000.0)
 
         threads = []
         for i in range(self.workers):
@@ -473,6 +476,8 @@ def main():
     parser.add_argument("--distributed", dest="distributed", action="store_true", default=True, help="Rotate synthetic X-Forwarded-For headers (does not create separate network sources)")
     parser.add_argument("--single-source", dest="distributed", action="store_false", help="Do not rotate X-Forwarded-For headers")
     parser.add_argument("--no-auth", action="store_true", help="Disable Keycloak token authentication (ddos)")
+    parser.add_argument("--level", choices=["amber", "orange", "red", "critical"], default="red", help="Target threat level simulation: 'amber'/'orange' (1-5 req/s blocked) or 'red'/'critical' (full flood >5 req/s blocked)")
+    parser.add_argument("--delay-ms", type=int, default=0, help="Optional inter-request sleep delay in milliseconds")
     parser.add_argument("--chaos-runs", type=int, default=30, help="Number of iterations for chaos testing")
 
     args, _ = parser.parse_known_args()
@@ -486,7 +491,9 @@ def main():
         TrafficSimulator(gw, kc, frontend_url=frontend, orders=args.orders, concurrency=args.concurrency, continuous=args.continuous).run()
 
     if args.scenario in ("ddos", "all"):
-        GraphQLFloodProbe(ddos_edge, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth, workers=args.workers).run()
+        target_workers = 1 if args.level in ("amber", "orange") else args.workers
+        target_delay = 30 if (args.level in ("amber", "orange") and args.delay_ms == 0) else args.delay_ms
+        GraphQLFloodProbe(ddos_edge, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth, workers=target_workers, delay_ms=target_delay).run()
 
     if args.scenario in ("chaos", "all"):
         ChaosTester(gw, kc, runs=args.chaos_runs, concurrency=args.concurrency).run()
