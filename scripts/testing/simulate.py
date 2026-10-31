@@ -420,7 +420,7 @@ class ChaosTester:
             sku = "000004"  # Stock = 0
             price = 2199.00
         else:
-            sku = f"NON-EXISTENT-{uuid.uuid4().hex[:6]}"
+            sku = f"NON-EXISTENT-{uuid.uuid4().hex[:6].upper()}"
             price = 999.00
 
         payload = json.dumps({
@@ -455,8 +455,9 @@ class ChaosTester:
                     with self.lock:
                         self.results["success"] += 1
                 elif result.get("errors"):
-                    messages = " ".join(error.get("message", "") for error in result["errors"]).lower()
-                    category = "business_rejected" if any(term in messages for term in ("stock", "available", "sku", "quantity", "price", "validation")) else "errors"
+                    err_payload = json.dumps(result["errors"]).lower()
+                    is_business = any(term in err_payload for term in ("stock", "available", "sku", "quantity", "price", "validation", "insufficient", "not exist", "not found", "bad_request"))
+                    category = "business_rejected" if is_business else "errors"
                     with self.lock:
                         self.results[category] += 1
                 else:
