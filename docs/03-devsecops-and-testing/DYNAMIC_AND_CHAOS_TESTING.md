@@ -153,13 +153,14 @@ Exercises valid, out-of-stock, and unknown SKU checkout mutations through Cosmo 
 ```
 
 ### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`platform-minikube.ps1 ddos`)
-Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, override `--ddos-url`:
+Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, pass `-DdosUrl <url>`:
 ```powershell
 # Default rate-limiting flood probe (30s, 32 concurrent workers):
 .\platform-minikube.ps1 ddos
 
-# Custom duration and worker concurrency:
+# Custom duration, worker concurrency, or edge URL:
 .\platform-minikube.ps1 ddos -Duration 30 -Workers 32
+.\platform-minikube.ps1 ddos -DdosUrl http://127.0.0.1:5173 -Duration 30 -Workers 32
 
 # Disable synthetic X-Forwarded-For IP rotation:
 .\platform-minikube.ps1 ddos -SingleSource
@@ -168,7 +169,7 @@ Sends concurrent GraphQL requests through frontend Nginx and reports observed HT
 .\platform-minikube.ps1 ddos -NoAuth
 ```
 
-The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. A single worker or a short low-volume check will not cross that limit and therefore will not create 429 log records. The dashboard threat LED averages 429 events over one minute: it turns amber above 1 blocked request/second and red at 5/second; expect a short ingestion/refresh delay and up to one minute of decay after the load stops. `--distributed` sends synthetic `X-Forwarded-For` headers only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads actual HTTP 429 JSON records and peer IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `--no-auth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
+The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it traverses the shared `20 req/s` per-peer limiter with a burst of 30. A single worker or a short low-volume check will not cross that limit and therefore will not create 429 log records. The dashboard threat LED averages 429 events over one minute: it turns amber above 1 blocked request/second and red at 5/second; expect a short ingestion/refresh delay and up to one minute of decay after the load stops. By default, the probe rotates synthetic `X-Forwarded-For` headers (pass `-SingleSource` to disable) only to confirm they cannot evade the socket-peer limit; it does not create independent clients or alter the logged source IP. Grafana reads actual HTTP 429 JSON records and peer IPs from Alloy/Loki. Anonymous traffic is intentionally available only for this DDoS/rate-limit probe and requires the explicit `-NoAuth` flag. Traffic and chaos scenarios require a Keycloak JWT and will not proceed anonymously.
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
