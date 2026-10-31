@@ -182,6 +182,7 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 | **14** | *GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture* | Edge protection, depth limiting (≤12), alias restriction (≤5), @authenticated pre-fetch field kill-switch, JWKS RS256 validation, and NetPol isolation. |
 | **15** | *Sequence - GraphQL Supergraph Request Lifecycle & Edge Protection* | Chronological request lifecycle from React 19 client to Cosmo Router gateway, fail-closed validation forks, and parallel Apollo Federation v2 entity resolution. |
 | **16** | *Agnostic POS QR Scanner & Omnichannel Architecture* | Omnichannel retail cashier workflow, dual-engine BarcodeDetector + jsQR decoding, camera race-condition lock, Nginx Permissions-Policy, PostgreSQL row locks, and live POS order fulfillment. |
+| **17** | *Level 5 Hyper-Scale Resilience & Cell-Based Architecture Blueprint* | The 6 resilience pillars: Zero Dual-Write Transactional Outbox, Redis 8 Idempotency, Non-Blocking Kafka DLQ (@RetryableTopic + DLT replay), Netflix Vegas Adaptive Concurrency Limits (TCP congestion control), Cell-Based multi-tenancy (cell-alpha/cell-beta blast radius isolation), and automated chaos drills. |
 
 ---
 
@@ -345,7 +346,7 @@ microservices-architecture/
 │   ├── 03-devsecops-and-testing/   # Governance Model, CI/CD Pipelines, Quality Gates, Chaos & Git Workflow
 │   ├── 04-observability/           # Telemetry Handbook, PromQL, LogQL & TraceQL queries
 │   ├── reference/                  # OpenAPI specifications, Keycloak realm exports & SQL schemas
-│   └── Diagrams.drawio             # 🎨 16-Page Comprehensive Architectural Blueprint (Draw.io)
+│   └── Diagrams.drawio             # 🎨 17-Page Comprehensive Architectural Blueprint (Draw.io)
 ├── frontend/                       # 💻 React 19 + TailwindCSS v4 SPA (Port 3000 • Nginx Distroless)
 ├── helm/                           # ⎈ Kubernetes Helm Packaging
 │   ├── charts/                     # Individual service subcharts (products, orders, inventory, etc.)

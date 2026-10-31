@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="16" type="device">
+<mxfile host="Electron" pages="17" type="device">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
@@ -38,7 +38,7 @@
         <mxCell id="n_prod" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Catalog &amp;amp; Redis Cache&lt;br&gt;Base64 Image Upload • RFC 7807" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="890" y="160" width="220" height="70" as="geometry" />
         </mxCell>
-        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service (:8003)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Choreographed Saga&lt;br&gt;Resilience4j • OAuth2 S2S • Multi-Tenant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="n_orders" parent="1" value="&lt;b&gt;Orders Service (:8003) [Level 5 Hyper-Scale]&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Transactional Outbox (Zero Dual-Write)&lt;br&gt;Distributed Idempotency (Redis 8) • Vegas Adaptive Limits&lt;br&gt;Non-Blocking DLQ (@RetryableTopic) • Cell-Based Multi-Tenant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="890" y="255" width="220" height="70" as="geometry" />
         </mxCell>
         <mxCell id="n_inv" parent="1" value="&lt;b&gt;Inventory Service (:8001)&lt;/b&gt;&lt;br&gt;Spring Boot 4 • Stock Lock/Deduct&lt;br&gt;Saga Stock Rollback • POS Stock +1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
@@ -595,7 +595,7 @@
         <mxCell id="t8" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MATURE E-COMMERCE OBSERVABILITY &amp; BUSINESS INTELLIGENCE (5 DIMENSIONS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;High-cardinality prevention (O(1) discrete cohorts), observed funnel event activity, order fulfillment, and distributed saga resilience&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1400" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="d1" parent="1" value="&lt;b&gt;1. Financial &amp; Executive KPIs&lt;/b&gt;&lt;br&gt;• All-time delivered merchandise value&lt;br&gt;• All-time delivered order count&lt;br&gt;• Merchandise value per delivered order&lt;br&gt;• All-time cancelled order count&lt;br&gt;• Tax and shipping excluded" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="d1" parent="1" value="&lt;b&gt;1. Financial &amp; Executive Triad&lt;/b&gt;&lt;br&gt;• Gross Orders Placed (7)&lt;br&gt;• Cancelled Orders &amp;amp; Loss (4)&lt;br&gt;• True Net Completed Orders (3)&lt;br&gt;• Order Cancellation Rate (% OCR)&lt;br&gt;• Reconciled AOV ($/Net Order)&lt;br&gt;• Live Cart Abandonment Rate (75%)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="100" y="120" width="320" height="160" as="geometry" />
         </mxCell>
         <mxCell id="d2" parent="1" value="&lt;b&gt;2. Observed Funnel Event Activity&lt;/b&gt;&lt;br&gt;• Prometheus event counter activity&lt;br&gt;• Cart Add / Checkout Start / Checkout Step&lt;br&gt;• Events are not session-correlated&lt;br&gt;• No conversion or abandonment rate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=15;" vertex="1">
@@ -613,10 +613,10 @@
         <mxCell id="ret_box" parent="1" value="&lt;b&gt;CUSTOMER RETENTION &amp; BASKET DYNAMICS (O(1) Bounded Cardinality Architecture)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Problem:&lt;/b&gt; Tagging metrics with unbounded &lt;code&gt;username&lt;/code&gt; causes cardinality explosion (millions of time series in Prometheus TSDB).&lt;br&gt;• &lt;b&gt;Solution:&lt;/b&gt; Aggregation into discrete business cohorts: &lt;code&gt;first_time&lt;/code&gt;, &lt;code&gt;repeat&lt;/code&gt;, and &lt;code&gt;loyal_vip&lt;/code&gt;.&lt;br&gt;• &lt;b&gt;Basket Economics:&lt;/b&gt; Order volume segmentation by basket size: &lt;code&gt;single_item&lt;/code&gt;, &lt;code&gt;2_3_items&lt;/code&gt;, &lt;code&gt;bulk_4_plus&lt;/code&gt;." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="460" y="320" width="1060" height="160" as="geometry" />
         </mxCell>
-        <mxCell id="dash_biz" parent="1" value="&lt;b&gt;📊 Dashboard: Business Operations (16 Panels)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Dynamic Filter:&lt;/b&gt; &lt;code&gt;Filter Microservice&lt;/code&gt;&lt;br&gt;• &lt;b&gt;1. Executive Summary:&lt;/b&gt; Net sales, orders, basket value&lt;br&gt;• &lt;b&gt;2. Funnel &amp; Logistics:&lt;/b&gt; Stages (PLACED, SHIPPED, DELIVERED)&lt;br&gt;• &lt;b&gt;3. Inventory &amp; Demand:&lt;/b&gt; Live stock, low/out-of-stock SKU counts&lt;br&gt;• &lt;b&gt;4. Customer Retention:&lt;/b&gt; Loyalty cohorts &amp; snapshot changes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="dash_biz" parent="1" value="&lt;b&gt;📊 Dashboard: Business Operations (Reconciled Triad)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Dynamic Filter:&lt;/b&gt; &lt;code&gt;Filter Microservice&lt;/code&gt;&lt;br&gt;• &lt;b&gt;1. Executive Triad:&lt;/b&gt; Gross (7) vs Cancelled (4) ➔ Net Orders (3)&lt;br&gt;• &lt;b&gt;2. AOV &amp;amp; Cart Health:&lt;/b&gt; Reconciled AOV &amp;amp; Live Abandonment&lt;br&gt;• &lt;b&gt;3. Audit &amp;amp; Funnel:&lt;/b&gt; Net Fulfilled vs Cancelled (% OCR) &amp;amp; Stages&lt;br&gt;• &lt;b&gt;4. SKU Intelligence &amp;amp; Retention:&lt;/b&gt; Available stock &amp;amp; loyalty cohorts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="80" y="510" width="410" height="205" as="geometry" />
         </mxCell>
-        <mxCell id="dash_tech" parent="1" value="&lt;b&gt;🛡️ Dashboard: Technical &amp; SRE Operations&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Dynamic Filter:&lt;/b&gt; &lt;code&gt;Filter Microservice&lt;/code&gt;&lt;br&gt;• &lt;b&gt;1. Global Health:&lt;/b&gt; Services UP (5/5), Spring P95, breakers&lt;br&gt;• &lt;b&gt;2. HTTP Golden Signals:&lt;/b&gt; Request rate, per-service P95, 5xx&lt;br&gt;• &lt;b&gt;3. Distributed Resilience:&lt;/b&gt; Idempotency hits, rollbacks, Kafka&lt;br&gt;• &lt;b&gt;4. Saturation:&lt;/b&gt; JVM Heap, HikariCP pool, Loki Logs stream&lt;br&gt;• &lt;b&gt;5. Unified Alloy Pipeline:&lt;/b&gt; Scrape health, RSS, CPU cores, Loki delivery rate and request duration, retries/drops" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="dash_tech" parent="1" value="&lt;b&gt;🛡️ Dashboard: Technical &amp;amp; SRE (Level 5 Resilience)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Dynamic Filter:&lt;/b&gt; &lt;code&gt;Filter Microservice&lt;/code&gt;&lt;br&gt;• &lt;b&gt;1. Global Health:&lt;/b&gt; 8 Microservices UP, P95, Breakers, SLO Burn&lt;br&gt;• &lt;b&gt;2. HTTP Golden Signals:&lt;/b&gt; Request rate (RPS), per-service P95&lt;br&gt;• &lt;b&gt;3. Level 5 SRE Row:&lt;/b&gt; Vegas Adaptive Limits vs In-Flight, DLQ&lt;br&gt;Quarantine &amp;amp; Traffic Shedding, Cell Traffic &amp;amp; Outbox Dispatches&lt;br&gt;• &lt;b&gt;4. Consistency:&lt;/b&gt; Redis Idempotency hits &amp;amp; Saga Rollbacks&lt;br&gt;• &lt;b&gt;5. Telemetry Pipeline:&lt;/b&gt; Grafana Alloy Controller, Loki Streams" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="510" y="510" width="410" height="205" as="geometry" />
         </mxCell>
         <mxCell id="dash_mlops" parent="1" value="&lt;b&gt;🧪 Dashboard: MLOps Operations (Port 8005)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Demand Forecast API:&lt;/b&gt; FastAPI &amp; PySpark pipelines&lt;br&gt;• &lt;b&gt;1. Availability &amp; Health:&lt;/b&gt; Forecast API UP, hours since run&lt;br&gt;• &lt;b&gt;2. HTTP Performance:&lt;/b&gt; Request Rate (qps), P95 &amp; error rate&lt;br&gt;• &lt;b&gt;3. Model Governance:&lt;/b&gt; Active Model RMSE, MAE &amp; age&lt;br&gt;• &lt;b&gt;4. Data Freshness:&lt;/b&gt; Parquet snapshot &amp; sales freshness" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1341,6 +1341,131 @@
         </mxCell>
         <mxCell id="n16_legend" parent="1" value="&lt;b&gt;🎯 ENTERPRISE OMNICHANNEL SCANNER &amp;amp; HARDENED LIFECYCLE:&lt;/b&gt; Eliminates camera race conditions by combining a 100ms mount lock with a tiered native BarcodeDetector / jsQR software fallback. Nginx Permissions-Policy &lt;code&gt;camera=(self)&lt;/code&gt; guarantees browser camera activation while blocking unauthorized iframe embedding. Bidirectional correlation directly queries authoritative PostgreSQL inventory and drives live POS order fulfillment through federated GraphQL mutations." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="50" y="870" width="1820" height="75" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_level5_resilience" name="17. Level 5 Hyper-Scale Resilience &amp; Cell-Based Architecture Blueprint">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t17" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;LEVEL 5 HYPER-SCALE RESILIENCE &amp;amp; CELL-BASED ARCHITECTURE BLUEPRINT&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Zero Dual-Write Transactional Outbox • Distributed Redis 8 Idempotency • Non-Blocking Dead Letter Queue (DLQ) • Netflix Vegas Adaptive Concurrency Limits • Cell-Based Multi-Tenancy • Chaos Drills&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_cells" parent="1" value="&lt;b&gt;🌐 PILLAR 5: CELL-BASED ARCHITECTURE &amp;amp; BLAST RADIUS ISOLATION&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="50" y="85" width="410" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_ingress" parent="1" value="&lt;b&gt;Client / External Ingress&lt;/b&gt;&lt;br&gt;Requests with &lt;code&gt;X-Cell-ID&lt;/code&gt; header&lt;br&gt;(or auto-routed via Hash Modulo)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="70" y="130" width="370" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_cell_router" parent="1" value="&lt;b&gt;Cell Router Gateway (Envoy / Cosmo)&lt;/b&gt;&lt;br&gt;&lt;code&gt;k8s/cells/cell-router.yaml&lt;/code&gt;&lt;br&gt;Inspects client partition &amp;amp; context&lt;br&gt;Metrics: &lt;code&gt;ecommerce_cell_requests_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=11;" vertex="1">
+          <mxGeometry x="70" y="220" width="370" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_cell_alpha" parent="1" value="&lt;b&gt;Cell-Alpha Partition (Isolated Domain)&lt;/b&gt;&lt;br&gt;&lt;code&gt;k8s/cells/cell-alpha.yaml&lt;/code&gt;&lt;br&gt;• orders-service-alpha (Port 8003)&lt;br&gt;• db-orders-alpha (PostgreSQL 18)&lt;br&gt;• redis-cell-alpha (Session &amp;amp; Idempotency)&lt;br&gt;• Blast radius strictly quarantined" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="320" width="370" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_cell_beta" parent="1" value="&lt;b&gt;Cell-Beta Partition (Isolated Domain)&lt;/b&gt;&lt;br&gt;&lt;code&gt;k8s/cells/cell-beta.yaml&lt;/code&gt;&lt;br&gt;• orders-service-beta (Port 8003)&lt;br&gt;• db-orders-beta (PostgreSQL 18)&lt;br&gt;• redis-cell-beta (Session &amp;amp; Idempotency)&lt;br&gt;• Zero cross-cell cascading failures" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="70" y="465" width="370" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_cell_summary" parent="1" value="&lt;b&gt;💡 Blast Radius Guarantee:&lt;/b&gt; Failure in Cell-Alpha (e.g. database corruption or traffic spike) leaves Cell-Beta 100% operational, maintaining multi-tenant platform survival." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="70" y="610" width="370" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_in_router" parent="1" value="Inspect Cell Header" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n17_ingress" target="n17_cell_router">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_router_alpha" parent="1" value="X-Cell-ID: cell-alpha" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_cell_router" target="n17_cell_alpha">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_router_beta" parent="1" value="X-Cell-ID: cell-beta" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_cell_router" target="n17_cell_beta">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_filters" parent="1" value="&lt;b&gt;🛡️ PILLARS 4 &amp;amp; 1: VEGAS ADAPTIVE LIMITS &amp;amp; IDEMPOTENCY&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="490" y="85" width="430" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_cell_filter" parent="1" value="&lt;b&gt;1. CellContextFilter (Servlet Entry)&lt;/b&gt;&lt;br&gt;Extracts &lt;code&gt;X-Cell-ID&lt;/code&gt; &amp;amp; injects into MDC / ThreadLocal&lt;br&gt;Tags Prometheus &lt;code&gt;ecommerce_cell_requests_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="510" y="130" width="390" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_vegas_filter" parent="1" value="&lt;b&gt;2. AdaptiveConcurrencyFilter (Netflix Vegas AIMD)&lt;/b&gt;&lt;br&gt;• Dynamic Capacity Headroom (Min RTT vs Smooth RTT)&lt;br&gt;• Metric: &lt;code&gt;ecommerce_adaptive_concurrency_limit&lt;/code&gt;&lt;br&gt;• In-Flight: &lt;code&gt;ecommerce_adaptive_inflight_requests&lt;/code&gt;&lt;br&gt;• Traffic Shedding: HTTP 429/503 for non-critical requests&lt;br&gt;• Metric: &lt;code&gt;ecommerce_traffic_shed_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="510" y="220" width="390" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_idemp_filter" parent="1" value="&lt;b&gt;3. IdempotencyFilter (Distributed Redis Lock)&lt;/b&gt;&lt;br&gt;• Intercepts &lt;code&gt;X-Idempotency-Key&lt;/code&gt; header&lt;br&gt;• Redis 8 atomic &lt;code&gt;SETNX&lt;/code&gt; with lease TTL (300s)&lt;br&gt;• In-progress conflict ➔ HTTP 409 Conflict&lt;br&gt;• Cached response ➔ HTTP 200 with stored payload&lt;br&gt;• Metric: &lt;code&gt;ecommerce_idempotency_hits_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="510" y="365" width="390" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_redis_store" parent="1" value="&lt;b&gt;Redis 8 Cluster (Distributed Store)&lt;/b&gt;&lt;br&gt;Atomic Key Store: &lt;code&gt;idempotency:{key}&lt;/code&gt;&lt;br&gt;Stores status: &lt;code&gt;IN_PROGRESS&lt;/code&gt; / &lt;code&gt;COMPLETED&lt;/code&gt;&lt;br&gt;Stores serialized HTTP response body" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#7F1D1D;fontSize=11;" vertex="1">
+          <mxGeometry x="510" y="515" width="390" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_filter_summary" parent="1" value="&lt;b&gt;💡 Concurrency vs Brownout:&lt;/b&gt; Replaces static thread pools with dynamic TCP congestion control. Concurrency limit auto-tunes in microsecond granularity to protect CPU &amp;amp; DB connection pools." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="510" y="610" width="390" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_cell_vegas" parent="1" value="Passes Cell Context" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#3B82F6;strokeWidth=1.5;" edge="1" source="n17_cell_filter" target="n17_vegas_filter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_vegas_idemp" parent="1" value="Within Concurrency Limit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n17_vegas_filter" target="n17_idemp_filter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_idemp_redis" parent="1" value="SETNX &amp;amp; GET Cached" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EC4899;strokeWidth=1.5;" edge="1" source="n17_idemp_filter" target="n17_redis_store">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_outbox" parent="1" value="&lt;b&gt;📦 PILLAR 2: TRANSACTIONAL OUTBOX &amp;amp; ZERO DUAL-WRITE&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="950" y="85" width="430" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_orders_domain" parent="1" value="&lt;b&gt;Orders Service Business Logic&lt;/b&gt;&lt;br&gt;Create / Cancel Order via &lt;code&gt;OrderService&lt;/code&gt;&lt;br&gt;Orchestrates state machine in domain boundary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;" vertex="1">
+          <mxGeometry x="970" y="130" width="390" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_db_acid" parent="1" value="&lt;b&gt;PostgreSQL 18 Atomic ACID Boundary&lt;/b&gt;&lt;br&gt;Single &lt;code&gt;@Transactional&lt;/code&gt; Commit:&lt;br&gt;1. Insert / Update &lt;code&gt;orders&lt;/code&gt; record&lt;br&gt;2. Insert &lt;code&gt;outbox_events&lt;/code&gt; record (PENDING)&lt;br&gt;&lt;b&gt;Zero dual-write gap:&lt;/b&gt; Never commits DB without event" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="970" y="220" width="390" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_outbox_poller" parent="1" value="&lt;b&gt;OutboxProcessor (Async Poller)&lt;/b&gt;&lt;br&gt;• Runs on 500ms fixed delay&lt;br&gt;• Queries &lt;code&gt;outbox_events WHERE status='PENDING'&lt;/code&gt;&lt;br&gt;• Batch fetch with optimistic locking&lt;br&gt;• Asynchronously dispatches to Kafka broker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="970" y="355" width="390" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_state_writer" parent="1" value="&lt;b&gt;OutboxEventStateWriter (Isolated Bean)&lt;/b&gt;&lt;br&gt;• &lt;code&gt;@Transactional(REQUIRES_NEW)&lt;/code&gt;&lt;br&gt;• SonarCloud S2229 compliant (No self-invocation)&lt;br&gt;• Marks status &lt;code&gt;PUBLISHED&lt;/code&gt; or &lt;code&gt;FAILED&lt;/code&gt;&lt;br&gt;• Metrics: &lt;code&gt;ecommerce_outbox_events_published_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="970" y="475" width="390" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_outbox_summary" parent="1" value="&lt;b&gt;💡 Zero Dual-Write Guarantee:&lt;/b&gt; Decouples database mutations from network broker availability. If Kafka is temporarily partitioned, database commits succeed and events buffer safely in PostgreSQL." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="970" y="610" width="390" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_ord_acid" parent="1" value="Single ACID Transaction" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n17_orders_domain" target="n17_db_acid">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_acid_poller" parent="1" value="Poll PENDING Events" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_db_acid" target="n17_outbox_poller">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_poller_writer" parent="1" value="Update State (REQUIRES_NEW)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=1.5;" edge="1" source="n17_outbox_poller" target="n17_state_writer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="c17_dlq" parent="1" value="&lt;b&gt;☠️ PILLARS 3 &amp;amp; 6: NON-BLOCKING DLQ &amp;amp; CHAOS DRILLS&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+          <mxGeometry x="1410" y="85" width="450" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_kafka_broker" parent="1" value="&lt;b&gt;Apache Kafka 8.3.2 (KRaft)&lt;/b&gt;&lt;br&gt;Topic: &lt;code&gt;orders-topic&lt;/code&gt; (Main Stream)&lt;br&gt;Topic: &lt;code&gt;orders-topic.DLT&lt;/code&gt; (Dead Letter Topic)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+          <mxGeometry x="1430" y="130" width="410" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_retry_consumer" parent="1" value="&lt;b&gt;OrderProcessingConsumer (Resilient Consumer)&lt;/b&gt;&lt;br&gt;• &lt;code&gt;@RetryableTopic&lt;/code&gt; with exponential backoff (1s, 2s, 4s)&lt;br&gt;• Non-blocking retry: Healthy events bypass retrying ones&lt;br&gt;• Unparseable / fatal payloads ➔ routed to &lt;code&gt;@DltHandler&lt;/code&gt;&lt;br&gt;• Metric: &lt;code&gt;ecommerce_kafka_dlq_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1430" y="220" width="410" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_dlq_ops" parent="1" value="&lt;b&gt;Operational DLQ Replay CLI Tool&lt;/b&gt;&lt;br&gt;&lt;code&gt;scripts/prod/kafka-ops.sh replay-dlq&lt;/code&gt;&lt;br&gt;• Reads quarantined poison pills from &lt;code&gt;orders-topic.DLT&lt;/code&gt;&lt;br&gt;• Inspects failure reason &amp;amp; stacktrace metadata&lt;br&gt;• Safely replays unblocked events back to main topic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;strokeWidth=1.5;fontColor=#0C4A6E;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1430" y="355" width="410" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_chaos_suite" parent="1" value="&lt;b&gt;Chaos Drills Automation Suite (Pillar 6)&lt;/b&gt;&lt;br&gt;&lt;code&gt;scripts/chaos/run-chaos-drills.ps1&lt;/code&gt; &amp;amp; &lt;code&gt;.sh&lt;/code&gt;&lt;br&gt;• Scenario 1: Poison Pill Injection (quarantine check)&lt;br&gt;• Scenario 2: Network Latency Injection (Vegas shedding)&lt;br&gt;• Scenario 3: Cell Evacuation &amp;amp; Failover&lt;br&gt;• Scenario 4: Concurrent Duplicate Flooding (Idempotency)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1430" y="480" width="410" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_dlq_summary" parent="1" value="&lt;b&gt;💡 Zero Head-of-Line Blocking:&lt;/b&gt; Eliminates consumer lag build-up caused by poisoned messages. Corrupt events are quarantined instantly to DLT while valid traffic processes at full wire speed." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+          <mxGeometry x="1430" y="610" width="410" height="65" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_poller_kafka" parent="1" value="Async Event Dispatch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F59E0B;strokeWidth=1.5;" edge="1" source="n17_outbox_poller" target="n17_kafka_broker">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_kafka_consumer" parent="1" value="Consume @RetryableTopic" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#8B5CF6;strokeWidth=1.5;" edge="1" source="n17_kafka_broker" target="n17_retry_consumer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_consumer_dlt" parent="1" value="Exhausted ➔ Quarantine to DLT" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;" edge="1" source="n17_retry_consumer" target="n17_dlq_ops">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e17_chaos_drill" parent="1" value="Inject Faults &amp;amp; Verify" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#EF4444;strokeWidth=1.5;dashed=1;" edge="1" source="n17_chaos_suite" target="n17_retry_consumer">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="n17_banner" parent="1" value="&lt;b&gt;📊 SRE OBSERVABILITY &amp;amp; EXECUTIVE CONVERGENCE (Live Telemetry in Grafana Port 3000):&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Business Dashboard:&lt;/b&gt; Executive Financial Reconciliation Triad — Gross Orders Placed (7) vs Cancelled Orders &amp;amp; Loss (4) = True Net Completed Orders (3) • Order Cancellation Rate (% OCR) • Reconciled AOV ($/Net Order) • Live Cart Abandonment Rate (75%).&lt;br&gt;• &lt;b&gt;Technical Dashboard (Level 5 SRE Row):&lt;/b&gt; Vegas Adaptive Concurrency Limits vs In-Flight Requests • Kafka DLQ Quarantined &amp;amp; Traffic Shedding Rates • Cell-Based Traffic Routing (cell-alpha vs cell-beta) &amp;amp; Transactional Outbox Dispatches." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11.5;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="50" y="805" width="1810" height="85" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
