@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 38,
+  "version": 39,
   "tags": [
     "business",
     "ecommerce",
@@ -64,7 +64,7 @@
       "description": "Total net monetary volume generated from active completed orders.",
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -115,12 +115,129 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "🛍️ Net Completed Orders",
-      "description": "Total purchase orders successfully completed and active in platform.",
+      "title": "📦 Gross Orders Placed",
+      "description": "Total gross purchase orders placed and completed before cancellations.",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#60a5fa"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#60a5fa",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+          "legendFormat": "Gross Orders"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "❌ Cancelled Orders & Loss",
+      "description": "Total customer and administrator cancellations (revenue leakage audit).",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 1
+              },
+              {
+                "color": "#ef4444",
+                "value": 3
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
+          "legendFormat": "Cancelled Orders"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "🛍️ Net Completed Orders",
+      "description": "True net purchase orders actively retained and fulfilled (Gross - Cancelled).",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
         "y": 1
       },
       "datasource": {
@@ -162,20 +279,20 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+          "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0)",
           "legendFormat": "Net Orders"
         }
       ]
     },
     {
-      "id": 4,
+      "id": 6,
       "type": "stat",
       "title": "🏷️ Average Order Value (AOV)",
-      "description": "Average spend per completed order ticket (Revenue / Orders).",
+      "description": "Average spend per net completed order ticket (Revenue / Net Orders).",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 4,
+        "x": 16,
         "y": 1
       },
       "datasource": {
@@ -217,20 +334,20 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"})), 1) or vector(0)",
+          "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0), 1) or vector(0)",
           "legendFormat": "AOV"
         }
       ]
     },
     {
-      "id": 5,
+      "id": 7,
       "type": "gauge",
       "title": "📉 Cart Abandonment Rate",
       "description": "Percentage of created shopping carts not converted into finished purchases.",
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 20,
         "y": 1
       },
       "datasource": {
@@ -304,7 +421,7 @@
       "description": "Customer progression from Cart Additions -> Checkout Started -> Payment Step -> Completed Order.",
       "gridPos": {
         "h": 7,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 6
       },
@@ -378,12 +495,12 @@
     {
       "id": 12,
       "type": "bargauge",
-      "title": "🚚 Active Orders Across 5-Stage Logistics Pipeline",
+      "title": "🚚 Active Orders Across Logistics Pipeline",
       "description": "Real-time state machine progression: PLACED -> PREPARING -> IN_TRANSIT -> OUT_FOR_DELIVERY -> DELIVERED.",
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 6
       },
       "datasource": {
@@ -426,6 +543,76 @@
           },
           "expr": "sum by (status) (ecommerce_orders_active_in_pipeline) or vector(0)",
           "legendFormat": "Stage: {{status}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "bargauge",
+      "title": "⚖️ Net Fulfilled vs. Cancelled Orders Audit",
+      "description": "Reconciliation of net fulfilled orders against cancellations and overall Order Cancellation Rate (OCR).",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 0)",
+          "legendFormat": "Net Completed Orders"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
+          "legendFormat": "Cancelled Orders"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)) * 100",
+          "legendFormat": "Cancellation Rate % (OCR)"
         }
       ]
     },

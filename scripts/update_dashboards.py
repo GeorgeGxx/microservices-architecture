@@ -25,7 +25,7 @@ def build_business_dashboard():
             variable.setdefault("query", {})["query"] = biz_service_query
 
     biz_panels = [
-    # ROW 1: EXECUTIVE BUSINESS SUMMARY (Top 4 KPIs)
+    # ROW 1: EXECUTIVE BUSINESS SUMMARY (Top 6 Financial & Audit KPIs)
     {
         "id": 1,
         "type": "row",
@@ -38,7 +38,7 @@ def build_business_dashboard():
         "type": "stat",
         "title": "💵 Net Sales Revenue",
         "description": "Total net monetary volume generated from active completed orders.",
-        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -60,9 +60,64 @@ def build_business_dashboard():
     {
         "id": 3,
         "type": "stat",
+        "title": "📦 Gross Orders Placed",
+        "description": "Total gross purchase orders placed and completed before cancellations.",
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "fixed", "fixedColor": "#60a5fa"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#60a5fa", "value": None}]}
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "textMode": "value", "colorMode": "value", "graphMode": "area"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+            "legendFormat": "Gross Orders"
+        }]
+    },
+    {
+        "id": 4,
+        "type": "stat",
+        "title": "❌ Cancelled Orders & Loss",
+        "description": "Total customer and administrator cancellations (revenue leakage audit).",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "thresholds"},
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "#10b981", "value": None},
+                        {"color": "#f59e0b", "value": 1},
+                        {"color": "#ef4444", "value": 3}
+                    ]
+                }
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "textMode": "value", "colorMode": "value", "graphMode": "area"
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
+            "legendFormat": "Cancelled Orders"
+        }]
+    },
+    {
+        "id": 5,
+        "type": "stat",
         "title": "🛍️ Net Completed Orders",
-        "description": "Total purchase orders successfully completed and active in platform.",
-        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 1},
+        "description": "True net purchase orders actively retained and fulfilled (Gross - Cancelled).",
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -77,16 +132,16 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+            "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0)",
             "legendFormat": "Net Orders"
         }]
     },
     {
-        "id": 4,
+        "id": 6,
         "type": "stat",
         "title": "🏷️ Average Order Value (AOV)",
-        "description": "Average spend per completed order ticket (Revenue / Orders).",
-        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 1},
+        "description": "Average spend per net completed order ticket (Revenue / Net Orders).",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -101,16 +156,16 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"})), 1) or vector(0)",
+            "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0), 1) or vector(0)",
             "legendFormat": "AOV"
         }]
     },
     {
-        "id": 5,
+        "id": 7,
         "type": "gauge",
         "title": "📉 Cart Abandonment Rate",
         "description": "Percentage of created shopping carts not converted into finished purchases.",
-        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 1},
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -152,7 +207,7 @@ def build_business_dashboard():
         "type": "bargauge",
         "title": "🛒 E-Commerce Conversion Funnel Stages",
         "description": "Customer progression from Cart Additions -> Checkout Started -> Payment Step -> Completed Order.",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 6},
+        "gridPos": {"h": 7, "w": 8, "x": 0, "y": 6},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -193,9 +248,9 @@ def build_business_dashboard():
     {
         "id": 12,
         "type": "bargauge",
-        "title": "🚚 Active Orders Across 5-Stage Logistics Pipeline",
+        "title": "🚚 Active Orders Across Logistics Pipeline",
         "description": "Real-time state machine progression: PLACED -> PREPARING -> IN_TRANSIT -> OUT_FOR_DELIVERY -> DELIVERED.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 6},
+        "gridPos": {"h": 7, "w": 8, "x": 8, "y": 6},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -215,6 +270,44 @@ def build_business_dashboard():
             "expr": "sum by (status) (ecommerce_orders_active_in_pipeline) or vector(0)",
             "legendFormat": "Stage: {{status}}"
         }]
+    },
+    {
+        "id": 13,
+        "type": "bargauge",
+        "title": "⚖️ Net Fulfilled vs. Cancelled Orders Audit",
+        "description": "Reconciliation of net fulfilled orders against cancellations and overall Order Cancellation Rate (OCR).",
+        "gridPos": {"h": 7, "w": 8, "x": 16, "y": 6},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}]}
+            }
+        },
+        "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": True,
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]}
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 0)",
+                "legendFormat": "Net Completed Orders"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
+                "legendFormat": "Cancelled Orders"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)) * 100",
+                "legendFormat": "Cancellation Rate % (OCR)"
+            }
+        ]
     },
 
     # ROW 3: PRODUCT DEMAND & INVENTORY INTELLIGENCE (2 Key Visuals)
@@ -772,7 +865,150 @@ def build_technical_dashboard():
                 "legendFormat": "Published by Orders Service"
             }
         ]
+    },
 
+    # ROW 3.5: HYPER-SCALE RESILIENCE, CELLS & ADAPTIVE LIMITS (Level 5 Architecture Pillars)
+    {
+        "id": 350,
+        "type": "row",
+        "title": "🛡️ [HYPER-SCALE RESILIENCE, CELLS & ADAPTIVE LIMITS] Level 5 Architecture Pillars",
+        "collapsed": False,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21}
+    },
+    {
+        "id": 351,
+        "type": "timeseries",
+        "title": "⚡ Vegas Adaptive Concurrency Limits vs In-Flight Requests",
+        "description": "TCP Vegas-inspired AIMD dynamic concurrency headroom tracking in-flight concurrent requests against the calculated capacity threshold to prevent service brownouts.",
+        "gridPos": {"h": 7, "w": 8, "x": 0, "y": 22},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "smooth",
+                    "fillOpacity": 15,
+                    "showPoints": "auto",
+                    "pointSize": 5
+                },
+                "unit": "short",
+                "color": {"mode": "palette-classic"}
+            },
+            "overrides": [
+                {
+                    "matcher": {"id": "byName", "options": "Dynamic Concurrency Limit"},
+                    "properties": [
+                        {"id": "color", "value": {"fixedColor": "#ef4444", "mode": "fixed"}},
+                        {"id": "custom.lineStyle", "value": {"dash": [10, 10], "fill": "dash"}}
+                    ]
+                },
+                {
+                    "matcher": {"id": "byName", "options": "Current In-Flight Requests"},
+                    "properties": [
+                        {"id": "color", "value": {"fixedColor": "#3b82f6", "mode": "fixed"}}
+                    ]
+                }
+            ]
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "max(ecommerce_adaptive_concurrency_limit) or vector(0)",
+                "legendFormat": "Dynamic Concurrency Limit"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "max(ecommerce_adaptive_inflight_requests) or vector(0)",
+                "legendFormat": "Current In-Flight Requests"
+            }
+        ]
+    },
+    {
+        "id": 352,
+        "type": "timeseries",
+        "title": "☠️ Kafka DLQ Quarantined & Traffic Shedding",
+        "description": "Rate of poison pill messages diverted to Dead Letter Queues (DLQ) and requests actively rejected by traffic shedding to maintain system survival.",
+        "gridPos": {"h": 7, "w": 8, "x": 8, "y": 22},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "smooth",
+                    "fillOpacity": 20,
+                    "showPoints": "auto",
+                    "pointSize": 5
+                },
+                "unit": "ops",
+                "color": {"mode": "palette-classic"}
+            },
+            "overrides": [
+                {
+                    "matcher": {"id": "byName", "options": "Traffic Shed Rate (HTTP 429/503)"},
+                    "properties": [
+                        {"id": "color", "value": {"fixedColor": "#f59e0b", "mode": "fixed"}}
+                    ]
+                }
+            ]
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum by (topic) (ecommerce_kafka_dlq_total) or vector(0)",
+                "legendFormat": "DLQ Quarantined: {{topic}}"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(rate(ecommerce_traffic_shed_total[1m])) or vector(0)",
+                "legendFormat": "Traffic Shed Rate (HTTP 429/503)"
+            }
+        ]
+    },
+    {
+        "id": 353,
+        "type": "timeseries",
+        "title": "🌐 Cell-Based Traffic Routing & Outbox Dispatches",
+        "description": "Live traffic distribution across cell partitions (Cell-Alpha vs Cell-Beta) alongside transactional outbox dispatches and publish failures.",
+        "gridPos": {"h": 7, "w": 8, "x": 16, "y": 22},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "drawStyle": "line",
+                    "lineInterpolation": "smooth",
+                    "fillOpacity": 15,
+                    "showPoints": "auto",
+                    "pointSize": 5
+                },
+                "unit": "reqps",
+                "color": {"mode": "palette-classic"}
+            },
+            "overrides": [
+                {
+                    "matcher": {"id": "byName", "options": "Outbox Publish Failures"},
+                    "properties": [
+                        {"id": "color", "value": {"fixedColor": "#ef4444", "mode": "fixed"}}
+                    ]
+                }
+            ]
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum by (cell_id) (rate(ecommerce_cell_requests_total[1m])) or vector(0)",
+                "legendFormat": "Cell Traffic: {{cell_id}}"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum by (event_type) (rate(ecommerce_outbox_events_published_total[1m])) or vector(0)",
+                "legendFormat": "Outbox Dispatched: {{event_type}}"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(rate(ecommerce_outbox_events_failed_total[1m])) or vector(0)",
+                "legendFormat": "Outbox Publish Failures"
+            }
+        ]
     },
 
     # ROW 4: PLATFORM SATURATION & RESOURCES (2 Visuals)
@@ -781,14 +1017,14 @@ def build_technical_dashboard():
         "type": "row",
         "title": "☕ [PLATFORM SATURATION & RESOURCES] JVM Memory, CPU & Database Pools",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}
     },
     {
         "id": 401,
         "type": "timeseries",
         "title": "🧠 JVM Heap Memory Usage (MB)",
         "description": "Real-time heap memory consumption across Spring Boot Java 21 containers.",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 22},
+        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 30},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -814,7 +1050,7 @@ def build_technical_dashboard():
         "type": "timeseries",
         "title": "🐘 HikariCP Active Database Connection Pools (PostgreSQL)",
         "description": "Active, idle, and queued connections per HikariCP pool. Active can correctly remain at zero while the application is idle; compare it with idle and pending connections before diagnosing a scrape issue.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 22},
+        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 30},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -851,14 +1087,14 @@ def build_technical_dashboard():
         "type": "row",
         "title": "🛡️ [SECURITY, ANTI-DDOS & INCIDENT DIAGNOSTICS] Threat Interceptions & Error Logs",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 37}
     },
     {
         "id": 501,
         "type": "bargauge",
         "title": "🛑 Blocked Attacks (HTTP 429) & Observed Peer IPs",
         "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. No rows means no blocked request in the selected time range. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
-        "gridPos": {"h": 8, "w": 10, "x": 0, "y": 30},
+        "gridPos": {"h": 8, "w": 10, "x": 0, "y": 38},
         "datasource": {"uid": "loki-ds", "type": "loki"},
         "fieldConfig": {
             "defaults": {
@@ -899,7 +1135,7 @@ def build_technical_dashboard():
         "type": "logs",
         "title": "📜 Real-Time Incident Diagnostic Logs (Errors & Security Audits - Loki)",
         "description": "Filtered log stream strictly displaying ERROR logs and security intercept events, eliminating container noise.",
-        "gridPos": {"h": 8, "w": 14, "x": 10, "y": 30},
+        "gridPos": {"h": 8, "w": 14, "x": 10, "y": 38},
         "datasource": {"uid": "loki-ds", "type": "loki"},
         "options": {
             "showLabels": True,
@@ -923,14 +1159,14 @@ def build_technical_dashboard():
         "type": "row",
         "title": "⚡ [TELEMETRY PIPELINE & LOG FORWARDING] Grafana Alloy Engine",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 38}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 46}
     },
     {
         "id": 601,
         "type": "stat",
         "title": "⚡ Alloy Scrape Target Health",
         "description": "Prometheus scrape health for Alloy. A value of 1 means the metrics endpoint is reachable; 0 means scrapes are failing. No data means the target is missing.",
-        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 39},
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 47},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -964,7 +1200,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "🔄 Alloy Restarts (24h)",
         "description": "Uses Kubernetes container restart counters in Minikube and changes in Alloy's process start time in Docker Compose. Compose requires a stable Alloy scrape target; a new Prometheus installation needs two samples before it can detect a restart.",
-        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 39},
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 47},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -997,7 +1233,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "💾 Alloy Memory (RSS)",
         "description": "Maximum resident set size across Alloy instances; the configured container limit is 256 MiB.",
-        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 39},
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 47},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1030,7 +1266,7 @@ def build_technical_dashboard():
         "type": "stat",
         "title": "⚡ Alloy CPU Consumption",
         "description": "Maximum CPU cores currently consumed by an Alloy instance. This is process CPU time, not percentage of the container limit.",
-        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 39},
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 47},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1055,7 +1291,7 @@ def build_technical_dashboard():
         "type": "timeseries",
         "title": "⏱️ Loki Push Request Duration (ms)",
         "description": "P95 and median duration of Alloy HTTP push requests to Loki. This measures request duration, not end-to-end ingestion latency.",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 43},
+        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 51},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1096,7 +1332,7 @@ def build_technical_dashboard():
         "type": "timeseries",
         "title": "📨 Alloy Log Flow to Loki",
         "description": "Log pipeline activity: entries successfully delivered to Loki and source lines read by Alloy, both as events per second. A live flow line confirms the pipeline is active while the adjacent panel tracks delivery failures.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 43},
+        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 51},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -1121,7 +1357,7 @@ def build_technical_dashboard():
         "type": "timeseries",
         "title": "⚠️ Alloy Delivery Failures (Rolling 15m)",
         "description": "Rolling 15-minute counts of retried batches and dropped log entries grouped by drop reason. The bar view makes intermittent failures visible; zero means no failures were recorded in that window, while No data means the metric is unavailable.",
-        "gridPos": {"h": 7, "w": 24, "x": 0, "y": 50},
+        "gridPos": {"h": 7, "w": 24, "x": 0, "y": 58},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {

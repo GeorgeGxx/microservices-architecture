@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 48,
+  "version": 49,
   "tags": [
     "spring-boot",
     "java21",
@@ -696,6 +696,249 @@
       ]
     },
     {
+      "id": 350,
+      "type": "row",
+      "title": "🛡️ [HYPER-SCALE RESILIENCE, CELLS & ADAPTIVE LIMITS] Level 5 Architecture Pillars",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      }
+    },
+    {
+      "id": 351,
+      "type": "timeseries",
+      "title": "⚡ Vegas Adaptive Concurrency Limits vs In-Flight Requests",
+      "description": "TCP Vegas-inspired AIMD dynamic concurrency headroom tracking in-flight concurrent requests against the calculated capacity threshold to prevent service brownouts.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Dynamic Concurrency Limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#ef4444",
+                  "mode": "fixed"
+                }
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "dash": [
+                    10,
+                    10
+                  ],
+                  "fill": "dash"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Current In-Flight Requests"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#3b82f6",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "max(ecommerce_adaptive_concurrency_limit) or vector(0)",
+          "legendFormat": "Dynamic Concurrency Limit"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "max(ecommerce_adaptive_inflight_requests) or vector(0)",
+          "legendFormat": "Current In-Flight Requests"
+        }
+      ]
+    },
+    {
+      "id": 352,
+      "type": "timeseries",
+      "title": "☠️ Kafka DLQ Quarantined & Traffic Shedding",
+      "description": "Rate of poison pill messages diverted to Dead Letter Queues (DLQ) and requests actively rejected by traffic shedding to maintain system survival.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 20,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Traffic Shed Rate (HTTP 429/503)"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#f59e0b",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (topic) (ecommerce_kafka_dlq_total) or vector(0)",
+          "legendFormat": "DLQ Quarantined: {{topic}}"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(rate(ecommerce_traffic_shed_total[1m])) or vector(0)",
+          "legendFormat": "Traffic Shed Rate (HTTP 429/503)"
+        }
+      ]
+    },
+    {
+      "id": 353,
+      "type": "timeseries",
+      "title": "🌐 Cell-Based Traffic Routing & Outbox Dispatches",
+      "description": "Live traffic distribution across cell partitions (Cell-Alpha vs Cell-Beta) alongside transactional outbox dispatches and publish failures.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 22
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 15,
+            "showPoints": "auto",
+            "pointSize": 5
+          },
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Outbox Publish Failures"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "#ef4444",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (cell_id) (rate(ecommerce_cell_requests_total[1m])) or vector(0)",
+          "legendFormat": "Cell Traffic: {{cell_id}}"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (event_type) (rate(ecommerce_outbox_events_published_total[1m])) or vector(0)",
+          "legendFormat": "Outbox Dispatched: {{event_type}}"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(rate(ecommerce_outbox_events_failed_total[1m])) or vector(0)",
+          "legendFormat": "Outbox Publish Failures"
+        }
+      ]
+    },
+    {
       "id": 400,
       "type": "row",
       "title": "☕ [PLATFORM SATURATION & RESOURCES] JVM Memory, CPU & Database Pools",
@@ -704,7 +947,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 29
       }
     },
     {
@@ -716,7 +959,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 30
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -757,7 +1000,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 30
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -814,7 +1057,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 37
       }
     },
     {
@@ -826,7 +1069,7 @@
         "h": 8,
         "w": 10,
         "x": 0,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "uid": "loki-ds",
@@ -894,7 +1137,7 @@
         "h": 8,
         "w": 14,
         "x": 10,
-        "y": 30
+        "y": 38
       },
       "datasource": {
         "uid": "loki-ds",
@@ -934,7 +1177,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 46
       }
     },
     {
@@ -946,7 +1189,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 39
+        "y": 47
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1018,7 +1261,7 @@
         "h": 4,
         "w": 6,
         "x": 6,
-        "y": 39
+        "y": 47
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1080,7 +1323,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 39
+        "y": 47
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1142,7 +1385,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 39
+        "y": 47
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1187,7 +1430,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1253,7 +1496,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 43
+        "y": 51
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1302,7 +1545,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 58
       },
       "datasource": {
         "uid": "prometheus-ds",
