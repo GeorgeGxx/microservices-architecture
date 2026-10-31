@@ -367,7 +367,10 @@ microservices-architecture/
 │   ├── istio/                      # VirtualServices, DestinationRules, Gateway & mTLS policies
 │   ├── minikube/                   # Local cluster deployment manifests & local secrets
 │   └── [aks|eks|gke]/              # Managed cloud Kubernetes configurations
-├── mlops/                          # 🧪 MLOps Pipeline & Forecasting Service
+├── mlops/                          # 🧪 MLOps Pipeline & Forecasting Subsystem
+│   ├── Dockerfile.forecast         # Online inference server (`georgegxx/demand-forecast`)
+│   ├── Dockerfile.training         # Headless PySpark batch auto-trainer (`georgegxx/mlops-training`)
+│   ├── Dockerfile.capture          # Kafka-to-Parquet Spark Structured Streaming daemon
 │   ├── capture_orders.py           # Unified Kafka event capture (Spark Parquet & Python CSV)
 │   ├── train_demand_model.py       # PySpark MLlib GBT regressor, MLflow tracking & auto-trainer
 │   ├── forecast_api.py             # FastAPI 7-day SKU demand inference endpoint with Keycloak RBAC
