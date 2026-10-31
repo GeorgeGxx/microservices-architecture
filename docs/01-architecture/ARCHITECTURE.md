@@ -120,6 +120,82 @@ Port numbers are scoped to their listener: container ports belong to individual 
 
 ---
 
+## 🧱 Enterprise Platform Layers (Layer A to Layer E) Implementation Guide
+
+The enterprise platform architecture is structured into **5 mission-critical technology layers (Layer A through Layer E)** designed with complete runtime parity across **Docker Compose** (`compose.yaml`) and **Kubernetes / Minikube** (`platform-minikube.ps1`):
+
+```
+ ┌────────────────────────────────────────────────────────────────────────┐
+ │                      LAYER A: SERVICE MESH & NETWORK SECURITY          │
+ │   Istio STRICT mTLS • Zero-Trust AuthorizationPolicies • L3/L4 NetPol  │
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+ ┌───────────────────────────────────▼────────────────────────────────────┐
+ │                      LAYER B: EDGE FEDERATION & IDENTITY               │
+ │   Cosmo Router Gateway v2 (Apollo Federation) ⇄ Keycloak 26 (OIDC/JWKS)│
+ └───────────────────────────────────┬────────────────────────────────────┘
+                                     │
+ ┌───────────────────────────────────▼────────────────────────────────────┐
+ │                      LAYER C: EVENT-DRIVEN MESSAGING & SAGAS           │
+ │   Apache Kafka KRaft 3.x • Redis 7.x Idempotency • Transactional Outbox│
+ └───────┬───────────────────────────┬────────────────────────────┬───────┘
+         │                           │                            │
+ ┌───────▼───────────────────┐       │       ┌────────────────────▼───────┐
+ │ LAYER D: FULL-STACK       │       │       │ LAYER E: SECRETS & DATA    │
+ │ OBSERVABILITY (LGTM)      │       │       │ SECURITY (VAULT & ESO)     │
+ │ • Prometheus 3.x (9090)   │       │       │ • HashiCorp Vault (8200)   │
+ │ • Grafana 13.x (3000)     │       │       │ • Transit Encryption (GCM) │
+ │ • Tempo 3.x Traces (3200) │       │       │ • Dynamic DB Engine (PG18) │
+ │ • Loki 3.x Logs (3100)    │       │       │ • External Secrets (ESO)   │
+ │ • OpenCost FinOps (7000)  │       │       │ • Docker Auto-Init Seeding │
+ └───────────────────────────┘       │       └────────────────────────────┘
+```
+
+### 🛡️ Layer A: Service Mesh & Network Security
+* **Zero-Trust Mutual TLS (STRICT mTLS):** In Minikube, the entire data plane runs under Istio `PeerAuthentication` with `STRICT` mode enforced across all namespaces (`dev`, `staging`, `prod`), guaranteeing end-to-end cryptographic encapsulation and SPIFFE workload identity.
+* **Least-Privilege AuthorizationPolicies:** Default-deny-all baseline (`default-deny-all`) with explicit whitelist rules:
+  - `allow-ingress-to-edge`: Routes traffic from `istio-ingressgateway-service-account` to Cosmo Router on port 8080.
+  - `allow-ingress-to-frontend`: Exposes Frontend SPA on port 80/8080.
+  - `allow-router-to-subgraphs`: Allows Cosmo Router to query transactional subgraphs across ports 8001–8087.
+  - `allow-orders-to-downstream`: Permits Orders Service east-west calls to downstream subgraphs.
+  - `allow-frontend-to-forecast`: Unblocks direct demand forecast querying on port 8005.
+  - `allow-observability-scraping`: Permits Prometheus and Alloy telemetry scrapers to reach `/actuator/prometheus` and `/metrics`.
+* **L3/L4 Network Isolation:** Kubernetes `NetworkPolicies` isolate pod-to-pod ingress/egress. In Docker Compose, bridge networks (`frontend-net`, `backend-net`, `data-net`) enforce container-level perimeter segregation.
+* **Ambient Mode Roadmap:** Architecture evaluation for high-scale cloud production (migrating from sidecars to node-level `ztunnel` and L7 waypoint proxies), saving ~80–120 MiB RAM per container replica.
+
+### 🚀 Layer B: Edge Federation & Authentication
+* **WunderGraph Cosmo Router v2 Gateway:** High-performance Go gateway executing federated GraphQL queries across 9 microservice subgraphs using compiled static execution plans (`execution-config.json`).
+* **Keycloak 26 IAM Integration:** OIDC / OAuth2 token issuance (`microservices-realm`) validating RS256 JWT signatures against the Keycloak JWKS certificates endpoint (`/realms/microservices-realm/protocol/openid-connect/certs`).
+* **JWKS Stale-While-Revalidate Caching:** Configured with `refresh_unknown_kid: enabled: true`, `max_wait: 10s`, and 5-minute background refresh intervals. Ensures transient Keycloak network fluctuations do not cause false edge token rejections.
+* **GraphQL Defense-in-Depth Guardrails:** Enforces query depth limiting ($\le 12$), query alias bounding ($\le 5$), 1 MiB body payload limits, and `@authenticated` pre-fetch directive field kill-switches.
+* **Contextual Token & Trace Propagation:** Automatically propagates `Authorization` (Bearer token), `X-Idempotency-Key`, W3C `traceparent` (OpenTelemetry), and `X-Correlation-ID` headers to all downstream subgraphs.
+
+### ⚡ Layer C: Event-Driven Messaging & Sagas
+* **Apache Kafka 3.x (KRaft Mode):** Distributed consensus without Zookeeper overhead. Manages partitioned event topics (`orders-topic`, `payments-topic`, `fulfillment-topic`).
+* **Asynchronous Choreographed Sagas:** Decoupled multi-service transactions with forward actions and automated backward compensating workflows on payment or fulfillment rejections.
+* **Redis 7.x Distributed Idempotency:** Atomic `SETNX` locking with 24-hour TTL keyed by `X-Idempotency-Key` prevents double billing and duplicate order placement during network retries.
+* **Transactional Outbox Pattern:** Application state changes and domain events are persisted in the same ACID database transaction into an `outbox` table, polled asynchronously by a background dispatcher with zero phantom reads and at-least-once delivery.
+* **Dead Letter Queues (DLQ) & Contract Safety:** Spring `@RetryableTopic` non-blocking backoff (1s, 2s, 4s) routes permanently failed poison pill events to `.DLT` topics. CLI operational replay tools (`scripts/prod/kafka-ops.sh`) allow safe inspection and reprocessing.
+
+### 📊 Layer D: Full-Stack Observability Pipeline
+* **Unified LGTM Telemetry Stack:**
+  - **Prometheus 3.x:** Pull-based metrics scraping across all 9 microservices, Cosmo Router, and platform infrastructure.
+  - **Loki 3.x:** Multi-tenant structured log aggregation with Promtail / Alloy streaming.
+  - **Tempo 3.x:** High-scale OpenTelemetry distributed trace store collecting span waterfalls.
+  - **Grafana 13.x:** Central visualization with SRE Technical & Security Dashboard and Executive Business Operations Dashboard.
+* **Bidirectional Trace-to-Log Correlation:**
+  - Loki is provisioned with `derivedFields` matching `(?:traceId|trace_id)[:=]\s*"?([a-f0-9]{32})"?` which automatically displays an interactive **"Tempo"** button on every log line containing a trace ID.
+  - Tempo is provisioned with `tracesToLogsV2` linking spans directly into Loki query streams (`{service=~".+"} |= "$${__span.traceId}"`).
+* **OpenCost FinOps UI (Port 7000):** Real-time container compute, RAM, and storage allocation telemetry integrated with Prometheus for live cost monitoring and budget adherence.
+
+### 🔒 Layer E: Secrets Management & Data Security
+* **HashiCorp Vault KV-v2 Engine:** Centralized encrypted secrets engine at `secret/`, providing strict hierarchical path isolation (`secret/application`, `secret/cosmo-router`, `secret/<service>`).
+* **Transit Encryption Engine:** Cryptographic data encryption at rest using AES-256-GCM (`transit/keys/microservices-data-key`) ensuring sensitive customer data (PII) is encrypted before persisting to PostgreSQL.
+* **Dynamic Database Engine:** Automatically generates short-lived ephemeral PostgreSQL 18 user credentials with 1-hour leases and automated revocation.
+* **External Secrets Operator (ESO) & Compose Parity:** Kubernetes `SecretStore` connects to Vault KV-v2 and synchronizes dynamic credentials into native Kubernetes Secrets (`microservices-secrets`). In Docker Compose, the `vault-init` container automates secret seeding and engine provisioning via `scripts/vault-init.sh`.
+
+---
+
 ## ⚡ Enterprise Features & Platform Capabilities Catalog
 
 This section serves as the **Single Source of Truth (SSOT)** for all functional, architectural, security, and operational capabilities implemented across the microservices ecosystem.

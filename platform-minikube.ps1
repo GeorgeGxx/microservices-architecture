@@ -2244,7 +2244,7 @@ switch ($Command) {
 
     { $_ -in @("diagrams", "sync-diagrams") } {
         Show-Banner "Synchronize Architecture Blueprint (docs/Diagrams.drawio)"
-        Write-Host "Regenerating docs/Diagrams.drawio across all 17 architectural tabs..." -ForegroundColor White
+        Write-Host "Regenerating docs/Diagrams.drawio across all 18 architectural tabs..." -ForegroundColor White
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
@@ -2303,7 +2303,7 @@ Commands:
   bcdr          : Simulates backup, disaster recovery, and failover drill.
   compose-router: Composes Cosmo Router GraphQL Federation v2 execution config.
   graph         : Generates visual Terraform dependency graph via Graphviz dot.
-  diagrams      : Synchronizes architecture blueprints into docs/Diagrams.drawio (17 tabs).
+  diagrams      : Synchronizes architecture blueprints into docs/Diagrams.drawio (18 tabs).
   tools         : Audits host CLI dependencies (pass -Install to attempt WinGet install).
 
 Options:
