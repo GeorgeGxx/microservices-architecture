@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://georgegxx.io/contracts/events/fulfillment-event.schema.json",
+  "title": "FulfillmentEvent",
+  "description": "Formal schema contract for fulfillment-topic events emitted by fulfillment-service (TypeScript 7 / NestJS) and consumed by Java and Python.",
+  "type": "object",
+  "required": [
+    "eventType",
+    "orderNumber"
+  ],
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "enum": ["SHIPMENT_DISPATCHED", "SHIPMENT_DELIVERED", "SHIPMENT_FAILED"],
+      "description": "Lifecycle transition of physical package fulfillment"
+    },
+    "orderNumber": {
+      "type": "string",
+      "minLength": 1
+    },
+    "shipmentId": {
+      "type": "string"
+    },
+    "carrier": {
+      "type": "string"
+    },
+    "trackingNumber": {
+      "type": "string"
+    },
+    "dispatchedAt": {
+      "type": "string"
+    },
+    "deliveredAt": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "failedAt": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}

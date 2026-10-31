@@ -290,6 +290,7 @@ metadata:
   name: demand-forecast-service
   annotations:
     argocd.argoproj.io/sync-wave: "3"
+    reloader.stakater.com/auto: "true"
 spec:
   replicas: 1
   strategy:

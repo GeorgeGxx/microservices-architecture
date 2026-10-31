@@ -179,3 +179,16 @@ telemetry:
       network:
         enabled: true
       circuit_breaker: true
+
+# Layer B: Edge GraphQL Query Response Caching
+response_cache:
+  enabled: true
+  storage:
+    provider: memory
+    max_entries: 10000
+  all:
+    enabled: true
+    fallback_ttl: 30s
+  cache_tag_header:
+    enabled: true
+    name: Cache-Tag

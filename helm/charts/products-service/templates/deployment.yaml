@@ -6,6 +6,7 @@ metadata:
     {{- include "products-service.labels" . | nindent 4 }}
   annotations:
     argocd.argoproj.io/sync-wave: "1"
+    reloader.stakater.com/auto: "true"
 spec:
 {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}

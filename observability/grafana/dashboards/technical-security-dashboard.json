@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 49,
+  "version": 50,
   "tags": [
     "spring-boot",
     "java21",
@@ -1581,6 +1581,190 @@
           },
           "expr": "sum by (reason) (increase(loki_write_dropped_entries_total{job=\"alloy\"}[15m]))",
           "legendFormat": "Dropped: {{reason}} / 15m"
+        }
+      ]
+    },
+    {
+      "id": 700,
+      "type": "row",
+      "title": "🎯 [OUTSIDE-IN SYNTHETIC SLO PROBING & AVAILABILITY] Blackbox Exporter Golden Signals",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 65
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 701,
+      "type": "stat",
+      "title": "✅ Synthetic Availability (Uptime %)",
+      "description": "Outside-in synthetic HTTP probe availability across Storefront SPA, Cosmo Router Gateway, and Keycloak IAM.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 66
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 99.0
+              },
+              {
+                "color": "#10b981",
+                "value": 99.5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "avg(probe_success{job=\"blackbox-synthetic\"}) * 100",
+          "legendFormat": "Global Synthetic Availability"
+        }
+      ]
+    },
+    {
+      "id": 702,
+      "type": "timeseries",
+      "title": "⏱️ Synthetic Probe Latency (ms)",
+      "description": "Outside-in roundtrip network and processing latency measured by Prometheus Blackbox Exporter.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 66
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "mean",
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "probe_duration_seconds{job=\"blackbox-synthetic\"} * 1000",
+          "legendFormat": "{{ instance }}"
+        }
+      ]
+    },
+    {
+      "id": 703,
+      "type": "bargauge",
+      "title": "🌐 Synthetic Probe HTTP Status Codes",
+      "description": "Latest HTTP response status codes returned to Blackbox synthetic probes.",
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 66
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#10b981",
+                "value": 200
+              },
+              {
+                "color": "#ef4444",
+                "value": 300
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "probe_http_status_code{job=\"blackbox-synthetic\"}",
+          "legendFormat": "{{ instance }}"
         }
       ]
     }

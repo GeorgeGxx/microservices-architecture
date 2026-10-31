@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://georgegxx.io/contracts/events/order-event.schema.json",
+  "title": "OrderEvent",
+  "description": "Formal schema contract for orders-topic events emitted by orders-service (Java 21) and consumed by Go, TypeScript, Python, and Java.",
+  "type": "object",
+  "required": [
+    "orderNumber",
+    "orderStatus"
+  ],
+  "properties": {
+    "orderNumber": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique business order identifier, e.g. ORD-12345"
+    },
+    "itemsCount": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total count of physical item units in the order"
+    },
+    "orderStatus": {
+      "type": "string",
+      "enum": ["PLACED", "CANCELLED", "CONFIRMED", "PROCESSING", "SHIPPED", "DELIVERED"],
+      "description": "Current lifecycle status of the order"
+    },
+    "customerName": {
+      "type": ["string", "null"]
+    },
+    "customerEmail": {
+      "type": ["string", "null"],
+      "format": "email"
+    },
+    "shippingAddress": {
+      "type": ["string", "null"]
+    },
+    "city": {
+      "type": ["string", "null"]
+    },
+    "postalCode": {
+      "type": ["string", "null"]
+    },
+    "phone": {
+      "type": ["string", "null"]
+    },
+    "deliveryMethod": {
+      "type": ["string", "null"]
+    },
+    "paymentMethod": {
+      "type": ["string", "null"]
+    },
+    "trackingNumber": {
+      "type": ["string", "null"]
+    },
+    "totalAmount": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "userId": {
+      "type": ["string", "null"]
+    },
+    "username": {
+      "type": ["string", "null"]
+    },
+    "occurredAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "orderCreatedAt": {
+      "type": ["string", "null"],
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sku", "quantity"],
+        "properties": {
+          "sku": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
