@@ -62,24 +62,15 @@ metadata:
   name: allow-router-to-subgraphs
   namespace: dev
 spec:
-  selector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - "products-service"
-          - "orders-service"
-          - "inventory-service"
-          - "notification-service"
-          - "payments-service"
-          - "fulfillment-service"
-          - "analytics-service"
   action: ALLOW
   rules:
     - from:
         - source:
             principals:
               - "cluster.local/ns/dev/sa/cosmo-router-sa"
+      to:
+        - operation:
+            ports: ["8001", "8002", "8003", "8004", "8085", "8086", "8087"]
 ---
 # 4. Allow Service-to-Service East-West Communication (Orders -> Inventory, Payments, Notifications)
 apiVersion: security.istio.io/v1beta1
@@ -88,22 +79,58 @@ metadata:
   name: allow-orders-to-downstream
   namespace: dev
 spec:
-  selector:
-    matchExpressions:
-      - key: app
-        operator: In
-        values:
-          - "inventory-service"
-          - "payments-service"
-          - "notification-service"
   action: ALLOW
   rules:
     - from:
         - source:
             principals:
               - "cluster.local/ns/dev/sa/orders-service-sa"
+      to:
+        - operation:
+            ports: ["8001", "8002", "8085"]
 ---
-# 5. Allow Prometheus and Observability Scrapers to reach Metrics and Health endpoints
+# 5. Allow Frontend to call Demand Forecast Service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-frontend-to-forecast
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/dev/sa/frontend-sa"
+      to:
+        - operation:
+            ports: ["8005"]
+---
+# 6. Allow MLOps workloads to access MLflow Tracking
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-mlops-to-mlflow
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: mlflow
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/dev/sa/demand-forecast-sa"
+              - "cluster.local/ns/dev/sa/demand-sales-capture-sa"
+      to:
+        - operation:
+            ports: ["5000"]
+---
+# 7. Allow Prometheus and Observability Scrapers to reach Metrics and Health endpoints
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
