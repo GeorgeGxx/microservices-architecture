@@ -1,3 +1,7 @@
+data "aws_vpc" "this" {
+  id = var.vpc_id
+}
+
 resource "aws_security_group" "redis" {
   name_prefix = "${var.name}-${var.environment}-redis-sg-"
   description = "Security Group for ElastiCache Redis Cluster"
@@ -12,11 +16,11 @@ resource "aws_security_group" "redis" {
   }
 
   egress {
-    description = "Allow all outbound traffic"
+    description = "Allow outbound traffic only within VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [data.aws_vpc.this.cidr_block]
   }
 
   tags = merge(

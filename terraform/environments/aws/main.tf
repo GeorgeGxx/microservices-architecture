@@ -8,6 +8,7 @@ module "vpc" {
   public_subnet_cidrs  = local.cfg.public_subnet_cidrs
   private_subnet_cidrs = local.cfg.private_subnet_cidrs
   single_nat_gateway   = local.cfg.single_nat_gateway
+  kms_key_arn          = local.cfg.enable_kms ? module.kms[0].key_arn : null
   tags                 = local.tags
 }
 
@@ -50,6 +51,7 @@ module "eks_dp2" {
 module "ecr" {
   source      = "../../modules/aws/ecr"
   environment = local.env
+  kms_key_arn = local.cfg.enable_kms ? module.kms[0].key_arn : null
   tags        = local.tags
 }
 
@@ -70,6 +72,7 @@ module "rds_postgres" {
   instance_class      = local.cfg.db_instance_class
   multi_az            = local.cfg.db_multi_az
   deletion_protection = local.cfg.deletion_protection
+  kms_key_arn         = local.cfg.enable_kms ? module.kms[0].key_arn : null
   tags                = local.tags
 }
 

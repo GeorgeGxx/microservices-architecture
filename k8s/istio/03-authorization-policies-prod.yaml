@@ -1,0 +1,120 @@
+# ==============================================================================
+# Zero-Trust Istio Authorization Policies - PRODUCTION Environment
+# Implements Principle of Least Privilege: Default Deny + Explicit Workload Allow
+# ==============================================================================
+
+# 1. Default Deny all traffic in namespace 'production'
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  {}
+---
+# 2. Allow Ingress Gateway and Frontend to reach Edge Services (Cosmo Router & Storefront)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress-to-edge
+  namespace: production
+spec:
+  selector:
+    matchLabels:
+      app: cosmo-router
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway"
+              - "cluster.local/ns/production/sa/frontend-sa"
+      to:
+        - operation:
+            ports: ["8080"]
+            paths: ["/graphql*", "/health*"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress-to-frontend
+  namespace: production
+spec:
+  selector:
+    matchLabels:
+      app: frontend
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway"
+      to:
+        - operation:
+            ports: ["8080", "80"]
+---
+# 3. Allow Cosmo Router to call Federated Subgraph Microservices
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-router-to-subgraphs
+  namespace: production
+spec:
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - "products-service"
+          - "orders-service"
+          - "inventory-service"
+          - "notification-service"
+          - "payments-service"
+          - "fulfillment-service"
+          - "analytics-service"
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/production/sa/cosmo-router-sa"
+---
+# 4. Allow Service-to-Service East-West Communication (Orders -> Inventory, Payments, Notifications)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-orders-to-downstream
+  namespace: production
+spec:
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - "inventory-service"
+          - "payments-service"
+          - "notification-service"
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/production/sa/orders-service-sa"
+---
+# 5. Allow Prometheus and Observability Scrapers to reach Metrics endpoints
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-observability-scraping
+  namespace: production
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            namespaces: ["observability", "istio-system"]
+      to:
+        - operation:
+            paths: ["/actuator*", "/metrics*", "/stats/prometheus*", "/health*"]
