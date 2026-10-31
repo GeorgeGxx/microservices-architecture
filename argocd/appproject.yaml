@@ -34,12 +34,14 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: observability
       name: msa-aws-dp2-prod
-  # Restrict cluster-scoped permissions: standard microservices workloads are confined
-  # to their destination namespaces. ClusterRole and ClusterRoleBinding are excluded to
-  # prevent privilege escalation attacks against the Kubernetes control plane.
+  # Scoped cluster permissions: Allow Namespaces and OpenCost cluster-level telemetry roles
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRole
+    - group: "rbac.authorization.k8s.io"
+      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
     - group: ""
       kind: ConfigMap
@@ -61,6 +63,8 @@ spec:
       kind: CronJob
     - group: autoscaling
       kind: HorizontalPodAutoscaler
+    - group: keda.sh
+      kind: ScaledObject
     - group: policy
       kind: PodDisruptionBudget
     - group: networking.k8s.io
@@ -73,6 +77,10 @@ spec:
       kind: RoleBinding
     - group: monitoring.coreos.com
       kind: ServiceMonitor
+    - group: monitoring.coreos.com
+      kind: PodMonitor
+    - group: monitoring.coreos.com
+      kind: AlertmanagerConfig
     - group: monitoring.coreos.com
       kind: PrometheusRule
     - group: networking.istio.io
