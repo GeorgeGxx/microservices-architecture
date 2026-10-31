@@ -1,0 +1,125 @@
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: microservices-gateway-prod
+  namespace: production
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "msa.example.com"
+        - "*.msa.example.com"
+      tls:
+        httpsRedirect: true
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "msa.example.com"
+        - "*.msa.example.com"
+      tls:
+        mode: SIMPLE
+        credentialName: microservices-tls-cert
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: microservices-edge-routes-prod
+  namespace: production
+spec:
+  hosts:
+    - "msa.example.com"
+    - "*.msa.example.com"
+  gateways:
+    - microservices-gateway-prod
+  http:
+    # 1. GraphQL Supergraph requests -> Routed to Cosmo Router
+    - match:
+        - uri:
+            prefix: /graphql
+        - uri:
+            exact: /health
+      route:
+        - destination:
+            host: cosmo-router.production.svc.cluster.local
+            port:
+              number: 8080
+      timeout: 15s
+      retries:
+        attempts: 2
+        perTryTimeout: 5s
+        retryOn: "5xx,connect-failure,refused-stream"
+
+    # 2. SSE Real-Time Notifications
+    - match:
+        - uri:
+            prefix: /api/notifications/
+      route:
+        - destination:
+            host: notification-service.production.svc.cluster.local
+            port:
+              number: 8002
+      timeout: 300s
+
+    # 3. Direct API routes with resilience
+    - match:
+        - uri:
+            prefix: /api/v1/payments
+      route:
+        - destination:
+            host: payments-service.production.svc.cluster.local
+            port:
+              number: 8085
+      timeout: 10s
+
+    - match:
+        - uri:
+            prefix: /api/v1/shipments
+      route:
+        - destination:
+            host: fulfillment-service.production.svc.cluster.local
+            port:
+              number: 8086
+      timeout: 10s
+
+    - match:
+        - uri:
+            prefix: /api/v1/analytics
+      route:
+        - destination:
+            host: analytics-service.production.svc.cluster.local
+            port:
+              number: 8087
+      timeout: 10s
+
+    # 4. Keycloak Public Auth (No /admin/ exposed to internet)
+    - match:
+        - uri:
+            prefix: /realms/
+        - uri:
+            prefix: /resources/
+        - uri:
+            prefix: /js/
+      route:
+        - destination:
+            host: keycloak.auth.svc.cluster.local
+            port:
+              number: 8181
+      timeout: 10s
+
+    # 5. Default / Root -> Storefront
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: frontend.production.svc.cluster.local
+            port:
+              number: 80
+      timeout: 10s

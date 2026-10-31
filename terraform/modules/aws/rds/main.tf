@@ -5,6 +5,10 @@ locals {
   })
 }
 
+data "aws_vpc" "this" {
+  id = var.vpc_id
+}
+
 resource "aws_db_subnet_group" "this" {
   name       = "${var.name}-${var.environment}-db-subnets"
   subnet_ids = var.private_subnet_ids
@@ -24,10 +28,11 @@ resource "aws_security_group" "db" {
   }
 
   egress {
+    description = "Restrict database outbound traffic to VPC"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [data.aws_vpc.this.cidr_block]
   }
 
   tags = local.common_tags
@@ -41,6 +46,7 @@ resource "aws_db_instance" "this" {
 
   allocated_storage      = var.allocated_storage
   storage_encrypted      = true
+  kms_key_id             = var.kms_key_arn
   db_name                = var.db_name
   username               = var.master_username
   password               = var.master_password

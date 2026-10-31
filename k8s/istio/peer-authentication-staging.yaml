@@ -7,6 +7,8 @@ spec:
   mtls:
     mode: STRICT
 ---
+# Dedicated metrics port exception: only port 9090 on Cosmo Router is exposed for
+# Prometheus scraping. Application business ports enforce STRICT mTLS.
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -18,56 +20,4 @@ spec:
       app: cosmo-router
   portLevelMtls:
     9090:
-      mode: PERMISSIVE
----
-apiVersion: security.istio.io/v1beta1
-kind: PeerAuthentication
-metadata:
-  name: inventory-service-metrics
-  namespace: staging
-spec:
-  selector:
-    matchLabels:
-      app: inventory-service
-  portLevelMtls:
-    8001:
-      mode: PERMISSIVE
----
-apiVersion: security.istio.io/v1beta1
-kind: PeerAuthentication
-metadata:
-  name: notification-service-metrics
-  namespace: staging
-spec:
-  selector:
-    matchLabels:
-      app: notification-service
-  portLevelMtls:
-    8002:
-      mode: PERMISSIVE
----
-apiVersion: security.istio.io/v1beta1
-kind: PeerAuthentication
-metadata:
-  name: orders-service-metrics
-  namespace: staging
-spec:
-  selector:
-    matchLabels:
-      app: orders-service
-  portLevelMtls:
-    8003:
-      mode: PERMISSIVE
----
-apiVersion: security.istio.io/v1beta1
-kind: PeerAuthentication
-metadata:
-  name: products-service-metrics
-  namespace: staging
-spec:
-  selector:
-    matchLabels:
-      app: products-service
-  portLevelMtls:
-    8004:
       mode: PERMISSIVE

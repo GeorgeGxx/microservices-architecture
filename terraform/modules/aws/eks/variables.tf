@@ -54,6 +54,12 @@ variable "endpoint_public_access" {
   default = false
 }
 
+variable "enabled_cluster_log_types" {
+  description = "List of desired control plane logging types to enable for Amazon EKS"
+  type        = list(string)
+  default     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+}
+
 variable "public_access_cidrs" {
   description = "List of CIDR blocks that can access the Amazon EKS public API server endpoint."
   type        = list(string)

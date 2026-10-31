@@ -29,6 +29,12 @@ variable "scan_on_push" {
   default = true
 }
 
+variable "kms_key_arn" {
+  description = "KMS Key ARN for ECR repository encryption"
+  type        = string
+  default     = null
+}
+
 variable "max_image_count" {
   description = "Lifecycle policy: keep only the N most recent images"
   type        = number

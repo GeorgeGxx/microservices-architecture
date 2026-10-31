@@ -117,14 +117,12 @@ spec:
             port:
               number: 8087
 
-    # 2. Keycloak Auth requests -> Routed to Keycloak
+    # 2. Keycloak Auth requests -> Routed to Keycloak (Administrative /admin/ console is restricted from public edge)
     - match:
         - uri:
             prefix: /realms/
         - uri:
             prefix: /resources/
-        - uri:
-            prefix: /admin/
         - uri:
             prefix: /js/
       route:

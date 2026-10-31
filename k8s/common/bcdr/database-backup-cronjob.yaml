@@ -64,9 +64,6 @@ spec:
                 capabilities:
                   drop: ["ALL"]
               command: ["/bin/sh", "-ec"]
-              env:
-                - name: HOME
-                  value: /tmp
               args:
                 - |
                   timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -103,6 +100,8 @@ spec:
                   find /backups -type f -name '*.dump.tables' -mtime +7 -delete
                   echo "Backup run completed; retained rolling seven-day archives."
               env:
+                - name: HOME
+                  value: /tmp
                 - name: PGUSER
                   valueFrom:
                     secretKeyRef:
@@ -180,9 +179,6 @@ spec:
                 capabilities:
                   drop: ["ALL"]
               command: ["/bin/sh", "-ec"]
-              env:
-                - name: HOME
-                  value: /tmp
               args:
                 - |
                   data_dir=/tmp/restore-data

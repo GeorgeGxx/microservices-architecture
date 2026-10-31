@@ -22,11 +22,26 @@ spec:
         prometheus.io/port: "8004"
         prometheus.io/path: "/actuator/products/prometheus"
     spec:
+      serviceAccountName: products-service-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: products-service
           # platform-minikube.ps1 sets this to the immutable candidate tag supplied by the operator.
           image: georgegxx/products-service:1.1.0
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           ports:
             - containerPort: 8004
               name: http
@@ -54,3 +69,9 @@ spec:
               port: 8004
             initialDelaySeconds: 20
             periodSeconds: 15
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

@@ -41,6 +41,18 @@ variable "map_public_ip_on_launch" {
   default     = false
 }
 
+variable "enable_flow_logs" {
+  description = "Enable VPC Flow Logs for network traffic audit and anomaly detection"
+  type        = bool
+  default     = true
+}
+
+variable "kms_key_arn" {
+  description = "KMS Key ARN for VPC flow logs encryption"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Extra tags applied to all resources"
   type        = map(string)

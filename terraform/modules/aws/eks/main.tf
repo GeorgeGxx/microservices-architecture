@@ -78,9 +78,10 @@ resource "aws_kms_key" "eks" {
 # EKS Cluster
 # ---------------------------------------------------------------------------
 resource "aws_eks_cluster" "this" {
-  name     = local.cluster_name
-  role_arn = aws_iam_role.cluster.arn
-  version  = var.kubernetes_version
+  name                      = local.cluster_name
+  role_arn                  = aws_iam_role.cluster.arn
+  version                   = var.kubernetes_version
+  enabled_cluster_log_types = var.enabled_cluster_log_types
 
   vpc_config {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
@@ -115,13 +116,42 @@ resource "aws_iam_openid_connect_provider" "eks" {
 }
 
 # ---------------------------------------------------------------------------
-# Managed Node Group
+# Managed Node Group & Hardened Launch Template (IMDSv2)
 # ---------------------------------------------------------------------------
+resource "aws_launch_template" "node" {
+  name_prefix = "${local.cluster_name}-node-lt-"
+  description = "Launch template for EKS managed node group with IMDSv2 enforced"
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  monitoring {
+    enabled = true
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = local.common_tags
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
 resource "aws_eks_node_group" "default" {
   cluster_name    = aws_eks_cluster.this.name
   node_group_name = "${local.cluster_name}-default"
   node_role_arn   = aws_iam_role.node.arn
   subnet_ids      = var.private_subnet_ids
+
+  launch_template {
+    id      = aws_launch_template.node.id
+    version = aws_launch_template.node.latest_version
+  }
 
   instance_types = var.node_instance_types
   capacity_type  = var.node_capacity_type
