@@ -72,7 +72,26 @@ spec:
         - operation:
             ports: ["8001", "8002", "8003", "8004", "8085", "8086", "8087"]
 ---
-# 4. Allow Service-to-Service East-West Communication (Orders -> Products, Inventory, Payments, Notifications)
+# 4. Allow Ingress Gateway and Frontend to call Microservice REST APIs
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-ingress-and-frontend-to-subgraphs
+  namespace: dev
+spec:
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway"
+              - "cluster.local/ns/dev/sa/frontend-sa"
+      to:
+        - operation:
+            ports: ["8001", "8002", "8003", "8004", "8005", "8085", "8086", "8087"]
+---
+# 5. Allow Service-to-Service East-West Communication (Orders -> Products, Inventory, Payments, Notifications, Fulfillment, Analytics)
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -87,9 +106,9 @@ spec:
               - "cluster.local/ns/dev/sa/orders-service-sa"
       to:
         - operation:
-            ports: ["8001", "8002", "8004", "8085"]
+            ports: ["8001", "8002", "8004", "8085", "8086", "8087"]
 ---
-# 5. Allow Frontend to call Demand Forecast Service
+# 6. Allow Frontend to call Demand Forecast Service
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -109,7 +128,7 @@ spec:
         - operation:
             ports: ["8005"]
 ---
-# 6. Allow MLOps workloads to access MLflow Tracking
+# 7. Allow MLOps workloads to access MLflow Tracking
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -130,7 +149,7 @@ spec:
         - operation:
             ports: ["5000"]
 ---
-# 7. Allow Prometheus and Observability Scrapers to reach Metrics and Health endpoints
+# 8. Allow Prometheus and Observability Scrapers to reach Metrics and Health endpoints
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
