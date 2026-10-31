@@ -62,19 +62,19 @@ For a bounded two-VU GraphQL latency/error baseline and a non-destructive local
 PostgreSQL backup/restore drill, see [Quality Gates & DoD](./QUALITY_GATES_AND_DOD.md).
 The local bounded GraphQL baseline is available through `smoke.py --resilience`; it does not place orders or generate attack traffic. CI performance gates continue using k6, and neither baseline replaces an explicitly planned capacity test.
 
-Enterprise testing scripts located in `scripts/testing/`:
+Enterprise testing scripts located in `scripts/testing/` (fully orchestrated via `.\platform-minikube.ps1`):
 
-### 1. 🛒 Legitimate E-Commerce Traffic Generator (`simulate.py --scenario traffic`)
+### 1. 🛒 Legitimate E-Commerce Traffic Generator (`platform-minikube.ps1 simulate`)
 Simulates shopping journeys through Cosmo Router GraphQL, sends funnel events through the frontend REST proxy, and places authenticated orders.
 
 ```powershell
-# Run a quick batch of 15 orders with 3 worker threads:
+# Recommended (Unified Orchestrator):
+.\platform-minikube.ps1 simulate
+.\platform-minikube.ps1 simulate -Orders 50
+
+# Direct script execution:
 python scripts/testing/simulate.py --scenario traffic
-
-# Place custom number of orders with specified concurrency:
 python scripts/testing/simulate.py --scenario traffic --orders 50 --concurrency 5
-
-# Run continuous background shopper simulation:
 python scripts/testing/simulate.py --scenario traffic --continuous
 ```
 
@@ -139,25 +139,31 @@ python scripts/testing/simulate.py --scenario traffic --orders 2 --concurrency 1
 * **Grafana Verification:** Both trial orders succeed with HTTP 201, and the panel instantly resets to **`CLOSED / HEALTHY` (🟢 Green)**.
 
 
-### 3. 🧪 GraphQL Checkout Validation (`simulate.py --scenario chaos`)
+### 3. 🧪 GraphQL Checkout Validation (`platform-minikube.ps1 chaos`)
 Exercises valid, out-of-stock, and unknown SKU checkout mutations through Cosmo Router and reports successful orders, business rejections, and upstream HTTP failures:
 ```powershell
+# Recommended (Unified Orchestrator):
+.\platform-minikube.ps1 chaos
+.\platform-minikube.ps1 chaos -ChaosRuns 50
+
+# Automated Level 5 Chaos Drills (Latency, Poison Pills, DLQ, Cell Evacuation):
+.\platform-minikube.ps1 chaos-drills -TargetService orders-service
+
+# Direct script execution:
 python scripts/testing/simulate.py --scenario chaos
 ```
 
-### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`simulate.py --scenario ddos`)
+### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`platform-minikube.ps1 ddos`)
 Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, override `--ddos-url`:
 ```powershell
-# Generate observable HTTP 429 responses through the shared frontend edge limiter:
+# Recommended (Unified Orchestrator):
+.\platform-minikube.ps1 ddos
+.\platform-minikube.ps1 ddos -Duration 30 -Workers 32
+
+# Direct script execution:
 python scripts/testing/simulate.py --scenario ddos --duration 30 --workers 32
-
-# Probe a separately exposed frontend edge (the script still requires a Keycloak token):
 python scripts/testing/simulate.py --scenario ddos --ddos-url http://127.0.0.1:5173 --duration 30 --workers 32
-
-# Do not rotate synthetic X-Forwarded-For headers:
 python scripts/testing/simulate.py --scenario ddos --single-source
-
-# Send anonymous GraphQL requests:
 python scripts/testing/simulate.py --scenario ddos --no-auth
 ```
 
@@ -165,14 +171,16 @@ The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it tr
 
 ### 5. 🔍 Automated Smoke Tests & OpenAPI Auditing
 ```powershell
-# Run frontend, Cosmo Router GraphQL, proxied catalog/order REST, and auth smoke checks:
+# Recommended (Unified Orchestrator):
+.\platform-minikube.ps1 smoke
+.\platform-minikube.ps1 diagnose -Action components
+.\platform-minikube.ps1 diagnose -Action all
+
+# Direct script execution:
 python scripts/testing/smoke.py
-
-# Verify OpenAPI v3 / Swagger docs availability:
 python scripts/testing/diagnose.py components --target swagger
-
-# Verify Prometheus metrics & Grafana dashboards:
 python scripts/testing/diagnose.py components --target all
+```
 ```
 
 ### 6. 🛒 Funnel Event Activity Verification
@@ -184,6 +192,10 @@ The event contract does not carry a shared shopper/session identifier. The dashb
 #### Method 1: Send CART_ADD demo events
 
 ```powershell
+# Recommended (Unified Orchestrator):
+.\platform-minikube.ps1 funnel-demo -Count 30 -Category Electronics
+
+# Direct script execution:
 python scripts/update_dashboards.py funnel-demo --count 30 --category Electronics
 ```
 

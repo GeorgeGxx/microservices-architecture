@@ -1,3 +1,22 @@
+"""
+==============================================================================
+Grafana Dashboard Curator & Telemetry Operations (update_dashboards.py)
+Generates and provisions:
+  1. Business Operations Dashboard: Revenue, conversion funnels, net orders,
+     abandonment rates, and fulfillment velocity.
+  2. Technical & Security Dashboard: RED metrics, p95/p99 latency, Istio mTLS,
+     JVM heap, and edge rate-limiting telemetry.
+  3. Demo Funnel Generator: Ingests CART_ADD events for conversion funnels.
+
+Orchestrator Shortcut (Recommended):
+  .\platform-minikube.ps1 dashboards [-Push]
+  .\platform-minikube.ps1 funnel-demo [-Count 30] [-Category Electronics]
+
+Direct CLI Usage:
+  python scripts/update_dashboards.py [--push]
+  python scripts/update_dashboards.py funnel-demo [--count 30] [--category Electronics]
+==============================================================================
+"""
 import json
 import argparse
 import base64

@@ -14,7 +14,11 @@ Validates the entire cross-service e-commerce and MLOps lifecycle:
   7. Sales Capture Ingestion Verification (demand-sales-capture -> Parquet/Data)
   8. Demand Forecast Prediction Availability (demand-forecast-service -> /api/forecast)
 
-Usage:
+Orchestrator Shortcut (Recommended):
+  .\platform-minikube.ps1 journey
+  .\platform-minikube.ps1 e2e
+
+Direct CLI Usage:
   python scripts/testing/test-e2e-journey.py
   python scripts/testing/test-e2e-journey.py --router-url http://127.0.0.1:8080 --forecast-url http://127.0.0.1:8005
   python scripts/testing/test-e2e-journey.py --verbose

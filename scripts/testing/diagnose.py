@@ -5,6 +5,12 @@ Consolidates:
   1. Component and service verification (Swagger / OpenAPI, Prometheus series, Grafana dashboards).
   2. Telemetry and metrics diagnostics (JVM metrics, funnel activity, Vault series, PromQL evaluations).
   3. Authenticated order-list retrieval via Keycloak.
+
+Orchestrator Shortcut (Recommended):
+  .\platform-minikube.ps1 diagnose [-Action components|telemetry|orders-readonly|all]
+
+Direct CLI Usage:
+  python scripts/testing/diagnose.py [components|telemetry|orders-readonly|all]
 """
 
 import argparse

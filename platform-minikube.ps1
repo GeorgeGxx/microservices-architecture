@@ -3,7 +3,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "simulate", "diagnose", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "set-tag", "help")]
+    [ValidateSet("up", "bootstrap", "start", "resume", "down", "stop", "destroy", "build", "test", "mlops", "mlops-train", "mlops-data", "doctor", "doctor-minikube", "doctor-cloud", "verify", "status", "finops", "finops-rightsize", "cost", "tunnels", "cloudflare", "secrets", "smoke", "simulate", "ddos", "chaos", "chaos-drills", "dashboards", "funnel-demo", "journey", "e2e", "postman-gen", "diagnose", "contract", "performance", "dast", "tools", "policy", "canary", "vault", "compose-router", "graph", "security-scan", "plan", "apply", "rollback", "unlock", "sync-argocd", "urls", "diagrams", "sync-diagrams", "bcdr", "dr", "set-tag", "help")]
     [string]$Command = "help",
     [ValidateSet("dev", "minikube", "staging", "prod")]
     [string]$Environment = "dev",
@@ -55,6 +55,13 @@ param(
     [string]$CosignKey = "",
     [string]$Scenario = "traffic",
     [int]$Orders = 15,
+    [int]$Duration = 30,
+    [int]$Workers = 32,
+    [int]$ChaosRuns = 30,
+    [int]$Count = 30,
+    [string]$Category = "Electronics",
+    [string]$TargetService = "orders-service",
+    [int]$Days = 14,
     [switch]$Destroy = $false
 )
 
@@ -2039,11 +2046,93 @@ switch ($Command) {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
+    "ddos" {
+        Show-Banner "Edge Rate-Limiting & Anti-DDoS Attack Probe (simulate.py)"
+        $simScript = Join-Path $scriptsDir "testing\simulate.py"
+        if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
+        $edgeUrl = if ($env:DDOS_EDGE_URL) { $env:DDOS_EDGE_URL } elseif ($env:FRONTEND_URL) { $env:FRONTEND_URL } else { "http://127.0.0.1:5173" }
+        python $simScript --scenario ddos --ddos-url $edgeUrl --duration $Duration --workers $Workers
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "chaos" {
+        Show-Banner "Runtime Circuit-Breaker & Idempotency Chaos Simulation (simulate.py)"
+        $simScript = Join-Path $scriptsDir "testing\simulate.py"
+        if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
+        python $simScript --scenario chaos --chaos-runs $ChaosRuns --concurrency 4
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "chaos-drills" {
+        Show-Banner "Level 5 Hyper-Scale Automated Chaos Engineering Drills"
+        $drillScript = Join-Path $scriptsDir "chaos\run-chaos-drills.ps1"
+        if (-not (Test-Path -LiteralPath $drillScript)) { throw "Chaos drill script is missing: $drillScript" }
+        & $drillScript -TargetService $TargetService
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "dashboards" {
+        Show-Banner "Grafana Business & Technical Dashboards Curator"
+        $dashScript = Join-Path $scriptsDir "update_dashboards.py"
+        if (-not (Test-Path -LiteralPath $dashScript)) { throw "Dashboard script is missing: $dashScript" }
+        if ($Push) {
+            $env:GRAFANA_USERNAME = if ($env:GRAFANA_USERNAME) { $env:GRAFANA_USERNAME } else { "admin" }
+            $env:GRAFANA_PASSWORD = if ($env:GRAFANA_PASSWORD) { $env:GRAFANA_PASSWORD } else { "admin" }
+            python $dashScript --push
+        } else {
+            python $dashScript
+        }
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "funnel-demo" {
+        Show-Banner "E-Commerce Funnel CART_ADD Telemetry Emitter"
+        $dashScript = Join-Path $scriptsDir "update_dashboards.py"
+        if (-not (Test-Path -LiteralPath $dashScript)) { throw "Dashboard script is missing: $dashScript" }
+        $frontend = if ($env:FRONTEND_URL) { $env:FRONTEND_URL } else { "http://127.0.0.1:5173" }
+        python $dashScript funnel-demo --frontend-url $frontend --count $Count --category $Category
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    { $_ -in @("journey", "e2e") } {
+        Show-Banner "End-to-End User Journey & MLOps Integration Test"
+        $journeyScript = Join-Path $scriptsDir "testing\test-e2e-journey.py"
+        if (-not (Test-Path -LiteralPath $journeyScript)) { throw "Journey script is missing: $journeyScript" }
+        python $journeyScript
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "postman-gen" {
+        Show-Banner "Newman/Postman 23-Request Collection Generator"
+        $genScript = Join-Path $scriptsDir "generate_postman_collection.py"
+        if (-not (Test-Path -LiteralPath $genScript)) { throw "Generator script is missing: $genScript" }
+        python $genScript
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "mlops-train" {
+        Show-Banner "MLOps Demand Forecasting Model Training Runner"
+        $trainScript = Join-Path $root "mlops\training.ps1"
+        if (-not (Test-Path -LiteralPath $trainScript)) { throw "Training script is missing: $trainScript" }
+        $trainTarget = if ($Platform -eq "minikube") { "minikube" } else { "compose" }
+        & $trainScript -Target $trainTarget -Days $Days
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
+    "mlops-data" {
+        Show-Banner "Synthetic Historical Sales Generator for MLOps"
+        $genSalesScript = Join-Path $root "mlops\generate_sample_sales.py"
+        if (-not (Test-Path -LiteralPath $genSalesScript)) { throw "Sample sales script is missing: $genSalesScript" }
+        python $genSalesScript --days $Days
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+
     "diagnose" {
         Show-Banner "Unified Platform & Telemetry Diagnostics"
         $diagScript = Join-Path $scriptsDir "testing\diagnose.py"
         if (-not (Test-Path -LiteralPath $diagScript)) { throw "Diagnostic script is missing: $diagScript" }
-        python $diagScript all
+        $diagTarget = if ($Action -in @("components", "telemetry", "orders-readonly", "all")) { $Action } else { "all" }
+        python $diagScript $diagTarget
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2119,7 +2208,7 @@ switch ($Command) {
 
     { $_ -in @("diagrams", "sync-diagrams") } {
         Show-Banner "Synchronize Architecture Blueprint (docs/Diagrams.drawio)"
-        Write-Host "Regenerating docs/Diagrams.drawio across all 15 architectural tabs..." -ForegroundColor White
+        Write-Host "Regenerating docs/Diagrams.drawio across all 17 architectural tabs..." -ForegroundColor White
         python (Join-Path $scriptsDir "generate_drawio.py")
     }
 
@@ -2152,13 +2241,22 @@ Commands:
   security-scan : Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign).
   smoke         : Runs router and presentation frontend health & HTTP smoke checks.
   simulate      : Runs shopper traffic and circuit-breaker resilience simulation (-Scenario, -Orders).
-  diagnose      : Runs comprehensive platform, telemetry, and service diagnostics.
+  ddos          : Runs edge rate-limiting and DDoS flood simulation (-Duration, -Workers).
+  chaos         : Runs runtime circuit-breaker and idempotency chaos simulation (-ChaosRuns).
+  chaos-drills  : Executes automated Level 5 Hyper-Scale Chaos Drills (-TargetService).
+  dashboards    : Curates Grafana business and technical dashboards (-Push to publish live).
+  funnel-demo   : Emits demo CART_ADD telemetry events for conversion funnels (-Count, -Category).
+  journey / e2e : Executes end-to-end user journey and MLOps integration test suite.
+  postman-gen   : Generates the unified Newman/Postman 23-request collection JSON.
+  diagnose      : Runs comprehensive platform, telemetry, and service diagnostics (-Action).
   contract      : Executes Newman/Postman API contract integration suite (23/23 tests).
   performance   : Runs Grafana k6 SLA latency, throughput, and performance benchmarks.
   dast          : Executes OWASP ZAP baseline dynamic application security scan against frontend.
   canary        : Controls progressive canary rollout (-Action weight|rollout|promote|retire).
   vault         : Manages HashiCorp Vault operations (-VaultAction status|k8s-auth|istio-pki|seed).
   mlops         : Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline training.
+  mlops-train   : Runs MLOps demand forecasting model training (-Days).
+  mlops-data    : Generates synthetic historical sales dataset for MLOps (-Days).
   secrets       : Generates zero-trust cryptographically secure secrets in Kubernetes namespace.
   cost          : Queries live Kubernetes workload costs via kubectl-cost and OpenCost.
   finops        : Computes offline architecture cost model estimate (-Environment dev|staging|prod).
@@ -2169,7 +2267,7 @@ Commands:
   bcdr          : Simulates backup, disaster recovery, and failover drill.
   compose-router: Composes Cosmo Router GraphQL Federation v2 execution config.
   graph         : Generates visual Terraform dependency graph via Graphviz dot.
-  diagrams      : Synchronizes architecture blueprints into docs/Diagrams.drawio (16 tabs).
+  diagrams      : Synchronizes architecture blueprints into docs/Diagrams.drawio (17 tabs).
   tools         : Audits host CLI dependencies (pass -Install to attempt WinGet install).
 
 Options:
@@ -2178,13 +2276,13 @@ Options:
   -Build                               : Compiles Docker images during up or start
   -Service <name>                      : Target an individual microservice (e.g. orders-service, frontend)
   -IncludeMlops                        : Include MLOps stack (demand-forecast, mlops-training, mlflow)
-  -Push                                : Push built container images to Docker Hub with retry backoff
+  -Push                                : Push built container images or publish dashboards
   -PushOnly                            : Push existing local images to Docker Hub without rebuilding
   -ImageTag <tag>                      : Target container image tag to compile, push, or set in Helm
   -TargetEnv <minikube|all>            : Target values file scope for set-tag (default: minikube)
   -DeployCanary                        : Bootstrap with canary workload enabled on products-service
   -CanaryImageTag <tag>                : Custom tag for canary deployment (default: canary)
-  -Action <weight|rollout|promote|retire> : Action for canary or cloudflare commands
+  -Action <weight|rollout|promote|retire> : Action for canary, cloudflare or diagnose
   -V1Weight / -V2Weight <0..100>       : Traffic percentage split between stable and canary
   -VaultAction <status|k8s-auth|istio-pki|seed>: Action for HashiCorp Vault operations
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
@@ -2193,6 +2291,12 @@ Options:
   -SkipScans                           : Bypass shift-left security scan gates during up
   -Destroy                             : Complete VM purge flag for down command
   -Install                             : Automatically attempt WinGet installation of missing host tools
+  -Duration <seconds>                  : Attack duration for ddos command (default: 30)
+  -Workers <count>                     : Worker concurrency for ddos command (default: 32)
+  -ChaosRuns <count>                   : Iteration count for chaos command (default: 30)
+  -Count <count>                       : Event count for funnel-demo (default: 30)
+  -Category <name>                     : Telemetry event category (default: Electronics)
+  -Days <count>                        : Calendar days for mlops-train and mlops-data (default: 14)
 ================================================================================
 "@
     }
