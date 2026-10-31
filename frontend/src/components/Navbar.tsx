@@ -17,9 +17,9 @@ import {
   X,
   Menu,
 } from 'lucide-react';
-import { checkStorefrontApiHealth } from '../services/storefrontHealth';
+import { checkStorefrontApiHealth, StorefrontHealthResult } from '../services/storefrontHealth';
 
-type StorefrontHealth = 'checking' | 'healthy' | 'unavailable';
+type StorefrontHealth = 'checking' | StorefrontHealthResult;
 
 interface NavbarProps {
   activeTab: 'catalog' | 'orders' | 'admin';
@@ -47,8 +47,8 @@ function useStorefrontHealthStatus(): StorefrontHealth {
       const timeout = window.setTimeout(() => controller?.abort(), 4000);
 
       try {
-        const healthy = await checkStorefrontApiHealth(controller.signal);
-        if (!disposed) setStorefrontHealth(healthy ? 'healthy' : 'unavailable');
+        const health = await checkStorefrontApiHealth(controller.signal);
+        if (!disposed) setStorefrontHealth(health);
       } catch {
         if (!disposed) setStorefrontHealth('unavailable');
       } finally {
@@ -101,17 +101,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
-  const healthLabel = {
+  const healthLabel: Record<StorefrontHealth, string> = {
     checking: 'Checking storefront API',
     healthy: 'Cosmo Router and Products subgraph reachable',
+    throttled: 'Edge defense active: Traffic throttled by rate limiter',
     unavailable: 'Storefront API unavailable',
-  }[storefrontHealth];
+  };
 
-  const healthColor = {
+  const healthColor: Record<StorefrontHealth, string> = {
     checking: 'bg-amber-400',
     healthy: 'bg-emerald-500',
+    throttled: 'bg-amber-400',
     unavailable: 'bg-rose-500',
-  }[storefrontHealth];
+  };
 
   let wishlistTitle = 'Sign in to access Wishlist';
   if (user) {
@@ -156,11 +158,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-extrabold text-sm sm:text-base tracking-tight text-white flex items-center gap-1 sm:gap-1.5">
                 NOVASHOP
                 {' '}
-                <span className="relative flex h-2 w-2" role="img" aria-label={healthLabel} title={healthLabel}>
+                <span className="relative flex h-2 w-2" role="img" aria-label={healthLabel[storefrontHealth]} title={healthLabel[storefrontHealth]}>
                   {storefrontHealth === 'healthy' && (
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   )}
-                  <span className={`relative inline-flex rounded-full h-2 w-2 ${healthColor}`}></span>
+                  {storefrontHealth === 'throttled' && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${healthColor[storefrontHealth]}`}></span>
                 </span>
               </span>
               <span className="text-[9px] sm:text-[10px] font-mono text-indigo-400 block -mt-1 tracking-wider">

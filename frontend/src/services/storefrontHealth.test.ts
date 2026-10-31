@@ -9,7 +9,7 @@ describe('checkStorefrontApiHealth', () => {
     vi.restoreAllMocks();
   });
 
-  it('returns true when Apollo Federation returns products without errors', async () => {
+  it('returns healthy when Apollo Federation returns products without errors', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -19,8 +19,8 @@ describe('checkStorefrontApiHealth', () => {
       }),
     } as Response);
 
-    const isHealthy = await checkStorefrontApiHealth();
-    expect(isHealthy).toBe(true);
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('healthy');
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/graphql',
       expect.objectContaining({
@@ -30,17 +30,51 @@ describe('checkStorefrontApiHealth', () => {
     );
   });
 
-  it('returns false when response is not ok', async () => {
+  it('returns throttled when response status is 429', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 503,
+      status: 429,
     } as Response);
 
-    const isHealthy = await checkStorefrontApiHealth();
-    expect(isHealthy).toBe(false);
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('throttled');
   });
 
-  it('returns false when GraphQL errors are returned in payload', async () => {
+  it('returns throttled when /graphql fails but /router-health succeeds', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response);
+
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('throttled');
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/router-health',
+      expect.anything()
+    );
+  });
+
+  it('returns unavailable when /graphql fails and /router-health also fails', async () => {
+    globalThis.fetch = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+      } as Response);
+
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('unavailable');
+  });
+
+  it('returns unavailable when GraphQL errors are returned in payload', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -48,11 +82,11 @@ describe('checkStorefrontApiHealth', () => {
       }),
     } as Response);
 
-    const isHealthy = await checkStorefrontApiHealth();
-    expect(isHealthy).toBe(false);
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('unavailable');
   });
 
-  it('returns false when data.products is not an array', async () => {
+  it('returns unavailable when data.products is not an array', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -60,7 +94,7 @@ describe('checkStorefrontApiHealth', () => {
       }),
     } as Response);
 
-    const isHealthy = await checkStorefrontApiHealth();
-    expect(isHealthy).toBe(false);
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('unavailable');
   });
 });
