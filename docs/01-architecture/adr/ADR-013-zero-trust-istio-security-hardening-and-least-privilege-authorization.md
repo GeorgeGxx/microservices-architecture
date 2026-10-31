@@ -21,10 +21,14 @@ Because these ports are the **primary business application ports** of each servi
 
 ## 🛡️ Architectural Decisions & Hardening Strategy
 
-### 1. Elimination of Application Port mTLS Exceptions
-- **Decision:** Remove all `portLevelMtls` exceptions on application business ports (8001–8087) from `PeerAuthentication`.
-- **Metrics Architecture:** Microservice metrics (`/actuator/*/prometheus`) are scraped securely by Prometheus over Envoy sidecars using the mesh's native `ISTIO_MUTUAL` certificates, or via Envoy's dedicated telemetry port 15090 (`/stats/prometheus`).
-- **Cosmo Router Port 9090:** The only justified `PERMISSIVE` exception is port 9090 on Cosmo Router, which is a dedicated Prometheus metrics listener completely separate from the GraphQL router port 8080.
+### 1. Telemetry Scraping & Defense-in-Depth Architecture
+- **Decision:** Secure telemetry scraping while preserving mutual TLS on business communications.
+- **Scraping Architecture:** Where Prometheus scrapers reside outside the mesh (e.g. `observability` namespace in Minikube and dev/staging environments), designated scraping ports (Cosmo Router `9090`, microservice ports `8001–8087`) use bounded port-level `PERMISSIVE` settings.
+- **Multi-Layer Zero-Trust Isolation:**
+  - **L3/L4 NetworkPolicies:** Restrict TCP access to these ports exclusively to the `observability` namespace (and authorized gateway components).
+  - **L7 Istio AuthorizationPolicies:** Restrict unauthenticated calls strictly to HTTP `GET`/`HEAD` on `/actuator*`, `/metrics*`, `/stats/prometheus*`, and `/health*`.
+  - **Business Protection:** All business endpoints and RPC mutations reject unauthenticated traffic, requiring verified SPIFFE service account identities (e.g. `cosmo-router-sa`, `orders-service-sa`).
+- **Production Mode:** Production clusters enforce mesh-wide `STRICT` mTLS with in-mesh Prometheus scrapers or Envoy port 15090 telemetry.
 
 ### 2. Multi-Environment STRICT mTLS
 - Dedicated `PeerAuthentication` resources enforce `mode: STRICT` across:

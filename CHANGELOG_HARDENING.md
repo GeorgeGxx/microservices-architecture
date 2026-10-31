@@ -96,9 +96,9 @@ All changes were subjected to rigorous non-destructive static analysis:
 2. **New Microservice Registration:**
    - *Impact:* Because Default-Deny is enforced across all namespaces via `AuthorizationPolicy`, adding a new microservice requires declaring an `AuthorizationPolicy` allowing Cosmo Router to reach its port.
    - *Remediation:* Follow the standard pattern in `03-authorization-policies-*.yaml` when introducing new services.
-3. **Prometheus Scraping:**
-   - *Impact:* Application business ports now strictly reject unencrypted HTTP traffic.
-   - *Remediation:* In-cluster Prometheus instances must either reside in the mesh (using Istio mutual TLS certificates) or scrape Envoy sidecars via port 15090 (`/stats/prometheus`).
+3. **Observability & Prometheus Scraping Harmonization:**
+   - *Impact:* Plain HTTP scrapers outside the mesh were initially blocked by STRICT mTLS and default-deny AuthorizationPolicies.
+   - *Remediation:* Bounded port-level PERMISSIVE scraping is configured for dev/staging telemetry ports, combined with defense-in-depth: L3/L4 NetworkPolicies restrict TCP access exclusively to namespace `observability`, and L7 AuthorizationPolicies strictly restrict unauthenticated operations to HTTP `GET`/`HEAD` on `/actuator*`, `/metrics*`, `/stats/prometheus*`, and `/health*`. Compatibility service aliases (`kube-prometheus-kube-prome-prometheus`, `kube-prometheus-grafana`) and DNS bridges (`tempo`, `loki`) were added to guarantee seamless observability resolution across tools.
 
 ---
 

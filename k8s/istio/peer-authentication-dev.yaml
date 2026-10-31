@@ -7,9 +7,12 @@ spec:
   mtls:
     mode: STRICT
 ---
-# Dedicated metrics port exception: only port 9090 on Cosmo Router is exposed for
-# unauthenticated Prometheus scraping when scraper is outside mesh.
-# Application ports (8001-8087) enforce STRICT mTLS for zero-trust microservice communication.
+# Dedicated metrics scraping exceptions:
+# Exposes application and proxy telemetry ports for unauthenticated Prometheus scraping
+# when the Prometheus scraper is outside the mesh (observability namespace).
+# L3/L4 NetworkPolicies restrict incoming traffic to namespace 'observability', and L7
+# AuthorizationPolicies strictly restrict methods to GET/HEAD on metrics & health paths.
+# All intra-mesh business traffic on service-to-service paths enforces STRICT mTLS.
 apiVersion: security.istio.io/v1beta1
 kind: PeerAuthentication
 metadata:
@@ -21,4 +24,108 @@ spec:
       app: cosmo-router
   portLevelMtls:
     9090:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: inventory-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: inventory-service
+  portLevelMtls:
+    8001:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: notification-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: notification-service
+  portLevelMtls:
+    8002:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: orders-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: orders-service
+  portLevelMtls:
+    8003:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: products-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: products-service
+  portLevelMtls:
+    8004:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: demand-forecast-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: demand-forecast-service
+  portLevelMtls:
+    8005:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: payments-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: payments-service
+  portLevelMtls:
+    8085:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: fulfillment-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: fulfillment-service
+  portLevelMtls:
+    8086:
+      mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: analytics-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: analytics-service
+  portLevelMtls:
+    8087:
       mode: PERMISSIVE

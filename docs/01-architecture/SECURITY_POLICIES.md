@@ -11,8 +11,10 @@
 
 ### 1.1 Enforcement Standard
 - All in-cluster inter-service communications must enforce **`STRICT` mutual TLS (mTLS)** using Istio Citadel SPIFFE X.509 cryptographic identities.
-- `PERMISSIVE` mTLS is strictly prohibited on business application ports across all environments (`dev`, `staging`, `production`).
-- The only permitted port-level exception is dedicated metrics scraping ports (such as Cosmo Router port `9090`) when the scraping agent cannot participate in the SPIFFE identity exchange. All business traffic ports (8001–8087) must enforce `mode: STRICT`.
+- Port-level scraping exceptions (`mode: PERMISSIVE`) are strictly bounded to designated telemetry endpoints (e.g. Cosmo Router port `9090`, and microservice actuator ports `8001-8087` in dev/staging when scrapers operate outside the mesh).
+- All unauthenticated telemetry exposure is hardened via defense-in-depth:
+  1. **L3/L4 NetworkPolicy:** Only pods in namespace `observability` (and authorized mesh components) can establish TCP connections.
+  2. **L7 AuthorizationPolicy:** Unauthenticated requests are restricted strictly to HTTP `GET`/`HEAD` on `/actuator*`, `/metrics*`, `/stats/prometheus*`, and `/health*`. All business operations and mutating verbs require mutual TLS with authenticated SPIFFE identities.
 
 ### 1.2 Workload Identity & Certificate Rotation
 - Every pod must run with a dedicated, non-default `ServiceAccount`.
