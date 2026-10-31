@@ -43,7 +43,6 @@ public class AdaptiveConcurrencyFilter extends OncePerRequestFilter {
     private volatile double smoothedRttMs = 20.0;
     private final AtomicInteger inFlight = new AtomicInteger(0);
 
-    private final MeterRegistry meterRegistry;
     private Counter shedCounter;
 
     @Autowired
@@ -61,7 +60,6 @@ public class AdaptiveConcurrencyFilter extends OncePerRequestFilter {
         this.maxLimit = maxLimit;
         this.alpha = alpha;
         this.beta = beta;
-        this.meterRegistry = meterRegistry;
 
         if (meterRegistry != null) {
             Gauge.builder("ecommerce_adaptive_concurrency_limit", this, AdaptiveConcurrencyFilter::getCurrentLimit)
@@ -105,7 +103,7 @@ public class AdaptiveConcurrencyFilter extends OncePerRequestFilter {
             return;
         }
 
-        int active = inFlight.incrementAndGet();
+        inFlight.incrementAndGet();
         long startTime = System.nanoTime();
 
         try {
