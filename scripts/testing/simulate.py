@@ -272,22 +272,30 @@ class TrafficSimulator:
 # 2. DDoS & Rate-Limit Attacker
 # ==============================================================================
 class GraphQLFloodProbe:
-    def __init__(self, edge_url, keycloak_url, duration=30, distributed=True, no_auth=False, workers=12, delay_ms=0):
+    def __init__(self, edge_url, keycloak_url, duration=30, distributed=True, no_auth=False, workers=12, delay_ms=0, target_rps=0):
         self.edge_url = edge_url
         self.keycloak_url = keycloak_url
         self.duration = duration
         self.distributed = distributed
         self.no_auth = no_auth
-        self.workers = max(1, workers)
+        self.target_rps = max(0, target_rps)
+        if self.target_rps > 0:
+            # Dynamically size worker threads to cleanly hit target dispatch rate
+            self.workers = min(max(2, (self.target_rps + 9) // 10), 32)
+        else:
+            self.workers = max(1, workers)
         self.delay_ms = max(0, delay_ms)
         self.request_count = 0
         self.status_counts = {}
         self.lock = threading.Lock()
+        self.rps_lock = threading.Lock()
+        self.next_req_time = time.time()
 
     def run(self):
         print("\n\033[91m================================================================================\033[0m")
         print(" \033[91m⚡ SCENARIO: Concurrent GraphQL Flood / Edge Rate-Limit Probe\033[0m")
-        print(f" Target frontend edge endpoint: {self.edge_url.rstrip('/')}/graphql | Duration: {self.duration}s | Workers: {self.workers}")
+        rate_desc = f"{self.target_rps} req/s targeted" if self.target_rps > 0 else "unlimited flood"
+        print(f" Target frontend edge endpoint: {self.edge_url.rstrip('/')}/graphql | Duration: {self.duration}s | Workers: {self.workers} | Rate: {rate_desc}")
         if self.distributed:
             print(" Synthetic X-Forwarded-For values are sent for spoofing-resistance checks; the limiter keys on the real socket peer.")
         print("\033[91m================================================================================\033[0m")
@@ -299,7 +307,18 @@ class GraphQLFloodProbe:
 
         def flood_worker(worker_id):
             ip_cycler = itertools.cycle(FORWARDED_CLIENT_IPS) if self.distributed else itertools.cycle(["192.0.2.1"])
+            interval = (1.0 / self.target_rps) if self.target_rps > 0 else 0
             while not stop_event.is_set():
+                if interval > 0:
+                    with self.rps_lock:
+                        now = time.time()
+                        if self.next_req_time < now:
+                            self.next_req_time = now
+                        scheduled_time = self.next_req_time
+                        self.next_req_time += interval
+                    delay = scheduled_time - now
+                    if delay > 0:
+                        time.sleep(delay)
                 ip = next(ip_cycler)
                 headers = {"Content-Type": "application/json", "User-Agent": f"Load-Worker-{worker_id}"}
                 if self.distributed:
@@ -477,6 +496,7 @@ def main():
     parser.add_argument("--single-source", dest="distributed", action="store_false", help="Do not rotate X-Forwarded-For headers")
     parser.add_argument("--no-auth", action="store_true", help="Disable Keycloak token authentication (ddos)")
     parser.add_argument("--level", choices=["amber", "orange", "red", "critical"], default="red", help="Target threat level simulation: 'amber'/'orange' (1-5 req/s blocked) or 'red'/'critical' (full flood >5 req/s blocked)")
+    parser.add_argument("--rps", type=int, default=0, help="Target request dispatch rate per second (e.g. 15 for normal/green, 24 for light-attack/amber, 60 for flood/red; 0 = unthrottled flood)")
     parser.add_argument("--delay-ms", type=int, default=0, help="Optional inter-request sleep delay in milliseconds")
     parser.add_argument("--chaos-runs", type=int, default=30, help="Number of iterations for chaos testing")
 
@@ -491,9 +511,24 @@ def main():
         TrafficSimulator(gw, kc, frontend_url=frontend, orders=args.orders, concurrency=args.concurrency, continuous=args.continuous).run()
 
     if args.scenario in ("ddos", "all"):
-        target_workers = 1 if args.level in ("amber", "orange") else args.workers
-        target_delay = 30 if (args.level in ("amber", "orange") and args.delay_ms == 0) else args.delay_ms
-        GraphQLFloodProbe(ddos_edge, kc, duration=args.duration, distributed=args.distributed, no_auth=args.no_auth, workers=target_workers, delay_ms=target_delay).run()
+        target_rps = args.rps
+        target_workers = args.workers
+        target_delay = args.delay_ms
+
+        if target_rps == 0 and args.level in ("amber", "orange"):
+            # Amber preset: 24 req/s dispatch rate (exceeds 20 req/s limit by ~4 req/s to naturally sit in Grafana's 1-5/s amber range)
+            target_rps = 24
+
+        GraphQLFloodProbe(
+            ddos_edge,
+            kc,
+            duration=args.duration,
+            distributed=args.distributed,
+            no_auth=args.no_auth,
+            workers=target_workers,
+            delay_ms=target_delay,
+            target_rps=target_rps,
+        ).run()
 
     if args.scenario in ("chaos", "all"):
         ChaosTester(gw, kc, runs=args.chaos_runs, concurrency=args.concurrency).run()
