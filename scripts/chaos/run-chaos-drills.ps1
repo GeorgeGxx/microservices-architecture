@@ -41,11 +41,11 @@ if (-not $SkipContainerKill) {
     if ($containerId) {
         Write-Host "Targeting container: $containerId ($TargetService)" -ForegroundColor Gray
         $startTime = [System.Diagnostics.Stopwatch]::StartNew()
-        
+
         # Abrupt kill (SIGKILL)
         docker kill -s SIGKILL $containerId | Out-Null
         Write-Host "Sent SIGKILL. Verifying orchestrator auto-restart & health SLA..." -ForegroundColor Gray
-        
+
         # Poll healthcheck
         $healthy = $false
         $attempts = 0
@@ -64,7 +64,7 @@ if (-not $SkipContainerKill) {
         }
         $startTime.Stop()
         $elapsedSec = [math]::Round($startTime.Elapsed.TotalSeconds, 2)
-        
+
         Assert-Condition ($healthy) "Service '$TargetService' recovered and marked UP in $elapsedSec s (SLA < 30s)"
     } else {
         Write-Host "Container '$TargetService' not found running locally. Skipping live process kill." -ForegroundColor DarkYellow
