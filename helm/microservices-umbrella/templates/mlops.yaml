@@ -487,6 +487,9 @@ spec:
     - Ingress
   ingress:
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: istio-system
         - podSelector:
             matchLabels:
               app: frontend
@@ -494,6 +497,9 @@ spec:
         - protocol: TCP
           port: 8005
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
         - namespaceSelector:
             matchLabels:
               environment: observability
