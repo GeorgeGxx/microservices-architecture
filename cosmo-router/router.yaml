@@ -86,6 +86,7 @@ cors:
     - Authorization
     - Content-Type
     - X-Idempotency-Key
+    - Idempotency-Key
     - X-Correlation-ID
     - apollographql-client-name
     - apollographql-client-version
@@ -97,6 +98,8 @@ headers:
         named: Authorization
       - op: propagate
         named: X-Idempotency-Key
+      - op: propagate
+        named: Idempotency-Key
       - op: propagate
         named: traceparent
       - op: propagate

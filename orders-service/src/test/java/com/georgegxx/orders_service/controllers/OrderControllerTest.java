@@ -59,6 +59,22 @@ class OrderControllerTest {
     }
 
     @Test
+    @DisplayName("placeOrder should prioritize standard Idempotency-Key header over X-Idempotency-Key")
+    void testPlaceOrderWithStandardIdempotencyKey() {
+        OrderRequest req = new OrderRequest();
+        OrderResponse resp = sampleResponse(2L, "ORD-002");
+        Jwt jwt = mock(Jwt.class);
+        when(jwt.getSubject()).thenReturn("usr-123");
+        when(jwt.getClaimAsString("preferred_username")).thenReturn("testuser");
+        when(orderService.placeOrder(req, "std-key-456", "usr-123", "testuser")).thenReturn(resp);
+
+        ResponseEntity<OrderResponse> response = orderController.placeOrder(req, jwt, "x-key-123", "std-key-456");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        verify(orderService).placeOrder(req, "std-key-456", "usr-123", "testuser");
+    }
+
+    @Test
     @DisplayName("recordFunnelEvent should delegate to service")
     void testRecordFunnelEvent() {
         FunnelEventRequest req = FunnelEventRequest.builder().eventType("CART_ADD").build();

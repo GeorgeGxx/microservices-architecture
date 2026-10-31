@@ -8,6 +8,7 @@ import com.georgegxx.orders_service.model.dtos.OrderRequest;
 import com.georgegxx.orders_service.model.dtos.OrderResponse;
 import com.georgegxx.orders_service.model.entities.Order;
 import com.georgegxx.orders_service.model.entities.OrderItems;
+import com.georgegxx.orders_service.model.entities.OutboxEvent;
 import com.georgegxx.orders_service.model.enums.OrderStatus;
 import com.georgegxx.orders_service.repositories.OrderRepository;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -25,6 +26,7 @@ import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -299,6 +301,59 @@ class OrderServiceTest {
         verify(inventoryClient).decrementStock(any());
         verify(kafkaTemplate).send(eq("orders-topic"), anyString(), anyString());
         verify(idempotencyManager).saveCompleted(eq("key-new"), eq(req), any(OrderResponse.class));
+    }
+
+    @Test
+    @DisplayName("placeOrder records outbox event and publishes immediately when OutboxService is configured")
+    void testPlaceOrderWithOutboxService() {
+        OutboxService mockOutbox = mock(OutboxService.class);
+        OrderService svcWithOutbox = new OrderService(
+                orderRepository,
+                inventoryClient,
+                productsClient,
+                kafkaTemplate,
+                circuitBreakerRegistry,
+                meterRegistry,
+                idempotencyManager,
+                mockOutbox
+        );
+        svcWithOutbox.afterPropertiesSet();
+
+        com.georgegxx.orders_service.model.dtos.OrderItemsRequest item =
+                com.georgegxx.orders_service.model.dtos.OrderItemsRequest.builder()
+                        .sku("000001")
+                        .price(199.99)
+                        .quantity(1L)
+                        .build();
+
+        com.georgegxx.orders_service.model.dtos.OrderRequest req = new com.georgegxx.orders_service.model.dtos.OrderRequest();
+        req.setOrderItems(List.of(item));
+        req.setCustomerName("John Doe");
+        req.setCustomerEmail("john@example.com");
+        req.setShippingAddress("123 Test St");
+        req.setTotalAmount(199.99);
+
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(101L);
+            return o;
+        });
+
+        UUID outboxId = UUID.randomUUID();
+        OutboxEvent outboxEvent = OutboxEvent.builder().id(outboxId).build();
+        when(mockOutbox.recordEvent(eq("orders-topic"), anyString(), eq("ORDER_PLACED"), anyString()))
+                .thenReturn(outboxEvent);
+
+        OrderResponse result = svcWithOutbox.placeOrder(req, "key-outbox", "user-123", "johndoe");
+
+        assertNotNull(result);
+        verify(mockOutbox).recordEvent(eq("orders-topic"), anyString(), eq("ORDER_PLACED"), anyString());
+        verify(mockOutbox).publishImmediate(eq(outboxId), eq("orders-topic"), anyString(), anyString());
     }
 
     @Test

@@ -26,6 +26,7 @@ export async function executeGraphQL<T>(
 
   if (idempotencyKey) {
     headers['X-Idempotency-Key'] = idempotencyKey;
+    headers['Idempotency-Key'] = idempotencyKey;
   }
 
   const controller = timeoutMs ? new AbortController() : undefined;
