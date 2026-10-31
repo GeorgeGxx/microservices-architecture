@@ -27,11 +27,8 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
-        "query": {
-          "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
-          "refId": "StandardVariableQuery"
-        },
+        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|notification-service|cosmo-router|demand-forecast-service\"}, service)",
+        "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|notification-service|cosmo-router|demand-forecast-service\"}, service)",
         "label": "Filter Microservice",
         "includeAll": true,
         "allValue": ".+",
