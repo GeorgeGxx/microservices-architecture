@@ -86,4 +86,46 @@ describe('PaymentEventsConsumer', () => {
       expect.stringContaining('Undeliverable'),
     );
   });
+
+  it('should not auto-dispatch shipment when AUTO_DISPATCH_SHIPMENT is unset or false', async () => {
+    delete process.env.AUTO_DISPATCH_SHIPMENT;
+    const mockDispatch = { execute: jest.fn().mockResolvedValue({}) };
+    consumer = new PaymentEventsConsumer(mockUseCase, mockDispatch as any);
+    (consumer as any).consumer = mockKafkaConsumer;
+
+    await consumer.onModuleInit();
+    const eachMessage = mockKafkaConsumer.run.mock.calls[0][0].eachMessage;
+
+    await eachMessage({
+      message: {
+        value: Buffer.from(JSON.stringify({ order_number: 'ORD-DISPATCH-OFF', shipping_address: '123 Main St' })),
+      },
+    });
+
+    expect(mockUseCase.execute).toHaveBeenCalled();
+    expect(mockDispatch.execute).not.toHaveBeenCalled();
+  });
+
+  it('should auto-dispatch shipment when AUTO_DISPATCH_SHIPMENT is true', async () => {
+    process.env.AUTO_DISPATCH_SHIPMENT = 'true';
+    try {
+      const mockDispatch = { execute: jest.fn().mockResolvedValue({}) };
+      consumer = new PaymentEventsConsumer(mockUseCase, mockDispatch as any);
+      (consumer as any).consumer = mockKafkaConsumer;
+
+      await consumer.onModuleInit();
+      const eachMessage = mockKafkaConsumer.run.mock.calls[0][0].eachMessage;
+
+      await eachMessage({
+        message: {
+          value: Buffer.from(JSON.stringify({ order_number: 'ORD-DISPATCH-ON', shipping_address: '123 Main St' })),
+        },
+      });
+
+      expect(mockUseCase.execute).toHaveBeenCalled();
+      expect(mockDispatch.execute).toHaveBeenCalledWith('ORD-DISPATCH-ON', 'Regional Fulfillment Hub');
+    } finally {
+      delete process.env.AUTO_DISPATCH_SHIPMENT;
+    }
+  });
 });
