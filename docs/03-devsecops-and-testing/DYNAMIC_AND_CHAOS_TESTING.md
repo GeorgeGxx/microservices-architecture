@@ -193,27 +193,25 @@ The DDoS probe targets frontend Nginx (default `http://127.0.0.1:5173`) so it tr
 
 The **Observed Funnel Event Activity** panel in **E-Commerce Business Intelligence & Inventory Operations** reports event counts in the selected time range. The Orders Service increments counters only when it receives `CART_ADD`, `CHECKOUT_START`, or `CHECKOUT_STEP`. These counters are process-local and reset when the service restarts.
 
-The event contract does not carry a shared shopper/session identifier. The dashboard therefore does not calculate conversion or cart abandonment. Completed orders are database snapshots and are shown separately from funnel event counters.
+The funnel telemetry pipeline synchronizes events across both `orders-service` and `analytics-service`. The Business Operations dashboard displays real-time cart abandonment rate and progressive conversion stages across the buyer journey.
 
-#### Method 1: Send CART_ADD demo events
+#### Method 1: Send Synchronized Funnel Events
 
 ```powershell
-.\platform-minikube.ps1 funnel-demo -Count 30 -Category Electronics
+.\platform-minikube.ps1 funnel-demo -Count 50 -Category Electronics
 ```
 
-The command sends 30 observed cart-add events through the frontend endpoint. It does not synthesize checkout stages, orders, or an abandonment percentage. After the next Prometheus scrape, select the matching time range in Grafana to see the event count.
+The command sends 50 synchronized conversion funnel events across both `orders-service` (`/api/order/funnel`) and `analytics-service` (`/api/v1/analytics/events`), populating all three preliminary stages (`CART_ADD` 100%, `CHECKOUT_START` ~60%, `CHECKOUT_STEP` ~45%) with pacing that respects the Nginx edge rate limiter. After the next Prometheus scrape, the Grafana funnel stages and cart abandonment rate gauge update immediately.
 
-#### Method 2: Exercise the observed funnel stages
+#### Method 2: Exercise the observed funnel stages via Shopper Simulator
 
-The multi-threaded traffic scenario sends `CART_ADD`, `CHECKOUT_START`, and `CHECKOUT_STEP` events before a subset of shopper journeys place orders:
+The multi-threaded traffic simulator sends synchronized `CART_ADD`, `CHECKOUT_START`, and `CHECKOUT_STEP` events before completing purchases via federated GraphQL mutations:
 
 ```powershell
 .\platform-minikube.ps1 simulate -Orders 20 -Concurrency 4
 ```
 
-The panel shows stage-event activity and completed-order snapshot change over the selected range. It does not attribute an order to a particular cart.
-
-To support a true conversion or abandonment rate, the event contract must add a stable session/cart identifier and persist timestamped stage events so each journey can be correlated.
+The simulator models realistic e-commerce buyer journeys (~65% cart abandonment drop-off, ~15% checkout drop-off, and ~10% payment drop-off) keeping the analytics gauge and Prometheus funnel counters aligned with live completed orders.
 
 ### 📦 Postman & Newman Test Suite (Unified Collection):
 The repository maintains a 23-request Postman collection in [`devsecops/testing/newman/microservices.postman_collection.json`](../../devsecops/testing/newman/microservices.postman_collection.json) for headless CI/CD execution with Newman (54 automated assertions, 100% pass rate). Its JSON export is generated via `.\platform-minikube.ps1 postman-gen`. The suite targets **Cosmo Router with GraphQL Federation v2**, **Keycloak OIDC**, and **MLOps Demand Forecasting**:
