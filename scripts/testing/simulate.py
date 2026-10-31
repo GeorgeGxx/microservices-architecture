@@ -148,6 +148,21 @@ class TrafficSimulator:
                 break
             time.sleep(2)
 
+    def _record_funnel_event(self, event_type: str, category: str = "General", step: str = ""):
+        headers = {"Content-Type": "application/json"}
+        orders_payload = json.dumps({"eventType": event_type, "category": category, "step": step}).encode("utf-8")
+        analytics_payload = json.dumps({"event_type": event_type.lower(), "category": category, "step": step or "cart"}).encode("utf-8")
+        for url, data in [
+            (f"{self.frontend_url}/api/order/funnel", orders_payload),
+            (f"{self.frontend_url}/api/v1/analytics/events", analytics_payload),
+        ]:
+            try:
+                req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+                with urllib.request.urlopen(req, timeout=3) as _:
+                    pass
+            except Exception:
+                pass
+
     def _session_worker(self, session_id):
         # 1. Browse catalog (Federated GraphQL Query)
         t0 = time.time()
@@ -168,35 +183,25 @@ class TrafficSimulator:
         item = random.choice(CATALOG_ITEMS)
         qty = random.randint(1, 3)
         category = "Electronics" if "00000" in item["sku"] else "Computers"
-        try:
-            cart_evt = json.dumps({"eventType": "CART_ADD", "category": category}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=cart_evt, headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(f_req, timeout=3) as _:
-                pass
-        except Exception:
-            pass
+        self._record_funnel_event("CART_ADD", category, "cart")
 
-        # Realistic Shopper Journey: ~10% abandon cart before starting checkout
-        if random.random() < 0.10:
+        # Realistic Shopper Journey: ~65% abandon cart before starting checkout (industry standard ~70%)
+        if random.random() < 0.65:
             return
 
         # 3. Start Checkout (Conversion Funnel Step 2: CHECKOUT_START)
-        try:
-            start_evt = json.dumps({"eventType": "CHECKOUT_START"}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=start_evt, headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(f_req, timeout=3) as _:
-                pass
-        except Exception:
-            pass
+        self._record_funnel_event("CHECKOUT_START", category, "checkout")
+
+        # ~15% drop-off during checkout address/shipping selection
+        if random.random() < 0.15:
+            return
 
         # 4. Reach Payment Step (Conversion Funnel Step 3: CHECKOUT_STEP)
-        try:
-            step_evt = json.dumps({"eventType": "CHECKOUT_STEP", "step": "PAYMENT"}).encode("utf-8")
-            f_req = urllib.request.Request(f"{self.frontend_url}/api/order/funnel", data=step_evt, headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(f_req, timeout=3) as _:
-                pass
-        except Exception:
-            pass
+        self._record_funnel_event("CHECKOUT_STEP", category, "PAYMENT")
+
+        # ~10% drop-off at final payment authorization
+        if random.random() < 0.10:
+            return
 
         # 5. Finalize Purchase (Conversion Funnel Step 4: ORDER_PLACED via GraphQL Mutation)
         subtotal = round(item["price"] * qty, 2)

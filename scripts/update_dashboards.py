@@ -1460,31 +1460,61 @@ def push_dashboards(grafana_url: str = None) -> int:
 
 
 def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: int, timeout_seconds: int) -> int:
-    """Emit demo CART_ADD telemetry events for Grafana funnel panels across orders and analytics services."""
+    """Emit demo conversion funnel telemetry events (CART_ADD, CHECKOUT_START, CHECKOUT_STEP) synchronized across orders and analytics services."""
     base = frontend_url.rstrip("/")
-    endpoints = [
-        (f"{base}/api/order/funnel", json.dumps({"eventType": "CART_ADD", "category": category, "step": "cart"}).encode("utf-8")),
-        (f"{base}/api/v1/analytics/events", json.dumps({"event_type": "cart_add", "category": category, "step": "cart"}).encode("utf-8")),
-    ]
     headers = {"Content-Type": "application/json", "User-Agent": "Grafana-Demo-Telemetry/1.0"}
     failures = []
     accepted = 0
     started = time.monotonic()
+    effective_delay = max(delay_ms, 30) if delay_ms else 30  # respect Nginx edge rate limiter
 
-    print(f"Sending {count} demo CART_ADD events to {base} (synchronized orders and analytics)")
-    print(f"Category: {category} | Interval: {delay_ms} ms | Timeout: {timeout_seconds} s")
+    print(f"Sending {count} synchronized conversion funnel events to {base}")
+    print(f"Category: {category} | Interval: {effective_delay} ms | Timeout: {timeout_seconds} s")
+
     for index in range(1, count + 1):
-        for endpoint, payload in endpoints:
+        # 1. CART_ADD (100% of shoppers)
+        cart_endpoints = [
+            (f"{base}/api/order/funnel", json.dumps({"eventType": "CART_ADD", "category": category, "step": "cart"}).encode("utf-8")),
+            (f"{base}/api/v1/analytics/events", json.dumps({"event_type": "cart_add", "category": category, "step": "cart"}).encode("utf-8")),
+        ]
+        for endpoint, payload in cart_endpoints:
             request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
             try:
                 with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                     response.read()
             except Exception as error:
-                failures.append({"request": index, "endpoint": endpoint, "error": str(error)})
+                failures.append({"request": index, "endpoint": endpoint, "error": str(error), "status": getattr(error, "code", None)})
+
+        # 2. CHECKOUT_START (~60% proceed to checkout)
+        if index <= int(count * 0.60):
+            start_endpoints = [
+                (f"{base}/api/order/funnel", json.dumps({"eventType": "CHECKOUT_START", "category": category, "step": "checkout"}).encode("utf-8")),
+                (f"{base}/api/v1/analytics/events", json.dumps({"event_type": "checkout_start", "category": category, "step": "checkout"}).encode("utf-8")),
+            ]
+            for endpoint, payload in start_endpoints:
+                request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
+                try:
+                    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                        response.read()
+                except Exception as error:
+                    failures.append({"request": index, "endpoint": endpoint, "error": str(error), "status": getattr(error, "code", None)})
+
+        # 3. CHECKOUT_STEP PAYMENT (~45% reach payment step)
+        if index <= int(count * 0.45):
+            step_endpoints = [
+                (f"{base}/api/order/funnel", json.dumps({"eventType": "CHECKOUT_STEP", "category": category, "step": "PAYMENT"}).encode("utf-8")),
+                (f"{base}/api/v1/analytics/events", json.dumps({"event_type": "checkout_step", "category": category, "step": "PAYMENT"}).encode("utf-8")),
+            ]
+            for endpoint, payload in step_endpoints:
+                request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
+                try:
+                    with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
+                        response.read()
+                except Exception as error:
+                    failures.append({"request": index, "endpoint": endpoint, "error": str(error), "status": getattr(error, "code", None)})
 
         accepted += 1
-        if delay_ms and index < count:
-            time.sleep(delay_ms / 1000)
+        time.sleep(effective_delay / 1000)
 
     print(f"Completed in {time.monotonic() - started:.2f}s: {accepted}/{count} events accepted.")
     for failure in failures[:10]:
