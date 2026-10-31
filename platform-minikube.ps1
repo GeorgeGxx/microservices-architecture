@@ -62,6 +62,17 @@ param(
     [string]$Category = "Electronics",
     [string]$TargetService = "orders-service",
     [int]$Days = 14,
+    [int]$Concurrency = 4,
+    [switch]$Continuous = $false,
+    [switch]$SingleSource = $false,
+    [switch]$NoAuth = $false,
+    [switch]$Resilience = $false,
+    [switch]$Strict = $false,
+    [switch]$Json = $false,
+    [int]$Vus = 2,
+    [string]$Target = "",
+    [string]$Query = "",
+    [switch]$Kafka = $false,
     [switch]$Destroy = $false
 )
 
@@ -2034,7 +2045,14 @@ switch ($Command) {
                 throw "Cloud smoke requires TARGET_URL (or BASE_URL) and FRONTEND_URL for the Router and storefront ingress URLs."
             }
         }
-        python $smokeScript --deployment --base-url $routerUrl --frontend-url $frontendUrl
+        $smokeArgs = if ($Resilience) {
+            @("--resilience", "--vus", "$Vus", "--duration-seconds", "$Duration")
+        } else {
+            @("--deployment", "--base-url", $routerUrl, "--frontend-url", $frontendUrl)
+        }
+        if ($Strict) { $smokeArgs += "--strict" }
+        if ($Json) { $smokeArgs += "--json" }
+        python $smokeScript @smokeArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2042,7 +2060,9 @@ switch ($Command) {
         Show-Banner "Shopping Journey & Resilience Traffic Simulation"
         $simScript = Join-Path $scriptsDir "testing\simulate.py"
         if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
-        python $simScript --scenario $Scenario --orders $Orders --concurrency 3
+        $simArgs = @("--scenario", $Scenario, "--orders", "$Orders", "--concurrency", "$Concurrency")
+        if ($Continuous) { $simArgs += "--continuous" }
+        python $simScript @simArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2051,7 +2071,10 @@ switch ($Command) {
         $simScript = Join-Path $scriptsDir "testing\simulate.py"
         if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
         $edgeUrl = if ($env:DDOS_EDGE_URL) { $env:DDOS_EDGE_URL } elseif ($env:FRONTEND_URL) { $env:FRONTEND_URL } else { "http://127.0.0.1:5173" }
-        python $simScript --scenario ddos --ddos-url $edgeUrl --duration $Duration --workers $Workers
+        $ddosArgs = @("--scenario", "ddos", "--ddos-url", $edgeUrl, "--duration", "$Duration", "--workers", "$Workers")
+        if ($SingleSource) { $ddosArgs += "--single-source" }
+        if ($NoAuth) { $ddosArgs += "--no-auth" }
+        python $simScript @ddosArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2059,7 +2082,7 @@ switch ($Command) {
         Show-Banner "Runtime Circuit-Breaker & Idempotency Chaos Simulation (simulate.py)"
         $simScript = Join-Path $scriptsDir "testing\simulate.py"
         if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
-        python $simScript --scenario chaos --chaos-runs $ChaosRuns --concurrency 4
+        python $simScript --scenario chaos --chaos-runs $ChaosRuns --concurrency $Concurrency
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2123,7 +2146,9 @@ switch ($Command) {
         Show-Banner "Synthetic Historical Sales Generator for MLOps"
         $genSalesScript = Join-Path $root "mlops\generate_sample_sales.py"
         if (-not (Test-Path -LiteralPath $genSalesScript)) { throw "Sample sales script is missing: $genSalesScript" }
-        python $genSalesScript --days $Days
+        $mlDataArgs = @("--days", "$Days")
+        if ($Kafka) { $mlDataArgs += "--kafka" }
+        python $genSalesScript @mlDataArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2132,7 +2157,10 @@ switch ($Command) {
         $diagScript = Join-Path $scriptsDir "testing\diagnose.py"
         if (-not (Test-Path -LiteralPath $diagScript)) { throw "Diagnostic script is missing: $diagScript" }
         $diagTarget = if ($Action -in @("components", "telemetry", "orders-readonly", "all")) { $Action } else { "all" }
-        python $diagScript $diagTarget
+        $diagArgs = @($diagTarget)
+        if ($diagTarget -eq "components" -and $Target) { $diagArgs += @("--target", $Target) }
+        if ($diagTarget -eq "telemetry" -and $Query) { $diagArgs += @("--check", "promql", "--query", $Query) }
+        python $diagScript @diagArgs
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2297,6 +2325,17 @@ Options:
   -Count <count>                       : Event count for funnel-demo (default: 30)
   -Category <name>                     : Telemetry event category (default: Electronics)
   -Days <count>                        : Calendar days for mlops-train and mlops-data (default: 14)
+  -Concurrency <count>                 : Concurrency for simulate and chaos commands (default: 4)
+  -Continuous                          : Run traffic simulation indefinitely in background
+  -SingleSource                        : Disable synthetic X-Forwarded-For IP rotation for ddos
+  -NoAuth                              : Bypass Keycloak authentication for ddos flood probe
+  -Resilience                          : Run smoke tests in bounded resilience mode
+  -Strict                              : Require zero non-200/401 HTTP codes for smoke checks
+  -Json                                : Emit JSON summary report for smoke testing
+  -Vus <count>                         : Virtual users for smoke resilience probe (default: 2)
+  -Target <name>                       : Target component for diagnose (swagger, prometheus, grafana, alloy)
+  -Query <promql>                      : Custom PromQL query for diagnose telemetry verification
+  -Kafka                               : Direct DELIVERED sales events emission to Kafka topic
 ================================================================================
 "@
     }

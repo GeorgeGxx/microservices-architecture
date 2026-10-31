@@ -4,11 +4,9 @@ Generates devsecops/testing/newman/microservices.postman_collection.json
 Aligned with Cosmo Router GraphQL Federation v2 (orders v2.5), Keycloak OIDC,
 Logistics State Machine, Saga Compensation, and SSE Notifications.
 
-Orchestrator Shortcut (Recommended):
+Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 postman-gen
-
-Direct CLI Usage:
-  python scripts/generate_postman_collection.py
+==============================================================================
 """
 
 import json

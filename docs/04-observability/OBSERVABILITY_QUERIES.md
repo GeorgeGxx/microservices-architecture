@@ -651,4 +651,4 @@ The model availability rule is intentionally gated by `demand_forecast_model_che
 ### Remediation Playbook:
 1. **Model Staleness:** Check if `demand-sales-capture` is running and appending records to `/data/sales_parquet`. If auto-training is scheduled, verify `train_demand_model.py` execution logs in the MLflow UI (`http://localhost:5000`). Stop the other local runtime before switching between Compose and Minikube because they share this host port.
 2. **Data Freshness Lag:** Inspect Kafka `orders-topic` partitions and consumer group `mlops-demand-history-v1` lag. If orders are placed but not DELIVERED, fulfillment status updates are required to trigger ML capture.
-3. **High RMSE:** Execute data quality audit with `python mlops/data_contracts.py --input-parquet /data/sales_parquet` to check for sudden volume anomalies or negative unit quantities.
+3. **High RMSE:** Execute data quality audit via `.\platform-minikube.ps1 mlops-train` to check for sudden volume anomalies or negative unit quantities.

@@ -133,14 +133,9 @@ Gracefully terminates `cloudflared` processes and sets `DEVSECOPS_POST_DEPLOY_EN
 
 All testing technologies under `devsecops/` can be run through the Minikube entrypoint (which automatically handles environment variables and Docker volume binds) or manually via PowerShell:
 
-### 1. Deployment Smoke Gates ([`scripts/testing/smoke.py`](../../scripts/testing/smoke.py))
-* **Via Orchestrator:**
+### 1. Deployment Smoke Gates
   ```powershell
   .\platform-minikube.ps1 smoke
-  ```
-* **Manual PowerShell Command:**
-  ```powershell
-  python scripts/testing/smoke.py --deployment --base-url "$env:BASE_URL" --frontend-url "$env:FRONTEND_URL"
   ```
 * **Verification:**
   * Cosmo Router root GraphQL probe (`/graphql` -> `{"query": "{ __typename }"}`) -> HTTP 200.
