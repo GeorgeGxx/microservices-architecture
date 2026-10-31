@@ -3,18 +3,24 @@
 ==============================================================================
 Enterprise Microservices Simulation Super-Script (simulate.py)
 Consolidates:
-  1. Traffic Simulation (simulate-traffic.py): Realistic shopping sessions,
-     catalog browsing, cart additions, Keycloak-authenticated checkout, Kafka events.
-     2. GraphQL Load / Rate-Limit Probe: concurrent GraphQL requests and
-     observed HTTP response counts.
-  3. Chaos Engineering & Resilience (simulate-chaos.py): Concurrent high-load,
-     out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling.
-==============================================================================
-Usage:
+  1. Traffic Simulation: Realistic shopping sessions, catalog browsing,
+     cart additions, Keycloak-authenticated checkout, Kafka events.
+  2. Edge Rate-Limiting & DDoS Probe: Concurrent flood against frontend rate
+     limiter (20 req/s threshold) to test 429 backoff and edge protection.
+  3. Chaos Engineering & Resilience: Concurrent high-load, out-of-stock SKUs,
+     circuit breaker tripping, idempotency conflict handling.
+
+Orchestrator Shortcut (Recommended):
+  .\platform-minikube.ps1 simulate [-Orders 20]
+  .\platform-minikube.ps1 ddos [-Duration 30] [-Workers 32]
+  .\platform-minikube.ps1 chaos [-ChaosRuns 30]
+
+Direct CLI Usage:
   python scripts/testing/simulate.py --scenario traffic [--orders 20] [--concurrency 4] [--continuous]
-  python scripts/testing/simulate.py --scenario ddos [--duration 30] [--distributed] [--no-auth]
+  python scripts/testing/simulate.py --scenario ddos [--duration 30] [--workers 32] [--distributed]
   python scripts/testing/simulate.py --scenario chaos [--chaos-runs 30] [--concurrency 8]
   python scripts/testing/simulate.py --scenario all
+==============================================================================
 """
 
 import os

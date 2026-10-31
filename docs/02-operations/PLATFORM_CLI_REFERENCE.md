@@ -39,6 +39,67 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 
 ---
 
+## 🛠️ Local Minikube Unified Orchestrator Commands (`platform-minikube.ps1`)
+
+`platform-minikube.ps1` serves as the sole canonical orchestrator for local development, tests, resilience engineering, observability, MLOps, and architecture tooling. All standalone Python utilities are fully wrapped into native CLI subcommands:
+
+### 1. Cluster Lifecycle & Environment Management
+| Command | Options | Description |
+| :--- | :--- | :--- |
+| `up` | `-Fast`, `-WithoutIstio`, `-Build`, `-SkipScans` | Bootstraps full local cluster (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps, Tunnels). |
+| `start` / `resume` | `-Fast` | Fast-resumes Minikube (<30s) bypassing Terraform, Gatekeeper, and Helm re-compilation. |
+| `down` / `stop` | `-Destroy` | Safe pause of cluster (preserves DB state and volumes) or full purge with `-Destroy`. |
+| `destroy` | | Purges Minikube VM, background tunnels, volume data, and cached modules. |
+
+### 2. Simulation, Traffic & Chaos Engineering (Consolidated Python Engine)
+| Command | Key Parameters | Underlying Engine & Description |
+| :--- | :--- | :--- |
+| `simulate` | `-Scenario <traffic\|ddos\|chaos\|all>`, `-Orders <n>` | Executes realistic shopping sessions, cart events, and Keycloak-authenticated checkout. |
+| `ddos` | `-Duration <sec>`, `-Workers <n>` | Sends concurrent GraphQL flood against frontend Nginx rate-limiting edge (20 req/s threshold) to verify HTTP 429 backoff and edge defense. |
+| `chaos` | `-ChaosRuns <n>` | Executes runtime chaos tests (concurrent checkout load, out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling). |
+| `chaos-drills` | `-TargetService <orders\|products\|...>` | Runs automated Level 5 Hyper-Scale Chaos Drills (Poison Pill injection, Network Latency, Cell Evacuation, Concurrent Duplicate Flooding). |
+| `journey` / `e2e` | | Executes full cross-service e-commerce and MLOps end-to-end user journey test suite. |
+
+### 3. Observability, Telemetry & Diagnostics
+| Command | Key Parameters | Underlying Engine & Description |
+| :--- | :--- | :--- |
+| `dashboards` | `-Push` | Curates and generates Grafana Business & Technical JSON dashboards; pushes live to Grafana when `-Push` is supplied. |
+| `funnel-demo` | `-Count <n>`, `-Category <name>` | Emits demo `CART_ADD` telemetry events directly to test conversion funnels and abandonment panels. |
+| `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, and Keycloak auth. |
+| `doctor` | | Comprehensive cluster diagnostic: pods, endpoints, metrics pipeline, and health gates. |
+| `urls` | | Displays all active local port-forward URLs, ingress endpoints, and default credentials. |
+| `tunnels` | | Manages and supervises background port-forward tunnels for local services. |
+
+### 4. Build, Testing, Security & Quality Gates
+| Command | Key Parameters | Underlying Engine & Description |
+| :--- | :--- | :--- |
+| `build` | `-Service <name>`, `-IncludeMlops`, `-Push`, `-ImageTag <tag>` | Compiles Docker container images for microservices or MLOps stack. |
+| `set-tag` | `-ImageTag <tag>`, `-Service <name>`, `-TargetEnv <env>` | Synchronizes image tags across Helm values files via `yq`. |
+| `test` | | Executes Java 21 + Maven multi-module reactor unit tests on host. |
+| `security-scan` | | Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign). |
+| `smoke` | | Runs router and presentation frontend health & HTTP smoke checks. |
+| `contract` | | Executes Newman/Postman API contract integration suite (23/23 tests, 54 assertions). |
+| `performance` | | Runs Grafana k6 SLA latency, throughput, and performance benchmarks. |
+| `dast` | | Executes OWASP ZAP baseline dynamic application security scan against frontend. |
+
+### 5. MLOps, FinOps & Architecture Tooling
+| Command | Key Parameters | Underlying Engine & Description |
+| :--- | :--- | :--- |
+| `mlops` | | Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline demand model training. |
+| `mlops-train` | `-Days <n>` | Runs demand forecasting model training via `mlops/training.ps1`. |
+| `mlops-data` | `-Days <n>` | Generates synthetic historical sales dataset via `mlops/generate_sample_sales.py`. |
+| `postman-gen` | | Generates the unified Newman/Postman 23-request collection JSON (`microservices.postman_collection.json`). |
+| `diagrams` | | Generates and synchronizes 17 architecture blueprint tabs in `docs/Diagrams.drawio`. |
+| `finops` | `-Environment <dev\|staging\|prod>` | Offline illustrative FinOps cost model estimate and rightsizing analysis. |
+| `cost` | | Queries live Kubernetes workload costs via `kubectl-cost` and OpenCost. |
+| `canary` | `-Action <weight\|rollout\|promote\|retire>` | Controls progressive canary rollout and traffic splits on products-service. |
+| `cloudflare` | `-Action <start\|status\|stop>` | Manages Cloudflare Anycast Quick Tunnels for external demo access. |
+| `compose-router` | | Composes Cosmo Router GraphQL Federation v2 execution config. |
+| `graph` | | Generates visual Terraform dependency graph via Graphviz dot. |
+| `tools` | `-Install` | Audits host CLI dependencies (pass `-Install` to attempt WinGet installation). |
+
+---
+
 ## 🛡️ Operational Safeguards & State Management
 
 ### 1. Terraform State Serialization

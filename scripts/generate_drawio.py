@@ -1,3 +1,15 @@
+"""
+==============================================================================
+Enterprise Architecture Diagram Generator (generate_drawio.py)
+Generates 17 comprehensive architectural diagram tabs in docs/Diagrams.drawio.
+
+Orchestrator Shortcut (Recommended):
+  .\platform-minikube.ps1 diagrams
+
+Direct CLI Usage:
+  python scripts/generate_drawio.py
+==============================================================================
+"""
 import xml.etree.ElementTree as ET
 
 def build_drawio_xml():
