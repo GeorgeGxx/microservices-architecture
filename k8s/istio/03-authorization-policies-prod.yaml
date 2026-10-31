@@ -108,7 +108,7 @@ spec:
         - operation:
             ports: ["8001", "8002", "8004", "8085", "8086", "8087"]
 ---
-# 6. Allow Frontend to call Demand Forecast Service
+# 6. Allow Ingress Gateway, Frontend, and Internal Callers to reach Demand Forecast Service
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -124,6 +124,10 @@ spec:
         - source:
             principals:
               - "cluster.local/ns/production/sa/frontend-sa"
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway-service-account"
+              - "cluster.local/ns/istio-system/sa/istio-ingressgateway"
+              - "cluster.local/ns/production/sa/orders-service-sa"
+              - "cluster.local/ns/production/sa/cosmo-router-sa"
       to:
         - operation:
             ports: ["8005"]
