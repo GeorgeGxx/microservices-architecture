@@ -2,7 +2,7 @@
 
 ## 1. Executive Overview
 
-As part of **Level 5 Hyper-Scale (Amazon / Uber / Netflix)** engineering, our platform implements **Cell-Based Architecture (AWS Cell-Based Architecture Pattern)**. 
+As part of **Level 5 Hyper-Scale (Amazon / Uber / Netflix)** engineering, our platform implements **Cell-Based Architecture (AWS Cell-Based Architecture Pattern)**.
 
 In traditional monolithic or shared microservice deployments, an infrastructure outage, bad deployment, or poison-pill transaction in a database causes a global cascading failure (100% blast radius). Under Cell-Based Architecture, the system is partitioned into independent, self-contained deployment units called **Cells** (e.g. `cell-alpha`, `cell-beta`).
 
