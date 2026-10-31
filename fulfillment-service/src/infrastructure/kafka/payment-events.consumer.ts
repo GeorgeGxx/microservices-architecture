@@ -86,7 +86,7 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
               carrier: 'DHL Express',
             });
 
-            if (this.dispatchShipmentUseCase) {
+            if (this.dispatchShipmentUseCase && process.env.AUTO_DISPATCH_SHIPMENT === 'true') {
               await this.dispatchShipmentUseCase.execute(orderNumber, 'Regional Fulfillment Hub');
             }
             this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
