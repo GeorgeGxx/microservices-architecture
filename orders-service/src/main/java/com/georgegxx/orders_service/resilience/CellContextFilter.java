@@ -53,7 +53,7 @@ public class CellContextFilter extends OncePerRequestFilter {
         response.setHeader(CELL_HEADER, cellId);
 
         if (this.meterRegistry != null) {
-            this.meterRegistry.counter("ecommerce_cell_requests_total", "cell_id", cellId).increment();
+            this.meterRegistry.counter("ecommerce_cell_requests_total", MDC_CELL_KEY, cellId).increment();
         }
 
         try {
