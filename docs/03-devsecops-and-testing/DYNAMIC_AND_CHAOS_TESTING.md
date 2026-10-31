@@ -232,5 +232,33 @@ python -m unittest discover -s mlops/tests -v
 * **Timing & Lifecycle Stage:** Executed automatically during Stage 1 (Unit Testing) in GitHub Actions (`_service-ci-cd-template.yml`) on every PR/push touching `mlops/**`, and locally before building MLOps container images.
 * **Objective:** Verifies that candidate models degrading RMSE are rejected as challengers, that MLflow service restarts trigger graceful fallback without 503 errors, and that API metrics gauges are exposed to Prometheus.
 
+### 9. 💥 Level 5 Automated Chaos Engineering Drills (`scripts/chaos/run-chaos-drills.ps1` & `.sh`)
+Automated multi-scenario chaos drill suite validating Level 5 Hyper-Scale architecture pillars under active runtime failure conditions:
+
+```powershell
+# Execute full chaos drill suite
+.\scripts\chaos\run-chaos-drills.ps1
+```
+
+```bash
+# Linux / CI runner equivalent
+bash ./scripts/chaos/run-chaos-drills.sh
+```
+
+#### Executed Chaos Scenarios:
+1. **Scenario 1: Kafka Poison Pill Injection & Non-Blocking Quarantine:**
+   - Injects a malformed JSON payload into `orders-topic`.
+   - Validates that Spring Kafka `@RetryableTopic` attempts 3 retries with exponential backoff and cleanly quarantines the message to `orders-topic.DLT` via `@DltHandler`.
+   - Asserts that subsequent valid order events continue processing with zero consumer lag or thread deadlock.
+2. **Scenario 2: Traffic Spike & Vegas Adaptive Concurrency Limits (Traffic Shedding):**
+   - Floods `orders-service` with concurrent HTTP requests exceeding normal capacity.
+   - Asserts that `AdaptiveConcurrencyFilter` dynamically reduces `ecommerce_adaptive_concurrency_limit` using TCP Vegas AIMD and sheds excess non-critical traffic (`ecommerce_traffic_shed_total` with HTTP 429/503), preventing cascading container brownouts.
+3. **Scenario 3: Cell Partitioning & Blast Radius Containment:**
+   - Simulates complete degradation or evacuation in `cell-alpha`.
+   - Asserts that requests tagged with `X-Cell-ID: cell-beta` continue fulfilling orders with zero cross-cell latency impact, confirming fault-domain isolation.
+4. **Scenario 4: Distributed Idempotency Concurrent Duplicate Storm:**
+   - Dispatches 50 concurrent requests with identical `X-Idempotency-Key` headers.
+   - Asserts that Redis 8 distributed lock interceptor returns cached responses or HTTP 409, verifying `ecommerce_idempotency_hits_total` increments and exactly one persistent database record is written.
+
 ---
 

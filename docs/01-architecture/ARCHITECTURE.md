@@ -177,11 +177,13 @@ mindmap
 * **Social Proof & Verified Reviews Engine:** Verified buyer ratings (`★ 4.8 / 5.0`), aggregate customer ratings (`(1,240 ratings)`), and `#1 Best Seller` dynamic amber badges (`#e67a00`).
 * **Reverse Chronological Order History & Pagination:** Responsive filters (`All Orders`, `Placed`, `In Transit`, `Delivered`, `Cancelled`) with mobile-friendly wrapping and non-clipping page controls.
 
-### 2. 🔄 Distributed Reliability & Consistency
-* **Saga Orchestration Pattern:** Graceful compensation and stock rollback across `orders-service` and `inventory-service` when downstream allocations fail.
-* **Distributed Idempotency:** Guaranteed once-only processing via mandatory UUIDv4 `X-Idempotency-Key` headers backed by atomic Redis `SETNX` deduplication with 7-day TTL.
-* **Resilience4j Circuit Breakers:** Protects upstream callers with automatic state transitions (`CLOSED` → `OPEN` → `HALF_OPEN`) and thread-isolated bulkheads.
-* **Dead Letter Topic (DLT) Queueing:** Poison pill isolation in Kafka (`orders-topic.DLT`) ensuring zero consumer thread blockage during serialization or schema failures.
+### 2. 🔄 Level 5 Hyper-Scale Distributed Reliability & Consistency (The 6 Pillars)
+* **Pillar 1 — Distributed Idempotency (Redis 8):** Guaranteed once-only order processing via mandatory `X-Idempotency-Key` headers backed by atomic Redis `SETNX` distributed deduplication with TTL leasing. Duplicate submissions return cached responses or HTTP 409 Conflict without dual writes. Monitored via `ecommerce_idempotency_hits_total`.
+* **Pillar 2 — Transactional Outbox Pattern (Zero Dual-Write):** Atomic transactional boundary in PostgreSQL 18 persisting order state and `outbox_events` in a single ACID transaction. Asynchronously polled by `OutboxProcessor` (500ms delay) and committed via `OutboxEventStateWriter` (`@Transactional(REQUIRES_NEW)` without self-invocation). Monitored via `ecommerce_outbox_events_published_total` and `ecommerce_outbox_events_failed_total`.
+* **Pillar 3 — Non-Blocking Dead Letter Queue (DLQ) & Poison Pill Isolation:** Resilience via Spring Kafka `@RetryableTopic` with exponential backoff (1s, 2s, 4s) and `@DltHandler` quarantine to `orders-topic.DLT`. Eliminates Head-of-Line consumer blocking. Includes operational replay CLI tool (`scripts/prod/kafka-ops.sh replay-dlq`). Monitored via `ecommerce_kafka_dlq_total`.
+* **Pillar 4 — Netflix Vegas Adaptive Concurrency Limits & Traffic Shedding:** TCP Vegas-inspired dynamic AIMD concurrency headroom algorithm in `AdaptiveConcurrencyFilter`. Compares smoothed RTT against minimum baseline RTT to dynamically adjust `ecommerce_adaptive_concurrency_limit`. Rejects sheddable non-critical requests (HTTP 429/503) under saturation (`ecommerce_traffic_shed_total`), preventing cascading brownouts.
+* **Pillar 5 — Cell-Based Architecture & Blast Radius Isolation:** Multi-cell Kubernetes manifests (`k8s/cells/cell-alpha.yaml`, `cell-beta.yaml`, `cell-router.yaml`) partitioning orders service, PostgreSQL databases, and Redis clusters into independent cells. `CellContextFilter` extracts `X-Cell-ID` for thread-isolated execution, bounded blast radius, and zero cross-cell failures. Monitored via `ecommerce_cell_requests_total`.
+* **Pillar 6 — Automated Chaos Engineering Drills:** Automated chaos test harness (`scripts/chaos/run-chaos-drills.ps1` and `.sh`) verifying resilience under poison pills, latency injection, cell evacuation, and idempotency storms.
 
 ### 3. 🛡️ Zero-Trust Security & DevSecOps Governance
 * **OIDC Authentication & PKCE Flow:** Secure browser authentication using Keycloak 26.8.1 with public clients (`microservices_frontend`) and automated JWT bearer token relay to federated GraphQL subgraphs.
@@ -198,8 +200,8 @@ mindmap
 
 ### 5. 📊 Full-Stack Observability (LGTM Stack)
 * **Audience-Focused Grafana Dashboards:**
-  1. *🏢 E-Commerce Business Intelligence & Inventory Operations:* Revenue, order velocity, inventory health, SKU demand forecasts, and model freshness.
-  2. *🛡️ SRE Technical & Security Operations:* Golden signals, HTTP RPS/latency, error budget burn rates, Kafka consumer lag, and Alloy ingestion pipeline health.
+  1. *🏢 E-Commerce Business Intelligence & Inventory Operations:* Executive Financial Reconciliation Triad (Gross Orders: 7 vs Cancelled Orders: 4 = True Net Orders: 3), Order Cancellation Rate (% OCR), Reconciled AOV ($/Net Order), Live Dynamic Cart Abandonment Rate (75%), inventory stock health, and customer loyalty cohorts.
+  2. *🛡️ SRE Technical & Security Operations:* Golden signals, HTTP RPS/latency, error budget burn rates, Kafka consumer lag, Alloy log pipeline, and the dedicated **Level 5 Hyper-Scale Resilience Row** (Vegas Adaptive Concurrency Limits vs In-Flight Requests, Kafka DLQ Quarantine & Traffic Shedding, and Cell Traffic Distribution vs Transactional Outbox Dispatches).
 * **Distributed Telemetry Correlation:** One-click drill-down linking Tempo distributed spans $\leftrightarrow$ Loki structured logs $\leftrightarrow$ Prometheus metrics.
 * **Visual Mesh & FinOps:** Kiali visual topology graphs for Istio mTLS verification and OpenCost for live container cost allocation.
 

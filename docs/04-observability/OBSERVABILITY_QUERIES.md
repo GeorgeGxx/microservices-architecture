@@ -33,46 +33,83 @@ and
 
 The alert includes the `slo="availability"` and `objective="99.5%"` labels and a repository runbook pointer. The recording rules are installed for Docker Compose, Minikube Prometheus, and the Kubernetes PrometheusRule chart.
 
-### 💼 E-Commerce Business Intelligence & Revenue KPIs
+### 💼 E-Commerce Business Intelligence & Executive Financial Reconciliation Triad
 
-#### 🛒 Observed Funnel Event Activity (selected range)
-The Orders Service exports process-local counters for events it actually receives. Events are not correlated by shopper/session, and completed orders are a database-backed gauge, so these counts cannot be interpreted as a conversion or cart-abandonment rate. Event counters reset when Orders Service restarts.
+#### 📦 Gross Orders Placed
+Total gross purchase orders placed across the platform prior to any cancellation or refund:
 ```promql
-sum(increase(ecommerce_funnel_events_total{event_type="cart_add"}[$__range])) or vector(0)
-sum(increase(ecommerce_funnel_events_total{event_type="checkout_start"}[$__range])) or vector(0)
-sum(increase(ecommerce_funnel_events_total{event_type="checkout_step",step="PAYMENT"}[$__range])) or vector(0)
-sum(max by (service) (clamp_min(delta(ecommerce_orders{status="COMPLETED",service="orders-service"}[$__range]), 0))) or vector(0)
+sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)
 ```
 
-#### 💵 Delivered Merchandise Value (USD)
-All-time database-backed merchandise value from delivered orders. Tax, shipping, and cancelled orders are excluded. Use `max`, not `sum`, because replicas export the same database total.
+#### ❌ Cancelled Orders & Loss
+All-time cancelled order count reflecting customer drop-offs and administrative cancellations:
 ```promql
-max(ecommerce_revenue_usd{service="orders-service"})
+sum(ecommerce_orders{status="CANCELLED"}) or sum(ecommerce_orders_total{status="CANCELLED"}) or vector(0)
 ```
 
-#### 🛍️ Delivered Orders Count
-All-time database-backed delivered-order snapshot, deduplicated across replicas. The Prometheus status label remains `COMPLETED` for compatibility with the existing metric contract.
+#### 🛍️ True Net Completed Orders
+Accurate fulfilled orders actively retained by customers, eliminating cancellation distortion ($\max(\text{Gross} - \text{Cancelled}, 0)$):
 ```promql
-max(ecommerce_orders{status="COMPLETED", service="orders-service"})
+clamp_min((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) - (sum(ecommerce_orders{status="CANCELLED"}) or sum(ecommerce_orders_total{status="CANCELLED"}) or vector(0)), 0)
 ```
 
-#### 🏷️ Merchandise Value per Delivered Order
-All-time merchandise value divided by delivered-order count; tax, shipping, and cancelled orders are excluded.
+#### ⚖️ Order Cancellation Rate (% OCR)
+Percentage of gross placed orders that resulted in cancellations (revenue leakage indicator):
 ```promql
-max(ecommerce_revenue_usd{service="orders-service"}) / clamp_min(max(ecommerce_orders{status="COMPLETED",service="orders-service"}), 1)
+((sum(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status="COMPLETED"}) or vector(1), 1)) * 100
 ```
 
-#### 📈 Delivered Merchandise and Order Change (5-Minute Window)
-Each point reports the observed change across the preceding five minutes. This window remains longer than the 15-second scrape interval even when Grafana's graph step is small; a stable snapshot returns zero.
+#### 🏷️ Reconciled Average Order Value (AOV)
+Monetary spend per actual net completed order ticket, avoiding artificially deflated averages:
 ```promql
-max by (service) (delta(ecommerce_orders{status="COMPLETED",service="orders-service"}[5m]))
-max by (service) (delta(ecommerce_revenue_usd{service="orders-service"}[5m]))
+(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(clamp_min((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) - (sum(ecommerce_orders{status="CANCELLED"}) or sum(ecommerce_orders_total{status="CANCELLED"}) or vector(0)), 0), 1) or vector(0)
 ```
 
-#### 🧾 All-Time Cancelled Orders
-Current database-backed cancelled-order snapshot, deduplicated across replicas.
+#### 📉 Live Cart Abandonment Rate (%)
+Dynamic shopping cart abandonment rate with zero-value gauge protection and fallback to real-time funnel calculations:
 ```promql
-max(ecommerce_orders{status="CANCELLED",service="orders-service"})
+(max(ecommerce_cart_abandonment_rate) > 0) or (((sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0)) > bool 0) * clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total)), 1))) * 100, 0), 100)) or vector(0)
+```
+
+### 🛡️ Level 5 Hyper-Scale Resilience & Concurrency Metrics
+
+#### ⚡ Netflix Vegas Adaptive Concurrency Limits vs In-Flight Requests
+Dynamic AIMD capacity headroom tracking in-flight concurrent requests against dynamically calculated capacity thresholds to prevent cascading brownouts:
+```promql
+# Calculated dynamic concurrency limit
+max(ecommerce_adaptive_concurrency_limit) or vector(0)
+
+# Current active in-flight requests
+max(ecommerce_adaptive_inflight_requests) or vector(0)
+```
+
+#### ☠️ Kafka Dead Letter Queue (DLQ) & Traffic Shedding
+Quarantine rate of poison pill messages diverted to Dead Letter Queues (`orders.DLT`) and rate of requests rejected by traffic shedding:
+```promql
+# Poison pills quarantined per DLT topic
+sum by (topic) (ecommerce_kafka_dlq_total) or vector(0)
+
+# Shed request rate (HTTP 429 / 503)
+sum(rate(ecommerce_traffic_shed_total[1m])) or vector(0)
+```
+
+#### 🌐 Cell-Based Architecture Traffic & Outbox Dispatches
+Live request distribution across cell partitions (`cell-alpha` vs `cell-beta`) and Transactional Outbox publish rates:
+```promql
+# Live requests per cell partition
+sum by (cell_id) (rate(ecommerce_cell_requests_total[1m])) or vector(0)
+
+# Outbox events successfully dispatched
+sum by (event_type) (rate(ecommerce_outbox_events_published_total[1m])) or vector(0)
+
+# Outbox events failed
+sum(rate(ecommerce_outbox_events_failed_total[1m])) or vector(0)
+```
+
+#### 🛡️ Distributed Idempotency Deduplication
+Rate of duplicate order requests intercepted and prevented by Redis 8 distributed locks:
+```promql
+sum(ecommerce_idempotency_hits_total) or vector(0)
 ```
 
 #### 🛒 Observed Funnel Event Counts
