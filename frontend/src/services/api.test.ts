@@ -204,14 +204,14 @@ describe('Product and Stock API Mutations', () => {
 
   it('dispatches funnel telemetry events with proper headers and body', async () => {
     const originalFetch = globalThis.fetch;
-    let recordedUrl = '';
-    let recordedMethod = '';
-    let recordedBody = '';
+    const recordedCalls: { url: string; method: string; body: string }[] = [];
 
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      recordedUrl = String(input);
-      recordedMethod = init?.method || '';
-      recordedBody = String(init?.body || '');
+      recordedCalls.push({
+        url: String(input),
+        method: init?.method || '',
+        body: String(init?.body || ''),
+      });
       return { ok: true, status: 202 } as Response;
     }) as typeof fetch;
 
@@ -223,9 +223,21 @@ describe('Product and Stock API Mutations', () => {
         category: 'Electronics',
       });
 
-      expect(recordedUrl).toBe('/api/order/funnel');
-      expect(recordedMethod).toBe('POST');
-      expect(JSON.parse(recordedBody)).toEqual({
+      expect(recordedCalls).toHaveLength(2);
+      const analyticsCall = recordedCalls.find((c) => c.url === '/api/v1/analytics/events');
+      const orderCall = recordedCalls.find((c) => c.url === '/api/order/funnel');
+
+      expect(analyticsCall).toBeDefined();
+      expect(analyticsCall?.method).toBe('POST');
+      expect(JSON.parse(analyticsCall!.body)).toEqual({
+        event_type: 'CART_ADD',
+        category: 'Electronics',
+        metadata: { sku: 'TEST-SKU' },
+      });
+
+      expect(orderCall).toBeDefined();
+      expect(orderCall?.method).toBe('POST');
+      expect(JSON.parse(orderCall!.body)).toEqual({
         eventType: 'CART_ADD',
         sku: 'TEST-SKU',
         category: 'Electronics',
