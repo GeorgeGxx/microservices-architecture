@@ -412,14 +412,29 @@ kind: Service
 metadata:
   name: kube-prometheus-kube-prome-prometheus
   namespace: observability
+  labels:
+    app: kube-prometheus-stack-prometheus
+    app.kubernetes.io/instance: kube-prometheus
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: kube-prometheus-stack
+    app.kubernetes.io/version: 89.2.2
+    chart: kube-prometheus-stack-89.2.2
+    heritage: Helm
+    release: kube-prometheus
+    self-monitor: "true"
 spec:
   type: ClusterIP
   selector:
-    app: prometheus
+    app.kubernetes.io/name: prometheus
+    operator.prometheus.io/name: kube-prometheus-kube-prome-prometheus
   ports:
-    - name: http-prom
+    - name: http-web
       port: 9090
       targetPort: 9090
+    - name: reloader-web
+      port: 8080
+      targetPort: 8080
+      appProtocol: http
 ---
 apiVersion: v1
 kind: Service
