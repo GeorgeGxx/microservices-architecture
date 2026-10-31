@@ -1470,4 +1470,93 @@
       </root>
     </mxGraphModel>
   </diagram>
+  <diagram id="page_platform_layers_a_to_e" name="18. Platform Layers A to E Implementation Blueprint">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t18" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;PLATFORM LAYERS A TO E IMPLEMENTATION BLUEPRINT (DOCKER COMPOSE &amp;amp; MINIKUBE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Unified Architectural Parity: Layer A (Service Mesh) • Layer B (Edge Federation) • Layer C (Kafka Sagas) • Layer D (Observability) • Layer E (Secrets Management)&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+          <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_la_hdr" parent="1" value="&lt;b&gt;🛡️ LAYER A: SERVICE MESH &amp;amp; NETWORK SECURITY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Zero-Trust mTLS &amp;amp; Least-Privilege Access&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#3730A3;fontSize=12;" vertex="1">
+          <mxGeometry x="55" y="100" width="345" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_la_1" parent="1" value="&lt;b&gt;Istio Service Mesh (Minikube)&lt;/b&gt;&lt;br&gt;• STRICT mTLS across dev, staging &amp;amp; prod&lt;br&gt;• Default PeerAuthentication: STRICT&lt;br&gt;• Workload SPIFFE Identity validation&lt;br&gt;• DestinationRules connection pooling &amp;amp; circuit breakers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="55" y="175" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_la_2" parent="1" value="&lt;b&gt;Least-Privilege AuthorizationPolicies&lt;/b&gt;&lt;br&gt;• default-deny-all baseline in all namespaces&lt;br&gt;• allow-ingress-to-edge / frontend&lt;br&gt;• allow-router-to-subgraphs (ports 8001-8087)&lt;br&gt;• allow-orders-to-downstream (S2S mTLS)&lt;br&gt;• allow-observability-scraping (Prometheus/Alloy)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="55" y="320" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_la_3" parent="1" value="&lt;b&gt;L3/L4 Network Isolation &amp;amp; Parity&lt;/b&gt;&lt;br&gt;• K8s NetworkPolicies (ingress &amp;amp; egress rules)&lt;br&gt;• Docker Compose bridge isolation:&lt;br&gt;  - frontend-net (Public &amp;amp; Edge routes)&lt;br&gt;  - backend-net (Private transactional core)&lt;br&gt;  - data-net (Dedicated database network)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="55" y="480" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_la_4" parent="1" value="&lt;b&gt;Strategic Roadmap: Ambient Mode&lt;/b&gt;&lt;br&gt;• Evaluation for hyper-scale production&lt;br&gt;• In-node ztunnel L4 mTLS daemon&lt;br&gt;• Waypoint proxies for L7 authorization&lt;br&gt;• Eliminates ~100MB RAM sidecar per pod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#4338CA;strokeWidth=1.5;fontColor=#312E81;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="55" y="640" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lb_hdr" parent="1" value="&lt;b&gt;🚀 LAYER B: EDGE FEDERATION &amp;amp; IDENTITY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;GraphQL Federation v2 &amp;amp; OIDC Gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
+          <mxGeometry x="420" y="100" width="345" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lb_1" parent="1" value="&lt;b&gt;Cosmo Router Gateway v2 (Go)&lt;/b&gt;&lt;br&gt;• Apollo Federation v2 Supergraph Execution&lt;br&gt;• Static compiled execution-config.json&lt;br&gt;• Subgraph query planning across all 9 services&lt;br&gt;• HTTP/2, WebSocket subscriptions, OTLP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="420" y="175" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lb_2" parent="1" value="&lt;b&gt;Keycloak 26 IAM (OIDC / OAuth2)&lt;/b&gt;&lt;br&gt;• microservices-realm authentication realm&lt;br&gt;• RS256 JWKS public keys (/certs)&lt;br&gt;• Role-Based Access Control (RBAC):&lt;br&gt;  ROLE_ADMIN, ROLE_INTERNAL_SERVICE, ROLE_USER&lt;br&gt;• PKCE authorization flow for React SPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="420" y="320" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lb_3" parent="1" value="&lt;b&gt;JWKS Stale-While-Revalidate Caching&lt;/b&gt;&lt;br&gt;• refresh_unknown_kid: enabled (max_wait 10s)&lt;br&gt;• Background refresh interval: 5m&lt;br&gt;• Prevents edge rejection on Keycloak hiccups&lt;br&gt;• Token header propagation (Bearer, Idempotency,&lt;br&gt;  W3C traceparent, X-Correlation-ID)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="420" y="480" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lb_4" parent="1" value="&lt;b&gt;GraphQL Defense-in-Depth Guardrails&lt;/b&gt;&lt;br&gt;• Query Depth limiting: &amp;le; 12 levels&lt;br&gt;• Query Alias limiting: &amp;le; 5 aliases&lt;br&gt;• Max request payload size: 1 MiB&lt;br&gt;• @authenticated pre-fetch field kill-switch&lt;br&gt;• Anonymous catalog browsing preserved" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#DB2777;strokeWidth=1.5;fontColor=#831843;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="420" y="640" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lc_hdr" parent="1" value="&lt;b&gt;⚡ LAYER C: EVENT-DRIVEN MESSAGING &amp;amp; SAGAS&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Asynchronous Sagas &amp;amp; Distributed Idempotency&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
+          <mxGeometry x="785" y="100" width="345" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lc_1" parent="1" value="&lt;b&gt;Apache Kafka 3.x (KRaft Mode)&lt;/b&gt;&lt;br&gt;• Zookeeper-less distributed consensus&lt;br&gt;• High-throughput partitioned topics:&lt;br&gt;  orders-topic &amp;bull; payments-topic &amp;bull; fulfillment-topic&lt;br&gt;• Minikube &amp;amp; Compose identical cluster topology" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="785" y="175" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lc_2" parent="1" value="&lt;b&gt;Redis 7.x Distributed Idempotency&lt;/b&gt;&lt;br&gt;• Atomic SETNX with 24h Time-To-Live (TTL)&lt;br&gt;• X-Idempotency-Key request deduplication&lt;br&gt;• Guaranteed single execution for financial actions&lt;br&gt;• Rejects concurrent duplicate orders/payments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="785" y="320" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lc_3" parent="1" value="&lt;b&gt;Transactional Outbox Pattern&lt;/b&gt;&lt;br&gt;• Database outbox table records event state&lt;br&gt;• Background scheduler polls &amp;amp; dispatches to Kafka&lt;br&gt;• Eliminates dual-write partial failures&lt;br&gt;• Zero phantom reads; at-least-once guarantee" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="785" y="480" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_lc_4" parent="1" value="&lt;b&gt;DLQ Quarantining &amp;amp; Schema Safety&lt;/b&gt;&lt;br&gt;• @RetryableTopic non-blocking backoff (1s, 2s, 4s)&lt;br&gt;• Poison pills quarantined to orders-topic.DLT&lt;br&gt;• CLI replay automation via scripts/prod/kafka-ops.sh&lt;br&gt;• Shared event contracts across Java, Go, TS &amp;amp; Python" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=1.5;fontColor=#78350F;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="785" y="640" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_ld_hdr" parent="1" value="&lt;b&gt;📊 LAYER D: FULL-STACK OBSERVABILITY PIPELINE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Unified LGTM Stack &amp;amp; FinOps Intelligence&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#065F46;fontSize=12;" vertex="1">
+          <mxGeometry x="1150" y="100" width="345" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_ld_1" parent="1" value="&lt;b&gt;Unified LGTM Observability Stack&lt;/b&gt;&lt;br&gt;• Prometheus 3.x: Scrapes all 9 core services&lt;br&gt;• Loki 3.x: Structured multiline log storage&lt;br&gt;• Tempo 3.x: OpenTelemetry distributed trace store&lt;br&gt;• Grafana 13.x: Unified visualization &amp;amp; dashboards" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1150" y="175" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_ld_2" parent="1" value="&lt;b&gt;Bidirectional Trace-to-Log Correlation&lt;/b&gt;&lt;br&gt;• Loki derivedFields: Regex captures traceId &amp;amp;&lt;br&gt;  renders instant 1-click 'Tempo' trace button&lt;br&gt;• Tempo tracesToLogsV2: Span navigates to Loki&lt;br&gt;• Instant RCA from 500 error log to trace waterfall" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1150" y="320" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_ld_3" parent="1" value="&lt;b&gt;Grafana Alloy Telemetry Daemon&lt;/b&gt;&lt;br&gt;• DaemonSet log scraping &amp;amp; multiline aggregation&lt;br&gt;• OTLP trace ingestion &amp;amp; batch forwarding (4317/4318)&lt;br&gt;• Live web debugging interface on port 3300&lt;br&gt;• In-memory buffer &amp;amp; resilient retry forwarding" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1150" y="480" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_ld_4" parent="1" value="&lt;b&gt;OpenCost FinOps Real-Time UI (:7000)&lt;/b&gt;&lt;br&gt;• Container &amp;amp; namespace spend allocation&lt;br&gt;• Real-time CPU, RAM &amp;amp; storage cost tracking&lt;br&gt;• Prometheus metrics engine integration&lt;br&gt;• Cluster budget adherence &amp;amp; rightsizing insights" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;strokeWidth=1.5;fontColor=#065F46;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1150" y="640" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_le_hdr" parent="1" value="&lt;b&gt;🔒 LAYER E: SECRETS MANAGEMENT &amp;amp; ZERO-TRUST&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Vault KV-v2, Transit Encryption &amp;amp; ESO&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;" vertex="1">
+          <mxGeometry x="1515" y="100" width="345" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_le_1" parent="1" value="&lt;b&gt;HashiCorp Vault KV-v2 (Port 8200)&lt;/b&gt;&lt;br&gt;• Encrypted secret engine mounted at secret/&lt;br&gt;• Application database &amp;amp; JWT master secrets&lt;br&gt;• Per-service isolated secret paths&lt;br&gt;• Audit logging device enabled to /vault/file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1515" y="175" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_le_2" parent="1" value="&lt;b&gt;Transit Encryption Engine (AES-256-GCM)&lt;/b&gt;&lt;br&gt;• Key: transit/keys/microservices-data-key&lt;br&gt;• Cryptographic envelope encryption at rest&lt;br&gt;• Microservices encrypt PII before database storage&lt;br&gt;• Centralized cryptographic key lifecycle" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1515" y="320" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_le_3" parent="1" value="&lt;b&gt;Dynamic Database Engine (PostgreSQL 18)&lt;/b&gt;&lt;br&gt;• Automatic ephemeral credential generation&lt;br&gt;• Dedicated roles: postgres-*-db-role&lt;br&gt;• Leased credentials with 1h default TTL&lt;br&gt;• Automated revocation upon lease expiration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1515" y="480" width="345" height="145" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_le_4" parent="1" value="&lt;b&gt;External Secrets Operator (ESO) &amp;amp; Compose Parity&lt;/b&gt;&lt;br&gt;• K8s SecretStore connects to Vault KV-v2&lt;br&gt;• ExternalSecret syncs to microservices-secrets&lt;br&gt;• Compose auto-seeding via vault-init container&lt;br&gt;• Zero hardcoded credentials across git repos" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#7C3AED;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+          <mxGeometry x="1515" y="640" width="345" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n18_banner" parent="1" value="&lt;b&gt;⚙️ DEPLOYMENT RUNTIME PARITY (DOCKER COMPOSE &amp;bull; KUBERNETES MINIKUBE):&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Docker Compose:&lt;/b&gt; &lt;code&gt;compose.yaml&lt;/code&gt; spins up all 9 microservices, Keycloak 26, Cosmo Router, Kafka KRaft, Redis, Vault, Postgres, and LGTM Observability on identical port bindings.&lt;br&gt;• &lt;b&gt;Minikube (Kubernetes):&lt;/b&gt; &lt;code&gt;platform-minikube.ps1 up&lt;/code&gt; provisions full Istio STRICT mTLS mesh, ArgoCD GitOps, OpenCost FinOps, KEDA autoscalers, and Gatekeeper policies with 100% architectural parity." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11.5;align=left;spacingLeft=20;" vertex="1">
+          <mxGeometry x="55" y="795" width="1805" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
 </mxfile>

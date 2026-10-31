@@ -89,7 +89,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | `mlops-train` | `-Days <n>` | Runs demand forecasting model training via `mlops/training.ps1`. |
 | `mlops-data` | `-Days <n>`, `-Kafka` | Generates synthetic historical sales dataset, optionally streaming DELIVERED events directly to Kafka. |
 | `postman-gen` | | Generates the unified Newman/Postman 23-request collection JSON (`microservices.postman_collection.json`). |
-| `diagrams` | | Generates and synchronizes 17 architecture blueprint tabs in `docs/Diagrams.drawio`. |
+| `diagrams` | | Generates and synchronizes 18 architecture blueprint tabs in `docs/Diagrams.drawio`. |
 | `finops` | `-Environment <dev\|staging\|prod>` | Offline illustrative FinOps cost model estimate and rightsizing analysis. |
 | `cost` | | Queries live Kubernetes workload costs via `kubectl-cost` and OpenCost. |
 | `canary` | `-Action <weight\|rollout\|promote\|retire>` | Controls progressive canary rollout and traffic splits on products-service. |
