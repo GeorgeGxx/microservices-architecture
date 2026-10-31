@@ -1,4 +1,4 @@
-"""
+r"""
 Generate clearly labeled synthetic daily sales history for local MLOps runs.
 
 Orchestrator Shortcut (Recommended):

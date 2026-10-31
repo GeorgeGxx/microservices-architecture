@@ -1,4 +1,4 @@
-"""
+r"""
 ==============================================================================
 Enterprise Architecture Diagram Generator (generate_drawio.py)
 Generates 17 comprehensive architectural diagram tabs in docs/Diagrams.drawio.

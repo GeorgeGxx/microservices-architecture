@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unified diagnostic engine and entry point for platform components, telemetry, and order access.
+r"""Unified diagnostic engine and entry point for platform components, telemetry, and order access.
 
 Consolidates:
   1. Component and service verification (Swagger / OpenAPI, Prometheus series, Grafana dashboards).

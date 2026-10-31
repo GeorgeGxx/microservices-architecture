@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 Generates devsecops/testing/newman/microservices.postman_collection.json
 Aligned with Cosmo Router GraphQL Federation v2 (orders v2.5), Keycloak OIDC,
 Logistics State Machine, Saga Compensation, and SSE Notifications.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 ==============================================================================
 Enterprise Microservices Smoke Testing Super-Script (smoke.py)
 Combines functional frontend-to-backend checks, a dual-target deployment gate,

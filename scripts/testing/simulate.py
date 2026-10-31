@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 ==============================================================================
 Enterprise Microservices Simulation Super-Script (simulate.py)
 Consolidates:
