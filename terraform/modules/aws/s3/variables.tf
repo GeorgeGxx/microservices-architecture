@@ -32,6 +32,12 @@ variable "force_destroy" {
   default     = false
 }
 
+variable "logging_target_bucket" {
+  description = "Target bucket name for access logging (if null, access logging is not enabled)"
+  type        = string
+  default     = null
+}
+
 variable "tags" {
   description = "Resource tags"
   type        = map(string)

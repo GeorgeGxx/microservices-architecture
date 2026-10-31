@@ -60,6 +60,12 @@ variable "deletion_protection" {
   default = false
 }
 
+variable "kms_key_arn" {
+  description = "KMS Key ARN for storage encryption"
+  type        = string
+  default     = null
+}
+
 variable "backup_retention_days" {
   type    = number
   default = 7

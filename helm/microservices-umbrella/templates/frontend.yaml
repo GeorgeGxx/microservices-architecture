@@ -83,11 +83,15 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "3"
 spec:
-  type: NodePort
+  type: {{ if .Values.frontend.service }}{{ .Values.frontend.service.type | default "ClusterIP" }}{{ else if eq .Values.global.environment "dev" }}NodePort{{ else }}ClusterIP{{ end }}
   ports:
     - port: 80
       targetPort: 8080
+      {{- if and .Values.frontend.service .Values.frontend.service.nodePort }}
+      nodePort: {{ .Values.frontend.service.nodePort }}
+      {{- else if eq .Values.global.environment "dev" }}
       nodePort: 30080
+      {{- end }}
       name: http
   selector:
     app: frontend

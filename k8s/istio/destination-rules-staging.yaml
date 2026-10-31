@@ -1,10 +1,46 @@
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
 metadata:
+  name: cosmo-router-dr
+  namespace: staging
+spec:
+  host: cosmo-router
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 200
+        maxRequestsPerConnection: 100
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: DestinationRule
+metadata:
   name: products-service-dr
   namespace: staging
 spec:
   host: products-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -17,6 +53,20 @@ metadata:
   namespace: staging
 spec:
   host: orders-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -29,6 +79,20 @@ metadata:
   namespace: staging
 spec:
   host: inventory-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -41,6 +105,20 @@ metadata:
   namespace: staging
 spec:
   host: notification-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -53,6 +131,20 @@ metadata:
   namespace: staging
 spec:
   host: payments-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -65,6 +157,20 @@ metadata:
   namespace: staging
 spec:
   host: fulfillment-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:
@@ -77,6 +183,20 @@ metadata:
   namespace: staging
 spec:
   host: analytics-service
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+    connectionPool:
+      tcp:
+        maxConnections: 1024
+      http:
+        http1MaxPendingRequests: 100
+        maxRequestsPerConnection: 50
+    outlierDetection:
+      consecutive5xxErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
   subsets:
     - name: v1
       labels:

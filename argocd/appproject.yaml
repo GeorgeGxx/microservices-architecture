@@ -34,13 +34,12 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: observability
       name: msa-aws-dp2-prod
+  # Restrict cluster-scoped permissions: standard microservices workloads are confined
+  # to their destination namespaces. ClusterRole and ClusterRoleBinding are excluded to
+  # prevent privilege escalation attacks against the Kubernetes control plane.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRole
-    - group: rbac.authorization.k8s.io
-      kind: ClusterRoleBinding
   namespaceResourceWhitelist:
     - group: ""
       kind: ConfigMap

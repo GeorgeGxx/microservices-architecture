@@ -224,13 +224,15 @@ rules:
       - jobs
       - replicasets
     verbs: ["get", "list", "watch"]
+  {{- if and (eq $env "dev") (hasKey .Values "rbac") .Values.rbac.allowPodExec }}
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+  {{- end }}
   {{- if eq $env "dev" }}
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["patch"]
-  - apiGroups: [""]
-    resources: ["pods/exec"]
-    verbs: ["create"]
   {{- end }}
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -296,22 +298,29 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 rules:
-  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "monitoring.coreos.com"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources:
+      - cronjobs
+      - jobs
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
     resources:
       - pods
       - services
       - endpoints
-      - persistentvolumeclaims
       - configmaps
-      - secrets
-      - deployments
-      - replicasets
-      - cronjobs
-      - jobs
-      - networkpolicies
+      - persistentvolumeclaims
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources:
       - podmonitors
       - servicemonitors
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
