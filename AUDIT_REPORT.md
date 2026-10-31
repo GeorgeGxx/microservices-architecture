@@ -33,19 +33,19 @@ flowchart TD
     Client["Client / Storefront SPA / Mobile"] --> WAF["CloudFront + AWS WAFv2"]
     WAF --> NLB["AWS Network Load Balancer (L4)"]
     NLB --> Ingress["Istio Ingress Gateway (Envoy) - Port 443 HTTPS"]
-    
+
     subgraph K8s["Kubernetes Service Mesh (mTLS STRICT & Default-Deny)"]
         Ingress -->|GraphQL /graphql| Router["Cosmo Router v2 (Port 8080)"]
         Ingress -->|Storefront /| Frontend["Storefront Frontend (Port 80)"]
         Ingress -->|SSE /api/notifications/| Notif["Notification Service (Port 8002)"]
-        
+
         Router -->|Federated Query| ProdSvc["Products Service (Port 8004)"]
         Router -->|Federated Query| OrderSvc["Orders Service (Port 8003)"]
         Router -->|Federated Query| InvSvc["Inventory Service (Port 8001)"]
         Router -->|Federated Query| PaySvc["Payments Service (Port 8085)"]
         Router -->|Federated Query| FulfSvc["Fulfillment Service (Port 8086)"]
         Router -->|Federated Query| AnalSvc["Analytics Service (Port 8087)"]
-        
+
         OrderSvc -->|mTLS| InvSvc
         OrderSvc -->|mTLS| PaySvc
         OrderSvc -->|mTLS| Notif
