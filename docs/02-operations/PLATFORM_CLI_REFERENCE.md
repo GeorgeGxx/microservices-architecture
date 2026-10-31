@@ -55,7 +55,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | Command | Key Parameters | Underlying Engine & Description |
 | :--- | :--- | :--- |
 | `simulate` | `-Orders <n>`, `-Concurrency <n>`, `-Continuous`, `-Scenario <traffic\|ddos\|chaos\|all>` | Executes realistic shopping sessions, cart events, and Keycloak-authenticated checkout. |
-| `ddos` | `-Duration <sec>`, `-Workers <n>`, `-DdosUrl <url>`, `-SingleSource`, `-NoAuth` | Sends concurrent GraphQL flood against frontend Nginx rate-limiting edge (20 req/s threshold) to verify HTTP 429 backoff and edge defense. |
+| `ddos` | `-Duration <sec>`, `-Workers <n>`, `-DdosUrl <url>`, `-Amber`, `-Level <amber\|red>`, `-SingleSource`, `-NoAuth` | Sends concurrent GraphQL flood against frontend Nginx rate-limiting edge (20 req/s threshold) to verify HTTP 429 backoff and edge defense (amber: 1-5 req/s blocked, red: >5 req/s). |
 | `chaos` | `-ChaosRuns <n>`, `-Concurrency <n>` | Executes runtime chaos tests (concurrent checkout load, out-of-stock SKUs, circuit breaker tripping, idempotency conflict handling). |
 | `chaos-drills` | `-TargetService <orders\|products\|...>` | Runs automated Level 5 Hyper-Scale Chaos Drills (Poison Pill injection, Network Latency, Cell Evacuation, Concurrent Duplicate Flooding). |
 | `journey` / `e2e` | | Executes full cross-service e-commerce and MLOps end-to-end user journey test suite. |

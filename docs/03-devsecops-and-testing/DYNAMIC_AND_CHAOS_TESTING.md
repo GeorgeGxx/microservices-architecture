@@ -155,8 +155,11 @@ Exercises valid, out-of-stock, and unknown SKU checkout mutations through Cosmo 
 ### 4. 🛡️ GraphQL Load and Rate-Limit Probe (`platform-minikube.ps1 ddos`)
 Sends concurrent GraphQL requests through frontend Nginx and reports observed HTTP responses. It obtains a JWT from Keycloak by default and stops without sending load if token acquisition fails. This default path traverses the same per-peer edge limiter used by the frontend in Compose and Minikube. For another deployed frontend edge, pass `-DdosUrl <url>`:
 ```powershell
-# Default rate-limiting flood probe (30s, 32 concurrent workers):
+# Default rate-limiting flood probe (30s, 32 concurrent workers -> RED LED):
 .\platform-minikube.ps1 ddos
+
+# Moderate threat level probe (calibrated to hold the Grafana LED panel in AMBER/YELLOW: 1-5 req/s blocked):
+.\platform-minikube.ps1 ddos -Amber -Duration 30
 
 # Custom duration, worker concurrency, or edge URL:
 .\platform-minikube.ps1 ddos -Duration 30 -Workers 32
