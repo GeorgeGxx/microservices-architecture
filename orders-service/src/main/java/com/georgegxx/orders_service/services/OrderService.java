@@ -39,8 +39,9 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.georgegxx.orders_service.model.entities.OutboxEvent;
+
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class OrderService implements InitializingBean {
 
@@ -51,9 +52,41 @@ public class OrderService implements InitializingBean {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final MeterRegistry meterRegistry;
     private final IdempotencyManager idempotencyManager;
+    private final OutboxService outboxService;
 
     private CircuitBreaker inventoryCircuitBreaker;
     private CircuitBreaker productsCircuitBreaker;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager,
+            OutboxService outboxService) {
+        this.orderRepository = orderRepository;
+        this.inventoryClient = inventoryClient;
+        this.productsClient = productsClient;
+        this.kafkaTemplate = kafkaTemplate;
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.meterRegistry = meterRegistry;
+        this.idempotencyManager = idempotencyManager;
+        this.outboxService = outboxService;
+    }
+
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager) {
+        this(orderRepository, inventoryClient, productsClient, kafkaTemplate, circuitBreakerRegistry, meterRegistry, idempotencyManager, null);
+    }
 
     @Override
     public void afterPropertiesSet() {
@@ -214,13 +247,51 @@ public class OrderService implements InitializingBean {
     }
 
     private void publishOrderEvent(Order order, OrderStatus status) {
+        String payload = buildOrderEventPayload(order, status);
+        OutboxEvent outboxEvent = recordOutboxEvent(order, status, payload);
+        afterCommit(() -> dispatchOutboxEvent(outboxEvent, order, status, payload));
+    }
+
+    private void dispatchOutboxEvent(OutboxEvent outboxEvent, Order order, OrderStatus status, String payload) {
+        if (this.outboxService != null && outboxEvent != null) {
+            this.outboxService.publishImmediate(outboxEvent.getId(), OrderConstants.ORDERS_TOPIC, order.getOrderNumber(), payload);
+        } else if (this.kafkaTemplate != null) {
+            this.kafkaTemplate.send(OrderConstants.ORDERS_TOPIC, order.getOrderNumber(), payload)
+                    .whenComplete((result, err) -> {
+                        if (err != null) {
+                            log.error("Failed to publish OrderEvent ({}) for order #{}: {}", status, order.getOrderNumber(), err.getMessage(), err);
+                        } else {
+                            log.info("Published OrderEvent ({}) for order #{}", status, order.getOrderNumber());
+                        }
+                    });
+        }
+    }
+
+    private OutboxEvent recordOutboxEvent(Order order, OrderStatus status, String payload) {
+        if (this.outboxService == null) {
+            return null;
+        }
+        try {
+            return this.outboxService.recordEvent(
+                    OrderConstants.ORDERS_TOPIC,
+                    order.getOrderNumber(),
+                    "ORDER_" + status.name(),
+                    payload
+            );
+        } catch (Exception ex) {
+            log.error("Failed to record transactional outbox event for order #{}: {}", order.getOrderNumber(), ex.getMessage(), ex);
+            return null;
+        }
+    }
+
+    private String buildOrderEventPayload(Order order, OrderStatus status) {
         List<OrderEvent.LineItem> eventItems = Optional.ofNullable(order.getOrderItems())
                 .orElseGet(List::of)
                 .stream()
                 .map(item -> new OrderEvent.LineItem(item.getSku(), item.getQuantity()))
                 .toList();
 
-        String payload = JsonUtils.toJson(new OrderEvent(
+        return JsonUtils.toJson(new OrderEvent(
                 order.getOrderNumber(),
                 eventItems.size(),
                 status,
@@ -240,14 +311,6 @@ public class OrderService implements InitializingBean {
                 order.getDeliveryMethod(),
                 order.getPaymentMethod()
         ));
-        this.kafkaTemplate.send(OrderConstants.ORDERS_TOPIC, order.getOrderNumber(), payload)
-                .whenComplete((result, err) -> {
-                    if (err != null) {
-                        log.error("Failed to publish OrderEvent ({}) for order #{}: {}", status, order.getOrderNumber(), err.getMessage(), err);
-                    } else {
-                        log.info("Published OrderEvent ({}) for order #{}", status, order.getOrderNumber());
-                    }
-                });
     }
 
     private void compensateInventoryStock(List<OrderItemsRequest> orderItems) {
@@ -315,11 +378,14 @@ public class OrderService implements InitializingBean {
         List<OrderItemsRequest> itemsToRestore = toRestoreRequests(order);
         OrderResponse response = mapOrderToOrderResponse(updatedOrder);
 
+        String payload = buildOrderEventPayload(updatedOrder, OrderStatus.CANCELLED);
+        OutboxEvent outboxEvent = recordOutboxEvent(updatedOrder, OrderStatus.CANCELLED, payload);
+
         afterCommit(() -> {
             if (!itemsToRestore.isEmpty()) {
                 compensateInventoryStock(itemsToRestore);
             }
-            publishOrderEvent(updatedOrder, OrderStatus.CANCELLED);
+            dispatchOutboxEvent(outboxEvent, updatedOrder, OrderStatus.CANCELLED, payload);
         });
         return response;
     }
@@ -346,7 +412,7 @@ public class OrderService implements InitializingBean {
         Order order = findOrderForUpdate(id);
         transition.accept(order);
         Order updatedOrder = this.orderRepository.save(order);
-        afterCommit(() -> publishOrderEvent(updatedOrder, targetStatus));
+        publishOrderEvent(updatedOrder, targetStatus);
         return mapOrderToOrderResponse(updatedOrder);
     }
 
@@ -467,11 +533,14 @@ public class OrderService implements InitializingBean {
             order.cancel();
             Order updatedOrder = this.orderRepository.save(order);
             List<OrderItemsRequest> itemsToRestore = toRestoreRequests(order);
+            String payload = buildOrderEventPayload(updatedOrder, OrderStatus.CANCELLED);
+            OutboxEvent outboxEvent = recordOutboxEvent(updatedOrder, OrderStatus.CANCELLED, payload);
+
             afterCommit(() -> {
                 if (!itemsToRestore.isEmpty()) {
                     compensateInventoryStock(itemsToRestore);
                 }
-                publishOrderEvent(updatedOrder, OrderStatus.CANCELLED);
+                dispatchOutboxEvent(outboxEvent, updatedOrder, OrderStatus.CANCELLED, payload);
                 log.warn("Saga backward compensation completed for order #{} (reason: {})", orderNumber, reason);
             });
         });
@@ -498,8 +567,8 @@ public class OrderService implements InitializingBean {
             }
             order.ship();
             Order updatedOrder = this.orderRepository.save(order);
+            publishOrderEvent(updatedOrder, OrderStatus.SHIPPED);
             afterCommit(() -> {
-                publishOrderEvent(updatedOrder, OrderStatus.SHIPPED);
                 this.meterRegistry.counter(OrderConstants.METRIC_SAGA_EVENTS, OrderConstants.TAG_EVENT, OrderConstants.EVENT_SHIPMENT_DISPATCHED).increment();
             });
         });
@@ -520,8 +589,8 @@ public class OrderService implements InitializingBean {
             }
             order.deliver();
             Order updatedOrder = this.orderRepository.save(order);
+            publishOrderEvent(updatedOrder, OrderStatus.DELIVERED);
             afterCommit(() -> {
-                publishOrderEvent(updatedOrder, OrderStatus.DELIVERED);
                 this.meterRegistry.counter(OrderConstants.METRIC_SAGA_EVENTS, OrderConstants.TAG_EVENT, OrderConstants.EVENT_SHIPMENT_DELIVERED).increment();
             });
         });

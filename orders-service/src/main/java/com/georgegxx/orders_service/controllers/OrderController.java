@@ -51,11 +51,25 @@ public class OrderController {
             @Parameter(name = "X-Idempotency-Key", in = ParameterIn.HEADER, description = "Unique UUID for request deduplication and safe retries", required = false)
             @RequestHeader(value = "X-Idempotency-Key", required = false)
             @Pattern(regexp = "^[0-9a-fA-F\\-]{36}$", message = "X-Idempotency-Key must be a valid UUIDv4 format")
-            String idempotencyKey) {
+            String idempotencyKey,
+            @Parameter(name = "Idempotency-Key", in = ParameterIn.HEADER, description = "Standard RFC Draft Idempotency-Key for safe retries", required = false)
+            @RequestHeader(value = "Idempotency-Key", required = false)
+            @Pattern(regexp = "^[0-9a-fA-F\\-]{36}$", message = "Idempotency-Key must be a valid UUIDv4 format")
+            String standardIdempotencyKey) {
         String userId = jwt != null ? jwt.getSubject() : null;
         String username = jwt != null ? jwt.getClaimAsString("preferred_username") : null;
-        var orders = this.orderService.placeOrder(orderRequest, idempotencyKey, userId, username);
+        String resolvedKey = (standardIdempotencyKey != null && !standardIdempotencyKey.isBlank())
+                ? standardIdempotencyKey
+                : idempotencyKey;
+        var orders = this.orderService.placeOrder(orderRequest, resolvedKey, userId, username);
         return ResponseEntity.status(HttpStatus.CREATED).body(orders);
+    }
+
+    public ResponseEntity<OrderResponse> placeOrder(
+            OrderRequest orderRequest,
+            Jwt jwt,
+            String idempotencyKey) {
+        return placeOrder(orderRequest, jwt, idempotencyKey, null);
     }
 
     @Operation(summary = "Record conversion funnel telemetry event", description = "Asynchronously ingests user journey events such as CART_ADD, CHECKOUT_START, CHECKOUT_STEP")
@@ -114,6 +128,18 @@ public class OrderController {
             @Parameter(description = "Order ID", required = true)
             @PathVariable("id") Long id) {
         return this.orderService.deliverOrder(id);
+    }
+
+    public ResponseEntity<OrderResponse> placeOrderFallback(
+            OrderRequest orderRequest,
+            Jwt jwt,
+            String idempotencyKey,
+            String standardIdempotencyKey,
+            Throwable throwable) {
+        String resolvedKey = (standardIdempotencyKey != null && !standardIdempotencyKey.isBlank())
+                ? standardIdempotencyKey
+                : idempotencyKey;
+        return placeOrderFallback(orderRequest, jwt, resolvedKey, throwable);
     }
 
     public ResponseEntity<OrderResponse> placeOrderFallback(

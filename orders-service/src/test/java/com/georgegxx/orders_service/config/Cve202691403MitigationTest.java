@@ -60,6 +60,10 @@ class Cve202691403MitigationTest {
     }
 
     private static Path resolveBlockedCertsPath() {
+        Path containerPath = Path.of("/app", "security", "blocked.certs");
+        if (Files.exists(containerPath)) {
+            return containerPath;
+        }
         Path fromModule = Path.of("..", "devsecops", "compliance", "java-security", "blocked.certs");
         if (Files.exists(fromModule)) {
             return fromModule;

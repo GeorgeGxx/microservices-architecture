@@ -14,13 +14,18 @@ public class IdempotencyKeyGraphQlInterceptor implements WebGraphQlInterceptor {
 
     public static final String CONTEXT_KEY = "idempotencyKey";
     public static final String HEADER_NAME = "X-Idempotency-Key";
+    public static final String STANDARD_HEADER_NAME = "Idempotency-Key";
 
     @Override
     public Mono<WebGraphQlResponse> intercept(WebGraphQlRequest request, Chain chain) {
-        String idempotencyKey = request.getHeaders().getFirst(HEADER_NAME);
-        if (idempotencyKey != null) {
+        String idempotencyKey = request.getHeaders().getFirst(STANDARD_HEADER_NAME);
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            idempotencyKey = request.getHeaders().getFirst(HEADER_NAME);
+        }
+        if (idempotencyKey != null && !idempotencyKey.isBlank()) {
+            String finalKey = idempotencyKey.trim();
             request.configureExecutionInput((executionInput, builder) ->
-                    builder.graphQLContext(Map.of(CONTEXT_KEY, idempotencyKey)).build());
+                    builder.graphQLContext(Map.of(CONTEXT_KEY, finalKey)).build());
         }
         return chain.next(request);
     }
