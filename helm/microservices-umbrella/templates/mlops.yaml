@@ -301,6 +301,7 @@ spec:
     metadata:
       labels:
         app: demand-forecast-service
+        version: v1
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8005"
