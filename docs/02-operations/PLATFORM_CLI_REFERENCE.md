@@ -64,7 +64,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | Command | Key Parameters | Underlying Engine & Description |
 | :--- | :--- | :--- |
 | `dashboards` | `-Push` | Curates and generates Grafana Business & Technical JSON dashboards; pushes live to Grafana when `-Push` is supplied. |
-| `funnel-demo` | `-Count <n>`, `-Category <name>` | Emits demo `CART_ADD` telemetry events directly to test conversion funnels and abandonment panels. |
+| `funnel-demo` | `-Count <n>`, `-Category <name>` | Emits synchronized conversion funnel events (`CART_ADD`, `CHECKOUT_START`, `CHECKOUT_STEP`) across orders and analytics services to populate Grafana funnels and cart abandonment gauges. |
 | `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>`, `-Target <name>`, `-Query <promql>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, PromQL queries, and Keycloak auth. |
 | `doctor` | | Comprehensive cluster diagnostic: pods, endpoints, metrics pipeline, and health gates. |
 | `urls` | | Displays all active local port-forward URLs, ingress endpoints, and default credentials. |
