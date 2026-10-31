@@ -148,7 +148,8 @@ public class OrderGraphQlController {
 
     @org.springframework.graphql.data.method.annotation.GraphQlExceptionHandler({
             IllegalArgumentException.class,
-            IllegalStateException.class
+            IllegalStateException.class,
+            com.georgegxx.orders_service.exceptions.InsufficientStockException.class
     })
     public graphql.GraphQLError handleBadRequestException(RuntimeException ex) {
         return graphql.GraphqlErrorBuilder.newError()

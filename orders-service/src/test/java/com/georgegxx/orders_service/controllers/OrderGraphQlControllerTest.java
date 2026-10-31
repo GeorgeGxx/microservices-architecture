@@ -214,5 +214,10 @@ class OrderGraphQlControllerTest {
 
         GraphQLError err2 = graphQlController.handleBadRequestException(new IllegalStateException("State error"));
         assertThat(err2.getMessage()).isEqualTo("State error");
+
+        GraphQLError err3 = graphQlController.handleBadRequestException(
+                new com.georgegxx.orders_service.exceptions.InsufficientStockException("Product with sku 000004 has insufficient quantity")
+        );
+        assertThat(err3.getMessage()).contains("insufficient quantity");
     }
 }
