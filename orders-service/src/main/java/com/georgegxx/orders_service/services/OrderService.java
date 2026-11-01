@@ -14,7 +14,6 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.cache.annotation.CacheEvict;
@@ -396,7 +395,7 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse shipOrder(Long id) {
-        return transitionOrderById(id, Order::ship, OrderStatus.SHIPPED);
+        return transitionOrderById(id, order -> order.ship(), OrderStatus.SHIPPED);
     }
 
     @Caching(evict = {
@@ -405,7 +404,7 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse deliverOrder(Long id) {
-        return transitionOrderById(id, Order::deliver, OrderStatus.DELIVERED);
+        return transitionOrderById(id, order -> order.deliver(), OrderStatus.DELIVERED);
     }
 
     private OrderResponse transitionOrderById(Long id, Consumer<Order> transition, OrderStatus targetStatus) {

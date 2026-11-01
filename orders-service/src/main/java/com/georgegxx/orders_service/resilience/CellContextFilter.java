@@ -32,7 +32,6 @@ public class CellContextFilter extends OncePerRequestFilter {
     private final String defaultCellId;
     private final MeterRegistry meterRegistry;
 
-    @Autowired
     public CellContextFilter(
             @Value("${cell.id:${CELL_ID:cell-alpha}}") String defaultCellId,
             @Autowired(required = false) MeterRegistry meterRegistry) {
