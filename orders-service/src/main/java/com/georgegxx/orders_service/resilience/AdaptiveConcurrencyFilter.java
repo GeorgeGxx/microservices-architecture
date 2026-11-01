@@ -19,7 +19,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.DoubleAdder;
 
 /**
  * Pillar 4: Adaptive Concurrency Limits & Traffic Shedding
@@ -45,7 +44,6 @@ public class AdaptiveConcurrencyFilter extends OncePerRequestFilter {
 
     private Counter shedCounter;
 
-    @Autowired
     public AdaptiveConcurrencyFilter(
             @Value("${resilience.adaptive-concurrency.enabled:true}") boolean enabled,
             @Value("${resilience.adaptive-concurrency.initial-limit:50}") double initialLimit,
@@ -62,7 +60,7 @@ public class AdaptiveConcurrencyFilter extends OncePerRequestFilter {
         this.beta = beta;
 
         if (meterRegistry != null) {
-            Gauge.builder("ecommerce_adaptive_concurrency_limit", this, AdaptiveConcurrencyFilter::getCurrentLimit)
+            Gauge.builder("ecommerce_adaptive_concurrency_limit", this, filter -> filter.getCurrentLimit())
                     .description("Current dynamic concurrency limit calculated by Vegas algorithm")
                     .register(meterRegistry);
 
