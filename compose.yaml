@@ -499,12 +499,15 @@ services:
       KAFKA_GROUP_ID: fulfillment-service-group
       KAFKAJS_NO_PARTITIONER_WARNING: "1"
       NODE_ENV: production
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
     restart: unless-stopped
     depends_on:
       db-fulfillment:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/health || exit 1"]
       interval: 10s
@@ -561,12 +564,15 @@ services:
       KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
       KAFKA_GROUP_ID: analytics-service-group
       ENV: production
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
     restart: unless-stopped
     depends_on:
       db-analytics:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8087/health')"]
       interval: 10s
