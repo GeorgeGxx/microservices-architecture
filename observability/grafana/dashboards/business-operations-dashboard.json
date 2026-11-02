@@ -493,7 +493,7 @@
       "id": 12,
       "type": "bargauge",
       "title": "🚚 Active Orders Across Logistics Pipeline",
-      "description": "Real-time state machine progression: PLACED -> PREPARING -> IN_TRANSIT -> OUT_FOR_DELIVERY -> DELIVERED.",
+      "description": "Real-time order fulfillment pipeline matching frontend tracking: PLACED -> SHIPPED -> DELIVERED.",
       "gridPos": {
         "h": 7,
         "w": 8,
@@ -538,7 +538,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline) or vector(0)",
+          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline{status=~\"PLACED|SHIPPED|DELIVERED\"}) or vector(0)",
           "legendFormat": "Stage: {{status}}"
         }
       ]
@@ -724,7 +724,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "0"
         }
       },
       "options": {
@@ -744,7 +745,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (payment_method) (ecommerce_payments_total) or vector(0)",
+          "expr": "sum by (payment_method) (ecommerce_payments_total)",
           "legendFormat": "Method: {{payment_method}}"
         }
       ]
@@ -841,7 +842,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "0"
         }
       },
       "options": {
@@ -861,7 +863,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (reason) (ecommerce_payment_refunds_total) or vector(0)",
+          "expr": "sum by (reason) (ecommerce_payment_refunds_total)",
           "legendFormat": "Reason: {{reason}}"
         }
       ]
@@ -881,7 +883,7 @@
     {
       "id": 26,
       "type": "bargauge",
-      "title": "🚚 Shipments by Carrier (DHL, FedEx, UPS)",
+      "title": "🚚 Shipments by Carrier (DHL, FedEx)",
       "description": "Total shipments created and routed through integrated shipping carriers.",
       "gridPos": {
         "h": 6,
@@ -907,7 +909,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "noValue": "0"
         }
       },
       "options": {
@@ -927,7 +930,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (carrier) (ecommerce_shipments_total) or vector(0)",
+          "expr": "sum by (carrier) (ecommerce_shipments_total)",
           "legendFormat": "Carrier: {{carrier}}"
         }
       ]

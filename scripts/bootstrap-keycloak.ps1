@@ -67,6 +67,7 @@ Write-Host "[1/5] Checking Keycloak accessibility on $KeycloakUrl..." -Foregroun
 $deadline = (Get-Date).AddSeconds(150)
 $ready = $false
 $elapsed = 0
+$pfLaunched = $false
 while ((Get-Date) -lt $deadline) {
     try {
         $check = Invoke-WebRequest -Uri "$KeycloakUrl/realms/master" -Method GET -UseBasicParsing -TimeoutSec 3 -ErrorAction SilentlyContinue
@@ -77,9 +78,13 @@ while ((Get-Date) -lt $deadline) {
     } catch {
         # Waiting for port-forward or Keycloak internal startup
     }
-    if ($elapsed -ge 6 -and $KeycloakUrl -match "localhost:8181") {
-        # Auto-launch dedicated port-forward to Keycloak if no process is already forwarding 8181
-        Start-Process -FilePath "kubectl" -ArgumentList "port-forward -n auth svc/keycloak 8181:8181" -WindowStyle Hidden -ErrorAction SilentlyContinue
+    $targetPort = 8181
+    if ($KeycloakUrl -match ':(\d+)') { $targetPort = [int]$matches[1] }
+    $isLocal = ($KeycloakUrl -match 'localhost|127\.0\.0\.1')
+    if (-not $pfLaunched -and $elapsed -ge 3 -and $isLocal) {
+        # Auto-launch dedicated port-forward to Keycloak if no process is already forwarding
+        $pfLaunched = $true
+        Start-Process -FilePath "kubectl" -ArgumentList "port-forward -n auth svc/keycloak ${targetPort}:8181" -WindowStyle Hidden -ErrorAction SilentlyContinue
     }
     Write-Host "  ... waiting for Keycloak to respond ($elapsed s elapsed)" -ForegroundColor DarkGray
     Start-Sleep -Seconds 3
@@ -87,10 +92,10 @@ while ((Get-Date) -lt $deadline) {
 }
 
 if (-not $ready) {
-    Write-Host "[X] Keycloak is not reachable on $KeycloakUrl after 150s. Ensure Keycloak is running." -ForegroundColor Red
+    Write-Host "  [X] Keycloak is not reachable on $KeycloakUrl after 150s. Ensure Keycloak is running." -ForegroundColor Red
     exit 1
 }
-Write-Host "[OK] Keycloak is ready." -ForegroundColor Green
+Write-Host "  [OK] Keycloak is ready." -ForegroundColor Green
 
 # 2. Token Management & API Wrapper
 $script:AdminToken = $null
@@ -164,8 +169,20 @@ function Invoke-KeycloakAdmin {
     }
 }
 
-$headers = Get-AdminHeaders
-Write-Host "[OK] Admin token acquired." -ForegroundColor Green
+# 2. Authenticating Admin Session & Acquiring Tokens
+Write-Host "`n[2/5] Authenticating Admin Session & Acquiring Tokens..." -ForegroundColor Yellow
+$headers = $null
+for ($attempt = 1; $attempt -le 5; $attempt++) {
+    try {
+        $headers = Get-AdminHeaders
+        if ($headers -and $headers["Authorization"]) { break }
+    } catch {
+        if ($attempt -eq 5) { throw $_ }
+        Write-Host "  ... awaiting Keycloak auth engine readiness (attempt $attempt/5)" -ForegroundColor DarkGray
+        Start-Sleep -Seconds 2
+    }
+}
+Write-Host "  [OK] Admin token acquired." -ForegroundColor Green
 
 # 3. Ensure Realm & Disable Profile Prompt Actions
 Write-Host "`n[3/5] Checking / Creating Realm '$Realm'..." -ForegroundColor Yellow
@@ -185,7 +202,7 @@ if (-not $realmExists) {
         try {
             $rawJson = Get-Content -Path $RealmExportPath -Raw -Encoding UTF8
             Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $rawJson
-            Write-Host "[OK] Realm '$Realm' imported from export file successfully." -ForegroundColor Green
+            Write-Host "  [OK] Realm '$Realm' imported from export file successfully." -ForegroundColor Green
         } catch {
             Write-Host "  [!] Warning: Import from $RealmExportPath failed ($($_.Exception.Message)). Creating default realm..." -ForegroundColor Yellow
             $realmPayload = @{
@@ -198,7 +215,7 @@ if (-not $realmExists) {
                 loginWithEmailAllowed = $true
             } | ConvertTo-Json
             Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
-            Write-Host "[OK] Default Realm '$Realm' created successfully." -ForegroundColor Green
+            Write-Host "  [OK] Default Realm '$Realm' created successfully." -ForegroundColor Green
         }
     } else {
         $realmPayload = @{
@@ -211,7 +228,7 @@ if (-not $realmExists) {
             loginWithEmailAllowed = $true
         } | ConvertTo-Json
         Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms" -Body $realmPayload
-        Write-Host "[OK] Realm '$Realm' created successfully." -ForegroundColor Green
+        Write-Host "  [OK] Realm '$Realm' created successfully." -ForegroundColor Green
     }
 } else {
     try {
@@ -224,7 +241,7 @@ if (-not $realmExists) {
         Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm" -Body $updatePayload
         Write-Host "  Realm '$Realm' updated with non-blocking profile policy and user registration enabled." -ForegroundColor DarkGray
     } catch {
-        Write-Host "  Realm '$Realm' already exists." -ForegroundColor Green
+        Write-Host "  [OK] Realm '$Realm' already exists." -ForegroundColor Green
     }
 }
 

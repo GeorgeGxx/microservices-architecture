@@ -3196,10 +3196,11 @@ stringData:
                 throw "Keycloak bootstrap script is missing at '$keycloakBootstrapScript'. Cosmo Router requires the realm JWKS before startup."
             }
 
-            Write-Host "`n[8/10] 🧪 Deploying Minikube MLOps Workloads (Namespace 'dev')..." -ForegroundColor Yellow
+            Write-Host "`n[8/10] 🚀 Deploying Microservices, React Frontend & MLOps Workloads..." -ForegroundColor Yellow
+            Write-Host "  ▶ Deploying Minikube MLOps Workloads (Namespace 'dev')..." -ForegroundColor White
             Invoke-MinikubeMlopsDeployment
 
-            Write-Host "`n🚀 Deploying Microservices & React Frontend via Helm..." -ForegroundColor Yellow
+            Write-Host "  ▶ Deploying Microservices & React Frontend via Helm..." -ForegroundColor White
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
             # Ensure any pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
             Write-Host "  ▶ Reconciling Helm ownership metadata for pre-existing resources..." -ForegroundColor White

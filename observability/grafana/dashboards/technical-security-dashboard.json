@@ -192,7 +192,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m]))) * 1000) or histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=\"\"}[5m]))) or vector(0)",
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~\".*stream.*\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=\"\"}[5m]))) or vector(0)",
           "legendFormat": "P95 Latency"
         }
       ]
@@ -567,7 +567,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m]))) or (histogram_quantile(0.95, sum by (le, service) (rate(demand_forecast_http_request_duration_seconds_bucket{service=~\"$service\",path!=\"/health\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
+          "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\",uri!~\".*stream.*\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m]))) or (histogram_quantile(0.95, sum by (le, service) (rate(demand_forecast_http_request_duration_seconds_bucket{service=~\"$service\",path!=\"/health\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
           "legendFormat": "{{service}} (P95)"
         }
       ]
