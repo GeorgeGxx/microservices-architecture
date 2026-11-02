@@ -1,6 +1,7 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 
 const otelEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318';
@@ -13,14 +14,11 @@ const traceExporter = new OTLPTraceExporter({
 });
 
 export const otelSdk = new NodeSDK({
-  serviceName: 'fulfillment-service',
-  resource: {
-    attributes: {
-      [ATTR_SERVICE_NAME]: 'fulfillment-service',
-      [ATTR_SERVICE_VERSION]: '1.0.0',
-      'deployment.environment': process.env.NODE_ENV || 'development',
-    },
-  } as any,
+  resource: resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: 'fulfillment-service',
+    [ATTR_SERVICE_VERSION]: '1.0.0',
+    'deployment.environment': process.env.NODE_ENV || 'development',
+  }),
   traceExporter,
   instrumentations: [
     getNodeAutoInstrumentations({
