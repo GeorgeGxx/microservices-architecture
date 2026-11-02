@@ -108,7 +108,7 @@ async def health_check():
     return {
         "status": "UP",
         "service": "analytics-service",
-        "framework": "fastapi-0.115",
+        "framework": "fastapi-0.160",
         "orm": "sqlalchemy-2.0-async",
         "runtime": "python-3.12",
     }

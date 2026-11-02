@@ -54,20 +54,20 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|payments-service|fulfillment-service|analytics-service)
           - source_labels: [__meta_kubernetes_pod_label_app, __meta_kubernetes_pod_container_port_number]
             action: keep
-            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002|demand-forecast-service;8005)
+            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002|demand-forecast-service;8005|payments-service;8085|fulfillment-service;8086|analytics-service;8087)
           - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|forecast-api)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|forecast-api|payments-service|fulfillment-service|analytics-service)
           - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_container_port_number]
             regex: (.+);(.+)
             replacement: $1:$2
             target_label: __address__
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
-            regex: cosmo-router
+            regex: (cosmo-router|demand-forecast-service|payments-service|fulfillment-service|analytics-service)
             replacement: /metrics
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
@@ -85,10 +85,6 @@ data:
             target_label: __metrics_path__
             regex: products-service
             replacement: /actuator/products/prometheus
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            target_label: __metrics_path__
-            regex: demand-forecast-service
-            replacement: /metrics
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: job
           - source_labels: [__meta_kubernetes_pod_label_app]
@@ -201,7 +197,7 @@ data:
               description: "Prometheus has not scraped {{ $labels.job }} successfully for 5 minutes."
 
           - alert: ServiceDown
-            expr: up{service=~"cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service"} == 0
+            expr: up{service=~"cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|payments-service|fulfillment-service|analytics-service"} == 0
             for: 3m
             labels:
               severity: critical
@@ -264,15 +260,15 @@ data:
         interval: 30s
         rules:
           - record: microservices:http_requests:rate5m
-            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m]))
+            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m]))
           - record: microservices:http_errors:rate5m
-            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[5m]))
           - record: microservices:http_error_ratio:rate5m
             expr: microservices:http_errors:rate5m / clamp_min(microservices:http_requests:rate5m, 1e-9)
           - record: microservices:http_requests:rate1h
-            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1h]))
+            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[1h]))
           - record: microservices:http_errors:rate1h
-            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[1h]))
+            expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[1h]))
           - record: microservices:http_error_ratio:rate1h
             expr: microservices:http_errors:rate1h / clamp_min(microservices:http_requests:rate1h, 1e-9)
           - alert: MicroserviceAvailabilityErrorBudgetBurn
