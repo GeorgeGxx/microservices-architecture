@@ -257,6 +257,9 @@ services:
       - cosmo-router
       - keycloak
       - demand-forecast-service
+      - fulfillment-service
+      - payments-service
+      - analytics-service
     networks:
       - spring
 
