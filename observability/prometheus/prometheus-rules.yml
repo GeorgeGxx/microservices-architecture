@@ -32,8 +32,17 @@ groups:
       - alert: HighErrorRate
         expr: |
           (
-            sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[5m]))
-            / clamp_min(sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m])), 1e-9)
+            (
+              sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+              or sum by (service) (rate(http_requests_total{service="analytics-service", status=~"5.."}[5m]))
+            )
+            / clamp_min(
+              (
+                sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service", uri!~".*actuator.*"}[5m]))
+                or sum by (service) (rate(http_requests_total{service="analytics-service"}[5m]))
+              ),
+              1e-9
+            )
           ) > 0.05
         for: 5m
         labels:
@@ -54,13 +63,40 @@ groups:
 
       - alert: HighLatency
         expr: |
-          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m]))) > 1
+          (
+            histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service", uri!~".*actuator.*"}[5m])))
+            or histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{service="analytics-service"}[5m])))
+          ) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High Service Request Latency"
           description: "P95 request latency for services exceeds 1 second over the last 5 minutes."
+
+      - alert: PaymentDeclineRateSpike
+        expr: |
+          (
+            sum(rate(ecommerce_payments_total{status="FAILED"}[5m]))
+            / clamp_min(sum(rate(ecommerce_payments_total[5m])), 1e-9)
+          ) > 0.05
+        for: 3m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High Payment Decline Rate (> 5%)"
+          description: "Payment failure rate exceeds 5% over the last 5 minutes. Check payment gateway integrations."
+
+      - alert: FulfillmentDispatchStalled
+        expr: ecommerce_orders_active_in_pipeline{status="PREPARING"} > 10
+        for: 15m
+        labels:
+          severity: warning
+          category: logistics
+        annotations:
+          summary: "Fulfillment Dispatch Stalled (> 10 pending)"
+          description: "More than 10 orders have been pending in PREPARING status for over 15 minutes. Check fulfillment-service workers."
 
       - alert: CosmoRouterHighErrorRate
         expr: |
@@ -233,3 +269,14 @@ groups:
           summary: "Demand Forecast API has no usable model loaded"
           description: "The API attempted to load a model but has no usable model available. Check MLflow registration, artifact access, and the forecast service logs."
           runbook: "docs/04-observability/OBSERVABILITY_QUERIES.md#mlops-alerts"
+
+  - name: microservices-recording-rules
+    rules:
+      - record: job:http_server_requests:rate5m
+        expr: sum by (service, status) (rate(http_server_requests_seconds_count{uri!~".*actuator.*"}[5m]))
+      - record: job:http_server_requests:p95_latency
+        expr: histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{uri!~".*actuator.*"}[5m]))) * 1000
+      - record: job:ecommerce_orders:rate5m
+        expr: sum by (status) (rate(ecommerce_orders_total[5m])) or sum by (status) (rate(ecommerce_orders[5m]))
+      - record: job:ecommerce_payments:rate5m
+        expr: sum by (status, payment_method) (rate(ecommerce_payments_total[5m]))

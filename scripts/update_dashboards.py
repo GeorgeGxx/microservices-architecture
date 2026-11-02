@@ -37,7 +37,10 @@ def build_business_dashboard():
         if variable.get("name") == "service":
             biz_service_query = 'label_values(up{service=~"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service"}, service)'
             variable["definition"] = biz_service_query
-            variable.setdefault("query", {})["query"] = biz_service_query
+            if isinstance(variable.get("query"), dict):
+                variable["query"]["query"] = biz_service_query
+            else:
+                variable["query"] = biz_service_query
 
     biz_panels = [
     # ROW 1: EXECUTIVE BUSINESS SUMMARY (Top 6 Financial & Audit KPIs)
@@ -325,20 +328,195 @@ def build_business_dashboard():
         ]
     },
 
+    # ROW 15: PAYMENT GATEWAY & FINANCIAL OPERATIONS (4 Key Visuals)
+    {
+        "id": 15,
+        "type": "row",
+        "title": "💳 [PAYMENT GATEWAY & FINANCIAL OPERATIONS] Transaction Authorization, Gateways & Refunds",
+        "collapsed": False,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13}
+    },
+    {
+        "id": 16,
+        "type": "stat",
+        "title": "💳 Processed Payments & Authorization Rate",
+        "description": "Total payment transactions processed and authorization success percentage.",
+        "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "thresholds"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}, {"color": "#f59e0b", "value": 90}, {"color": "#10b981", "value": 95}]}
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "textMode": "value_and_name", "colorMode": "value", "graphMode": "area"
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(ecommerce_payments_total{status=\"COMPLETED\"}) or vector(0)",
+                "legendFormat": "Approved Transactions"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "(sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100 or vector(100)",
+                "legendFormat": "Authorization Success %"
+            }
+        ]
+    },
+    {
+        "id": 17,
+        "type": "bargauge",
+        "title": "💳 Payment Volume by Provider",
+        "description": "Volume of payment authorizations partitioned by payment gateway method.",
+        "gridPos": {"h": 6, "w": 6, "x": 6, "y": 14},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#3b82f6", "value": None}]}
+            }
+        },
+        "options": {
+            "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": True,
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]}
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum by (payment_method) (ecommerce_payments_total) or vector(0)",
+            "legendFormat": "Method: {{payment_method}}"
+        }]
+    },
+    {
+        "id": 18,
+        "type": "gauge",
+        "title": "⏱️ Payment Gateway Latency (P95 ms)",
+        "description": "95th percentile transaction processing duration across payment gateways.",
+        "gridPos": {"h": 6, "w": 6, "x": 12, "y": 14},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "ms", "min": 0, "max": 1000,
+                "color": {"mode": "thresholds"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 200}, {"color": "#ef4444", "value": 500}]}
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "showThresholdLabels": False, "showThresholdMarkers": True
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "(histogram_quantile(0.95, sum by (le) (rate(ecommerce_payment_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
+            "legendFormat": "Gateway P95"
+        }]
+    },
+    {
+        "id": 19,
+        "type": "bargauge",
+        "title": "↩️ Payment Refunds & Chargeback Reasons",
+        "description": "Total payment refunds partitioned by business or fraud reason.",
+        "gridPos": {"h": 6, "w": 6, "x": 18, "y": 14},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}]}
+            }
+        },
+        "options": {
+            "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": True,
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]}
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum by (reason) (ecommerce_payment_refunds_total) or vector(0)",
+            "legendFormat": "Reason: {{reason}}"
+        }]
+    },
+
+    # ROW 25: WAREHOUSE LOGISTICS & FULFILLMENT VELOCITY (2 Key Visuals)
+    {
+        "id": 25,
+        "type": "row",
+        "title": "🚚 [WAREHOUSE LOGISTICS & FULFILLMENT VELOCITY] Carrier Distribution & Dispatch SLA",
+        "collapsed": False,
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 20}
+    },
+    {
+        "id": 26,
+        "type": "bargauge",
+        "title": "🚚 Shipments by Carrier (DHL, FedEx, UPS)",
+        "description": "Total shipments created and routed through integrated shipping carriers.",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 21},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}]}
+            }
+        },
+        "options": {
+            "orientation": "horizontal", "displayMode": "gradient", "showUnfilled": True,
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]}
+        },
+        "targets": [{
+            "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+            "expr": "sum by (carrier) (ecommerce_shipments_total) or vector(0)",
+            "legendFormat": "Carrier: {{carrier}}"
+        }]
+    },
+    {
+        "id": 27,
+        "type": "stat",
+        "title": "📦 Warehouse Dispatch vs Delivery Volume",
+        "description": "Cumulative velocity of shipments dispatched from fulfillment center vs delivered.",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 21},
+        "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+        "fieldConfig": {
+            "defaults": {
+                "unit": "short",
+                "color": {"mode": "palette-classic"}
+            }
+        },
+        "options": {
+            "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
+            "textMode": "value_and_name", "colorMode": "value", "graphMode": "area"
+        },
+        "targets": [
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(ecommerce_shipments_dispatched_total) or vector(0)",
+                "legendFormat": "Dispatched from Warehouse"
+            },
+            {
+                "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
+                "expr": "sum(ecommerce_shipments_delivered_total) or vector(0)",
+                "legendFormat": "Delivered to Customer"
+            }
+        ]
+    },
+
     # ROW 3: PRODUCT DEMAND & INVENTORY INTELLIGENCE (2 Key Visuals)
     {
         "id": 20,
         "type": "row",
         "title": "📦 [PRODUCT DEMAND & INVENTORY INTELLIGENCE] SKU Stock & Catalog Performance",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 13}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 27}
     },
     {
         "id": 21,
         "type": "bargauge",
         "title": "📊 Live Available Stock by SKU & Low Stock Alerts",
         "description": "Units available in warehouse per SKU with stock health thresholds: Green (>20), Yellow (<10 Low), Red (<5 Critical).",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 14},
+        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 28},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -372,7 +550,7 @@ def build_business_dashboard():
         "type": "piechart",
         "title": "🥧 Top Selling SKUs & Catalog Market Share",
         "description": "Sales volume market share per product SKU, indicating customer demand.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 14},
+        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 28},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "noValue": "No sales recorded yet"}},
         "options": {
@@ -394,14 +572,14 @@ def build_business_dashboard():
         "type": "row",
         "title": "👥 [CUSTOMER RETENTION & REVENUE EVOLUTION] Loyalty Cohorts & Growth Timeline",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 21}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35}
     },
     {
         "id": 31,
         "type": "bargauge",
         "title": "👥 Orders by Customer Loyalty Cohort (Retention)",
         "description": "Order breakdown into discrete customer retention tiers (First Time vs Repeat vs Loyal VIP) without cardinality explosion.",
-        "gridPos": {"h": 7, "w": 10, "x": 0, "y": 22},
+        "gridPos": {"h": 7, "w": 10, "x": 0, "y": 36},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -428,7 +606,7 @@ def build_business_dashboard():
         "type": "timeseries",
         "title": "📈 Cumulative Revenue Growth & Completed Orders Timeline",
         "description": "Historical timeline tracking net completed orders and cumulative gross merchandise revenue.",
-        "gridPos": {"h": 7, "w": 14, "x": 10, "y": 22},
+        "gridPos": {"h": 7, "w": 14, "x": 10, "y": 36},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -472,14 +650,14 @@ def build_business_dashboard():
         "type": "row",
         "title": "🔮 [DEMAND FORECAST READINESS & MODEL QUALITY] Forecast Data for Inventory Decisions",
         "collapsed": False,
-        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 29}
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 43}
     },
     {
         "id": 41,
         "type": "stat",
         "title": "🕒 Age of Latest Successful Forecast",
         "description": "Elapsed time since the forecast API last returned a successful forecast. No data means no successful forecast has been recorded yet or telemetry is unavailable.",
-        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 30},
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 44},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 72}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
@@ -490,7 +668,7 @@ def build_business_dashboard():
         "type": "stat",
         "title": "🗓️ Age of Latest Sales Data",
         "description": "Age of the newest sales date included in forecast input data. A stale source can make current forecasts less useful for replenishment decisions.",
-        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 30},
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 44},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "d", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 2}, {"color": "#ef4444", "value": 7}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
@@ -501,7 +679,7 @@ def build_business_dashboard():
         "type": "stat",
         "title": "🧠 Age of Active Forecast Model",
         "description": "Time since the active demand model was trained. Review this with sales-data freshness and model error before relying on forecasts.",
-        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 30},
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 44},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "h", "color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 24}, {"color": "#ef4444", "value": 48}]}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "area", "noValue": "No data"},
@@ -512,7 +690,7 @@ def build_business_dashboard():
         "type": "stat",
         "title": "📏 Active Model RMSE",
         "description": "Root mean squared forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
-        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 30},
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 44},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
@@ -523,7 +701,7 @@ def build_business_dashboard():
         "type": "stat",
         "title": "📏 Active Model MAE",
         "description": "Mean absolute forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
-        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 30},
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 44},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "color": {"mode": "palette-classic"}}},
         "options": {"reduceOptions": {"values": False, "calcs": ["lastNotNull"]}, "textMode": "value", "colorMode": "value", "graphMode": "none", "noValue": "No data"},
@@ -550,7 +728,10 @@ def build_technical_dashboard():
         if variable.get("name") == "service":
             service_query = 'label_values(up{service=~"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service"}, service)'
             variable["definition"] = service_query
-            variable.setdefault("query", {})["query"] = service_query
+            if isinstance(variable.get("query"), dict):
+                variable["query"]["query"] = service_query
+            else:
+                variable["query"] = service_query
 
     tech_panels = [
     # ROW 1: GLOBAL HEALTH & GOLDEN SIGNALS (Top 6 Vital Signs)
@@ -776,7 +957,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_status_code) (rate(router_http_requests_total{service=~\"$service\",wg_subgraph_name=\"\"}[1m])) or sum by (service, status) (rate(demand_forecast_http_requests_total{service=~\"$service\",path!=\"/health\"}[1m]))",
+            "expr": "sum by (service, status) (rate(http_server_requests_seconds_count{service=~\"$service\"}[1m])) or sum by (service, http_status_code) (rate(router_http_requests_total{service=~\"$service\",wg_subgraph_name=\"\"}[1m])) or sum by (service, status) (rate(demand_forecast_http_requests_total{service=~\"$service\",path!=\"/health\"}[1m])) or sum by (service, status) (rate(http_requests_total{service=~\"$service\"}[1m])) or sum by (service, status) (rate(http_request_duration_seconds_count{service=~\"$service\"}[1m]))",
             "legendFormat": "{{service}} ({{status}}{{http_status_code}})"
         }]
     },
@@ -802,7 +983,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m]))) or (histogram_quantile(0.95, sum by (le, service) (rate(demand_forecast_http_request_duration_seconds_bucket{service=~\"$service\",path!=\"/health\"}[5m]))) * 1000)",
+            "expr": "(histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~\"$service\"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le, service) (rate(router_http_request_duration_milliseconds_bucket{service=~\"$service\",wg_subgraph_name=\"\"}[5m]))) or (histogram_quantile(0.95, sum by (le, service) (rate(demand_forecast_http_request_duration_seconds_bucket{service=~\"$service\",path!=\"/health\"}[5m]))) * 1000) or (histogram_quantile(0.95, sum by (le, service) (rate(http_request_duration_seconds_bucket{service=~\"$service\"}[5m]))) * 1000)",
             "legendFormat": "{{service}} (P95)"
         }]
     },
@@ -1160,7 +1341,7 @@ def build_technical_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "loki-ds", "type": "loki"},
-            "expr": "{service=~\".+\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
+            "expr": "{service=~\"$service\"} |~ \"(?i)ERROR|Exception|SECURITY-AUDIT\"",
             "legendFormat": "{{service}}"
         }, {
             "datasource": {"uid": "loki-ds", "type": "loki"},
