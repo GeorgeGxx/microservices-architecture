@@ -3,6 +3,7 @@ import { Kafka, Consumer } from 'kafkajs';
 import { CreateShipmentUseCase } from '../../application/use-cases/create-shipment.use-case';
 import { DispatchShipmentUseCase } from '../../application/use-cases/dispatch-shipment.use-case';
 import { EVENT_PUBLISHER, EventPublisher } from '../../application/ports/event-publisher.port';
+import { FulfillmentMetricsService } from '../metrics/fulfillment-metrics.service';
 
 @Injectable()
 export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
@@ -17,6 +18,7 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly createShipmentUseCase: CreateShipmentUseCase,
     @Optional() private readonly dispatchShipmentUseCase?: DispatchShipmentUseCase,
     @Optional() @Inject(EVENT_PUBLISHER) private readonly eventPublisher?: EventPublisher,
+    @Optional() private readonly metricsService?: FulfillmentMetricsService,
   ) {
     const brokers = (process.env.KAFKA_BOOTSTRAP_SERVERS || process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
     this.kafka = new Kafka({
@@ -74,20 +76,36 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
               return;
             }
 
+            let carrier = 'DHL Express';
+            const rawMethod = raw.delivery_method || raw.deliveryMethod || raw.carrier;
+            if (rawMethod) {
+              if (String(rawMethod).includes('FedEx')) carrier = 'FedEx';
+              else if (String(rawMethod).includes('UPS')) carrier = 'UPS';
+              else if (String(rawMethod).includes('DHL')) carrier = 'DHL Express';
+              else carrier = String(rawMethod);
+            }
+
             // Trigger Saga fulfillment upon successful payment
-            this.logger.log(`Received PaymentCompleted for order #${orderNumber}, creating shipment...`);
-            await this.createShipmentUseCase.execute({
+            this.logger.log(`Received PaymentCompleted for order #${orderNumber}, creating shipment via ${carrier}...`);
+            const created = await this.createShipmentUseCase.execute({
               orderNumber,
               recipientName: raw.customer_name || raw.recipientName || 'Customer',
               street,
               city: raw.city || 'Metropolis',
               postalCode: raw.postal_code || raw.postalCode || '10001',
               phone: raw.phone,
-              carrier: 'DHL Express',
+              carrier,
             });
+
+            if (this.metricsService && created) {
+              this.metricsService.shipmentsTotal.inc({ status: created.status, carrier: created.carrier });
+            }
 
             if (this.dispatchShipmentUseCase && process.env.AUTO_DISPATCH_SHIPMENT === 'true') {
               await this.dispatchShipmentUseCase.execute(orderNumber, 'Regional Fulfillment Hub');
+              if (this.metricsService) {
+                this.metricsService.dispatchedTotal.inc();
+              }
             }
             this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
           } catch (err) {
