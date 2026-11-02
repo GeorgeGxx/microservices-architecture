@@ -18,7 +18,7 @@ func (c *HeaderCarrier) Get(key string) string {
 	return ""
 }
 
-func (c *HeaderCarrier) Set(key string, value string) {
+func (c *HeaderCarrier) Set(key, value string) {
 	for i, h := range *c {
 		if strings.EqualFold(h.Key, key) {
 			(*c)[i].Value = []byte(value)

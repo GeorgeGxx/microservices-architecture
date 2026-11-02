@@ -29,6 +29,8 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+const serviceName = "payments-service"
+
 // @title Payments Service API
 // @version 1.0
 // @description High-performance payments microservice with Go 1.26, Gin v1.12.0, GORM v1.31.2, goroutines and PostgreSQL 18
@@ -53,11 +55,11 @@ func main() {
 
 	// 0. Initialize OpenTelemetry Distributed Tracing & Correlated Logging
 	ctx := context.Background()
-	tp, err := telemetry.InitTracer(ctx, "payments-service", cfg.Environment)
+	tp, err := telemetry.InitTracer(ctx, serviceName, cfg.Environment)
 	if err != nil {
 		log.Printf("[Main] Warning: Failed to initialize OpenTelemetry tracer: %v", err)
 	}
-	appLogger := telemetry.NewCorrelatedLogger("payments-service")
+	appLogger := telemetry.NewCorrelatedLogger(serviceName)
 	appLogger.InfoContext(ctx, "Starting payments-service with OpenTelemetry and Tempo correlation")
 
 	// 1. Connect to PostgreSQL 18 via GORM
@@ -111,8 +113,8 @@ func main() {
 	router := gin.Default()
 
 	// Global Middlewares (Observability, OpenTelemetry, Metrics, Recovery, CORS)
-	router.Use(otelgin.Middleware("payments-service"))
-	router.Use(metrics.GinMetricsMiddleware("payments-service"))
+	router.Use(otelgin.Middleware(serviceName))
+	router.Use(metrics.GinMetricsMiddleware(serviceName))
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
