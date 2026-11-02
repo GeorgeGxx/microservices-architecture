@@ -128,4 +128,36 @@ describe('PaymentEventsConsumer', () => {
       delete process.env.AUTO_DISPATCH_SHIPMENT;
     }
   });
+
+  it('should increment shipmentsTotal and dispatchedTotal metrics when metricsService is provided', async () => {
+    process.env.AUTO_DISPATCH_SHIPMENT = 'true';
+    try {
+      const mockCreated = { status: 'AWAITING_PICKUP', carrier: 'FedEx' };
+      mockUseCase.execute = jest.fn().mockResolvedValue(mockCreated);
+      const mockDispatch = { execute: jest.fn().mockResolvedValue({}) };
+      const mockMetrics = {
+        shipmentsTotal: { inc: jest.fn() },
+        dispatchedTotal: { inc: jest.fn() },
+      };
+      consumer = new PaymentEventsConsumer(mockUseCase, mockDispatch as any, undefined, mockMetrics as any);
+      (consumer as any).consumer = mockKafkaConsumer;
+
+      await consumer.onModuleInit();
+      const eachMessage = mockKafkaConsumer.run.mock.calls[0][0].eachMessage;
+
+      await eachMessage({
+        message: {
+          value: Buffer.from(JSON.stringify({
+            order_number: 'ORD-METRICS',
+            delivery_method: 'FedEx Standard Ground (3-5 days)',
+          })),
+        },
+      });
+
+      expect(mockMetrics.shipmentsTotal.inc).toHaveBeenCalledWith({ status: 'AWAITING_PICKUP', carrier: 'FedEx' });
+      expect(mockMetrics.dispatchedTotal.inc).toHaveBeenCalled();
+    } finally {
+      delete process.env.AUTO_DISPATCH_SHIPMENT;
+    }
+  });
 });
