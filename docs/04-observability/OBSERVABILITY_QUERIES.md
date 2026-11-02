@@ -120,9 +120,22 @@ sum(increase(ecommerce_funnel_events_total{event_type="checkout_start"}[$__range
 sum(increase(ecommerce_funnel_events_total{event_type="checkout_step",step="PAYMENT"}[$__range])) or vector(0)
 ```
 #### 🚚 Current Orders by Fulfillment Status
-Current non-cancelled order counts by persisted status. `DELIVERED` is a terminal state and is shown for reporting. `max by (status)` prevents shared database snapshots from being counted once per service replica.
+Current active order counts across the 3 frontend tracking stages (`PLACED`, `SHIPPED`, `DELIVERED`). `DELIVERED` is a terminal state and is shown for reporting.
 ```promql
-max by (status) (ecommerce_orders_active_in_pipeline)
+sum by (status) (ecommerce_orders_active_in_pipeline{status=~"PLACED|SHIPPED|DELIVERED"}) or vector(0)
+```
+
+#### 🚚 Shipments by Carrier
+Shipments created and routed through integrated carriers (`DHL Express`, `FedEx`):
+```promql
+sum by (carrier) (ecommerce_shipments_total)
+```
+
+#### 📦 Warehouse Dispatch vs Delivery Volume
+Cumulative velocity of warehouse dispatches and completed customer deliveries from fulfillment-service:
+```promql
+sum(ecommerce_shipments_dispatched_total) or vector(0)
+sum(ecommerce_shipments_delivered_total) or vector(0)
 ```
 
 #### 📊 Live SKU Inventory & Low-Stock Detection
