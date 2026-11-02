@@ -9,6 +9,7 @@ import (
 
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 )
 
 type PaymentProcessor interface {
@@ -77,9 +78,13 @@ func (c *OrderEventConsumer) Start(ctx context.Context) {
 }
 
 func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) {
+	headers := msg.Headers
+	carrier := (*HeaderCarrier)(&headers)
+	msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
+
 	// Commit message offset once handled
 	defer func() {
-		if err := c.reader.CommitMessages(ctx, msg); err != nil {
+		if err := c.reader.CommitMessages(msgCtx, msg); err != nil {
 			log.Printf("[Kafka Consumer] Failed to commit message at offset %d: %v", msg.Offset, err)
 		}
 	}()
@@ -116,7 +121,7 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 			reason = "Saga backward compensation (" + orderStatus + eventType + ")"
 		}
 		log.Printf("[Kafka Consumer] Executing Saga compensating refund for order %s (reason: %s)", orderNumber, reason)
-		_, err := c.processor.RefundPayment(ctx, models.RefundPaymentRequest{
+		_, err := c.processor.RefundPayment(msgCtx, models.RefundPaymentRequest{
 			OrderNumber: orderNumber,
 			Reason:      reason,
 		})
@@ -168,7 +173,7 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 	}
 
 	log.Printf("[Kafka Consumer] Dispatched Saga payment processing for order %s ($%.2f via %s)", orderNumber, totalAmount, paymentMethod)
-	_, err := c.processor.ProcessPayment(ctx, req)
+	_, err := c.processor.ProcessPayment(msgCtx, req)
 	if err != nil {
 		log.Printf("[Kafka Consumer] Failed to process payment for order %s: %v", orderNumber, err)
 	}

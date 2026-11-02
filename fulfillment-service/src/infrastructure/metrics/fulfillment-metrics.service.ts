@@ -7,6 +7,7 @@ export class FulfillmentMetricsService {
   public readonly shipmentsTotal: client.Counter<string>;
   public readonly dispatchedTotal: client.Counter<string>;
   public readonly deliveredTotal: client.Counter<string>;
+  public readonly httpRequests: client.Histogram<string>;
 
   constructor() {
     this.registry = new client.Registry();
@@ -28,6 +29,14 @@ export class FulfillmentMetricsService {
     this.deliveredTotal = new client.Counter({
       name: 'ecommerce_shipments_delivered_total',
       help: 'Total number of shipments successfully delivered to customers',
+      registers: [this.registry],
+    });
+
+    this.httpRequests = new client.Histogram({
+      name: 'http_server_requests_seconds',
+      help: 'HTTP server request execution duration in seconds',
+      labelNames: ['service', 'status', 'uri', 'method'],
+      buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
       registers: [this.registry],
     });
   }

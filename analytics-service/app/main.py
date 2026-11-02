@@ -15,6 +15,8 @@ from app.infrastructure.metrics import (
 )
 from app.infrastructure.kafka_consumer import kafka_consumer
 from app.presentation.routers import router
+from app.infrastructure.telemetry import setup_telemetry
+from prometheus_fastapi_instrumentator import Instrumentator
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,6 +109,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+setup_telemetry(app, "analytics-service", settings.environment)
+Instrumentator(
+    should_group_status_codes=False,
+    excluded_handlers=["/health", "/metrics", "/actuator/health", "/docs", "/openapi.json"],
+).instrument(app)
 
 @app.get("/swagger", include_in_schema=False)
 @app.get("/swagger-ui", include_in_schema=False)

@@ -14,16 +14,19 @@ import (
 	_ "github.com/georgegxx/payments-service/docs" // Swagger OpenAPI documentation
 	"github.com/georgegxx/payments-service/internal/handlers"
 	"github.com/georgegxx/payments-service/internal/kafka"
+	"github.com/georgegxx/payments-service/internal/metrics"
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/georgegxx/payments-service/internal/repository"
 	"github.com/georgegxx/payments-service/internal/services"
+	"github.com/georgegxx/payments-service/internal/telemetry"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 // @title Payments Service API
@@ -48,15 +51,23 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 0. Initialize OpenTelemetry Distributed Tracing & Correlated Logging
+	ctx := context.Background()
+	tp, err := telemetry.InitTracer(ctx, "payments-service", cfg.Environment)
+	if err != nil {
+		log.Printf("[Main] Warning: Failed to initialize OpenTelemetry tracer: %v", err)
+	}
+	appLogger := telemetry.NewCorrelatedLogger("payments-service")
+	appLogger.InfoContext(ctx, "Starting payments-service with OpenTelemetry and Tempo correlation")
+
 	// 1. Connect to PostgreSQL 18 via GORM
 	log.Printf("[Main] Connecting to PostgreSQL 18 at %s:%s/%s...", cfg.DBHost, cfg.DBPort, cfg.DBName)
 	var db *gorm.DB
-	var err error
 
 	// Retry loop for database readiness during container cold starts
 	for attempts := 1; attempts <= 15; attempts++ {
 		db, err = gorm.Open(postgres.Open(cfg.GetDSN()), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Warn),
+			Logger: gormlogger.Default.LogMode(gormlogger.Warn),
 		})
 		if err == nil {
 			break
@@ -90,16 +101,18 @@ func main() {
 	handler := handlers.NewPaymentHandler(paymentSvc)
 
 	// Start Kafka Consumers in dedicated background goroutines (orders-topic & fulfillment-topic for Saga compensation)
-	ctx, stopConsumer := context.WithCancel(context.Background())
+	consumerCtx, stopConsumer := context.WithCancel(context.Background())
 	consumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaOrdersTopic, cfg.KafkaGroupID, paymentSvc)
 	fulfillmentConsumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaFulfillmentTopic, cfg.KafkaGroupID+"-fulfillment", paymentSvc)
-	go consumer.Start(ctx)
-	go fulfillmentConsumer.Start(ctx)
+	go consumer.Start(consumerCtx)
+	go fulfillmentConsumer.Start(consumerCtx)
 
-	// 4. Setup Gin HTTP Server & Routes
+	// 4. Setup Gin HTTP Server & Routes with Observability Middlewares
 	router := gin.Default()
 
-	// Global Middlewares
+	// Global Middlewares (Observability, OpenTelemetry, Metrics, Recovery, CORS)
+	router.Use(otelgin.Middleware("payments-service"))
+	router.Use(metrics.GinMetricsMiddleware("payments-service"))
 	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
@@ -148,6 +161,9 @@ func main() {
 
 	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelShutdown()
+	if tp != nil {
+		_ = tp.Shutdown(shutdownCtx)
+	}
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Fatalf("[Main] Server forced to shutdown: %v", err)
 	}

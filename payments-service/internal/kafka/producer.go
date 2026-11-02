@@ -9,6 +9,7 @@ import (
 
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/segmentio/kafka-go"
+	"go.opentelemetry.io/otel"
 )
 
 type EventProducer interface {
@@ -49,13 +50,17 @@ func (p *eventProducer) publishEvent(ctx context.Context, orderNumber, eventType
 		return fmt.Errorf("failed to marshal %s: %w", eventType, err)
 	}
 
+	headers := []kafka.Header{
+		{Key: "event_type", Value: []byte(eventType)},
+	}
+	carrier := (*HeaderCarrier)(&headers)
+	otel.GetTextMapPropagator().Inject(ctx, carrier)
+
 	msg := kafka.Message{
-		Key:   []byte(orderNumber),
-		Value: payload,
-		Headers: []kafka.Header{
-			{Key: "event_type", Value: []byte(eventType)},
-		},
-		Time: time.Now(),
+		Key:     []byte(orderNumber),
+		Value:   payload,
+		Headers: headers,
+		Time:    time.Now(),
 	}
 
 	if err := p.writer.WriteMessages(ctx, msg); err != nil {
