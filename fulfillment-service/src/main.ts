@@ -1,11 +1,20 @@
+import './tracer';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { CorrelatedLoggerService } from './infrastructure/telemetry/correlated-logger.service';
+import { MetricsInterceptor } from './infrastructure/metrics/metrics.interceptor';
+import { FulfillmentMetricsService } from './infrastructure/metrics/fulfillment-metrics.service';
 
 async function bootstrap() {
-  const logger = new Logger('FulfillmentBootstrap');
-  const app = await NestFactory.create(AppModule);
+  const logger = new CorrelatedLoggerService();
+  const app = await NestFactory.create(AppModule, {
+    logger,
+  });
+
+  const metricsService = app.get(FulfillmentMetricsService);
+  app.useGlobalInterceptors(new MetricsInterceptor(metricsService));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -39,8 +48,8 @@ async function bootstrap() {
   const port = process.env.PORT || 8086;
   await app.listen(port, '0.0.0.0');
 
-  logger.log(`fulfillment-service running on port ${port}`);
-  logger.log(`Swagger UI available at: http://localhost:${port}/swagger`);
+  logger.log(`fulfillment-service running on port ${port}`, 'FulfillmentBootstrap');
+  logger.log(`Swagger UI available at: http://localhost:${port}/swagger`, 'FulfillmentBootstrap');
 }
 
 void bootstrap();
