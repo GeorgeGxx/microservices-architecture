@@ -63,7 +63,7 @@ protobuf==6.33.6
 PyJWT[crypto]==2.15.0
 py4j==0.10.9.9
 pyarrow==25.0.1
-pyasn1==0.6.4
+pyasn1==0.6.5
 pyasn1_modules==0.4.2
 pycparser==3.1
 pydantic==2.14.0
