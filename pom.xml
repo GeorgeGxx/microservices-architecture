@@ -37,6 +37,9 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<springdoc.version>3.1.0</springdoc.version>
 		<snappy-java.version>1.1.10.11</snappy-java.version>
+		<!-- Observability Logging Engine: SLF4J v2.0.20 & Logback v1.5.38 -->
+		<slf4j.version>2.0.20</slf4j.version>
+		<logback.version>1.5.38</logback.version>
 		<!-- SonarCloud & Quality Gate Properties -->
 		<sonar.java.binaries>target/classes</sonar.java.binaries>
 		<sonar.java.test.binaries>target/test-classes</sonar.java.test.binaries>
@@ -153,6 +156,27 @@
 				<groupId>org.xerial.snappy</groupId>
 				<artifactId>snappy-java</artifactId>
 				<version>${snappy-java.version}</version>
+			</dependency>
+			<!-- SLF4J v2.0.20 & Logback v1.5.38 Explicit Version Pinning for Observability -->
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>slf4j-api</artifactId>
+				<version>${slf4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.slf4j</groupId>
+				<artifactId>jul-to-slf4j</artifactId>
+				<version>${slf4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-classic</artifactId>
+				<version>${logback.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>ch.qos.logback</groupId>
+				<artifactId>logback-core</artifactId>
+				<version>${logback.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

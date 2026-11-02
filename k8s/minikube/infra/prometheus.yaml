@@ -209,6 +209,16 @@ data:
               summary: "{{ $labels.service }} is down"
               description: "Service {{ $labels.service }} has been unreachable for more than 3 minutes."
 
+          - alert: HighLogErrorRate
+            expr: sum by (service) (rate(logback_events_total{level="error"}[5m])) > 0.5
+            for: 2m
+            labels:
+              severity: warning
+              category: logging
+            annotations:
+              summary: "High Logback Error Rate in {{ $labels.service }}"
+              description: "Service {{ $labels.service }} is emitting Logback error events at a rate exceeding 0.5 errors/sec for 2 minutes."
+
           - alert: CosmoRouterHighErrorRate
             expr: |
               sum(rate(router_http_requests_error_total{wg_subgraph_name=""}[5m]))
