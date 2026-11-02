@@ -24,6 +24,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("AnalyticsApp")
 
+DOCS_URL = "/docs"
+OPENAPI_URL = "/openapi.json"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 1. Startup: Auto-create tables in PostgreSQL 18
@@ -83,9 +86,9 @@ app = FastAPI(
     title="Analytics Service API",
     description="Real-time e-commerce analytics, shopping cart abandonment rate and customer loyalty cohort tracking",
     version="1.0.0",
-    docs_url="/docs",
+    docs_url=DOCS_URL,
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
+    openapi_url=OPENAPI_URL,
     lifespan=lifespan,
     contact={
         "name": "Novashop Platform Engineering",
@@ -113,7 +116,7 @@ app.add_middleware(
 setup_telemetry(app, "analytics-service", settings.environment)
 Instrumentator(
     should_group_status_codes=False,
-    excluded_handlers=["/health", "/metrics", "/actuator/health", "/docs", "/openapi.json"],
+    excluded_handlers=["/health", "/metrics", "/actuator/health", DOCS_URL, OPENAPI_URL],
 ).instrument(app)
 
 @app.get("/swagger", include_in_schema=False)
@@ -121,7 +124,7 @@ Instrumentator(
 @app.get("/swagger-ui.html", include_in_schema=False)
 async def swagger_ui_redirect():
     """Redirect alternative swagger URLs to the OpenAPI Swagger documentation."""
-    return RedirectResponse(url="/docs")
+    return RedirectResponse(url=DOCS_URL)
 
 app.include_router(router)
 
