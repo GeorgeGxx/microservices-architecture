@@ -12,7 +12,7 @@ groups:
           description: "Prometheus has not scraped {{ $labels.job }} successfully for 5 minutes."
 
       - alert: ServiceDown
-        expr: up{service=~"products-service|inventory-service|orders-service|notification-service"} == 0
+        expr: up{service=~"cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|payments-service|fulfillment-service|analytics-service"} == 0
         for: 3m
         labels:
           severity: critical
@@ -32,15 +32,15 @@ groups:
       - alert: HighErrorRate
         expr: |
           (
-            sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[5m]))
-            / clamp_min(sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m])), 1e-9)
+            sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+            / clamp_min(sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m])), 1e-9)
           ) > 0.05
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High 5xx Error Rate"
-          description: "5xx HTTP error rate for a Spring service exceeds 5% over the last 5 minutes. Cosmo Router has its own alert."
+          description: "5xx HTTP error rate for a service exceeds 5% over the last 5 minutes. Cosmo Router has its own alert."
 
       - alert: HighLogErrorRate
         expr: sum by (service) (rate(logback_events_total{level="error"}[5m])) > 0.5
@@ -54,13 +54,13 @@ groups:
 
       - alert: HighLatency
         expr: |
-          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m]))) > 1
+          histogram_quantile(0.95, sum by (le, service) (rate(http_server_requests_seconds_bucket{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m]))) > 1
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "High Service Request Latency"
-          description: "P95 request latency for Spring services exceeds 1 second over the last 5 minutes."
+          description: "P95 request latency for services exceeds 1 second over the last 5 minutes."
 
       - alert: CosmoRouterHighErrorRate
         expr: |
@@ -154,15 +154,15 @@ groups:
     interval: 30s
     rules:
       - record: microservices:http_requests:rate5m
-        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[5m]))
+        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[5m]))
       - record: microservices:http_errors:rate5m
-        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[5m]))
+        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[5m]))
       - record: microservices:http_error_ratio:rate5m
         expr: microservices:http_errors:rate5m / clamp_min(microservices:http_requests:rate5m, 1e-9)
       - record: microservices:http_requests:rate1h
-        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", uri!~".*actuator.*"}[1h]))
+        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", uri!~".*actuator.*"}[1h]))
       - record: microservices:http_errors:rate1h
-        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service", status=~"5..", uri!~".*actuator.*"}[1h]))
+        expr: sum by (service) (rate(http_server_requests_seconds_count{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service", status=~"5..", uri!~".*actuator.*"}[1h]))
       - record: microservices:http_error_ratio:rate1h
         expr: microservices:http_errors:rate1h / clamp_min(microservices:http_requests:rate1h, 1e-9)
       - alert: MicroserviceAvailabilityErrorBudgetBurn

@@ -60,6 +60,7 @@
   },
   "overrides": {
     "js-yaml": "^5.5.0",
+    "minimatch": "^10.0.1",
     "multer": "^2.5.0",
     "path-to-regexp": "^8.4.2"
   },

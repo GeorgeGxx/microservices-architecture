@@ -61,7 +61,7 @@ def setup_telemetry(app, service_name: str = "analytics-service", environment: s
         datefmt="%Y-%m-%dT%H:%M:%S",
     )
     handler.setFormatter(formatter)
-    
+
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.addHandler(handler)
