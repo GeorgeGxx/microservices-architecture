@@ -39,5 +39,7 @@ coverage/
 **/coverage/
 node_modules/
 **/node_modules/
+*.tsbuildinfo
+**/*.tsbuildinfo
 cosign.key
 devsecops/compliance/cosign/*.key
