@@ -28,7 +28,7 @@ data:
           maxLines: 1000
           derivedFields:
             - datasourceUid: 'tempo-ds'
-              matcherRegex: "(?:traceId|trace_id)[:=]\\s*\"?([a-f0-9]{32})\"?"
+              matcherRegex: "(?:(?:traceId|trace_id)[:=]\\s*\"?|\\[[\\w-]+,)([a-f0-9]{32})"
               name: 'TraceID'
               url: '$${__value.raw}'
       - name: Tempo

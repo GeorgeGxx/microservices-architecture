@@ -56,6 +56,10 @@ loki.process "docker_logs" {
     }
   }
 
+  stage.regex {
+    expression = "\\s+(?P<level>INFO|WARN|ERROR|DEBUG|TRACE)\\s+\\[(?P<service>[\\w-]+)?,(?P<traceId>[a-f0-9]{32})?,(?P<spanId>[a-f0-9]{16})?\\]"
+  }
+
   stage.labels {
     values = {
       level = "",
