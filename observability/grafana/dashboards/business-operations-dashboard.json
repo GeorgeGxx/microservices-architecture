@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 40,
+  "version": 41,
   "tags": [
     "business",
     "ecommerce",
@@ -27,8 +27,8 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|notification-service|cosmo-router|demand-forecast-service\"}, service)",
-        "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|notification-service|cosmo-router|demand-forecast-service\"}, service)",
+        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
+        "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service\"}, service)",
         "label": "Filter Microservice",
         "includeAll": true,
         "allValue": ".+",
@@ -614,6 +614,378 @@
       ]
     },
     {
+      "id": 15,
+      "type": "row",
+      "title": "💳 [PAYMENT GATEWAY & FINANCIAL OPERATIONS] Transaction Authorization, Gateways & Refunds",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      }
+    },
+    {
+      "id": 16,
+      "type": "stat",
+      "title": "💳 Processed Payments & Authorization Rate",
+      "description": "Total payment transactions processed and authorization success percentage.",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 90
+              },
+              {
+                "color": "#10b981",
+                "value": 95
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_payments_total{status=\"COMPLETED\"}) or vector(0)",
+          "legendFormat": "Approved Transactions"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "(sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100 or vector(100)",
+          "legendFormat": "Authorization Success %"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "bargauge",
+      "title": "💳 Payment Volume by Provider",
+      "description": "Volume of payment authorizations partitioned by payment gateway method.",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 6,
+        "y": 14
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3b82f6",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (payment_method) (ecommerce_payments_total) or vector(0)",
+          "legendFormat": "Method: {{payment_method}}"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type": "gauge",
+      "title": "⏱️ Payment Gateway Latency (P95 ms)",
+      "description": "95th percentile transaction processing duration across payment gateways.",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "min": 0,
+          "max": 1000,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              },
+              {
+                "color": "#f59e0b",
+                "value": 200
+              },
+              {
+                "color": "#ef4444",
+                "value": 500
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "(histogram_quantile(0.95, sum by (le) (rate(ecommerce_payment_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
+          "legendFormat": "Gateway P95"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "type": "bargauge",
+      "title": "↩️ Payment Refunds & Chargeback Reasons",
+      "description": "Total payment refunds partitioned by business or fraud reason.",
+      "gridPos": {
+        "h": 6,
+        "w": 6,
+        "x": 18,
+        "y": 14
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#ef4444",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (reason) (ecommerce_payment_refunds_total) or vector(0)",
+          "legendFormat": "Reason: {{reason}}"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "🚚 [WAREHOUSE LOGISTICS & FULFILLMENT VELOCITY] Carrier Distribution & Dispatch SLA",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      }
+    },
+    {
+      "id": 26,
+      "type": "bargauge",
+      "title": "🚚 Shipments by Carrier (DHL, FedEx, UPS)",
+      "description": "Total shipments created and routed through integrated shipping carriers.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 0,
+        "y": 21
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#10b981",
+                "value": null
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum by (carrier) (ecommerce_shipments_total) or vector(0)",
+          "legendFormat": "Carrier: {{carrier}}"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "type": "stat",
+      "title": "📦 Warehouse Dispatch vs Delivery Volume",
+      "description": "Cumulative velocity of shipments dispatched from fulfillment center vs delivered.",
+      "gridPos": {
+        "h": 6,
+        "w": 12,
+        "x": 12,
+        "y": 21
+      },
+      "datasource": {
+        "uid": "prometheus-ds",
+        "type": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_shipments_dispatched_total) or vector(0)",
+          "legendFormat": "Dispatched from Warehouse"
+        },
+        {
+          "datasource": {
+            "uid": "prometheus-ds",
+            "type": "prometheus"
+          },
+          "expr": "sum(ecommerce_shipments_delivered_total) or vector(0)",
+          "legendFormat": "Delivered to Customer"
+        }
+      ]
+    },
+    {
       "id": 20,
       "type": "row",
       "title": "📦 [PRODUCT DEMAND & INVENTORY INTELLIGENCE] SKU Stock & Catalog Performance",
@@ -622,7 +994,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 27
       }
     },
     {
@@ -634,7 +1006,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 14
+        "y": 28
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -697,7 +1069,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 14
+        "y": 28
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -749,7 +1121,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 35
       }
     },
     {
@@ -761,7 +1133,7 @@
         "h": 7,
         "w": 10,
         "x": 0,
-        "y": 22
+        "y": 36
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -815,7 +1187,7 @@
         "h": 7,
         "w": 14,
         "x": 10,
-        "y": 22
+        "y": 36
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -896,7 +1268,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 43
       }
     },
     {
@@ -908,7 +1280,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 30
+        "y": 44
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -971,7 +1343,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 30
+        "y": 44
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1034,7 +1406,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 30
+        "y": 44
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1097,7 +1469,7 @@
         "h": 4,
         "w": 6,
         "x": 12,
-        "y": 30
+        "y": 44
       },
       "datasource": {
         "uid": "prometheus-ds",
@@ -1143,7 +1515,7 @@
         "h": 4,
         "w": 6,
         "x": 18,
-        "y": 30
+        "y": 44
       },
       "datasource": {
         "uid": "prometheus-ds",

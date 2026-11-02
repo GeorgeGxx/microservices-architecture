@@ -256,6 +256,30 @@ data:
               summary: "Cosmo Router is returning many HTTP 429 responses"
               description: "More than 25 HTTP 429 responses per second have been observed for one minute."
 
+          - alert: PaymentDeclineRateSpike
+            expr: |
+              (
+                sum(rate(ecommerce_payments_total{status="FAILED"}[5m]))
+                / clamp_min(sum(rate(ecommerce_payments_total[5m])), 1e-9)
+              ) > 0.05
+            for: 3m
+            labels:
+              severity: warning
+              category: business
+            annotations:
+              summary: "High Payment Decline Rate (> 5%)"
+              description: "Payment failure rate exceeds 5% over the last 5 minutes. Check payment gateway integrations."
+
+          - alert: FulfillmentDispatchStalled
+            expr: ecommerce_orders_active_in_pipeline{status="PREPARING"} > 10
+            for: 15m
+            labels:
+              severity: warning
+              category: logistics
+            annotations:
+              summary: "Fulfillment Dispatch Stalled (> 10 pending)"
+              description: "More than 10 orders have been pending in PREPARING status for over 15 minutes. Check fulfillment-service workers."
+
       - name: microservices-availability-slo
         interval: 30s
         rules:
