@@ -19,9 +19,10 @@ from app.infrastructure.metrics import (
 
 logger = logging.getLogger("AnalyticsKafkaConsumer")
 
-PIPELINE_STATUSES = {"PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"}
+PIPELINE_STATUSES = {"PLACED", "SHIPPED", "DELIVERED"}
 FULFILLMENT_STATUS_MAP = {
-    "SHIPMENT_DISPATCHED": "IN_TRANSIT",
+    "SHIPMENT_DISPATCHED": "SHIPPED",
+    "IN_TRANSIT": "SHIPPED",
     "SHIPMENT_DELIVERED": "DELIVERED",
 }
 
@@ -127,6 +128,8 @@ class AnalyticsKafkaConsumer:
 
     def _handle_orders_event(self, payload: dict) -> None:
         status = str(payload.get("orderStatus") or payload.get("status") or "").upper()
+        if status == "IN_TRANSIT":
+            status = "SHIPPED"
         if status in PIPELINE_STATUSES:
             active_pipeline_gauge.labels(status).inc()
         elif status == "CANCELLED":

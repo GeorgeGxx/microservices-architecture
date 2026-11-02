@@ -89,14 +89,14 @@ groups:
           description: "Payment failure rate exceeds 5% over the last 5 minutes. Check payment gateway integrations."
 
       - alert: FulfillmentDispatchStalled
-        expr: ecommerce_orders_active_in_pipeline{status="PREPARING"} > 10
+        expr: ecommerce_orders_active_in_pipeline{status="PLACED"} > 10
         for: 15m
         labels:
           severity: warning
           category: logistics
         annotations:
           summary: "Fulfillment Dispatch Stalled (> 10 pending)"
-          description: "More than 10 orders have been pending in PREPARING status for over 15 minutes. Check fulfillment-service workers."
+          description: "More than 10 orders have been pending in PLACED status for over 15 minutes. Check fulfillment-service workers."
 
       - alert: CosmoRouterHighErrorRate
         expr: |

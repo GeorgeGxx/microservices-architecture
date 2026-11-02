@@ -36,7 +36,7 @@ revenue_gauge = Gauge(
 
 active_pipeline_gauge = Gauge(
     "ecommerce_orders_active_in_pipeline",
-    "Active orders across 5-stage logistics pipeline",
+    "Active orders across 3-stage logistics pipeline matching frontend tracking (PLACED, SHIPPED, DELIVERED)",
     ["status"],
 )
 
@@ -54,7 +54,7 @@ def initialize_metrics() -> None:
     for c in ["first_time", "repeat", "loyal_vip"]:
         cohort_orders_gauge.labels(c).set(0)
         cohort_revenue_gauge.labels(c).set(0.0)
-    for s in ["PLACED", "PREPARING", "IN_TRANSIT", "OUT_FOR_DELIVERY", "DELIVERED"]:
+    for s in ["PLACED", "SHIPPED", "DELIVERED"]:
         active_pipeline_gauge.labels(s).set(0)
     for sku in ["000001", "000002", "000003", "000004", "LAPTOP-PRO"]:
         sku_sales_gauge.labels(sku).set(0)
