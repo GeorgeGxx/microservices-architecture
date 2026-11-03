@@ -11,6 +11,7 @@ data:
   MLOPS_SALES_PATH: "/data/sales_parquet"
   KEYCLOAK_ISSUER: "http://localhost:8181/realms/microservices-realm"
   KEYCLOAK_JWKS_URI: "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/protocol/openid-connect/certs"
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.mlops.forecast.otelEndpoint | default "http://otel-collector.observability.svc.cluster.local:4318" | quote }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
