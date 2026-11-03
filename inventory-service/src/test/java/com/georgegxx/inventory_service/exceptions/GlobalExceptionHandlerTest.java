@@ -12,6 +12,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
 import java.util.Map;
@@ -92,6 +93,20 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody())
                 .isNotNull()
                 .containsEntry("error", "Unauthorized");
+    }
+
+    @Test
+    @DisplayName("handleNotFound should return 404 without treating an unknown route as a server error")
+    void testHandleNotFound() {
+        NoResourceFoundException ex = mock(NoResourceFoundException.class);
+
+        ResponseEntity<Map<String, Object>> response = handler.handleNotFound(ex);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody())
+                .isNotNull()
+                .containsEntry("error", "Not Found")
+                .containsEntry("detail", "The requested resource was not found.");
     }
 
     @Test
