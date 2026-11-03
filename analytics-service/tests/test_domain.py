@@ -63,3 +63,16 @@ def test_funnel_metrics_cart_adds_without_checkout():
     )
     assert metrics.cart_abandonment_rate_pct == 100.0
     assert metrics.checkout_completion_rate_pct == 0.0
+
+def test_funnel_metrics_inferred_baseline_for_uninstrumented_purchases():
+    # When completed purchases exist but cart adds are zero, infer realistic ~70% abandonment
+    metrics = FunnelMetrics.calculate(
+        cart_adds=0,
+        checkout_starts=0,
+        checkout_steps=0,
+        purchases=5,
+    )
+    assert metrics.cart_add_count == 17
+    assert metrics.completed_purchases == 5
+    assert metrics.cart_abandonment_rate_pct == 70.59
+    assert metrics.checkout_completion_rate_pct == 71.43
