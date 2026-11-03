@@ -50,64 +50,7 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
           if (!message.value) return;
           try {
             const raw = JSON.parse(message.value.toString());
-            const orderNumber = raw.order_number || raw.orderNumber;
-            if (!orderNumber) return;
-
-            // Ignore negative payment events (PAYMENT_FAILED / PAYMENT_REFUNDED)
-            const eventType = raw.event_type || raw.eventType;
-            const status = raw.status || raw.paymentStatus;
-            if (
-              eventType === 'PAYMENT_FAILED' ||
-              eventType === 'PAYMENT_REFUNDED' ||
-              status === 'FAILED' ||
-              status === 'REFUNDED' ||
-              raw.error_code
-            ) {
-              return;
-            }
-
-            const street = raw.shipping_address || raw.street || '100 Main St';
-            if (String(street).includes('FAIL_SHIPMENT')) {
-              const reason = 'Undeliverable shipping address rejected by carrier validation';
-              this.logger.warn(`Fulfillment validation failed for order #${orderNumber}: ${reason}`);
-              if (this.eventPublisher?.publishFailed) {
-                await this.eventPublisher.publishFailed(orderNumber, reason);
-              }
-              return;
-            }
-
-            let carrier = 'DHL Express';
-            const rawMethod = raw.delivery_method || raw.deliveryMethod || raw.carrier;
-            if (rawMethod) {
-              if (String(rawMethod).includes('FedEx')) carrier = 'FedEx';
-              else if (String(rawMethod).includes('UPS')) carrier = 'UPS';
-              else if (String(rawMethod).includes('DHL')) carrier = 'DHL Express';
-              else carrier = String(rawMethod);
-            }
-
-            // Trigger Saga fulfillment upon successful payment
-            this.logger.log(`Received PaymentCompleted for order #${orderNumber}, creating shipment via ${carrier}...`);
-            const created = await this.createShipmentUseCase.execute({
-              orderNumber,
-              recipientName: raw.customer_name || raw.recipientName || 'Customer',
-              street,
-              city: raw.city || 'Metropolis',
-              postalCode: raw.postal_code || raw.postalCode || '10001',
-              phone: raw.phone,
-              carrier,
-            });
-
-            if (this.metricsService && created) {
-              this.metricsService.shipmentsTotal.inc({ status: created.status, carrier: created.carrier });
-            }
-
-            if (this.dispatchShipmentUseCase && process.env.AUTO_DISPATCH_SHIPMENT === 'true') {
-              await this.dispatchShipmentUseCase.execute(orderNumber, 'Regional Fulfillment Hub');
-              if (this.metricsService) {
-                this.metricsService.dispatchedTotal.inc();
-              }
-            }
-            this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
+            await this.handlePaymentEvent(raw);
           } catch (err) {
             this.logger.error(`Error processing payment event: ${err.message}`);
           }
@@ -122,6 +65,74 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
         this.reconnectTimer.unref?.();
       }
     }
+  }
+
+  private isNegativePaymentEvent(raw: Record<string, any>): boolean {
+    const eventType = raw.event_type || raw.eventType;
+    const status = raw.status || raw.paymentStatus;
+    return (
+      eventType === 'PAYMENT_FAILED' ||
+      eventType === 'PAYMENT_REFUNDED' ||
+      status === 'FAILED' ||
+      status === 'REFUNDED' ||
+      Boolean(raw.error_code)
+    );
+  }
+
+  private resolveCarrier(rawMethod?: unknown): string {
+    if (!rawMethod) {
+      return 'DHL Express';
+    }
+    const methodStr = String(rawMethod);
+    if (methodStr.includes('FedEx')) {
+      return 'FedEx';
+    }
+    if (methodStr.includes('DHL')) {
+      return 'DHL Express';
+    }
+    return methodStr;
+  }
+
+  private async handlePaymentEvent(raw: Record<string, any>): Promise<void> {
+    const orderNumber = raw.order_number || raw.orderNumber;
+    if (!orderNumber || this.isNegativePaymentEvent(raw)) {
+      return;
+    }
+
+    const street = raw.shipping_address || raw.street || '100 Main St';
+    if (String(street).includes('FAIL_SHIPMENT')) {
+      const reason = 'Undeliverable shipping address rejected by carrier validation';
+      this.logger.warn(`Fulfillment validation failed for order #${orderNumber}: ${reason}`);
+      if (this.eventPublisher?.publishFailed) {
+        await this.eventPublisher.publishFailed(orderNumber, reason);
+      }
+      return;
+    }
+
+    const carrier = this.resolveCarrier(raw.delivery_method || raw.deliveryMethod || raw.carrier);
+
+    this.logger.log(`Received PaymentCompleted for order #${orderNumber}, creating shipment via ${carrier}...`);
+    const created = await this.createShipmentUseCase.execute({
+      orderNumber,
+      recipientName: raw.customer_name || raw.recipientName || 'Customer',
+      street,
+      city: raw.city || 'Metropolis',
+      postalCode: raw.postal_code || raw.postalCode || '10001',
+      phone: raw.phone,
+      carrier,
+    });
+
+    if (this.metricsService && created) {
+      this.metricsService.shipmentsTotal.inc({ status: created.status, carrier: created.carrier });
+    }
+
+    if (this.dispatchShipmentUseCase && process.env.AUTO_DISPATCH_SHIPMENT === 'true') {
+      await this.dispatchShipmentUseCase.execute(orderNumber, 'Regional Fulfillment Hub');
+      if (this.metricsService) {
+        this.metricsService.dispatchedTotal.inc();
+      }
+    }
+    this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
   }
 
   async onModuleDestroy() {
