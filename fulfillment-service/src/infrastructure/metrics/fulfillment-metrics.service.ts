@@ -9,10 +9,11 @@ import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum'
 export class FulfillmentMetricsService implements OnModuleInit {
   private readonly logger = new Logger(FulfillmentMetricsService.name);
   private readonly registry: client.Registry;
-  public readonly shipmentsTotal: client.Counter<string>;
-  public readonly dispatchedTotal: client.Counter<string>;
-  public readonly deliveredTotal: client.Counter<string>;
+  public readonly shipmentsTotal: client.Gauge<string>;
+  public readonly dispatchedTotal: client.Gauge<string>;
+  public readonly deliveredTotal: client.Gauge<string>;
   public readonly httpRequests: client.Histogram<string>;
+  private isRefreshing = false;
 
   constructor(
     @Optional()
@@ -22,20 +23,20 @@ export class FulfillmentMetricsService implements OnModuleInit {
     this.registry = new client.Registry();
     client.collectDefaultMetrics({ register: this.registry });
 
-    this.shipmentsTotal = new client.Counter({
+    this.shipmentsTotal = new client.Gauge({
       name: 'ecommerce_shipments_total',
-      help: 'Total number of shipments created in fulfillment-service',
+      help: 'Total number of shipments by status and carrier in fulfillment-service',
       labelNames: ['status', 'carrier'],
       registers: [this.registry],
     });
 
-    this.dispatchedTotal = new client.Counter({
+    this.dispatchedTotal = new client.Gauge({
       name: 'ecommerce_shipments_dispatched_total',
       help: 'Total number of shipments dispatched from warehouse',
       registers: [this.registry],
     });
 
-    this.deliveredTotal = new client.Counter({
+    this.deliveredTotal = new client.Gauge({
       name: 'ecommerce_shipments_delivered_total',
       help: 'Total number of shipments successfully delivered to customers',
       registers: [this.registry],
@@ -50,16 +51,32 @@ export class FulfillmentMetricsService implements OnModuleInit {
     });
 
     // Ensure zero-values exist immediately so Prometheus scrapes always find active series
-    this.dispatchedTotal.inc(0);
-    this.deliveredTotal.inc(0);
+    this.dispatchedTotal.set(0);
+    this.deliveredTotal.set(0);
     for (const carrier of ['DHL Express', 'FedEx']) {
-      this.shipmentsTotal.inc({ status: ShipmentStatus.AWAITING_PICKUP, carrier }, 0);
+      this.shipmentsTotal.set({ status: ShipmentStatus.AWAITING_PICKUP, carrier }, 0);
     }
   }
 
   async onModuleInit(): Promise<void> {
-    if (!this.shipmentRepo) return;
+    await this.refreshFromDatabase();
+  }
+
+  public async refreshFromDatabase(): Promise<void> {
+    if (!this.shipmentRepo || this.isRefreshing) return;
+    this.isRefreshing = true;
     try {
+      for (const carrier of ['DHL Express', 'FedEx']) {
+        for (const status of [
+          ShipmentStatus.AWAITING_PICKUP,
+          ShipmentStatus.DISPATCHED,
+          ShipmentStatus.DELIVERED,
+          ShipmentStatus.CANCELLED,
+        ]) {
+          this.shipmentsTotal.set({ status, carrier }, 0);
+        }
+      }
+
       const shipmentsGrouped = await this.shipmentRepo
         .createQueryBuilder('s')
         .select('s.carrier', 'carrier')
@@ -72,7 +89,7 @@ export class FulfillmentMetricsService implements OnModuleInit {
       for (const row of shipmentsGrouped) {
         const count = Number.parseInt(row.count, 10);
         if (count > 0 && row.carrier) {
-          this.shipmentsTotal.inc({ status: row.status || ShipmentStatus.AWAITING_PICKUP, carrier: row.carrier }, count);
+          this.shipmentsTotal.set({ status: row.status || ShipmentStatus.AWAITING_PICKUP, carrier: row.carrier }, count);
         }
       }
 
@@ -81,8 +98,8 @@ export class FulfillmentMetricsService implements OnModuleInit {
         .where('s.dispatched_at IS NOT NULL')
         .getCount();
 
-      if (dispatchedCount > 0) {
-        this.dispatchedTotal.inc(dispatchedCount);
+      if (typeof dispatchedCount === 'number' && !Number.isNaN(dispatchedCount)) {
+        this.dispatchedTotal.set(dispatchedCount);
       }
 
       const deliveredCount = await this.shipmentRepo
@@ -90,19 +107,22 @@ export class FulfillmentMetricsService implements OnModuleInit {
         .where('s.delivered_at IS NOT NULL')
         .getCount();
 
-      if (deliveredCount > 0) {
-        this.deliveredTotal.inc(deliveredCount);
+      if (typeof deliveredCount === 'number' && !Number.isNaN(deliveredCount)) {
+        this.deliveredTotal.set(deliveredCount);
       }
 
       this.logger.log(
-        `Fulfillment metrics seeded from PostgreSQL: ${shipmentsGrouped.length} carrier/status groups, ${dispatchedCount} dispatched, ${deliveredCount} delivered.`,
+        `Fulfillment metrics synced from database: ${shipmentsGrouped.length} carrier/status groups, ${dispatchedCount} dispatched, ${deliveredCount} delivered.`,
       );
     } catch (err) {
-      this.logger.warn(`Could not seed fulfillment metrics from database: ${err.message}`);
+      this.logger.warn(`Could not sync fulfillment metrics from database: ${err.message}`);
+    } finally {
+      this.isRefreshing = false;
     }
   }
 
   async getMetrics(): Promise<string> {
+    await this.refreshFromDatabase();
     return await this.registry.metrics();
   }
 }

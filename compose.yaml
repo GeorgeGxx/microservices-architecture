@@ -495,6 +495,7 @@ services:
       DB_NAME: ${FULFILLMENT_POSTGRES_DB:-ms_fulfillment}
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_ORDERS_TOPIC: orders-topic
       KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
       KAFKA_GROUP_ID: fulfillment-service-group
       KAFKAJS_NO_PARTITIONER_WARNING: "1"

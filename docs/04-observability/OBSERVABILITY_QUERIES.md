@@ -126,9 +126,9 @@ sum by (status) (ecommerce_orders_active_in_pipeline{status=~"PLACED|SHIPPED|DEL
 ```
 
 #### 🚚 Shipments by Carrier
-Shipments created and routed through integrated carriers (`DHL Express`, `FedEx`):
+Shipments created and routed through integrated carriers (`DHL Express`, `FedEx`), excluding cancelled orders:
 ```promql
-sum by (carrier) (ecommerce_shipments_total)
+sum by (carrier) (ecommerce_shipments_total{status!="CANCELLED"})
 ```
 
 #### 📦 Warehouse Dispatch vs Delivery Volume

@@ -160,4 +160,89 @@ describe('PaymentEventsConsumer', () => {
       delete process.env.AUTO_DISPATCH_SHIPMENT;
     }
   });
+
+  it('should handle ORDER_CANCELLED event and transition shipment to CANCELLED in repository', async () => {
+    const mockShipment = {
+      orderNumber: 'ORD-CANCEL-1',
+      status: 'AWAITING_PICKUP',
+      carrier: 'DHL Express',
+    };
+    const mockRepo = {
+      findOne: jest.fn().mockResolvedValue(mockShipment),
+      save: jest.fn().mockResolvedValue(mockShipment),
+    };
+    const mockMetrics = {
+      refreshFromDatabase: jest.fn().mockResolvedValue(undefined),
+    };
+
+    consumer = new PaymentEventsConsumer(mockUseCase, undefined, undefined, mockMetrics as any, mockRepo as any);
+    (consumer as any).consumer = mockKafkaConsumer;
+
+    await consumer.onModuleInit();
+    const eachMessage = mockKafkaConsumer.run.mock.calls[0][0].eachMessage;
+
+    await eachMessage({
+      topic: 'orders-topic',
+      message: {
+        value: Buffer.from(JSON.stringify({
+          orderNumber: 'ORD-CANCEL-1',
+          orderStatus: 'CANCELLED',
+        })),
+      },
+    });
+
+    expect(mockRepo.findOne).toHaveBeenCalledWith({ where: { orderNumber: 'ORD-CANCEL-1' } });
+    expect(mockShipment.status).toBe('CANCELLED');
+    expect(mockRepo.save).toHaveBeenCalledWith(mockShipment);
+    expect(mockMetrics.refreshFromDatabase).toHaveBeenCalled();
+  });
+
+  it('should handle ORDER_SHIPPED and ORDER_DELIVERED events from orders-topic', async () => {
+    const mockShipment = {
+      orderNumber: 'ORD-LIFECYCLE-1',
+      status: 'AWAITING_PICKUP',
+      dispatchedAt: null,
+      deliveredAt: null,
+    };
+    const mockRepo = {
+      findOne: jest.fn().mockResolvedValue(mockShipment),
+      save: jest.fn().mockResolvedValue(mockShipment),
+    };
+    const mockMetrics = {
+      refreshFromDatabase: jest.fn().mockResolvedValue(undefined),
+    };
+
+    consumer = new PaymentEventsConsumer(mockUseCase, undefined, undefined, mockMetrics as any, mockRepo as any);
+    (consumer as any).consumer = mockKafkaConsumer;
+
+    await consumer.onModuleInit();
+    const eachMessage = mockKafkaConsumer.run.mock.calls[0][0].eachMessage;
+
+    // 1. Shipped
+    await eachMessage({
+      topic: 'orders-topic',
+      message: {
+        value: Buffer.from(JSON.stringify({
+          orderNumber: 'ORD-LIFECYCLE-1',
+          orderStatus: 'SHIPPED',
+        })),
+      },
+    });
+    expect(mockShipment.status).toBe('DISPATCHED');
+    expect(mockShipment.dispatchedAt).toBeDefined();
+
+    // 2. Delivered
+    await eachMessage({
+      topic: 'orders-topic',
+      message: {
+        value: Buffer.from(JSON.stringify({
+          orderNumber: 'ORD-LIFECYCLE-1',
+          orderStatus: 'DELIVERED',
+        })),
+      },
+    });
+    expect(mockShipment.status).toBe('DELIVERED');
+    expect(mockShipment.deliveredAt).toBeDefined();
+    expect(mockMetrics.refreshFromDatabase).toHaveBeenCalledTimes(2);
+  });
 });

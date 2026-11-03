@@ -1,9 +1,17 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Optional, Inject } from '@nestjs/common';
-import { Kafka, Consumer } from 'kafkajs';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Kafka, Consumer, CompressionTypes, CompressionCodecs } from 'kafkajs';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const SnappyCodec = require('kafkajs-snappy');
+CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
+
 import { CreateShipmentUseCase } from '../../application/use-cases/create-shipment.use-case';
 import { DispatchShipmentUseCase } from '../../application/use-cases/dispatch-shipment.use-case';
 import { EVENT_PUBLISHER, EventPublisher } from '../../application/ports/event-publisher.port';
 import { FulfillmentMetricsService } from '../metrics/fulfillment-metrics.service';
+import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';
+import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum';
 
 @Injectable()
 export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
@@ -11,6 +19,7 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
   private readonly kafka: Kafka;
   private readonly consumer: Consumer;
   private readonly paymentsTopic = process.env.KAFKA_PAYMENTS_TOPIC || 'payments-topic';
+  private readonly ordersTopic = process.env.KAFKA_ORDERS_TOPIC || 'orders-topic';
   private isShuttingDown = false;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
 
@@ -19,6 +28,9 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     @Optional() private readonly dispatchShipmentUseCase?: DispatchShipmentUseCase,
     @Optional() @Inject(EVENT_PUBLISHER) private readonly eventPublisher?: EventPublisher,
     @Optional() private readonly metricsService?: FulfillmentMetricsService,
+    @Optional()
+    @InjectRepository(ShipmentOrmEntity)
+    private readonly shipmentRepo?: Repository<ShipmentOrmEntity>,
   ) {
     const brokers = (process.env.KAFKA_BOOTSTRAP_SERVERS || process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
     this.kafka = new Kafka({
@@ -42,17 +54,24 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     if (this.isShuttingDown) return;
     try {
       await this.consumer.connect();
-      await this.consumer.subscribe({ topic: this.paymentsTopic, fromBeginning: false });
-      this.logger.log(`Subscribed to topic: ${this.paymentsTopic}`);
+      await this.consumer.subscribe({
+        topics: [this.paymentsTopic, this.ordersTopic],
+        fromBeginning: true,
+      });
+      this.logger.log(`Subscribed to topics: ${this.paymentsTopic}, ${this.ordersTopic}`);
 
       await this.consumer.run({
-        eachMessage: async ({ message }) => {
+        eachMessage: async ({ topic, message }) => {
           if (!message.value) return;
           try {
             const raw = JSON.parse(message.value.toString());
-            await this.handlePaymentEvent(raw);
+            if (topic === this.ordersTopic) {
+              await this.handleOrderEvent(raw);
+            } else {
+              await this.handlePaymentEvent(raw);
+            }
           } catch (err) {
-            this.logger.error(`Error processing payment event: ${err.message}`);
+            this.logger.error(`Error processing Kafka event on topic ${topic}: ${err.message}`);
           }
         },
       });
@@ -133,6 +152,64 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
       }
     }
     this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
+  }
+
+  private getStatusString(raw: Record<string, any>): string {
+    const val = raw.orderStatus || raw.status || raw.eventType;
+    return typeof val === 'string' ? val.toUpperCase() : '';
+  }
+
+  private async handleOrderEvent(raw: Record<string, any>): Promise<void> {
+    const orderNumber = raw.orderNumber || raw.order_number;
+    if (!orderNumber || !this.shipmentRepo) return;
+
+    const rawStatus = this.getStatusString(raw);
+
+    if (rawStatus === 'CANCELLED' || rawStatus === 'ORDER_CANCELLED') {
+      await this.handleOrderCancelled(orderNumber);
+    } else if (rawStatus === 'SHIPPED' || rawStatus === 'ORDER_SHIPPED') {
+      await this.handleOrderShipped(orderNumber);
+    } else if (rawStatus === 'DELIVERED' || rawStatus === 'ORDER_DELIVERED') {
+      await this.handleOrderDelivered(orderNumber);
+    }
+  }
+
+  private async handleOrderCancelled(orderNumber: string): Promise<void> {
+    const shipment = await this.shipmentRepo?.findOne({ where: { orderNumber } });
+    if (!shipment || shipment.status === ShipmentStatus.CANCELLED || shipment.status === ShipmentStatus.DELIVERED) {
+      return;
+    }
+    shipment.status = ShipmentStatus.CANCELLED;
+    await this.shipmentRepo?.save(shipment);
+    this.logger.log(`Shipment for order #${orderNumber} marked as CANCELLED via async Kafka event`);
+    await this.metricsService?.refreshFromDatabase();
+  }
+
+  private async handleOrderShipped(orderNumber: string): Promise<void> {
+    const shipment = await this.shipmentRepo?.findOne({ where: { orderNumber } });
+    if (!shipment || shipment.status === ShipmentStatus.DISPATCHED || shipment.status === ShipmentStatus.DELIVERED) {
+      return;
+    }
+    shipment.status = ShipmentStatus.DISPATCHED;
+    shipment.dispatchedAt = shipment.dispatchedAt || new Date();
+    await this.shipmentRepo?.save(shipment);
+    this.logger.log(`Shipment for order #${orderNumber} marked as DISPATCHED via async Kafka event`);
+    await this.metricsService?.refreshFromDatabase();
+  }
+
+  private async handleOrderDelivered(orderNumber: string): Promise<void> {
+    const shipment = await this.shipmentRepo?.findOne({ where: { orderNumber } });
+    if (!shipment || shipment.status === ShipmentStatus.DELIVERED) {
+      return;
+    }
+    shipment.status = ShipmentStatus.DELIVERED;
+    shipment.deliveredAt = shipment.deliveredAt || new Date();
+    if (!shipment.dispatchedAt) {
+      shipment.dispatchedAt = shipment.deliveredAt;
+    }
+    await this.shipmentRepo?.save(shipment);
+    this.logger.log(`Shipment for order #${orderNumber} marked as DELIVERED via async Kafka event`);
+    await this.metricsService?.refreshFromDatabase();
   }
 
   async onModuleDestroy() {

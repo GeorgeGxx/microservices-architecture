@@ -35,7 +35,12 @@ describe('FulfillmentMetricsService', () => {
         { carrier: 'DHL Express', status: 'AWAITING_PICKUP', count: '5' },
         { carrier: 'FedEx', status: 'DELIVERED', count: '2' },
       ]),
-      getCount: jest.fn().mockResolvedValueOnce(3).mockResolvedValueOnce(2),
+      getCount: jest
+        .fn()
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(2)
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(2),
     };
 
     const mockRepo = {
