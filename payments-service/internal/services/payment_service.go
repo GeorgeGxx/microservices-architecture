@@ -157,7 +157,7 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 		case strings.Contains(pmUpper, "EXPIRED"):
 			payment.FailureReason = "Expired Card (Code 54): Card validity period expired"
 		default:
-			payment.FailureReason = "Payment Declined (Code 05): General transaction decline by issuer"
+			payment.FailureReason = "Payment declined (Code 05): General transaction decline by issuer"
 		}
 		payment.TransactionRef = ""
 		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", req.PaymentMethod).Inc()

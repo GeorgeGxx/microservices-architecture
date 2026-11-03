@@ -153,6 +153,29 @@ func TestProcessPayment_Declined(t *testing.T) {
 	assert.Equal(t, models.PaymentStatusFailed, resp.Status)
 	assert.Empty(t, resp.TransactionRef)
 	assert.Contains(t, resp.FailureReason, "Payment declined")
+
+	// Test specific decline profiles
+	declineCases := []struct {
+		method         string
+		expectedReason string
+	}{
+		{"SIMULATED_DECLINED_INSUFFICIENT_FUNDS", "Do Not Honor (Code 51)"},
+		{"SIMULATED_DECLINED_INCORRECT_PIN", "Invalid PIN/CVV (Code 55)"},
+		{"SIMULATED_DECLINED_SUSPECTED_FRAUD", "Suspected Fraud (Code 59)"},
+		{"SIMULATED_DECLINED_EXPIRED_CARD", "Expired Card (Code 54)"},
+	}
+
+	for _, tc := range declineCases {
+		dResp, dErr := svc.ProcessPayment(context.Background(), models.ProcessPaymentRequest{
+			OrderNumber:   "ORD-TEST-" + tc.method,
+			Amount:        100.0,
+			PaymentMethod: tc.method,
+		})
+		assert.NoError(t, dErr)
+		assert.NotNil(t, dResp)
+		assert.Equal(t, models.PaymentStatusFailed, dResp.Status)
+		assert.Contains(t, dResp.FailureReason, tc.expectedReason)
+	}
 }
 
 func TestRefundPayment_SuccessAndErrors(t *testing.T) {

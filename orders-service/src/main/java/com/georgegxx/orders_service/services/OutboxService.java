@@ -48,9 +48,10 @@ public class OutboxService {
     }
 
     /**
-     * Atomically enqueues an outbox event in the same transactional context as business data mutations.
+     * Atomically enqueues an outbox event in the current transaction if active,
+     * or opens a new transaction to guarantee persistence.
      */
-    @Transactional(propagation = Propagation.MANDATORY)
+    @Transactional(propagation = Propagation.REQUIRED)
     public OutboxEvent recordEvent(String aggregateType, String aggregateId, String eventType, String payload) {
         OutboxEvent event = OutboxEvent.builder()
                 .aggregateType(aggregateType)
