@@ -67,6 +67,7 @@ export class FulfillmentMetricsService implements OnModuleInit {
     if (!this.shipmentRepo || this.isRefreshing) return;
     this.isRefreshing = true;
     try {
+      this.shipmentsTotal.reset();
       for (const carrier of ['DHL Express', 'FedEx']) {
         for (const status of [
           ShipmentStatus.AWAITING_PICKUP,

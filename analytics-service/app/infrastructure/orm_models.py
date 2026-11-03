@@ -22,3 +22,10 @@ class OrderSaleOrm(Base):
     user_id = Column(String(100), nullable=False, index=True)
     items_count = Column(Integer, default=1, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+class SkuSaleOrm(Base):
+    __tablename__ = "sku_sales"
+
+    sku = Column(String(64), primary_key=True)
+    units_sold = Column(Integer, default=0, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

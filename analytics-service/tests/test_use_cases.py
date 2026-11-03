@@ -55,6 +55,12 @@ class InMemoryAnalyticsStateRepository(AnalyticsStateRepository):
             "basket_sizes": {"single_item": 2, "2_3_items": 3, "bulk_4_plus": 1},
         }
 
+    async def record_sku_sales(self, sku: str, quantity: int) -> None:
+        pass
+
+    async def get_sku_sales(self) -> Dict[str, int]:
+        return {"000001": 5, "LAPTOP-PRO": 10}
+
 @pytest.mark.asyncio
 async def test_record_funnel_event_use_case():
     repo = InMemoryFunnelRepository()

@@ -1,5 +1,5 @@
 {
-  "title": "🏢 E-Commerce Business Intelligence & Inventory Operations",
+  "title": "\ud83c\udfe2 E-Commerce Business Intelligence & Inventory Operations",
   "uid": "business-operations",
   "editable": true,
   "timezone": "browser",
@@ -45,7 +45,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "💰 [EXECUTIVE BUSINESS SUMMARY] Top Financial & Operational KPIs",
+      "title": "\ud83d\udcb0 [EXECUTIVE BUSINESS SUMMARY] Top Financial & Operational KPIs",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -57,7 +57,7 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "💵 Net Sales Revenue",
+      "title": "\ud83d\udcb5 Net Sales Revenue",
       "description": "Total net monetary volume generated from active completed orders.",
       "gridPos": {
         "h": 4,
@@ -112,7 +112,7 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "📦 Gross Orders Placed",
+      "title": "\ud83d\udce6 Gross Orders Placed",
       "description": "Total gross purchase orders placed and completed before cancellations.",
       "gridPos": {
         "h": 4,
@@ -167,7 +167,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "💸 Revenue Lost to Cancellations ($)",
+      "title": "\ud83d\udcb8 Revenue Lost to Cancellations ($)",
       "description": "Estimated gross revenue leakage due to cancelled orders (Cancelled Orders * AOV).",
       "gridPos": {
         "h": 4,
@@ -230,7 +230,7 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "🛍️ Net Completed Orders",
+      "title": "\ud83d\udecd\ufe0f Net Completed Orders",
       "description": "True net purchase orders actively retained and fulfilled (Gross - Cancelled).",
       "gridPos": {
         "h": 4,
@@ -285,7 +285,7 @@
     {
       "id": 6,
       "type": "stat",
-      "title": "🏷️ Average Order Value (AOV)",
+      "title": "\ud83c\udff7\ufe0f Average Order Value (AOV)",
       "description": "Average spend per net completed order ticket (Revenue / Net Orders).",
       "gridPos": {
         "h": 4,
@@ -340,7 +340,7 @@
     {
       "id": 7,
       "type": "gauge",
-      "title": "📉 Cart Abandonment Rate",
+      "title": "\ud83d\udcc9 Cart Abandonment Rate",
       "description": "Percentage of created shopping carts not converted into finished purchases.",
       "gridPos": {
         "h": 4,
@@ -403,7 +403,7 @@
     {
       "id": 10,
       "type": "row",
-      "title": "🛒 [CONVERSION FUNNEL & ORDER FULFILLMENT] Buyer Journey & Fulfillment Flow",
+      "title": "\ud83d\uded2 [CONVERSION FUNNEL & ORDER FULFILLMENT] Buyer Journey & Fulfillment Flow",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -415,7 +415,7 @@
     {
       "id": 11,
       "type": "bargauge",
-      "title": "🛒 E-Commerce Conversion Funnel Stages",
+      "title": "\ud83d\uded2 E-Commerce Conversion Funnel Stages",
       "description": "Customer progression from Cart Additions -> Checkout Started -> Payment Step -> Completed Order.",
       "gridPos": {
         "h": 7,
@@ -493,7 +493,7 @@
     {
       "id": 12,
       "type": "bargauge",
-      "title": "🚚 Active Orders Across Logistics Pipeline",
+      "title": "\ud83d\ude9a Active Orders Across Logistics Pipeline",
       "description": "Real-time order fulfillment pipeline matching frontend tracking: PLACED -> SHIPPED -> DELIVERED.",
       "gridPos": {
         "h": 7,
@@ -547,7 +547,7 @@
     {
       "id": 13,
       "type": "bargauge",
-      "title": "🎯 Order Fulfillment Rate & Retention SLA Audit",
+      "title": "\ud83c\udfaf Order Fulfillment Rate & Retention SLA Audit",
       "description": "Fulfillment efficiency & order retention audit: Delivery completion rate of dispatched shipments vs net order retention and cancellation rate (OCR).",
       "gridPos": {
         "h": 7,
@@ -620,7 +620,7 @@
     {
       "id": 15,
       "type": "row",
-      "title": "💳 [PAYMENT GATEWAY & FINANCIAL OPERATIONS] Transaction Authorization, Gateways & Refunds",
+      "title": "\ud83d\udcb3 [PAYMENT GATEWAY & FINANCIAL OPERATIONS] Transaction Authorization, Gateways & Refunds",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -632,7 +632,7 @@
     {
       "id": 16,
       "type": "stat",
-      "title": "💳 Payment Gateway Health & Authorization SLA",
+      "title": "\ud83d\udcb3 Payment Gateway Health & Authorization SLA",
       "description": "Real-time payment authorization success rate alongside bank declined/failed transactions.",
       "gridPos": {
         "h": 6,
@@ -732,7 +732,7 @@
     {
       "id": 17,
       "type": "bargauge",
-      "title": "💳 Payment Volume by Provider",
+      "title": "\ud83d\udcb3 Payment Volume by Provider",
       "description": "Volume of payment authorizations partitioned by payment gateway method.",
       "gridPos": {
         "h": 6,
@@ -786,9 +786,9 @@
     },
     {
       "id": 18,
-      "type": "gauge",
-      "title": "⏱️ Payment Gateway Latency (P95 ms)",
-      "description": "95th percentile transaction processing duration across payment gateways.",
+      "type": "stat",
+      "title": "\ud83d\udcb3 Average Transaction Amount (USD)",
+      "description": "Average transaction value authorized across completed customer payments.",
       "gridPos": {
         "h": 6,
         "w": 6,
@@ -801,11 +801,9 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
-          "min": 0,
-          "max": 1000,
+          "unit": "currencyUSD",
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "thresholds": {
             "mode": "absolute",
@@ -813,14 +811,6 @@
               {
                 "color": "#10b981",
                 "value": null
-              },
-              {
-                "color": "#f59e0b",
-                "value": 200
-              },
-              {
-                "color": "#ef4444",
-                "value": 500
               }
             ]
           }
@@ -833,8 +823,9 @@
             "lastNotNull"
           ]
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "area"
       },
       "targets": [
         {
@@ -842,15 +833,15 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(histogram_quantile(0.95, sum by (le) (rate(ecommerce_payment_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
-          "legendFormat": "Gateway P95"
+          "expr": "(sum(ecommerce_revenue_usd) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}), 1)) or vector(0)",
+          "legendFormat": "Average Ticket"
         }
       ]
     },
     {
       "id": 19,
       "type": "bargauge",
-      "title": "↩️ Payment Refunds & Chargeback Reasons",
+      "title": "\u21a9\ufe0f Payment Refunds & Chargeback Reasons",
       "description": "Total payment refunds partitioned by business or fraud reason.",
       "gridPos": {
         "h": 6,
@@ -905,7 +896,7 @@
     {
       "id": 25,
       "type": "row",
-      "title": "🚚 [WAREHOUSE LOGISTICS & FULFILLMENT VELOCITY] Carrier Distribution & Dispatch SLA",
+      "title": "\ud83d\ude9a [WAREHOUSE LOGISTICS & FULFILLMENT VELOCITY] Carrier Distribution & Dispatch SLA",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -917,7 +908,7 @@
     {
       "id": 26,
       "type": "bargauge",
-      "title": "🚚 Shipments by Carrier (DHL, FedEx)",
+      "title": "\ud83d\ude9a Shipments by Carrier (DHL, FedEx)",
       "description": "Total shipments created and routed through integrated shipping carriers.",
       "gridPos": {
         "h": 6,
@@ -972,7 +963,7 @@
     {
       "id": 27,
       "type": "stat",
-      "title": "📦 Warehouse Dispatch vs Delivery Volume",
+      "title": "\ud83d\udce6 Warehouse Dispatch vs Delivery Volume",
       "description": "Cumulative velocity of shipments dispatched from fulfillment center vs delivered.",
       "gridPos": {
         "h": 6,
@@ -1025,7 +1016,7 @@
     {
       "id": 20,
       "type": "row",
-      "title": "📦 [PRODUCT DEMAND & INVENTORY INTELLIGENCE] SKU Stock & Catalog Performance",
+      "title": "\ud83d\udce6 [PRODUCT DEMAND & INVENTORY INTELLIGENCE] SKU Stock & Catalog Performance",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1037,7 +1028,7 @@
     {
       "id": 21,
       "type": "bargauge",
-      "title": "📊 Live Available Stock by SKU & Low Stock Alerts",
+      "title": "\ud83d\udcca Live Available Stock by SKU & Low Stock Alerts",
       "description": "Units available in warehouse per SKU with stock health thresholds: Green (>20), Yellow (<10 Low), Red (<5 Critical).",
       "gridPos": {
         "h": 7,
@@ -1100,7 +1091,7 @@
     {
       "id": 22,
       "type": "piechart",
-      "title": "🥧 Top Selling SKUs & Catalog Market Share",
+      "title": "\ud83e\udd67 Top Selling SKUs & Catalog Market Share",
       "description": "Sales volume market share per product SKU, indicating customer demand.",
       "gridPos": {
         "h": 7,
@@ -1144,7 +1135,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total) or vector(0)",
+          "expr": "sum by (sku) (ecommerce_sku_sales > 0) or sum by (sku) (ecommerce_sku_sales_total > 0)",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -1152,7 +1143,7 @@
     {
       "id": 30,
       "type": "row",
-      "title": "👥 [CUSTOMER RETENTION & REVENUE EVOLUTION] Loyalty Cohorts & Growth Timeline",
+      "title": "\ud83d\udc65 [CUSTOMER RETENTION & REVENUE EVOLUTION] Loyalty Cohorts & Growth Timeline",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1164,7 +1155,7 @@
     {
       "id": 31,
       "type": "bargauge",
-      "title": "👥 Orders by Customer Loyalty Cohort (Retention)",
+      "title": "\ud83d\udc65 Orders by Customer Loyalty Cohort (Retention)",
       "description": "Order breakdown into discrete customer retention tiers (First Time vs Repeat vs Loyal VIP) without cardinality explosion.",
       "gridPos": {
         "h": 7,
@@ -1218,7 +1209,7 @@
     {
       "id": 32,
       "type": "timeseries",
-      "title": "📈 Cumulative Revenue Growth & Completed Orders Timeline",
+      "title": "\ud83d\udcc8 Cumulative Revenue Growth & Completed Orders Timeline",
       "description": "Historical timeline tracking net completed orders and cumulative gross merchandise revenue.",
       "gridPos": {
         "h": 7,
@@ -1299,7 +1290,7 @@
     {
       "id": 40,
       "type": "row",
-      "title": "🔮 [DEMAND FORECAST READINESS & MODEL QUALITY] Forecast Data for Inventory Decisions",
+      "title": "\ud83d\udd2e [DEMAND FORECAST READINESS & MODEL QUALITY] Forecast Data for Inventory Decisions",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1311,7 +1302,7 @@
     {
       "id": 41,
       "type": "stat",
-      "title": "🕒 Age of Latest Successful Forecast",
+      "title": "\ud83d\udd52 Age of Latest Successful Forecast",
       "description": "Elapsed time since the forecast API last returned a successful forecast. No data means no successful forecast has been recorded yet or telemetry is unavailable.",
       "gridPos": {
         "h": 4,
@@ -1374,7 +1365,7 @@
     {
       "id": 42,
       "type": "stat",
-      "title": "🗓️ Age of Latest Sales Data",
+      "title": "\ud83d\uddd3\ufe0f Age of Latest Sales Data",
       "description": "Age of the newest sales date included in forecast input data. A stale source can make current forecasts less useful for replenishment decisions.",
       "gridPos": {
         "h": 4,
@@ -1437,7 +1428,7 @@
     {
       "id": 43,
       "type": "stat",
-      "title": "🧠 Age of Active Forecast Model",
+      "title": "\ud83e\udde0 Age of Active Forecast Model",
       "description": "Time since the active demand model was trained. Review this with sales-data freshness and model error before relying on forecasts.",
       "gridPos": {
         "h": 4,
@@ -1500,7 +1491,7 @@
     {
       "id": 44,
       "type": "stat",
-      "title": "📏 Active Model RMSE",
+      "title": "\ud83d\udccf Active Model RMSE",
       "description": "Root mean squared forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
       "gridPos": {
         "h": 4,
@@ -1546,7 +1537,7 @@
     {
       "id": 45,
       "type": "stat",
-      "title": "📏 Active Model MAE",
+      "title": "\ud83d\udccf Active Model MAE",
       "description": "Mean absolute forecast error for the active model, in the target's units (not a percentage). Lower is better; compare with an agreed inventory-planning tolerance.",
       "gridPos": {
         "h": 4,

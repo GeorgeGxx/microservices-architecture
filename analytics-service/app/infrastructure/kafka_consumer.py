@@ -120,14 +120,17 @@ class AnalyticsKafkaConsumer:
             logger.info(f"Processed payment event for order #{order_number}, updated analytics metrics")
 
     @staticmethod
-    def _track_sku_sales(items: list[dict] | None) -> None:
+    async def _track_sku_sales(items: list[dict] | None) -> None:
         if not items:
             return
-        for item in items:
-            sku = item.get("sku")
-            if sku:
-                qty = int(item.get("quantity") or 1)
-                sku_sales_gauge.labels(str(sku)).inc(qty)
+        async with AsyncSessionLocal() as session:
+            state_repo = SqlAlchemyAnalyticsStateRepository(session)
+            for item in items:
+                sku = item.get("sku")
+                if sku:
+                    qty = int(item.get("quantity") or 1)
+                    sku_sales_gauge.labels(str(sku)).inc(qty)
+                    await state_repo.record_sku_sales(str(sku), qty)
 
     def _update_pipeline_stage(self, order_number: str | None, new_status: str) -> None:
         if not order_number:
@@ -156,7 +159,7 @@ class AnalyticsKafkaConsumer:
         else:
             self._order_stages.pop(order_number, None)
 
-    def _handle_orders_event(self, payload: dict) -> None:
+    async def _handle_orders_event(self, payload: dict) -> None:
         order_number = payload.get("orderNumber") or payload.get("order_number")
         status = str(payload.get("orderStatus") or payload.get("status") or "").upper()
         if status == "IN_TRANSIT":
@@ -164,7 +167,7 @@ class AnalyticsKafkaConsumer:
         if status:
             self._update_pipeline_stage(order_number, status)
 
-        self._track_sku_sales(payload.get("items"))
+        await self._track_sku_sales(payload.get("items"))
 
     def _handle_fulfillment_event(self, payload: dict) -> None:
         order_number = payload.get("orderNumber") or payload.get("order_number")
@@ -190,7 +193,7 @@ class AnalyticsKafkaConsumer:
             topic = msg.topic
 
             if topic == settings.kafka_orders_topic:
-                self._handle_orders_event(payload)
+                await self._handle_orders_event(payload)
             elif topic == settings.kafka_fulfillment_topic:
                 self._handle_fulfillment_event(payload)
 

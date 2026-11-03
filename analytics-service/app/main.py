@@ -13,6 +13,7 @@ from app.infrastructure.metrics import (
     cohort_orders_gauge,
     cohort_revenue_gauge,
     cart_abandonment_gauge,
+    sku_sales_gauge,
 )
 from app.infrastructure.kafka_consumer import kafka_consumer
 from app.presentation.routers import router
@@ -69,7 +70,12 @@ async def lifespan(app: FastAPI):
             cohort_revenue_gauge.labels("first_time").set(round(cohort.first_time_revenue, 2))
             cohort_revenue_gauge.labels("repeat").set(round(cohort.repeat_revenue, 2))
             cohort_revenue_gauge.labels("loyal_vip").set(round(cohort.loyal_vip_revenue, 2))
-            logger.info(f"Hydrated Prometheus metrics: {completed} orders, ${totals.get('total_revenue_usd', 0.0):.2f} revenue")
+
+            sku_sales = await state_repo.get_sku_sales()
+            for sku, units in sku_sales.items():
+                sku_sales_gauge.labels(str(sku)).set(units)
+
+            logger.info(f"Hydrated Prometheus metrics: {completed} orders, ${totals.get('total_revenue_usd', 0.0):.2f} revenue, {len(sku_sales)} SKUs")
     except Exception as e:
         logger.warning(f"Metrics hydration notice: {e}")
 

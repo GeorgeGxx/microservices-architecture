@@ -23,3 +23,11 @@ class AnalyticsStateRepository(ABC):
     @abstractmethod
     async def get_sales_totals(self) -> Dict[str, Any]:
         pass
+
+    @abstractmethod
+    async def record_sku_sales(self, sku: str, quantity: int) -> None:
+        pass
+
+    @abstractmethod
+    async def get_sku_sales(self) -> Dict[str, int]:
+        pass
