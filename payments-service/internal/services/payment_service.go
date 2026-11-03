@@ -149,15 +149,15 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 		pmUpper := strings.ToUpper(req.PaymentMethod)
 		switch {
 		case strings.Contains(pmUpper, "INSUFFICIENT_FUNDS") || strings.Contains(pmUpper, "NO_CREDIT"):
-			payment.FailureReason = "Do Not Honor (Code 51): Fondos insuficientes / Límite de crédito excedido"
+			payment.FailureReason = "Do Not Honor (Code 51): Insufficient funds / Credit limit exceeded"
 		case strings.Contains(pmUpper, "PIN") || strings.Contains(pmUpper, "NIP") || strings.Contains(pmUpper, "CVV"):
-			payment.FailureReason = "Invalid PIN/CVV (Code 55): NIP o código de seguridad incorrecto"
+			payment.FailureReason = "Invalid PIN/CVV (Code 55): Security authentication failed or incorrect PIN"
 		case strings.Contains(pmUpper, "FRAUD") || strings.Contains(pmUpper, "SUSPECTED"):
-			payment.FailureReason = "Suspected Fraud (Code 59): Bloqueo preventivo por sospecha de fraude bancario"
+			payment.FailureReason = "Suspected Fraud (Code 59): Security card hold triggered by issuing bank"
 		case strings.Contains(pmUpper, "EXPIRED"):
-			payment.FailureReason = "Expired Card (Code 54): Tarjeta vencida o fecha de expiración inválida"
+			payment.FailureReason = "Expired Card (Code 54): Card validity period expired"
 		default:
-			payment.FailureReason = "Payment Declined (Code 05): Declinada por la entidad financiera emisora"
+			payment.FailureReason = "Payment Declined (Code 05): General transaction decline by issuer"
 		}
 		payment.TransactionRef = ""
 		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", req.PaymentMethod).Inc()
