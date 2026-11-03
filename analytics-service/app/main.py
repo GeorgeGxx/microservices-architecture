@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from app.config import settings
 from app.infrastructure.database import engine, Base, AsyncSessionLocal
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
+from app.domain.models import FunnelMetrics
 from app.infrastructure.metrics import (
     orders_gauge,
     revenue_gauge,
@@ -56,9 +57,10 @@ async def lifespan(app: FastAPI):
             revenue_gauge.set(round(totals.get("total_revenue_usd", 0.0), 2))
 
             cart_adds = funnel_counts.get("CART_ADD", 0)
-            if cart_adds > 0:
-                abandonment = max(0.0, (cart_adds - completed) / cart_adds * 100.0)
-                cart_abandonment_gauge.set(round(abandonment, 2))
+            checkout_starts = funnel_counts.get("CHECKOUT_START", 0)
+            checkout_steps = funnel_counts.get("CHECKOUT_STEP", 0)
+            metrics = FunnelMetrics.calculate(cart_adds, checkout_starts, checkout_steps, completed)
+            cart_abandonment_gauge.set(metrics.cart_abandonment_rate_pct)
 
             cohort_orders_gauge.labels("first_time").set(cohort.first_time_orders)
             cohort_orders_gauge.labels("repeat").set(cohort.repeat_orders)

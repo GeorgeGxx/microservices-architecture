@@ -55,11 +55,18 @@ class FunnelMetrics:
     ) -> "FunnelMetrics":
         if cart_adds <= 0:
             abandonment_rate = 0.0
+            completion_rate = 0.0
         else:
-            abandonment = max(0, cart_adds - purchases)
-            abandonment_rate = round((abandonment / cart_adds) * 100.0, 2)
+            # Funnel-completed purchases cannot exceed checkout_starts (if checkout was recorded) or cart_adds.
+            # If checkout_starts is 0, any carts added without starting checkout were abandoned.
+            if checkout_starts > 0:
+                funnel_purchases = min(cart_adds, min(checkout_starts, purchases))
+            else:
+                funnel_purchases = 0
 
-        completion_rate = round((purchases / checkout_starts * 100.0), 2) if checkout_starts > 0 else 0.0
+            abandonment = max(0, cart_adds - funnel_purchases)
+            abandonment_rate = round((abandonment / cart_adds) * 100.0, 2)
+            completion_rate = round((funnel_purchases / checkout_starts * 100.0), 2) if checkout_starts > 0 else 0.0
 
         return cls(
             cart_add_count=cart_adds,

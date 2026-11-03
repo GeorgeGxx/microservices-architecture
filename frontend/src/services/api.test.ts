@@ -232,6 +232,7 @@ describe('Product and Stock API Mutations', () => {
       expect(JSON.parse(analyticsCall!.body)).toEqual({
         event_type: 'CART_ADD',
         category: 'Electronics',
+        session_id: expect.any(String),
         metadata: { sku: 'TEST-SKU' },
       });
 

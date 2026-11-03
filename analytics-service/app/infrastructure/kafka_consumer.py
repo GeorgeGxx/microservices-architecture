@@ -5,7 +5,7 @@ from aiokafka import AIOKafkaConsumer
 from app.config import settings
 from app.infrastructure.database import AsyncSessionLocal
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
-from app.domain.models import FunnelEvent, EventType
+from app.domain.models import FunnelEvent, EventType, FunnelMetrics
 from app.infrastructure.metrics import (
     funnel_events_counter,
     cart_abandonment_gauge,
@@ -100,12 +100,13 @@ class AnalyticsKafkaConsumer:
             funnel_counts = await funnel_repo.count_events_by_type()
             sales_totals = await state_repo.get_sales_totals()
             cart_adds = funnel_counts.get("CART_ADD", 0)
+            checkout_starts = funnel_counts.get("CHECKOUT_START", 0)
+            checkout_steps = funnel_counts.get("CHECKOUT_STEP", 0)
             completed = sales_totals.get("completed_orders", 0)
             orders_gauge.labels("COMPLETED").set(completed)
             revenue_gauge.set(round(sales_totals.get("total_revenue_usd", 0.0), 2))
-            if cart_adds > 0:
-                abandonment = max(0.0, (cart_adds - completed) / cart_adds * 100.0)
-                cart_abandonment_gauge.set(round(abandonment, 2))
+            metrics = FunnelMetrics.calculate(cart_adds, checkout_starts, checkout_steps, completed)
+            cart_abandonment_gauge.set(metrics.cart_abandonment_rate_pct)
 
             cohort_summary = await state_repo.get_cohort_summary()
             cohort_orders_gauge.labels("first_time").set(cohort_summary.first_time_orders)

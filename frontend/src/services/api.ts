@@ -153,6 +153,22 @@ export interface FunnelTelemetryPayload {
   step?: string;
 }
 
+function getOrCreateTelemetrySessionId(): string {
+  try {
+    const key = 'novashop_telemetry_session_id';
+    let sessionId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+    if (!sessionId) {
+      sessionId = 'sess-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now().toString(36);
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(key, sessionId);
+      }
+    }
+    return sessionId;
+  } catch {
+    return 'sess-' + Math.random().toString(36).substring(2, 11);
+  }
+}
+
 export async function recordFunnelTelemetry(payload: FunnelTelemetryPayload, token?: string): Promise<void> {
   try {
     const headers = await createHeaders(token, true);
@@ -160,6 +176,7 @@ export async function recordFunnelTelemetry(payload: FunnelTelemetryPayload, tok
       event_type: payload.eventType,
       category: payload.category || 'General',
       step: payload.step,
+      session_id: getOrCreateTelemetrySessionId(),
       metadata: payload.sku ? { sku: payload.sku } : {},
     };
 
