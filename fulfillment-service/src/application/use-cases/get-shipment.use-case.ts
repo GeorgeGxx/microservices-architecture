@@ -1,5 +1,6 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { SHIPMENT_REPOSITORY, ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
+import { SHIPMENT_REPOSITORY } from '../../domain/repositories/shipment.repository.interface';
+import type { ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
 import { ShipmentResponseDto } from '../dtos/shipment-response.dto';
 import { CreateShipmentUseCase } from './create-shipment.use-case';
 

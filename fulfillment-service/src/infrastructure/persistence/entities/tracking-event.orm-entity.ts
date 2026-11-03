@@ -1,4 +1,4 @@
-import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import { Entity, PrimaryColumn, Column, ManyToOne, JoinColumn, CreateDateColumn, type Relation } from 'typeorm';
 import { ShipmentOrmEntity } from './shipment.orm-entity';
 import { ShipmentStatus } from '../../../domain/value-objects/shipment-status.enum';
 
@@ -28,5 +28,5 @@ export class TrackingEventOrmEntity {
 
   @ManyToOne(() => ShipmentOrmEntity, shipment => shipment.trackingEvents, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'shipment_id' })
-  shipment: ShipmentOrmEntity;
+  shipment: Relation<ShipmentOrmEntity>;
 }

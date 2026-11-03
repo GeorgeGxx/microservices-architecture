@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { FulfillmentMetricsService } from './fulfillment-metrics.service';
 import { Repository } from 'typeorm';
 import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';

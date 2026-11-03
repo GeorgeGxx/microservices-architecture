@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { PaymentEventsConsumer } from './payment-events.consumer';
 
 describe('PaymentEventsConsumer', () => {

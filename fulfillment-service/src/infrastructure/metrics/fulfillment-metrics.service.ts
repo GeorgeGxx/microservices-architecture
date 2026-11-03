@@ -114,8 +114,9 @@ export class FulfillmentMetricsService implements OnModuleInit {
       this.logger.log(
         `Fulfillment metrics synced from database: ${shipmentsGrouped.length} carrier/status groups, ${dispatchedCount} dispatched, ${deliveredCount} delivered.`,
       );
-    } catch (err) {
-      this.logger.warn(`Could not sync fulfillment metrics from database: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Could not sync fulfillment metrics from database: ${message}`);
     } finally {
       this.isRefreshing = false;
     }

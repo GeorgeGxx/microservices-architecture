@@ -1,6 +1,6 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { FulfillmentMetricsService } from '../../infrastructure/metrics/fulfillment-metrics.service';
 
 @ApiTags('system')

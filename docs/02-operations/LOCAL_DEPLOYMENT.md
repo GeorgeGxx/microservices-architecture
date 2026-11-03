@@ -28,9 +28,9 @@ The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool
 | Operational Domain | Tool / Binary | Recommended Version | WinGet / Scoop Package ID | Mandatory For |
 | :--- | :--- | :---: | :--- | :--- |
 | **Runtime & Engines** | `docker` & Compose | 27.0+ (Latest) | `Docker.DockerDesktop` | Local container runtime, image builds, and multi-container daemon. |
-| **Runtime & Engines** | `java` (JDK) | 21 LTS | `BellSoft.LibericaJDK.21` | Spring Boot 3.4 microservices standalone execution and compilation. |
+| **Runtime & Engines** | `java` (JDK) | 21 LTS | `BellSoft.LibericaJDK.21` | Spring Boot 4.1 microservices standalone execution and compilation. |
 | **Runtime & Engines** | `mvn` (Maven) | 3.9+ | `Apache.Maven` | Multi-module Java reactor build (`platform-minikube.ps1 test`). |
-| **Runtime & Engines** | `node` & `npm` / `npx` | 22 LTS | `OpenJS.NodeJS.LTS` | React 19 + Vite storefront build and Cosmo Router Supergraph composition. |
+| **Runtime & Engines** | `node` & `npm` / `npx` | 24.15+ LTS | `OpenJS.NodeJS.LTS` | Fulfillment (NestJS 12 / TypeScript 7 requires Node >=24.11), React 19 + Vite, and Cosmo Router composition. |
 | **Runtime & Engines** | `python` (`python3`) | 3.11+ | `Python.Python.3.11` | Platform orchestrator test suites and tools (`platform-minikube.ps1`), MLOps, FinOps. |
 | **Runtime & Engines** | `pwsh` | 7.4+ | `Microsoft.PowerShell` | Master orchestrator CLI execution (`platform-minikube.ps1`, `platform-multicloud.ps1`). |
 | **Runtime & Engines** | `git` | 2.40+ | `Git.Git` | Distributed version control, secret diff scanning, GitOps ArgoCD tracking. |
@@ -70,6 +70,9 @@ You can audit and automatically install all missing developer tools with a singl
 ### 4. Local Resource Profile & Memory Sizing Considerations
 
 - **Host Allocation:** Reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
+- **Fulfillment toolchain:** Fulfillment is pinned to Node.js 24.15, NestJS 12.2.0, TypeScript 7.0.2, and TypeORM 1.1.2. TypeORM 1.1.2 requires Node >=24.11. The Compose/Docker build uses `FULFILLMENT_NODE_VERSION` (default `24.15-alpine`); local development should use Node >=24.11. TypeScript 7.0 currently exposes the compiler CLI but not the compiler API required by Nest CLI, so `npm run build` invokes `tsc` directly, `npm run start:dev` uses `tsx`, and Jest uses SWC with Node's ESM test runner.
+- **Database schema mode:** Docker Compose and Minikube use `HIBERNATE_DDL_AUTO=update` for local development. Inventory and Orders apply their Flyway migrations at startup; staging and production Helm values use `validate`. Review the migration history and schema validation before promoting a release. Do not use Hibernate `update` as a production migration strategy.
+- **Inventory reservation lease:** Unconfirmed checkout holds expire after `INVENTORY_RESERVATION_TTL` (default `PT15M`, ISO-8601 duration). Orders stores confirmation retries in its database; tune the lease longer than the expected recovery interval and alert on pending confirmation tasks to avoid releasing stock during an extended Orders outage.
 - **MLOps Resource Footprint:** During automatic training runs, MLOps workloads request ~2.3 CPU cores and 4.75 GiB RAM in total (Kafka-to-Parquet capture, MLflow, and forecast API). Scheduled training Jobs execute only when data drift or threshold criteria are met.
 - **Workload Right-Sizing Matrix:** For the complete per-service CPU/Memory requests, limits, storage reservations, operational ports, credentials, and architectural roles across all platform components, refer to the canonical [Workload Matrix, Infrastructure Sizing & Cloud Target Mapping](../01-architecture/ARCHITECTURE.md#-workload-matrix-infrastructure-sizing--cloud-target-mapping) in `ARCHITECTURE.md`.
 

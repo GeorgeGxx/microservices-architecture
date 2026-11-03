@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { HealthController } from './health.controller';
 import { FulfillmentMetricsService } from '../../infrastructure/metrics/fulfillment-metrics.service';

@@ -1,6 +1,8 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
-import { SHIPMENT_REPOSITORY, ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
-import { EVENT_PUBLISHER, EventPublisher } from '../ports/event-publisher.port';
+import { SHIPMENT_REPOSITORY } from '../../domain/repositories/shipment.repository.interface';
+import type { ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
+import { EVENT_PUBLISHER } from '../ports/event-publisher.port';
+import type { EventPublisher } from '../ports/event-publisher.port';
 import { ShipmentDeliveredEvent } from '../../domain/events/shipment-delivered.event';
 import { ShipmentResponseDto } from '../dtos/shipment-response.dto';
 import { CreateShipmentUseCase } from './create-shipment.use-case';

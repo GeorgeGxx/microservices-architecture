@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { KafkaEventPublisher } from './kafka-event.publisher';
 import { ShipmentDispatchedEvent } from '../../domain/events/shipment-dispatched.event';
 import { ShipmentDeliveredEvent } from '../../domain/events/shipment-delivered.event';

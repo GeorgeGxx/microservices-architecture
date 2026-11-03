@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { SHIPMENT_REPOSITORY, ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
+import { SHIPMENT_REPOSITORY } from '../../domain/repositories/shipment.repository.interface';
+import type { ShipmentRepository } from '../../domain/repositories/shipment.repository.interface';
 import { Shipment } from '../../domain/models/shipment.entity';
 import { PackageItem } from '../../domain/models/package-item.vo';
 import { CreateShipmentDto } from '../dtos/create-shipment.dto';
