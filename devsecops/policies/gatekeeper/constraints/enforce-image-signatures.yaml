@@ -1,0 +1,19 @@
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sCosignSignatureVerification
+metadata:
+  name: enforce-image-signatures
+spec:
+  match:
+    kinds:
+      - apiGroups: ["apps"]
+        kinds: ["Deployment"]
+    namespaces:
+      - "staging"
+      - "prod"
+      - "production"
+  parameters:
+    enforceDigest: false # Allows semver tags in staging/prod while strictly blocking mutable :latest
+    disallowTags:
+      - "latest"
+      - "dev"
+      - "snapshot"
