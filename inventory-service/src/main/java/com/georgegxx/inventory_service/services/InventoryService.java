@@ -2,7 +2,12 @@ package com.georgegxx.inventory_service.services;
 
 import com.georgegxx.inventory_service.model.dtos.*;
 import com.georgegxx.inventory_service.model.entities.Inventory;
+import com.georgegxx.inventory_service.model.entities.InventoryReservation;
+import com.georgegxx.inventory_service.model.enums.InventoryReservationStatus;
+import com.georgegxx.inventory_service.repositories.InventoryCompensationRepository;
 import com.georgegxx.inventory_service.repositories.InventoryRepository;
+import com.georgegxx.inventory_service.repositories.InventoryReservationRepository;
+import com.georgegxx.inventory_service.utils.JsonUtils;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -13,12 +18,16 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -34,10 +43,15 @@ public class InventoryService {
 
     // Core dependencies injected via Lombok @RequiredArgsConstructor
     private final InventoryRepository inventoryRepository;
+    private final InventoryCompensationRepository compensationRepository;
+    private final InventoryReservationRepository reservationRepository;
     private final MeterRegistry meterRegistry;
     private final CacheManager cacheManager;
     // Self-reference provider to invoke @Transactional methods via the Spring AOP proxy
     private final ObjectProvider<InventoryService> self;
+
+    @Value("${ecommerce.inventory-reservation.ttl:PT15M}")
+    private Duration reservationTtl = Duration.ofMinutes(15);
 
     // In-memory metrics state (enables O(1) reads with zero SQL queries during Prometheus scrapes)
     private AtomicLong totalStockState = new AtomicLong(0);
@@ -50,6 +64,9 @@ public class InventoryService {
      */
     @PostConstruct
     public void initMetrics() {
+        if (this.reservationTtl.isZero() || this.reservationTtl.isNegative()) {
+            throw new IllegalStateException("Inventory reservation TTL must be positive");
+        }
         // Register gauge for warehouse-wide total stock count
         Gauge.builder("ecommerce_inventory_stock_total", this.totalStockState,
                 atomicLong -> atomicLong != null ? atomicLong.doubleValue() : 0.0)
@@ -273,6 +290,134 @@ public class InventoryService {
     @Transactional
     @SuppressWarnings("java:S9395")
     public BaseResponse decrementStock(List<OrderItemsRequest> orderItems) {
+        return decrementStockWithinTransaction(orderItems);
+    }
+
+    @Transactional
+    public BaseResponse reserveOrder(String orderNumber, List<OrderItemsRequest> orderItems) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("Order number is required for inventory reservation");
+        }
+        Map<String, Long> requestedQuantities = validateReservationItems(orderItems);
+        if (this.reservationTtl.isZero() || this.reservationTtl.isNegative()) {
+            throw new IllegalStateException("Inventory reservation TTL must be positive");
+        }
+
+        List<OrderItemsRequest> canonicalItems = toCanonicalItems(requestedQuantities);
+        String itemsPayload = JsonUtils.toJson(canonicalItems);
+        boolean inserted = this.reservationRepository.insertPendingIfAbsent(
+                orderNumber,
+                itemsPayload,
+                Instant.now().plus(this.reservationTtl)
+        ) == 1;
+        InventoryReservation reservation = this.reservationRepository.findByIdForUpdate(orderNumber)
+                .orElseThrow(() -> new IllegalStateException("Inventory reservation could not be loaded"));
+
+        if (!inserted) {
+            if (reservation.getStatus() != InventoryReservationStatus.PENDING
+                    && reservation.getStatus() != InventoryReservationStatus.CONFIRMED) {
+                return new BaseResponse(new String[]{"Inventory reservation was already released or expired"});
+            }
+            if (!Objects.equals(reservation.getItemsPayload(), itemsPayload)) {
+                return new BaseResponse(new String[]{"Order number was already used for a different inventory reservation"});
+            }
+            return new BaseResponse(null);
+        }
+
+        BaseResponse result = decrementStockWithinTransaction(canonicalItems);
+        if (result.hasErrors()) {
+            this.reservationRepository.deleteById(orderNumber);
+            return result;
+        }
+        return new BaseResponse(null);
+    }
+
+    @Transactional
+    public BaseResponse confirmReservation(String orderNumber) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("Order number is required to confirm inventory reservation");
+        }
+        InventoryReservation reservation = this.reservationRepository.findByIdForUpdate(orderNumber)
+                .orElse(null);
+        if (reservation == null) {
+            return new BaseResponse(new String[]{"Inventory reservation does not exist"});
+        }
+        if (reservation.getStatus() == InventoryReservationStatus.COMPENSATED) {
+            return new BaseResponse(null);
+        }
+        if (reservation.getStatus() != InventoryReservationStatus.PENDING
+                && reservation.getStatus() != InventoryReservationStatus.CONFIRMED) {
+            return new BaseResponse(new String[]{"Inventory reservation was already released or expired"});
+        }
+        if (reservation.getStatus() == InventoryReservationStatus.PENDING) {
+            reservation.setStatus(InventoryReservationStatus.CONFIRMED);
+            reservation.setExpiresAt(null);
+            this.reservationRepository.save(reservation);
+        }
+        return new BaseResponse(null);
+    }
+
+    @Transactional
+    public BaseResponse releaseReservation(String orderNumber) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("Order number is required to release inventory reservation");
+        }
+
+        this.reservationRepository.insertReleasedIfAbsent(orderNumber);
+        InventoryReservation reservation = this.reservationRepository.findByIdForUpdate(orderNumber)
+                .orElseThrow(() -> new IllegalStateException("Inventory reservation release marker could not be loaded"));
+        if (reservation.getStatus() == InventoryReservationStatus.PENDING) {
+            List<OrderItemsRequest> items = parseReservationItems(reservation);
+            BaseResponse result = restoreStockWithinTransaction(items);
+            if (result.hasErrors()) {
+                String details = result.errorMessages() == null
+                        ? "Unknown inventory error"
+                        : String.join(", ", result.errorMessages());
+                throw new IllegalStateException("Failed to restore stock for released reservation "
+                        + orderNumber + ": " + details);
+            }
+            reservation.setStatus(InventoryReservationStatus.RELEASED);
+            reservation.setExpiresAt(null);
+            this.reservationRepository.save(reservation);
+        }
+        return new BaseResponse(null);
+    }
+
+    @Transactional
+    public int expireDueReservations(int limit) {
+        if (limit <= 0) {
+            throw new IllegalArgumentException("Expiration batch size must be positive");
+        }
+        List<InventoryReservation> expiredReservations = this.reservationRepository.findExpiredForUpdate(
+                InventoryReservationStatus.PENDING,
+                Instant.now(),
+                PageRequest.of(0, limit)
+        );
+        int releasedCount = 0;
+        for (InventoryReservation reservation : expiredReservations) {
+            if (reservation.getStatus() != InventoryReservationStatus.PENDING
+                    || reservation.getExpiresAt() == null
+                    || reservation.getExpiresAt().isAfter(Instant.now())) {
+                continue;
+            }
+            BaseResponse result = restoreStockWithinTransaction(parseReservationItems(reservation));
+            if (result.hasErrors()) {
+                String details = result.errorMessages() == null
+                        ? "Unknown inventory error"
+                        : String.join(", ", result.errorMessages());
+                throw new IllegalStateException("Failed to restore stock for expired reservation "
+                        + reservation.getOrderNumber() + ": " + details);
+            }
+            reservation.setStatus(InventoryReservationStatus.EXPIRED);
+            reservation.setExpiresAt(null);
+            this.reservationRepository.save(reservation);
+            releasedCount++;
+        }
+        return releasedCount;
+    }
+
+    @SuppressWarnings("java:S9395")
+    private BaseResponse decrementStockWithinTransaction(List<OrderItemsRequest> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
             return new BaseResponse(null);
         }
@@ -330,6 +475,10 @@ public class InventoryService {
      */
     @Transactional
     public BaseResponse incrementStock(List<OrderItemsRequest> orderItems) {
+        return restoreStockWithinTransaction(orderItems);
+    }
+
+    private BaseResponse restoreStockWithinTransaction(List<OrderItemsRequest> orderItems) {
         if (orderItems == null || orderItems.isEmpty()) {
             return new BaseResponse(null);
         }
@@ -373,6 +522,81 @@ public class InventoryService {
         });
 
         return new BaseResponse(null);
+    }
+
+    @Transactional
+    public BaseResponse compensateOrder(String orderNumber, List<OrderItemsRequest> orderItems) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            throw new IllegalArgumentException("Order number is required for inventory compensation");
+        }
+        if (orderItems == null || orderItems.isEmpty()
+                || orderItems.stream().anyMatch(item -> item == null
+                        || item.getSku() == null
+                        || item.getSku().isBlank()
+                        || item.getQuantity() == null
+                        || item.getQuantity() <= 0)) {
+            throw new IllegalArgumentException("Valid line items are required for inventory compensation");
+        }
+
+        if (this.compensationRepository.insertIfAbsent(orderNumber) == 0) {
+            log.info("Inventory compensation for order #{} was already committed; ignoring duplicate", orderNumber);
+            return new BaseResponse(null);
+        }
+
+        InventoryReservation reservation = this.reservationRepository.findByIdForUpdate(orderNumber).orElse(null);
+        if (reservation != null && (reservation.getStatus() == InventoryReservationStatus.RELEASED
+                || reservation.getStatus() == InventoryReservationStatus.EXPIRED)) {
+            reservation.setStatus(InventoryReservationStatus.COMPENSATED);
+            reservation.setExpiresAt(null);
+            this.reservationRepository.save(reservation);
+            log.info("Inventory for order #{} was already restored by its reservation release", orderNumber);
+            return new BaseResponse(null);
+        }
+        if (reservation != null) {
+            reservation.setStatus(InventoryReservationStatus.COMPENSATED);
+            reservation.setExpiresAt(null);
+            this.reservationRepository.save(reservation);
+        }
+        BaseResponse result = restoreStockWithinTransaction(orderItems);
+        if (result.hasErrors()) {
+            String details = result.errorMessages() == null
+                    ? "Unknown inventory error"
+                    : String.join(", ", result.errorMessages());
+            throw new IllegalStateException("Inventory compensation failed for order #" + orderNumber + ": " + details);
+        }
+        return result;
+    }
+
+    private Map<String, Long> validateReservationItems(List<OrderItemsRequest> orderItems) {
+        if (orderItems == null || orderItems.isEmpty()
+                || orderItems.stream().anyMatch(item -> item == null
+                        || item.getSku() == null
+                        || item.getSku().isBlank()
+                        || item.getQuantity() == null
+                        || item.getQuantity() <= 0)) {
+            throw new IllegalArgumentException("Valid line items are required for inventory reservation");
+        }
+        return new TreeMap<>(aggregateQuantities(orderItems));
+    }
+
+    private List<OrderItemsRequest> toCanonicalItems(Map<String, Long> requestedQuantities) {
+        return requestedQuantities.entrySet().stream()
+                .map(entry -> OrderItemsRequest.builder()
+                        .sku(entry.getKey())
+                        .quantity(entry.getValue())
+                        .build())
+                .toList();
+    }
+
+    private List<OrderItemsRequest> parseReservationItems(InventoryReservation reservation) {
+        if (reservation.getItemsPayload() == null || reservation.getItemsPayload().isBlank()) {
+            throw new IllegalStateException("Pending inventory reservation has no item payload");
+        }
+        OrderItemsRequest[] parsed = JsonUtils.fromJson(reservation.getItemsPayload(), OrderItemsRequest[].class);
+        if (parsed == null || parsed.length == 0) {
+            throw new IllegalStateException("Pending inventory reservation has no line items");
+        }
+        return Arrays.asList(parsed);
     }
 
     /**

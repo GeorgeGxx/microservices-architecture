@@ -2,7 +2,12 @@ package com.georgegxx.inventory_service.services;
 
 import com.georgegxx.inventory_service.model.dtos.*;
 import com.georgegxx.inventory_service.model.entities.Inventory;
+import com.georgegxx.inventory_service.model.entities.InventoryReservation;
+import com.georgegxx.inventory_service.model.enums.InventoryReservationStatus;
+import com.georgegxx.inventory_service.repositories.InventoryCompensationRepository;
 import com.georgegxx.inventory_service.repositories.InventoryRepository;
+import com.georgegxx.inventory_service.repositories.InventoryReservationRepository;
+import com.georgegxx.inventory_service.utils.JsonUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,6 +32,12 @@ class InventoryServiceTest {
     private InventoryRepository inventoryRepository;
 
     @Mock
+    private InventoryCompensationRepository compensationRepository;
+
+    @Mock
+    private InventoryReservationRepository reservationRepository;
+
+    @Mock
     private CacheManager cacheManager;
 
     @Mock
@@ -42,7 +53,14 @@ class InventoryServiceTest {
     void setUp() {
         meterRegistry = new SimpleMeterRegistry();
         lenient().when(cacheManager.getCache("inventory")).thenReturn(cache);
-        inventoryService = new InventoryService(inventoryRepository, meterRegistry, cacheManager, self);
+        inventoryService = new InventoryService(
+                inventoryRepository,
+                compensationRepository,
+                reservationRepository,
+                meterRegistry,
+                cacheManager,
+                self
+        );
         lenient().when(self.getObject()).thenAnswer(inv -> inventoryService);
         lenient().when(self.getIfAvailable()).thenAnswer(inv -> inventoryService);
     }
@@ -208,6 +226,106 @@ class InventoryServiceTest {
     }
 
     @Test
+    @DisplayName("reserveOrder deducts stock once and stores an expiring pending reservation")
+    void testReserveOrder_Success() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-RESERVE").quantity(3L).build();
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-RESERVE").quantity(8L).build();
+        when(reservationRepository.insertPendingIfAbsent(eq("ORD-RESERVE"), anyString(), any()))
+                .thenReturn(1);
+        when(reservationRepository.findByIdForUpdate("ORD-RESERVE"))
+                .thenReturn(Optional.of(new InventoryReservation()));
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-RESERVE"))).thenReturn(List.of(inventory));
+
+        BaseResponse response = inventoryService.reserveOrder("ORD-RESERVE", List.of(item));
+
+        assertFalse(response.hasErrors());
+        assertEquals(5L, inventory.getQuantity());
+        verify(reservationRepository).insertPendingIfAbsent(eq("ORD-RESERVE"), anyString(), any());
+        verify(inventoryRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("reserveOrder treats an identical retry as success without deducting stock twice")
+    void testReserveOrder_Duplicate_DoesNotDeductAgain() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-RESERVE").quantity(3L).build();
+        InventoryReservation existing = new InventoryReservation();
+        existing.setOrderNumber("ORD-RESERVE-DUPLICATE");
+        existing.setStatus(InventoryReservationStatus.PENDING);
+        existing.setItemsPayload(JsonUtils.toJson(List.of(item)));
+        when(reservationRepository.insertPendingIfAbsent(eq("ORD-RESERVE-DUPLICATE"), anyString(), any()))
+                .thenReturn(0);
+        when(reservationRepository.findByIdForUpdate("ORD-RESERVE-DUPLICATE")).thenReturn(Optional.of(existing));
+
+        BaseResponse response = inventoryService.reserveOrder("ORD-RESERVE-DUPLICATE", List.of(item));
+
+        assertFalse(response.hasErrors());
+        verifyNoInteractions(inventoryRepository);
+    }
+
+    @Test
+    @DisplayName("releaseReservation restores pending stock and is safe to retry")
+    void testReleaseReservation_RestoresPendingReservation() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-RELEASE").quantity(2L).build();
+        InventoryReservation reservation = new InventoryReservation();
+        reservation.setOrderNumber("ORD-RELEASE");
+        reservation.setStatus(InventoryReservationStatus.PENDING);
+        reservation.setItemsPayload(JsonUtils.toJson(List.of(item)));
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-RELEASE").quantity(4L).build();
+        when(reservationRepository.findByIdForUpdate("ORD-RELEASE")).thenReturn(Optional.of(reservation));
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-RELEASE"))).thenReturn(List.of(inventory));
+
+        BaseResponse response = inventoryService.releaseReservation("ORD-RELEASE");
+
+        assertFalse(response.hasErrors());
+        assertEquals(InventoryReservationStatus.RELEASED, reservation.getStatus());
+        assertEquals(6L, inventory.getQuantity());
+        verify(reservationRepository).insertReleasedIfAbsent("ORD-RELEASE");
+        verify(reservationRepository).save(reservation);
+    }
+
+    @Test
+    @DisplayName("expireDueReservations releases overdue pending holds")
+    void testExpireDueReservations_ReleasesExpiredHold() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-EXPIRED").quantity(1L).build();
+        InventoryReservation reservation = new InventoryReservation();
+        reservation.setOrderNumber("ORD-EXPIRED");
+        reservation.setStatus(InventoryReservationStatus.PENDING);
+        reservation.setItemsPayload(JsonUtils.toJson(List.of(item)));
+        reservation.setExpiresAt(java.time.Instant.now().minusSeconds(1));
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-EXPIRED").quantity(2L).build();
+        when(reservationRepository.findExpiredForUpdate(eq(InventoryReservationStatus.PENDING), any(), any()))
+                .thenReturn(List.of(reservation));
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-EXPIRED"))).thenReturn(List.of(inventory));
+
+        int released = inventoryService.expireDueReservations(10);
+
+        assertEquals(1, released);
+        assertEquals(InventoryReservationStatus.EXPIRED, reservation.getStatus());
+        assertEquals(3L, inventory.getQuantity());
+    }
+
+    @Test
+    @DisplayName("Saga compensation does not restore stock again after an expired reservation")
+    void testCompensateOrder_AfterExpiredReservation_DoesNotDoubleRestore() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-EXPIRED-COMP").quantity(2L).build();
+        InventoryReservation reservation = new InventoryReservation();
+        reservation.setOrderNumber("ORD-EXPIRED-COMP");
+        reservation.setStatus(InventoryReservationStatus.EXPIRED);
+        when(compensationRepository.insertIfAbsent("ORD-EXPIRED-COMP")).thenReturn(1);
+        when(reservationRepository.findByIdForUpdate("ORD-EXPIRED-COMP")).thenReturn(Optional.of(reservation));
+
+        BaseResponse response = inventoryService.compensateOrder("ORD-EXPIRED-COMP", List.of(item));
+
+        assertFalse(response.hasErrors());
+        assertEquals(InventoryReservationStatus.COMPENSATED, reservation.getStatus());
+        verifyNoInteractions(inventoryRepository);
+
+        when(reservationRepository.findByIdForUpdate("ORD-EXPIRED-COMP"))
+                .thenReturn(Optional.of(reservation));
+        assertFalse(inventoryService.confirmReservation("ORD-EXPIRED-COMP").hasErrors());
+    }
+
+    @Test
     @DisplayName("incrementStock restores stock compensating order cancellation")
     void testIncrementStock() {
         List<OrderItemsRequest> items = List.of(
@@ -223,6 +341,43 @@ class InventoryServiceTest {
         assertEquals(10L, inv.getQuantity());
         verify(inventoryRepository).saveAll(anyList());
         verify(cache).evict("SKU-INC");
+    }
+
+    @Test
+    @DisplayName("compensateOrder inserts the durable marker before restoring stock")
+    void testCompensateOrder_FirstDelivery_RestoresAndRecords() {
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-100").quantity(4L).build();
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-100").quantity(2L).build();
+        when(compensationRepository.insertIfAbsent("ORD-COMPENSATE-1")).thenReturn(1);
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-100"))).thenReturn(List.of(inventory));
+        when(inventoryRepository.saveAll(anyList())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        BaseResponse response = inventoryService.compensateOrder("ORD-COMPENSATE-1", List.of(item));
+
+        assertFalse(response.hasErrors());
+        assertEquals(6L, inventory.getQuantity());
+        verify(compensationRepository).insertIfAbsent("ORD-COMPENSATE-1");
+        verify(inventoryRepository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("compensateOrder skips stock updates when its durable marker already exists")
+    void testCompensateOrder_Duplicate_DoesNotRestoreAgain() {
+        when(compensationRepository.insertIfAbsent("ORD-COMPENSATE-DUPLICATE")).thenReturn(0);
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("SKU-100").quantity(2L).build();
+
+        BaseResponse response = inventoryService.compensateOrder("ORD-COMPENSATE-DUPLICATE", List.of(item));
+
+        assertFalse(response.hasErrors());
+        verifyNoInteractions(inventoryRepository);
+    }
+
+    @Test
+    @DisplayName("compensateOrder rejects invalid requests before writing a marker")
+    void testCompensateOrder_InvalidRequest_DoesNotWrite() {
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder(" ", List.of()));
+
+        verifyNoInteractions(compensationRepository, inventoryRepository);
     }
 
     @Test

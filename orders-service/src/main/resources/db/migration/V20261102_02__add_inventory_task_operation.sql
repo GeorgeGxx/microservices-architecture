@@ -1,0 +1,2 @@
+ALTER TABLE inventory_compensation_tasks
+    ADD COLUMN IF NOT EXISTS operation VARCHAR(32) NOT NULL DEFAULT 'COMPENSATE';

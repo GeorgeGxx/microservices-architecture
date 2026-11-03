@@ -43,10 +43,14 @@ spring:
       connection-timeout: 20000
       leak-detection-threshold: 15000
 
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update # For prod ${HIBERNATE_DDL_AUTO:validate}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
         '[default_batch_fetch_size]': 25    # Reduces the N+1 query problem.
@@ -77,6 +81,11 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${KEYCLOAK_JWT_URI:http://localhost:8181/realms/microservices-realm/protocol/openid-connect/certs}
+
+ecommerce:
+  inventory-reservation:
+    ttl: ${INVENTORY_RESERVATION_TTL:PT15M}
+    expiration-scheduler-delay-ms: ${INVENTORY_RESERVATION_EXPIRATION_SCHEDULER_DELAY_MS:10000}
 
 server:
   port: ${PORT:8001}

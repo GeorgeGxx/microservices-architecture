@@ -44,6 +44,8 @@ configMap:
     ANALYTICS_SERVICE_URI: "http://analytics-service:8087"
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://tempo.observability.svc.cluster.local:4318"
     TRACING_SAMPLING_PROBABILITY: "1.0"
+    HIBERNATE_DDL_AUTO: "update"
+    INVENTORY_RESERVATION_TTL: "PT15M"
     REDIS_HOST: "redis"
     REDIS_PORT: "6379"
     KEYCLOAK_ISSUER_URI: "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm"

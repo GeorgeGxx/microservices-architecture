@@ -6,6 +6,7 @@ global:
 configMap:
   data:
     TRACING_SAMPLING_PROBABILITY: "0.25"
+    HIBERNATE_DDL_AUTO: "validate"
 
 # AWS ECR Medium Performance Tier (Staging)
 cosmo-router:

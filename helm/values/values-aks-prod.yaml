@@ -15,6 +15,7 @@ global:
 configMap:
   data:
     TRACING_SAMPLING_PROBABILITY: "0.1"
+    HIBERNATE_DDL_AUTO: "validate"
 
 cosmo-router:
   graphql:

@@ -52,6 +52,7 @@ public class OrderService implements InitializingBean {
     private final MeterRegistry meterRegistry;
     private final IdempotencyManager idempotencyManager;
     private final OutboxService outboxService;
+    private final InventoryCompensationTaskService inventoryCompensationTaskService;
 
     private CircuitBreaker inventoryCircuitBreaker;
     private CircuitBreaker productsCircuitBreaker;
@@ -65,7 +66,8 @@ public class OrderService implements InitializingBean {
             CircuitBreakerRegistry circuitBreakerRegistry,
             MeterRegistry meterRegistry,
             IdempotencyManager idempotencyManager,
-            OutboxService outboxService) {
+            OutboxService outboxService,
+            InventoryCompensationTaskService inventoryCompensationTaskService) {
         this.orderRepository = orderRepository;
         this.inventoryClient = inventoryClient;
         this.productsClient = productsClient;
@@ -74,6 +76,20 @@ public class OrderService implements InitializingBean {
         this.meterRegistry = meterRegistry;
         this.idempotencyManager = idempotencyManager;
         this.outboxService = outboxService;
+        this.inventoryCompensationTaskService = inventoryCompensationTaskService;
+    }
+
+    public OrderService(
+            OrderRepository orderRepository,
+            InventoryClient inventoryClient,
+            ProductsClient productsClient,
+            KafkaTemplate<String, String> kafkaTemplate,
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            MeterRegistry meterRegistry,
+            IdempotencyManager idempotencyManager,
+            OutboxService outboxService) {
+        this(orderRepository, inventoryClient, productsClient, kafkaTemplate, circuitBreakerRegistry, meterRegistry,
+                idempotencyManager, outboxService, null);
     }
 
     public OrderService(
@@ -111,13 +127,16 @@ public class OrderService implements InitializingBean {
             @CacheEvict(value = "orders", allEntries = true),
             @CacheEvict(value = "user_orders", allEntries = true)
     })
+    @Transactional
     public OrderResponse placeOrder(OrderRequest orderRequest, String idempotencyKey, String userId, String username) {
         Optional<OrderResponse> cachedOrder = this.idempotencyManager.checkOrLock(idempotencyKey, orderRequest);
         if (cachedOrder.isPresent()) {
             return cachedOrder.get();
         }
 
-        boolean stockDeducted = false;
+        boolean reservationRequested = false;
+        boolean rollbackReleaseRegistered = false;
+        String orderNumber = UUID.randomUUID().toString();
         try {
             List<String> skus = orderRequest.getOrderItems().stream()
                     .map(item -> item != null ? item.getSku() : null)
@@ -135,20 +154,34 @@ public class OrderService implements InitializingBean {
             Map<String, ProductPriceResponse> authoritativeProducts = productsFuture.join();
             validateProductAvailability(skus, authoritativeProducts);
 
-            decrementInventoryStock(orderRequest.getOrderItems());
-            stockDeducted = true;
+            reservationRequested = true;
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                afterCompletion(
+                        () -> {},
+                        () -> enqueueInventoryReservationRelease(orderNumber)
+                );
+                rollbackReleaseRegistered = true;
+            }
+            reserveInventoryStock(orderNumber, orderRequest.getOrderItems());
 
-            Order savedOrder = saveOrder(orderRequest, authoritativeProducts, userId, username);
+            Order savedOrder = saveOrder(orderRequest, authoritativeProducts, userId, username, orderNumber);
+            if (this.inventoryCompensationTaskService != null) {
+                this.inventoryCompensationTaskService.enqueueReservationConfirmation(orderNumber);
+            }
+            afterCommit(() -> confirmInventoryReservation(orderNumber));
             publishOrderEvent(savedOrder, OrderStatus.PLACED);
             this.meterRegistry.counter("orders_placed_total", OrderConstants.STATUS_TAG, "SUCCESS").increment();
 
             OrderResponse orderResponse = mapOrderToOrderResponse(savedOrder);
-            this.idempotencyManager.saveCompleted(idempotencyKey, orderRequest, orderResponse);
+            afterCompletion(
+                    () -> this.idempotencyManager.saveCompleted(idempotencyKey, orderRequest, orderResponse),
+                    () -> this.idempotencyManager.releaseLock(idempotencyKey)
+            );
             return orderResponse;
         } catch (Exception ex) {
             log.error("Error encountered while processing placeOrder: {}", ex.getMessage());
-            if (stockDeducted) {
-                compensateInventoryStock(orderRequest.getOrderItems());
+            if (reservationRequested && !rollbackReleaseRegistered) {
+                enqueueInventoryReservationRelease(orderNumber);
             }
             this.idempotencyManager.releaseLock(idempotencyKey);
             if (ex instanceof CompletionException ce && ce.getCause() instanceof RuntimeException re) {
@@ -194,23 +227,46 @@ public class OrderService implements InitializingBean {
         }
     }
 
-    private void decrementInventoryStock(List<OrderItemsRequest> orderItems) {
+    private void reserveInventoryStock(String orderNumber, List<OrderItemsRequest> orderItems) {
         BaseResponse result = callInventory(
-                () -> this.inventoryClient.decrementStock(orderItems),
-                "Failed to secure inventory allocation. Service unavailable."
+                () -> this.inventoryClient.reserveOrder(
+                        new InventoryReservationRequest(orderNumber, orderItems)
+                ),
+                "Failed to reserve inventory. Service unavailable."
         );
         if (result == null) {
-            throw new ServiceUnavailableException("Inventory service returned no response while securing stock.");
+            throw new ServiceUnavailableException("Inventory service returned no response while reserving stock.");
         }
         if (result.hasErrors()) {
             String details = result.errorMessages() != null ? String.join(", ", result.errorMessages()) : "Unknown error";
-            throw new InsufficientStockException("Failed to decrement inventory: " + details);
+            throw new InsufficientStockException("Failed to reserve inventory: " + details);
         }
     }
 
-    private Order saveOrder(OrderRequest req, Map<String, ProductPriceResponse> authoritativeProducts, String userId, String username) {
+    private void confirmInventoryReservation(String orderNumber) {
+        BaseResponse response = callInventory(
+                () -> this.inventoryClient.confirmReservation(orderNumber),
+                "Failed to confirm inventory reservation. Service unavailable."
+        );
+        if (response == null || response.hasErrors()) {
+            String details = response != null && response.errorMessages() != null
+                    ? String.join(", ", response.errorMessages())
+                    : "Inventory service returned no confirmation result";
+            throw new ServiceUnavailableException("Failed to confirm inventory reservation: " + details);
+        }
+        if (this.inventoryCompensationTaskService != null) {
+            this.inventoryCompensationTaskService.markCompleted(orderNumber);
+        }
+    }
+
+    private Order saveOrder(
+            OrderRequest req,
+            Map<String, ProductPriceResponse> authoritativeProducts,
+            String userId,
+            String username,
+            String orderNumber) {
         Order order = new Order();
-        order.setOrderNumber(UUID.randomUUID().toString());
+        order.setOrderNumber(orderNumber);
         order.setUserId(userId);
         order.setUsername(username);
         order.setOrderStatus(OrderStatus.PLACED);
@@ -277,17 +333,12 @@ public class OrderService implements InitializingBean {
         if (this.outboxService == null) {
             return null;
         }
-        try {
-            return this.outboxService.recordEvent(
-                    OrderConstants.ORDERS_TOPIC,
-                    order.getOrderNumber(),
-                    "ORDER_" + status.name(),
-                    payload
-            );
-        } catch (Exception ex) {
-            log.error("Failed to record transactional outbox event for order #{}: {}", order.getOrderNumber(), ex.getMessage(), ex);
-            return null;
-        }
+        return this.outboxService.recordEvent(
+                OrderConstants.ORDERS_TOPIC,
+                order.getOrderNumber(),
+                "ORDER_" + status.name(),
+                payload
+        );
     }
 
     private String buildOrderEventPayload(Order order, OrderStatus status) {
@@ -319,19 +370,23 @@ public class OrderService implements InitializingBean {
         ));
     }
 
-    private void compensateInventoryStock(List<OrderItemsRequest> orderItems) {
+    private void enqueueInventoryReservationRelease(String orderNumber) {
         try {
-            this.meterRegistry.counter("ecommerce_compensations_total").increment();
-            CircuitBreaker cb = this.circuitBreakerRegistry.circuitBreaker(OrderConstants.INVENTORY_SERVICE);
-            BaseResponse response = cb.executeSupplier(() -> this.inventoryClient.incrementStock(orderItems));
-            if (response == null || response.hasErrors()) {
-                String details = response != null && response.errorMessages() != null
-                        ? String.join(", ", response.errorMessages())
-                        : "Inventory service returned no compensation result";
-                throw new IllegalStateException("Inventory compensation failed: " + details);
+            this.meterRegistry.counter("ecommerce_inventory_reservation_releases_total").increment();
+            if (this.inventoryCompensationTaskService != null) {
+                this.inventoryCompensationTaskService.enqueueReservationRelease(orderNumber);
+            } else {
+                BaseResponse response = this.inventoryClient.releaseReservation(orderNumber);
+                if (response == null || response.hasErrors()) {
+                    String details = response != null && response.errorMessages() != null
+                            ? String.join(", ", response.errorMessages())
+                            : "Inventory service returned no reservation release result";
+                    throw new IllegalStateException("Inventory reservation release failed: " + details);
+                }
             }
         } catch (Exception e) {
-            log.error("CRITICAL: Error occurred while dispatching inventory compensation: {}", e.getMessage(), e);
+            log.error("CRITICAL: Failed to persist or dispatch inventory reservation release for order #{}",
+                    orderNumber, e);
         }
     }
 
@@ -435,6 +490,34 @@ public class OrderService implements InitializingBean {
                     action.run();
                 } catch (RuntimeException ex) {
                     log.error("Order committed, but a post-commit side effect failed", ex);
+                }
+            }
+        });
+    }
+
+    private void afterCompletion(Runnable committed, Runnable rolledBack) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            committed.run();
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                try {
+                    committed.run();
+                } catch (RuntimeException ex) {
+                    log.error("Failed to persist order idempotency result after commit", ex);
+                }
+            }
+
+            @Override
+            public void afterCompletion(int status) {
+                if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                    try {
+                        rolledBack.run();
+                    } catch (RuntimeException ex) {
+                        log.error("Failed to compensate side effects after order transaction rollback", ex);
+                    }
                 }
             }
         });

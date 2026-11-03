@@ -27,10 +27,14 @@ spring:
       connection-timeout: 20000
       leak-detection-threshold: 15000
 
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update # For prod ${HIBERNATE_DDL_AUTO:validate}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
     properties:
       hibernate:
         "[default_batch_fetch_size]": 25    # Avoids N+1 problem in order lines
