@@ -930,7 +930,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (carrier) (ecommerce_shipments_total)",
+          "expr": "sum by (carrier) (ecommerce_shipments_total{status!=\"CANCELLED\"})",
           "legendFormat": "Carrier: {{carrier}}"
         }
       ]
