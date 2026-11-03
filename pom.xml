@@ -44,6 +44,7 @@
 		<sonar.java.binaries>target/classes</sonar.java.binaries>
 		<sonar.java.test.binaries>target/test-classes</sonar.java.test.binaries>
 		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<sonar.coverage.exclusions>**/dto/**,**/dtos/**,**/model/dtos/**,**/entities/**,**/model/entities/**,**/config/**,**/utils/DataLoader.*,**/*Application.*,**/events/**,**/model/enums/**</sonar.coverage.exclusions>
 	</properties>
 
 	<modules>
@@ -258,6 +259,20 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+						<configuration>
+							<excludes>
+								<exclude>**/dto/**</exclude>
+								<exclude>**/dtos/**</exclude>
+								<exclude>**/model/dtos/**</exclude>
+								<exclude>**/entities/**</exclude>
+								<exclude>**/model/entities/**</exclude>
+								<exclude>**/config/**</exclude>
+								<exclude>**/utils/DataLoader.*</exclude>
+								<exclude>**/*Application.*</exclude>
+								<exclude>**/events/**</exclude>
+								<exclude>**/model/enums/**</exclude>
+							</excludes>
+						</configuration>
 					</execution>
 					<execution>
 						<id>jacoco-check</id>

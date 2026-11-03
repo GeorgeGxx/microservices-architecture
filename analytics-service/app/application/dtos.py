@@ -1,12 +1,12 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 class RecordFunnelEventDto(BaseModel):
-    event_type: str = Field(..., example="CART_ADD", description="Type of funnel event: CART_ADD, CHECKOUT_START, CHECKOUT_STEP")
-    category: Optional[str] = Field("General", example="Electronics")
-    step: Optional[str] = Field(None, example="PAYMENT")
-    session_id: Optional[str] = Field(None, example="sess-999")
+    event_type: str = Field(..., json_schema_extra={"example": "CART_ADD"}, description="Type of funnel event: CART_ADD, CHECKOUT_START, CHECKOUT_STEP")
+    category: Optional[str] = Field("General", json_schema_extra={"example": "Electronics"})
+    step: Optional[str] = Field(None, json_schema_extra={"example": "PAYMENT"})
+    session_id: Optional[str] = Field(None, json_schema_extra={"example": "sess-999"})
     metadata: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class FunnelEventResponseDto(BaseModel):
