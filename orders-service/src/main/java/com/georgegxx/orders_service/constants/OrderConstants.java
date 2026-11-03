@@ -30,7 +30,9 @@ public final class OrderConstants {
     // Logistics & Carrier Defaults
     public static final String DEFAULT_DELIVERY_METHOD = "STANDARD";
     public static final String DEFAULT_CARRIER = "DHL Express";
+    public static final String CARRIER_FEDEX = "FedEx";
     public static final String TRACKING_PREFIX = "DHL-";
+    public static final String TRACKING_PREFIX_FEDEX = "FDX-";
     public static final String DEFAULT_PAYMENT_METHOD = "CARD_VISA";
 
     // Pricing & Financial Calculation Defaults

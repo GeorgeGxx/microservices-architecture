@@ -14,6 +14,7 @@ class Settings(BaseModel):
     kafka_payments_topic: str = os.getenv("KAFKA_PAYMENTS_TOPIC", "payments-topic")
     kafka_fulfillment_topic: str = os.getenv("KAFKA_FULFILLMENT_TOPIC", "fulfillment-topic")
     kafka_group_id: str = os.getenv("KAFKA_GROUP_ID", "analytics-service-group")
+    kafka_auto_offset_reset: str = os.getenv("KAFKA_AUTO_OFFSET_RESET", "earliest")
     environment: str = os.getenv("ENV", "development")
 
     @property

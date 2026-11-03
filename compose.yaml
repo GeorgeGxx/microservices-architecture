@@ -284,6 +284,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      kafka:
+        condition: service_healthy
       otel-collector:
         condition: service_started
     networks:
