@@ -1,0 +1,85 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8spodsecurityrestricted
+  annotations:
+    description: >-
+      Enforces Pod Security Standards Restricted profile:
+      disallows privilege escalation, disallows privileged mode,
+      requires running as non-root, requires dropping ALL capabilities,
+      and enforces read-only root filesystems on application containers.
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sPodSecurityRestricted
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptContainers:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8spodsecurityrestricted
+
+        is_exempt(container_name) {
+          exempt := object.get(input.parameters, "exemptContainers", [])
+          exempt[_] == container_name
+        }
+
+        # 1. Disallow Privileged
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not is_exempt(container.name)
+          container.securityContext.privileged == true
+          msg := sprintf("Container '%v' must not run in privileged mode.", [container.name])
+        }
+
+        # 2. Disallow Privilege Escalation
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not is_exempt(container.name)
+          container.securityContext.allowPrivilegeEscalation != false
+          msg := sprintf("Container '%v' must set securityContext.allowPrivilegeEscalation to false.", [container.name])
+        }
+
+        # 3. Require Running as Non-Root
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not is_exempt(container.name)
+          pod_sec := object.get(input.review.object.spec.template.spec, "securityContext", {})
+          cont_sec := object.get(container, "securityContext", {})
+          not pod_sec.runAsNonRoot == true
+          not cont_sec.runAsNonRoot == true
+          not pod_sec.runAsUser > 0
+          not cont_sec.runAsUser > 0
+          msg := sprintf("Container '%v' or Pod must set runAsNonRoot to true or runAsUser > 0.", [container.name])
+        }
+
+        # 4. Require Dropping ALL Capabilities
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not is_exempt(container.name)
+          sec := object.get(container, "securityContext", {})
+          caps := object.get(sec, "capabilities", {})
+          drop := object.get(caps, "drop", [])
+          not dropped_all(drop)
+          msg := sprintf("Container '%v' must drop ALL capabilities (securityContext.capabilities.drop: ['ALL']).", [container.name])
+        }
+
+        dropped_all(drop_list) {
+          drop_list[_] == "ALL"
+        }
+
+        # 5. Require Read-Only Root Filesystem
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          not is_exempt(container.name)
+          sec := object.get(container, "securityContext", {})
+          sec.readOnlyRootFilesystem != true
+          msg := sprintf("Container '%v' must enforce securityContext.readOnlyRootFilesystem: true.", [container.name])
+        }

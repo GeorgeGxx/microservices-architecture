@@ -1,0 +1,109 @@
+# ==============================================================================
+# Edge Security: OWASP Security Headers & Local WAF Rate Limiting
+# Applies to Istio Ingress Gateway to harden perimeter against web attacks.
+# ==============================================================================
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingress-security-headers
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.custom_response
+    - applyTo: ROUTE_CONFIGURATION
+      match:
+        context: GATEWAY
+      patch:
+        operation: MERGE
+        value:
+          response_headers_to_add:
+            - header:
+                key: "Strict-Transport-Security"
+                value: "max-age=31536000; includeSubDomains; preload"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "X-Content-Type-Options"
+                value: "nosniff"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "X-Frame-Options"
+                value: "DENY"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "X-XSS-Protection"
+                value: "1; mode=block"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "Referrer-Policy"
+                value: "strict-origin-when-cross-origin"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "Permissions-Policy"
+                value: "geolocation=(), microphone=(), camera=()"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+            - header:
+                key: "Content-Security-Policy"
+                value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http: https: ws: wss:; frame-ancestors 'none';"
+              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+---
+# Perimeter Rate Limiter (Token Bucket Filter: 100 req/min with 200 burst)
+apiVersion: networking.istio.io/v1alpha3
+kind: EnvoyFilter
+metadata:
+  name: ingress-waf-rate-limit
+  namespace: istio-system
+spec:
+  workloadSelector:
+    labels:
+      istio: ingressgateway
+  configPatches:
+    - applyTo: HTTP_FILTER
+      match:
+        context: GATEWAY
+        listener:
+          filterChain:
+            filter:
+              name: "envoy.filters.network.http_connection_manager"
+              subFilter:
+                name: "envoy.filters.http.router"
+      patch:
+        operation: INSERT_BEFORE
+        value:
+          name: envoy.filters.http.local_ratelimit
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.http.local_ratelimit.v3.LocalRateLimit
+            stat_prefix: http_local_rate_limiter
+            status:
+              code: 429
+            token_bucket:
+              max_tokens: 200
+              tokens_per_fill: 100
+              fill_interval: 60s
+            filter_enabled:
+              runtime_key: local_rate_limit_enabled
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            filter_enforced:
+              runtime_key: local_rate_limit_enforced
+              default_value:
+                numerator: 100
+                denominator: HUNDRED
+            response_headers_to_add:
+              - append_action: OVERWRITE_IF_EXISTS_OR_ADD
+                header:
+                  key: x-local-rate-limit
+                  value: 'true'

@@ -1,0 +1,44 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8scosignsignatureverification
+  annotations:
+    description: >-
+      Enforces container supply-chain security by verifying that images are
+      pinned by immutable cryptographic SHA256 digests or signed by an approved
+      Cosign authority, and disallows mutable tags (such as :latest).
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sCosignSignatureVerification
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            enforceDigest:
+              type: boolean
+            disallowTags:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8scosignsignatureverification
+
+        # 1. Disallow mutable tags like ':latest'
+        violation[{"msg": msg}] {
+          container := input.review.object.spec.template.spec.containers[_]
+          tag := input.parameters.disallowTags[_]
+          endswith(container.image, concat("", [":", tag]))
+          msg := sprintf("Container image '%v' uses disallowed mutable tag ':%v'. Production deployments must use immutable versions or SHA256 digests.", [container.image, tag])
+        }
+
+        # 2. Enforce immutable SHA256 digest in production
+        violation[{"msg": msg}] {
+          input.parameters.enforceDigest == true
+          container := input.review.object.spec.template.spec.containers[_]
+          not contains(container.image, "@sha256:")
+          msg := sprintf("Container image '%v' is not pinned to an immutable @sha256 digest verified by Cosign.", [container.image])
+        }
