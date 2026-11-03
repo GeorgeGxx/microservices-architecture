@@ -54,15 +54,29 @@ def test_funnel_metrics_purchases_greater_than_cart_adds():
     assert metrics.checkout_completion_rate_pct == 100.0
 
 def test_funnel_metrics_cart_adds_without_checkout():
-    # When items are added to cart but checkout is never initiated, all carts are abandoned
+    # When items are added to cart but checkout/purchase is never initiated, all carts are abandoned
     metrics = FunnelMetrics.calculate(
         cart_adds=5,
         checkout_starts=0,
         checkout_steps=0,
-        purchases=14,  # Outside backend orders do not count as funnel completions
+        purchases=0,
     )
     assert metrics.cart_abandonment_rate_pct == 100.0
     assert metrics.checkout_completion_rate_pct == 0.0
+
+def test_funnel_metrics_reacts_dynamically_without_freezing():
+    # When orders are ingested asynchronously via Kafka and exceed partial frontend checkout telemetry,
+    # the abandonment rate dynamically calculates (12 - 11) / 12 = 8.33% instead of being artificially frozen.
+    metrics = FunnelMetrics.calculate(
+        cart_adds=12,
+        checkout_starts=2,
+        checkout_steps=0,
+        purchases=11,
+    )
+    assert metrics.cart_add_count == 12
+    assert metrics.completed_purchases == 11
+    assert metrics.cart_abandonment_rate_pct == 8.33
+    assert metrics.checkout_completion_rate_pct == 100.0
 
 def test_funnel_metrics_inferred_baseline_for_uninstrumented_purchases():
     # When completed purchases exist but cart adds are zero, infer realistic ~70% abandonment
