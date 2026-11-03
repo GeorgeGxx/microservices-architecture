@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   MapPin,
   AlertCircle,
-  AlertTriangle,
   XCircle,
   RefreshCw
 } from 'lucide-react';
@@ -174,12 +173,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         const profile = DECLINE_PROFILES[formData.paymentMethod] || DECLINE_PROFILES.SIMULATED_DECLINED;
 
         // Dispatch call to payments-service to register the failed transaction in Prometheus & PostgreSQL
+        const randomId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID()
+          : `${Date.now()}`;
         const declinePayload = {
           order_number: `SIM-DECLINE-${Date.now().toString().slice(-6)}`,
           amount: total,
           currency: 'USD',
           payment_method: formData.paymentMethod,
-          idempotency_key: `decline-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          idempotency_key: `decline-${Date.now()}-${randomId}`,
           customer_email: formData.customerEmail,
           customer_name: formData.customerName,
           shipping_address: formData.shippingAddress,
@@ -267,6 +269,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       isSubmittingRef.current = false;
       setIsLoading(false);
     }
+  };
+
+  const renderSubmitButtonContent = () => {
+    const isApprovedSim = formData.paymentMethod === 'SIMULATED_APPROVED';
+
+    if (isLoading) {
+      return (
+        <>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          {isApprovedSim ? 'Processing Saga...' : 'Authorizing with Issuer...'}
+        </>
+      );
+    }
+
+    if (isApprovedSim) {
+      return (
+        <>
+          <CheckCircle2 className="w-5 h-5" />
+          Confirm & Place Order ({formatPrice(total)})
+        </>
+      );
+    }
+
+    return (
+      <>
+        <XCircle className="w-5 h-5" />
+        Test Bank Decline ({formatPrice(total)})
+      </>
+    );
   };
 
   return (
@@ -657,24 +688,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                       : 'bg-gradient-to-r from-rose-600 to-red-600 hover:opacity-95 text-white shadow-rose-500/25'
                   }`}
                 >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      {formData.paymentMethod === 'SIMULATED_APPROVED'
-                        ? 'Processing Saga...'
-                        : 'Authorizing with Issuer...'}
-                    </>
-                  ) : formData.paymentMethod === 'SIMULATED_APPROVED' ? (
-                    <>
-                      <CheckCircle2 className="w-5 h-5" />
-                      Confirm & Place Order ({formatPrice(total)})
-                    </>
-                  ) : (
-                    <>
-                      <XCircle className="w-5 h-5" />
-                      Test Bank Decline ({formatPrice(total)})
-                    </>
-                  )}
+                  {renderSubmitButtonContent()}
                 </button>
               </div>
             </div>

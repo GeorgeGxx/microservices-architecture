@@ -119,6 +119,63 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 	}
 
 	// 2. Gateway Simulation
+	payment := s.initPaymentRecord(req)
+	simulatePaymentGateway(payment, req.PaymentMethod, req.Amount)
+
+	// 3. Persist in PostgreSQL 18
+	if err := s.repo.CreatePayment(ctx, payment); err != nil {
+		return nil, fmt.Errorf("failed to persist payment in database: %w", err)
+	}
+
+	// 4. Async Audit Log via Goroutines
+	s.dispatchAudit(payment.ID, string(payment.Status), fmt.Sprintf("Processed charge for order %s, amount %f %s", payment.OrderNumber, payment.Amount, payment.Currency))
+
+	// 5. Emit Kafka Saga Events
+	s.dispatchSagaEvents(req, payment)
+
+	return s.toProcessPaymentResponse(payment), nil
+}
+
+func isPaymentDeclined(paymentMethod string, amount float64) bool {
+	if amount == 9999.99 {
+		return true
+	}
+	pmUpper := strings.ToUpper(paymentMethod)
+	return strings.Contains(pmUpper, "DECLINE") || strings.HasPrefix(pmUpper, "SIMULATED_DECLINED")
+}
+
+func resolveDeclineReason(paymentMethod string) string {
+	pmUpper := strings.ToUpper(paymentMethod)
+	switch {
+	case strings.Contains(pmUpper, "INSUFFICIENT_FUNDS") || strings.Contains(pmUpper, "NO_CREDIT"):
+		return "Do Not Honor (Code 51): Insufficient funds / Credit limit exceeded"
+	case strings.Contains(pmUpper, "PIN") || strings.Contains(pmUpper, "NIP") || strings.Contains(pmUpper, "CVV"):
+		return "Invalid PIN/CVV (Code 55): Security authentication failed or incorrect PIN"
+	case strings.Contains(pmUpper, "FRAUD") || strings.Contains(pmUpper, "SUSPECTED"):
+		return "Suspected Fraud (Code 59): Security card hold triggered by issuing bank"
+	case strings.Contains(pmUpper, "EXPIRED"):
+		return "Expired Card (Code 54): Card validity period expired"
+	default:
+		return "Payment declined (Code 05): General transaction decline by issuer"
+	}
+}
+
+func simulatePaymentGateway(payment *models.Payment, paymentMethod string, amount float64) {
+	if isPaymentDeclined(paymentMethod, amount) {
+		payment.Status = models.PaymentStatusFailed
+		payment.FailureReason = resolveDeclineReason(paymentMethod)
+		payment.TransactionRef = ""
+		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", paymentMethod).Inc()
+		return
+	}
+
+	payment.Status = models.PaymentStatusCompleted
+	payment.TransactionRef = fmt.Sprintf("TXN-%s", uuid.New().String()[:8])
+	payment.FailureReason = ""
+	metrics.PaymentsProcessedTotal.WithLabelValues("COMPLETED", paymentMethod).Inc()
+}
+
+func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *models.Payment {
 	now := time.Now().UTC()
 	payment := &models.Payment{
 		ID:             uuid.New(),
@@ -137,88 +194,52 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 	if payment.IdempotencyKey == "" {
 		payment.IdempotencyKey = "gen-" + uuid.New().String()
 	}
+	return payment
+}
 
-	isDeclined := strings.EqualFold(req.PaymentMethod, "CARD_DECLINE") ||
-		strings.EqualFold(req.PaymentMethod, "DECLINE") ||
-		strings.Contains(strings.ToUpper(req.PaymentMethod), "DECLINE") ||
-		strings.HasPrefix(strings.ToUpper(req.PaymentMethod), "SIMULATED_DECLINED") ||
-		req.Amount == 9999.99
-
-	if isDeclined {
-		payment.Status = models.PaymentStatusFailed
-		pmUpper := strings.ToUpper(req.PaymentMethod)
-		switch {
-		case strings.Contains(pmUpper, "INSUFFICIENT_FUNDS") || strings.Contains(pmUpper, "NO_CREDIT"):
-			payment.FailureReason = "Do Not Honor (Code 51): Insufficient funds / Credit limit exceeded"
-		case strings.Contains(pmUpper, "PIN") || strings.Contains(pmUpper, "NIP") || strings.Contains(pmUpper, "CVV"):
-			payment.FailureReason = "Invalid PIN/CVV (Code 55): Security authentication failed or incorrect PIN"
-		case strings.Contains(pmUpper, "FRAUD") || strings.Contains(pmUpper, "SUSPECTED"):
-			payment.FailureReason = "Suspected Fraud (Code 59): Security card hold triggered by issuing bank"
-		case strings.Contains(pmUpper, "EXPIRED"):
-			payment.FailureReason = "Expired Card (Code 54): Card validity period expired"
-		default:
-			payment.FailureReason = "Payment declined (Code 05): General transaction decline by issuer"
+func (s *paymentService) dispatchSagaEvents(req models.ProcessPaymentRequest, payment *models.Payment) {
+	if s.producer == nil {
+		return
+	}
+	if payment.Status == models.PaymentStatusCompleted {
+		completedEvent := models.PaymentCompletedEvent{
+			EventType:       "PAYMENT_COMPLETED",
+			Status:          string(models.PaymentStatusCompleted),
+			PaymentID:       payment.ID.String(),
+			OrderNumber:     payment.OrderNumber,
+			Amount:          payment.Amount,
+			Currency:        payment.Currency,
+			PaymentMethod:   payment.PaymentMethod,
+			TransactionRef:  payment.TransactionRef,
+			CustomerName:    req.CustomerName,
+			CustomerEmail:   req.CustomerEmail,
+			ShippingAddress: req.ShippingAddress,
+			City:            req.City,
+			PostalCode:      req.PostalCode,
+			Phone:           req.Phone,
+			DeliveryMethod:  req.DeliveryMethod,
+			UserID:          req.UserID,
+			ItemsCount:      req.ItemsCount,
+			Timestamp:       payment.UpdatedAt,
 		}
-		payment.TransactionRef = ""
-		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", req.PaymentMethod).Inc()
-	} else {
-		payment.Status = models.PaymentStatusCompleted
-		payment.TransactionRef = fmt.Sprintf("TXN-%s", uuid.New().String()[:8])
-		payment.FailureReason = ""
-		metrics.PaymentsProcessedTotal.WithLabelValues("COMPLETED", req.PaymentMethod).Inc()
+		go func() {
+			_ = s.producer.PublishPaymentCompleted(context.Background(), completedEvent)
+		}()
+		return
 	}
 
-	// 3. Persist in PostgreSQL 18
-	if err := s.repo.CreatePayment(ctx, payment); err != nil {
-		return nil, fmt.Errorf("failed to persist payment in database: %w", err)
+	failedEvent := models.PaymentFailedEvent{
+		EventType:   "PAYMENT_FAILED",
+		Status:      string(models.PaymentStatusFailed),
+		OrderNumber: payment.OrderNumber,
+		Amount:      payment.Amount,
+		Reason:      payment.FailureReason,
+		ErrorCode:   "PAYMENT_DECLINED",
+		Timestamp:   payment.UpdatedAt,
 	}
-
-	// 4. Async Audit Log via Goroutines
-	s.dispatchAudit(payment.ID, string(payment.Status), fmt.Sprintf("Processed charge for order %s, amount %f %s", payment.OrderNumber, payment.Amount, payment.Currency))
-
-	// 5. Emit Kafka Saga Events
-	if s.producer != nil {
-		if payment.Status == models.PaymentStatusCompleted {
-			completedEvent := models.PaymentCompletedEvent{
-				EventType:       "PAYMENT_COMPLETED",
-				Status:          string(models.PaymentStatusCompleted),
-				PaymentID:       payment.ID.String(),
-				OrderNumber:     payment.OrderNumber,
-				Amount:          payment.Amount,
-				Currency:        payment.Currency,
-				PaymentMethod:   payment.PaymentMethod,
-				TransactionRef:  payment.TransactionRef,
-				CustomerName:    req.CustomerName,
-				CustomerEmail:   req.CustomerEmail,
-				ShippingAddress: req.ShippingAddress,
-				City:            req.City,
-				PostalCode:      req.PostalCode,
-				Phone:           req.Phone,
-				DeliveryMethod:  req.DeliveryMethod,
-				UserID:          req.UserID,
-				ItemsCount:      req.ItemsCount,
-				Timestamp:       payment.UpdatedAt,
-			}
-			go func() {
-				_ = s.producer.PublishPaymentCompleted(context.Background(), completedEvent)
-			}()
-		} else {
-			failedEvent := models.PaymentFailedEvent{
-				EventType:   "PAYMENT_FAILED",
-				Status:      string(models.PaymentStatusFailed),
-				OrderNumber: payment.OrderNumber,
-				Amount:      payment.Amount,
-				Reason:      payment.FailureReason,
-				ErrorCode:   "PAYMENT_DECLINED",
-				Timestamp:   payment.UpdatedAt,
-			}
-			go func() {
-				_ = s.producer.PublishPaymentFailed(context.Background(), failedEvent)
-			}()
-		}
-	}
-
-	return s.toProcessPaymentResponse(payment), nil
+	go func() {
+		_ = s.producer.PublishPaymentFailed(context.Background(), failedEvent)
+	}()
 }
 
 func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPaymentRequest) (*models.Payment, error) {
