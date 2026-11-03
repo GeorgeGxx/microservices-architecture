@@ -4,6 +4,7 @@ import org.slf4j.*;
 import org.springframework.http.*;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import jakarta.validation.ConstraintViolationException;
 
 import java.time.Instant;
@@ -69,6 +70,13 @@ public class GlobalExceptionHandler {
         body.put(MESSAGE, "Authentication required or token expired.");
 
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(NoResourceFoundException ex) {
+        log.warn("Request did not match a controller or static resource: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorBody(HttpStatus.NOT_FOUND, "Not Found", "The requested resource was not found."));
     }
 
     @ExceptionHandler(Exception.class)
