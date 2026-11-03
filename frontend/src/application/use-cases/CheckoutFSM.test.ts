@@ -93,6 +93,22 @@ describe('CheckoutStateMachine', () => {
       expect(fsm.step).toBe('PROCESSING');
     });
 
+    it('allows transition to PROCESSING with realistic decline options (insufficient funds, nip, fraud)', () => {
+      const declineOptions = [
+        'SIMULATED_DECLINED_INSUFFICIENT_FUNDS',
+        'SIMULATED_DECLINED_INCORRECT_PIN',
+        'SIMULATED_DECLINED_SUSPECTED_FRAUD',
+        'DECLINE_CARD',
+      ];
+      for (const method of declineOptions) {
+        const freshFsm = new CheckoutStateMachine();
+        freshFsm.transition('DELIVERY_TIER', validData);
+        freshFsm.transition('PAYMENT', validData);
+        expect(freshFsm.transition('PROCESSING', { ...validData, paymentMethod: method })).toBe(true);
+        expect(freshFsm.step).toBe('PROCESSING');
+      }
+    });
+
     it('rejects transition to PROCESSING with unrecognized payment method', () => {
       const success = fsm.transition('PROCESSING', { ...validData, paymentMethod: 'CRYPTO_UNKNOWN' });
       expect(success).toBe(false);

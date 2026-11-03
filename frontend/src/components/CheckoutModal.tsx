@@ -20,8 +20,57 @@ import {
   ArrowRight,
   ArrowLeft,
   MapPin,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle,
+  XCircle,
+  RefreshCw
 } from 'lucide-react';
+
+interface DeclineInfo {
+  code: string;
+  badge: string;
+  title: string;
+  description: string;
+  suggestion: string;
+}
+
+const DECLINE_PROFILES: Record<string, DeclineInfo> = {
+  SIMULATED_DECLINED_INSUFFICIENT_FUNDS: {
+    code: '51',
+    badge: 'ISO 8583 - RESP 51',
+    title: 'Fondos Insuficientes / Límite de Crédito Excedido',
+    description: 'La entidad bancaria emisora rechazó el cargo porque la tarjeta no cuenta con fondos disponibles suficientes o se superó el límite de crédito disponible.',
+    suggestion: 'Intenta con otra tarjeta de crédito o débito, o comunícate con tu institución bancaria para autorizar un aumento de límite temporal.',
+  },
+  SIMULATED_DECLINED_INCORRECT_PIN: {
+    code: '55',
+    badge: 'ISO 8583 - RESP 55',
+    title: 'NIP o Código de Seguridad (CVV) Inválido',
+    description: 'El NIP criptográfico o código CVV dinámico ingresado en la terminal no superó la autenticación con el emisor bancario.',
+    suggestion: 'Verifica tu NIP en tu app bancaria móvil o ingresa el código CVV dinámico actualizado.',
+  },
+  SIMULATED_DECLINED_SUSPECTED_FRAUD: {
+    code: '59',
+    badge: 'ISO 8583 - RESP 59',
+    title: 'Bloqueo Preventivo por Sospecha de Fraude',
+    description: 'El motor de riesgo y prevención de fraudes del banco emisor activó una retención preventiva por seguridad en compras de comercio electrónico.',
+    suggestion: 'Comunícate a la línea telefónica al reverso de tu tarjeta o autoriza la compra desde la aplicación móvil de tu banco.',
+  },
+  SIMULATED_DECLINED_EXPIRED_CARD: {
+    code: '54',
+    badge: 'ISO 8583 - RESP 54',
+    title: 'Tarjeta Vencida / Plástico Expirado',
+    description: 'La fecha de vencimiento registrada ya expiró o el plástico bancario fue renovado por tu institución financiera.',
+    suggestion: 'Ingresa los datos de tu nueva tarjeta plástica o digital renovada.',
+  },
+  SIMULATED_DECLINED: {
+    code: '05',
+    badge: 'ISO 8583 - RESP 05',
+    title: 'Transacción Declinada por la Entidad Emisora',
+    description: 'La institución financiera emisora declinó la autorización de pago para este comercio.',
+    suggestion: 'Por favor selecciona otro método de pago o intenta con otra tarjeta.',
+  },
+};
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -49,6 +98,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('CUSTOMER_INFO');
   const [isLoading, setIsLoading] = useState(false);
   const [stepError, setStepError] = useState<string | null>(null);
+  const [declineDetails, setDeclineDetails] = useState<DeclineInfo | null>(null);
   const isSubmittingRef = useRef(false);
   const orderAttemptRef = useRef<{ signature: string; key: string } | null>(null);
 
@@ -74,6 +124,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     setCurrentStep('CUSTOMER_INFO');
     setIsLoading(false);
     setStepError(null);
+    setDeclineDetails(null);
 
     void recordFunnelTelemetry({ eventType: 'CHECKOUT_START' }, user?.token);
   }, [fsm, isOpen, user?.token]);
@@ -85,6 +136,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     if (success) {
       setCurrentStep(fsm.step);
       setStepError(null);
+      setDeclineDetails(null);
       if (target === 'DELIVERY_TIER') {
         void recordFunnelTelemetry({ eventType: 'CHECKOUT_STEP', step: 'DELIVERY' }, user?.token);
       } else if (target === 'PAYMENT') {
@@ -99,6 +151,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     fsm.transition(target, formData);
     setCurrentStep(fsm.step);
     setStepError(null);
+    setDeclineDetails(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -108,6 +161,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
     isSubmittingRef.current = true;
     setIsLoading(true);
     setStepError(null);
+    setDeclineDetails(null);
 
     try {
       if (!fsm.transition('PROCESSING', formData)) {
@@ -116,12 +170,42 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       }
       setCurrentStep(fsm.step);
 
-      if (formData.paymentMethod === 'SIMULATED_DECLINED') {
-        const declineMessage = 'The simulated payment was declined. No order was created and inventory was not changed.';
-        fsm.forceFail(declineMessage);
+      if (formData.paymentMethod !== 'SIMULATED_APPROVED') {
+        const profile = DECLINE_PROFILES[formData.paymentMethod] || DECLINE_PROFILES.SIMULATED_DECLINED;
+
+        // Dispatch call to payments-service to register the failed transaction in Prometheus & PostgreSQL
+        const declinePayload = {
+          order_number: `SIM-DECLINE-${Date.now().toString().slice(-6)}`,
+          amount: total,
+          currency: 'USD',
+          payment_method: formData.paymentMethod,
+          idempotency_key: `decline-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          customer_email: formData.customerEmail,
+          customer_name: formData.customerName,
+          shipping_address: formData.shippingAddress,
+          city: formData.city,
+          postal_code: formData.postalCode,
+        };
+
+        try {
+          await fetch('/api/v1/payments/process', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(declinePayload),
+          });
+        } catch (fetchErr) {
+          console.warn('[Payments] Backend call error in simulated decline demo:', fetchErr);
+        }
+
+        // Simulated interbank authorization roundtrip
+        await new Promise((r) => setTimeout(r, 850));
+
+        fsm.forceFail(profile.description);
         fsm.retry();
         setCurrentStep(fsm.step);
-        setStepError(declineMessage);
+        setStepError(profile.description);
+        setDeclineDetails(profile);
+        showToast('Transacción Rechazada', `${profile.badge}: ${profile.title}`, 'stock');
         return;
       }
 
@@ -244,8 +328,53 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
           })}
         </div>
 
-        {/* Step Error Notification */}
-        {stepError && (
+        {/* Decline Alert Card */}
+        {declineDetails && (
+          <div className="mb-5 p-4 rounded-2xl bg-gradient-to-br from-rose-500/10 via-rose-500/5 to-slate-900/10 border-2 border-rose-500/30 text-rose-700 dark:text-rose-300 shadow-lg shadow-rose-500/5 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex-shrink-0">
+                <CreditCard className="w-5 h-5" />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs font-black tracking-wider uppercase text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                    <XCircle className="w-4 h-4" /> Autorización Bancaria Rechazada
+                  </span>
+                  <span className="font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
+                    {declineDetails.badge}
+                  </span>
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                  {declineDetails.title}
+                </h4>
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                  {declineDetails.description}
+                </p>
+                <div className="pt-2 text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2">
+                  <span className="font-bold text-amber-600 dark:text-amber-400 flex-shrink-0">💡 Sugerencia:</span>
+                  <span>{declineDetails.suggestion}</span>
+                </div>
+                <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                  <span>Auditoría registrada en Prometheus & Grafana</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeclineDetails(null);
+                      setStepError(null);
+                      setFormData({ ...formData, paymentMethod: 'SIMULATED_APPROVED' });
+                    }}
+                    className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    <RefreshCw className="w-3 h-3" /> Cambiar a Tarjeta Aprobada
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Regular Step Error Notification (when not a decline card) */}
+        {!declineDetails && stepError && (
           <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{stepError}</span>
@@ -427,8 +556,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="py-12 flex flex-col items-center text-center gap-4" role="status" aria-live="polite">
               <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
               <div>
-                <p className="font-bold text-slate-900 dark:text-white">Placing your order</p>
-                <p className="text-sm text-slate-500 dark:text-slate-400">Payment is simulated. No real charge will be made.</p>
+                <p className="font-bold text-slate-900 dark:text-white">
+                  {formData.paymentMethod === 'SIMULATED_APPROVED'
+                    ? 'Procesando Transacción Saga & Verificando Inventario...'
+                    : 'Contactando Red Bancaria Interbancaria (Visa/Mastercard)...'}
+                </p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  {formData.paymentMethod === 'SIMULATED_APPROVED'
+                    ? 'Saga distribuida con outbox pattern y reservas atómicas.'
+                    : 'Validando saldo, vigencia de plástico y NIP de seguridad...'}
+                </p>
               </div>
             </div>
           )}
@@ -436,21 +573,51 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
           {currentStep === 'PAYMENT' && (
             <div className="space-y-4 animate-in fade-in">
               <div>
-                <label htmlFor="checkout-payment-method" className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Simulated payment outcome
+                <label htmlFor="checkout-payment-method" className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span>Método de Pago & Simulación de Emisor</span>
+                  <span className="text-[10px] font-normal text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
+                    Terminal POS Sandbox
+                  </span>
                 </label>
                 <select
                   id="checkout-payment-method"
                   required
                   value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-indigo-500 focus:outline-none transition"
+                  onChange={(e) => {
+                    setFormData({ ...formData, paymentMethod: e.target.value });
+                    setDeclineDetails(null);
+                    setStepError(null);
+                  }}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-indigo-500 focus:outline-none transition font-medium"
                 >
-                  <option value="SIMULATED_APPROVED">Approved (local demo)</option>
-                  <option value="SIMULATED_DECLINED">Declined (local demo)</option>
+                  <optgroup label="✅ Transacciones Aprobadas">
+                    <option value="SIMULATED_APPROVED">
+                      Visa / Mastercard Crédito (Aprobación Normal)
+                    </option>
+                  </optgroup>
+                  <optgroup label="❌ Declinaciones Bancarias Realistas (Auditoría Grafana)">
+                    <option value="SIMULATED_DECLINED_INSUFFICIENT_FUNDS">
+                      ❌ Fondos Insuficientes / Límite Excedido (Código 51)
+                    </option>
+                    <option value="SIMULATED_DECLINED_INCORRECT_PIN">
+                      ❌ NIP o Código de Seguridad CVV Inválido (Código 55)
+                    </option>
+                    <option value="SIMULATED_DECLINED_SUSPECTED_FRAUD">
+                      ❌ Bloqueo Preventivo Antifraude (Código 59)
+                    </option>
+                    <option value="SIMULATED_DECLINED_EXPIRED_CARD">
+                      ❌ Plástico Vencido / Fecha Expirada (Código 54)
+                    </option>
+                    <option value="SIMULATED_DECLINED">
+                      ❌ Declinación General del Emisor (Código 05)
+                    </option>
+                  </optgroup>
                 </select>
-                <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
-                  Local simulation only: no payment provider or real charge is involved. Do not enter card details. A declined demo does not create an order or change inventory.
+                <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-start gap-2">
+                  <Lock className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Simulación sandbox conectada a <code>payments-service</code>. Las declinaciones alimentan en tiempo real los paneles de rechazos bancarios en Grafana sin comprometer inventario.
+                  </span>
                 </p>
               </div>
 
@@ -484,17 +651,28 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                 <button
                   type="submit"
                   disabled={isLoading || cart.length === 0}
-                  className="w-2/3 py-3.5 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 disabled:opacity-50 text-white font-bold text-sm shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 transition transform active:scale-95"
+                  className={`w-2/3 py-3.5 px-4 rounded-xl font-bold text-sm shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 ${
+                    formData.paymentMethod === 'SIMULATED_APPROVED'
+                      ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-95 text-white shadow-indigo-500/25'
+                      : 'bg-gradient-to-r from-rose-600 to-red-600 hover:opacity-95 text-white shadow-rose-500/25'
+                  }`}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Processing Saga...
+                      {formData.paymentMethod === 'SIMULATED_APPROVED'
+                        ? 'Procesando Saga...'
+                        : 'Verificando con Banco Emisor...'}
+                    </>
+                  ) : formData.paymentMethod === 'SIMULATED_APPROVED' ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      Confirmar Orden ({formatPrice(total)})
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 className="w-5 h-5" />
-                      Confirm & Place Order ({formatPrice(total)})
+                      <XCircle className="w-5 h-5" />
+                      Probar Declinación ({formatPrice(total)})
                     </>
                   )}
                 </button>
