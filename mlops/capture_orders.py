@@ -204,15 +204,22 @@ def run_spark_capture(
         ]))),
     ])
 
-    ivy_dir = os.getenv("SPARK_IVY_DIR", str(Path.home() / ".ivy2"))
-    spark = (SparkSession.builder.appName("orders-kafka-to-parquet")
-             .master("local[*]")
-             .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0")
-             .config("spark.jars.ivy", ivy_dir)
-             .config("spark.ui.enabled", "false")
-             .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
-             .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "4"))
-             .getOrCreate())
+    pyspark_jars_dir = Path("/usr/local/lib/python3.12/site-packages/pyspark/jars")
+    has_prebaked_kafka = bool(list(pyspark_jars_dir.glob("spark-sql-kafka-*.jar")))
+
+    builder = (SparkSession.builder.appName("orders-kafka-to-parquet")
+               .master("local[*]")
+               .config("spark.ui.enabled", "false")
+               .config("spark.driver.memory", os.getenv("SPARK_DRIVER_MEMORY", "1g"))
+               .config("spark.sql.shuffle.partitions", os.getenv("SPARK_SHUFFLE_PARTITIONS", "4")))
+
+    if not has_prebaked_kafka:
+        ivy_dir = os.getenv("SPARK_IVY_DIR", str(Path.home() / ".ivy2"))
+        builder = (builder
+                   .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.13:4.2.0")
+                   .config("spark.jars.ivy", ivy_dir))
+
+    spark = builder.getOrCreate()
     spark.sparkContext.setLogLevel("WARN")
     try:
         source = (spark.readStream.format("kafka")
@@ -252,13 +259,32 @@ def run_spark_capture(
         print(f"Streaming {topic} from {bootstrap_servers} to Parquet at {output}", flush=True)
         print(f"Checkpoint: {checkpoint_location}. Stop with Ctrl+C.", flush=True)
 
-        auto_train_interval = int(os.getenv("MLOPS_AUTO_TRAIN_INTERVAL_SEC", "60"))
+        auto_train_interval = int(os.getenv("MLOPS_AUTO_TRAIN_INTERVAL_SEC", "20"))
+        state_path = Path(
+            os.getenv(
+                "MLOPS_TRAINING_STATE_PATH",
+                "/data/checkpoints/auto-training/last-successful-input.sha256",
+            )
+        )
+        candidate_state_path = state_path.with_name("candidate-input.state")
         last_train_check = 0.0
+        last_observed_batch_id = -1
+        # Check once on startup in case Kafka events were committed prior to restart
+        has_new_sink_data = True
 
         while query.isActive:
             time.sleep(5)
+            progress = query.lastProgress
+            if progress:
+                batch_id = progress.get("batchId", -1)
+                num_input_rows = progress.get("numInputRows", 0)
+                if batch_id > last_observed_batch_id:
+                    last_observed_batch_id = batch_id
+                    if num_input_rows > 0:
+                        has_new_sink_data = True
+
             now = time.time()
-            if now - last_train_check >= auto_train_interval:
+            if has_new_sink_data and (now - last_train_check >= auto_train_interval):
                 last_train_check = now
                 try:
                     subprocess.run(
@@ -266,6 +292,10 @@ def run_spark_capture(
                         check=False,
                         timeout=300,
                     )
+                    # If training finished or data is already trained, candidate-input.state is deleted.
+                    # Reset the flag so we do not spam subprocess invocations until new rows arrive.
+                    if not candidate_state_path.exists():
+                        has_new_sink_data = False
                 except Exception as ex:
                     print(f"Auto-training invocation notice: {ex}", flush=True)
 

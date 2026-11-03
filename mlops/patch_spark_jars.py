@@ -14,6 +14,34 @@ MAVEN_CENTRAL = "https://repo.maven.apache.org/maven2"
 PATCHES = {
     "4.2.13.Final": ("4.2.17.Final", "io/netty"),  # CVE-2026-75595 in Netty
 }
+KAFKA_PACKAGES = [
+    ("org/apache/spark", "spark-sql-kafka-0-10_2.13", "4.2.0"),
+    ("org/apache/spark", "spark-token-provider-kafka-0-10_2.13", "4.2.0"),
+    ("org/apache/kafka", "kafka-clients", "3.9.2"),
+    ("org/apache/commons", "commons-pool2", "2.13.1"),
+    ("org/scala-lang/modules", "scala-parallel-collections_2.13", "1.2.0"),
+]
+
+
+def install_kafka_packages(jars_dir: Path) -> int:
+    installed = 0
+    for group_path, artifact_id, version in KAFKA_PACKAGES:
+        jar_name = f"{artifact_id}-{version}.jar"
+        target_path = jars_dir / jar_name
+        if target_path.exists():
+            continue
+        download_url = f"{MAVEN_CENTRAL}/{group_path}/{artifact_id}/{version}/{jar_name}"
+        temporary_jar = target_path.with_suffix(".download")
+        try:
+            urllib.request.urlretrieve(download_url, temporary_jar)
+            if not zipfile.is_zipfile(temporary_jar):
+                raise RuntimeError(f"Downloaded artifact is not a valid JAR: {download_url}")
+            os.replace(temporary_jar, target_path)
+            installed += 1
+        except Exception:
+            temporary_jar.unlink(missing_ok=True)
+            raise
+    return installed
 
 
 def replace_jar_family(
@@ -95,6 +123,9 @@ def main() -> None:
 
     remove_unused_connect_repl(jars_dir)
     print("Removed optional Spark Connect REPL/client jars; MLOps uses local Spark sessions")
+
+    installed_kafka = install_kafka_packages(jars_dir)
+    print(f"Pre-installed {installed_kafka} Kafka streaming connector jar(s) into PySpark runtime")
 
 
 if __name__ == "__main__":
