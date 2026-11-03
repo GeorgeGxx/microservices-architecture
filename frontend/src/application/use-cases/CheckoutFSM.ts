@@ -52,7 +52,12 @@ export class CheckoutStateMachine {
 
       case 'PROCESSING':
         if (this.currentStep === 'PAYMENT') {
-          return data.paymentMethod === 'SIMULATED_APPROVED' || data.paymentMethod === 'SIMULATED_DECLINED';
+          return (
+            data.paymentMethod === 'SIMULATED_APPROVED' ||
+            data.paymentMethod === 'SIMULATED_DECLINED' ||
+            data.paymentMethod.startsWith('SIMULATED_DECLINED') ||
+            data.paymentMethod.startsWith('DECLINE_')
+          );
         }
         return false;
 

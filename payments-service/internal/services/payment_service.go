@@ -134,14 +134,31 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 	if payment.Currency == "" {
 		payment.Currency = "USD"
 	}
+	if payment.IdempotencyKey == "" {
+		payment.IdempotencyKey = "gen-" + uuid.New().String()
+	}
 
 	isDeclined := strings.EqualFold(req.PaymentMethod, "CARD_DECLINE") ||
 		strings.EqualFold(req.PaymentMethod, "DECLINE") ||
+		strings.Contains(strings.ToUpper(req.PaymentMethod), "DECLINE") ||
+		strings.HasPrefix(strings.ToUpper(req.PaymentMethod), "SIMULATED_DECLINED") ||
 		req.Amount == 9999.99
 
 	if isDeclined {
 		payment.Status = models.PaymentStatusFailed
-		payment.FailureReason = "Payment declined: simulated insufficient funds or issuer decline"
+		pmUpper := strings.ToUpper(req.PaymentMethod)
+		switch {
+		case strings.Contains(pmUpper, "INSUFFICIENT_FUNDS") || strings.Contains(pmUpper, "NO_CREDIT"):
+			payment.FailureReason = "Do Not Honor (Code 51): Fondos insuficientes / Límite de crédito excedido"
+		case strings.Contains(pmUpper, "PIN") || strings.Contains(pmUpper, "NIP") || strings.Contains(pmUpper, "CVV"):
+			payment.FailureReason = "Invalid PIN/CVV (Code 55): NIP o código de seguridad incorrecto"
+		case strings.Contains(pmUpper, "FRAUD") || strings.Contains(pmUpper, "SUSPECTED"):
+			payment.FailureReason = "Suspected Fraud (Code 59): Bloqueo preventivo por sospecha de fraude bancario"
+		case strings.Contains(pmUpper, "EXPIRED"):
+			payment.FailureReason = "Expired Card (Code 54): Tarjeta vencida o fecha de expiración inválida"
+		default:
+			payment.FailureReason = "Payment Declined (Code 05): Declinada por la entidad financiera emisora"
+		}
 		payment.TransactionRef = ""
 		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", req.PaymentMethod).Inc()
 	} else {
