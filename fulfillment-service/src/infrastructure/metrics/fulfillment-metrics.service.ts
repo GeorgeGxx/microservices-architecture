@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import * as client from 'prom-client';
 import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';
 import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum';
+import { extractErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class FulfillmentMetricsService implements OnModuleInit {
@@ -115,7 +116,7 @@ export class FulfillmentMetricsService implements OnModuleInit {
         `Fulfillment metrics synced from database: ${shipmentsGrouped.length} carrier/status groups, ${dispatchedCount} dispatched, ${deliveredCount} delivered.`,
       );
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       this.logger.warn(`Could not sync fulfillment metrics from database: ${message}`);
     } finally {
       this.isRefreshing = false;

@@ -12,6 +12,7 @@ import type { EventPublisher } from '../../application/ports/event-publisher.por
 import { FulfillmentMetricsService } from '../metrics/fulfillment-metrics.service';
 import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';
 import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum';
+import { extractErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
@@ -71,13 +72,13 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
               await this.handlePaymentEvent(raw);
             }
           } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = extractErrorMessage(err);
             this.logger.error(`Error processing Kafka event on topic ${topic}: ${message}`);
           }
         },
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = extractErrorMessage(err);
       this.logger.warn(`Could not connect Kafka consumer immediately: ${message}. Retrying in 5s...`);
       if (!this.isShuttingDown) {
         this.reconnectTimer = setTimeout(() => {

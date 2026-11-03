@@ -40,6 +40,7 @@ public class InventoryService {
 
     private static final String PRODUCT_WITH_SKU_PREFIX = "Product with sku ";
     private static final String SKU_MUST_NOT_BE_NULL = "SKU must not be null";
+    private static final String UNKNOWN_INVENTORY_ERROR = "Unknown inventory error";
 
     // Core dependencies injected via Lombok @RequiredArgsConstructor
     private final InventoryRepository inventoryRepository;
@@ -371,7 +372,7 @@ public class InventoryService {
             BaseResponse result = restoreStockWithinTransaction(items);
             if (result.hasErrors()) {
                 String details = result.errorMessages() == null
-                        ? "Unknown inventory error"
+                        ? UNKNOWN_INVENTORY_ERROR
                         : String.join(", ", result.errorMessages());
                 throw new IllegalStateException("Failed to restore stock for released reservation "
                         + orderNumber + ": " + details);
@@ -403,7 +404,7 @@ public class InventoryService {
             BaseResponse result = restoreStockWithinTransaction(parseReservationItems(reservation));
             if (result.hasErrors()) {
                 String details = result.errorMessages() == null
-                        ? "Unknown inventory error"
+                        ? UNKNOWN_INVENTORY_ERROR
                         : String.join(", ", result.errorMessages());
                 throw new IllegalStateException("Failed to restore stock for expired reservation "
                         + reservation.getOrderNumber() + ": " + details);
@@ -560,7 +561,7 @@ public class InventoryService {
         BaseResponse result = restoreStockWithinTransaction(orderItems);
         if (result.hasErrors()) {
             String details = result.errorMessages() == null
-                    ? "Unknown inventory error"
+                    ? UNKNOWN_INVENTORY_ERROR
                     : String.join(", ", result.errorMessages());
             throw new IllegalStateException("Inventory compensation failed for order #" + orderNumber + ": " + details);
         }
