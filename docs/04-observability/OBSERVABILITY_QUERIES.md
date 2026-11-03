@@ -75,7 +75,7 @@ Monetary spend per actual net completed order ticket, avoiding artificially defl
 #### 📉 Live Cart Abandonment Rate (%)
 Dynamic shopping cart abandonment rate with zero-value gauge protection and fallback to real-time funnel calculations:
 ```promql
-(max(ecommerce_cart_abandonment_rate) > 0) or (((sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0)) > bool 0) * clamp_max(clamp_min((1 - ((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) / clamp_min((sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total)), 1))) * 100, 0), 100)) or vector(0)
+max(ecommerce_cart_abandonment_rate) or clamp_max(clamp_min((1 - (clamp_max(sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0), scalar(sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0))) / clamp_min(sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total), 1))) * 100, 0), 100) or vector(0)
 ```
 
 ### 🛡️ Level 5 Hyper-Scale Resilience & Concurrency Metrics

@@ -43,7 +43,7 @@ def test_funnel_metrics_zero_cart_adds():
     assert metrics.checkout_completion_rate_pct == 0.0
 
 def test_funnel_metrics_purchases_greater_than_cart_adds():
-    # Defensive check: if purchases > cart_adds, abandonment is 0.0%
+    # Defensive check: if purchases > cart_adds, abandonment is 0.0% when all carts reached checkout
     metrics = FunnelMetrics.calculate(
         cart_adds=10,
         checkout_starts=10,
@@ -51,3 +51,15 @@ def test_funnel_metrics_purchases_greater_than_cart_adds():
         purchases=15,
     )
     assert metrics.cart_abandonment_rate_pct == 0.0
+    assert metrics.checkout_completion_rate_pct == 100.0
+
+def test_funnel_metrics_cart_adds_without_checkout():
+    # When items are added to cart but checkout is never initiated, all carts are abandoned
+    metrics = FunnelMetrics.calculate(
+        cart_adds=5,
+        checkout_starts=0,
+        checkout_steps=0,
+        purchases=14,  # Outside backend orders do not count as funnel completions
+    )
+    assert metrics.cart_abandonment_rate_pct == 100.0
+    assert metrics.checkout_completion_rate_pct == 0.0
