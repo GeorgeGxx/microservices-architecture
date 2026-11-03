@@ -5,7 +5,6 @@ import com.georgegxx.orders_service.model.dtos.BaseResponse;
 import com.georgegxx.orders_service.model.dtos.InventoryCompensationRequest;
 import com.georgegxx.orders_service.model.dtos.OrderItemsRequest;
 import com.georgegxx.orders_service.model.entities.InventoryCompensationTask;
-import com.georgegxx.orders_service.model.enums.InventoryTaskOperation;
 import com.georgegxx.orders_service.utils.JsonUtils;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
