@@ -59,6 +59,7 @@ public class InventoryService {
     private Map<String, AtomicLong> skuStockState = new ConcurrentHashMap<>();
     private Map<String, AtomicLong> skuLowStockIndicator = new ConcurrentHashMap<>();
     private Counter stockDecrementsCounter;
+    private Counter expiredReservationsCounter;
 
     /**
      * Initializes Prometheus metrics on application startup and syncs state from the database.
@@ -77,6 +78,10 @@ public class InventoryService {
         // Pre-register counter for stock decrements to optimize throughput and memory allocations
         this.stockDecrementsCounter = Counter.builder("inventory_stock_decrements_total")
                 .description("Total stock units decremented across orders")
+                .register(this.meterRegistry);
+
+        this.expiredReservationsCounter = Counter.builder("ecommerce_inventory_reservations_expired_total")
+                .description("Total inventory reservations expired by TTL leases")
                 .register(this.meterRegistry);
 
         // Perform initial synchronization of stock counts from the database
@@ -413,6 +418,9 @@ public class InventoryService {
             reservation.setExpiresAt(null);
             this.reservationRepository.save(reservation);
             releasedCount++;
+        }
+        if (releasedCount > 0 && this.expiredReservationsCounter != null) {
+            this.expiredReservationsCounter.increment(releasedCount);
         }
         return releasedCount;
     }
