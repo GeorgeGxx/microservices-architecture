@@ -79,18 +79,20 @@ class FunnelMetrics:
                 checkout_completion_rate_pct=0.0,
             )
         else:
-            if checkout_starts > 0:
-                funnel_purchases = min(cart_adds, min(checkout_starts, purchases))
-            else:
-                funnel_purchases = 0
+            effective_cart_adds = max(cart_adds, purchases)
+            effective_checkout_starts = max(checkout_starts, purchases)
 
-            abandonment = max(0, cart_adds - funnel_purchases)
-            abandonment_rate = round((abandonment / cart_adds) * 100.0, 2)
-            completion_rate = round((funnel_purchases / checkout_starts * 100.0), 2) if checkout_starts > 0 else 0.0
+            abandonment = max(0, effective_cart_adds - purchases)
+            abandonment_rate = round((abandonment / effective_cart_adds) * 100.0, 2)
+            completion_rate = (
+                round((purchases / effective_checkout_starts) * 100.0, 2)
+                if effective_checkout_starts > 0
+                else 0.0
+            )
 
             return cls(
-                cart_add_count=cart_adds,
-                checkout_start_count=checkout_starts,
+                cart_add_count=effective_cart_adds,
+                checkout_start_count=effective_checkout_starts,
                 checkout_step_count=checkout_steps,
                 completed_purchases=purchases,
                 cart_abandonment_rate_pct=abandonment_rate,
