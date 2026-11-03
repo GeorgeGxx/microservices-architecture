@@ -6,9 +6,10 @@ param(
 
     [switch]$SimulateOrders = $false,
     [switch]$StartCapture = $false,
+    [switch]$Build = $false,
     [int]$Days = 14,
 
-    [ValidateRange(30, 900)]
+    [ValidateRange(10, 900)]
     [int]$RunTimeoutSeconds = 180,
 
     [Parameter(ValueFromRemainingArguments = $true)]
@@ -21,6 +22,13 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $workingDirectory = Get-Location
 $dataDirectory = (Resolve-Path (Join-Path $PSScriptRoot "data")).Path.TrimEnd('\') + '\'
 $containerArgs = @()
+
+$hasTrainingImage = $false
+try {
+    $img = & docker images -q georgegxx/mlops-training:1.0.0 2>$null
+    if ($img) { $hasTrainingImage = $true }
+} catch { }
+$buildFlags = if ($Build -or (-not $hasTrainingImage)) { @("--build") } else { @() }
 
 if ($StartCapture -and $Target -ne "compose") {
     throw "-StartCapture is only available for Docker Compose. Minikube deploys Kafka capture with .\platform-minikube.ps1 up."
@@ -64,7 +72,7 @@ function Start-ComposeCapture {
         }
         if (-not ($captureServices -contains "demand-sales-capture")) {
             Write-Host "Starting Kafka capture in the background (no extra terminal required)..." -ForegroundColor Cyan
-            & docker compose --profile capture up -d --build demand-sales-capture
+            & docker compose --profile capture up -d @buildFlags demand-sales-capture
             if ($LASTEXITCODE -ne 0) {
                 throw "Could not start the Compose Kafka capture service. Check Docker Compose and Kafka health."
             }
@@ -161,7 +169,44 @@ finished_runs = [
 print("RUN_STATE=" + json.dumps({"experiment_id": experiment_id, "runs": finished_runs}))
 '@
 
+    function Get-MlflowUiBase {
+        if ($Target -eq "minikube") { return "http://localhost:5000" }
+        Push-Location $repoRoot
+        try {
+            $binding = & docker compose port mlflow 5000 | Select-Object -First 1
+            $portExitCode = $LASTEXITCODE
+        } finally {
+            Pop-Location
+        }
+        if ($portExitCode -ne 0 -or "$binding" -notmatch ":(?<port>\d+)$") {
+            throw "Could not resolve the Compose MLflow host port. Check the mlflow service port mapping."
+        }
+        return "http://localhost:$($Matches.port)"
+    }
+
     function Get-MlflowRunState {
+        if ($Target -eq "compose") {
+            try {
+                $mlflowHost = Get-MlflowUiBase
+                $expUri = "$mlflowHost/api/2.0/mlflow/experiments/get-by-name?experiment_name=inventory-demand-forecast"
+                $exp = Invoke-RestMethod -Uri $expUri -Method Get -TimeoutSec 3 -ErrorAction Stop
+                $expId = $exp.experiment.experiment_id
+                $body = @{ experiment_ids = @($expId); max_results = 1000 } | ConvertTo-Json
+                $search = Invoke-RestMethod -Uri "$mlflowHost/api/2.0/mlflow/runs/search" -Method Post -ContentType "application/json" -Body $body -TimeoutSec 5 -ErrorAction Stop
+                $finished = @()
+                if ($search.runs) {
+                    foreach ($r in $search.runs) {
+                        if ($r.info.status -eq "FINISHED") {
+                            $finished += [PSCustomObject]@{ run_id = $r.info.run_id; run_name = $r.info.run_name }
+                        }
+                    }
+                }
+                return [PSCustomObject]@{ experiment_id = $expId; runs = $finished }
+            } catch {
+                # Fallback to container execution below if host HTTP is unavailable
+            }
+        }
+
         if ($Target -eq "minikube") {
             $queryOutput = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c $queryRunsScript
         } else {
@@ -189,21 +234,6 @@ print("RUN_STATE=" + json.dumps({"experiment_id": experiment_id, "runs": finishe
     $baselineRunState = Get-MlflowRunState
     $script:mlflowExperimentId = $baselineRunState.experiment_id
     foreach ($run in $baselineRunState.runs) { [void]$baselineRunIds.Add([string]$run.run_id) }
-
-    function Get-MlflowUiBase {
-        if ($Target -eq "minikube") { return "http://localhost:5000" }
-        Push-Location $repoRoot
-        try {
-            $binding = & docker compose port mlflow 5000 | Select-Object -First 1
-            $portExitCode = $LASTEXITCODE
-        } finally {
-            Pop-Location
-        }
-        if ($portExitCode -ne 0 -or "$binding" -notmatch ":(?<port>\d+)$") {
-            throw "Could not resolve the Compose MLflow host port. Check the mlflow service port mapping."
-        }
-        return "http://localhost:$($Matches.port)"
-    }
 
     function Find-NewMlflowRun {
         $runState = Get-MlflowRunState
@@ -284,69 +314,66 @@ if ($Target -eq "minikube") {
 }
 
 if ($SimulateOrders) {
-    Write-Host "Waiting up to $RunTimeoutSeconds seconds for Compose capture to persist and train the simulated sales..." -ForegroundColor Yellow
-    $deadline = [DateTime]::UtcNow.AddSeconds($RunTimeoutSeconds)
+    # In Compose, Kafka Structured Streaming sinks microbatches to Parquet with a 10s trigger.
+    # Rather than waiting out a 180s background capture timeout with a 60s stability window,
+    # wait for the Parquet sink to persist the simulated batch and then run training immediately.
+    $parquetDir = Join-Path $PSScriptRoot "data\sales_parquet"
+    $metadataDir = Join-Path $parquetDir "_spark_metadata"
+    $initialCommitCount = if (Test-Path -LiteralPath $metadataDir) {
+        @(Get-ChildItem -LiteralPath $metadataDir -File | Where-Object { $_.Name -match '^\d+$' }).Count
+    } else { 0 }
+
+    Write-Host "Waiting for Kafka capture to persist Parquet partitions..." -ForegroundColor Yellow
+    $persistDeadline = [DateTime]::UtcNow.AddSeconds(45)
+    $minPartitions = [Math]::Min($Days, 9)
+    $flushed = $false
+    while ([DateTime]::UtcNow -lt $persistDeadline) {
+        Start-Sleep -Seconds 2
+        if (Test-Path -LiteralPath $metadataDir) {
+            $currentCommits = @(Get-ChildItem -LiteralPath $metadataDir -File | Where-Object { $_.Name -match '^\d+$' }).Count
+            $partitionCount = @(Get-ChildItem -LiteralPath $parquetDir -Directory -Filter "date=*").Count
+            if ($currentCommits -gt $initialCommitCount -and $partitionCount -ge $minPartitions) {
+                Start-Sleep -Seconds 2
+                $flushed = $true
+                break
+            }
+        }
+    }
+
+    Write-Host "Triggering PySpark demand-model training from captured Parquet..." -ForegroundColor Cyan
+    Push-Location $repoRoot
+    try {
+        $composeArguments = @("run", "--rm") + $buildFlags + @("demand-model-training", "--auto", "--input-parquet", "/data/sales_parquet") + $containerArgs
+        & docker compose @composeArguments
+        if ($LASTEXITCODE -ne 0) {
+            throw "Containerized PySpark training from captured Kafka Parquet failed with exit code $LASTEXITCODE"
+        }
+    } finally {
+        Pop-Location
+    }
+
+    $waitDeadline = [DateTime]::UtcNow.AddSeconds(30)
     $newRun = $null
-    while ([DateTime]::UtcNow -lt $deadline) {
+    while ([DateTime]::UtcNow -lt $waitDeadline) {
         $newRun = Find-NewMlflowRun
         if ($newRun) { break }
-
-        Push-Location $repoRoot
-        try {
-            $captureRestartCount = & docker inspect --format '{{.RestartCount}}' demand-sales-capture
-            $inspectExitCode = $LASTEXITCODE
-            $captureState = & docker inspect --format '{{.State.Status}}' demand-sales-capture
-            $stateExitCode = $LASTEXITCODE
-        } finally {
-            Pop-Location
-        }
-        if ($inspectExitCode -ne 0 -or $stateExitCode -ne 0 -or "$captureState" -ne "running") {
-            $captureLogs = & docker compose logs --tail 50 demand-sales-capture 2>&1
-            $captureLogs | ForEach-Object { Write-Host $_ }
-            throw "Compose Kafka capture is not running. The training wait stopped early; inspect with: docker compose logs demand-sales-capture"
-        }
-        if ("$captureRestartCount" -match '^\d+$' -and [int]$captureRestartCount -gt [int]$script:captureRestartCountBeforeSimulation) {
-            $captureLogs = & docker compose logs --tail 50 demand-sales-capture 2>&1
-            $captureLogs | ForEach-Object { Write-Host $_ }
-            throw "Compose Kafka capture restarted while processing the simulated records. See the capture error above; the wrapper stopped waiting immediately."
-        }
-        Start-Sleep -Seconds 5
+        Start-Sleep -Seconds 2
     }
 
     if (-not $newRun) {
-        Write-Host "Capture has not produced a new run yet; running one explicit training pass from captured Parquet..." -ForegroundColor Yellow
-        Push-Location $repoRoot
-        try {
-            $composeArguments = @("run", "--build", "--rm", "demand-model-training", "--auto", "--input-parquet", "/data/sales_parquet") + $containerArgs
-            & docker compose @composeArguments
-            if ($LASTEXITCODE -ne 0) {
-                throw "Containerized PySpark training from captured Kafka Parquet failed with exit code $LASTEXITCODE"
-            }
-        } finally {
-            Pop-Location
-        }
-        $fallbackDeadline = [DateTime]::UtcNow.AddSeconds(90)
-        while ([DateTime]::UtcNow -lt $fallbackDeadline) {
-            $newRun = Find-NewMlflowRun
-            if ($newRun) { break }
-            Start-Sleep -Seconds 10
-        }
-    }
-
-    if (-not $newRun) {
-        throw "No new finished MLflow run was recorded after simulation. Check capture logs, Parquet readiness (at least 9 date partitions), and training logs."
+        throw "No new finished MLflow run was recorded after training. Check capture logs, Parquet readiness (at least 9 date partitions), and training logs."
     }
 
     $mlflowUiBase = Get-MlflowUiBase
     Write-Host "`nNew training run recorded: $($newRun.run_name) ($($newRun.run_id))" -ForegroundColor Green
-    Write-Host "MLflow: $mlflowUiBase/#/experiments/$mlflowExperimentId/runs/$($newRun.run_id)" -ForegroundColor Green
+    Write-Host "MLflow: $mlflowUiBase/#/experiments/$script:mlflowExperimentId/runs/$($newRun.run_id)" -ForegroundColor Green
     Write-Host "`nTraining completed successfully in Docker Compose." -ForegroundColor Green
     exit 0
 }
 
 Push-Location $repoRoot
 try {
-    $composeArguments = @("run", "--build", "--rm", "demand-model-training") + $containerArgs
+    $composeArguments = @("run", "--rm") + $buildFlags + @("demand-model-training") + $containerArgs
     & docker compose @composeArguments
     if ($LASTEXITCODE -ne 0) {
         throw "Containerized PySpark training failed with exit code $LASTEXITCODE"
