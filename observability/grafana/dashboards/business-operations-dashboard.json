@@ -167,8 +167,8 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "❌ Cancelled Orders & Loss",
-      "description": "Total customer and administrator cancellations (revenue leakage audit).",
+      "title": "💸 Revenue Lost to Cancellations ($)",
+      "description": "Estimated gross revenue leakage due to cancelled orders (Cancelled Orders * AOV).",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -181,7 +181,8 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "currencyUSD",
+          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -194,11 +195,11 @@
               },
               {
                 "color": "#f59e0b",
-                "value": 1
+                "value": 500
               },
               {
                 "color": "#ef4444",
-                "value": 3
+                "value": 1500
               }
             ]
           }
@@ -221,8 +222,8 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-          "legendFormat": "Cancelled Orders"
+          "expr": "round((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) * ((sum(ecommerce_revenue_usd) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)), 0.01)",
+          "legendFormat": "Estimated Lost Revenue"
         }
       ]
     },
@@ -546,8 +547,8 @@
     {
       "id": 13,
       "type": "bargauge",
-      "title": "⚖️ Net Fulfilled vs. Cancelled Orders Audit",
-      "description": "Reconciliation of net fulfilled orders against cancellations and overall Order Cancellation Rate (OCR).",
+      "title": "🎯 Order Fulfillment Rate & Retention SLA Audit",
+      "description": "Fulfillment efficiency & order retention audit: Delivery completion rate of dispatched shipments vs net order retention and cancellation rate (OCR).",
       "gridPos": {
         "h": 7,
         "w": 8,
@@ -560,7 +561,10 @@
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
           "color": {
             "mode": "palette-classic"
           },
@@ -592,24 +596,24 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 0)",
-          "legendFormat": "Net Completed Orders"
+          "expr": "round((sum(ecommerce_shipments_delivered_total) / clamp_min(sum(ecommerce_shipments_dispatched_total), 1)) * 100, 0.1)",
+          "legendFormat": "Fulfillment Delivery Success Rate %"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-          "legendFormat": "Cancelled Orders"
+          "expr": "round((1 - ((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1))) * 100, 0.1)",
+          "legendFormat": "Net Order Retention Rate %"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)) * 100",
-          "legendFormat": "Cancellation Rate % (OCR)"
+          "expr": "round(((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1)) * 100, 0.1)",
+          "legendFormat": "Order Cancellation Rate % (OCR)"
         }
       ]
     },
