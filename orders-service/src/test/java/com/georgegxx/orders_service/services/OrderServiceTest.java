@@ -23,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -54,6 +56,9 @@ class OrderServiceTest {
     @Mock
     private IdempotencyManager idempotencyManager;
 
+    @Mock
+    private InventoryCompensationTaskService inventoryCompensationTaskService;
+
     private MeterRegistry meterRegistry;
     private OrderService orderService;
 
@@ -66,6 +71,8 @@ class OrderServiceTest {
         SendResult<String, String> sendResult = mock();
         lenient().when(kafkaTemplate.send(anyString(), anyString(), anyString()))
             .thenReturn(CompletableFuture.completedFuture(sendResult));
+        lenient().when(inventoryClient.confirmReservation(anyString()))
+                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
 
         orderService = new OrderService(
                 orderRepository,
@@ -74,7 +81,9 @@ class OrderServiceTest {
                 kafkaTemplate,
                 circuitBreakerRegistry,
                 meterRegistry,
-                idempotencyManager
+                idempotencyManager,
+                null,
+                inventoryCompensationTaskService
         );
         orderService.afterPropertiesSet();
 
@@ -287,7 +296,7 @@ class OrderServiceTest {
         when(productsClient.getProductPrices(List.of("000001")))
                 .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
         when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
-        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.reserveOrder(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
             o.setId(100L);
@@ -300,7 +309,9 @@ class OrderServiceTest {
         assertNotNull(result.orderNumber());
         assertEquals("DHL Express", result.carrier());
         assertTrue(result.trackingNumber().startsWith("DHL-"));
-        verify(inventoryClient).decrementStock(any());
+        verify(inventoryClient).reserveOrder(any());
+        verify(inventoryClient).confirmReservation(anyString());
+        verify(inventoryCompensationTaskService).enqueueReservationConfirmation(anyString());
         verify(kafkaTemplate).send(eq("orders-topic"), anyString(), anyString());
         verify(idempotencyManager).saveCompleted(eq("key-new"), eq(req), any(OrderResponse.class));
     }
@@ -327,7 +338,7 @@ class OrderServiceTest {
         when(productsClient.getProductPrices(List.of("000001")))
                 .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
         when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
-        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.reserveOrder(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
             o.setId(101L);
@@ -353,7 +364,8 @@ class OrderServiceTest {
                 circuitBreakerRegistry,
                 meterRegistry,
                 idempotencyManager,
-                mockOutbox
+                mockOutbox,
+                inventoryCompensationTaskService
         );
         svcWithOutbox.afterPropertiesSet();
 
@@ -375,7 +387,7 @@ class OrderServiceTest {
         when(productsClient.getProductPrices(List.of("000001")))
                 .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
         when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
-        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.reserveOrder(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
         when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
             Order o = invocation.getArgument(0);
             o.setId(101L);
@@ -392,6 +404,71 @@ class OrderServiceTest {
         assertNotNull(result);
         verify(mockOutbox).recordEvent(eq("orders-topic"), anyString(), eq("ORDER_PLACED"), anyString());
         verify(mockOutbox).publishImmediate(eq(outboxId), eq("orders-topic"), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("placeOrder fails and compensates stock when durable outbox persistence fails")
+    void testPlaceOrder_OutboxPersistenceFailure() {
+        OutboxService mockOutbox = mock(OutboxService.class);
+        OrderService svcWithOutbox = new OrderService(
+                orderRepository,
+                inventoryClient,
+                productsClient,
+                kafkaTemplate,
+                circuitBreakerRegistry,
+                meterRegistry,
+                idempotencyManager,
+                mockOutbox,
+                inventoryCompensationTaskService
+        );
+        svcWithOutbox.afterPropertiesSet();
+
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("000001").price(50.0).quantity(1L).build();
+        OrderRequest req = new OrderRequest();
+        req.setOrderItems(List.of(item));
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 50.0, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.reserveOrder(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(mockOutbox.recordEvent(anyString(), anyString(), anyString(), anyString()))
+                .thenThrow(new IllegalStateException("outbox database unavailable"));
+
+        assertThrows(IllegalStateException.class,
+                () -> svcWithOutbox.placeOrder(req, "key-outbox-failure", "user-123", "johndoe"));
+
+        verify(inventoryCompensationTaskService).enqueueReservationRelease(anyString());
+        verify(kafkaTemplate, never()).send(eq("orders-topic"), anyString(), anyString());
+        verify(idempotencyManager).releaseLock("key-outbox-failure");
+    }
+
+    @Test
+    @DisplayName("placeOrder compensates inventory when the database transaction rolls back after reservation")
+    void testPlaceOrder_TransactionRollback_CompensatesInventory() {
+        OrderItemsRequest item = OrderItemsRequest.builder().sku("000001").price(50.0).quantity(1L).build();
+        OrderRequest req = new OrderRequest();
+        req.setOrderItems(List.of(item));
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 50.0, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.reserveOrder(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            orderService.placeOrder(req, "key-transaction-rollback", "user-123", "johndoe");
+
+            List<TransactionSynchronization> synchronizations =
+                    TransactionSynchronizationManager.getSynchronizations();
+            synchronizations.forEach(sync -> sync.afterCompletion(TransactionSynchronization.STATUS_UNKNOWN));
+
+            verify(inventoryCompensationTaskService).enqueueReservationRelease(anyString());
+            verify(idempotencyManager).releaseLock("key-transaction-rollback");
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
     }
 
     @Test
@@ -468,7 +545,7 @@ class OrderServiceTest {
     }
 
     @Test
-    @DisplayName("placeOrder throws ServiceUnavailableException or InsufficientStockException when decrementStock returns null or errors")
+    @DisplayName("placeOrder throws ServiceUnavailableException or InsufficientStockException when reservation returns null or errors")
     void testPlaceOrder_DecrementStockNullOrErrors() {
         OrderItemsRequest item = OrderItemsRequest.builder().sku("000001").price(50.0).quantity(1L).build();
         OrderRequest req = new OrderRequest();
@@ -479,13 +556,13 @@ class OrderServiceTest {
                 .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 50.0, true)));
         when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
 
-        // 1. decrementStock returns null
-        when(inventoryClient.decrementStock(any())).thenReturn(null);
+        // 1. reservation returns null
+        when(inventoryClient.reserveOrder(any())).thenReturn(null);
         assertThrows(com.georgegxx.orders_service.exceptions.ServiceUnavailableException.class,
                 () -> orderService.placeOrder(req, "key-dec-null", "user-1", "u1"));
 
-        // 2. decrementStock returns errors
-        when(inventoryClient.decrementStock(any()))
+        // 2. reservation returns errors
+        when(inventoryClient.reserveOrder(any()))
                 .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(new String[]{"Concurrent stock race"}));
         assertThrows(InsufficientStockException.class,
                 () -> orderService.placeOrder(req, "key-dec-err", "user-1", "u1"));

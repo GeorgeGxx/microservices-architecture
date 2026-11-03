@@ -18,7 +18,9 @@
 
 > **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
 
-**Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs ~20+ containers.
+**Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs 30+ containers when optional MLOps workloads are enabled.
+
+Docker Compose publishes host ports on `127.0.0.1` only; containers continue to communicate over the private Compose network.
 
 For the canonical local host and Minikube resource profile, see [Local Deployment prerequisites](./docs/02-operations/LOCAL_DEPLOYMENT.md#-prerequisites). 
 
@@ -202,7 +204,7 @@ The platform implements 6 core enterprise capabilities designed for high availab
 | Capability Domain | Core Features & Implementation Highlights | Architectural Specification |
 | :--- | :--- | :--- |
 | **🛒 E-Commerce & Retail** | 3-step checkout funnel, automated DHL carrier tracking (`DHL-XXXXXXXX`), WebRTC camera & USB wedge scanner, user-scoped SSE notifications, verified reviews & best seller badges | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#1--e-commerce--retail-innovation) |
-| **🔄 Distributed Reliability** | Saga compensation stock rollback, distributed UUIDv4 idempotency with Redis `SETNX`, Resilience4j circuit breakers, Kafka Dead Letter Topics (`.DLT`) | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#2--distributed-reliability--consistency) |
+| **🔄 Distributed Reliability** | Saga compensation stock rollback, PostgreSQL-atomic inventory deduplication, durable retry tasks for checkout rollback, Redis-backed request idempotency, Resilience4j circuit breakers, Kafka Dead Letter Topics (`.DLT`) | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#2--distributed-reliability--consistency) |
 | **🛡️ Zero-Trust Security** | Keycloak 26.8.1 OIDC PKCE flow, HashiCorp Vault v2.2.0 dynamic secrets & transit encryption, OPA Gatekeeper admission control, Sigstore Cosign image provenance | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#3--zero-trust-security--devsecops-governance) |
 | **🧪 Automated MLOps** | Real-time Kafka Structured Streaming to Parquet, continuous PySpark GBT regressor auto-training, MLflow Champion/Challenger model registry, 7-day inference API | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#4--automated-mlops--demand-forecasting) |
 | **📊 Full-Stack Observability** | Unified LGTM stack (Loki, Grafana, Tempo, Prometheus), Grafana Explore correlation, Kiali service mesh visualizer, OpenCost real-time FinOps telemetry | [Detailed Spec](docs/01-architecture/ARCHITECTURE.md#5--full-stack-observability-lgtm-stack) |
@@ -402,7 +404,7 @@ microservices-architecture/
 ├── .gitignore                      # Git ignore patterns
 ├── .gitleaksignore                 # Baseline allowlist and suppressions for secrets scanner
 ├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI/CD configuration
-├── compose.yaml                    # Local multi-service development stack (15 containers)
+├── compose.yaml                    # Local multi-service development stack (30+ containers with optional workloads)
 ├── LICENSE                         # MIT License file
 ├── platform-minikube.ps1           # Local Minikube platform CLI & lifecycle orchestrator
 ├── platform-multicloud.ps1         # Multi-Cloud (AWS, Azure, GCP) Enterprise Orchestrator

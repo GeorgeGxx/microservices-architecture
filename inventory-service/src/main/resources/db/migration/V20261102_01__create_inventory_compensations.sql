@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS inventory_compensations (
+    order_number VARCHAR(100) PRIMARY KEY,
+    compensated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -132,4 +132,40 @@ public class InventoryController {
     public BaseResponse incrementStock(@RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.incrementStock(orderItemsRequests);
     }
+
+    @Operation(summary = "Apply an idempotent order inventory compensation",
+            description = "Restores stock once per order number; the compensation marker and stock update commit atomically")
+    @PostMapping("/compensations")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
+    public BaseResponse compensateOrder(@RequestBody @Valid InventoryCompensationRequest request) {
+        return inventoryService.compensateOrder(request.orderNumber(), request.items());
+    }
+
+    @Operation(summary = "Reserve inventory for an order",
+            description = "Atomically deducts stock and creates an idempotent reservation that expires unless confirmed")
+    @PostMapping("/reservations")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
+    public BaseResponse reserveOrder(@RequestBody @Valid InventoryReservationRequest request) {
+        return inventoryService.reserveOrder(request.orderNumber(), request.items());
+    }
+
+    @Operation(summary = "Confirm an inventory reservation",
+            description = "Makes a pending order reservation permanent and disables its expiration")
+    @PostMapping("/reservations/{orderNumber}/confirm")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
+    public BaseResponse confirmReservation(@PathVariable String orderNumber) {
+        return inventoryService.confirmReservation(orderNumber);
+    }
+
+    @Operation(summary = "Release an inventory reservation",
+            description = "Idempotently restores a pending reservation, or records a release tombstone")
+    @PostMapping("/reservations/{orderNumber}/release")
+    @ResponseStatus(HttpStatus.OK)
+    @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
+    public BaseResponse releaseReservation(@PathVariable String orderNumber) {
+        return inventoryService.releaseReservation(orderNumber);
+    }
 }

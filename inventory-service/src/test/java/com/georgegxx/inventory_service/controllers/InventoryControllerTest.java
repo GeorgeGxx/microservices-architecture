@@ -122,4 +122,41 @@ class InventoryControllerTest {
         assertThat(result.hasErrors()).isFalse();
         verify(inventoryService).incrementStock(List.of(item));
     }
+
+    @Test
+    @DisplayName("compensateOrder should delegate the idempotency key and items to the service")
+    void testCompensateOrder() {
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-800").quantity(2L).build()
+        );
+        InventoryCompensationRequest request = new InventoryCompensationRequest("ORD-800", items);
+        BaseResponse base = new BaseResponse(null);
+        when(inventoryService.compensateOrder("ORD-800", items)).thenReturn(base);
+
+        BaseResponse result = inventoryController.compensateOrder(request);
+
+        assertThat(result.hasErrors()).isFalse();
+        verify(inventoryService).compensateOrder("ORD-800", items);
+    }
+
+    @Test
+    @DisplayName("reservation endpoints delegate reserve, confirm and release operations")
+    void testReservationEndpoints() {
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-900").quantity(2L).build()
+        );
+        InventoryReservationRequest request = new InventoryReservationRequest("ORD-900", items);
+        BaseResponse base = new BaseResponse(null);
+        when(inventoryService.reserveOrder("ORD-900", items)).thenReturn(base);
+        when(inventoryService.confirmReservation("ORD-900")).thenReturn(base);
+        when(inventoryService.releaseReservation("ORD-900")).thenReturn(base);
+
+        assertThat(inventoryController.reserveOrder(request).hasErrors()).isFalse();
+        assertThat(inventoryController.confirmReservation("ORD-900").hasErrors()).isFalse();
+        assertThat(inventoryController.releaseReservation("ORD-900").hasErrors()).isFalse();
+
+        verify(inventoryService).reserveOrder("ORD-900", items);
+        verify(inventoryService).confirmReservation("ORD-900");
+        verify(inventoryService).releaseReservation("ORD-900");
+    }
 }

@@ -46,7 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(HttpMethod.GET, "/api/inventory", "/api/inventory/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/inventory/in-stock").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/inventory/decrement", "/api/inventory/increment")
+                        .requestMatchers(HttpMethod.POST, "/api/inventory/decrement", "/api/inventory/increment", "/api/inventory/compensations")
                         .hasAnyRole("INTERNAL_SERVICE", "ADMIN")
                         .requestMatchers("/graphql", "/graphql/**")
                         .permitAll()
