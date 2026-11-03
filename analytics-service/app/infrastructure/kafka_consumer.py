@@ -24,6 +24,7 @@ FULFILLMENT_STATUS_MAP = {
     "SHIPMENT_DISPATCHED": "SHIPPED",
     "IN_TRANSIT": "SHIPPED",
     "SHIPMENT_DELIVERED": "DELIVERED",
+    "SHIPMENT_CANCELLED": "CANCELLED",
 }
 
 class AnalyticsKafkaConsumer:
@@ -31,6 +32,7 @@ class AnalyticsKafkaConsumer:
         self.consumer = None
         self.is_running = False
         self.consume_task = None
+        self._order_stages: dict[str, str] = {}
 
     async def start(self):
         brokers = settings.kafka_brokers
@@ -44,7 +46,7 @@ class AnalyticsKafkaConsumer:
                     *topics,
                     bootstrap_servers=brokers,
                     group_id=settings.kafka_group_id,
-                    auto_offset_reset="latest",
+                    auto_offset_reset=settings.kafka_auto_offset_reset,
                     enable_auto_commit=True,
                 )
                 await self.consumer.start()
@@ -126,22 +128,49 @@ class AnalyticsKafkaConsumer:
                 qty = int(item.get("quantity") or 1)
                 sku_sales_gauge.labels(str(sku)).inc(qty)
 
+    def _update_pipeline_stage(self, order_number: str | None, new_status: str) -> None:
+        if not order_number:
+            if new_status in PIPELINE_STATUSES:
+                active_pipeline_gauge.labels(new_status).inc()
+            elif new_status == "CANCELLED":
+                orders_gauge.labels("CANCELLED").inc()
+            return
+
+        old_status = self._order_stages.get(order_number)
+        if old_status == new_status:
+            return
+
+        if old_status in PIPELINE_STATUSES:
+            try:
+                active_pipeline_gauge.labels(old_status).dec()
+            except Exception:
+                pass
+
+        if new_status in PIPELINE_STATUSES:
+            active_pipeline_gauge.labels(new_status).inc()
+            self._order_stages[order_number] = new_status
+        elif new_status == "CANCELLED":
+            orders_gauge.labels("CANCELLED").inc()
+            self._order_stages[order_number] = "CANCELLED"
+        else:
+            self._order_stages.pop(order_number, None)
+
     def _handle_orders_event(self, payload: dict) -> None:
+        order_number = payload.get("orderNumber") or payload.get("order_number")
         status = str(payload.get("orderStatus") or payload.get("status") or "").upper()
         if status == "IN_TRANSIT":
             status = "SHIPPED"
-        if status in PIPELINE_STATUSES:
-            active_pipeline_gauge.labels(status).inc()
-        elif status == "CANCELLED":
-            orders_gauge.labels("CANCELLED").inc()
+        if status:
+            self._update_pipeline_stage(order_number, status)
 
         self._track_sku_sales(payload.get("items"))
 
     def _handle_fulfillment_event(self, payload: dict) -> None:
+        order_number = payload.get("orderNumber") or payload.get("order_number")
         event_type = str(payload.get("eventType") or payload.get("event_type") or "").upper()
         mapped_status = FULFILLMENT_STATUS_MAP.get(event_type)
         if mapped_status:
-            active_pipeline_gauge.labels(mapped_status).inc()
+            self._update_pipeline_stage(order_number, mapped_status)
 
     async def _handle_payment_event(self, topic: str, payload: dict) -> None:
         if not self._is_completed_payment(topic, payload):

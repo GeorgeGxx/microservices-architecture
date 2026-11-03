@@ -72,6 +72,7 @@ async def test_kafka_consumer_process_orders_and_fulfillment_messages():
         "items": [{"sku": "SKU-1001", "quantity": 3}],
     }).encode("utf-8")
     await consumer._process_message(order_msg)
+    assert consumer._order_stages["ORD-111"] == "PLACED"
 
     fulf_msg = MagicMock()
     fulf_msg.topic = "fulfillment-topic"
@@ -80,6 +81,16 @@ async def test_kafka_consumer_process_orders_and_fulfillment_messages():
         "orderNumber": "ORD-111",
     }).encode("utf-8")
     await consumer._process_message(fulf_msg)
+    assert consumer._order_stages["ORD-111"] == "SHIPPED"
+
+    cancel_msg = MagicMock()
+    cancel_msg.topic = "orders-topic"
+    cancel_msg.value = json.dumps({
+        "orderNumber": "ORD-111",
+        "orderStatus": "CANCELLED",
+    }).encode("utf-8")
+    await consumer._process_message(cancel_msg)
+    assert consumer._order_stages["ORD-111"] == "CANCELLED"
 
 @pytest.mark.asyncio
 async def test_kafka_consumer_stop():

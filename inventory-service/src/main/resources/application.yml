@@ -12,6 +12,22 @@ spring:
   cloud:
     vault:
       enabled: ${VAULT_ENABLED:false}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    properties:
+      "[security.protocol]": ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+    consumer:
+      group-id: ${INVENTORY_KAFKA_GROUP_ID:inventory-service}
+      auto-offset-reset: ${KAFKA_AUTO_OFFSET_RESET:latest}
+      enable-auto-commit: false
+      max-poll-records: 50
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+      concurrency: 3
+      observation-enabled: true
   
   datasource:
     driver-class-name: org.postgresql.Driver

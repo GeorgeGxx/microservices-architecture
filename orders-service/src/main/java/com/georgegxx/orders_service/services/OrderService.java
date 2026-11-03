@@ -224,9 +224,16 @@ public class OrderService implements InitializingBean {
         order.setCity(req.getCity());
         order.setPostalCode(req.getPostalCode());
         order.setPhone(req.getPhone());
-        order.setDeliveryMethod(Optional.ofNullable(req.getDeliveryMethod()).orElse(OrderConstants.DEFAULT_DELIVERY_METHOD));
-        order.setCarrier(OrderConstants.DEFAULT_CARRIER);
-        order.setTrackingNumber(OrderConstants.TRACKING_PREFIX + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        String delivery = Optional.ofNullable(req.getDeliveryMethod()).orElse(OrderConstants.DEFAULT_DELIVERY_METHOD);
+        order.setDeliveryMethod(delivery);
+        String carrier = delivery.toUpperCase(Locale.ROOT).contains("FEDEX")
+                ? OrderConstants.CARRIER_FEDEX
+                : OrderConstants.DEFAULT_CARRIER;
+        order.setCarrier(carrier);
+        String trackingPrefix = OrderConstants.CARRIER_FEDEX.equalsIgnoreCase(carrier)
+                ? OrderConstants.TRACKING_PREFIX_FEDEX
+                : OrderConstants.TRACKING_PREFIX;
+        order.setTrackingNumber(trackingPrefix + UUID.randomUUID().toString().substring(0, 8).toUpperCase(Locale.ROOT));
         order.setPaymentMethod(Optional.ofNullable(req.getPaymentMethod()).orElse(OrderConstants.DEFAULT_PAYMENT_METHOD));
 
         double subtotal = roundCurrency(order.calculateSubtotal());
@@ -374,16 +381,12 @@ public class OrderService implements InitializingBean {
         }
         order.cancel();
         Order updatedOrder = this.orderRepository.save(order);
-        List<OrderItemsRequest> itemsToRestore = toRestoreRequests(order);
         OrderResponse response = mapOrderToOrderResponse(updatedOrder);
 
         String payload = buildOrderEventPayload(updatedOrder, OrderStatus.CANCELLED);
         OutboxEvent outboxEvent = recordOutboxEvent(updatedOrder, OrderStatus.CANCELLED, payload);
 
         afterCommit(() -> {
-            if (!itemsToRestore.isEmpty()) {
-                compensateInventoryStock(itemsToRestore);
-            }
             dispatchOutboxEvent(outboxEvent, updatedOrder, OrderStatus.CANCELLED, payload);
         });
         return response;
@@ -418,18 +421,6 @@ public class OrderService implements InitializingBean {
     private Order findOrderForUpdate(Long id) {
         return this.orderRepository.findByIdWithItemsForUpdate(Objects.requireNonNull(id, OrderConstants.ORDER_ID_NOT_NULL_MSG))
                 .orElseThrow(() -> new OrderNotFoundException(OrderConstants.ORDER_NOT_FOUND_PREFIX + id + OrderConstants.ORDER_NOT_FOUND_SUFFIX));
-    }
-
-    private List<OrderItemsRequest> toRestoreRequests(Order order) {
-        return Optional.ofNullable(order.getOrderItems())
-                .orElse(Collections.emptyList())
-                .stream()
-                .map(item -> OrderItemsRequest.builder()
-                        .sku(item.getSku())
-                        .price(item.getPrice())
-                        .quantity(item.getQuantity())
-                        .build())
-                .toList();
     }
 
     private void afterCommit(Runnable action) {
@@ -531,14 +522,10 @@ public class OrderService implements InitializingBean {
             }
             order.cancel();
             Order updatedOrder = this.orderRepository.save(order);
-            List<OrderItemsRequest> itemsToRestore = toRestoreRequests(order);
             String payload = buildOrderEventPayload(updatedOrder, OrderStatus.CANCELLED);
             OutboxEvent outboxEvent = recordOutboxEvent(updatedOrder, OrderStatus.CANCELLED, payload);
 
             afterCommit(() -> {
-                if (!itemsToRestore.isEmpty()) {
-                    compensateInventoryStock(itemsToRestore);
-                }
                 dispatchOutboxEvent(outboxEvent, updatedOrder, OrderStatus.CANCELLED, payload);
                 log.warn("Saga backward compensation completed for order #{} (reason: {})", orderNumber, reason);
             });

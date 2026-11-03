@@ -298,9 +298,47 @@ class OrderServiceTest {
 
         assertNotNull(result);
         assertNotNull(result.orderNumber());
+        assertEquals("DHL Express", result.carrier());
+        assertTrue(result.trackingNumber().startsWith("DHL-"));
         verify(inventoryClient).decrementStock(any());
         verify(kafkaTemplate).send(eq("orders-topic"), anyString(), anyString());
         verify(idempotencyManager).saveCompleted(eq("key-new"), eq(req), any(OrderResponse.class));
+    }
+
+    @Test
+    @DisplayName("placeOrder sets FedEx carrier and FDX- tracking prefix when FedEx delivery method is chosen")
+    void testPlaceOrder_WithFedExDeliveryMethod() {
+        com.georgegxx.orders_service.model.dtos.OrderItemsRequest item =
+                com.georgegxx.orders_service.model.dtos.OrderItemsRequest.builder()
+                        .sku("000001")
+                        .price(199.99)
+                        .quantity(1L)
+                        .build();
+
+        com.georgegxx.orders_service.model.dtos.OrderRequest req = new com.georgegxx.orders_service.model.dtos.OrderRequest();
+        req.setOrderItems(List.of(item));
+        req.setCustomerName("Jane Doe");
+        req.setCustomerEmail("jane@example.com");
+        req.setShippingAddress("456 Test Ave");
+        req.setDeliveryMethod("FedEx Standard Ground (3-5 days)");
+        req.setTotalAmount(199.99);
+
+        when(idempotencyManager.checkOrLock(any(), any())).thenReturn(Optional.empty());
+        when(productsClient.getProductPrices(List.of("000001")))
+                .thenReturn(List.of(new com.georgegxx.orders_service.model.dtos.ProductPriceResponse("000001", 199.99, true)));
+        when(inventoryClient.checkStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(inventoryClient.decrementStock(any())).thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
+        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> {
+            Order o = invocation.getArgument(0);
+            o.setId(101L);
+            return o;
+        });
+
+        OrderResponse result = orderService.placeOrder(req, "key-fedex", "user-456", "janedoe");
+
+        assertNotNull(result);
+        assertEquals("FedEx", result.carrier());
+        assertTrue(result.trackingNumber().startsWith("FDX-"));
     }
 
     @Test
@@ -409,8 +447,6 @@ class OrderServiceTest {
                 .build();
         when(orderRepository.findByIdWithItemsForUpdate(8L)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(inventoryClient.incrementStock(any()))
-                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(new String[]{"Partial error"}));
 
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         try {
@@ -427,7 +463,8 @@ class OrderServiceTest {
             org.springframework.transaction.support.TransactionSynchronizationManager.clearSynchronization();
         }
 
-        verify(inventoryClient).incrementStock(any());
+        verify(inventoryClient, never()).incrementStock(any());
+        verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-TX-SYNC"), anyString());
     }
 
     @Test
@@ -513,7 +550,7 @@ class OrderServiceTest {
         orderService.handleSagaShipmentDelivered("ORD-SAGA-1");
         assertEquals(OrderStatus.DELIVERED, placedOrder.getOrderStatus());
 
-        // 4. Backward compensation on a PLACED order -> CANCELLED + inventory restored
+        // 4. Backward compensation on a PLACED order -> CANCELLED + published to orders-topic
         Order failedOrder = Order.builder()
                 .id(11L)
                 .orderNumber("ORD-SAGA-FAIL")
@@ -522,12 +559,11 @@ class OrderServiceTest {
                 .build();
         when(orderRepository.findByOrderNumberWithItemsForUpdate("ORD-SAGA-FAIL"))
                 .thenReturn(Optional.of(failedOrder));
-        when(inventoryClient.incrementStock(any()))
-                .thenReturn(new com.georgegxx.orders_service.model.dtos.BaseResponse(null));
 
         orderService.handleSagaFailureCompensation("ORD-SAGA-FAIL", "PAYMENT_DECLINED");
         assertEquals(OrderStatus.CANCELLED, failedOrder.getOrderStatus());
-        verify(inventoryClient, atLeastOnce()).incrementStock(any());
+        verify(kafkaTemplate).send(eq("orders-topic"), eq("ORD-SAGA-FAIL"), anyString());
+        verify(inventoryClient, never()).incrementStock(any());
 
         // Calling compensation again when already CANCELLED is a no-op
         orderService.handleSagaFailureCompensation("ORD-SAGA-FAIL", "DUPLICATE");
