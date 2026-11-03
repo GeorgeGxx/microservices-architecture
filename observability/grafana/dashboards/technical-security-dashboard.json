@@ -641,7 +641,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_saga_compensations_total) or sum(ecommerce_compensations_total) or vector(0)",
+          "expr": "(sum(inventory_compensations_total) or vector(0)) + (sum(ecommerce_saga_compensations_total) or vector(0)) + (sum(ecommerce_compensations_total) or vector(0))",
           "legendFormat": "Saga Rollbacks & Compensations"
         }
       ]

@@ -41,10 +41,10 @@ Total gross purchase orders placed across the platform prior to any cancellation
 sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)
 ```
 
-#### ❌ Cancelled Orders & Loss
-All-time cancelled order count reflecting customer drop-offs and administrative cancellations:
+#### 💸 Revenue Lost to Cancellations ($)
+Estimated gross revenue leakage due to customer drop-offs and administrative cancellations ($\text{Cancelled Orders} \times \text{AOV}$):
 ```promql
-sum(ecommerce_orders{status="CANCELLED"}) or sum(ecommerce_orders_total{status="CANCELLED"}) or vector(0)
+round((sum(ecommerce_orders{status="CANCELLED"}) or vector(0)) * ((sum(ecommerce_revenue_usd) or vector(0)) / clamp_min(sum(ecommerce_orders{status="COMPLETED"}) or vector(1), 1)), 0.01)
 ```
 
 #### 🛍️ True Net Completed Orders
@@ -53,10 +53,17 @@ Accurate fulfilled orders actively retained by customers, eliminating cancellati
 clamp_min((sum(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0)) - (sum(ecommerce_orders{status="CANCELLED"}) or sum(ecommerce_orders_total{status="CANCELLED"}) or vector(0)), 0)
 ```
 
-#### ⚖️ Order Cancellation Rate (% OCR)
-Percentage of gross placed orders that resulted in cancellations (revenue leakage indicator):
+#### 🎯 Order Fulfillment Rate & Retention SLA Audit
+Delivery completion rate of dispatched shipments vs net order retention and cancellation rate (OCR):
 ```promql
-((sum(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status="COMPLETED"}) or vector(1), 1)) * 100
+# Fulfillment Delivery Success Rate %
+round((sum(ecommerce_shipments_delivered_total) / clamp_min(sum(ecommerce_shipments_dispatched_total), 1)) * 100, 0.1)
+
+# Net Order Retention Rate %
+round((1 - ((sum(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) + (sum(ecommerce_orders{status="CANCELLED"}) or vector(0)), 1))) * 100, 0.1)
+
+# Order Cancellation Rate % (OCR)
+round(((sum(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status="COMPLETED"}) or vector(0)) + (sum(ecommerce_orders{status="CANCELLED"}) or vector(0)), 1)) * 100, 0.1)
 ```
 
 #### 🏷️ Reconciled Average Order Value (AOV)
@@ -253,9 +260,9 @@ sum(ecommerce_idempotency_hits_total) or vector(0)
 ```
 
 #### 🔄 Saga Compensations & Stock Restorations
-Count of distributed transactions rolled back due to downstream inventory/payment failures:
+Count of distributed transactions rolled back due to downstream inventory/payment failures (including choreographed Kafka compensations in `inventory-service`):
 ```promql
-sum(ecommerce_saga_compensations_total) or sum(ecommerce_compensations_total) or vector(0)
+(sum(inventory_compensations_total) or vector(0)) + (sum(ecommerce_saga_compensations_total) or vector(0)) + (sum(ecommerce_compensations_total) or vector(0))
 ```
 
 #### ⚡ Resilience4j Circuit Breaker Health Index
