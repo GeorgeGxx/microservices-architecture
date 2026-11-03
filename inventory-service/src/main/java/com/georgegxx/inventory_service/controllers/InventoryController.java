@@ -101,7 +101,7 @@ public class InventoryController {
     })
     @PostMapping("/in-stock")
     @ResponseStatus(HttpStatus.OK)
-    public BaseResponse areInStock(@Valid @RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
+    public BaseResponse areInStock(@RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.areInStock(orderItemsRequests);
     }
 
@@ -115,7 +115,7 @@ public class InventoryController {
     @PostMapping("/decrement")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
-    public BaseResponse decrementStock(@Valid @RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
+    public BaseResponse decrementStock(@RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.decrementStock(orderItemsRequests);
     }
 
@@ -129,7 +129,7 @@ public class InventoryController {
     @PostMapping("/increment")
     @ResponseStatus(HttpStatus.OK)
     @PreAuthorize("hasAnyRole('INTERNAL_SERVICE', 'ADMIN')")
-    public BaseResponse incrementStock(@Valid @RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
+    public BaseResponse incrementStock(@RequestBody List<@Valid OrderItemsRequest> orderItemsRequests) {
         return inventoryService.incrementStock(orderItemsRequests);
     }
 }
