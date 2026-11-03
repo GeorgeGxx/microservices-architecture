@@ -98,6 +98,12 @@ async def get_cohorts(session: AsyncSession = Depends(get_db_session)):
     tags=["analytics"],
     summary="Get overall completed order volume, items sold and basket sizes",
 )
+@router.get(
+    "/api/v1/analytics/summary",
+    response_model=SalesOverviewResponseDto,
+    tags=["analytics"],
+    include_in_schema=False,
+)
 async def get_sales_overview(session: AsyncSession = Depends(get_db_session)):
     state_repo = SqlAlchemyAnalyticsStateRepository(session)
     use_case = GetSalesOverviewUseCase(state_repo)
