@@ -2,13 +2,13 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Optional, Inject } f
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Kafka, Consumer, CompressionTypes, CompressionCodecs } from 'kafkajs';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const SnappyCodec = require('kafkajs-snappy');
+import SnappyCodec from 'kafkajs-snappy';
 CompressionCodecs[CompressionTypes.Snappy] = SnappyCodec;
 
 import { CreateShipmentUseCase } from '../../application/use-cases/create-shipment.use-case';
 import { DispatchShipmentUseCase } from '../../application/use-cases/dispatch-shipment.use-case';
-import { EVENT_PUBLISHER, EventPublisher } from '../../application/ports/event-publisher.port';
+import { EVENT_PUBLISHER } from '../../application/ports/event-publisher.port';
+import type { EventPublisher } from '../../application/ports/event-publisher.port';
 import { FulfillmentMetricsService } from '../metrics/fulfillment-metrics.service';
 import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';
 import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum';
@@ -70,13 +70,15 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
             } else {
               await this.handlePaymentEvent(raw);
             }
-          } catch (err) {
-            this.logger.error(`Error processing Kafka event on topic ${topic}: ${err.message}`);
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            this.logger.error(`Error processing Kafka event on topic ${topic}: ${message}`);
           }
         },
       });
-    } catch (err) {
-      this.logger.warn(`Could not connect Kafka consumer immediately: ${err.message}. Retrying in 5s...`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Could not connect Kafka consumer immediately: ${message}. Retrying in 5s...`);
       if (!this.isShuttingDown) {
         this.reconnectTimer = setTimeout(() => {
           void this.connectAndSubscribe();

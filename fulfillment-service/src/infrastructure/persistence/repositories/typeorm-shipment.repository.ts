@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ShipmentRepository } from '../../../domain/repositories/shipment.repository.interface';
+import type { ShipmentRepository } from '../../../domain/repositories/shipment.repository.interface';
 import { Shipment } from '../../../domain/models/shipment.entity';
 import { ShipmentOrmEntity } from '../entities/shipment.orm-entity';
 import { ShipmentMapper } from '../mappers/shipment.mapper';

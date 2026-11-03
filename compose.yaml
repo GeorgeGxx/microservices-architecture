@@ -149,7 +149,7 @@ services:
       mlflow:
         condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       otel-collector:
         condition: service_started
     networks:
@@ -162,8 +162,8 @@ services:
     command: [ "start-dev" ]
     restart: unless-stopped
     ports:
-      - "${KEYCLOAK_PORT:-8181}:${KEYCLOAK_PORT:-8181}"
-      - "9000:9000"
+      - "127.0.0.1:${KEYCLOAK_PORT:-8181}:${KEYCLOAK_PORT:-8181}"
+      - "127.0.0.1:9000:9000"
     depends_on:
       db-keycloak:
         condition: service_healthy
@@ -184,6 +184,16 @@ services:
       KC_HTTP_ENABLED: "true"
       JAVA_OPTS_APPEND: "-Xms256m -Xmx768m -XX:MaxRAMPercentage=70.0"
       JAVA_TOOL_OPTIONS: ""
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; IFS= read -r status <&3; [[ \"$$status\" == *\" 200 \"* ]]'",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - spring
   ### Postgres database for Keycloak
@@ -201,7 +211,7 @@ services:
     volumes:
       - keycloak-pgdata:/var/lib/postgresql/data
     ports:
-      - "5434:${POSTGRES_PORT}"
+      - "127.0.0.1:5434:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -226,7 +236,7 @@ services:
     container_name: cosmo-router
     image: ghcr.io/wundergraph/cosmo/router:${COSMO_ROUTER_VERSION:-0.362.0}
     ports:
-      - "${COSMO_ROUTER_PORT:-${GATEWAY_PORT:-8080}}:8080"
+      - "127.0.0.1:${COSMO_ROUTER_PORT:-${GATEWAY_PORT:-8080}}:8080"
     volumes:
       - ./cosmo-router:/dist/config:ro
       - ./cosmo-router:/runtime:ro
@@ -237,13 +247,13 @@ services:
       cosmo-router-config:
         condition: service_completed_successfully
       products-service:
-        condition: service_started
+        condition: service_healthy
       orders-service:
-        condition: service_started
+        condition: service_healthy
       inventory-service:
-        condition: service_started
+        condition: service_healthy
       keycloak:
-        condition: service_started
+        condition: service_healthy
       otel-collector:
         condition: service_started
     networks:
@@ -257,15 +267,21 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
+      - "127.0.0.1:${FRONTEND_PORT}:${FRONTEND_INTERNAL_PORT}"
     restart: unless-stopped
     depends_on:
-      - cosmo-router
-      - keycloak
-      - demand-forecast-service
-      - fulfillment-service
-      - payments-service
-      - analytics-service
+      cosmo-router:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+      demand-forecast-service:
+        condition: service_healthy
+      fulfillment-service:
+        condition: service_healthy
+      payments-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
     networks:
       - spring
 
@@ -279,8 +295,9 @@ services:
     env_file:
       - .env
     ports:
-      - "8001:8001"
+      - "127.0.0.1:8001:8001"
     environment:
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
@@ -311,7 +328,7 @@ services:
     volumes:
       - inventory-pgdata:/var/lib/postgresql/data
     ports:
-      - "5431:${POSTGRES_PORT}"
+      - "127.0.0.1:5431:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -329,7 +346,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8002:8002"
+      - "127.0.0.1:8002:8002"
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
@@ -355,10 +372,11 @@ services:
     env_file:
       - .env
     ports:
-      - "8003:8003"
+      - "127.0.0.1:8003:8003"
     environment:
       INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8001}
       PRODUCTS_SERVICE_URI: ${PRODUCTS_SERVICE_URI:-http://products-service:8004}
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
@@ -389,7 +407,7 @@ services:
     volumes:
       - orders-pgdata:/var/lib/postgresql/data
     ports:
-      - "5435:${POSTGRES_PORT}"
+      - "127.0.0.1:5435:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -412,7 +430,7 @@ services:
     volumes:
       - payments-pgdata:/var/lib/postgresql/data
     ports:
-      - "5436:${POSTGRES_PORT}"
+      - "127.0.0.1:5436:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -430,7 +448,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8085:8085"
+      - "127.0.0.1:8085:8085"
     environment:
       SERVER_PORT: "8085"
       DB_HOST: db-payments
@@ -475,7 +493,7 @@ services:
     volumes:
       - fulfillment-pgdata:/var/lib/postgresql/data
     ports:
-      - "5437:${POSTGRES_PORT}"
+      - "127.0.0.1:5437:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -483,17 +501,19 @@ services:
       interval: 5s
       retries: 10
 
-  ### Fulfillment Service (TypeScript 7, NestJS v12.2.0, TypeORM 1.1.2, DDD, Swagger)
+  ### Fulfillment Service (TypeScript 7, NestJS 12, TypeORM 1.1.2, DDD, Swagger)
   fulfillment-service:
     container_name: fulfillment-service
     image: georgegxx/fulfillment-service:1.0.0
     build:
       context: ./fulfillment-service
       dockerfile: Dockerfile
+      args:
+        NODE_VERSION: ${FULFILLMENT_NODE_VERSION:-24.15-alpine}
     env_file:
       - .env
     ports:
-      - "8086:8086"
+      - "127.0.0.1:8086:8086"
     environment:
       PORT: "8086"
       DB_HOST: db-fulfillment
@@ -541,7 +561,7 @@ services:
     volumes:
       - analytics-pgdata:/var/lib/postgresql/data
     ports:
-      - "5438:${POSTGRES_PORT}"
+      - "127.0.0.1:5438:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -549,7 +569,7 @@ services:
       interval: 5s
       retries: 10
 
-  ### Analytics Service (FastAPI v0.162.0, SQLAlchemy ORM v2.0, DDD, Swagger)
+  ### Analytics Service (FastAPI v0.160.0, SQLAlchemy ORM v2.0, DDD, Swagger)
   analytics-service:
     container_name: analytics-service
     image: georgegxx/analytics-service:1.0.0
@@ -559,7 +579,7 @@ services:
     env_file:
       - .env
     ports:
-      - "8087:8087"
+      - "127.0.0.1:8087:8087"
     environment:
       PORT: "8087"
       DB_HOST: db-analytics
@@ -601,8 +621,9 @@ services:
     env_file:
       - .env
     ports:
-      - "8004:8004"
+      - "127.0.0.1:8004:8004"
     environment:
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
@@ -631,7 +652,7 @@ services:
     volumes:
       - products-pgdata:/var/lib/postgresql/data
     ports:
-      - "5433:${POSTGRES_PORT}"
+      - "127.0.0.1:5433:${POSTGRES_PORT}"
     networks:
       - spring
     healthcheck:
@@ -650,8 +671,8 @@ services:
     env_file:
       - .env
     ports:
-      - "9092:9092"
-      - "29092:29092"
+      - "127.0.0.1:9092:9092"
+      - "127.0.0.1:29092:29092"
     environment:
       KAFKA_CLUSTER_ID: ${KAFKA_CLUSTER_ID}
       CLUSTER_ID: ${KAFKA_CLUSTER_ID}
@@ -690,7 +711,7 @@ services:
     command:
       - --kafka.server=kafka:9092
     ports:
-      - "9308:9308"
+      - "127.0.0.1:9308:9308"
     restart: unless-stopped
     depends_on:
       kafka:
@@ -703,7 +724,7 @@ services:
     image: "redis:${REDIS_VERSION}"
     command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "127.0.0.1:${REDIS_PORT}:${REDIS_PORT}"
     volumes:
       - redis_data:/data
     restart: unless-stopped
@@ -724,7 +745,7 @@ services:
       REDIS_ADDR: redis://redis:6379
       REDIS_PASSWORD: ${REDIS_PASSWORD}
     ports:
-      - "9121:9121"
+      - "127.0.0.1:9121:9121"
     restart: unless-stopped
     depends_on:
       redis:
@@ -743,7 +764,7 @@ services:
       DATA_SOURCE_USER: ${POSTGRES_USER}
       DATA_SOURCE_PASS: ${POSTGRES_PASSWORD}
     ports:
-      - "9187:9187"
+      - "127.0.0.1:9187:9187"
     restart: unless-stopped
     depends_on:
       db-orders:
@@ -765,7 +786,7 @@ services:
       - ./observability/prometheus/prometheus-rules.yml:/etc/prometheus/prometheus-rules.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      - "127.0.0.1:9090:9090"
     depends_on:
       - cosmo-router
       - redis-exporter
@@ -786,7 +807,7 @@ services:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
@@ -807,8 +828,8 @@ services:
       - ./observability/tempo/tempo-config.yaml:/etc/tempo/tempo-config.yaml:ro
       - tempo_data:/var/tempo
     ports:
-      - "${TEMPO_PORT:-3200}:3200" # HTTP UI / API
-      - "9095:9095"                # gRPC
+      - "127.0.0.1:${TEMPO_PORT:-3200}:3200" # HTTP UI / API
+      - "127.0.0.1:9095:9095"                # gRPC
     restart: unless-stopped
     networks:
       - spring
@@ -821,8 +842,8 @@ services:
     volumes:
       - ./observability/otel/otel-collector-config.yaml:/etc/otel/config.yaml
     ports:
-      - "${OTEL_GRCP_PORT}:${OTEL_GRCP_PORT}" # OTLP gRPC
-      - "${OTEL_HTTP_PORT}:${OTEL_HTTP_PORT}" # OTLP HTTP
+      - "127.0.0.1:${OTEL_GRCP_PORT}:${OTEL_GRCP_PORT}" # OTLP gRPC
+      - "127.0.0.1:${OTEL_HTTP_PORT}:${OTEL_HTTP_PORT}" # OTLP HTTP
     depends_on:
       - tempo
     networks:
@@ -834,7 +855,7 @@ services:
     user: "0:0"
     command: ["-config.file=/etc/loki/loki-config.yaml"]
     ports:
-      - "3100:3100"
+      - "127.0.0.1:3100:3100"
     volumes:
       - ./observability/loki/loki-config.yaml:/etc/loki/loki-config.yaml:ro
       - ./observability/loki/rules:/tmp/loki/rules
@@ -858,7 +879,7 @@ services:
       - ./observability/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - alloy_data:/var/lib/alloy/data
     ports:
-      - "3300:3300" # Alloy UI & Metrics
+      - "127.0.0.1:3300:3300" # Alloy UI & Metrics
     restart: unless-stopped
     cpus: 0.5
     mem_limit: 256m
@@ -879,7 +900,7 @@ services:
     image: prom/blackbox-exporter:v0.25.0
     restart: unless-stopped
     ports:
-      - "9115:9115"
+      - "127.0.0.1:9115:9115"
     networks:
       - spring
 
@@ -888,7 +909,7 @@ services:
     container_name: vault
     image: "hashicorp/vault:${VAULT_VERSION:-2.2.0}"
     ports:
-      - "${VAULT_PORT:-8200}:8200"
+      - "127.0.0.1:${VAULT_PORT:-8200}:8200"
     environment:
       VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_TOKEN:-root}"
       VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"

@@ -199,19 +199,20 @@ jobs:
           retention-days: 7
 
       # NestJS / TypeScript (Fulfillment Service)
-      - name: Set up Node.js 22 for NestJS
+      - name: Set up Node.js 24 for NestJS
         if: inputs.service-type == 'nestjs'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24.15'
           cache: 'npm'
-          cache-dependency-path: ${{ inputs.service-dir }}/package.json
+          cache-dependency-path: ${{ inputs.service-dir }}/package-lock.json
 
       - name: Install & Run NestJS Tests with Coverage
         if: inputs.service-type == 'nestjs'
         run: |
           cd ${{ inputs.service-dir }}
-          npm ci || npm install
+          npm ci
+          npm run typecheck
           npm run test:cov
           npm run build
 
@@ -484,7 +485,9 @@ jobs:
         if: inputs.service-type == 'nestjs'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24.15'
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.service-dir }}/package-lock.json
 
       - name: Download NestJS Coverage Artifacts
         if: inputs.service-type == 'nestjs'

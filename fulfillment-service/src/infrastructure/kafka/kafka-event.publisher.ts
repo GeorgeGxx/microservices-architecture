@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Producer, Partitioners } from 'kafkajs';
-import { EventPublisher } from '../../application/ports/event-publisher.port';
+import type { EventPublisher } from '../../application/ports/event-publisher.port';
 import { ShipmentDispatchedEvent } from '../../domain/events/shipment-dispatched.event';
 import { ShipmentDeliveredEvent } from '../../domain/events/shipment-delivered.event';
 
@@ -39,9 +39,10 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
       await this.producer.connect();
       this.reconnectNeeded = false;
       this.logger.log(`Connected to Kafka brokers at ${process.env.KAFKA_BOOTSTRAP_SERVERS || 'localhost:9092'}`);
-    } catch (err) {
+    } catch (err: unknown) {
       this.reconnectNeeded = true;
-      this.logger.warn(`Could not connect Kafka producer immediately: ${err.message}. Retrying in 5s...`);
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Could not connect Kafka producer immediately: ${message}. Retrying in 5s...`);
       if (!this.isShuttingDown) {
         this.reconnectTimer = setTimeout(() => {
           void this.connectProducer();
@@ -83,8 +84,9 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
         ],
       });
       this.logger.log(`Published ShipmentDispatchedEvent for order #${event.orderNumber} (Tracking: ${event.trackingNumber})`);
-    } catch (err) {
-      this.logger.error(`Failed to publish ShipmentDispatchedEvent for order #${event.orderNumber}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to publish ShipmentDispatchedEvent for order #${event.orderNumber}: ${message}`);
     }
   }
 
@@ -105,8 +107,9 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
         ],
       });
       this.logger.log(`Published ShipmentDeliveredEvent for order #${event.orderNumber}`);
-    } catch (err) {
-      this.logger.error(`Failed to publish ShipmentDeliveredEvent for order #${event.orderNumber}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to publish ShipmentDeliveredEvent for order #${event.orderNumber}: ${message}`);
     }
   }
 
@@ -129,8 +132,9 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
         ],
       });
       this.logger.warn(`Published ShipmentFailedEvent for order #${orderNumber} (reason: ${reason})`);
-    } catch (err) {
-      this.logger.error(`Failed to publish ShipmentFailedEvent for order #${orderNumber}: ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Failed to publish ShipmentFailedEvent for order #${orderNumber}: ${message}`);
     }
   }
 }

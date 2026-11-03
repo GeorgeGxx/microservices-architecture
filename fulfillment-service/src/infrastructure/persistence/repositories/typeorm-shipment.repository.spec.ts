@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { TypeOrmShipmentRepository } from './typeorm-shipment.repository';
 import { ShipmentOrmEntity } from '../entities/shipment.orm-entity';
 import { Shipment } from '../../../domain/models/shipment.entity';

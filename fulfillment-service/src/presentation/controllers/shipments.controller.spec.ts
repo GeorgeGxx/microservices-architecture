@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Test, TestingModule } from '@nestjs/testing';
 import { ShipmentsController } from './shipments.controller';
 import { CreateShipmentUseCase } from '../../application/use-cases/create-shipment.use-case';
