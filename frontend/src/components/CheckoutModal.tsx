@@ -38,37 +38,37 @@ const DECLINE_PROFILES: Record<string, DeclineInfo> = {
   SIMULATED_DECLINED_INSUFFICIENT_FUNDS: {
     code: '51',
     badge: 'ISO 8583 - RESP 51',
-    title: 'Fondos Insuficientes / Límite de Crédito Excedido',
-    description: 'La entidad bancaria emisora rechazó el cargo porque la tarjeta no cuenta con fondos disponibles suficientes o se superó el límite de crédito disponible.',
-    suggestion: 'Intenta con otra tarjeta de crédito o débito, o comunícate con tu institución bancaria para autorizar un aumento de límite temporal.',
+    title: 'Insufficient Funds / Credit Limit Exceeded',
+    description: 'The issuing financial institution declined the charge because the card has insufficient available balance or credit limit.',
+    suggestion: 'Try another credit or debit card, or contact your issuing bank to request a temporary limit adjustment.',
   },
   SIMULATED_DECLINED_INCORRECT_PIN: {
     code: '55',
     badge: 'ISO 8583 - RESP 55',
-    title: 'NIP o Código de Seguridad (CVV) Inválido',
-    description: 'El NIP criptográfico o código CVV dinámico ingresado en la terminal no superó la autenticación con el emisor bancario.',
-    suggestion: 'Verifica tu NIP en tu app bancaria móvil o ingresa el código CVV dinámico actualizado.',
+    title: 'Invalid Security PIN or CVV Code',
+    description: 'The cryptographic chip PIN or dynamic CVV security code failed issuing bank authentication.',
+    suggestion: 'Verify your card PIN in your mobile banking app or re-enter the dynamic CVV security code.',
   },
   SIMULATED_DECLINED_SUSPECTED_FRAUD: {
     code: '59',
     badge: 'ISO 8583 - RESP 59',
-    title: 'Bloqueo Preventivo por Sospecha de Fraude',
-    description: 'El motor de riesgo y prevención de fraudes del banco emisor activó una retención preventiva por seguridad en compras de comercio electrónico.',
-    suggestion: 'Comunícate a la línea telefónica al reverso de tu tarjeta o autoriza la compra desde la aplicación móvil de tu banco.',
+    title: 'Security Hold / Suspected Fraud Prevention',
+    description: 'The card issuer fraud risk engine placed a preventive hold on this online transaction for account protection.',
+    suggestion: 'Call the customer service phone number on the back of your card or approve the transaction in your bank app.',
   },
   SIMULATED_DECLINED_EXPIRED_CARD: {
     code: '54',
     badge: 'ISO 8583 - RESP 54',
-    title: 'Tarjeta Vencida / Plástico Expirado',
-    description: 'La fecha de vencimiento registrada ya expiró o el plástico bancario fue renovado por tu institución financiera.',
-    suggestion: 'Ingresa los datos de tu nueva tarjeta plástica o digital renovada.',
+    title: 'Expired Card / Validity Period Elapsed',
+    description: 'The expiration date on record has elapsed or the physical card was superseded by a reissue.',
+    suggestion: 'Please enter the details of your renewed card or an alternative active payment method.',
   },
   SIMULATED_DECLINED: {
     code: '05',
     badge: 'ISO 8583 - RESP 05',
-    title: 'Transacción Declinada por la Entidad Emisora',
-    description: 'La institución financiera emisora declinó la autorización de pago para este comercio.',
-    suggestion: 'Por favor selecciona otro método de pago o intenta con otra tarjeta.',
+    title: 'Transaction Declined by Card Issuer',
+    description: 'The card issuing financial institution declined authorization for this merchant purchase.',
+    suggestion: 'Please select an alternate payment method or try another payment card.',
   },
 };
 
@@ -205,7 +205,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
         setCurrentStep(fsm.step);
         setStepError(profile.description);
         setDeclineDetails(profile);
-        showToast('Transacción Rechazada', `${profile.badge}: ${profile.title}`, 'stock');
+        showToast('Payment Declined', `${profile.badge}: ${profile.title}`, 'stock');
         return;
       }
 
@@ -338,7 +338,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               <div className="flex-1 space-y-1.5">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="text-xs font-black tracking-wider uppercase text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                    <XCircle className="w-4 h-4" /> Autorización Bancaria Rechazada
+                    <XCircle className="w-4 h-4" /> Bank Authorization Declined
                   </span>
                   <span className="font-mono text-[10px] font-bold px-2.5 py-0.5 rounded-md bg-rose-500/20 text-rose-700 dark:text-rose-300 border border-rose-500/30">
                     {declineDetails.badge}
@@ -351,11 +351,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   {declineDetails.description}
                 </p>
                 <div className="pt-2 text-[11px] text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-2">
-                  <span className="font-bold text-amber-600 dark:text-amber-400 flex-shrink-0">💡 Sugerencia:</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400 flex-shrink-0">💡 Recommendation:</span>
                   <span>{declineDetails.suggestion}</span>
                 </div>
                 <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>Auditoría registrada en Prometheus & Grafana</span>
+                  <span>Audit recorded in Prometheus & Grafana</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -365,7 +365,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     }}
                     className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                   >
-                    <RefreshCw className="w-3 h-3" /> Cambiar a Tarjeta Aprobada
+                    <RefreshCw className="w-3 h-3" /> Switch to Approved Card
                   </button>
                 </div>
               </div>
@@ -558,13 +558,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               <div>
                 <p className="font-bold text-slate-900 dark:text-white">
                   {formData.paymentMethod === 'SIMULATED_APPROVED'
-                    ? 'Procesando Transacción Saga & Verificando Inventario...'
-                    : 'Contactando Red Bancaria Interbancaria (Visa/Mastercard)...'}
+                    ? 'Executing Distributed Saga & Verifying Inventory...'
+                    : 'Contacting Card Issuer Interbank Network (Visa / Mastercard)...'}
                 </p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {formData.paymentMethod === 'SIMULATED_APPROVED'
-                    ? 'Saga distribuida con outbox pattern y reservas atómicas.'
-                    : 'Validando saldo, vigencia de plástico y NIP de seguridad...'}
+                    ? 'Transactional outbox dispatch with atomic stock reservation.'
+                    : 'Validating credit line, expiration date, and cryptographic chip PIN...'}
                 </p>
               </div>
             </div>
@@ -574,9 +574,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="space-y-4 animate-in fade-in">
               <div>
                 <label htmlFor="checkout-payment-method" className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Método de Pago & Simulación de Emisor</span>
+                  <span>Payment Method & Issuer Simulation</span>
                   <span className="text-[10px] font-normal text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
-                    Terminal POS Sandbox
+                    POS Sandbox Terminal
                   </span>
                 </label>
                 <select
@@ -590,33 +590,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   }}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 text-sm focus:border-indigo-500 focus:outline-none transition font-medium"
                 >
-                  <optgroup label="✅ Transacciones Aprobadas">
+                  <optgroup label="✅ Approved Transactions">
                     <option value="SIMULATED_APPROVED">
-                      Visa / Mastercard Crédito (Aprobación Normal)
+                      Visa / Mastercard Credit (Standard Approval)
                     </option>
                   </optgroup>
-                  <optgroup label="❌ Declinaciones Bancarias Realistas (Auditoría Grafana)">
+                  <optgroup label="❌ Realistic Bank Declines (Grafana Telemetry)">
                     <option value="SIMULATED_DECLINED_INSUFFICIENT_FUNDS">
-                      ❌ Fondos Insuficientes / Límite Excedido (Código 51)
+                      ❌ Insufficient Funds / Credit Limit Exceeded (Code 51)
                     </option>
                     <option value="SIMULATED_DECLINED_INCORRECT_PIN">
-                      ❌ NIP o Código de Seguridad CVV Inválido (Código 55)
+                      ❌ Invalid Security PIN or CVV Code (Code 55)
                     </option>
                     <option value="SIMULATED_DECLINED_SUSPECTED_FRAUD">
-                      ❌ Bloqueo Preventivo Antifraude (Código 59)
+                      ❌ Security Hold / Suspected Fraud Lock (Code 59)
                     </option>
                     <option value="SIMULATED_DECLINED_EXPIRED_CARD">
-                      ❌ Plástico Vencido / Fecha Expirada (Código 54)
+                      ❌ Expired Card / Validity Elapsed (Code 54)
                     </option>
                     <option value="SIMULATED_DECLINED">
-                      ❌ Declinación General del Emisor (Código 05)
+                      ❌ General Issuer Decline (Code 05)
                     </option>
                   </optgroup>
                 </select>
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3 flex items-start gap-2">
                   <Lock className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
                   <span>
-                    Simulación sandbox conectada a <code>payments-service</code>. Las declinaciones alimentan en tiempo real los paneles de rechazos bancarios en Grafana sin comprometer inventario.
+                    Sandbox simulation connected to <code>payments-service</code>. Bank declines populate real-time Grafana telemetry without mutating warehouse inventory.
                   </span>
                 </p>
               </div>
@@ -661,18 +661,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
                       {formData.paymentMethod === 'SIMULATED_APPROVED'
-                        ? 'Procesando Saga...'
-                        : 'Verificando con Banco Emisor...'}
+                        ? 'Processing Saga...'
+                        : 'Authorizing with Issuer...'}
                     </>
                   ) : formData.paymentMethod === 'SIMULATED_APPROVED' ? (
                     <>
                       <CheckCircle2 className="w-5 h-5" />
-                      Confirmar Orden ({formatPrice(total)})
+                      Confirm & Place Order ({formatPrice(total)})
                     </>
                   ) : (
                     <>
                       <XCircle className="w-5 h-5" />
-                      Probar Declinación ({formatPrice(total)})
+                      Test Bank Decline ({formatPrice(total)})
                     </>
                   )}
                 </button>
