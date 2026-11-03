@@ -407,26 +407,28 @@ def build_business_dashboard():
     },
     {
         "id": 18,
-        "type": "gauge",
-        "title": "⏱️ Payment Gateway Latency (P95 ms)",
-        "description": "95th percentile transaction processing duration across payment gateways.",
+        "type": "stat",
+        "title": "💳 Average Transaction Amount (USD)",
+        "description": "Average transaction value authorized across completed customer payments.",
         "gridPos": {"h": 6, "w": 6, "x": 12, "y": 14},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "ms", "min": 0, "max": 1000,
-                "color": {"mode": "thresholds"},
-                "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 200}, {"color": "#ef4444", "value": 500}]}
+                "unit": "currencyUSD",
+                "color": {"mode": "palette-classic"},
+                "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}]}
             }
         },
         "options": {
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
-            "showThresholdLabels": False, "showThresholdMarkers": True
+            "textMode": "value",
+            "colorMode": "value",
+            "graphMode": "area"
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "(histogram_quantile(0.95, sum by (le) (rate(ecommerce_payment_duration_seconds_bucket[5m]))) * 1000) or vector(0)",
-            "legendFormat": "Gateway P95"
+            "expr": "(sum(ecommerce_revenue_usd) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}), 1)) or vector(0)",
+            "legendFormat": "Average Ticket"
         }]
     },
     {
@@ -575,7 +577,7 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum by (sku) (ecommerce_sku_sales) or sum by (sku) (ecommerce_sku_sales_total) or vector(0)",
+            "expr": "sum by (sku) (ecommerce_sku_sales > 0) or sum by (sku) (ecommerce_sku_sales_total > 0)",
             "legendFormat": "{{sku}}"
         }]
     },

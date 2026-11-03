@@ -103,13 +103,14 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
 
   private resolveCarrier(rawMethod?: unknown): string {
     if (typeof rawMethod === 'string') {
-      if (rawMethod.includes('FedEx')) {
+      const normalized = rawMethod.trim();
+      if (/fedex/i.test(normalized)) {
         return 'FedEx';
       }
-      if (rawMethod.includes('DHL')) {
+      if (/dhl/i.test(normalized) || /express|priority|standard/i.test(normalized)) {
         return 'DHL Express';
       }
-      return rawMethod;
+      return normalized || 'DHL Express';
     }
     return 'DHL Express';
   }

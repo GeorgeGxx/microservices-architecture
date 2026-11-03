@@ -2,9 +2,10 @@ import uuid
 from typing import Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from datetime import datetime, timezone
 from app.domain.models import FunnelEvent, CustomerCohortSummary
 from app.domain.repositories import FunnelRepository, AnalyticsStateRepository
-from app.infrastructure.orm_models import FunnelEventOrm, OrderSaleOrm
+from app.infrastructure.orm_models import FunnelEventOrm, OrderSaleOrm, SkuSaleOrm
 
 class SqlAlchemyFunnelRepository(FunnelRepository):
     def __init__(self, session: AsyncSession):
@@ -114,3 +115,21 @@ class SqlAlchemyAnalyticsStateRepository(AnalyticsStateRepository):
             "total_items_sold": int(total_items or 0),
             "basket_sizes": basket_counts,
         }
+
+    async def record_sku_sales(self, sku: str, quantity: int) -> None:
+        if not sku or quantity <= 0:
+            return
+        existing = await self.session.execute(select(SkuSaleOrm).where(SkuSaleOrm.sku == sku))
+        row = existing.scalar_one_or_none()
+        if row:
+            row.units_sold += quantity
+            row.updated_at = datetime.now(timezone.utc)
+        else:
+            new_row = SkuSaleOrm(sku=sku, units_sold=quantity)
+            self.session.add(new_row)
+        await self.session.commit()
+
+    async def get_sku_sales(self) -> Dict[str, int]:
+        stmt = select(SkuSaleOrm.sku, SkuSaleOrm.units_sold)
+        result = await self.session.execute(stmt)
+        return {row[0]: row[1] for row in result.all()}
