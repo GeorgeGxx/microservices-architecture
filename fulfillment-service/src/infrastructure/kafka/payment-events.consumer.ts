@@ -80,17 +80,16 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
   }
 
   private resolveCarrier(rawMethod?: unknown): string {
-    if (!rawMethod) {
-      return 'DHL Express';
+    if (typeof rawMethod === 'string') {
+      if (rawMethod.includes('FedEx')) {
+        return 'FedEx';
+      }
+      if (rawMethod.includes('DHL')) {
+        return 'DHL Express';
+      }
+      return rawMethod;
     }
-    const methodStr = String(rawMethod);
-    if (methodStr.includes('FedEx')) {
-      return 'FedEx';
-    }
-    if (methodStr.includes('DHL')) {
-      return 'DHL Express';
-    }
-    return methodStr;
+    return 'DHL Express';
   }
 
   private async handlePaymentEvent(raw: Record<string, any>): Promise<void> {
@@ -99,8 +98,9 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const street = raw.shipping_address || raw.street || '100 Main St';
-    if (String(street).includes('FAIL_SHIPMENT')) {
+    const streetVal = raw.shipping_address || raw.street;
+    const street = typeof streetVal === 'string' ? streetVal : '100 Main St';
+    if (street.includes('FAIL_SHIPMENT')) {
       const reason = 'Undeliverable shipping address rejected by carrier validation';
       this.logger.warn(`Fulfillment validation failed for order #${orderNumber}: ${reason}`);
       if (this.eventPublisher?.publishFailed) {
