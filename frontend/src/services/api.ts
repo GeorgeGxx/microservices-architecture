@@ -158,14 +158,25 @@ function getOrCreateTelemetrySessionId(): string {
     const key = 'novashop_telemetry_session_id';
     let sessionId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
     if (!sessionId) {
-      sessionId = 'sess-' + Math.random().toString(36).substring(2, 11) + '-' + Date.now().toString(36);
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        sessionId = `sess-${crypto.randomUUID()}`;
+      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const bytes = new Uint32Array(2);
+        crypto.getRandomValues(bytes);
+        sessionId = `sess-${bytes[0].toString(36)}${bytes[1].toString(36)}-${Date.now().toString(36)}`;
+      } else {
+        sessionId = `sess-gen-${Date.now().toString(36)}`;
+      }
       if (typeof sessionStorage !== 'undefined') {
         sessionStorage.setItem(key, sessionId);
       }
     }
     return sessionId;
   } catch {
-    return 'sess-' + Math.random().toString(36).substring(2, 11);
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return `sess-${crypto.randomUUID()}`;
+    }
+    return `sess-gen-${Date.now().toString(36)}`;
   }
 }
 

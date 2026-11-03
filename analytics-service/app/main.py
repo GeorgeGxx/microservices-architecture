@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -44,7 +45,6 @@ async def lifespan(app: FastAPI):
             break
         except Exception as e:
             logger.warning(f"Database connection attempt {attempt}/15 failed: {e}. Retrying in 2s...")
-            import asyncio
             await asyncio.sleep(2)
 
     # 1.1 Startup: Hydrate live Prometheus metrics from PostgreSQL 18 state

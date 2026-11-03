@@ -205,7 +205,7 @@ def run_spark_capture(
     ])
 
     pyspark_jars_dir = Path("/usr/local/lib/python3.12/site-packages/pyspark/jars")
-    has_prebaked_kafka = bool(list(pyspark_jars_dir.glob("spark-sql-kafka-*.jar")))
+    has_prebaked_kafka = any(pyspark_jars_dir.glob("spark-sql-kafka-*.jar"))
 
     builder = (SparkSession.builder.appName("orders-kafka-to-parquet")
                .master("local[*]")
