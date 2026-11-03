@@ -984,9 +984,9 @@ The backend microservices ecosystem leverages modern Java 21 LTS and Spring Boot
   ```
 - **Virtual Threads Integration:** Paired with `spring.threads.virtual.enabled: true`, ensuring millions of concurrent I/O operations (Kafka consumers, Tomcat servlets, Redis queries) execute without platform thread starvation or GC stop-the-world spikes.
 
-### 4. 🛡️ Resilient Distributed Fault Tolerance (Saga Compensation & Circuit Breakers)
-- **Resilience4j Integration:** Retained for critical inter-service boundaries in `OrderService` and `OrderController` (`@CircuitBreaker`).
-- **Distributed Saga Compensation:** In the event of downstream inventory decrement or validation failures, automated rollback triggers (`compensateInventoryStock`) with atomic Redis lock release.
+### 4. 🛡️ Resilient Distributed Fault Tolerance (Choreographed Saga & Circuit Breakers)
+- **Resilience4j Integration:** Retained for critical client-facing boundaries in `OrderService` and `OrderController` (`@CircuitBreaker`).
+- **Choreographed Saga Compensation:** On order cancellation or downstream failures, `OrderService` publishes `ORDER_CANCELLED` via the Transactional Outbox pattern to `orders-topic`. `inventory-service` consumes this event reactively with virtual-thread concurrency, restoring stock idempotently via Redis keys (`inventory:cancelled:<orderNumber>`) without synchronous HTTP coupling.
 
 ---
 

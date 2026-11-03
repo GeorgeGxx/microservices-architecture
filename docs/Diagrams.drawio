@@ -152,7 +152,10 @@
         <mxCell id="e4" parent="1" value="Subgraph Query (_entities)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#6366F1;strokeWidth=2;" edge="1" source="n_gw" target="n_orders">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e5" parent="1" value="Stock Check &amp; S2S OAuth2 Decrement/Increment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
+        <mxCell id="e5" parent="1" value="Stock Check &amp; S2S OAuth2 Decrement" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=2;" edge="1" source="n_orders" target="n_inv">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_saga_inv" parent="1" value="Consume orders-topic (Choreographed Stock Restitution)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#10B981;strokeWidth=1.5;dashed=1;" edge="1" source="n_kafka" target="n_inv">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e6" parent="1" value="Publish (PLAINTEXT 9092)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#F59E0B;strokeWidth=2;" edge="1" source="n_orders" target="n_kafka">

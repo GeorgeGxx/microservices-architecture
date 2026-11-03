@@ -480,9 +480,9 @@ Filters logs for automated security interception alerts, rate-limit warnings, an
 ```
 
 #### 🔄 Distributed Saga Compensation & Rollback Logs
-Tracks Saga orchestrator compensation events when an order is cancelled or inventory fails:
+Tracks Saga compensation events across orchestrator (`orders-service`) and choreographed consumers (`inventory-service`) when an order is cancelled or inventory is restored:
 ```logql
-{service="orders-service"} |~ "Saga compensation|Compensating order|Restoring inventory"
+{service=~"orders-service|inventory-service"} |~ "(?i)(Saga compensation|Compensating order|Restoring inventory|restored inventory)"
 ```
 
 #### 📦 DHL Tracking Generation Logs
