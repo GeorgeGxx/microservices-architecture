@@ -1040,6 +1040,17 @@ function Invoke-LocalContractChecks {
     Push-Location $root
     $origNodeOptions = $env:NODE_OPTIONS
     try {
+        if (Get-Command docker -ErrorAction SilentlyContinue) {
+            $forecastContainer = (docker ps -q -f name=demand-forecast-service 2>$null)
+            if ($forecastContainer) {
+                $hasModel = (docker exec -i demand-forecast-service python -c "import mlflow, os; client = mlflow.MlflowClient(os.getenv('MLFLOW_TRACKING_URI')); exp = client.get_experiment_by_name('inventory-demand-forecast'); print(1 if exp and len(client.search_runs(exp.experiment_id)) > 0 else 0)" 2>$null)
+                if ($hasModel -ne "1") {
+                    Write-Host "  >> Training baseline MLOps demand model in PySpark..." -ForegroundColor Yellow
+                    & docker compose --profile training run --rm demand-model-training
+                }
+            }
+        }
+
         $env:NODE_OPTIONS = if ($origNodeOptions) { "$origNodeOptions --no-deprecation" } else { "--no-deprecation" }
         & npx --yes --loglevel=error newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
         if ($LASTEXITCODE -ne 0) { throw "Newman contract suite failed (exit $LASTEXITCODE)." }

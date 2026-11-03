@@ -2,8 +2,10 @@
 # Format: <rule-id>\t<action>\t<comment>
 # Actions: IGNORE, INFO, WARN, FAIL
 
+10015	INFO	Re-examine Cache-control Directives (Handled via explicit public/max-age header)
 10020	WARN	X-Frame-Options Header Missing
 10021	WARN	X-Content-Type-Options Header Missing
+10035	INFO	Strict-Transport-Security Header Not Set (Exposed via Nginx HSTS; informational for plain HTTP scan)
 10036	IGNORE	Server Leaks Version Information via "Server" HTTP Response Header Field (Handled by server_tokens off)
 10038	IGNORE	Content Security Policy (CSP) Header Not Set (Ignored for backend REST APIs / Actuator)
 10049	IGNORE	Content Cache-Control Header Missing (Ignored for actuator health endpoints)

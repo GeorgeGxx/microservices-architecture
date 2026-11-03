@@ -5,6 +5,9 @@ import { Rate } from 'k6/metrics';
 // Custom metric: true application failures (5xx server errors or connection aborts)
 const serverErrors = new Rate('server_errors');
 
+// Treat HTTP 200 and HTTP 429 (gateway rate-limiting) as expected responses
+http.setResponseCallback(http.expectedStatuses(200, 429));
+
 // Configurable via CLI env: k6 run -e TARGET_URL=http://<istio-host> load-test.js
 const TARGET_URL = __ENV.TARGET_URL || 'http://localhost:30080';
 
@@ -16,7 +19,7 @@ export const options = {
   ],
   thresholds: {
     http_req_duration: ['p(95)<500'], // 95% of requests must complete below 500ms
-    http_req_failed: ['rate<0.40'],   // Tolerates expected HTTP 429 rate-limiting from Nginx (20 req/s limit)
+    http_req_failed: ['rate<0.05'],   // Unexpected HTTP failures (excluding 200/429) must remain below 5%
     server_errors: ['rate<0.05'],     // 5xx server errors must remain below 5%
   },
 };
@@ -33,7 +36,12 @@ export default function () {
   });
 
   const analyticsRes = http.get(`${TARGET_URL}/api/v1/analytics/summary`);
+  const isAnalyticsOk = analyticsRes.status === 200 || analyticsRes.status === 429;
   serverErrors.add(analyticsRes.status >= 500);
+
+  check(analyticsRes, {
+    'analytics status is 200 or gateway rate-limited (429)': () => isAnalyticsOk,
+  });
 
   sleep(0.5);
 }
