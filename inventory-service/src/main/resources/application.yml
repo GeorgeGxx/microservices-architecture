@@ -84,8 +84,10 @@ spring:
 
 ecommerce:
   inventory-reservation:
+    enabled: ${INVENTORY_RESERVATION_ENABLED:true}
     ttl: ${INVENTORY_RESERVATION_TTL:PT15M}
     expiration-scheduler-delay-ms: ${INVENTORY_RESERVATION_EXPIRATION_SCHEDULER_DELAY_MS:10000}
+    expiration-scheduler-initial-delay-ms: ${INVENTORY_RESERVATION_INITIAL_DELAY_MS:30000}
 
 server:
   port: ${PORT:8001}

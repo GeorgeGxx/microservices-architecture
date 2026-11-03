@@ -297,11 +297,13 @@ class InventoryServiceTest {
                 .thenReturn(List.of(reservation));
         when(inventoryRepository.findBySkuInWithLock(List.of("SKU-EXPIRED"))).thenReturn(List.of(inventory));
 
+        inventoryService.initMetrics();
         int released = inventoryService.expireDueReservations(10);
 
         assertEquals(1, released);
         assertEquals(InventoryReservationStatus.EXPIRED, reservation.getStatus());
         assertEquals(3L, inventory.getQuantity());
+        assertEquals(1.0, meterRegistry.get("ecommerce_inventory_reservations_expired_total").counter().count());
     }
 
     @Test

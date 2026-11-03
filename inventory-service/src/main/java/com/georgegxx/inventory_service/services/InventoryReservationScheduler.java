@@ -2,10 +2,16 @@ package com.georgegxx.inventory_service.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
+@ConditionalOnProperty(
+        name = "ecommerce.inventory-reservation.enabled",
+        havingValue = "true",
+        matchIfMissing = true
+)
 @RequiredArgsConstructor
 @Slf4j
 public class InventoryReservationScheduler {
@@ -14,7 +20,10 @@ public class InventoryReservationScheduler {
 
     private final InventoryService inventoryService;
 
-    @Scheduled(fixedDelayString = "${ecommerce.inventory-reservation.expiration-scheduler-delay-ms:10000}")
+    @Scheduled(
+            fixedDelayString = "${ecommerce.inventory-reservation.expiration-scheduler-delay-ms:10000}",
+            initialDelayString = "${ecommerce.inventory-reservation.expiration-scheduler-initial-delay-ms:30000}"
+    )
     public void releaseExpiredReservations() {
         try {
             int released = this.inventoryService.expireDueReservations(BATCH_SIZE);
