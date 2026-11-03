@@ -102,20 +102,20 @@ def build_business_dashboard():
     {
         "id": 4,
         "type": "stat",
-        "title": "❌ Cancelled Orders & Loss",
-        "description": "Total customer and administrator cancellations (revenue leakage audit).",
+        "title": "💸 Revenue Lost to Cancellations ($)",
+        "description": "Estimated gross revenue leakage due to cancelled orders (Cancelled Orders * AOV).",
         "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "short",
+                "unit": "currencyUSD",
                 "color": {"mode": "thresholds"},
                 "thresholds": {
                     "mode": "absolute",
                     "steps": [
                         {"color": "#10b981", "value": None},
-                        {"color": "#f59e0b", "value": 1},
-                        {"color": "#ef4444", "value": 3}
+                        {"color": "#f59e0b", "value": 100},
+                        {"color": "#ef4444", "value": 500}
                     ]
                 }
             }
@@ -126,8 +126,8 @@ def build_business_dashboard():
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-            "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-            "legendFormat": "Cancelled Orders"
+            "expr": "round((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) * ((sum(ecommerce_revenue_usd) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)), 0.01)",
+            "legendFormat": "Lost Revenue ($)"
         }]
     },
     {
@@ -292,13 +292,15 @@ def build_business_dashboard():
     {
         "id": 13,
         "type": "bargauge",
-        "title": "⚖️ Net Fulfilled vs. Cancelled Orders Audit",
-        "description": "Reconciliation of net fulfilled orders against cancellations and overall Order Cancellation Rate (OCR).",
+        "title": "🎯 Order Fulfillment Rate & Retention SLA Audit",
+        "description": "Comprehensive SLA compliance across warehouse delivery, customer order retention, and cancellation rates.",
         "gridPos": {"h": 7, "w": 8, "x": 16, "y": 6},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
-                "unit": "short",
+                "unit": "percent",
+                "min": 0,
+                "max": 100,
                 "color": {"mode": "palette-classic"},
                 "thresholds": {"mode": "absolute", "steps": [{"color": "#10b981", "value": None}]}
             }
@@ -312,18 +314,18 @@ def build_business_dashboard():
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 0)",
-                "legendFormat": "Net Completed Orders"
+                "expr": "round((sum(ecommerce_shipments_delivered_total) / clamp_min(sum(ecommerce_shipments_dispatched_total), 1)) * 100, 0.1)",
+                "legendFormat": "Fulfillment Delivery Success Rate %"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)",
-                "legendFormat": "Cancelled Orders"
+                "expr": "round((1 - ((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1))) * 100, 0.1)",
+                "legendFormat": "Net Order Retention Rate %"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)) * 100",
-                "legendFormat": "Cancellation Rate % (OCR)"
+                "expr": "round(((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1)) * 100, 0.1)",
+                "legendFormat": "Order Cancellation Rate % (OCR)"
             }
         ]
     },
@@ -339,16 +341,28 @@ def build_business_dashboard():
     {
         "id": 16,
         "type": "stat",
-        "title": "💳 Processed Payments & Authorization Rate",
-        "description": "Total payment transactions processed and authorization success percentage.",
+        "title": "💳 Payment Gateway Health & Authorization SLA",
+        "description": "Real-time payment authorization success rate alongside bank declined/failed transactions.",
         "gridPos": {"h": 6, "w": 6, "x": 0, "y": 14},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
                 "unit": "short",
                 "color": {"mode": "thresholds"},
-                "thresholds": {"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}, {"color": "#f59e0b", "value": 90}, {"color": "#10b981", "value": 95}]}
-            }
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [{"color": "#10b981", "value": None}, {"color": "#ef4444", "value": 1}]
+                }
+            },
+            "overrides": [
+                {
+                    "matcher": {"id": "byName", "options": "Authorization Success %"},
+                    "properties": [
+                        {"id": "unit", "value": "percent"},
+                        {"id": "thresholds", "value": {"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}, {"color": "#f59e0b", "value": 90}, {"color": "#10b981", "value": 95}]}}
+                    ]
+                }
+            ]
         },
         "options": {
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
@@ -357,12 +371,12 @@ def build_business_dashboard():
         "targets": [
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_payments_total{status=\"COMPLETED\"}) or vector(0)",
-                "legendFormat": "Approved Transactions"
+                "expr": "sum(ecommerce_payments_total{status=\"FAILED\"}) or vector(0)",
+                "legendFormat": "Declined Transactions"
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "(sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100 or vector(100)",
+                "expr": "round((sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100, 0.1) or vector(100)",
                 "legendFormat": "Authorization Success %"
             }
         ]
@@ -1024,7 +1038,7 @@ def build_technical_dashboard():
             },
             {
                 "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
-                "expr": "sum(ecommerce_saga_compensations_total) or sum(ecommerce_compensations_total) or vector(0)",
+                "expr": "(sum(inventory_compensations_total) or vector(0)) + (sum(ecommerce_saga_compensations_total) or vector(0)) + (sum(ecommerce_compensations_total) or vector(0))",
                 "legendFormat": "Saga Rollbacks & Compensations"
             }
         ]

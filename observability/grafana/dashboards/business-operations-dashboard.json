@@ -632,8 +632,8 @@
     {
       "id": 16,
       "type": "stat",
-      "title": "💳 Processed Payments & Authorization Rate",
-      "description": "Total payment transactions processed and authorization success percentage.",
+      "title": "💳 Payment Gateway Health & Authorization SLA",
+      "description": "Real-time payment authorization success rate alongside bank declined/failed transactions.",
       "gridPos": {
         "h": 6,
         "w": 6,
@@ -654,20 +654,50 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "#ef4444",
+                "color": "#10b981",
                 "value": null
               },
               {
-                "color": "#f59e0b",
-                "value": 90
-              },
-              {
-                "color": "#10b981",
-                "value": 95
+                "color": "#ef4444",
+                "value": 1
               }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Authorization Success %"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#ef4444",
+                      "value": null
+                    },
+                    {
+                      "color": "#f59e0b",
+                      "value": 90
+                    },
+                    {
+                      "color": "#10b981",
+                      "value": 95
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -686,15 +716,15 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_payments_total{status=\"COMPLETED\"}) or vector(0)",
-          "legendFormat": "Approved Transactions"
+          "expr": "sum(ecommerce_payments_total{status=\"FAILED\"}) or vector(0)",
+          "legendFormat": "Declined Transactions"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100 or vector(100)",
+          "expr": "round((sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100, 0.1) or vector(100)",
           "legendFormat": "Authorization Success %"
         }
       ]

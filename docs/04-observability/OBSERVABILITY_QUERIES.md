@@ -138,6 +138,28 @@ Shipments created and routed through integrated carriers (`DHL Express`, `FedEx`
 sum by (carrier) (ecommerce_shipments_total{status!="CANCELLED"})
 ```
 
+#### 💳 Payment Gateway Health & Authorization SLA
+Tracks bank authorization success percentage alongside bank declined/failed transactions:
+```promql
+# Declined Transactions (Bank Errors)
+sum(ecommerce_payments_total{status="FAILED"}) or vector(0)
+
+# Authorization Success %
+round((sum(ecommerce_payments_total{status="COMPLETED"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100, 0.1) or vector(100)
+```
+
+#### 💳 Payment Volume by Provider & Method
+Payment transaction throughput partitioned by gateway method:
+```promql
+sum by (payment_method) (ecommerce_payments_total) or vector(0)
+```
+
+#### ↩️ Payment Refunds & Chargeback Reasons
+Total customer refunds and chargeback disputes partitioned by business reason:
+```promql
+sum by (reason) (ecommerce_payment_refunds_total) or vector(0)
+```
+
 #### 📦 Warehouse Dispatch vs Delivery Volume
 Cumulative velocity of warehouse dispatches and completed customer deliveries from fulfillment-service:
 ```promql
