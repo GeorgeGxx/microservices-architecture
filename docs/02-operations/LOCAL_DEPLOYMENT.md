@@ -202,7 +202,7 @@ Once Keycloak is bootstrapped and `.env` has the synced client secret, start the
  
 ```powershell
 # Build and launch the complete platform stack in detached mode
-docker compose up -d --build
+docker compose --profile "*" up -d --build
  
 # Check real-time container health
 # Note: It's OK if the vault-init service has exited in Docker Compose.
@@ -232,7 +232,7 @@ The `training` and `capture` Compose profiles keep MLOps jobs out of the regular
 #### 1. Start the platform
 Complete the Keycloak bootstrap steps above, then launch the normal stack:
 ```powershell
-docker compose up -d --build
+docker compose --profile "*" up -d --build
 ```
 This starts MLflow, the demand-forecast API, Kafka, and the other default services. The MLflow UI is available at <http://localhost:5000>. MLflow metadata and model artifacts persist in the `mlops_mlflow_data` and `mlops_mlflow_artifacts` Docker volumes without requiring MinIO.
  

@@ -232,7 +232,7 @@ docker compose up -d --build keycloak
 pwsh -File .\scripts\bootstrap-keycloak.ps1
 
 # 5. Launch all Compose services, including MLflow and the forecast API:
-docker compose up -d --build
+docker compose --profile "*" up -d --build
 
 # 6. Verify healthy startup across all containers:
 docker compose ps -a
@@ -258,7 +258,7 @@ To deploy the entire production-grade stack on Minikube with **Istio Service Mes
 .\platform-minikube.ps1 tools
 
 # 2. Deploy the full ecosystem (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps):
-.\platform-minikube.ps1 up -Environment dev
+.\platform-minikube.ps1 up
 
 # 3. Verify platform health, pods, NodePorts, and Gatekeeper OPA policies:
 .\platform-minikube.ps1 doctor -Environment dev
