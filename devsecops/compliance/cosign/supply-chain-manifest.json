@@ -51,17 +51,17 @@
     {
       "name": "demand-forecast-service",
       "runtime": "python:3.12-slim",
-      "image": "georgegxx/demand-forecast-service:1.0.0"
+      "image": "georgegxx/demand-forecast:1.0.0"
     },
     {
       "name": "demand-sales-capture",
       "runtime": "python:3.12-slim",
-      "image": "georgegxx/demand-sales-capture:1.0.0"
+      "image": "georgegxx/mlops-training:1.0.0"
     },
     {
       "name": "demand-model-training",
       "runtime": "python:3.12-slim",
-      "image": "georgegxx/demand-model-training:1.0.0"
+      "image": "georgegxx/mlops-training:1.0.0"
     },
     {
       "name": "mlflow",
