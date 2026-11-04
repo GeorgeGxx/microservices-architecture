@@ -897,7 +897,7 @@ services:
   ### Prometheus Blackbox Exporter (Layer D Synthetic Outside-In SLO Prober)
   blackbox-exporter:
     container_name: blackbox-exporter
-    image: prom/blackbox-exporter:v0.25.0
+    image: prom/blackbox-exporter:v0.29.0
     restart: unless-stopped
     ports:
       - "127.0.0.1:9115:9115"
