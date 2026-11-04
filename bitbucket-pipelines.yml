@@ -321,7 +321,7 @@ definitions:
             done
     - step: &api-contract
         name: '9. API contract smoke tests'
-        image: node:22-slim
+        image: node:24-slim
         script:
           - set -euo pipefail
           - ': "${GKE_INGRESS_URL:?Set GKE_INGRESS_URL in the deployment environment}"'

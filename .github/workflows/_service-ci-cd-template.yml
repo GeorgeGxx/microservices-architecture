@@ -156,7 +156,7 @@ jobs:
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: ${{ inputs.service-dir }}/package.json
 
@@ -388,7 +388,7 @@ jobs:
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
           cache: 'npm'
           cache-dependency-path: ${{ inputs.service-dir }}/package.json
 
@@ -445,7 +445,7 @@ jobs:
         if: inputs.service-type == 'go'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Sonar Analysis (Go)
         if: inputs.service-type == 'go'
@@ -542,7 +542,7 @@ jobs:
         if: inputs.service-type == 'python'
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Sonar Analysis (Python MLOps)
         if: inputs.service-type == 'python'
@@ -923,7 +923,7 @@ jobs:
       - name: Set up Node.js for Newman
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
 
       - name: Set up Python for storefront smoke checks
         uses: actions/setup-python@v7
