@@ -42,7 +42,7 @@ definitions:
               else
                 echo "SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
               fi
-            elif [ "$SERVICE_NAME" = "demand-forecast" ] || [ "$SERVICE_NAME" = "mlops-training" ] || [ "${SERVICE_DIR:-}" = "mlops" ]; then
+            elif [ "$SERVICE_NAME" = "demand-forecast" ] || [ "$SERVICE_NAME" = "mlops-training" ] || [ "$SERVICE_NAME" = "mlflow" ] || [ "${SERVICE_DIR:-}" = "mlops" ]; then
               echo "Executing Python MLOps Unit Tests with Coverage..."
               OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
               EXCLUSIONS="mlops/tests/**,mlops/data/**,mlops/*.sh,mlops/.venv*/**,mlops/generate_sample_sales.py,mlops/test_tdd.py,mlops/patch_spark_jars.py"
@@ -171,6 +171,21 @@ definitions:
           - conftest test /tmp/rendered.yaml --policy devsecops/policies/conftest/
         artifacts:
           - helm/charts/cosmo-router/files/**
+    - step: &cosign-verify
+        name: 'Verify signed supply-chain manifest (Cosign)'
+        image: alpine:3.21
+        script:
+          - apk add --no-cache bash ca-certificates curl
+          - |
+            bash -euo pipefail -c '
+              COSIGN_VERSION=v3.1.3
+              curl -fsSL "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" -o /tmp/cosign
+              install -m 0755 /tmp/cosign /usr/local/bin/cosign
+              cosign verify-blob \
+                --key devsecops/compliance/cosign/cosign.pub \
+                --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+                devsecops/compliance/cosign/supply-chain-manifest.json
+            '
     - step: &terraform-validate
         name: '6. GCP Terraform format and validation (no backend/apply)'
         image: hashicorp/terraform:1.16.2
@@ -223,6 +238,7 @@ definitions:
               docker tag "local/${SERVICE_NAME}:${IMAGE_TAG}" "$IMAGE"
               docker push "$IMAGE"
               PUSHED_DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
+              [[ "$PUSHED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Unable to resolve the pushed image digest for $IMAGE"; exit 1; }
               printf '%s' "$PUSHED_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
             fi
         artifacts:
@@ -285,10 +301,7 @@ definitions:
             if [ -f "artifacts/images/${SERVICE_NAME}.digest" ]; then
               IMAGE_DIGEST="$(cat "artifacts/images/${SERVICE_NAME}.digest")"
             fi
-            DIGEST_ARGS=()
-            if [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-              DIGEST_ARGS=(--set "${HELM_SET_KEY}.image.digest=${IMAGE_DIGEST}")
-            fi
+            [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "A valid immutable image digest is required to deploy ${SERVICE_NAME}."; exit 1; }
             TARGET_CLUSTERS=("$GKE_CLUSTER_NAME")
             if [ "${BITBUCKET_DEPLOYMENT_ENVIRONMENT}" = "production" ]; then
               TARGET_CLUSTERS+=("${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}")
@@ -315,7 +328,7 @@ definitions:
                 --namespace "$NAMESPACE" --create-namespace --reuse-values \
                 --set "${HELM_SET_KEY}.image.repository=${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}" \
                 --set "${HELM_SET_KEY}.image.tag=${IMAGE_TAG}" \
-                "${DIGEST_ARGS[@]}" \
+                --set "${HELM_SET_KEY}.image.digest=${IMAGE_DIGEST}" \
                 --set global.environment="$SPRING_PROFILE" \
                 --wait --timeout 8m --atomic
               kubectl rollout status "deployment/${DEPLOYMENT_NAME}" --namespace "$NAMESPACE" --timeout=5m
@@ -404,7 +417,7 @@ pipelines:
       - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
       - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
       - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
-      - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+      - stage: { name: '5. OPA, Helm and supply-chain compliance', steps: [{ step: *policy-gate }, { step: *cosign-verify }] }
       - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
       - stage:
           name: '7. Publish dev image'
@@ -446,7 +459,7 @@ pipelines:
     #   - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
     #   - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
     #   - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
-    #   - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+    #   - stage: { name: '5. OPA, Helm and supply-chain compliance', steps: [{ step: *policy-gate }, { step: *cosign-verify }] }
     #   - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
     #   - stage:
     #       name: '7. Publish staging image'
@@ -483,7 +496,7 @@ pipelines:
     #   - stage: { name: '2. SAST and secrets', steps: [{ step: *sast }] }
     #   - stage: { name: '3. Build and SBOM', steps: [{ step: *build-sbom }] }
     #   - stage: { name: '4. Image vulnerability scan', steps: [{ step: *container-scan }] }
-    #   - stage: { name: '5. OPA and Helm compliance', steps: [{ step: *policy-gate }] }
+    #   - stage: { name: '5. OPA, Helm and supply-chain compliance', steps: [{ step: *policy-gate }, { step: *cosign-verify }] }
     #   - stage: { name: '6. Terraform format and validation', steps: [{ step: *terraform-validate }] }
     #   - stage:
     #       name: '7. Publish staging candidate'
@@ -575,6 +588,7 @@ pipelines:
     '**':
       - step: *unit-tests
       - step: *sast
+      - step: *cosign-verify
       - step: *terraform-validate
 
   custom:
@@ -584,13 +598,14 @@ pipelines:
       - variables:
           - name: SERVICE_NAME
             default: products-service
-            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service, payments-service, fulfillment-service, analytics-service, cosmo-router, demand-forecast, mlops-training]
+            allowed-values: [frontend, inventory-service, notification-service, orders-service, products-service, payments-service, fulfillment-service, analytics-service, demand-forecast, mlops-training, mlflow]
           - name: GKE_INGRESS_URL
       - step: *unit-tests
       - step: *sast
       - step: *build-sbom
       - step: *container-scan
       - step: *policy-gate
+      - step: *cosign-verify
       - stage:
           name: Publish and deploy to staging
           deployment: staging

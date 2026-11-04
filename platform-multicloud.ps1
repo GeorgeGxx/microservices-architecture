@@ -55,6 +55,7 @@ param(
     [string]$KeycloakUrl = $env:KEYCLOAK_URL,
     [string]$CosignImage = "",
     [string]$CosignKey = "",
+    [switch]$CosignIgnoreTlog,
     [switch]$GenerateGraph,
 
     [switch]$AutoApprove,
@@ -172,6 +173,7 @@ function Invoke-PreDeploySecurityGate {
         [switch]$GenerateGraph,
         [string]$CosignImage = "",
         [string]$CosignKey = "",
+        [switch]$CosignIgnoreTlog,
         [switch]$FailFast = $false
     )
 
@@ -335,36 +337,38 @@ function Invoke-PreDeploySecurityGate {
     $defaultCosignDir = Join-Path $RepoRoot "devsecops\compliance\cosign"
     $resolvedCosignKey = if ($CosignKey) { $CosignKey } else { Join-Path $defaultCosignDir "cosign.pub" }
     if (-not (Get-Command cosign -ErrorAction SilentlyContinue)) {
-        Show-Warning "cosign CLI not found. Skipping container signature verification."
-        $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "SKIPPED"; Details = "cosign CLI missing" })
-        if ($FailFast -and $CosignImage) { throw "Image signature verification was requested, but Cosign is not installed." }
-    } elseif ($CosignImage) {
-        $cosignArgs = @("verify", "--key", $resolvedCosignKey, $CosignImage)
+        Show-Warning "cosign CLI not found; supply-chain verification cannot be performed."
+        $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "cosign CLI missing" })
+        $passed = $false
+        if ($FailFast) { throw "Pre-deploy requires Cosign; install it before running the security gate." }
+    } elseif (-not (Test-Path -LiteralPath $resolvedCosignKey -PathType Leaf)) {
+        Show-Failure "Cosign public key not found: '$resolvedCosignKey'."
+        $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Public key missing" })
+        $passed = $false
+        if ($FailFast) { throw "Pre-deploy failed at Cosign stage: public key not found." }
+    } else {
+        if ($CosignIgnoreTlog) {
+            Show-Warning "Cosign transparency-log verification is explicitly disabled; use this only for offline verification."
+        }
+        if ($CosignImage) {
+            $cosignArgs = @("verify", "--key", $resolvedCosignKey)
+        } else {
+            $manifestPath = Join-Path $defaultCosignDir "supply-chain-manifest.json"
+            $bundlePath = Join-Path $defaultCosignDir "supply-chain-manifest.sigstore.json"
+            $cosignArgs = @("verify-blob", "--key", $resolvedCosignKey, "--bundle", $bundlePath)
+        }
+        if ($CosignIgnoreTlog) { $cosignArgs += "--insecure-ignore-tlog=true" }
+        if ($CosignImage) { $cosignArgs += $CosignImage } else { $cosignArgs += $manifestPath }
         $cosignOutput = @(& cosign @cosignArgs 2>&1)
         if ($LASTEXITCODE -eq 0) {
-            Show-Success "Cosign: Image signature for '$CosignImage' verified successfully."
-            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = "Image signature verified" })
+            $details = if ($CosignImage) { "Image signature verified" } else { "Verified signed supply-chain manifest" }
+            Show-Success "Cosign: Cryptographic signature verification passed."
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = $details })
         } else {
-            Show-Failure "Cosign: Verification failed for '$CosignImage'."
+            Show-Failure "Cosign: Verification failed against '$resolvedCosignKey'."
             $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Invalid image signature" })
-            $passed = $false
-            if ($FailFast) { throw "Pre-deploy failed at Cosign stage." }
-        }
-    } else {
-        $manifestPath = Join-Path $defaultCosignDir "supply-chain-manifest.json"
-        $bundlePath = Join-Path $defaultCosignDir "supply-chain-manifest.sigstore.json"
-        $cosignOutput = @(& cosign verify-blob --key $resolvedCosignKey --bundle $bundlePath $manifestPath 2>&1)
-        if ($LASTEXITCODE -ne 0) {
-            $cosignOutput = @(& cosign verify-blob --key $resolvedCosignKey --bundle $bundlePath --insecure-ignore-tlog=true $manifestPath 2>&1)
-        }
-        if ($LASTEXITCODE -eq 0) {
-            Show-Success "Cosign: Cryptographic signature verified via cosign.pub (supply-chain-manifest.json)."
-            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "PASSED"; Details = "Verified via cosign.pub" })
-        } else {
-            Show-Failure "Cosign: Provenance verification failed against '$resolvedCosignKey'."
-            $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
-            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = "Invalid provenance signature" })
+            $details = if ($CosignImage) { "Invalid image signature" } else { "Invalid provenance signature" }
+            $results.Add([pscustomobject]@{ Tool = "Cosign"; Status = "FAILED"; Details = $details })
             $passed = $false
             if ($FailFast) { throw "Pre-deploy failed at Cosign stage." }
         }
@@ -1111,7 +1115,7 @@ function Invoke-CloudFullPipeline {
     Show-StageHeader -Title "ENTERPRISE END-TO-END PIPELINE: $Provider ($Environment)" -Category "PIPELINE"
 
     # Step 1: Pre-Deploy Shift-Left Gate
-    Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -FailFast
+    Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -CosignImage $CosignImage -CosignKey $CosignKey -CosignIgnoreTlog:$CosignIgnoreTlog -FailFast
 
     # Step 2: Terraform Plan & Apply
     Invoke-TerraformCloudLifecycle -Provider $Provider -Action apply -Environment $Environment -Flavor $Flavor -AutoApprove:$AutoApprove
@@ -1244,6 +1248,14 @@ function Show-MultiCloudToolsAudit {
 # ------------------------------------------------------------------------------
 # Dispatcher
 # ------------------------------------------------------------------------------
+$cosignOptionsUsed = [bool]($CosignImage -or $CosignKey -or $CosignIgnoreTlog)
+if ($cosignOptionsUsed -and $Command -notin @("pre-deploy", "pipeline", "plan", "apply")) {
+    throw "Cosign options are valid only with pre-deploy, pipeline, or plan/apply when -Scan is specified."
+}
+if ($cosignOptionsUsed -and $Command -in @("plan", "apply") -and -not $Scan) {
+    throw "Cosign options with '$Command' require -Scan so the verification gate runs."
+}
+
 switch ($Command) {
     "help" {
         Write-Host @"
@@ -1284,6 +1296,9 @@ Options:
   -TargetUrl <url>                     : Live endpoint for post-deploy tests & OWASP ZAP
   -KeycloakUrl <url>                   : Live Keycloak endpoint for authenticated Newman checks (or set KEYCLOAK_URL)
   -Scan                                : Enforce pre-deploy security scan before apply
+  -CosignIgnoreTlog                    : Explicitly skip Cosign transparency-log verification (offline only)
+  -CosignImage <ref>                   : Verify a signed image instead of the supply-chain manifest
+  -CosignKey <path>                    : Override the default Cosign public key
   -GenerateGraph                       : Render architecture topology diagram with dot
   -AutoApprove                         : Bypass confirmation prompts
 ================================================================================
@@ -1296,13 +1311,13 @@ Options:
 
     "pre-deploy" {
         Assert-ProviderIdentity -TargetProvider $Provider | Out-Null
-        Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -GenerateGraph:$GenerateGraph -CosignImage $CosignImage -CosignKey $CosignKey -FailFast
+        Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -GenerateGraph:$GenerateGraph -CosignImage $CosignImage -CosignKey $CosignKey -CosignIgnoreTlog:$CosignIgnoreTlog -FailFast
     }
 
     "plan" {
         Assert-ProviderIdentity -TargetProvider $Provider | Out-Null
         if ($Scan) {
-            Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -FailFast
+            Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -CosignImage $CosignImage -CosignKey $CosignKey -CosignIgnoreTlog:$CosignIgnoreTlog -FailFast
         }
         Invoke-TerraformCloudLifecycle -Provider $Provider -Action plan -Environment $Environment -Flavor $Flavor -PlanFile $PlanFile -OutPlan:$OutPlan -Target $Target -Replace $Replace -Var $Var -VarFile $VarFile -DataPlane $DataPlane
     }
@@ -1310,7 +1325,7 @@ Options:
     "apply" {
         Assert-ProviderIdentity -TargetProvider $Provider | Out-Null
         if ($Scan) {
-            Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -FailFast
+            Invoke-PreDeploySecurityGate -Provider $Provider -Environment $Environment -Flavor $Flavor -CosignImage $CosignImage -CosignKey $CosignKey -CosignIgnoreTlog:$CosignIgnoreTlog -FailFast
         }
         Invoke-TerraformCloudLifecycle -Provider $Provider -Action apply -Environment $Environment -Flavor $Flavor -PlanFile $PlanFile -Target $Target -Replace $Replace -Var $Var -VarFile $VarFile -DataPlane $DataPlane -AutoApprove:$AutoApprove
     }

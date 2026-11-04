@@ -53,6 +53,7 @@ param(
     [string]$DiskSize = "40g",
     [string]$CosignImage = "",
     [string]$CosignKey = "",
+    [switch]$CosignIgnoreTlog = $false,
     [string]$Scenario = "traffic",
     [int]$Orders = 15,
     [int]$Duration = 30,
@@ -841,7 +842,8 @@ function Invoke-CosignSupplyChainGate {
     param(
         [string]$StepHeader = "  ── Cosign: Container Image Signature Verification ──",
         [string]$ImageRef = "",
-        [string]$PublicKeyPath = ""
+        [string]$PublicKeyPath = "",
+        [switch]$IgnoreTransparencyLog
     )
 
     $cosignCmd = Get-CosignExecutable
@@ -868,6 +870,10 @@ function Invoke-CosignSupplyChainGate {
         if ($ImageRef) {
             Write-Host "  Verifying cryptographic signature for container image '$ImageRef' with key '$resolvedKey'..." -ForegroundColor Gray
             $cosignArgs = @('verify', '--key', $resolvedKey, $ImageRef)
+            if ($IgnoreTransparencyLog) {
+                Write-Warning "Cosign transparency-log verification is explicitly disabled for image '$ImageRef'."
+                $cosignArgs = @('verify', '--insecure-ignore-tlog', '--key', $resolvedKey, $ImageRef)
+            }
             $cosignOutput = @(& $cosignCmd.Source @cosignArgs 2>&1)
             if ($LASTEXITCODE -ne 0) {
                 $cosignOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
@@ -881,9 +887,11 @@ function Invoke-CosignSupplyChainGate {
                 throw "Cosign supply-chain attestation artifacts are missing in $defaultCosignDir."
             }
             Write-Host "  Verifying supply-chain provenance manifest with '$resolvedKey'..." -ForegroundColor Gray
-            $verifyOutput = @(& $cosignCmd.Source verify-blob --key $resolvedKey --bundle $bundlePath $manifestPath 2>&1)
-            if ($LASTEXITCODE -ne 0) {
+            if ($IgnoreTransparencyLog) {
+                Write-Warning "Cosign transparency-log verification is explicitly disabled for the supply-chain manifest."
                 $verifyOutput = @(& $cosignCmd.Source verify-blob --key $resolvedKey --bundle $bundlePath --insecure-ignore-tlog=true $manifestPath 2>&1)
+            } else {
+                $verifyOutput = @(& $cosignCmd.Source verify-blob --key $resolvedKey --bundle $bundlePath $manifestPath 2>&1)
             }
             if ($LASTEXITCODE -ne 0) {
                 $verifyOutput | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
@@ -903,7 +911,8 @@ function Invoke-LocalDevSecOpsScan {
         [ValidateSet('minikube', 'aws', 'azure', 'gcp')]
         [string]$TargetPlatform = 'minikube',
         [string]$ImageToVerify = $CosignImage,
-        [string]$PublicKey = $CosignKey
+        [string]$PublicKey = $CosignKey,
+        [switch]$CosignIgnoreTransparencyLog = $CosignIgnoreTlog
     )
 
     $gitleaksConfig = Join-Path $root 'devsecops\sast\gitleaks\.gitleaks.toml'
@@ -980,7 +989,7 @@ function Invoke-LocalDevSecOpsScan {
         # --- [5/N] Cosign ---
         $cosignStepNumber = if ($IncludeRenderedPolicy) { 5 } else { 4 }
         $cosignHeader = "  ── [$cosignStepNumber/$totalGates] Cosign: Container Image Signature Verification ──"
-        Invoke-CosignSupplyChainGate -StepHeader $cosignHeader -ImageRef $ImageToVerify -PublicKeyPath $PublicKey
+        Invoke-CosignSupplyChainGate -StepHeader $cosignHeader -ImageRef $ImageToVerify -PublicKeyPath $PublicKey -IgnoreTransparencyLog:$CosignIgnoreTransparencyLog
 
         Write-Host ""
         Write-Host "  ✔ Shift-Left Security Scans completed successfully." -ForegroundColor Green
@@ -1780,8 +1789,14 @@ if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform
 if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
-if (($CosignImage -or $CosignKey) -and $Command -notin @("up", "bootstrap", "apply", "security-scan")) {
-    throw "-CosignImage and -CosignKey are valid only with 'security-scan', 'up', 'bootstrap', or 'apply'."
+if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $Command -notin @("up", "bootstrap", "apply", "start", "resume", "security-scan")) {
+    throw "Cosign options are valid only with 'security-scan', 'up', 'bootstrap', 'apply', 'start', or 'resume'."
+}
+if ($Platform -ne "minikube" -and $Command -in @("up", "bootstrap", "apply") -and ($CosignImage -or $CosignKey -or $CosignIgnoreTlog)) {
+    throw "Cosign CLI options are not applied to cloud deployments; use 'security-scan -Platform $Platform' for a local verification."
+}
+if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $SkipScans) {
+    throw "Cosign options cannot be combined with -SkipScans because the Cosign gate would be skipped."
 }
 if ($Destroy -and $Command -ne "down") {
     throw "-Destroy is valid only with 'down'; use the explicit 'destroy' command otherwise."
@@ -1844,7 +1859,7 @@ switch ($Command) {
     { $_ -in @("up", "bootstrap") } {
         if ($Platform -eq "minikube") {
             $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove -DataPlane $DataPlane
         }
@@ -1853,7 +1868,7 @@ switch ($Command) {
     { $_ -in @("start", "resume") } {
         if ($Platform -eq "minikube") {
             $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
-            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
+            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
         } else {
             throw "'$Command' is supported only for -Platform minikube to resume a paused local cluster."
         }
@@ -1910,7 +1925,7 @@ switch ($Command) {
 
     "apply" {
         if ($Platform -eq "minikube") {
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -EnableIstioMesh:$enableIstio -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove -DataPlane $DataPlane
         }
@@ -2212,10 +2227,10 @@ switch ($Command) {
     "security-scan" {
         if ($Platform -eq 'minikube') {
             Show-Banner "Local DevSecOps Scans (Gitleaks, TFLint, Trivy, Conftest, Cosign)"
-            Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey
+            Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey -CosignIgnoreTransparencyLog:$CosignIgnoreTlog
         } else {
             Show-Banner "Cloud IaC and Repository Scans (Gitleaks, TFLint, Trivy, Cosign)"
-            Invoke-LocalDevSecOpsScan -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey
+            Invoke-LocalDevSecOpsScan -TargetPlatform $Platform -ImageToVerify $CosignImage -PublicKey $CosignKey -CosignIgnoreTransparencyLog:$CosignIgnoreTlog
         }
     }
 
@@ -2283,7 +2298,7 @@ Usage:
 
 Commands:
   up            : Bootstrap full local cluster (Istio, Gatekeeper, Vault, Keycloak, Apps, Tunnels).
-  start / resume: Fast platform resume (<30s) bypassing Terraform, Gatekeeper, and Helm re-build.
+  start / resume: Fast platform resume (<30s) bypassing Terraform, Gatekeeper, and Helm re-build; verifies Cosign provenance.
   down / stop   : Safe pause of Minikube (preserves DB state, volumes, and workloads).
   destroy       : Purges Minikube VM, background tunnels, volume data, and cached modules.
   build         : Builds container images from Dockerfiles (-Service, -IncludeMlops, -Push, -PushOnly).
@@ -2339,7 +2354,10 @@ Options:
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
   -Environment <dev|staging|prod>      : Environment scope for FinOps and secrets
   -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 16384, 40g)
-  -SkipScans                           : Bypass shift-left security scan gates during up
+  -SkipScans                           : Bypass security scan gates during up/start (including Cosign)
+  -CosignIgnoreTlog                    : Explicitly skip Cosign transparency-log verification (insecure; offline only)
+  -CosignImage <ref>                   : Verify this image signature instead of the signed supply-chain manifest
+  -CosignKey <path>                    : Override the default Cosign public key
   -Destroy                             : Complete VM purge flag for down command
   -Install                             : Automatically attempt WinGet installation of missing host tools
   -Duration <seconds>                  : Attack duration for ddos command (default: 30)
@@ -2464,6 +2482,15 @@ function Start-LocalTunnelSupervisor {
     }
 
     Write-Host "  [OK] Frontend tunnel: http://localhost:5173" -ForegroundColor Green
+}
+
+function Stop-LocalTunnelSupervisor {
+    $supervisorProcesses = @(Get-CimInstance Win32_Process -ErrorAction Stop |
+        Where-Object { $_.Name -in @("python.exe", "pythonw.exe") -and $_.CommandLine -like "*supervise-tunnels.py*" })
+
+    foreach ($process in $supervisorProcesses) {
+        Stop-Process -Id ([int]$process.ProcessId) -Force -ErrorAction Stop
+    }
 }
 
 function Invoke-MinikubeMlopsDeployment {
@@ -2829,6 +2856,9 @@ function Invoke-MinikubePlatform {
         [switch]$DeployCanaryOption = $false,
         [string]$CanaryImageTag = "canary",
         [switch]$BypassScans = $false,
+        [switch]$IgnoreCosignTransparencyLog = $false,
+        [string]$ImageToVerify = "",
+        [string]$PublicKeyPath = "",
         [switch]$FastResume = $false,
         [int]$CpuCount = 8,
         [int]$RamMb = 16384,
@@ -2841,7 +2871,7 @@ function Invoke-MinikubePlatform {
     switch ($SubCommand) {
         "up" {
             if ($FastResume) {
-                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
+                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
                 return
             }
 
@@ -2946,9 +2976,9 @@ function Invoke-MinikubePlatform {
 
             if (-not $BypassScans) {
                 Write-Host "`n[2/10] 🛡️ Running Shift-Left Security Scans..." -ForegroundColor Yellow
-                Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy
+                Invoke-LocalDevSecOpsScan -IncludeRenderedPolicy -ImageToVerify $ImageToVerify -PublicKey $PublicKeyPath -CosignIgnoreTransparencyLog:$IgnoreCosignTransparencyLog
             } else {
-                Write-Host "`n[2/10] ⏩ Skipping Gitleaks, TFLint, Trivy and Conftest gates (-SkipScans specified)." -ForegroundColor Gray
+                Write-Host "`n[2/10] ⏩ Skipping Gitleaks, TFLint, Trivy, Conftest and Cosign gates (-SkipScans specified)." -ForegroundColor Gray
             }
 
             Write-Host "`n[3/10] 📦 Checking Minikube Cluster Status..." -ForegroundColor Yellow
@@ -3362,7 +3392,7 @@ stringData:
                 Write-Host "Canary Deployment: Tag='$CanaryImageTag' | Weights=(Stable: $CanaryV1Weight%, Candidate: $CanaryV2Weight%)" -ForegroundColor Magenta
             }
 
-            Write-Host "`n[1/5] 🔍 Auditing Required Core CLI Tools..." -ForegroundColor Yellow
+            Write-Host "`n[1/6] 🔍 Auditing Required Core CLI Tools..." -ForegroundColor Yellow
             $requiredClis = @("minikube", "docker", "kubectl")
             foreach ($cli in $requiredClis) {
                 if (-not (Get-Command $cli -ErrorAction SilentlyContinue)) {
@@ -3371,7 +3401,14 @@ stringData:
             }
             Write-Host "  [OK] Core platform runtimes detected." -ForegroundColor Green
 
-            Write-Host "`n[2/5] 📦 Checking Minikube Cluster State..." -ForegroundColor Yellow
+            Write-Host "`n[2/6] 🔏 Verifying signed supply-chain provenance..." -ForegroundColor Yellow
+            if (-not $BypassScans) {
+                Invoke-CosignSupplyChainGate -StepHeader "  ── [2/6] Cosign: Container Image Signature Verification ──" -ImageRef $ImageToVerify -PublicKeyPath $PublicKeyPath -IgnoreTransparencyLog:$IgnoreCosignTransparencyLog
+            } else {
+                Write-Warning "Cosign verification is explicitly skipped because -SkipScans was specified."
+            }
+
+            Write-Host "`n[3/6] 📦 Checking Minikube Cluster State..." -ForegroundColor Yellow
             $status = minikube status --format "{{.Host}}" 2>$null
             if ($status -ne "Running") {
                 $effectiveRamMb = $RamMb
@@ -3398,7 +3435,7 @@ stringData:
             if (-not $hasDevNs) {
                 Write-Host "  [WARN] 'dev' namespace not found. Cluster has not been initialized." -ForegroundColor Yellow
                 Write-Host "  ▶ Escalating to full bootstrap (up)..." -ForegroundColor Yellow
-                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
+                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
                 return
             }
 
@@ -3459,7 +3496,7 @@ stringData:
 
             Invoke-CosmoRouterCompose
 
-            Write-Host "`n[3/5] ⏳ Awaiting Workload Readiness in 'dev', 'auth', and 'data'..." -ForegroundColor Yellow
+            Write-Host "`n[4/6] ⏳ Awaiting Workload Readiness in 'dev', 'auth', and 'data'..." -ForegroundColor Yellow
             $criticalWorkloads = @(
                 @{ Ns = "data"; App = "db-products"; Name = "PostgreSQL Products DB" },
                 @{ Ns = "data"; App = "db-orders"; Name = "PostgreSQL Orders DB" },
@@ -3475,12 +3512,16 @@ stringData:
                 @{ Ns = "dev"; App = "orders-service"; Name = "Orders Microservice" },
                 @{ Ns = "dev"; App = "products-service"; Name = "Products Microservice" },
                 @{ Ns = "dev"; App = "inventory-service"; Name = "Inventory Microservice" },
+                @{ Ns = "dev"; App = "notification-service"; Name = "Notification Microservice" },
                 @{ Ns = "dev"; App = "payments-service"; Name = "Payments Microservice" },
                 @{ Ns = "dev"; App = "fulfillment-service"; Name = "Fulfillment Microservice" },
                 @{ Ns = "dev"; App = "analytics-service"; Name = "Analytics Microservice" }
             )
             foreach ($item in $criticalWorkloads) {
                 & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Timed out waiting for '$($item.Name)' to become Ready in namespace '$($item.Ns)'."
+                }
             }
             Write-Host "  [OK] Platform database, IAM, and microservice pods are Ready." -ForegroundColor Green
 
@@ -3489,7 +3530,7 @@ stringData:
                 Initialize-LocalVault
             }
 
-            Write-Host "`n[4/5] 🌐 Reconciling Ingress & Mesh Routing..." -ForegroundColor Yellow
+            Write-Host "`n[5/6] 🌐 Reconciling Ingress & Mesh Routing..." -ForegroundColor Yellow
             if ($EnableIstioMesh) {
                 $canaryDeployment = Join-Path $istioDir "canary-deployment-products-v2.yaml"
                 $canaryTraffic = Join-Path $istioDir "canary-products-traffic.yaml"
@@ -3514,7 +3555,7 @@ stringData:
                 Write-Host "  [OK] Operating in lightweight mode (-WithoutIstio). Mesh overhead skipped." -ForegroundColor Green
             }
 
-            Write-Host "`n[5/5] 🔌 Connecting Resilient Local Port-Forward Tunnels..." -ForegroundColor Yellow
+            Write-Host "`n[6/6] 🔌 Connecting Resilient Local Port-Forward Tunnels..." -ForegroundColor Yellow
             Start-LocalTunnelSupervisor
             Write-Host "  [OK] Resilient port-forward tunnel daemon active." -ForegroundColor Green
 
@@ -3528,8 +3569,7 @@ stringData:
 
         "down" {
             Show-Banner "Platform Teardown / Resource Pause (Minikube)"
-            # Terminate tunnels
-            Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*supervise-tunnels*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+            Stop-LocalTunnelSupervisor
             if ($PurgeAll) {
                 Write-Host "🚨 Executing COMPLETE PURGE of Minikube, volumes & state..." -ForegroundColor Red
                 minikube delete
@@ -3546,7 +3586,7 @@ stringData:
 
         "destroy" {
             Show-Banner "Complete Minikube Cluster Purge"
-            Get-Process -Name python -ErrorAction SilentlyContinue | Where-Object { $_.CommandLine -like "*supervise-tunnels*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+            Stop-LocalTunnelSupervisor
             minikube delete
             Write-Host "  [OK] Minikube cluster completely deleted." -ForegroundColor Green
         }

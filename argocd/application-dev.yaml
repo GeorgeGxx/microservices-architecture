@@ -26,6 +26,7 @@ spec:
       - CreateNamespace=true
       - ApplyOutOfSyncOnly=true
       - PruneLast=true
+      - RespectIgnoreDifferences=true
     retry:
       limit: 5
       backoff:
