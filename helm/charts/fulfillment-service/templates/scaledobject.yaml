@@ -17,6 +17,23 @@ spec:
   pollingInterval: {{ .Values.keda.pollingInterval | default 15 }}
   {{- end }}
   triggers:
+    {{- if and .Values.keda.kafka .Values.keda.kafka.enabled }}
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ .Values.keda.kafka.bootstrapServers | default "kafka.data.svc.cluster.local:9092" | quote }}
+        consumerGroup: {{ .Values.keda.kafka.consumerGroup | default "fulfillment-service-group" | quote }}
+        topic: {{ .Values.keda.kafka.topic | default "payments-topic" | quote }}
+        lagThreshold: {{ .Values.keda.kafka.lagThreshold | default "10" | quote }}
+        offsetResetPolicy: {{ .Values.keda.kafka.offsetResetPolicy | default "latest" | quote }}
+    {{- end }}
+    {{- if and .Values.keda.prometheus .Values.keda.prometheus.enabled }}
+    - type: prometheus
+      metadata:
+        serverAddress: {{ .Values.keda.prometheus.serverAddress | default "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090" | quote }}
+        metricName: http_requests_per_second
+        query: {{ .Values.keda.prometheus.query | default "sum(rate(http_requests_total{service='fulfillment-service'}[1m]))" | quote }}
+        threshold: {{ .Values.keda.prometheus.threshold | default "80" | quote }}
+    {{- end }}
     {{- if and .Values.keda.cpu .Values.keda.cpu.enabled }}
     - type: cpu
       metricType: Utilization

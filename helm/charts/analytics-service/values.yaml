@@ -32,6 +32,18 @@ keda:
   maxReplicaCount: 3
   pollingInterval: 15
   cooldownPeriod: 300
+  kafka:
+    enabled: true
+    bootstrapServers: kafka.data.svc.cluster.local:9092
+    consumerGroup: analytics-service-group
+    topic: orders-topic
+    lagThreshold: "10"
+    offsetResetPolicy: latest
+  prometheus:
+    enabled: false
+    serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
+    query: "sum(rate(ecommerce_funnel_events_total[1m])) or sum(rate(http_requests_total{service='analytics-service'}[1m]))"
+    threshold: "80"
   cpu:
     enabled: true
     targetUtilizationPercentage: 70

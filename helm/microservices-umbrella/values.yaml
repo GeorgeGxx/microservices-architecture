@@ -280,13 +280,20 @@ payments-service:
   autoscaling:
     enabled: true
     minReplicas: 1
-    maxReplicas: 1
+    maxReplicas: 3
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "payments-service-group"
+      topic: "orders-topic"
+      lagThreshold: "10"
+      offsetResetPolicy: "latest"
     cpu:
       enabled: true
       targetUtilizationPercentage: 70
@@ -310,13 +317,20 @@ fulfillment-service:
   autoscaling:
     enabled: true
     minReplicas: 1
-    maxReplicas: 1
+    maxReplicas: 3
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "fulfillment-service-group"
+      topic: "payments-topic"
+      lagThreshold: "10"
+      offsetResetPolicy: "latest"
     cpu:
       enabled: true
       targetUtilizationPercentage: 70
@@ -340,13 +354,25 @@ analytics-service:
   autoscaling:
     enabled: true
     minReplicas: 1
-    maxReplicas: 1
+    maxReplicas: 3
     targetCPUUtilizationPercentage: 70
     targetMemoryUtilizationPercentage: 80
   keda:
     enabled: true
     minReplicaCount: 1
-    maxReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "analytics-service-group"
+      topic: "orders-topic"
+      lagThreshold: "10"
+      offsetResetPolicy: "latest"
+    prometheus:
+      enabled: true
+      serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
+      query: "sum(rate(ecommerce_funnel_events_total[1m])) or sum(rate(http_requests_total{service='analytics-service'}[1m]))"
+      threshold: "80"
     cpu:
       enabled: true
       targetUtilizationPercentage: 70

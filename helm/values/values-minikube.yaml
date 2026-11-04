@@ -92,6 +92,19 @@ payments-service:
   resources:
     requests: { cpu: 150m, memory: 192Mi }
     limits: { cpu: 500m, memory: 512Mi }
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "payments-service-group"
+      topic: "orders-topic"
+      lagThreshold: "10"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 fulfillment-service:
   image: { repository: georgegxx/fulfillment-service, tag: "1.0.0" }
   serviceAccount:
@@ -100,6 +113,19 @@ fulfillment-service:
   resources:
     requests: { cpu: 200m, memory: 256Mi }
     limits: { cpu: 500m, memory: 512Mi }
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "fulfillment-service-group"
+      topic: "payments-topic"
+      lagThreshold: "10"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 analytics-service:
   image: { repository: georgegxx/analytics-service, tag: "1.0.0" }
   serviceAccount:
@@ -108,6 +134,19 @@ analytics-service:
   resources:
     requests: { cpu: 150m, memory: 192Mi }
     limits: { cpu: 500m, memory: 512Mi }
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "analytics-service-group"
+      topic: "orders-topic"
+      lagThreshold: "10"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 
 mlops:
   enabled: true
