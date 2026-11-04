@@ -156,27 +156,14 @@ export interface FunnelTelemetryPayload {
 function getOrCreateTelemetrySessionId(): string {
   try {
     const key = 'novashop_telemetry_session_id';
-    let sessionId = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+    let sessionId = globalThis.sessionStorage?.getItem(key);
     if (!sessionId) {
-      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-        sessionId = `sess-${crypto.randomUUID()}`;
-      } else if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-        const bytes = new Uint32Array(2);
-        crypto.getRandomValues(bytes);
-        sessionId = `sess-${bytes[0].toString(36)}${bytes[1].toString(36)}-${Date.now().toString(36)}`;
-      } else {
-        sessionId = `sess-gen-${Date.now().toString(36)}`;
-      }
-      if (typeof sessionStorage !== 'undefined') {
-        sessionStorage.setItem(key, sessionId);
-      }
+      sessionId = `sess-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)}`;
+      globalThis.sessionStorage?.setItem(key, sessionId);
     }
     return sessionId;
   } catch {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return `sess-${crypto.randomUUID()}`;
-    }
-    return `sess-gen-${Date.now().toString(36)}`;
+    return `sess-fallback-${Date.now().toString(36)}`;
   }
 }
 

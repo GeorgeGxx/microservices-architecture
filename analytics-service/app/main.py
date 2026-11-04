@@ -152,7 +152,13 @@ async def lifespan(app: FastAPI):
             for sku, units in sku_sales.items():
                 sku_sales_gauge.labels(str(sku)).set(units)
 
-            logger.info(f"Hydrated Prometheus metrics: {completed} orders, ${totals.get('total_revenue_usd', 0.0):.2f} revenue, {metrics.cart_abandonment_rate_pct}% abandonment, {len(sku_sales)} SKUs")
+            logger.info(
+                "Hydrated Prometheus metrics: %s orders, $%.2f revenue, %.2f%% abandonment, %s SKUs",
+                completed,
+                float(totals.get("total_revenue_usd", 0.0)),
+                float(metrics.cart_abandonment_rate_pct),
+                len(sku_sales),
+            )
     except Exception as e:
         logger.warning(f"Metrics hydration notice: {e}")
 
