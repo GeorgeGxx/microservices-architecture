@@ -10,7 +10,7 @@ export class Money {
     } else {
       this.amount = Math.round(amount * 100) / 100;
     }
-    this.currency = 'USD';
+    this.currency = currency;
   }
 
   public add(other: Money): Money {

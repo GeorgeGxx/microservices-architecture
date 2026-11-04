@@ -7,7 +7,6 @@ from app.infrastructure.database import AsyncSessionLocal
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
 from app.domain.models import FunnelEvent, EventType, FunnelMetrics
 from app.infrastructure.metrics import (
-    funnel_events_counter,
     cart_abandonment_gauge,
     cohort_orders_gauge,
     cohort_revenue_gauge,

@@ -26,7 +26,7 @@ class InventoryGraphQlControllerTest {
     private InventoryGraphQlController graphQlController;
 
     @Test
-    @DisplayName("inventory query when SKU found")
+    @DisplayName("inventory query when SKU found with positive stock")
     void testInventoryFound() {
         Inventory inv = Inventory.builder().id(10L).sku("SKU-GQL-1").quantity(15L).build();
         when(inventoryRepository.findBySku("SKU-GQL-1")).thenReturn(Optional.of(inv));
@@ -36,6 +36,22 @@ class InventoryGraphQlControllerTest {
         assertThat(resp.getId()).isEqualTo(10L);
         assertThat(resp.getQuantity()).isEqualTo(15L);
         assertThat(resp.getIsInStock()).isTrue();
+    }
+
+    @Test
+    @DisplayName("inventory query when SKU found with zero or null quantity")
+    void testInventoryZeroOrNullQuantity() {
+        Inventory zeroInv = Inventory.builder().id(11L).sku("SKU-ZERO").quantity(0L).build();
+        when(inventoryRepository.findBySku("SKU-ZERO")).thenReturn(Optional.of(zeroInv));
+
+        InventoryResponse respZero = graphQlController.inventory("SKU-ZERO");
+        assertThat(respZero.getIsInStock()).isFalse();
+
+        Inventory nullInv = Inventory.builder().id(12L).sku("SKU-NULL").quantity(null).build();
+        when(inventoryRepository.findBySku("SKU-NULL")).thenReturn(Optional.of(nullInv));
+
+        InventoryResponse respNull = graphQlController.inventory("SKU-NULL");
+        assertThat(respNull.getIsInStock()).isFalse();
     }
 
     @Test
@@ -51,16 +67,18 @@ class InventoryGraphQlControllerTest {
     }
 
     @Test
-    @DisplayName("inventories query returns all items")
+    @DisplayName("inventories query returns all items including null and zero quantities")
     void testInventoriesAll() {
         Inventory inv1 = Inventory.builder().id(1L).sku("SKU-A").quantity(5L).build();
         Inventory inv2 = Inventory.builder().id(2L).sku("SKU-B").quantity(0L).build();
-        when(inventoryRepository.findAll()).thenReturn(List.of(inv1, inv2));
+        Inventory inv3 = Inventory.builder().id(3L).sku("SKU-C").quantity(null).build();
+        when(inventoryRepository.findAll()).thenReturn(List.of(inv1, inv2, inv3));
 
         List<InventoryResponse> results = graphQlController.inventories();
 
-        assertThat(results).hasSize(2);
+        assertThat(results).hasSize(3);
         assertThat(results.get(0).getIsInStock()).isTrue();
         assertThat(results.get(1).getIsInStock()).isFalse();
+        assertThat(results.get(2).getIsInStock()).isFalse();
     }
 }

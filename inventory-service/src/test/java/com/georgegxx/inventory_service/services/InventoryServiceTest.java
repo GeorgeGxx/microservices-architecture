@@ -551,4 +551,176 @@ class InventoryServiceTest {
         );
         assertTrue(ex.getMessage().contains("SKU-OVERFLOW"));
     }
+
+    @Test
+    @DisplayName("reserveOrder returns error when existing reservation was already released or expired")
+    void testReserveOrder_DuplicateReleasedOrExpired() {
+        String orderNumber = "ORD-REL-DUP";
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-100").quantity(2L).build()
+        );
+        when(reservationRepository.insertPendingIfAbsent(eq(orderNumber), anyString(), any())).thenReturn(0);
+
+        InventoryReservation releasedReservation = new InventoryReservation();
+        releasedReservation.setOrderNumber(orderNumber);
+        releasedReservation.setStatus(InventoryReservationStatus.RELEASED);
+        releasedReservation.setItemsPayload(JsonUtils.toJson(items));
+        when(reservationRepository.findByIdForUpdate(orderNumber)).thenReturn(Optional.of(releasedReservation));
+
+        BaseResponse response = inventoryService.reserveOrder(orderNumber, items);
+        assertTrue(response.hasErrors());
+        assertTrue(response.errorMessages()[0].contains("already released or expired"));
+    }
+
+    @Test
+    @DisplayName("reserveOrder returns error when order number was used with a different items payload")
+    void testReserveOrder_DuplicatePayloadMismatch() {
+        String orderNumber = "ORD-MISMATCH";
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-100").quantity(2L).build()
+        );
+        when(reservationRepository.insertPendingIfAbsent(eq(orderNumber), anyString(), any())).thenReturn(0);
+
+        InventoryReservation pendingReservation = new InventoryReservation();
+        pendingReservation.setOrderNumber(orderNumber);
+        pendingReservation.setStatus(InventoryReservationStatus.PENDING);
+        pendingReservation.setItemsPayload("[{\"sku\":\"SKU-DIFFERENT\",\"quantity\":5}]");
+        when(reservationRepository.findByIdForUpdate(orderNumber)).thenReturn(Optional.of(pendingReservation));
+
+        BaseResponse response = inventoryService.reserveOrder(orderNumber, items);
+        assertTrue(response.hasErrors());
+        assertTrue(response.errorMessages()[0].contains("different inventory reservation"));
+    }
+
+    @Test
+    @DisplayName("reserveOrder deletes reservation and returns error when stock decrement fails")
+    void testReserveOrder_DecrementStockFails() {
+        String orderNumber = "ORD-FAIL-DEC";
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-100").quantity(999L).build()
+        );
+        when(reservationRepository.insertPendingIfAbsent(eq(orderNumber), anyString(), any())).thenReturn(1);
+        when(reservationRepository.findByIdForUpdate(orderNumber)).thenReturn(Optional.of(new InventoryReservation()));
+
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-100").quantity(10L).build();
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-100"))).thenReturn(List.of(inventory));
+
+        BaseResponse response = inventoryService.reserveOrder(orderNumber, items);
+        assertTrue(response.hasErrors());
+        verify(reservationRepository, times(1)).deleteById(orderNumber);
+    }
+
+    @Test
+    @DisplayName("reserveOrder validates order items and throws on invalid inputs")
+    void testReserveOrder_InvalidItemsValidation() {
+        List<OrderItemsRequest> emptyItems = List.of();
+        List<OrderItemsRequest> nullItem = Collections.singletonList(null);
+        List<OrderItemsRequest> blankSkuItems = List.of(
+            OrderItemsRequest.builder().sku("").quantity(5L).build()
+        );
+        List<OrderItemsRequest> negativeQuantityItems = List.of(
+            OrderItemsRequest.builder().sku("SKU-OK").quantity(-1L).build()
+        );
+
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.reserveOrder("", emptyItems));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.reserveOrder("ORD-INV", emptyItems));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.reserveOrder("ORD-INV", nullItem));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.reserveOrder("ORD-INV", blankSkuItems));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.reserveOrder("ORD-INV", negativeQuantityItems));
+    }
+
+    @Test
+    @DisplayName("confirmReservation handles non-existent, compensated, and released/expired reservations")
+    void testConfirmReservation_BranchCoverage() {
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.confirmReservation(" "));
+
+        // Not found
+        when(reservationRepository.findByIdForUpdate("ORD-NONE")).thenReturn(Optional.empty());
+        BaseResponse notFoundResp = inventoryService.confirmReservation("ORD-NONE");
+        assertTrue(notFoundResp.hasErrors());
+        assertTrue(notFoundResp.errorMessages()[0].contains("does not exist"));
+
+        // Already compensated
+        InventoryReservation compRes = new InventoryReservation();
+        compRes.setOrderNumber("ORD-COMP");
+        compRes.setStatus(InventoryReservationStatus.COMPENSATED);
+        when(reservationRepository.findByIdForUpdate("ORD-COMP")).thenReturn(Optional.of(compRes));
+        BaseResponse compResp = inventoryService.confirmReservation("ORD-COMP");
+        assertFalse(compResp.hasErrors());
+
+        // Released or Expired
+        InventoryReservation relRes = new InventoryReservation();
+        relRes.setOrderNumber("ORD-REL");
+        relRes.setStatus(InventoryReservationStatus.RELEASED);
+        when(reservationRepository.findByIdForUpdate("ORD-REL")).thenReturn(Optional.of(relRes));
+        BaseResponse relResp = inventoryService.confirmReservation("ORD-REL");
+        assertTrue(relResp.hasErrors());
+        assertTrue(relResp.errorMessages()[0].contains("already released or expired"));
+
+        // Pending transitions to Confirmed
+        InventoryReservation pendRes = new InventoryReservation();
+        pendRes.setOrderNumber("ORD-PEND");
+        pendRes.setStatus(InventoryReservationStatus.PENDING);
+        when(reservationRepository.findByIdForUpdate("ORD-PEND")).thenReturn(Optional.of(pendRes));
+        BaseResponse pendResp = inventoryService.confirmReservation("ORD-PEND");
+        assertFalse(pendResp.hasErrors());
+        assertEquals(InventoryReservationStatus.CONFIRMED, pendRes.getStatus());
+        assertNull(pendRes.getExpiresAt());
+        verify(reservationRepository, times(1)).save(pendRes);
+    }
+
+    @Test
+    @DisplayName("releaseReservation throws on invalid orderNumber or missing reservation")
+    void testReleaseReservation_ValidationAndErrors() {
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.releaseReservation(null));
+        when(reservationRepository.findByIdForUpdate("ORD-MISSING")).thenReturn(Optional.empty());
+        assertThrows(IllegalStateException.class, () -> inventoryService.releaseReservation("ORD-MISSING"));
+    }
+
+    @Test
+    @DisplayName("compensateOrder transitions pending reservation to compensated")
+    void testCompensateOrder_WithPendingReservation() {
+        String orderNumber = "ORD-COMP-PEND";
+        List<OrderItemsRequest> items = List.of(
+                OrderItemsRequest.builder().sku("SKU-100").quantity(2L).build()
+        );
+        when(compensationRepository.insertIfAbsent(orderNumber)).thenReturn(1);
+
+        InventoryReservation pendRes = new InventoryReservation();
+        pendRes.setOrderNumber(orderNumber);
+        pendRes.setStatus(InventoryReservationStatus.PENDING);
+        when(reservationRepository.findByIdForUpdate(orderNumber)).thenReturn(Optional.of(pendRes));
+
+        Inventory inventory = Inventory.builder().id(1L).sku("SKU-100").quantity(10L).build();
+        when(inventoryRepository.findBySkuInWithLock(List.of("SKU-100"))).thenReturn(List.of(inventory));
+
+        BaseResponse response = inventoryService.compensateOrder(orderNumber, items);
+        assertFalse(response.hasErrors());
+        assertEquals(InventoryReservationStatus.COMPENSATED, pendRes.getStatus());
+        verify(reservationRepository, times(1)).save(pendRes);
+    }
+
+    @Test
+    @DisplayName("compensateOrder handles missing order items and throws IllegalArgumentException")
+    void testCompensateOrder_ValidationBranches() {
+        List<OrderItemsRequest> emptyItems = List.of();
+        List<OrderItemsRequest> nullItem = Collections.singletonList(null);
+        List<OrderItemsRequest> missingSku = List.of(
+            OrderItemsRequest.builder().sku(null).quantity(1L).build());
+        List<OrderItemsRequest> blankSku = List.of(
+            OrderItemsRequest.builder().sku(" ").quantity(1L).build());
+        List<OrderItemsRequest> missingQuantity = List.of(
+            OrderItemsRequest.builder().sku("SKU").quantity(null).build());
+        List<OrderItemsRequest> zeroQuantity = List.of(
+            OrderItemsRequest.builder().sku("SKU").quantity(0L).build());
+
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder(null, emptyItems));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", null));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", emptyItems));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", nullItem));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", missingSku));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", blankSku));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", missingQuantity));
+        assertThrows(IllegalArgumentException.class, () -> inventoryService.compensateOrder("ORD-1", zeroQuantity));
+    }
 }

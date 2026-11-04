@@ -7,6 +7,7 @@ or --input-parquet to train from captured order-line data.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import math
 import os
@@ -335,7 +336,7 @@ def _acquire_training_lock(lock_path: Path) -> bool:
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         if lock_path.exists():
-            try:
+            with contextlib.suppress(OSError):
                 pid_str = lock_path.read_text(encoding="ascii").strip()
                 if pid_str.isdigit():
                     pid = int(pid_str)
@@ -347,8 +348,6 @@ def _acquire_training_lock(lock_path: Path) -> bool:
                         lock_path.unlink(missing_ok=True)
                 elif time.time() - lock_path.stat().st_mtime > 120:
                     lock_path.unlink(missing_ok=True)
-            except OSError:
-                pass
 
         lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         with os.fdopen(lock_fd, "w") as f:
@@ -364,10 +363,8 @@ def _acquire_training_lock(lock_path: Path) -> bool:
 
 def _release_training_lock(lock_path: Path | None) -> None:
     if lock_path is not None:
-        try:
+        with contextlib.suppress(OSError):
             lock_path.unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def _resolve_training_lock_path(auto: bool, state_path: Path | None) -> Path | None:
@@ -518,10 +515,8 @@ def _run_spark_training(
 
         _record_completed_auto_state(args.auto, state_path, fingerprint)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             spark.stop()
-        except Exception:
-            pass
         _release_training_lock(lock_path)
 
 

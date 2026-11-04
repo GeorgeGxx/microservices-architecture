@@ -369,7 +369,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
           ...pending.filter((item) => item.sku !== skuClean),
           { sku: skuClean, name: payload.name, quantity: stockUnits },
         ]);
-        const stockError = setupResult.inventoryError;
+        const stockError = 'inventoryError' in setupResult ? setupResult.inventoryError : undefined;
         showToast('Product Created; Stock Needs Retry', stockError instanceof Error ? stockError.message : 'The product exists, but inventory initialization failed.', 'system');
       }
 

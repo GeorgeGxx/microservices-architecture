@@ -97,4 +97,26 @@ describe('checkStorefrontApiHealth', () => {
     const result = await checkStorefrontApiHealth();
     expect(result).toBe('unavailable');
   });
+
+  it('returns throttled when /graphql throws a network error but /router-health succeeds', async () => {
+    globalThis.fetch = vi.fn()
+      .mockRejectedValueOnce(new Error('Network timeout'))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+      } as Response);
+
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('throttled');
+    expect(globalThis.fetch).toHaveBeenCalledWith('/router-health', expect.anything());
+  });
+
+  it('returns unavailable when /graphql throws a network error and /router-health also throws', async () => {
+    globalThis.fetch = vi.fn()
+      .mockRejectedValueOnce(new Error('Network timeout'))
+      .mockRejectedValueOnce(new Error('Router unreachable'));
+
+    const result = await checkStorefrontApiHealth();
+    expect(result).toBe('unavailable');
+  });
 });
