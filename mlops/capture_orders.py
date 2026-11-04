@@ -266,42 +266,42 @@ def run_spark_capture(
                 "/data/checkpoints/auto-training/last-successful-input.sha256",
             )
         )
-        candidate_state_path = state_path.with_name("candidate-input.state")
-        last_train_check = 0.0
-        last_observed_batch_id = -1
-        # Check once on startup in case Kafka events were committed prior to restart
-        has_new_sink_data = True
-
-        while query.isActive:
-            time.sleep(5)
-            progress = query.lastProgress
-            if progress:
-                batch_id = progress.get("batchId", -1)
-                num_input_rows = progress.get("numInputRows", 0)
-                if batch_id > last_observed_batch_id:
-                    last_observed_batch_id = batch_id
-                    if num_input_rows > 0:
-                        has_new_sink_data = True
-
-            now = time.time()
-            if has_new_sink_data and (now - last_train_check >= auto_train_interval):
-                last_train_check = now
-                try:
-                    subprocess.run(
-                        [sys.executable, "/app/train_demand_model.py", "--auto"],
-                        check=False,
-                        timeout=300,
-                    )
-                    # If training finished or data is already trained, candidate-input.state is deleted.
-                    # Reset the flag so we do not spam subprocess invocations until new rows arrive.
-                    if not candidate_state_path.exists():
-                        has_new_sink_data = False
-                except Exception as ex:
-                    print(f"Auto-training invocation notice: {ex}", flush=True)
-
+        _monitor_streaming_query(query, state_path.with_name("candidate-input.state"), auto_train_interval)
         query.awaitTermination()
     finally:
         spark.stop()
+
+
+def _monitor_streaming_query(query, candidate_state_path: Path, auto_train_interval: int) -> None:
+    """Monitor streaming microbatches and invoke auto-training when new rows arrive."""
+    last_train_check = 0.0
+    last_observed_batch_id = -1
+    has_new_sink_data = True
+
+    while query.isActive:
+        time.sleep(5)
+        progress = query.lastProgress
+        if progress:
+            batch_id = progress.get("batchId", -1)
+            num_input_rows = progress.get("numInputRows", 0)
+            if batch_id > last_observed_batch_id:
+                last_observed_batch_id = batch_id
+                if num_input_rows > 0:
+                    has_new_sink_data = True
+
+        now = time.time()
+        if has_new_sink_data and (now - last_train_check >= auto_train_interval):
+            last_train_check = now
+            try:
+                subprocess.run(
+                    [sys.executable, "/app/train_demand_model.py", "--auto"],
+                    check=False,
+                    timeout=300,
+                )
+                if not candidate_state_path.exists():
+                    has_new_sink_data = False
+            except Exception as ex:
+                print(f"Auto-training invocation notice: {ex}", flush=True)
 
 
 # -----------------------------------------------------------------------------

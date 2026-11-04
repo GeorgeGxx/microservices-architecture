@@ -8,6 +8,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -92,26 +94,16 @@ class OrderEventListenerTest {
         verifyNoInteractions(this.inventoryService);
     }
 
-    @Test
-    @DisplayName("cancellation events with invalid line items are retried instead of acknowledged")
-    void testInvalidCancellationItems_Retries() {
-        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("""
-                {
-                    "orderNumber": "ORD-INVALID",
-                    "orderStatus": "CANCELLED",
-                    "items": [{"sku": "SKU-TEST-1", "quantity": 0}]
-                }
-                """));
-
-        verifyNoInteractions(this.inventoryService);
-    }
-
-    @Test
-    @DisplayName("order events without an order number are rejected")
-    void testMissingOrderNumber_Retries() {
-        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("""
-                {"orderStatus": "CANCELLED", "items": [{"sku": "SKU-TEST-1", "quantity": 1}]}
-                """));
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "{\"orderNumber\": \"ORD-INVALID\", \"orderStatus\": \"CANCELLED\", \"items\": [{\"sku\": \"SKU-TEST-1\", \"quantity\": 0}]}",
+            "{\"orderStatus\": \"CANCELLED\", \"items\": [{\"sku\": \"SKU-TEST-1\", \"quantity\": 1}]}",
+            "{\"orderNumber\": \"ORD-EMPTY\", \"orderStatus\": \"CANCELLED\", \"items\": []}",
+            "null"
+    })
+    @DisplayName("invalid cancellation events are retried instead of acknowledged")
+    void testInvalidCancellationEvents_Retries(String payload) {
+        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents(payload));
 
         verifyNoInteractions(this.inventoryService);
     }
@@ -123,22 +115,6 @@ class OrderEventListenerTest {
         assertDoesNotThrow(() -> this.listener.handleOrdersEvents("   "));
         assertDoesNotThrow(() -> this.listener.handleOrdersEvents(null));
 
-        verifyNoInteractions(this.inventoryService);
-    }
-
-    @Test
-    @DisplayName("cancellation events with empty line items are retried")
-    void testEmptyCancellationItems_Retries() {
-        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("""
-                {"orderNumber": "ORD-EMPTY", "orderStatus": "CANCELLED", "items": []}
-                """));
-        verifyNoInteractions(this.inventoryService);
-    }
-
-    @Test
-    @DisplayName("order events with null deserialized value are rejected")
-    void testInvalidJsonStructure_Retries() {
-        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("null"));
         verifyNoInteractions(this.inventoryService);
     }
 

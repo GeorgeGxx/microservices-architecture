@@ -248,6 +248,34 @@ describe('Product and Stock API Mutations', () => {
     }
   });
 
+  it('falls back to generated session id when sessionStorage throws', async () => {
+    const originalFetch = globalThis.fetch;
+    const originalSessionStorage = globalThis.sessionStorage;
+    globalThis.fetch = (async () => ({ ok: true, status: 202 } as Response)) as typeof fetch;
+    Object.defineProperty(globalThis, 'sessionStorage', {
+      value: {
+        getItem: () => {
+          throw new Error('SecurityError');
+        },
+        setItem: () => {},
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      const { recordFunnelTelemetry } = await import('./api');
+      await expect(recordFunnelTelemetry({ eventType: 'TEST_FALLBACK' })).resolves.not.toThrow();
+    } finally {
+      globalThis.fetch = originalFetch;
+      Object.defineProperty(globalThis, 'sessionStorage', {
+        value: originalSessionStorage,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
   it('throws descriptive error on failure for createProduct, updateProduct, deleteProduct, and stock adjustments', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = async () => ({

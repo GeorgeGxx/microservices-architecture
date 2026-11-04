@@ -130,6 +130,19 @@ function getStatusToneClass(tone: string): string {
   }
 }
 
+function validateProductInput(sku: string, name: string, price: number): string | null {
+  if (!sku || !name || price <= 0) {
+    return 'SKU, name, and positive price are required.';
+  }
+  if (!/^[A-Z0-9-]{6,20}$/.test(sku)) {
+    return 'SKU must be 6-20 characters using uppercase letters, digits, and hyphens (e.g. LAPTOP-PRO-01).';
+  }
+  if (name.length > 150) {
+    return 'Product name cannot exceed 150 characters.';
+  }
+  return null;
+}
+
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalogChange }) => {
   const { user, login } = useAuth();
   const { formatPrice } = useCurrency();
@@ -317,18 +330,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
     const skuClean = productForm.sku.toUpperCase().trim();
     const nameClean = productForm.name.trim();
 
-    if (!skuClean || !nameClean || productForm.price <= 0) {
-      showToast('Validation Error', 'SKU, name, and positive price are required.', 'system');
-      return;
-    }
-
-    if (!/^[A-Z0-9-]{6,20}$/.test(skuClean)) {
-      showToast('Validation Error', 'SKU must be 6-20 characters using uppercase letters, digits, and hyphens (e.g. LAPTOP-PRO-01).', 'system');
-      return;
-    }
-
-    if (nameClean.length > 150) {
-      showToast('Validation Error', 'Product name cannot exceed 150 characters.', 'system');
+    const validationError = validateProductInput(skuClean, nameClean, productForm.price);
+    if (validationError) {
+      showToast('Validation Error', validationError, 'system');
       return;
     }
 

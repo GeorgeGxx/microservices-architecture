@@ -38,9 +38,8 @@ export const ToastContainer: React.FC = () => {
         }
 
         return (
-          <div
+          <output
             key={toast.id}
-            role="status"
             className={`pointer-events-auto relative flex items-start gap-2.5 px-3 py-2.5 rounded-xl border bg-gradient-to-r ${bgGlow} to-slate-900/95 bg-slate-900/95 shadow-xl backdrop-blur-md transition-all duration-200 hover:shadow-2xl ${borderClass}`}
           >
             <div className={`shrink-0 mt-0.5 p-1 rounded-md bg-slate-800/80 ${iconColor}`}>
@@ -57,7 +56,7 @@ export const ToastContainer: React.FC = () => {
             >
               <X className="w-3.5 h-3.5" />
             </button>
-          </div>
+          </output>
         );
       })}
     </div>
