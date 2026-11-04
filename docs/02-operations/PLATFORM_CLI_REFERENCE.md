@@ -46,8 +46,8 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 ### 1. Cluster Lifecycle & Environment Management
 | Command | Options | Description |
 | :--- | :--- | :--- |
-| `up` | `-Fast`, `-WithoutIstio`, `-Build`, `-SkipScans` | Bootstraps full local cluster (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps, Tunnels). |
-| `start` / `resume` | `-Fast` | Fast-resumes Minikube (<30s) bypassing Terraform, Gatekeeper, and Helm re-compilation. |
+| `up` | `-Fast`, `-WithoutIstio`, `-Build`, `-SkipScans`, `-CosignIgnoreTlog`, `-CosignImage <ref>`, `-CosignKey <path>` | Bootstraps full local cluster (Minikube, Istio, Gatekeeper, Vault, Keycloak, Apps, Tunnels) and verifies Cosign provenance unless explicitly skipped. |
+| `start` / `resume` | `-Fast`, `-SkipScans`, `-CosignIgnoreTlog`, `-CosignImage <ref>`, `-CosignKey <path>` | Fast-resumes Minikube (<30s) bypassing Terraform, Gatekeeper, and Helm re-compilation; verifies Cosign provenance by default. `-SkipScans` explicitly skips it. |
 | `down` / `stop` | `-Destroy` | Safe pause of cluster (preserves DB state and volumes) or full purge with `-Destroy`. |
 | `destroy` | | Purges Minikube VM, background tunnels, volume data, and cached modules. |
 
@@ -76,7 +76,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | `build` | `-Service <name>`, `-IncludeMlops`, `-Push`, `-ImageTag <tag>` | Compiles Docker container images for microservices or MLOps stack. |
 | `set-tag` | `-ImageTag <tag>`, `-Service <name>`, `-TargetEnv <env>` | Synchronizes image tags across Helm values files via `yq`. |
 | `test` | | Executes Java 21 + Maven multi-module reactor unit tests on host. |
-| `security-scan` | | Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign). |
+| `security-scan` | `-CosignIgnoreTlog`, `-CosignImage <ref>`, `-CosignKey <path>` | Runs 5 shift-left security gates (Gitleaks, TFLint, Trivy, Conftest, Cosign). Cosign verifies the signed supply-chain manifest by default; `-CosignImage` selects image-signature verification. Transparency-log checks remain enabled unless `-CosignIgnoreTlog` is explicitly supplied (offline use only). |
 | `smoke` | `-Resilience`, `-Strict`, `-Json`, `-Vus <n>`, `-Duration <sec>` | Runs router and presentation frontend health & HTTP smoke checks or bounded resilience load probes. |
 | `contract` | | Executes Newman/Postman API contract integration suite (23/23 tests, 54 assertions). |
 | `performance` | | Runs Grafana k6 SLA latency, throughput, and performance benchmarks. |
@@ -114,9 +114,10 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 
 ### 3. Application Delivery & Workload Hand-Off
 The CLI provisions infrastructure and validates deployment readiness, handing off application release delivery to the designated CI/CD engines:
-- **AWS EKS:** GitHub Actions CI produces signed images; Argo CD executes GitOps continuous reconciliation (`sync-argocd`).
-- **Azure AKS:** Azure DevOps pipelines deploy releases via the shared Helm umbrella chart; pipeline stages own atomic rollback (`apply-workloads`, `rollback`).
-- **GCP GKE:** Bitbucket Pipelines deploys container releases to GKE via Helm and manages deployment rollbacks (`apply-workloads`, `rollback`).
+- **AWS EKS:** GitHub Actions verifies the signed supply-chain manifest; Argo CD reconciles the GitOps release while respecting ignored differences such as externally managed Deployment replicas (`sync-argocd`).
+- **Azure AKS:** Azure DevOps verifies the signed manifest and deploys the resolved ACR image digest through the shared Helm chart; pipeline stages own rollback (`apply-workloads`, `rollback`).
+- **GCP GKE:** Bitbucket Pipelines verifies the signed manifest and deploys the resolved GAR image digest through Helm (`apply-workloads`, `rollback`).
+- Cosign transparency-log verification is strict by default. `-CosignIgnoreTlog` is an explicit offline-only override for `platform-multicloud.ps1` security-gate commands.
 
 ---
 

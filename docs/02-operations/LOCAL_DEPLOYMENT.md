@@ -42,7 +42,7 @@ The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool
 | **DevSecOps & Security** | `gitleaks` | 8.24.0+ | `Gitleaks.Gitleaks` | Shift-left secret detection in commits and working trees (`platform-minikube.ps1 security-scan`). |
 | **DevSecOps & Security** | `trivy` | 0.60.0+ | `AquaSecurity.Trivy` | Comprehensive vulnerability and misconfiguration scanner for containers and Helm charts. |
 | **DevSecOps & Security** | `tflint` | 0.55.0+ | `TerraformLinters.tflint` | Static analysis framework and lint rule linter for Terraform multi-cloud modules. |
-| **DevSecOps & Security** | `cosign` | 2.4.0+ | `Sigstore.Cosign` | Supply-chain verification of signed container images using `cosign.pub`. |
+| **DevSecOps & Security** | `cosign` | 2.4.0+ | `Sigstore.Cosign` | Verifies the signed supply-chain manifest against `cosign.pub`; pipeline-built images are not individually signed yet. |
 | **DevSecOps & Security** | `conftest` | 0.56.0+ | `Scoop: conftest` | Open Policy Agent (OPA) Rego policy enforcement on rendered Helm templates. |
 | **DevSecOps & Security** | `vault` CLI | 1.18.0+ | `Hashicorp.Vault` | HashiCorp Vault administrative client (KV-v2 secrets engine, PKI mTLS CA certificates). |
 | **IaC & FinOps** | `terraform` | 1.16.2+ | `Hashicorp.Terraform` | Multi-cloud Infrastructure as Code engine (Local Minikube, AWS, Azure, GCP). |
@@ -92,7 +92,7 @@ The Minikube entrypoint audits the local developer and deployment tool inventory
 ### 2. DevSecOps & Security
 - **`Gitleaks.Gitleaks` (`gitleaks`)**: Secret scanner detecting hardcoded credentials in Git history and uncommitted changes.
 - **`AquaSecurity.Trivy` (`trivy`)**: Vulnerability scanner for container images, Helm charts, and IaC files.
-- **`Sigstore.Cosign` (`cosign`)**: Cryptographic supply-chain verification (`devsecops/compliance/cosign/cosign.pub` + `supply-chain-manifest.json` verified in `.\platform-minikube.ps1 security-scan` and image verification in `.\platform-multicloud.ps1 pre-deploy`).
+- **`Sigstore.Cosign` (`cosign`)**: Cryptographic supply-chain manifest verification (`cosign.pub` + `supply-chain-manifest.json`) in `.\platform-minikube.ps1 security-scan` and `.\platform-multicloud.ps1 pre-deploy`. Both gates verify transparency-log inclusion by default; `platform-multicloud.ps1` supports `-CosignIgnoreTlog` only as an explicit offline override. `-CosignImage` selects image-signature verification when the image has been signed.
 - **`Hashicorp.Vault` (`vault`)**: Client CLI for HashiCorp Vault (KV-v2 secrets, PKI engine).
   * **Server runtime vs. Host client:** The Vault server runs inside Kubernetes (Minikube `namespace: vault` or cloud EKS/AKS/GKE) exposed on port `8200` (`http://localhost:8200`). The local `vault.exe` on Windows functions as an interactive administrative and debugging client.
   * **Script automation:** Minikube routines (`.\platform-minikube.ps1 vault -VaultAction init|seed|rotate|status` and `.\platform-minikube.ps1 up`) automatically use the local host `vault` CLI when `http://localhost:8200` is reachable and fall back seamlessly to `kubectl exec` inside the containerized Vault pod so developers without an active port-forward can still run all automations.

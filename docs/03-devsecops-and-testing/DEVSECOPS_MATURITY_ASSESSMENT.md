@@ -23,6 +23,6 @@
 | Domain | Baseline Level | Post-Remediation Level | Key Improvements Delivered |
 |---|---|---|---|
 | **Multi-Cloud IaC Governance** | Level 3 | **Level 5 (Optimized)** | Workspace-isolated state, destructive-change guards for production dual-dataplanes, deletion protection across AWS RDS, Azure RG/KeyVault, and GCP Cloud SQL/GKE. |
-| **Supply Chain Security (SLSA)** | Level 3 | **Level 4 (Quantitatively Managed)** | Immutable `@sha256` digest promotion across ACR, GAR, and Docker Hub/ECR; CycloneDX SBOM artifacts; Sigstore Cosign provenance verification. |
+| **Supply Chain Security (SLSA)** | Level 3 | **Level 4 (Quantitatively Managed)** | Immutable `@sha256` deployments across ACR, GAR, and Docker Hub/ECR; CycloneDX SBOM artifacts; strict Sigstore verification of the signed supply-chain manifest. Per-image signing and signature admission verification remain future work. |
 | **GitOps & Deployment Resilience** | Level 3 | **Level 5 (Optimized)** | Least-privilege Argo CD `AppProject`, dual-dataplane production sync (`microservices-prod` + `microservices-prod-dp2`), and automated dual-dataplane rollback. |
 | **Runtime Zero-Trust Security** | Level 4 | **Level 5 (Optimized)** | Istio `STRICT` PeerAuthentication, L7 AuthorizationPolicies, non-root `readOnlyRootFilesystem` containers, Kubernetes NetworkPolicies, and HashiCorp Vault dynamic DB credentials. |

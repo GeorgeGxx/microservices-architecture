@@ -271,7 +271,7 @@ mindmap
 * **Centralized Secrets with HashiCorp Vault:** Dynamic secret generation and encryption-as-a-service (Transit Engine) replacing static environment variables.
 * **Policy-as-Code (OPA & Gatekeeper):** Automated admission controller rules blocking privileged containers, enforced CPU/memory limits, mandatory labels, and prohibiting default `ServiceAccount` usage.
 * **Least-Privilege RBAC & Hardened Distroless Runtimes:** Dedicated `*-sa` ServiceAccounts with `automountServiceAccountToken: false`, non-root distroless container images for backend microservices (`gcr.io/distroless/java21-debian13:nonroot`), and zero-CVE non-root distroless Nginx (`cgr.dev/chainguard/nginx:latest` UID 65532) for the frontend SPA across `dev`, `staging`, and `prod`.
-* **Cryptographic Supply-Chain Verification (Sigstore Cosign):** Public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) verified locally via `security-scan` and during multi-cloud image promotion.
+* **Cryptographic Supply-Chain Verification (Sigstore Cosign):** The public key (`devsecops/compliance/cosign/cosign.pub`) and signed provenance manifest (`supply-chain-manifest.json` + `.sigstore.json` bundle) are verified by local, GitHub Actions, Azure DevOps, Bitbucket, and multi-cloud pre-deploy gates with transparency-log checks enabled by default. These checks verify the manifest, not an individual signature for each pipeline-built image; cloud deployments pin resolved image digests.
 
 ### 4. 🧪 Automated MLOps & Demand Forecasting
 * **Kafka Structured Streaming to Parquet:** Real-time ingestion of `DELIVERED` orders into partitioned Parquet (`/data/sales_parquet/date=YYYY-MM-DD`) with durable Spark checkpoints and zero local CSV dependencies.
@@ -305,7 +305,7 @@ To avoid ambiguity across CI/CD, container registries, Kubernetes, and local env
 ## 🔐 Identity & Access Management (Keycloak 26.8.1)
 
 - **Protocol:** OAuth2 / OpenID Connect (OIDC) with PKCE flow in React 19 SPA.
-- **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Crear Cuenta" flow.
+- **User Self-Registration:** Public registration is fully enabled (`registrationAllowed: true`, `resetPasswordAllowed: true`) in realm configuration, enabling storefront visitors to sign up directly via the "Sign Up / Create Account" flow.
 - **Default Role Assignment:** Self-registered accounts automatically receive the standard `USER` role through composite assignment on `default-roles-microservices-realm`.
 - **Multi-Tenant Order Isolation & Ownership Guards:**
   - `orders-service` securely extracts the caller's JWT claims (`sub` for User ID and `preferred_username` for Customer Handle).
@@ -1001,7 +1001,7 @@ For a production-grade rollout, I would keep this as the minimum bar before prom
 - **Secrets and identity:** Vault as the default secret source, Keycloak OIDC/JWKS validation, workload identity or IRSA for cloud access
 - **Observability and SLOs:** Prometheus, Grafana, Kiali, Loki, Tempo, and SLA dashboards for latency, error budget, and mesh health
 - **Resilience controls:** HPA, PDB, circuit breakers, retries, rate limits, and rollback automation on canary failure
-- **Security scanning in pipeline:** SAST, dependency scanning, container scanning, DAST, and signed artifacts before release
+- **Security scanning in pipeline:** SAST, dependency scanning, container scanning, DAST, and signed supply-chain manifest verification before release; per-image signing is not yet enforced by the pipelines.
 - **Infrastructure discipline:** remote state, lock files, least-privilege IAM roles, private networking, WAF/CDN on public edge, and environment segregation
 
 This is a strong production baseline, and the repository is already close to it.
