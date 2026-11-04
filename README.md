@@ -226,7 +226,7 @@ git clone https://github.com/georgegxx/microservices-architecture.git && cd micr
 cp .env.example .env
 
 # 3. Start Keycloak and its database in detached mode
-docker compose up -d --build keycloak
+docker compose --profile "*" up -d --build keycloak
 
 # 4. Native PowerShell script (auto-syncs client secret into .env):
 pwsh -File .\scripts\bootstrap-keycloak.ps1
