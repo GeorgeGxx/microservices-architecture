@@ -1,0 +1,6 @@
+boto3==1.43.124
+jsonschema==4.26.0
+kafka-python==2.3.2
+pandas==2.3.3
+pyarrow==25.0.1
+pylint==4.1.3
