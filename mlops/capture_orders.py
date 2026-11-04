@@ -272,6 +272,30 @@ def run_spark_capture(
         spark.stop()
 
 
+def _update_stream_progress(
+    progress: dict | None, last_observed_batch_id: int
+) -> tuple[int, bool]:
+    if not progress:
+        return last_observed_batch_id, False
+    batch_id = progress.get("batchId", -1)
+    if batch_id <= last_observed_batch_id:
+        return last_observed_batch_id, False
+    return batch_id, progress.get("numInputRows", 0) > 0
+
+
+def _invoke_auto_training(candidate_state_path: Path) -> bool:
+    try:
+        subprocess.run(
+            [sys.executable, "/app/train_demand_model.py", "--auto"],
+            check=False,
+            timeout=300,
+        )
+        return candidate_state_path.exists()
+    except (OSError, subprocess.SubprocessError) as ex:
+        print(f"Auto-training invocation notice: {ex}", flush=True)
+        return True
+
+
 def _monitor_streaming_query(query, candidate_state_path: Path, auto_train_interval: int) -> None:
     """Monitor streaming microbatches and invoke auto-training when new rows arrive."""
     last_train_check = 0.0
@@ -280,28 +304,16 @@ def _monitor_streaming_query(query, candidate_state_path: Path, auto_train_inter
 
     while query.isActive:
         time.sleep(5)
-        progress = query.lastProgress
-        if progress:
-            batch_id = progress.get("batchId", -1)
-            num_input_rows = progress.get("numInputRows", 0)
-            if batch_id > last_observed_batch_id:
-                last_observed_batch_id = batch_id
-                if num_input_rows > 0:
-                    has_new_sink_data = True
+        last_observed_batch_id, batch_has_rows = _update_stream_progress(
+            query.lastProgress, last_observed_batch_id
+        )
+        has_new_sink_data = has_new_sink_data or batch_has_rows
 
         now = time.time()
-        if has_new_sink_data and (now - last_train_check >= auto_train_interval):
-            last_train_check = now
-            try:
-                subprocess.run(
-                    [sys.executable, "/app/train_demand_model.py", "--auto"],
-                    check=False,
-                    timeout=300,
-                )
-                if not candidate_state_path.exists():
-                    has_new_sink_data = False
-            except Exception as ex:
-                print(f"Auto-training invocation notice: {ex}", flush=True)
+        if not has_new_sink_data or now - last_train_check < auto_train_interval:
+            continue
+        last_train_check = now
+        has_new_sink_data = _invoke_auto_training(candidate_state_path)
 
 
 # -----------------------------------------------------------------------------
