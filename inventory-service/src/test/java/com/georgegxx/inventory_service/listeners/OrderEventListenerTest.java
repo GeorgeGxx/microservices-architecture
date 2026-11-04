@@ -127,6 +127,22 @@ class OrderEventListenerTest {
     }
 
     @Test
+    @DisplayName("cancellation events with empty line items are retried")
+    void testEmptyCancellationItems_Retries() {
+        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("""
+                {"orderNumber": "ORD-EMPTY", "orderStatus": "CANCELLED", "items": []}
+                """));
+        verifyNoInteractions(this.inventoryService);
+    }
+
+    @Test
+    @DisplayName("order events with null deserialized value are rejected")
+    void testInvalidJsonStructure_Retries() {
+        assertThrows(RuntimeException.class, () -> this.listener.handleOrdersEvents("null"));
+        verifyNoInteractions(this.inventoryService);
+    }
+
+    @Test
     @DisplayName("dead letter messages are logged without throwing")
     void testHandleDltEvents() {
         assertDoesNotThrow(() -> this.listener.handleDltEvents("poison-message"));

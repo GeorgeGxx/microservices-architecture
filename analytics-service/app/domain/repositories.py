@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Optional, Any
-from app.domain.models import FunnelEvent, FunnelMetrics, CustomerCohortSummary
+from typing import Dict, Any
+from app.domain.models import FunnelEvent, CustomerCohortSummary
 
 class FunnelRepository(ABC):
     @abstractmethod

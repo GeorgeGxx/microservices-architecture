@@ -60,7 +60,6 @@ class SSEService {
         throw new Error(`Notification stream returned HTTP ${response.status}`);
       }
 
-      console.log('⚡ Connected to authenticated real-time SSE Notification Stream');
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = '';

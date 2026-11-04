@@ -49,6 +49,8 @@ def generate_bounded_forecast(
             # Synthetic feature vector: [lag_1, lag_7, day_of_week, day_of_year]
             feature_vector = np.array([[recent_lags[0], recent_lags[-1], last_date.weekday(), last_date.timetuple().tm_yday]])
             raw_pred = float(model.predict(feature_vector)[0])
+        except (ValueError, TypeError, AttributeError, IndexError):
+            raw_pred = fallback_mean
         except Exception:
             raw_pred = fallback_mean
 

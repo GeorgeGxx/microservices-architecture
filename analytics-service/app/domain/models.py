@@ -78,26 +78,26 @@ class FunnelMetrics:
                 cart_abandonment_rate_pct=0.0,
                 checkout_completion_rate_pct=0.0,
             )
-        else:
-            effective_cart_adds = max(cart_adds, purchases)
-            effective_checkout_starts = max(checkout_starts, purchases)
 
-            abandonment = max(0, effective_cart_adds - purchases)
-            abandonment_rate = round((abandonment / effective_cart_adds) * 100.0, 2)
-            completion_rate = (
-                round((purchases / effective_checkout_starts) * 100.0, 2)
-                if effective_checkout_starts > 0
-                else 0.0
-            )
+        effective_cart_adds = max(cart_adds, purchases)
+        effective_checkout_starts = max(checkout_starts, purchases)
 
-            return cls(
-                cart_add_count=effective_cart_adds,
-                checkout_start_count=effective_checkout_starts,
-                checkout_step_count=checkout_steps,
-                completed_purchases=purchases,
-                cart_abandonment_rate_pct=abandonment_rate,
-                checkout_completion_rate_pct=completion_rate,
-            )
+        abandonment = max(0, effective_cart_adds - purchases)
+        abandonment_rate = round((abandonment / effective_cart_adds) * 100.0, 2)
+        completion_rate = (
+            round((purchases / effective_checkout_starts) * 100.0, 2)
+            if effective_checkout_starts > 0
+            else 0.0
+        )
+
+        return cls(
+            cart_add_count=effective_cart_adds,
+            checkout_start_count=effective_checkout_starts,
+            checkout_step_count=checkout_steps,
+            completed_purchases=purchases,
+            cart_abandonment_rate_pct=abandonment_rate,
+            checkout_completion_rate_pct=completion_rate,
+        )
 
 @dataclass
 class CustomerCohortSummary:

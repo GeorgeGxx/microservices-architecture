@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { processOrders, ProcessOrdersOptions, sortOrdersNewestFirst } from './orderProcessing';
+import { processOrders, sortOrdersNewestFirst } from './orderProcessing';
 import { Order } from '../types';
 
 describe('Order Processing & Pagination (TDD)', () => {

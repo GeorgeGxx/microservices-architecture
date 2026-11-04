@@ -1,4 +1,4 @@
-from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Gauge, generate_latest
 
 funnel_events_counter = Counter(
     "ecommerce_funnel_events_total",

@@ -38,4 +38,14 @@ class InventoryReservationSchedulerTest {
 
         verify(inventoryService, times(1)).expireDueReservations(100);
     }
+
+    @Test
+    @DisplayName("releaseExpiredReservations does nothing when zero holds are expired")
+    void testReleaseExpiredReservations_NoExpiredHolds() {
+        when(inventoryService.expireDueReservations(100)).thenReturn(0);
+
+        assertDoesNotThrow(() -> scheduler.releaseExpiredReservations());
+
+        verify(inventoryService, times(1)).expireDueReservations(100);
+    }
 }
