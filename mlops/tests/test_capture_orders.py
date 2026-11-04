@@ -3,10 +3,33 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from capture_orders import _append_order_row, _event_date, _load_seen_orders
+from capture_orders import (
+    _append_order_row,
+    _event_date,
+    _invoke_auto_training,
+    _load_seen_orders,
+    _update_stream_progress,
+)
 
 
 class CaptureOrdersTests(unittest.TestCase):
+    def test_update_stream_progress_tracks_new_batches_with_rows(self) -> None:
+        self.assertEqual(_update_stream_progress(None, 2), (2, False))
+        self.assertEqual(_update_stream_progress({"batchId": 2, "numInputRows": 1}, 2), (2, False))
+        self.assertEqual(_update_stream_progress({"batchId": 3, "numInputRows": 0}, 2), (3, False))
+        self.assertEqual(_update_stream_progress({"batchId": 4, "numInputRows": 5}, 3), (4, True))
+
+    def test_invoke_auto_training_retries_until_candidate_state_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            candidate_state_path = Path(temp_dir) / "candidate-input.state"
+            with patch("capture_orders.subprocess.run"):
+                self.assertFalse(_invoke_auto_training(candidate_state_path))
+                candidate_state_path.touch()
+                self.assertTrue(_invoke_auto_training(candidate_state_path))
+
+            with patch("capture_orders.subprocess.run", side_effect=OSError("launch failed")):
+                self.assertTrue(_invoke_auto_training(candidate_state_path))
+
     def test_event_date_parsing(self) -> None:
         self.assertEqual(_event_date("2026-10-10T12:00:00Z"), "2026-10-10")
         self.assertEqual(_event_date("2026-05-01T08:30:00+00:00"), "2026-05-01")
