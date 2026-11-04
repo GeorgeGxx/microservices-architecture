@@ -185,7 +185,7 @@ The enterprise platform architecture is structured into **5 mission-critical tec
   - **Loki 3.x:** Multi-tenant structured log aggregation with Promtail / Alloy streaming.
   - **Tempo 3.x:** High-scale OpenTelemetry distributed trace store collecting span waterfalls.
   - **Grafana 13.x:** Central visualization with SRE Technical & Security Dashboard and Executive Business Operations Dashboard.
-* **Synthetic Blackbox Probing & Outside-In SLO Availability:** Prometheus Blackbox Exporter (`quay.io/prometheus/blackbox-exporter:v0.25.0`) deployed in namespace `observability` executing continuous outside-in `http_2xx` probes against the Storefront SPA (`:80/healthz`), Cosmo Router Gateway (`:8080/router-health`), and Keycloak IAM (`:8181/realms/microservices-realm`). Integrated with `OutsideInSLOAvailabilityDrop` multi-window alerts and Grafana SRE Dashboard Panels 700-703.
+* **Synthetic Blackbox Probing & Outside-In SLO Availability:** Prometheus Blackbox Exporter (`quay.io/prometheus/blackbox-exporter:v0.29.0`) deployed in namespace `observability` executing continuous outside-in `http_2xx` probes against the Storefront SPA (`:80/healthz`), Cosmo Router Gateway (`:8080/router-health`), and Keycloak IAM (`:8181/realms/microservices-realm`). Integrated with `OutsideInSLOAvailabilityDrop` multi-window alerts and Grafana SRE Dashboard Panels 700-703.
 * **Bidirectional Trace-to-Log Correlation:**
   - Loki is provisioned with `derivedFields` matching `(?:traceId|trace_id)[:=]\s*"?([a-f0-9]{32})"?` which automatically displays an interactive **"Tempo"** button on every log line containing a trace ID.
   - Tempo is provisioned with `tracesToLogsV2` linking spans directly into Loki query streams (`{service=~".+"} |= "$${__span.traceId}"`).
