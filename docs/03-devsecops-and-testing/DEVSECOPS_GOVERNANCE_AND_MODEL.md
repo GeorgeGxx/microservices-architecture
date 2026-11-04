@@ -81,7 +81,7 @@ flowchart TD
         CODE["🔨 Implementation & Pre-commit<br/>• Local linting & formatting<br/>• Gitleaks secret detection hook"]:::dev
         PR["👥 Peer Review & Pull Request<br/>• Code review by Tech Leads<br/>• Conventional Commits verification"]:::lead
         DoD1(["🛡️ DoD Level 1 Gate (Automated CI)<br/>• Maven/TypeScript Compile (Zero warnings)<br/>• Unit & JaCoCo Coverage &ge; 80%<br/>• SAST (SonarQube) & SCA (Trivy CVEs)<br/>• IaC Misconfiguration (Trivy) & Policy (Conftest Rego)"]):::gate
-        BUILD["📦 Immutable Container Build<br/>• 100% Non-root distroless (Java Debian & Chainguard Nginx)<br/>• Trivy image scan & Cosign signature"]:::ops
+        BUILD["📦 Immutable Container Build<br/>• 100% Non-root distroless (Java Debian & Chainguard Nginx)<br/>• Trivy image scan & signed-manifest verification<br/>• Per-image signing is not yet pipeline-enforced"]:::ops
 
         DoR -->|Ready for Sprint| TDD
         TDD --> CODE

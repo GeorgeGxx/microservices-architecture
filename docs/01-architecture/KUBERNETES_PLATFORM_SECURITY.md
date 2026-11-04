@@ -54,7 +54,7 @@ To satisfy the most demanding compliance benchmarks (**CIS Kubernetes Benchmark 
     - Strict HTTP security headers (`Strict-Transport-Security: max-age=31536000; includeSubDomains; preload`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `X-XSS-Protection`, `Referrer-Policy`, and `Content-Security-Policy`).
     - Local rate limiting token bucket (100 req/min with a 200-burst ceiling) protecting against brute force and Layer-7 DDoS attacks.
 - **Container Supply Chain Verification (Cosign & Trivy):**
-  - Gatekeeper constraint `k8s-cosign-signature-verification` disallows mutable image tags (`:latest`, `:dev`, `:snapshot`) in staging and production, requiring immutable semantic versions or cryptographically signed `@sha256` digests verified against `devsecops/compliance/cosign/cosign.pub`.
+  - The active Gatekeeper constraint `enforce-image-signatures` blocks the mutable tags `:latest`, `:dev`, and `:snapshot`, but its `enforceDigest` setting is `false`, so it does not require `@sha256` digests. The policy does not query Cosign signatures. CI verifies the signed supply-chain manifest against `devsecops/compliance/cosign/cosign.pub` with transparency-log checks enabled by default, but per-image signing and signature admission verification are not yet configured.
 
 ---
 
