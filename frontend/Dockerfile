@@ -1,5 +1,5 @@
 # ---- Stage 1: Build React 19 SPA with Vite ----
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 
 WORKDIR /app
 

@@ -222,7 +222,7 @@ services:
   ### Compose Federation v2 locally without a Cosmo Cloud token.
   cosmo-router-config:
     container_name: cosmo-router-config
-    image: node:22-alpine
+    image: node:24-alpine
     working_dir: /work
     command: ["sh", "-ec", "npx --yes wgc@0.133.3 router compose --input /work/supergraph.yaml --out /work/execution-config.json"]
     volumes:
