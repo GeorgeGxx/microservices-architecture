@@ -86,7 +86,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | Command | Key Parameters | Underlying Engine & Description |
 | :--- | :--- | :--- |
 | `mlops` | | Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline demand model training. |
-| `mlops-train` | `-Days <n>` | Runs demand forecasting model training via `mlops/training.ps1`. |
+| `mlops-train` | `-Days <n>`, `-SimulateOrders`, `-RunTimeoutSeconds <n>` | Trains the Minikube Parquet dataset on demand, bypassing auto-training deduplication and stability delay; at least 9 date partitions are required. Optionally streams sample orders, then runs the guarded fallback inside the capture pod to preserve Istio mTLS. |
 | `mlops-data` | `-Days <n>`, `-Kafka` | Generates synthetic historical sales dataset, optionally streaming DELIVERED events directly to Kafka. |
 | `postman-gen` | | Generates the unified Newman/Postman 23-request collection JSON (`microservices.postman_collection.json`). |
 | `diagrams` | | Generates and synchronizes 18 architecture blueprint tabs in `docs/Diagrams.drawio`. |

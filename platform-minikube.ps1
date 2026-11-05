@@ -79,6 +79,9 @@ param(
     [string]$Target = "",
     [string]$Query = "",
     [switch]$Kafka = $false,
+    [switch]$SimulateOrders = $false,
+    [ValidateRange(10, 900)]
+    [int]$RunTimeoutSeconds = 180,
     [switch]$Destroy = $false
 )
 
@@ -1740,6 +1743,112 @@ function Show-Banner {
     Write-Host "--------------------------------------------------------------------------------" -ForegroundColor DarkGray
 }
 
+function Get-MinikubeMlflowRunState {
+    $queryRunsScript = @'
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
+
+base = "http://mlflow:5000/api/2.0/mlflow"
+experiment_name = urllib.parse.quote(os.getenv("MLFLOW_EXPERIMENT_NAME", "inventory-demand-forecast"), safe="")
+try:
+    with urllib.request.urlopen(base + "/experiments/get-by-name?experiment_name=" + experiment_name, timeout=5) as response:
+        experiment_id = json.loads(response.read())["experiment"]["experiment_id"]
+except urllib.error.HTTPError as error:
+    if error.code == 404:
+        print('RUN_STATE={"experiment_id": null, "runs": []}')
+        raise SystemExit(0)
+    raise
+
+payload = json.dumps({"experiment_ids": [experiment_id], "max_results": 1000}).encode()
+request = urllib.request.Request(base + "/runs/search", data=payload, headers={"Content-Type": "application/json"})
+with urllib.request.urlopen(request, timeout=10) as response:
+    runs = json.loads(response.read()).get("runs", [])
+finished_runs = [
+    {"run_id": run["info"]["run_id"], "run_name": run["info"].get("run_name", "")}
+    for run in runs
+    if run["info"].get("status") == "FINISHED"
+]
+print("RUN_STATE=" + json.dumps({"experiment_id": experiment_id, "runs": finished_runs}))
+'@
+
+    $queryOutput = & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python -c $queryRunsScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not query MLflow through the Minikube capture pod. Check that MLflow and demand-sales-capture are ready."
+    }
+    $resultLine = @($queryOutput | Where-Object { "$_" -like "RUN_STATE=*" } | Select-Object -Last 1)
+    if ($resultLine.Count -eq 0) {
+        throw "MLflow run query returned no result. Capture pod output: $($queryOutput -join ' ')"
+    }
+    return ConvertFrom-Json ($resultLine[0].Substring(10))
+}
+
+function Find-NewMinikubeMlflowRun {
+    param([System.Collections.Generic.HashSet[string]]$BaselineRunIds)
+
+    $runState = Get-MinikubeMlflowRunState
+    if ($runState.experiment_id) { $script:mlflowExperimentId = $runState.experiment_id }
+    foreach ($run in $runState.runs) {
+        if (-not $BaselineRunIds.Contains([string]$run.run_id)) { return $run }
+    }
+    return $null
+}
+
+function Invoke-MinikubeMlopsTraining {
+    param(
+        [int]$DayCount = 14,
+        [switch]$Simulate,
+        [int]$RunTimeout = 180
+    )
+
+    $baselineRunState = Get-MinikubeMlflowRunState
+    $script:mlflowExperimentId = $baselineRunState.experiment_id
+    $baselineRunIds = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($run in $baselineRunState.runs) { [void]$baselineRunIds.Add([string]$run.run_id) }
+
+    if ($Simulate) {
+        Write-Host "Streaming simulated purchase orders across $DayCount days directly to Kafka..." -ForegroundColor Cyan
+        & kubectl exec -n dev deployment/demand-sales-capture -c stream-orders -- python /app/generate_sample_sales.py --days $DayCount --kafka-bootstrap-servers kafka.data.svc.cluster.local:9092 --kafka-topic orders-topic
+        if ($LASTEXITCODE -ne 0) {
+            throw "Failed to stream simulated orders to Kafka in Minikube."
+        }
+        Write-Host "Orders streamed to Kafka successfully. The streaming consumer will persist them as Parquet partitions." -ForegroundColor Green
+        Write-Host "Waiting up to $RunTimeout seconds for capture's automatic trainer to publish a new MLflow run..." -ForegroundColor Yellow
+        $deadline = [DateTime]::UtcNow.AddSeconds($RunTimeout)
+        $newRun = $null
+        while ([DateTime]::UtcNow -lt $deadline) {
+            $newRun = Find-NewMinikubeMlflowRun -BaselineRunIds $baselineRunIds
+            if ($newRun) { break }
+            Start-Sleep -Seconds 10
+        }
+        if ($newRun) {
+            Write-Host "New training run recorded: $($newRun.run_name) ($($newRun.run_id))" -ForegroundColor Green
+            Write-Host "MLflow: http://localhost:5000/#/experiments/$script:mlflowExperimentId/runs/$($newRun.run_id)" -ForegroundColor Green
+            Write-Host "`nTraining completed successfully in Minikube." -ForegroundColor Green
+            return
+        }
+        Write-Host "The capture pod has not produced a new run yet; starting a guarded manual training run..." -ForegroundColor Yellow
+    }
+
+    Write-Host "Running PySpark training in the capture pod to preserve Istio mTLS and shared locking..." -ForegroundColor Cyan
+    $trainingOutput = & kubectl exec -n $Namespace deployment/demand-sales-capture -c stream-orders -- python /app/train_demand_model.py --force --input-parquet /data/sales_parquet
+    $trainingExitCode = $LASTEXITCODE
+    $trainingOutput | ForEach-Object { Write-Host $_ }
+    if ($trainingExitCode -ne 0) {
+        throw "Manual training in the Minikube capture pod failed with exit code $trainingExitCode."
+    }
+
+    $newRun = Find-NewMinikubeMlflowRun -BaselineRunIds $baselineRunIds
+    if (-not $newRun) {
+        throw "Manual training completed without recording a new MLflow run. The dataset may be missing, have fewer than 9 date partitions, or training may have been skipped. Inspect the training output and demand-sales-capture logs."
+    }
+    Write-Host "`nNew training run recorded: $($newRun.run_name) ($($newRun.run_id))" -ForegroundColor Green
+    Write-Host "MLflow: http://localhost:5000/#/experiments/$script:mlflowExperimentId/runs/$($newRun.run_id)" -ForegroundColor Green
+    Write-Host "`nTraining completed successfully in Minikube." -ForegroundColor Green
+}
+
 function Invoke-PlatformCommand {
 $targetCostEnv = if ($Platform -eq "minikube" -or $Environment -eq "minikube") { "minikube" } else { $Environment }
 $targetCloudEnv = if ($Environment -in @("dev", "minikube")) { "dev" } else { $Environment }
@@ -1853,6 +1962,9 @@ if (($Push -or $PushOnly) -and ($Command -ne "build" -and -not $Build)) {
 }
 if ($IncludeMlops -and ($Command -ne "build" -and -not $Build)) {
     throw "-IncludeMlops is valid only with 'build' or when specifying '-Build'."
+}
+if ($SimulateOrders -and $Command -ne "mlops-train") {
+    throw "-SimulateOrders is valid only with 'mlops-train'."
 }
 
 switch ($Command) {
@@ -2173,11 +2285,13 @@ switch ($Command) {
 
     "mlops-train" {
         Show-Banner "MLOps Demand Forecasting Model Training Runner"
-        $trainScript = Join-Path $root "mlops\training.ps1"
-        if (-not (Test-Path -LiteralPath $trainScript)) { throw "Training script is missing: $trainScript" }
-        $trainTarget = if ($Platform -eq "minikube") { "minikube" } else { "compose" }
-        & $trainScript -Target $trainTarget -Days $Days
-        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        if ($Platform -ne "minikube") {
+            throw "'mlops-train' is available only through platform-minikube.ps1."
+        }
+        if ($Namespace -ne "dev") {
+            throw "Minikube MLOps training is scoped to the 'dev' namespace."
+        }
+        Invoke-MinikubeMlopsTraining -DayCount $Days -Simulate:$SimulateOrders -RunTimeout $RunTimeoutSeconds
     }
 
     "mlops-data" {
@@ -2321,7 +2435,7 @@ Commands:
   canary        : Controls progressive canary rollout (-Action weight|rollout|promote|retire).
   vault         : Manages HashiCorp Vault operations (-VaultAction status|k8s-auth|istio-pki|seed).
   mlops         : Deploys MLflow tracking, Kafka-to-Parquet capture, and baseline training.
-  mlops-train   : Runs MLOps demand forecasting model training (-Days).
+  mlops-train   : Trains the existing Minikube Parquet dataset on demand (-Days, -SimulateOrders).
   mlops-data    : Generates synthetic historical sales dataset for MLOps (-Days).
   secrets       : Generates zero-trust cryptographically secure secrets in Kubernetes namespace.
   cost          : Queries live Kubernetes workload costs via kubectl-cost and OpenCost.
@@ -2369,6 +2483,8 @@ Options:
   -Count <count>                       : Event count for funnel-demo (default: 30)
   -Category <name>                     : Telemetry event category (default: Electronics)
   -Days <count>                        : Calendar days for mlops-train and mlops-data (default: 14)
+  -SimulateOrders                      : Stream simulated orders before mlops-train and wait for auto-training.
+  -RunTimeoutSeconds <10-900>          : Wait time for capture auto-training after simulation (default: 180).
   -Concurrency <count>                 : Concurrency for simulate and chaos commands (default: 4)
   -Continuous                          : Run traffic simulation indefinitely in background
   -SingleSource                        : Disable synthetic X-Forwarded-For IP rotation for ddos

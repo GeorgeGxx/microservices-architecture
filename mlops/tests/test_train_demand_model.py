@@ -246,12 +246,118 @@ class TrainDemandModelTests(unittest.TestCase):
                 proceed, _, _, _ = _check_auto_training_readiness(True, str(base))
                 self.assertFalse(proceed)
 
+    def test_check_forced_training_bypasses_unchanged_data_and_stability_window(self) -> None:
+        import os
+        import time
+        from unittest.mock import patch
+        from train_demand_model import CANDIDATE_STATE_FILENAME, _check_auto_training_readiness
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            for i in range(1, 11):
+                partition = base / f"date=2026-10-{i:02d}"
+                partition.mkdir()
+                (partition / "part.parquet").write_bytes(f"data-{i}".encode("ascii"))
+            _, fingerprint = snapshot_dataset(base)
+            state_file = base / "state.sha256"
+            state_file.write_text(fingerprint, encoding="ascii")
+            candidate_file = base / CANDIDATE_STATE_FILENAME
+            candidate_file.write_text(f"{fingerprint}\n{time.time():.6f}\n", encoding="ascii")
+
+            with patch.dict(
+                os.environ,
+                {
+                    "MLOPS_TRAINING_STATE_PATH": str(state_file),
+                    "MLOPS_AUTO_TRAIN_STABILITY_SECONDS": "60",
+                },
+            ):
+                proceed, returned_state, returned_fingerprint, resolved = (
+                    _check_auto_training_readiness(False, str(base), force=True)
+                )
+
+            self.assertTrue(proceed)
+            self.assertEqual(returned_state, state_file.resolve())
+            self.assertEqual(returned_fingerprint, fingerprint)
+            self.assertEqual(resolved, str(base.resolve()))
+
+    def test_forced_training_fails_when_parquet_is_not_ready(self) -> None:
+        from train_demand_model import _check_auto_training_readiness
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with self.assertRaisesRegex(ValueError, "No Parquet sales files found"):
+                _check_auto_training_readiness(False, temp_dir, force=True)
+
+            base = Path(temp_dir)
+            for i in range(1, 3):
+                partition = base / f"date=2026-10-{i:02d}"
+                partition.mkdir()
+                (partition / "part.parquet").write_bytes(b"data")
+            with self.assertRaisesRegex(ValueError, "at least 9 are required"):
+                _check_auto_training_readiness(False, str(base), force=True)
+
     def test_main_auto_skips_when_empty(self) -> None:
         from unittest.mock import patch
         from train_demand_model import main
         with tempfile.TemporaryDirectory() as temp_dir:
             with patch("sys.argv", ["train_demand_model.py", "--auto", "--input-parquet", temp_dir]):
                 self.assertIsNone(main())
+
+    def test_main_force_fails_when_another_training_process_holds_lock(self) -> None:
+        from train_demand_model import main
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "last-successful.sha256"
+            lock_path = Path(temp_dir) / "train.lock"
+            with (
+                patch(
+                    "train_demand_model._check_auto_training_readiness",
+                    return_value=(True, state_path, "fingerprint", temp_dir),
+                ),
+                patch("train_demand_model._resolve_training_lock_path", return_value=lock_path),
+                patch("train_demand_model._acquire_training_lock_with_wait", return_value=(False, True)),
+                patch("sys.argv", ["train_demand_model.py", "--force", "--input-parquet", temp_dir]),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "held the lock"):
+                    main()
+
+    def test_main_releases_training_lock_when_training_initialization_fails(self) -> None:
+        from train_demand_model import main
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "last-successful.sha256"
+            lock_path = Path(temp_dir) / "train.lock"
+            with (
+                patch(
+                    "train_demand_model._check_auto_training_readiness",
+                    return_value=(True, state_path, "fingerprint", temp_dir),
+                ),
+                patch("train_demand_model._resolve_training_lock_path", return_value=lock_path),
+                patch("train_demand_model._run_spark_training", side_effect=RuntimeError("Spark initialization failed")),
+                patch("sys.argv", ["train_demand_model.py", "--force", "--input-parquet", temp_dir]),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "Spark initialization failed"):
+                    main()
+            self.assertFalse(lock_path.exists())
+
+    def test_main_does_not_repeat_training_completed_while_waiting_for_lock(self) -> None:
+        from train_demand_model import main
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            state_path = Path(temp_dir) / "last-successful.sha256"
+            state_path.write_text("fingerprint\n", encoding="ascii")
+            lock_path = Path(temp_dir) / "train.lock"
+            with (
+                patch(
+                    "train_demand_model._check_auto_training_readiness",
+                    return_value=(True, state_path, "fingerprint", temp_dir),
+                ),
+                patch("train_demand_model._resolve_training_lock_path", return_value=lock_path),
+                patch("train_demand_model._acquire_training_lock_with_wait", return_value=(True, True)),
+                patch("train_demand_model._run_spark_training") as run_training,
+                patch("sys.argv", ["train_demand_model.py", "--force", "--input-parquet", temp_dir]),
+            ):
+                main()
+            run_training.assert_not_called()
 
     def test_sample_sales(self) -> None:
         from unittest.mock import MagicMock
@@ -510,6 +616,7 @@ class TrainDemandModelTests(unittest.TestCase):
         mlflow2.log_metric.assert_any_call("prior_champion_rmse", 10.0)
 
     def test_acquire_and_release_training_lock_lifecycle(self) -> None:
+        import json
         import os
         from train_demand_model import _acquire_training_lock, _release_training_lock
 
@@ -518,7 +625,10 @@ class TrainDemandModelTests(unittest.TestCase):
             # 1. Acquire
             self.assertTrue(_acquire_training_lock(lock_path))
             self.assertTrue(lock_path.is_file())
-            self.assertEqual(lock_path.read_text(encoding="ascii").strip(), str(os.getpid()))
+            lock_owner = json.loads(lock_path.read_text(encoding="ascii"))
+            self.assertEqual(lock_owner["pid"], os.getpid())
+            self.assertTrue(lock_owner["host"])
+            self.assertTrue(lock_owner["token"])
 
             # 2. Release
             _release_training_lock(lock_path)
@@ -535,16 +645,51 @@ class TrainDemandModelTests(unittest.TestCase):
             self.assertFalse(_acquire_training_lock(lock_path))
 
     def test_acquire_training_lock_reclaims_stale_lock(self) -> None:
+        import json
         import os
+        import time
+        from train_demand_model import TRAINING_LOCK_STALE_SECONDS, _acquire_training_lock
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            lock_path = Path(temp_dir) / "test.lock"
+            # A stale PID-only lock may refer to PID 1 in another container.
+            lock_path.write_text("1\n", encoding="ascii")
+            old_time = time.time() - TRAINING_LOCK_STALE_SECONDS - 1
+            os.utime(lock_path, (old_time, old_time))
+            with patch("os.kill") as kill_process:
+                self.assertTrue(_acquire_training_lock(lock_path))
+                kill_process.assert_not_called()
+            self.assertEqual(json.loads(lock_path.read_text(encoding="ascii"))["pid"], os.getpid())
+
+    def test_acquire_training_lock_respects_active_lock_from_another_container(self) -> None:
+        import json
         from train_demand_model import _acquire_training_lock
 
         with tempfile.TemporaryDirectory() as temp_dir:
             lock_path = Path(temp_dir) / "test.lock"
-            # Use an arbitrary inactive PID and mock os.kill to raise ProcessLookupError
-            lock_path.write_text("999999\n", encoding="ascii")
-            with patch("os.kill", side_effect=ProcessLookupError):
-                self.assertTrue(_acquire_training_lock(lock_path))
-                self.assertEqual(lock_path.read_text(encoding="ascii").strip(), str(os.getpid()))
+            lock_path.write_text(
+                json.dumps({"pid": 1, "host": "another-pod", "token": "active"}),
+                encoding="ascii",
+            )
+            with (
+                patch("train_demand_model.socket.gethostname", return_value="this-pod"),
+                patch("train_demand_model.os.kill") as kill_process,
+            ):
+                self.assertFalse(_acquire_training_lock(lock_path))
+                kill_process.assert_not_called()
+            self.assertEqual(json.loads(lock_path.read_text(encoding="ascii"))["token"], "active")
+
+    def test_acquire_training_lock_waits_until_released(self) -> None:
+        from train_demand_model import _acquire_training_lock_with_wait
+
+        with (
+            patch("train_demand_model._acquire_training_lock", side_effect=[False, True]) as acquire,
+            patch("train_demand_model.time.sleep"),
+        ):
+            acquired, waited = _acquire_training_lock_with_wait(Path("shared.lock"), 10)
+        self.assertTrue(acquired)
+        self.assertTrue(waited)
+        self.assertEqual(acquire.call_count, 2)
 
     def test_acquire_training_lock_handles_unwritable_path(self) -> None:
         from train_demand_model import _acquire_training_lock
