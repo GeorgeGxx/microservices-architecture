@@ -338,56 +338,77 @@ def _record_completed_auto_state(auto: bool, state_path: Path | None, fingerprin
     print("Training completed; the dataset fingerprint was recorded.", flush=True)
 
 
+def _read_training_lock_owner(lock_path: Path) -> tuple[Any, Any]:
+    try:
+        lock_owner = json.loads(lock_path.read_text(encoding="ascii"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        lock_owner = {}
+
+    if isinstance(lock_owner, dict) and lock_owner:
+        return lock_owner.get("host"), lock_owner.get("pid")
+
+    legacy_pid = lock_path.read_text(encoding="ascii").strip()
+    return None, int(legacy_pid) if legacy_pid.isdigit() else None
+
+
+def _lock_owner_is_active(
+    lock_path: Path,
+    owner_host: Any,
+    owner_pid: Any,
+    report_conflict: bool,
+) -> bool:
+    if owner_host and owner_host != socket.gethostname():
+        if report_conflict:
+            print(
+                f"Training execution skipped: another container ({owner_host}) holds the active training lock.",
+                flush=True,
+            )
+        return True
+
+    if isinstance(owner_pid, int):
+        try:
+            os.kill(owner_pid, 0)
+        except ProcessLookupError:
+            lock_path.unlink(missing_ok=True)
+            return False
+        except PermissionError:
+            if report_conflict:
+                print(
+                    f"Training execution skipped: another training process (PID {owner_pid}) is active.",
+                    flush=True,
+                )
+            return True
+
+        if report_conflict:
+            print(
+                f"Training execution skipped: another training process (PID {owner_pid}) is currently active.",
+                flush=True,
+            )
+        return True
+
+    lock_path.unlink(missing_ok=True)
+    return False
+
+
+def _existing_training_lock_is_active(lock_path: Path, report_conflict: bool) -> bool:
+    if not lock_path.exists():
+        return False
+    if time.time() - lock_path.stat().st_mtime > TRAINING_LOCK_STALE_SECONDS:
+        lock_path.unlink(missing_ok=True)
+        return False
+
+    owner_host, owner_pid = _read_training_lock_owner(lock_path)
+    return _lock_owner_is_active(lock_path, owner_host, owner_pid, report_conflict)
+
+
 def _acquire_training_lock(lock_path: Path, *, report_conflict: bool = True) -> bool:
     """
     Acquire a shared-volume lock using a heartbeat lease and container identity.
     """
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
-        if lock_path.exists():
-            lock_age = time.time() - lock_path.stat().st_mtime
-            if lock_age > TRAINING_LOCK_STALE_SECONDS:
-                lock_path.unlink(missing_ok=True)
-            else:
-                try:
-                    lock_owner = json.loads(lock_path.read_text(encoding="ascii"))
-                except (json.JSONDecodeError, UnicodeDecodeError):
-                    lock_owner = {}
-                if isinstance(lock_owner, dict) and lock_owner:
-                    owner_host = lock_owner.get("host")
-                    owner_pid = lock_owner.get("pid")
-                else:
-                    legacy_pid = lock_path.read_text(encoding="ascii").strip()
-                    owner_host = None
-                    owner_pid = int(legacy_pid) if legacy_pid.isdigit() else None
-
-                if owner_host and owner_host != socket.gethostname():
-                    if report_conflict:
-                        print(
-                            f"Training execution skipped: another container ({owner_host}) holds the active training lock.",
-                            flush=True,
-                        )
-                    return False
-                if isinstance(owner_pid, int):
-                    try:
-                        os.kill(owner_pid, 0)
-                        if report_conflict:
-                            print(
-                                f"Training execution skipped: another training process (PID {owner_pid}) is currently active.",
-                                flush=True,
-                            )
-                        return False
-                    except ProcessLookupError:
-                        lock_path.unlink(missing_ok=True)
-                    except PermissionError:
-                        if report_conflict:
-                            print(
-                                f"Training execution skipped: another training process (PID {owner_pid}) is active.",
-                                flush=True,
-                            )
-                        return False
-                else:
-                    lock_path.unlink(missing_ok=True)
+        if _existing_training_lock_is_active(lock_path, report_conflict):
+            return False
 
         token = uuid.uuid4().hex
         lock_owner = {
@@ -440,7 +461,7 @@ def _refresh_training_lock(lock_path: Path, token: str, stop_event: threading.Ev
             if owner.get("token") != token:
                 return
             lock_path.touch()
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError):
             return
 
 

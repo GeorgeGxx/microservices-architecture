@@ -12,6 +12,7 @@ __pycache__/
 backups/
 *.dump
 .pnpm-store/
+.pytest_cache/
 notes.md
 test.ps1
 .terraform/
