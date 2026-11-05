@@ -40,6 +40,17 @@ export const DemandForecastPanel: React.FC = () => {
 
   useEffect(() => {
     void loadForecast();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void loadForecast();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
   }, [loadForecast]);
 
   return (
@@ -74,7 +85,7 @@ export const DemandForecastPanel: React.FC = () => {
             <h3 className="text-sm font-bold text-amber-200">Forecast is unavailable</h3>
             <p className="mt-1 text-xs text-slate-300">{error}</p>
             <p className="mt-2 text-xs text-slate-400">
-              MLflow and the forecast API start with the normal Docker Compose stack. From the repository root, train the demo model with <code>.\mlops\training.ps1</code>, then refresh this panel. For Kafka-backed data, follow the Local MLOps workflow in the README.
+              Ensure a demand-forecast model has been trained and promoted, then refresh this panel.
             </p>
           </div>
         </div>
@@ -98,12 +109,12 @@ export const DemandForecastPanel: React.FC = () => {
               </div>
             </div>
             <div className="glass-card p-4 rounded-2xl border border-slate-800">
-              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Model run</div>
+              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active MLflow run</div>
               <div className="mt-2 flex items-center gap-2 text-sm font-bold text-white">
                 <Clock3 className="w-4 h-4 text-indigo-400" />
                 <span>{formatDateTime(forecast.modelCreatedAt)}</span>
-                <span className="text-xs font-mono text-indigo-300">#{forecast.modelRunId.slice(0, 8)}</span>
               </div>
+              <code className="mt-2 block break-all text-xs text-indigo-300">{forecast.modelRunId}</code>
             </div>
           </div>
 
@@ -151,7 +162,7 @@ export const DemandForecastPanel: React.FC = () => {
           </div>
 
           <p className="text-[11px] text-slate-500">
-            Data source: {forecast.dataSource === 'synthetic' ? 'synthetic sample' : 'captured sales'} · Last observed sales date: {formatDate(forecast.historyEndDate)} · MLflow run: {forecast.modelRunId}
+            Data source: {forecast.dataSource === 'synthetic' ? 'synthetic sample' : 'captured sales'} · Last observed sales date: {formatDate(forecast.historyEndDate)}
           </p>
         </>
       )}
