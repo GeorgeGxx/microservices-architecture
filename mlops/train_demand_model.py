@@ -9,10 +9,14 @@ from __future__ import annotations
 import argparse
 import contextlib
 import hashlib
+import json
 import math
 import os
+import socket
 import stat
+import threading
 import time
+import uuid
 from datetime import date, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -23,6 +27,10 @@ if TYPE_CHECKING:
 
 MINIMUM_DATE_PARTITIONS = int(os.getenv("MLOPS_MIN_PARTITIONS", "9"))
 CANDIDATE_STATE_FILENAME = "candidate-input.state"
+TRAINING_LOCK_STALE_SECONDS = 120
+TRAINING_LOCK_HEARTBEAT_SECONDS = 30
+MANUAL_TRAINING_LOCK_WAIT_SECONDS = int(os.getenv("MLOPS_MANUAL_TRAINING_LOCK_WAIT_SECONDS", "360"))
+_training_lock_heartbeats: dict[str, tuple[threading.Event, threading.Thread, str]] = {}
 
 
 def _collect_partition_dates(dataset_path: Path) -> list[date]:
@@ -195,10 +203,10 @@ def _is_within_stability_window(state_path: Path, fingerprint: str, stability_se
 
 
 def _check_auto_training_readiness(
-    auto: bool, input_parquet: str | None
+    auto: bool, input_parquet: str | None, force: bool = False
 ) -> tuple[bool, Path | None, str | None, str | None]:
-    """Check dataset readiness for auto-training."""
-    if not auto:
+    """Check dataset readiness and skip unchanged data only for automatic runs."""
+    if not auto and not force:
         return True, None, None, input_parquet
 
     dataset_path = Path(input_parquet or os.getenv("MLOPS_SALES_PATH", "/data/sales_parquet")).resolve()
@@ -210,23 +218,26 @@ def _check_auto_training_readiness(
     ).resolve()
     dates, fingerprint = snapshot_dataset(dataset_path)
     if not fingerprint:
-        print(f"No Parquet sales files found in {dataset_path}; training will be retried later.", flush=True)
+        message = f"No Parquet sales files found in {dataset_path}."
+        if force:
+            raise ValueError(message)
+        print(f"{message} Training will be retried later.", flush=True)
         return False, None, None, None
     if len(dates) < MINIMUM_DATE_PARTITIONS:
-        print(
-            f"Found {len(dates)} date partitions; at least {MINIMUM_DATE_PARTITIONS} are required. "
-            "Training will be retried later.",
-            flush=True,
-        )
+        message = f"Found {len(dates)} date partitions; at least {MINIMUM_DATE_PARTITIONS} are required."
+        if force:
+            raise ValueError(message)
+        print(f"{message} Training will be retried later.", flush=True)
         return False, None, None, None
-    if state_path.is_file() and state_path.read_text(encoding="ascii").strip() == fingerprint:
+    if not force and state_path.is_file() and state_path.read_text(encoding="ascii").strip() == fingerprint:
         state_path.with_name(CANDIDATE_STATE_FILENAME).unlink(missing_ok=True)
         print("Sales Parquet has not changed since the last successful training; skipping.", flush=True)
         return False, None, None, None
 
-    stability_seconds = max(0, int(os.getenv("MLOPS_AUTO_TRAIN_STABILITY_SECONDS", "0")))
-    if _is_within_stability_window(state_path, fingerprint, stability_seconds):
-        return False, None, None, None
+    if not force:
+        stability_seconds = max(0, int(os.getenv("MLOPS_AUTO_TRAIN_STABILITY_SECONDS", "0")))
+        if _is_within_stability_window(state_path, fingerprint, stability_seconds):
+            return False, None, None, None
 
     print(
         f"Training from {len(dates)} date partitions ({dates[0]} through {dates[-1]}).",
@@ -327,44 +338,123 @@ def _record_completed_auto_state(auto: bool, state_path: Path | None, fingerprin
     print("Training completed; the dataset fingerprint was recorded.", flush=True)
 
 
-def _acquire_training_lock(lock_path: Path) -> bool:
+def _acquire_training_lock(lock_path: Path, *, report_conflict: bool = True) -> bool:
     """
-    Attempts to acquire an exclusive file lock for training execution.
-    Returns True if the lock was successfully acquired or if lock enforcement is bypassed.
-    Returns False ONLY if another active training process is currently executing.
+    Acquire a shared-volume lock using a heartbeat lease and container identity.
     """
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         if lock_path.exists():
-            with contextlib.suppress(OSError):
-                pid_str = lock_path.read_text(encoding="ascii").strip()
-                if pid_str.isdigit():
-                    pid = int(pid_str)
+            lock_age = time.time() - lock_path.stat().st_mtime
+            if lock_age > TRAINING_LOCK_STALE_SECONDS:
+                lock_path.unlink(missing_ok=True)
+            else:
+                try:
+                    lock_owner = json.loads(lock_path.read_text(encoding="ascii"))
+                except (json.JSONDecodeError, UnicodeDecodeError):
+                    lock_owner = {}
+                if isinstance(lock_owner, dict) and lock_owner:
+                    owner_host = lock_owner.get("host")
+                    owner_pid = lock_owner.get("pid")
+                else:
+                    legacy_pid = lock_path.read_text(encoding="ascii").strip()
+                    owner_host = None
+                    owner_pid = int(legacy_pid) if legacy_pid.isdigit() else None
+
+                if owner_host and owner_host != socket.gethostname():
+                    if report_conflict:
+                        print(
+                            f"Training execution skipped: another container ({owner_host}) holds the active training lock.",
+                            flush=True,
+                        )
+                    return False
+                if isinstance(owner_pid, int):
                     try:
-                        os.kill(pid, 0)
-                        print(f"Training execution skipped: another training process (PID {pid}) is currently active.", flush=True)
+                        os.kill(owner_pid, 0)
+                        if report_conflict:
+                            print(
+                                f"Training execution skipped: another training process (PID {owner_pid}) is currently active.",
+                                flush=True,
+                            )
                         return False
-                    except (ProcessLookupError, PermissionError):
+                    except ProcessLookupError:
                         lock_path.unlink(missing_ok=True)
-                elif time.time() - lock_path.stat().st_mtime > 120:
+                    except PermissionError:
+                        if report_conflict:
+                            print(
+                                f"Training execution skipped: another training process (PID {owner_pid}) is active.",
+                                flush=True,
+                            )
+                        return False
+                else:
                     lock_path.unlink(missing_ok=True)
 
+        token = uuid.uuid4().hex
+        lock_owner = {
+            "pid": os.getpid(),
+            "host": socket.gethostname(),
+            "token": token,
+        }
         lock_fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         with os.fdopen(lock_fd, "w") as f:
-            f.write(f"{os.getpid()}\n")
+            json.dump(lock_owner, f)
+            f.write("\n")
+
+        stop_heartbeat = threading.Event()
+        heartbeat = threading.Thread(
+            target=_refresh_training_lock,
+            args=(lock_path, token, stop_heartbeat),
+            daemon=True,
+        )
+        _training_lock_heartbeats[str(lock_path)] = (stop_heartbeat, heartbeat, token)
+        heartbeat.start()
         return True
     except FileExistsError:
-        print("Training execution skipped: another training process is currently active.", flush=True)
+        if report_conflict:
+            print("Training execution skipped: another training process is currently active.", flush=True)
         return False
     except OSError as exc:
         print(f"Warning: could not enforce training lock at {lock_path}: {exc}. Proceeding without lock.", flush=True)
         return True
 
 
+def _acquire_training_lock_with_wait(lock_path: Path, wait_seconds: int) -> tuple[bool, bool]:
+    deadline = time.monotonic() + max(0, wait_seconds)
+    waited = False
+    while True:
+        if _acquire_training_lock(lock_path, report_conflict=not waited):
+            return True, waited
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False, waited
+        if not waited:
+            print("Another training run is active; waiting for its shared-volume lock to be released.", flush=True)
+        waited = True
+        time.sleep(min(5, remaining))
+
+
+def _refresh_training_lock(lock_path: Path, token: str, stop_event: threading.Event) -> None:
+    while not stop_event.wait(TRAINING_LOCK_HEARTBEAT_SECONDS):
+        try:
+            owner = json.loads(lock_path.read_text(encoding="ascii"))
+            if owner.get("token") != token:
+                return
+            lock_path.touch()
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            return
+
+
 def _release_training_lock(lock_path: Path | None) -> None:
     if lock_path is not None:
-        with contextlib.suppress(OSError):
-            lock_path.unlink(missing_ok=True)
+        heartbeat_state = _training_lock_heartbeats.pop(str(lock_path), None)
+        if heartbeat_state:
+            stop_event, heartbeat, _ = heartbeat_state
+            stop_event.set()
+            heartbeat.join(timeout=TRAINING_LOCK_HEARTBEAT_SECONDS + 1)
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            owner = json.loads(lock_path.read_text(encoding="ascii"))
+            if heartbeat_state and owner.get("token") == heartbeat_state[2]:
+                lock_path.unlink(missing_ok=True)
 
 
 def _resolve_training_lock_path(auto: bool, state_path: Path | None) -> Path | None:
@@ -381,7 +471,6 @@ def _run_spark_training(
     args: argparse.Namespace,
     state_path: Path | None,
     fingerprint: str | None,
-    lock_path: Path | None,
 ) -> None:
     import mlflow
     import numpy as np
@@ -513,11 +602,10 @@ def _run_spark_training(
             print(f"Role: {role} | RMSE: {rmse:.3f} | MAE: {mae:.3f}")
             print(f"MLflow UI: {os.getenv('MLFLOW_UI_URL', tracking_uri)}")
 
-        _record_completed_auto_state(args.auto, state_path, fingerprint)
+        _record_completed_auto_state(args.auto or args.force, state_path, fingerprint)
     finally:
         with contextlib.suppress(Exception):
             spark.stop()
-        _release_training_lock(lock_path)
 
 
 def main() -> None:
@@ -540,17 +628,49 @@ def main() -> None:
         action="store_true",
         help="Check dataset readiness (partitions >= 9 and sha256 drift) before training",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Train from ready Parquet data even if unchanged or within the auto-training stability window",
+    )
     args = parser.parse_args()
 
     should_proceed, state_path, fingerprint, resolved_parquet = _check_auto_training_readiness(
-        args.auto, args.input_parquet
+        args.auto, args.input_parquet, force=args.force
     )
     if should_proceed:
         if resolved_parquet:
             args.input_parquet = resolved_parquet
-        lock_path = _resolve_training_lock_path(args.auto, state_path)
-        if lock_path is None or _acquire_training_lock(lock_path):
-            _run_spark_training(args, state_path, fingerprint, lock_path)
+        tracked_training = args.auto or args.force
+        lock_path = _resolve_training_lock_path(tracked_training, state_path)
+        waited_for_lock = False
+        if lock_path is None:
+            lock_acquired = True
+        elif args.force:
+            lock_acquired, waited_for_lock = _acquire_training_lock_with_wait(
+                lock_path, MANUAL_TRAINING_LOCK_WAIT_SECONDS
+            )
+        else:
+            lock_acquired = _acquire_training_lock(lock_path)
+        if lock_acquired:
+            try:
+                if (
+                    waited_for_lock
+                    and state_path
+                    and fingerprint
+                    and state_path.is_file()
+                    and state_path.read_text(encoding="ascii").strip() == fingerprint
+                ):
+                    print("Automatic training completed while waiting; no duplicate training is needed.", flush=True)
+                    return
+                _run_spark_training(args, state_path, fingerprint)
+            finally:
+                _release_training_lock(lock_path)
+        elif args.force:
+            raise RuntimeError(
+                f"Manual training could not start because another training process held the lock for "
+                f"{MANUAL_TRAINING_LOCK_WAIT_SECONDS} seconds."
+            )
 
 
 if __name__ == "__main__":

@@ -243,8 +243,8 @@ docker compose --profile "*" down -v
 ```
 Use `docker compose down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs and model artifacts.
 > 🧪 **MLOps & Demand Forecasting Quick Commands:**
-> - Run containerized PySpark baseline training: `.\mlops\training.ps1 -Target compose`
-> - Simulate 14-day Kafka order ingestion and auto-training cycle: `.\mlops\training.ps1 -Target compose -SimulateOrders -Days 14`
+> - Run containerized PySpark baseline training: `docker compose run --build --rm demand-model-training`
+> - Simulate 14-day Kafka order ingestion: `docker compose --profile capture up -d demand-sales-capture` followed by `docker compose run --rm --entrypoint python demand-sales-capture /app/generate_sample_sales.py --days 14 --kafka-bootstrap-servers kafka:9092 --kafka-topic orders-topic`
 > - For Parquet streaming partitions, dual MLflow port handling, and background capture, see the [Docker Compose MLOps Runbook](docs/02-operations/LOCAL_DEPLOYMENT.md#5--local-mlops-workflow-with-docker-compose).
 
 ---
@@ -280,7 +280,7 @@ To deploy the entire production-grade stack on Minikube with **Istio Service Mes
 ```
 
 > 🧪 **Minikube MLOps Auto-Training Quick Command:**
-> - Simulate 14 days of delivered orders and trigger the guarded training scheduler: `.\mlops\training.ps1 -Target minikube -SimulateOrders -Days 14`
+> - Simulate 14 days of delivered orders and trigger guarded training: `.\platform-minikube.ps1 mlops-train -SimulateOrders -Days 14`
 > - For PVC storage details, CronJob scheduler logic, and Champion/Challenger model governance, see the [Minikube MLOps Deployment Runbook](docs/02-operations/LOCAL_DEPLOYMENT.md#5--minikube-mlops-deployment--automated-dynamic-training).
 
 > 📘 **Step-by-step Minikube Deep-Dive:** Detailed hardware allocation, standalone host development, network topologies, Canary traffic routing, and DNS setup are available in [docs/02-operations/LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md).
