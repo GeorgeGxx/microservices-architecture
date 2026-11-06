@@ -1,0 +1,414 @@
+# ==============================================================================
+# Backstage Catalog — Microservices, Gateway, Frontend & MLOps Components
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: frontend
+  title: Novashop Storefront (React 19)
+  description: Customer-facing e-commerce SPA with Clean Architecture, Apollo GraphQL Client, Keycloak OIDC PKCE authentication, and real-time order tracking.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: frontend
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-frontend
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - react-19
+    - typescript
+    - nodejs-24
+    - nginx
+    - graphql-client
+  links:
+    - url: https://shop.georgegxx.dev
+      title: Production Storefront
+      icon: web
+    - url: https://grafana.georgegxx.dev
+      title: Grafana Telemetry Dashboard
+      icon: dashboard
+spec:
+  type: website
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  consumesApis:
+    - cosmo-supergraph-graphql-api
+  dependsOn:
+    - component:cosmo-router
+    - resource:keycloak-identity-provider
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cosmo-router
+  title: WunderGraph Cosmo Federated GraphQL Router
+  description: High-performance Go-based Federated GraphQL API Gateway composing Products, Orders, Inventory, Payments, Fulfillment, and Analytics subgraphs with JWT validation, rate limiting, and OpenTelemetry tracing.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: cosmo-router
+    argocd/app-name: microservices-prod
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - graphql-federation
+    - wundergraph-cosmo
+    - api-gateway
+    - opentelemetry
+  links:
+    - url: https://api.georgegxx.dev/graphql
+      title: Federated GraphQL Endpoint
+      icon: api
+spec:
+  type: service
+  lifecycle: production
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+  providesApis:
+    - cosmo-supergraph-graphql-api
+  consumesApis:
+    - products-rest-api
+    - orders-rest-api
+    - inventory-rest-api
+    - payments-rest-api
+    - fulfillment-rest-api
+    - analytics-rest-api
+    - demand-forecast-rest-api
+  dependsOn:
+    - component:products-service
+    - component:orders-service
+    - component:inventory-service
+    - component:payments-service
+    - component:fulfillment-service
+    - component:analytics-service
+    - component:demand-forecast-service
+    - resource:redis-distributed-cache
+    - resource:keycloak-identity-provider
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: products-service
+  title: Products Catalog Microservice
+  description: Spring Boot 4.1 / Java 21 microservice managing the product catalog, categories, pricing, and Redis-backed caching.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: products-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-products-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - java-21
+    - spring-boot-4-1
+    - postgresql
+    - redis
+    - zgc
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  providesApis:
+    - products-rest-api
+  dependsOn:
+    - resource:postgresql-databases
+    - resource:redis-distributed-cache
+    - resource:hashicorp-vault-kms
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: orders-service
+  title: Orders Orchestration Microservice
+  description: Spring Boot 4.1 / Java 21 microservice orchestrating distributed order sagas, transactional outbox publishing, Resilience4j circuit breaking, and inventory reservation.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: orders-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-orders-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - java-21
+    - spring-boot-4-1
+    - saga-orchestrator
+    - kafka
+    - resilience4j
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  providesApis:
+    - orders-rest-api
+    - kafka-commerce-events-asyncapi
+  consumesApis:
+    - products-rest-api
+    - inventory-rest-api
+    - payments-rest-api
+  dependsOn:
+    - component:products-service
+    - component:inventory-service
+    - component:payments-service
+    - resource:postgresql-databases
+    - resource:kafka-event-streaming
+    - resource:hashicorp-vault-kms
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: inventory-service
+  title: Inventory Reservation Microservice
+  description: Spring Boot 4.1 / Java 21 microservice managing stock levels, TTL-bounded inventory reservations, and optimistic concurrency control.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: inventory-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-inventory-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - java-21
+    - spring-boot-4-1
+    - postgresql
+    - kafka
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  providesApis:
+    - inventory-rest-api
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - resource:postgresql-databases
+    - resource:kafka-event-streaming
+    - resource:hashicorp-vault-kms
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: notification-service
+  title: Customer Notification Microservice
+  description: Spring Boot 4.1 / Java 21 event-driven consumer dispatching order, payment, and shipment notifications with KEDA Kafka consumer lag autoscaling.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: notification-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-notification-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - java-21
+    - spring-boot-4-1
+    - kafka-consumer
+    - keda
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - resource:kafka-event-streaming
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: payments-service
+  title: Payments Processing Microservice (Go / Gin)
+  description: Ultra-low-latency Go 1.26 / Gin microservice handling idempotent payment authorization, ledger persistence, Kafka payment events, and KEDA autoscaling.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: payments-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-payments-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - golang-1-26
+    - gin
+    - postgresql
+    - kafka
+    - keda
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  providesApis:
+    - payments-rest-api
+    - kafka-commerce-events-asyncapi
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - resource:postgresql-databases
+    - resource:kafka-event-streaming
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: fulfillment-service
+  title: Warehouse Fulfillment Microservice (NestJS / Node 24)
+  description: TypeScript / NestJS 11 microservice on Node.js 24 managing shipment creation, carrier tracking, and fulfillment lifecycle transitions.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: fulfillment-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-fulfillment-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - nodejs-24
+    - nestjs-11
+    - typescript
+    - postgresql
+    - kafka
+    - keda
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  providesApis:
+    - fulfillment-rest-api
+    - kafka-commerce-events-asyncapi
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - resource:postgresql-databases
+    - resource:kafka-event-streaming
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: analytics-service
+  title: Real-Time Commercial Analytics Microservice (FastAPI)
+  description: Python 3.12 / FastAPI service ingesting Kafka order, payment, and fulfillment streams to compute real-time revenue, conversion funnels, and operational KPIs.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: analytics-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-analytics-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - python-3-12
+    - fastapi
+    - kafka
+    - postgresql
+    - keda
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  providesApis:
+    - analytics-rest-api
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - resource:postgresql-databases
+    - resource:kafka-event-streaming
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demand-forecast-service
+  title: MLOps Demand Forecast Inference API
+  description: Python 3.12 / FastAPI inference microservice serving SKU-level demand predictions backed by MLflow registered models and Prometheus model-drift telemetry.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: demand-forecast-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-demand-forecast
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - python-3-12
+    - fastapi
+    - mlflow
+    - scikit-learn
+    - mlops
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  providesApis:
+    - demand-forecast-rest-api
+  dependsOn:
+    - component:mlflow-tracking-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mlops-training-pipeline
+  title: PySpark & Scikit-Learn Demand Model Training Pipeline
+  description: Automated feature engineering (PySpark), sales event capture, and GradientBoosting/RandomForest model training pipeline registering artifacts in MLflow.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: demand-sales-capture
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-mlops-training
+  tags:
+    - python-3-12
+    - pyspark
+    - mlflow
+    - mlops-training
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  consumesApis:
+    - kafka-commerce-events-asyncapi
+  dependsOn:
+    - component:mlflow-tracking-server
+    - resource:kafka-event-streaming
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: mlflow-tracking-server
+  title: MLflow Experiment Tracking & Model Registry
+  description: Centralized MLOps model registry and experiment tracking server storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: mlflow
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-mlflow
+  tags:
+    - mlflow
+    - model-registry
+    - mlops
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system

@@ -1,0 +1,115 @@
+# ==============================================================================
+# Backstage IDP — Base Configuration (Local / Minikube Development)
+# Operational Independence: Backstage is a non-blocking read-only visibility &
+# scaffolding portal. Runtime microservices and CI/CD never depend on Backstage.
+# ==============================================================================
+app:
+  title: Novashop Multi-Cloud Developer Portal
+  baseUrl: ${BACKSTAGE_FRONTEND_URL:-http://localhost:3000}
+
+organization:
+  name: GeorgeGxx Enterprise Platform Engineering
+
+backend:
+  baseUrl: ${BACKSTAGE_BACKEND_URL:-http://localhost:7007}
+  listen:
+    port: 7007
+    host: 0.0.0.0
+  csp:
+    connect-src: ["'self'", 'http:', 'https:']
+  cors:
+    origin: ${BACKSTAGE_FRONTEND_URL:-http://localhost:3000}
+    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+    credentials: true
+  database:
+    client: pg
+    connection:
+      host: ${POSTGRES_HOST:-db-backstage.dev.svc.cluster.local}
+      port: ${POSTGRES_PORT:-5432}
+      user: ${POSTGRES_USER}
+      password: ${POSTGRES_PASSWORD}
+      database: ${POSTGRES_DB:-backstage_plugin_catalog}
+
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}
+  azure:
+    - host: dev.azure.com
+      credentials:
+        - personalAccessToken: ${AZURE_DEVOPS_TOKEN}
+  bitbucketCloud:
+    - username: ${BITBUCKET_USERNAME}
+      appPassword: ${BITBUCKET_APP_PASSWORD}
+
+auth:
+  environment: development
+  session:
+    secret: ${BACKSTAGE_AUTH_SESSION_SECRET}
+  providers:
+    oidc:
+      development:
+        metadataUrl: ${KEYCLOAK_OIDC_METADATA_URL:-http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/.well-known/openid-configuration}
+        clientId: ${KEYCLOAK_CLIENT_ID:-backstage-portal}
+        clientSecret: ${KEYCLOAK_CLIENT_SECRET}
+        prompt: auto
+        scopes:
+          - openid
+          - profile
+          - email
+          - groups
+        signIn:
+          resolvers:
+            - resolver: emailMatchingUserEntityProfileEmail
+            - resolver: preferredUsernameMatchingUserEntityName
+
+permission:
+  enabled: true
+  rbac:
+    admin:
+      users:
+        - name: group:default/platform-admins
+      superUsers:
+        - name: group:default/platform-admins
+    policies-csv-file: ./backstage/rbac-policy.csv
+
+techdocs:
+  builder: 'local'
+  generator:
+    runIn: 'local'
+  publisher:
+    type: 'local'
+
+argocd:
+  username: ${ARGOCD_USERNAME:-admin}
+  password: ${ARGOCD_PASSWORD}
+  appLocatorMethods:
+    - type: 'config'
+      instances:
+        - name: main
+          url: ${ARGOCD_SERVER_URL:-https://argocd-server.argocd.svc.cluster.local}
+          token: ${ARGOCD_AUTH_TOKEN}
+
+sonarqube:
+  baseUrl: ${SONAR_HOST_URL:-https://sonarcloud.io}
+  apiKey: ${SONAR_TOKEN}
+
+grafana:
+  domain: ${GRAFANA_URL:-http://kube-prometheus-grafana.observability.svc.cluster.local}
+  unifiedAlerting: true
+
+prometheus:
+  proxyPath: /prometheus/api
+  uiUrl: ${PROMETHEUS_URL:-http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090}
+
+catalog:
+  import:
+    entityFilename: catalog-info.yaml
+    pullRequestBranchName: backstage-integration
+  rules:
+    - allow: [Component, System, API, Resource, Location, Domain, Group, User, Template]
+  locations:
+    - type: file
+      target: ../catalog-info.yaml
+      rules:
+        - allow: [Location, Domain, System, Component, API, Resource, Group, Template]

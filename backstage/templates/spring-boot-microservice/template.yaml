@@ -1,0 +1,102 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: spring-boot-microservice-golden-path
+  title: Golden Path — Spring Boot 4.1 / Java 21 Microservice
+  description: Scaffold a production-ready Java 21 / Spring Boot 4.1 microservice with ZGC, OpenTelemetry, Micrometer Prometheus metrics, non-root Dockerfile, Helm values, Conftest/Gatekeeper compliance, and multi-cloud CI/CD.
+  tags:
+    - golden-path
+    - java-21
+    - spring-boot-4-1
+    - devsecops
+spec:
+  owner: group:platform-admins
+  type: service
+  parameters:
+    - title: Service Identity & Ownership
+      required:
+        - component_id
+        - description
+        - owner
+        - system
+      properties:
+        component_id:
+          title: Service Name
+          type: string
+          description: Lowercase hyphenated service identifier (e.g. promotions-service)
+          pattern: '^[a-z][a-z0-9-]*-service$'
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner Group
+          type: string
+          default: group:developers
+          enum:
+            - group:developers
+            - group:devops-engineers
+            - group:platform-admins
+        system:
+          title: Target System
+          type: string
+          default: novashop-commerce-system
+          enum:
+            - novashop-commerce-system
+            - supply-chain-fulfillment-system
+            - intelligence-mlops-system
+            - multi-cloud-platform-system
+        java_package:
+          title: Base Java Package
+          type: string
+          default: com.georgegxx.microservices
+          pattern: '^[a-z]+(\.[a-z][a-z0-9]*)+$'
+        service_port:
+          title: Container Port
+          type: integer
+          default: 8080
+    - title: Repository Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+  steps:
+    - id: fetch-base
+      name: Fetch Golden Path Spring Boot Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          java_package: ${{ parameters.java_package }}
+          service_port: ${{ parameters.service_port }}
+    - id: publish
+      name: Publish Pull Request / Repository
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: feat/scaffold-${{ parameters.component_id }}
+        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Spring Boot 4.1 microservice"
+        description: "Automated Golden Path scaffolding for `${{ parameters.component_id }}` with non-root container hardening, Helm chart integration, and DevSecOps gates."
+        targetPath: ${{ parameters.component_id }}
+    - id: register
+      name: Register Component in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.remoteUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in Backstage Catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}

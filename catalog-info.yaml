@@ -1,0 +1,23 @@
+# ==============================================================================
+# Backstage Internal Developer Portal (IDP) — Root Catalog Location
+# Enterprise Multi-Cloud Microservices Platform (AWS EKS, Azure AKS, GCP GKE)
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: microservices-architecture-catalog
+  description: Root catalog index for the Enterprise Multi-Cloud Microservices Architecture (Domains, Systems, Microservices, APIs, Infrastructure Resources, and Golden Path Templates)
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: url
+  targets:
+    - ./backstage/catalog/domains-and-systems.yaml
+    - ./backstage/catalog/components.yaml
+    - ./backstage/catalog/apis-and-resources.yaml
+    - ./backstage/templates/spring-boot-microservice/template.yaml
+    - ./backstage/templates/nestjs-microservice/template.yaml
+    - ./backstage/templates/go-gin-microservice/template.yaml
+    - ./backstage/templates/python-fastapi-microservice/template.yaml
+    - ./backstage/templates/react-frontend-app/template.yaml
