@@ -242,7 +242,7 @@ function Invoke-PreDeploySecurityGate {
         $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "SKIPPED"; Details = "Ruleset missing" })
         if ($FailFast) { throw "Pre-deploy cannot run without the repository Semgrep ruleset: $semgrepRules" }
     } else {
-        $semgrepOut = @(& semgrep scan --config $semgrepRules --severity ERROR --error $RepoRoot 2>&1)
+        $semgrepOut = @(& semgrep scan --quiet --config $semgrepRules --severity ERROR --error $RepoRoot 2>&1)
         if ($LASTEXITCODE -eq 0) {
             Show-Success "Semgrep: Zero ERROR-severity SAST findings detected."
             $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "PASSED"; Details = "Centralized rules compliant" })

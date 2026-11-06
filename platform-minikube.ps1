@@ -971,14 +971,20 @@ function Invoke-LocalDevSecOpsScan {
         Write-Host "  ── [2/$totalGates] Semgrep: Static Application Security Testing (SAST) ──" -ForegroundColor Cyan
         Write-Host "  Evaluating centralized SAST ruleset (devsecops/sast/semgrep/semgrep-rules.yaml)..." -ForegroundColor Gray
         if (Get-Command semgrep -ErrorAction SilentlyContinue) {
-            & semgrep scan --config $semgrepConfig --severity ERROR --error $root
-            if ($LASTEXITCODE -ne 0) { throw "Semgrep SAST reported ERROR-severity findings (exit $LASTEXITCODE)." }
+            $semgrepOut = @(& semgrep scan --quiet --config $semgrepConfig --severity ERROR --error $root 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                $semgrepOut | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+                throw "Semgrep SAST reported ERROR-severity findings (exit $LASTEXITCODE)."
+            }
             Write-Host "  [OK] Semgrep: 0 ERROR-severity SAST findings detected (native CLI)." -ForegroundColor Green
         } elseif (Get-Command docker -ErrorAction SilentlyContinue) {
             & docker info *> $null
             if ($LASTEXITCODE -eq 0) {
-                & docker run --rm -v "${root}:/src:ro" -w /src returntocorp/semgrep:1.110.0 semgrep scan --config devsecops/sast/semgrep/semgrep-rules.yaml --severity ERROR --error
-                if ($LASTEXITCODE -ne 0) { throw "Semgrep SAST container reported ERROR-severity findings (exit $LASTEXITCODE)." }
+                $semgrepOut = @(& docker run --rm -v "${root}:/src:ro" -w /src returntocorp/semgrep:1.110.0 semgrep scan --quiet --config devsecops/sast/semgrep/semgrep-rules.yaml --severity ERROR --error 2>&1)
+                if ($LASTEXITCODE -ne 0) {
+                    $semgrepOut | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+                    throw "Semgrep SAST container reported ERROR-severity findings (exit $LASTEXITCODE)."
+                }
                 Write-Host "  [OK] Semgrep: 0 ERROR-severity SAST findings detected (returntocorp/semgrep:1.110.0)." -ForegroundColor Green
             } else {
                 Write-Host "  [WARN] Semgrep CLI is not installed and Docker daemon is offline; validated ruleset syntax at $semgrepConfig." -ForegroundColor Yellow
