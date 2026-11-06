@@ -53,6 +53,9 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
   SwaggerModule.setup('api/docs', app, document);
 
+  // Enable shutdown hooks for graceful termination in Kubernetes
+  app.enableShutdownHooks();
+
   const port = process.env.PORT || 8086;
   await app.listen(port, '0.0.0.0');
 

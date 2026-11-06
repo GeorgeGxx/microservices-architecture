@@ -181,13 +181,14 @@ telemetry:
       circuit_breaker: true
 
 # Layer B: Edge GraphQL Query Response Caching
+# Secured: Disabled indiscriminate global query caching to prevent caching personalized/authenticated order data
 response_cache:
   enabled: true
   storage:
     provider: memory
     max_entries: 10000
   all:
-    enabled: true
+    enabled: false
     fallback_ttl: 30s
   cache_tag_header:
     enabled: true

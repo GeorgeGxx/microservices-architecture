@@ -9,6 +9,7 @@ import { CurrencyProvider } from './context/CurrencyContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 const rootElement = document.getElementById('root');
 
@@ -18,18 +19,20 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <AuthProvider>
-        <CurrencyProvider>
-          <NotificationProvider>
-            <CartProvider>
-              <WishlistProvider>
-                <App />
-              </WishlistProvider>
-            </CartProvider>
-          </NotificationProvider>
-        </CurrencyProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <CurrencyProvider>
+            <NotificationProvider>
+              <CartProvider>
+                <WishlistProvider>
+                  <App />
+                </WishlistProvider>
+              </CartProvider>
+            </NotificationProvider>
+          </CurrencyProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
