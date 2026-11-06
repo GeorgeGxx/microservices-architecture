@@ -36,6 +36,25 @@ data:
 
     const PORT = Number(process.env.APP_CONFIG_backend_listen_port || 7007);
 
+    // Internal cluster endpoints for live health probes and interactive API execution
+    const INTERNAL_TARGETS = {
+      'frontend': { host: 'frontend.dev.svc.cluster.local', port: 80, healthPath: '/healthz', category: 'Storefront' },
+      'cosmo-router': { host: 'cosmo-router.dev.svc.cluster.local', port: 8080, healthPath: '/health/ready', category: 'Gateway' },
+      'products-service': { host: 'products-service.dev.svc.cluster.local', port: 8004, healthPath: '/actuator/products/health/readiness', category: 'Microservice' },
+      'orders-service': { host: 'orders-service.dev.svc.cluster.local', port: 8003, healthPath: '/actuator/orders/health/readiness', category: 'Microservice' },
+      'inventory-service': { host: 'inventory-service.dev.svc.cluster.local', port: 8001, healthPath: '/actuator/inventory/health/readiness', category: 'Microservice' },
+      'notification-service': { host: 'notification-service.dev.svc.cluster.local', port: 8002, healthPath: '/actuator/notification/health/readiness', category: 'Microservice' },
+      'payments-service': { host: 'payments-service.dev.svc.cluster.local', port: 8085, healthPath: '/health', category: 'Microservice' },
+      'fulfillment-service': { host: 'fulfillment-service.dev.svc.cluster.local', port: 8086, healthPath: '/health', category: 'Microservice' },
+      'analytics-service': { host: 'analytics-service.dev.svc.cluster.local', port: 8087, healthPath: '/health', category: 'Microservice' },
+      'demand-forecast-service': { host: 'demand-forecast-service.dev.svc.cluster.local', port: 8005, healthPath: '/health', category: 'MLOps' },
+      'mlflow-tracking-server': { host: 'mlflow.dev.svc.cluster.local', port: 5000, healthPath: '/health', category: 'MLOps' },
+      'keycloak-identity-provider': { host: 'keycloak.auth.svc.cluster.local', port: 8181, healthPath: '/realms/microservices-realm', category: 'Security / IAM' },
+      'hashicorp-vault-kms': { host: 'vault.vault.svc.cluster.local', port: 8200, healthPath: '/v1/sys/health', category: 'Secrets / KMS' },
+      'argocd-gitops-control-plane': { host: 'argocd-server.argocd.svc.cluster.local', port: 80, healthPath: '/healthz', category: 'GitOps' },
+      'lgtm-observability-stack': { host: 'kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local', port: 9090, healthPath: '/-/healthy', category: 'Observability' }
+    };
+
     const CATALOG_DATA = {
       platform: {
         title: 'Enterprise Multi-Cloud Internal Developer Portal',
@@ -55,18 +74,138 @@ data:
         { name: 'platform-engineering', owner: 'group:platform-admins', description: 'Multi-cloud Kubernetes dataplanes (AWS EKS, Azure AKS, GCP GKE), Federated GraphQL Gateway, Argo CD 3.6.1 GitOps, Istio Ambient mTLS, Vault, Keycloak, and LGTM Observability', systems: ['multi-cloud-platform-system'] }
       ],
       components: [
-        { name: 'frontend', title: 'Novashop Storefront (React 19)', type: 'website', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'React 19 • TypeScript • Vite • Nginx • Apollo GraphQL Client', port: 5173, docsUrl: 'http://localhost:5173', healthUrl: 'http://localhost:5173/healthz', argoApp: 'microservices-dev', sonarKey: 'msa-frontend', description: 'Customer-facing e-commerce SPA with Clean Architecture, Apollo GraphQL Client, Keycloak OIDC PKCE authentication, and real-time order tracking.' },
-        { name: 'cosmo-router', title: 'WunderGraph Cosmo Federated GraphQL Router', type: 'service', lifecycle: 'production', owner: 'group:platform-admins', system: 'multi-cloud-platform-system', domain: 'platform-engineering', tech: 'WunderGraph Cosmo Router 0.362.0 • Apollo Federation v2 • Go', port: 8080, docsUrl: 'http://localhost:8080', healthUrl: 'http://localhost:8080/health/ready', argoApp: 'microservices-dev', sonarKey: 'cosmo-router', description: 'High-performance Federated GraphQL API Gateway composing products (v2.3), inventory (v2.3), and orders (v2.5 @authenticated) subgraphs with JWT validation, rate limiting, and OTel tracing.' },
-        { name: 'products-service', title: 'Products Catalog Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Redis 8', port: 8004, docsUrl: 'http://localhost:8004/swagger-ui.html', healthUrl: 'http://localhost:8004/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-products-service', description: 'Product catalog, categories, SKU pricing, Redis-backed caching, and GraphQL Federation v2.3 Product (@key sku) subgraph.' },
-        { name: 'orders-service', title: 'Orders Orchestration Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka • Resilience4j', port: 8003, docsUrl: 'http://localhost:8003/swagger-ui.html', healthUrl: 'http://localhost:8003/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-orders-service', description: 'Distributed order saga orchestrator, transactional outbox publisher, Resilience4j circuit breaking, and GraphQL Federation v2.5 (@authenticated) subgraph.' },
-        { name: 'inventory-service', title: 'Inventory Reservation Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka', port: 8001, docsUrl: 'http://localhost:8001/swagger-ui.html', healthUrl: 'http://localhost:8001/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-inventory-service', description: 'Stock level ledger, TTL-bounded (PT15M) inventory reservations, optimistic concurrency control, and GraphQL Federation v2.3 subgraph.' },
-        { name: 'notification-service', title: 'Customer Notification Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • SSE • Kafka • KEDA', port: 8002, docsUrl: 'http://localhost:8002/swagger-ui.html', healthUrl: 'http://localhost:8002/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-notification-service', description: 'Event-driven Kafka consumer dispatching real-time Server-Sent Events (SSE) order, payment, and shipment alerts with KEDA consumer lag autoscaling.' },
-        { name: 'payments-service', title: 'Payments Processing Microservice (Go / Gin)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Go 1.26.7 • Gin 1.12.0 • GORM 1.31.2 • PostgreSQL 18 • Kafka', port: 8085, docsUrl: 'http://localhost:8085/swagger/index.html', healthUrl: 'http://localhost:8085/health', argoApp: 'microservices-dev', sonarKey: 'msa-payments-service', description: 'Ultra-low-latency Go microservice handling idempotent payment authorization, ledger persistence, refunds, Kafka payment-topic events, and KEDA autoscaling.' },
-        { name: 'fulfillment-service', title: 'Warehouse Fulfillment Microservice (NestJS 12 / Node 24)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Node.js 24 • NestJS 12.2.0 • TypeScript 7 • TypeORM 1.1.2 • PostgreSQL 18 • Kafka', port: 8086, docsUrl: 'http://localhost:8086/swagger', healthUrl: 'http://localhost:8086/health', argoApp: 'microservices-dev', sonarKey: 'msa-fulfillment-service', description: 'Logistics fulfillment state machine managing shipment creation, DHL carrier tracking numbers, and Kafka fulfillment-topic event choreography.' },
-        { name: 'analytics-service', title: 'Real-Time Commercial Analytics Microservice (FastAPI)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • FastAPI 0.160.0 • SQLAlchemy 2.0 Async • PostgreSQL 18 • Kafka', port: 8087, docsUrl: 'http://localhost:8087/docs', healthUrl: 'http://localhost:8087/health', argoApp: 'microservices-dev', sonarKey: 'msa-analytics-service', description: 'FastAPI service ingesting Kafka order, payment, and fulfillment streams to compute real-time revenue, conversion funnels, and operational KPIs.' },
-        { name: 'demand-forecast-service', title: 'MLOps Demand Forecast Inference API', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • FastAPI 0.160.0 • Scikit-Learn • MLflow Client', port: 8005, docsUrl: 'http://localhost:8005/docs', healthUrl: 'http://localhost:8005/health', argoApp: 'microservices-dev', sonarKey: 'msa-demand-forecast', description: 'Inference microservice serving SKU-level demand predictions backed by MLflow registered champion models and Prometheus model-drift telemetry.' },
-        { name: 'mlflow-tracking-server', title: 'MLflow Experiment Tracking & Model Registry', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • MLflow 3.11.1 • PostgreSQL 18', port: 5000, docsUrl: 'http://localhost:5000', healthUrl: 'http://localhost:5000/health', argoApp: 'microservices-dev', sonarKey: 'msa-mlflow', description: 'Centralized MLOps model registry and experiment tracking server storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).' },
-        { name: 'mlops-training-pipeline', title: 'PySpark & Scikit-Learn Demand Model Training Pipeline', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • PySpark 4.0 • Scikit-Learn • MLflow • K8s Job', port: 5000, docsUrl: 'http://localhost:5000/#/experiments/1', healthUrl: 'http://localhost:5000/health', argoApp: 'microservices-dev', sonarKey: 'msa-mlops-training', description: 'Distributed feature engineering (PySpark 4.0), sales event capture, and GradientBoosting/RandomForest training pipeline with PostgreSQL advisory lock guard.' }
+        {
+          name: 'frontend', title: 'Novashop Storefront (React 19)', type: 'website', lifecycle: 'production',
+          owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
+          tech: 'React 19 • TypeScript • Vite • Nginx • Apollo GraphQL Client', port: 5173,
+          docsUrl: 'http://localhost:5173', healthUrl: 'http://localhost:5173/healthz',
+          argoApp: 'microservices-dev', sonarKey: 'msa-frontend',
+          providesApis: [],
+          consumesApis: ['cosmo-supergraph-graphql-api'],
+          dependsOn: ['component:cosmo-router', 'resource:keycloak-identity-provider'],
+          description: 'Customer-facing e-commerce SPA with Clean Architecture, Apollo GraphQL Client, Keycloak OIDC PKCE authentication, and real-time order tracking.'
+        },
+        {
+          name: 'cosmo-router', title: 'WunderGraph Cosmo Federated GraphQL Router', type: 'service', lifecycle: 'production',
+          owner: 'group:platform-admins', system: 'multi-cloud-platform-system', domain: 'platform-engineering',
+          tech: 'WunderGraph Cosmo Router 0.362.0 • Apollo Federation v2 • Go', port: 8080,
+          docsUrl: 'http://localhost:8080', healthUrl: 'http://localhost:8080/health/ready',
+          argoApp: 'microservices-dev', sonarKey: 'cosmo-router',
+          providesApis: ['cosmo-supergraph-graphql-api'],
+          consumesApis: ['products-rest-api', 'orders-rest-api', 'inventory-rest-api'],
+          dependsOn: ['component:products-service', 'component:orders-service', 'component:inventory-service', 'resource:redis-distributed-cache', 'resource:keycloak-identity-provider'],
+          description: 'High-performance Federated GraphQL API Gateway composing products (v2.3), inventory (v2.3), and orders (v2.5 @authenticated) subgraphs with JWT validation, rate limiting, and OTel tracing.'
+        },
+        {
+          name: 'products-service', title: 'Products Catalog Microservice', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
+          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Redis 8', port: 8004,
+          docsUrl: 'http://localhost:8004/swagger-ui.html', healthUrl: 'http://localhost:8004/actuator/products/health/readiness',
+          argoApp: 'microservices-dev', sonarKey: 'msa-products-service',
+          providesApis: ['products-rest-api'],
+          consumesApis: [],
+          dependsOn: ['resource:postgresql-databases', 'resource:redis-distributed-cache', 'resource:hashicorp-vault-kms'],
+          description: 'Product catalog, categories, SKU pricing, Redis-backed caching, and GraphQL Federation v2.3 Product (@key sku) subgraph.'
+        },
+        {
+          name: 'orders-service', title: 'Orders Orchestration Microservice', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
+          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka • Resilience4j', port: 8003,
+          docsUrl: 'http://localhost:8003/swagger-ui.html', healthUrl: 'http://localhost:8003/actuator/orders/health/readiness',
+          argoApp: 'microservices-dev', sonarKey: 'msa-orders-service',
+          providesApis: ['orders-rest-api', 'kafka-commerce-events-asyncapi'],
+          consumesApis: ['products-rest-api', 'inventory-rest-api', 'payments-rest-api', 'kafka-commerce-events-asyncapi'],
+          dependsOn: ['component:products-service', 'component:inventory-service', 'component:payments-service', 'resource:postgresql-databases', 'resource:kafka-event-streaming', 'resource:hashicorp-vault-kms'],
+          description: 'Distributed order saga orchestrator, transactional outbox publisher, Resilience4j circuit breaking, and GraphQL Federation v2.5 (@authenticated) subgraph.'
+        },
+        {
+          name: 'inventory-service', title: 'Inventory Reservation Microservice', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
+          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka', port: 8001,
+          docsUrl: 'http://localhost:8001/swagger-ui.html', healthUrl: 'http://localhost:8001/actuator/inventory/health/readiness',
+          argoApp: 'microservices-dev', sonarKey: 'msa-inventory-service',
+          providesApis: ['inventory-rest-api'],
+          consumesApis: ['kafka-commerce-events-asyncapi'],
+          dependsOn: ['resource:postgresql-databases', 'resource:kafka-event-streaming', 'resource:hashicorp-vault-kms'],
+          description: 'Stock level ledger, TTL-bounded (PT15M) inventory reservations, optimistic concurrency control, and GraphQL Federation v2.3 subgraph.'
+        },
+        {
+          name: 'notification-service', title: 'Customer Notification Microservice', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
+          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • SSE • Kafka • KEDA', port: 8002,
+          docsUrl: 'http://localhost:8002/swagger-ui.html', healthUrl: 'http://localhost:8002/actuator/notification/health/readiness',
+          argoApp: 'microservices-dev', sonarKey: 'msa-notification-service',
+          providesApis: ['notification-rest-api'],
+          consumesApis: ['kafka-commerce-events-asyncapi'],
+          dependsOn: ['resource:kafka-event-streaming'],
+          description: 'Event-driven Kafka consumer dispatching real-time Server-Sent Events (SSE) order, payment, and shipment alerts with KEDA consumer lag autoscaling.'
+        },
+        {
+          name: 'payments-service', title: 'Payments Processing Microservice (Go / Gin)', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
+          tech: 'Go 1.26.7 • Gin 1.12.0 • GORM 1.31.2 • PostgreSQL 18 • Kafka', port: 8085,
+          docsUrl: 'http://localhost:8085/swagger/index.html', healthUrl: 'http://localhost:8085/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-payments-service',
+          providesApis: ['payments-rest-api', 'kafka-commerce-events-asyncapi'],
+          consumesApis: ['kafka-commerce-events-asyncapi'],
+          dependsOn: ['resource:postgresql-databases', 'resource:kafka-event-streaming'],
+          description: 'Ultra-low-latency Go microservice handling idempotent payment authorization, ledger persistence, refunds, Kafka payment-topic events, and KEDA autoscaling.'
+        },
+        {
+          name: 'fulfillment-service', title: 'Warehouse Fulfillment Microservice (NestJS 12 / Node 24)', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
+          tech: 'Node.js 24 • NestJS 12.2.0 • TypeScript 7 • TypeORM 1.1.2 • PostgreSQL 18 • Kafka', port: 8086,
+          docsUrl: 'http://localhost:8086/swagger', healthUrl: 'http://localhost:8086/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-fulfillment-service',
+          providesApis: ['fulfillment-rest-api', 'kafka-commerce-events-asyncapi'],
+          consumesApis: ['kafka-commerce-events-asyncapi'],
+          dependsOn: ['resource:postgresql-databases', 'resource:kafka-event-streaming'],
+          description: 'Logistics fulfillment state machine managing shipment creation, DHL carrier tracking numbers, and Kafka fulfillment-topic event choreography.'
+        },
+        {
+          name: 'analytics-service', title: 'Real-Time Commercial Analytics Microservice (FastAPI)', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
+          tech: 'Python 3.12 • FastAPI 0.160.0 • SQLAlchemy 2.0 Async • PostgreSQL 18 • Kafka', port: 8087,
+          docsUrl: 'http://localhost:8087/docs', healthUrl: 'http://localhost:8087/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-analytics-service',
+          providesApis: ['analytics-rest-api'],
+          consumesApis: ['kafka-commerce-events-asyncapi'],
+          dependsOn: ['resource:postgresql-databases', 'resource:kafka-event-streaming'],
+          description: 'FastAPI service ingesting Kafka order, payment, and fulfillment streams to compute real-time revenue, conversion funnels, and operational KPIs.'
+        },
+        {
+          name: 'demand-forecast-service', title: 'MLOps Demand Forecast Inference API', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
+          tech: 'Python 3.12 • FastAPI 0.160.0 • Scikit-Learn • MLflow Client', port: 8005,
+          docsUrl: 'http://localhost:8005/docs', healthUrl: 'http://localhost:8005/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-demand-forecast',
+          providesApis: ['demand-forecast-rest-api'],
+          consumesApis: ['mlflow-tracking-rest-api'],
+          dependsOn: ['component:mlflow-tracking-server'],
+          description: 'Inference microservice serving SKU-level demand predictions backed by MLflow registered champion models and Prometheus model-drift telemetry.'
+        },
+        {
+          name: 'mlflow-tracking-server', title: 'MLflow Experiment Tracking & Model Registry', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
+          tech: 'Python 3.12 • MLflow 3.11.1 • PostgreSQL 18', port: 5000,
+          docsUrl: 'http://localhost:5000', healthUrl: 'http://localhost:5000/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-mlflow',
+          providesApis: ['mlflow-tracking-rest-api'],
+          consumesApis: [],
+          dependsOn: ['resource:postgresql-databases'],
+          description: 'Centralized MLOps model registry and experiment tracking server storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).'
+        },
+        {
+          name: 'mlops-training-pipeline', title: 'PySpark & Scikit-Learn Demand Model Training Pipeline', type: 'service', lifecycle: 'production',
+          owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
+          tech: 'Python 3.12 • PySpark 4.0 • Scikit-Learn • MLflow • K8s Job', port: 5000,
+          docsUrl: 'http://localhost:5000/#/experiments/1', healthUrl: 'http://localhost:5000/health',
+          argoApp: 'microservices-dev', sonarKey: 'msa-mlops-training',
+          providesApis: [],
+          consumesApis: ['kafka-commerce-events-asyncapi', 'mlflow-tracking-rest-api'],
+          dependsOn: ['component:mlflow-tracking-server', 'resource:kafka-event-streaming'],
+          description: 'Distributed feature engineering (PySpark 4.0), sales event capture, and GradientBoosting/RandomForest training pipeline with PostgreSQL advisory lock guard.'
+        }
       ],
       apis: [
         {
@@ -81,6 +220,11 @@ data:
           endpoint: 'http://localhost:8080',
           healthEndpoint: 'http://localhost:8080/health/ready',
           description: 'Unified Federated GraphQL Supergraph API composing products-service (:8004/graphql), inventory-service (:8001/graphql), and orders-service (:8003/graphql) with Keycloak RS256 JWT enforcement.',
+          presets: [
+            { label: 'Federated Catalog + Live Inventory Stock', method: 'POST', path: '/graphql', body: JSON.stringify({ query: '{\n  products {\n    sku\n    name\n    category\n    price\n    rating\n    isInStock\n    quantity\n  }\n}' }, null, 2) },
+            { label: 'Query Warehouse Inventories', method: 'POST', path: '/graphql', body: JSON.stringify({ query: '{\n  inventories {\n    sku\n    quantity\n    isInStock\n  }\n}' }, null, 2) },
+            { label: 'Router Readiness Check', method: 'GET', path: '/health/ready', body: '' }
+          ],
           operations: [
             'POST /graphql (Supergraph Query & Mutation execution)',
             'Query.products: [Product!]! • Query.product(id: ID!): Product • Query.productBySku(sku: String!): Product',
@@ -101,14 +245,19 @@ data:
           domain: 'commerce',
           owner: 'group:developers',
           endpoint: 'http://localhost:8004/swagger-ui.html',
-          healthEndpoint: 'http://localhost:8004/actuator/health',
+          healthEndpoint: 'http://localhost:8004/actuator/products/health/readiness',
           description: 'REST & Federated GraphQL Subgraph (Product @key(fields: "sku")) for product catalog querying, SKU lookup, category filtering, and Redis-cached pricing.',
+          presets: [
+            { label: 'GET /api/v1/products (List Catalog)', method: 'GET', path: '/api/v1/products', body: '' },
+            { label: 'POST /graphql (Products Subgraph SDL)', method: 'POST', path: '/graphql', body: JSON.stringify({ query: '{ _service { sdl } }' }, null, 2) },
+            { label: 'GET /actuator/products/health/readiness', method: 'GET', path: '/actuator/products/health/readiness', body: '' }
+          ],
           operations: [
             'POST /graphql (Subgraph v2.3: Product @key(fields: "sku"), Query.products, productBySku, product)',
             'GET /api/v1/products • POST /api/v1/products',
             'GET /api/v1/products/{id} • PUT /api/v1/products/{id} • DELETE /api/v1/products/{id}',
             'GET /api/v1/products/sku/{sku}',
-            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+            'GET /v3/api-docs • GET /actuator/products/health/readiness • GET /actuator/products/prometheus'
           ]
         },
         {
@@ -121,13 +270,18 @@ data:
           domain: 'commerce',
           owner: 'group:developers',
           endpoint: 'http://localhost:8003/swagger-ui.html',
-          healthEndpoint: 'http://localhost:8003/actuator/health',
+          healthEndpoint: 'http://localhost:8003/actuator/orders/health/readiness',
           description: 'REST & Federated GraphQL Subgraph (Order, OrderLineItem, Product @key(fields: "sku")) for order placement, distributed saga orchestration, and status transitions.',
+          presets: [
+            { label: 'POST /graphql (Orders Subgraph SDL v2.5)', method: 'POST', path: '/graphql', body: JSON.stringify({ query: '{ _service { sdl } }' }, null, 2) },
+            { label: 'GET /v3/api-docs (OpenAPI Spec)', method: 'GET', path: '/v3/api-docs', body: '' },
+            { label: 'GET /actuator/orders/health/readiness', method: 'GET', path: '/actuator/orders/health/readiness', body: '' }
+          ],
           operations: [
             'POST /graphql (Subgraph v2.5 @authenticated: Query.orders, order; Mutation.placeOrder, cancelOrder, shipOrder, deliverOrder)',
             'POST /api/v1/orders • GET /api/v1/orders • GET /api/v1/orders/{id}',
             'PATCH /api/v1/orders/{id}/cancel • PATCH /api/v1/orders/{id}/ship • PATCH /api/v1/orders/{id}/deliver',
-            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+            'GET /v3/api-docs • GET /actuator/orders/health/readiness • GET /actuator/orders/prometheus'
           ]
         },
         {
@@ -140,13 +294,18 @@ data:
           domain: 'fulfillment-logistics',
           owner: 'group:developers',
           endpoint: 'http://localhost:8001/swagger-ui.html',
-          healthEndpoint: 'http://localhost:8001/actuator/health',
+          healthEndpoint: 'http://localhost:8001/actuator/inventory/health/readiness',
           description: 'REST & Federated GraphQL Subgraph extending Product (@key sku -> isInStock, quantity) and managing TTL-bounded stock reservations.',
+          presets: [
+            { label: 'GET /api/v1/inventory (All Stock Levels)', method: 'GET', path: '/api/v1/inventory', body: '' },
+            { label: 'POST /graphql (Inventory Subgraph Query)', method: 'POST', path: '/graphql', body: JSON.stringify({ query: '{ inventories { sku quantity isInStock } }' }, null, 2) },
+            { label: 'GET /actuator/inventory/health/readiness', method: 'GET', path: '/actuator/inventory/health/readiness', body: '' }
+          ],
           operations: [
             'POST /graphql (Subgraph v2.3: extend Product @key(fields: "sku") { isInStock, quantity }, Query.inventory, inventories)',
             'GET /api/v1/inventory • GET /api/v1/inventory/{sku} • PUT /api/v1/inventory/{sku}',
             'POST /api/v1/inventory/reserve • POST /api/v1/inventory/release',
-            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+            'GET /v3/api-docs • GET /actuator/inventory/health/readiness • GET /actuator/inventory/prometheus'
           ]
         },
         {
@@ -159,13 +318,17 @@ data:
           domain: 'fulfillment-logistics',
           owner: 'group:developers',
           endpoint: 'http://localhost:8002/swagger-ui.html',
-          healthEndpoint: 'http://localhost:8002/actuator/health',
+          healthEndpoint: 'http://localhost:8002/actuator/notification/health/readiness',
           description: 'REST and Server-Sent Events (SSE) interface broadcasting real-time order confirmation, payment authorization, and shipment alerts.',
+          presets: [
+            { label: 'GET /actuator/notification/health/readiness', method: 'GET', path: '/actuator/notification/health/readiness', body: '' },
+            { label: 'GET /v3/api-docs (OpenAPI Spec)', method: 'GET', path: '/v3/api-docs', body: '' }
+          ],
           operations: [
             'GET /api/v1/notifications (List dispatched customer notifications)',
             'GET /api/v1/notifications/stream (Real-time Server-Sent Events stream)',
             'GET /api/v1/notifications/order/{orderNumber}',
-            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+            'GET /v3/api-docs • GET /actuator/notification/health/readiness • GET /actuator/notification/prometheus'
           ]
         },
         {
@@ -180,6 +343,10 @@ data:
           endpoint: 'http://localhost:8085/swagger/index.html',
           healthEndpoint: 'http://localhost:8085/health',
           description: 'High-throughput Go 1.26.7 / Gin payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
+          presets: [
+            { label: 'GET /api/v1/payments (Payment Ledger)', method: 'GET', path: '/api/v1/payments', body: '' },
+            { label: 'GET /health (Service Health)', method: 'GET', path: '/health', body: '' }
+          ],
           operations: [
             'POST /api/v1/payments (Idempotent payment authorization & capture)',
             'GET /api/v1/payments • GET /api/v1/payments/:id',
@@ -199,6 +366,10 @@ data:
           endpoint: 'http://localhost:8086/swagger',
           healthEndpoint: 'http://localhost:8086/health',
           description: 'NestJS 12.2 / TypeScript 7 REST API managing warehouse pick-pack-ship dispatches, DHL tracking numbers, and delivery lifecycle updates.',
+          presets: [
+            { label: 'GET /api/v1/fulfillment/shipments (List Shipments)', method: 'GET', path: '/api/v1/fulfillment/shipments', body: '' },
+            { label: 'GET /health (Service Health)', method: 'GET', path: '/health', body: '' }
+          ],
           operations: [
             'POST /api/v1/fulfillment/shipments • GET /api/v1/fulfillment/shipments',
             'GET /api/v1/fulfillment/shipments/:orderId',
@@ -218,6 +389,11 @@ data:
           endpoint: 'http://localhost:8087/docs',
           healthEndpoint: 'http://localhost:8087/health',
           description: 'FastAPI 0.160.0 service exposing real-time order conversion funnel, payment success ratios, and category revenue telemetry.',
+          presets: [
+            { label: 'GET /api/v1/analytics/summary (KPI Summary)', method: 'GET', path: '/api/v1/analytics/summary', body: '' },
+            { label: 'GET /api/v1/analytics/funnel (Conversion Funnel)', method: 'GET', path: '/api/v1/analytics/funnel', body: '' },
+            { label: 'GET /health', method: 'GET', path: '/health', body: '' }
+          ],
           operations: [
             'GET /api/v1/analytics/summary (Aggregated commercial KPIs & revenue)',
             'GET /api/v1/analytics/funnel (Order -> Payment -> Fulfillment conversion funnel)',
@@ -237,6 +413,11 @@ data:
           endpoint: 'http://localhost:8005/docs',
           healthEndpoint: 'http://localhost:8005/health',
           description: 'FastAPI inference endpoint returning SKU demand predictions from the active MLflow champion model with RMSE/MAE/R2 metadata.',
+          presets: [
+            { label: 'GET /model-info (Active Champion Model)', method: 'GET', path: '/model-info', body: '' },
+            { label: 'POST /forecast (Predict SKU Demand)', method: 'POST', path: '/forecast', body: JSON.stringify({ sku: 'TECH-LAPTOP-001', current_price: 1299.99, Current_Stock: 45, horizon_days: 7 }, null, 2) },
+            { label: 'GET /health', method: 'GET', path: '/health', body: '' }
+          ],
           operations: [
             'POST /forecast • GET /forecast/{sku} (SKU demand forecast over horizon)',
             'GET /model-info (Active MLflow run ID, model version, and evaluation metrics)',
@@ -256,6 +437,11 @@ data:
           endpoint: 'http://localhost:5000',
           healthEndpoint: 'http://localhost:5000/health',
           description: 'Centralized MLOps REST API and UI for experiment run logging, hyperparameter tracking, artifact lineage, and model version promotion.',
+          presets: [
+            { label: 'GET Registered Models', method: 'GET', path: '/api/2.0/mlflow/registered-models/search', body: '' },
+            { label: 'POST Search Experiments', method: 'POST', path: '/api/2.0/mlflow/experiments/search', body: JSON.stringify({ max_results: 10 }, null, 2) },
+            { label: 'GET /health', method: 'GET', path: '/health', body: '' }
+          ],
           operations: [
             'POST /api/2.0/mlflow/experiments/search • POST /api/2.0/mlflow/runs/search',
             'GET /api/2.0/mlflow/registered-models/search',
@@ -268,13 +454,16 @@ data:
           title: 'Kafka Event-Driven Commerce & Saga Bus AsyncAPI',
           type: 'asyncapi',
           specVersion: 'AsyncAPI 2.6.0 (Kafka KRaft 4.2)',
-          component: 'kafka-event-streaming',
+          component: 'orders-service',
           system: 'novashop-commerce-system',
           domain: 'commerce',
           owner: 'group:developers',
           endpoint: 'http://localhost:20001/kiali/',
           healthEndpoint: 'http://localhost:9090/targets',
           description: 'Asynchronous event choreography backbone connecting orders-service, inventory-service, payments-service, fulfillment-service, notification-service, analytics-service, and MLOps capture.',
+          presets: [
+            { label: 'Verify Analytics Kafka Consumer Summary', method: 'GET', path: '/api/v1/analytics/summary', targetOverride: 'analytics-service', body: '' }
+          ],
           operations: [
             'Topic: orders-topic (OrderCreated, OrderConfirmed, OrderCancelled — 3 partitions)',
             'Topic: orders-topic.DLT (Dead-Letter Topic for unprocessable order saga events)',
@@ -293,11 +482,11 @@ data:
         { name: 'lgtm-observability-stack', title: 'LGTM Observability, Kiali Mesh & OpenCost FinOps Stack', type: 'observability-platform', system: 'multi-cloud-platform-system', owner: 'group:devops-engineers', tech: 'Prometheus 89.2.2 • Grafana • Loki • Tempo 3.0.5 • Alloy • Kiali • OpenCost', description: 'Full-stack OpenTelemetry trace correlation, log aggregation, Prometheus SLO alerting, Istio Ambient mTLS topology, and FinOps cost allocation.' }
       ],
       templates: [
-        { name: 'spring-boot-microservice-golden-path', title: 'Golden Path — Spring Boot 4.1.2 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4.1.2', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
-        { name: 'go-gin-microservice-golden-path', title: 'Golden Path — Go 1.26.7 / Gin High-Throughput Microservice', language: 'Go 1.26.7 • Gin 1.12.0', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
-        { name: 'nestjs-microservice-golden-path', title: 'Golden Path — NestJS 12.2 / Node.js 24 Microservice', language: 'Node.js 24 • NestJS 12.2 • TS 7', targetSystem: 'supply-chain-fulfillment-system', path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1.1.2', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
-        { name: 'python-fastapi-microservice-golden-path', title: 'Golden Path — Python 3.12 / FastAPI 0.160 Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.160', targetSystem: 'intelligence-mlops-system', path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2.0.38 + Pydantic v2.14 + OpenAPI 3.1 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3.11.1 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
-        { name: 'react-frontend-app-golden-path', title: 'Golden Path — React 19 / TypeScript / Vite Web Application', language: 'React 19 • TypeScript • Nginx', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak 26 OIDC PKCE authentication flow', 'Apollo GraphQL Client connected to Cosmo Router (:8080/graphql)', 'Unprivileged Nginx container on port 8080/5173', 'Strict CSP, HSTS, X-Frame-Options & OWASP security headers'] }
+        { name: 'spring-boot-microservice-golden-path', stackKey: 'spring-boot', title: 'Golden Path — Spring Boot 4.1.2 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4.1.2', targetSystem: 'novashop-commerce-system', defaultPort: 8089, path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
+        { name: 'go-gin-microservice-golden-path', stackKey: 'go', title: 'Golden Path — Go 1.26.7 / Gin High-Throughput Microservice', language: 'Go 1.26.7 • Gin 1.12.0', targetSystem: 'novashop-commerce-system', defaultPort: 8091, path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
+        { name: 'nestjs-microservice-golden-path', stackKey: 'nestjs', title: 'Golden Path — NestJS 12.2 / Node.js 24 Microservice', language: 'Node.js 24 • NestJS 12.2 • TS 7', targetSystem: 'supply-chain-fulfillment-system', defaultPort: 8092, path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1.1.2', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
+        { name: 'python-fastapi-microservice-golden-path', stackKey: 'python', title: 'Golden Path — Python 3.12 / FastAPI 0.160 Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.160', targetSystem: 'intelligence-mlops-system', defaultPort: 8093, path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2.0.38 + Pydantic v2.14 + OpenAPI 3.1 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3.11.1 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
+        { name: 'react-frontend-app-golden-path', stackKey: 'react', title: 'Golden Path — React 19 / TypeScript / Vite Web Application', language: 'React 19 • TypeScript • Nginx', targetSystem: 'novashop-commerce-system', defaultPort: 5174, path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak 26 OIDC PKCE authentication flow', 'Apollo GraphQL Client connected to Cosmo Router (:8080/graphql)', 'Unprivileged Nginx container on port 8080/5173', 'Strict CSP, HSTS, X-Frame-Options & OWASP security headers'] }
       ],
       portals: [
         { name: 'Novashop Storefront (React 19)', url: 'http://localhost:5173', category: 'Storefront SPA', namespace: 'dev', auth: 'Public / Keycloak OIDC', status: 'Active' },
@@ -323,16 +512,168 @@ data:
       ]
     };
 
+    function httpRequestInternal({ host, port, path, method = 'GET', body = '', timeoutMs = 2800 }) {
+      return new Promise((resolve) => {
+        const start = Date.now();
+        const headers = { 'Accept': 'application/json, text/plain, */*' };
+        if (body) {
+          headers['Content-Type'] = 'application/json';
+          headers['Content-Length'] = Buffer.byteLength(body);
+        }
+        const req = http.request({ host, port, path, method, headers, timeout: timeoutMs }, (res) => {
+          const chunks = [];
+          res.on('data', (c) => chunks.push(c));
+          res.on('end', () => {
+            const raw = Buffer.concat(chunks).toString('utf8');
+            const latencyMs = Date.now() - start;
+            const ok = res.statusCode >= 200 && res.statusCode < 400;
+            resolve({ ok, status: res.statusCode, latencyMs, raw: raw.slice(0, 12000) });
+          });
+        });
+        req.on('timeout', () => {
+          req.destroy();
+          resolve({ ok: false, status: 504, latencyMs: Date.now() - start, raw: 'Timeout connecting to in-cluster target' });
+        });
+        req.on('error', (err) => {
+          resolve({ ok: false, status: 502, latencyMs: Date.now() - start, raw: err.message });
+        });
+        if (body) req.write(body);
+        req.end();
+      });
+    }
+
+    async function probeAllServices() {
+      const entries = Object.entries(INTERNAL_TARGETS);
+      const results = await Promise.all(entries.map(async ([name, cfg]) => {
+        const r = await httpRequestInternal({ host: cfg.host, port: cfg.port, path: cfg.healthPath, method: 'GET', timeoutMs: 2200 });
+        return [name, {
+          name,
+          category: cfg.category,
+          target: `${cfg.host}:${cfg.port}${cfg.healthPath}`,
+          status: r.ok ? 'UP' : 'DOWN',
+          httpCode: r.status,
+          latencyMs: r.latencyMs,
+          checkedAt: new Date().toISOString()
+        }];
+      }));
+      return Object.fromEntries(results);
+    }
+
+    function generateScaffoldBundle(params) {
+      const name = String(params.name || 'promotions-service').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+      const title = String(params.title || 'Promotions Microservice');
+      const domain = String(params.domain || 'commerce');
+      const system = String(params.system || 'novashop-commerce-system');
+      const owner = String(params.owner || 'group:developers');
+      const stack = String(params.stack || 'spring-boot');
+      const port = Number(params.port || 8089);
+      const enablePostgres = Boolean(params.enablePostgres !== false);
+      const enableKafka = Boolean(params.enableKafka !== false);
+      const enableKeda = Boolean(params.enableKeda !== false);
+
+      const deps = [];
+      if (enablePostgres) deps.push('    - resource:postgresql-databases');
+      if (enableKafka) deps.push('    - resource:kafka-event-streaming');
+
+      const catalogYaml = `apiVersion: backstage.io/v1alpha1
+    kind: Component
+    metadata:
+      name: ${name}
+      title: ${title}
+      description: Golden Path scaffolded ${stack} microservice in domain ${domain}
+      annotations:
+        github.com/project-slug: GeorgeGxx/microservices-architecture
+        backstage.io/kubernetes-id: ${name}
+        argocd/app-name: microservices-dev
+        sonarqube.org/project-key: msa-${name}
+        devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+        devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+        devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+    spec:
+      type: service
+      lifecycle: production
+      owner: ${owner}
+      system: ${system}
+      providesApis:
+        - ${name}-rest-api
+    ${deps.length ? '  dependsOn:\n' + deps.join('\n') : ''}`;
+
+      const workflowYaml = `name: ${title} CI/CD
+
+    on:
+      push:
+        branches: [develop]
+        paths:
+          - '${name}/**'
+          - '.github/workflows/_service-ci-cd-template.yml'
+          - '.github/workflows/service-${name}.yml'
+      pull_request:
+        branches: [develop]
+        paths:
+          - '${name}/**'
+      workflow_dispatch:
+        inputs:
+          image-tag:
+            description: 'Explicit SemVer release tag to publish (e.g. 1.1.0; required when publish-to-registry is true)'
+            required: false
+            type: string
+            default: ''
+          publish-to-registry:
+            description: 'Publish release image to Docker Registry (enforces 2-version Active + Rollback retention)'
+            required: false
+            type: boolean
+            default: false
+
+    concurrency:
+      group: ${name}-\${{ github.ref }}
+      cancel-in-progress: true
+
+    jobs:
+      pipeline:
+        uses: ./.github/workflows/_service-ci-cd-template.yml
+        with:
+          service-name: ${name}
+          service-type: ${stack}
+          service-dir: ${name}
+          image-tag: \${{ inputs.image-tag || '' }}
+          publish-to-registry: \${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}`;
+
+      const helmValuesYaml = `${name}:
+      replicaCount: 1
+      image:
+        repository: georgegxx/${name}
+        tag: "1.0.0"
+        pullPolicy: IfNotPresent
+      service:
+        port: ${port}
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop: [ALL]
+      keda:
+        enabled: ${enableKeda}
+        minReplicaCount: 1
+        maxReplicaCount: 4`;
+
+      return { catalogYaml, workflowYaml, helmValuesYaml };
+    }
+
     const HTML_PAGE = `<!DOCTYPE html>
     <html lang="en">
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Backstage IDP • Enterprise Microservices Platform</title>
+      <title>Backstage IDP • Interactive Enterprise Developer Portal</title>
       <style>
         :root {
-          --bg-dark: #0f172a;
-          --bg-sidebar: #111827;
+          --bg-dark: #0b1120;
+          --bg-sidebar: #0f172a;
           --bg-card: #1e293b;
           --bg-card-hover: #26354d;
           --border: #334155;
@@ -342,6 +683,7 @@ data:
           --accent-teal: #2dd4bf;
           --accent-purple: #a855f7;
           --success: #22c55e;
+          --danger: #ef4444;
           --warning: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -353,7 +695,7 @@ data:
           min-height: 100vh;
         }
         aside {
-          width: 260px;
+          width: 268px;
           background: var(--bg-sidebar);
           border-right: 1px solid var(--border);
           display: flex;
@@ -363,6 +705,7 @@ data:
           top: 0;
           bottom: 0;
           left: 0;
+          z-index: 10;
         }
         .brand {
           display: flex;
@@ -370,19 +713,19 @@ data:
           gap: 12px;
           padding: 8px 10px 20px;
           border-bottom: 1px solid var(--border);
-          margin-bottom: 18px;
+          margin-bottom: 16px;
         }
         .brand-logo {
-          width: 36px;
-          height: 36px;
-          border-radius: 8px;
+          width: 38px;
+          height: 38px;
+          border-radius: 9px;
           background: linear-gradient(135deg, #2dd4bf, #38bdf8);
           display: flex;
           align-items: center;
           justify-content: center;
           font-weight: 800;
           color: #0f172a;
-          font-size: 18px;
+          font-size: 19px;
         }
         .brand-title { font-weight: 700; font-size: 15px; line-height: 1.2; }
         .brand-sub { font-size: 11px; color: var(--text-muted); }
@@ -392,19 +735,19 @@ data:
           gap: 10px;
           width: 100%;
           padding: 10px 12px;
-          margin-bottom: 6px;
+          margin-bottom: 5px;
           border: none;
           border-radius: 8px;
           background: transparent;
           color: var(--text-muted);
-          font-size: 13.5px;
+          font-size: 13.3px;
           font-weight: 500;
           text-align: left;
           cursor: pointer;
           transition: all 0.15s;
         }
         .nav-btn:hover, .nav-btn.active {
-          background: rgba(56, 189, 248, 0.14);
+          background: rgba(56, 189, 248, 0.15);
           color: var(--accent);
         }
         .sidebar-footer {
@@ -418,22 +761,24 @@ data:
         }
         .sidebar-footer strong { color: var(--success); display: block; margin-bottom: 4px; }
         main {
-          margin-left: 260px;
+          margin-left: 268px;
           flex: 1;
-          padding: 28px 34px;
-          max-width: 1500px;
+          padding: 26px 32px;
+          max-width: 1540px;
         }
         header {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
-          margin-bottom: 24px;
-          padding-bottom: 18px;
+          margin-bottom: 22px;
+          padding-bottom: 16px;
           border-bottom: 1px solid var(--border);
+          gap: 16px;
+          flex-wrap: wrap;
         }
-        header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
-        header p { color: var(--text-muted); font-size: 13.5px; }
-        .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+        header h1 { font-size: 23px; font-weight: 700; margin-bottom: 5px; }
+        header p { color: var(--text-muted); font-size: 13px; }
+        .badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         .badge {
           padding: 5px 11px;
           border-radius: 999px;
@@ -447,35 +792,37 @@ data:
         .badge.purple { border-color: rgba(168,85,247,0.4); color: #c084fc; }
         .stats-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-          gap: 14px;
-          margin-bottom: 26px;
+          grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+          gap: 12px;
+          margin-bottom: 22px;
         }
         .stat-card {
           background: var(--bg-card);
           border: 1px solid var(--border);
           border-radius: 10px;
-          padding: 16px 18px;
+          padding: 14px 16px;
         }
-        .stat-value { font-size: 26px; font-weight: 700; color: var(--accent); }
-        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .stat-value { font-size: 24px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 11.5px; color: var(--text-muted); margin-top: 3px; }
         .toolbar {
           display: flex;
-          gap: 12px;
-          margin-bottom: 18px;
+          gap: 10px;
+          margin-bottom: 16px;
           flex-wrap: wrap;
+          align-items: center;
         }
-        input[type="search"], select {
+        input[type="search"], input[type="text"], input[type="number"], select, textarea {
           background: var(--bg-card);
           border: 1px solid var(--border);
           color: var(--text-main);
-          padding: 9px 14px;
+          padding: 9px 13px;
           border-radius: 8px;
-          font-size: 13.5px;
+          font-size: 13px;
           outline: none;
+          font-family: inherit;
         }
         input[type="search"] { flex: 1; min-width: 240px; }
-        input[type="search"]:focus, select:focus { border-color: var(--accent); }
+        input:focus, select:focus, textarea:focus { border-color: var(--accent); }
         table {
           width: 100%;
           border-collapse: collapse;
@@ -485,13 +832,13 @@ data:
           overflow: hidden;
         }
         th, td {
-          padding: 13px 16px;
+          padding: 12px 15px;
           text-align: left;
           border-bottom: 1px solid var(--border);
-          font-size: 13px;
+          font-size: 12.8px;
         }
         th {
-          background: rgba(15, 23, 42, 0.6);
+          background: rgba(15, 23, 42, 0.7);
           color: var(--text-muted);
           font-weight: 600;
           text-transform: uppercase;
@@ -505,15 +852,16 @@ data:
           border-radius: 6px;
           font-size: 11px;
           font-weight: 600;
-          background: rgba(56, 189, 248, 0.12);
+          background: rgba(56, 189, 248, 0.13);
           color: var(--accent);
         }
-        .pill.prod { background: rgba(34, 197, 94, 0.14); color: #4ade80; }
-        .pill.domain { background: rgba(168, 85, 247, 0.14); color: #c084fc; }
+        .pill.prod { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
+        .pill.down { background: rgba(239, 68, 68, 0.18); color: #f87171; }
+        .pill.domain { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
         .cards-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          gap: 15px;
         }
         .card {
           background: var(--bg-card);
@@ -524,24 +872,134 @@ data:
           flex-direction: column;
           gap: 10px;
         }
-        .card h3 { font-size: 15.5px; color: var(--text-main); }
-        .card p { font-size: 12.8px; color: var(--text-muted); line-height: 1.45; }
-        .card ul { padding-left: 18px; font-size: 12.3px; color: var(--text-muted); }
+        .card h3 { font-size: 15px; color: var(--text-main); }
+        .card p { font-size: 12.6px; color: var(--text-muted); line-height: 1.45; }
+        .card ul { padding-left: 18px; font-size: 12px; color: var(--text-muted); }
         .card li { margin-bottom: 4px; }
-        .btn-link {
-          display: inline-block;
-          margin-top: auto;
+        .btn-link, .btn-action {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
           padding: 7px 12px;
           border-radius: 6px;
           background: rgba(56, 189, 248, 0.14);
           color: var(--accent);
+          border: 1px solid rgba(56, 189, 248, 0.3);
           text-decoration: none;
           font-size: 12px;
           font-weight: 600;
+          cursor: pointer;
           width: fit-content;
+          transition: all 0.15s;
         }
-        .btn-link:hover { background: rgba(56, 189, 248, 0.25); }
-        .hidden { display: none; }
+        .btn-link:hover, .btn-action:hover { background: rgba(56, 189, 248, 0.26); }
+        .btn-action.primary {
+          background: linear-gradient(135deg, #0284c7, #0d9488);
+          color: #fff;
+          border: none;
+        }
+        .btn-action.primary:hover { filter: brightness(1.1); }
+        .hidden { display: none !important; }
+        /* Interactive Modal / Drawer */
+        .modal-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(2, 6, 23, 0.78);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 50;
+          padding: 20px;
+        }
+        .modal {
+          background: #0f172a;
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          width: 100%;
+          max-width: 920px;
+          max-height: 90vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .modal-header {
+          padding: 16px 22px;
+          border-bottom: 1px solid var(--border);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: var(--bg-card);
+        }
+        .modal-body {
+          padding: 20px 22px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+        }
+        pre.code-box {
+          background: #020617;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 14px;
+          color: #e2e8f0;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+          font-size: 12px;
+          overflow-x: auto;
+          max-height: 340px;
+          white-space: pre-wrap;
+        }
+        .graph-layout {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 18px;
+        }
+        .node-btn {
+          width: 100%;
+          text-align: left;
+          padding: 10px 12px;
+          margin-bottom: 6px;
+          border-radius: 8px;
+          border: 1px solid var(--border);
+          background: var(--bg-card);
+          color: var(--text-main);
+          cursor: pointer;
+          font-size: 12.5px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .node-btn.active, .node-btn:hover {
+          border-color: var(--accent);
+          background: rgba(56, 189, 248, 0.14);
+        }
+        .dep-columns {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 14px;
+        }
+        .dep-box {
+          background: rgba(15, 23, 42, 0.75);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 14px;
+        }
+        .dep-box h4 {
+          font-size: 12px;
+          text-transform: uppercase;
+          color: var(--accent);
+          margin-bottom: 10px;
+          letter-spacing: 0.04em;
+        }
+        .dep-item {
+          padding: 7px 10px;
+          border-radius: 6px;
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          margin-bottom: 6px;
+          font-size: 12px;
+        }
       </style>
     </head>
     <body>
@@ -550,34 +1008,37 @@ data:
           <div class="brand-logo">B</div>
           <div>
             <div class="brand-title">Backstage IDP</div>
-            <div class="brand-sub">v1.36.0 • Multi-Cloud Portal</div>
+            <div class="brand-sub">v1.36.0 • Interactive Self-Service</div>
           </div>
         </div>
         <button class="nav-btn active" onclick="showTab('catalog', this)">📦 Software Catalog</button>
-        <button class="nav-btn" onclick="showTab('apis', this)">🔌 APIs & Subgraphs</button>
-        <button class="nav-btn" onclick="showTab('domains', this)">🏛️ Domains & Resources</button>
-        <button class="nav-btn" onclick="showTab('templates', this)">🚀 Golden Path Templates</button>
+        <button class="nav-btn" onclick="showTab('health', this)">🩺 Live Cluster Health</button>
+        <button class="nav-btn" onclick="showTab('apis', this)">⚡ Interactive APIs & Subgraphs</button>
+        <button class="nav-btn" onclick="showTab('graph', this)">🕸️ Dependency Topology</button>
+        <button class="nav-btn" onclick="showTab('templates', this)">🚀 Golden Path Scaffolder</button>
+        <button class="nav-btn" onclick="showTab('domains', this)">🏛️ Domains & Cloud Resources</button>
         <button class="nav-btn" onclick="showTab('portals', this)">🌐 Platform Ecosystem Links</button>
         <div class="sidebar-footer">
-          <strong>● Operational Independence</strong>
-          Decoupled from runtime request path • Synced with Argo CD v3.6.1 & Keycloak OIDC
+          <strong id="sidebarHealthSummary">● Probing Cluster Services...</strong>
+          Connected to Minikube K8s ('dev' ns) • Argo CD v3.6.1 & Keycloak OIDC
         </div>
       </aside>
       <main>
         <header>
           <div>
-            <h1>Enterprise Microservices Developer Portal</h1>
-            <p>Unified Software Catalog, Federated GraphQL APIs, Golden Path Scaffolder & GitOps Topology</p>
+            <h1>Enterprise Microservices Internal Developer Portal</h1>
+            <p>Interactive Software Catalog, Live Cluster Health Matrix, GraphQL/REST Playground, Dependency Graph & Self-Service Scaffolder</p>
           </div>
           <div class="badges">
-            <span class="badge green">Argo CD v3.6.1 Synced</span>
-            <span class="badge blue">Semgrep & Trivy: 0 Findings</span>
-            <span class="badge purple">AWS • Azure • GCP • Minikube</span>
+            <button class="btn-action primary" onclick="refreshLiveHealth()">🔄 Probe Live Cluster Health</button>
+            <span class="badge green" id="liveClusterBadge">Cluster Probe Ready</span>
+            <span class="badge blue">Docker Hub: 2-Version SemVer Policy</span>
           </div>
         </header>
 
         <div class="stats-grid" id="stats"></div>
 
+        <!-- TAB 1: SOFTWARE CATALOG -->
         <section id="tab-catalog">
           <div class="toolbar">
             <input type="search" id="searchInput" placeholder="Filter services by name, tech stack, system, or owner..." oninput="renderCatalog()" />
@@ -595,15 +1056,25 @@ data:
                 <th>Component</th>
                 <th>Domain / System</th>
                 <th>Technology Stack</th>
+                <th>Live Cluster Status</th>
                 <th>Owner / Sonar</th>
-                <th>Lifecycle</th>
-                <th>Endpoints (UI / Health)</th>
+                <th>Interactive Actions</th>
               </tr>
             </thead>
             <tbody id="catalogBody"></tbody>
           </table>
         </section>
 
+        <!-- TAB 2: LIVE CLUSTER HEALTH & LATENCY MATRIX -->
+        <section id="tab-health" class="hidden">
+          <div class="toolbar">
+            <button class="btn-action primary" onclick="refreshLiveHealth()">🔄 Run Live In-Cluster Health & Latency Probe</button>
+            <span style="color:var(--text-muted);font-size:12.5px" id="lastProbeTimestamp">Probing internal Kubernetes DNS endpoints...</span>
+          </div>
+          <div class="cards-grid" id="healthGrid"></div>
+        </section>
+
+        <!-- TAB 3: INTERACTIVE APIS & SUBGRAPHS -->
         <section id="tab-apis" class="hidden">
           <div class="toolbar">
             <input type="search" id="apiSearchInput" placeholder="Filter APIs & Subgraphs by name, service, endpoint, or GraphQL/REST operation..." oninput="renderApis()" />
@@ -617,34 +1088,144 @@ data:
           <div class="cards-grid" id="apisGrid"></div>
         </section>
 
-        <section id="tab-domains" class="hidden">
-          <div class="cards-grid" id="domainsGrid"></div>
+        <!-- TAB 4: INTERACTIVE DEPENDENCY TOPOLOGY -->
+        <section id="tab-graph" class="hidden">
+          <div class="graph-layout">
+            <div id="graphNodeList"></div>
+            <div class="card" id="graphDetailPanel"></div>
+          </div>
         </section>
 
+        <!-- TAB 5: GOLDEN PATH SELF-SERVICE SCAFFOLDER -->
         <section id="tab-templates" class="hidden">
           <div class="cards-grid" id="templatesGrid"></div>
         </section>
 
+        <!-- TAB 6: DOMAINS & CLOUD RESOURCES -->
+        <section id="tab-domains" class="hidden">
+          <div class="cards-grid" id="domainsGrid"></div>
+        </section>
+
+        <!-- TAB 7: PLATFORM ECOSYSTEM LINKS -->
         <section id="tab-portals" class="hidden">
           <div class="cards-grid" id="portalsGrid"></div>
         </section>
       </main>
 
+      <!-- MODAL 1: INTERACTIVE API / GRAPHQL CONSOLE -->
+      <div class="modal-backdrop hidden" id="apiConsoleModal">
+        <div class="modal">
+          <div class="modal-header">
+            <div>
+              <h3 id="consoleTitle">⚡ Interactive API & GraphQL Explorer</h3>
+              <p style="font-size:12px;color:var(--text-muted)" id="consoleSubtitle"></p>
+            </div>
+            <button class="btn-action" onclick="closeApiConsole()">✕ Close</button>
+          </div>
+          <div class="modal-body">
+            <div class="toolbar" id="consolePresets"></div>
+            <div style="display:flex;gap:10px">
+              <select id="consoleMethod" style="width:110px">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+              </select>
+              <input type="text" id="consolePath" style="flex:1" placeholder="/graphql or /api/v1/products" />
+              <button class="btn-action primary" onclick="executeConsoleRequest()">▶ Execute Live Request</button>
+            </div>
+            <div>
+              <label style="font-size:11.5px;color:var(--text-muted);display:block;margin-bottom:5px">Request Body (GraphQL Query or JSON Payload):</label>
+              <textarea id="consoleBody" rows="6" style="width:100%;font-family:monospace;font-size:12px"></textarea>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <span style="font-size:11.5px;color:var(--text-muted)">Live In-Cluster Response:</span>
+                <span id="consoleStatusBadge"></span>
+              </div>
+              <pre class="code-box" id="consoleOutput">Click "▶ Execute Live Request" to query the microservice inside the Kubernetes cluster.</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL 2: GOLDEN PATH SELF-SERVICE SCAFFOLDER WIZARD -->
+      <div class="modal-backdrop hidden" id="scaffolderModal">
+        <div class="modal">
+          <div class="modal-header">
+            <div>
+              <h3 id="scaffolderTitle">🚀 Golden Path Microservice Scaffolder</h3>
+              <p style="font-size:12px;color:var(--text-muted)">Generate production-ready manifests, non-root Dockerfile, Helm values & CI/CD workflow</p>
+            </div>
+            <button class="btn-action" onclick="closeScaffolder()">✕ Close</button>
+          </div>
+          <div class="modal-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Service Name (kebab-case):</label>
+                <input type="text" id="scfName" value="promotions-service" style="width:100%;margin-top:4px" />
+              </div>
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Display Title:</label>
+                <input type="text" id="scfTitleInput" value="Promotions & Loyalty Microservice" style="width:100%;margin-top:4px" />
+              </div>
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Bounded Domain:</label>
+                <select id="scfDomain" style="width:100%;margin-top:4px">
+                  <option value="commerce">commerce</option>
+                  <option value="fulfillment-logistics">fulfillment-logistics</option>
+                  <option value="data-mlops">data-mlops</option>
+                  <option value="platform-engineering">platform-engineering</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Target System:</label>
+                <select id="scfSystem" style="width:100%;margin-top:4px">
+                  <option value="novashop-commerce-system">novashop-commerce-system</option>
+                  <option value="supply-chain-fulfillment-system">supply-chain-fulfillment-system</option>
+                  <option value="intelligence-mlops-system">intelligence-mlops-system</option>
+                  <option value="multi-cloud-platform-system">multi-cloud-platform-system</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Owner Group (Keycloak OIDC):</label>
+                <select id="scfOwner" style="width:100%;margin-top:4px">
+                  <option value="group:developers">group:developers</option>
+                  <option value="group:devops-engineers">group:devops-engineers</option>
+                  <option value="group:platform-admins">group:platform-admins</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px;color:var(--text-muted)">Container Port:</label>
+                <input type="number" id="scfPort" value="8089" style="width:100%;margin-top:4px" />
+              </div>
+            </div>
+            <div style="display:flex;gap:18px;font-size:12.5px">
+              <label><input type="checkbox" id="scfPostgres" checked /> PostgreSQL 18 Dedicated DB</label>
+              <label><input type="checkbox" id="scfKafka" checked /> Kafka Event Producer/Consumer</label>
+              <label><input type="checkbox" id="scfKeda" checked /> KEDA Autoscaler</label>
+            </div>
+            <div style="display:flex;gap:10px">
+              <button class="btn-action primary" onclick="runScaffolder()">⚡ Generate Artifacts & Register in Catalog</button>
+              <button class="btn-action" onclick="copyScaffolderOutput()">📋 Copy Active File</button>
+            </div>
+            <div class="toolbar" id="scfFileTabs"></div>
+            <pre class="code-box" id="scfOutput">Configure parameters above and click "⚡ Generate Artifacts & Register in Catalog".</pre>
+          </div>
+        </div>
+      </div>
+
       <script>
         const data = ${JSON.stringify(CATALOG_DATA)};
+        let liveHealth = {};
+        let selectedGraphComponent = 'orders-service';
+        let activeConsoleTarget = 'cosmo-router';
+        let activeScaffoldStack = 'spring-boot';
+        let generatedBundle = null;
 
         function init() {
-          document.getElementById('stats').innerHTML = [
-            { v: data.components.length, l: 'Catalog Microservices & Apps' },
-            { v: data.apis.length, l: 'GraphQL, OpenAPI & AsyncAPI Contracts' },
-            { v: data.resources.length, l: 'Stateful, IAM & Cloud Resources' },
-            { v: data.templates.length, l: 'Golden Path Scaffolder Templates' },
-            { v: data.domains.length, l: 'Bounded Architecture Domains' },
-            { v: data.portals.length, l: 'Active Platform Tunnels & Consoles' }
-          ].map(s => '<div class="stat-card"><div class="stat-value">' + s.v + '</div><div class="stat-label">' + s.l + '</div></div>').join('');
-
+          renderStats();
           renderCatalog();
           renderApis();
+          renderGraph();
 
           document.getElementById('domainsGrid').innerHTML =
             data.domains.map(d =>
@@ -672,12 +1253,15 @@ data:
               '</div>'
             ).join('');
 
-          document.getElementById('templatesGrid').innerHTML = data.templates.map(t =>
+          document.getElementById('templatesGrid').innerHTML = data.templates.map((t, idx) =>
             '<div class="card">' +
               '<div><span class="pill prod">' + t.language + '</span> <span class="pill domain">' + t.targetSystem + '</span></div>' +
               '<h3>' + t.title + '</h3>' +
               '<p><code>' + t.path + '</code></p>' +
               '<ul>' + t.features.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
+              '<div style="margin-top:auto;padding-top:8px">' +
+                '<button class="btn-action primary" onclick="openScaffolder(' + idx + ')">➕ Scaffold New Microservice</button>' +
+              '</div>' +
             '</div>'
           ).join('');
 
@@ -689,32 +1273,47 @@ data:
               '<a class="btn-link" href="' + p.url + '" target="_blank" rel="noopener">Launch Console ↗</a>' +
             '</div>'
           ).join('');
+
+          refreshLiveHealth();
         }
 
-        function renderApis() {
-          const q = (document.getElementById('apiSearchInput').value || '').toLowerCase();
-          const tFilter = document.getElementById('apiTypeFilter').value;
-          const items = data.apis.filter(a => {
-            if (tFilter && !a.type.includes(tFilter)) return false;
-            return !q || [a.name, a.title, a.component, a.system, a.specVersion, a.description, ...(a.operations || [])].some(v => v.toLowerCase().includes(q));
-          });
-          document.getElementById('apisGrid').innerHTML = items.map(a =>
-            '<div class="card">' +
-              '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-                '<span class="pill">' + a.specVersion + '</span>' +
-                '<span class="pill domain">' + a.component + '</span>' +
-                '<span class="pill prod">' + a.domain + '</span>' +
-              '</div>' +
-              '<h3>' + a.title + '</h3>' +
-              '<p style="font-size:11.5px;color:#38bdf8"><code>' + a.name + '</code> • System: <code>' + a.system + '</code></p>' +
-              '<p>' + a.description + '</p>' +
-              '<ul>' + (a.operations || []).map(op => '<li><code>' + op + '</code></li>').join('') + '</ul>' +
-              '<div style="display:flex;gap:8px;margin-top:auto;padding-top:6px">' +
-                '<a class="btn-link" href="' + a.endpoint + '" target="_blank" rel="noopener">Open Swagger / UI ↗</a>' +
-                '<a class="btn-link" style="background:rgba(34,197,94,0.14);color:#4ade80" href="' + a.healthEndpoint + '" target="_blank" rel="noopener">Health / Readiness ↗</a>' +
-              '</div>' +
-            '</div>'
-          ).join('');
+        function renderStats() {
+          document.getElementById('stats').innerHTML = [
+            { v: data.components.length, l: 'Catalog Microservices & Apps' },
+            { v: data.apis.length, l: 'Interactive API & Subgraph Contracts' },
+            { v: data.resources.length, l: 'Stateful, IAM & Cloud Resources' },
+            { v: data.templates.length, l: 'Self-Service Golden Path Templates' },
+            { v: data.domains.length, l: 'Bounded Architecture Domains' },
+            { v: data.portals.length, l: 'Active Platform Tunnels & Consoles' }
+          ].map(s => '<div class="stat-card"><div class="stat-value">' + s.v + '</div><div class="stat-label">' + s.l + '</div></div>').join('');
+        }
+
+        async function refreshLiveHealth() {
+          try {
+            const res = await fetch('/api/live/status');
+            liveHealth = await res.json();
+            const entries = Object.values(liveHealth);
+            const upCount = entries.filter(e => e.status === 'UP').length;
+            document.getElementById('liveClusterBadge').textContent = 'Live Cluster: ' + upCount + '/' + entries.length + ' UP';
+            document.getElementById('sidebarHealthSummary').textContent = '● Cluster Health: ' + upCount + '/' + entries.length + ' Services UP';
+            document.getElementById('lastProbeTimestamp').textContent = 'Last live in-cluster probe: ' + new Date().toLocaleTimeString();
+
+            document.getElementById('healthGrid').innerHTML = entries.map(e =>
+              '<div class="card">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                  '<span class="pill">' + e.category + '</span>' +
+                  '<span class="pill ' + (e.status === 'UP' ? 'prod' : 'down') + '">' + e.status + ' (HTTP ' + e.httpCode + ' • ' + e.latencyMs + ' ms)</span>' +
+                '</div>' +
+                '<h3>' + e.name + '</h3>' +
+                '<p><code>' + e.target + '</code></p>' +
+              '</div>'
+            ).join('');
+
+            renderCatalog();
+            renderGraph();
+          } catch (err) {
+            console.error(err);
+          }
         }
 
         function renderCatalog() {
@@ -724,29 +1323,238 @@ data:
             if (dom && c.domain !== dom) return false;
             return !q || [c.name, c.title, c.tech, c.system, c.owner, c.description].some(v => v.toLowerCase().includes(q));
           });
-          document.getElementById('catalogBody').innerHTML = rows.map(c =>
-            '<tr>' +
+          document.getElementById('catalogBody').innerHTML = rows.map(c => {
+            const h = liveHealth[c.name];
+            const healthPill = h
+              ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + h.status + ' (' + h.latencyMs + ' ms)</span>'
+              : '<span class="pill">Probing...</span>';
+            return '<tr>' +
               '<td><strong>' + c.name + '</strong><br><span style="color:#38bdf8;font-size:11.5px">' + c.title + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.description + '</span></td>' +
               '<td><span class="pill domain">' + c.domain + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.system + '</span></td>' +
               '<td>' + c.tech + '</td>' +
+              '<td>' + healthPill + '</td>' +
               '<td>' + c.owner + '<br><span style="color:#94a3b8;font-size:11px">Sonar: ' + c.sonarKey + '</span></td>' +
-              '<td><span class="pill prod">' + c.lifecycle + '</span></td>' +
               '<td>' +
                 '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-                  '<a class="btn-link" href="' + c.docsUrl + '" target="_blank" rel="noopener">:' + c.port + ' UI/Docs ↗</a>' +
-                  '<a class="btn-link" style="background:rgba(34,197,94,0.14);color:#4ade80" href="' + c.healthUrl + '" target="_blank" rel="noopener">Health ↗</a>' +
+                  '<button class="btn-action" onclick="inspectTopology(\'' + c.name + '\')">🕸️ Topology</button>' +
+                  '<a class="btn-link" href="' + c.docsUrl + '" target="_blank" rel="noopener">:' + c.port + ' UI ↗</a>' +
                 '</div>' +
               '</td>' +
-            '</tr>'
+            '</tr>';
+          }).join('');
+        }
+
+        function renderApis() {
+          const q = (document.getElementById('apiSearchInput').value || '').toLowerCase();
+          const tFilter = document.getElementById('apiTypeFilter').value;
+          const items = data.apis.filter(a => {
+            if (tFilter && !a.type.includes(tFilter)) return false;
+            return !q || [a.name, a.title, a.component, a.system, a.specVersion, a.description, ...(a.operations || [])].some(v => v.toLowerCase().includes(q));
+          });
+          document.getElementById('apisGrid').innerHTML = items.map(a => {
+            const apiIdx = data.apis.indexOf(a);
+            return '<div class="card">' +
+              '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                '<span class="pill">' + a.specVersion + '</span>' +
+                '<span class="pill domain">' + a.component + '</span>' +
+                '<span class="pill prod">' + a.domain + '</span>' +
+              '</div>' +
+              '<h3>' + a.title + '</h3>' +
+              '<p style="font-size:11.5px;color:#38bdf8"><code>' + a.name + '</code> • System: <code>' + a.system + '</code></p>' +
+              '<p>' + a.description + '</p>' +
+              '<ul>' + (a.operations || []).map(op => '<li><code>' + op + '</code></li>').join('') + '</ul>' +
+              '<div style="display:flex;gap:8px;margin-top:auto;padding-top:8px;flex-wrap:wrap">' +
+                '<button class="btn-action primary" onclick="openApiConsole(' + apiIdx + ')">⚡ Try Live in IDP</button>' +
+                '<a class="btn-link" href="' + a.endpoint + '" target="_blank" rel="noopener">Swagger / UI ↗</a>' +
+              '</div>' +
+            '</div>';
+          }).join('');
+        }
+
+        function inspectTopology(compName) {
+          selectedGraphComponent = compName;
+          const btn = document.querySelectorAll('.nav-btn')[3];
+          showTab('graph', btn);
+          renderGraph();
+        }
+
+        function renderGraph() {
+          document.getElementById('graphNodeList').innerHTML = data.components.map(c => {
+            const h = liveHealth[c.name];
+            const dot = h ? (h.status === 'UP' ? '🟢' : '🔴') : '⚪';
+            return '<button class="node-btn ' + (c.name === selectedGraphComponent ? 'active' : '') + '" onclick="selectedGraphComponent=\'' + c.name + '\';renderGraph()">' +
+              '<span>' + dot + ' <strong>' + c.name + '</strong></span>' +
+              '<span class="pill">:' + c.port + '</span>' +
+            '</button>';
+          }).join('');
+
+          const comp = data.components.find(c => c.name === selectedGraphComponent) || data.components[0];
+          const upstreamCallers = data.components.filter(other => (other.dependsOn || []).includes('component:' + comp.name)).map(o => o.name);
+          const h = liveHealth[comp.name];
+
+          document.getElementById('graphDetailPanel').innerHTML =
+            '<div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:12px">' +
+              '<div>' +
+                '<span class="pill domain">' + comp.domain + '</span> <span class="pill">' + comp.system + '</span>' +
+                '<h2 style="margin-top:6px">' + comp.title + ' (<code>' + comp.name + '</code>)</h2>' +
+              '</div>' +
+              '<div>' + (h ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + h.status + ' (' + h.latencyMs + ' ms)</span>' : '') + '</div>' +
+            '</div>' +
+            '<p style="margin:8px 0">' + comp.description + '</p>' +
+            '<div class="dep-columns">' +
+              '<div class="dep-box">' +
+                '<h4>⬅️ Upstream Consumers (' + upstreamCallers.length + ')</h4>' +
+                (upstreamCallers.length ? upstreamCallers.map(u => '<div class="dep-item">🔗 <strong>' + u + '</strong></div>').join('') : '<div class="dep-item">Entrypoint / Event Consumer</div>') +
+              '</div>' +
+              '<div class="dep-box">' +
+                '<h4>📡 Provided APIs (' + (comp.providesApis || []).length + ')</h4>' +
+                ((comp.providesApis || []).length ? comp.providesApis.map(a => '<div class="dep-item">🔌 <code>' + a + '</code></div>').join('') : '<div class="dep-item">UI / Background Pipeline</div>') +
+              '</div>' +
+              '<div class="dep-box">' +
+                '<h4>📥 Consumed APIs & Event Buses (' + (comp.consumesApis || []).length + ')</h4>' +
+                ((comp.consumesApis || []).length ? comp.consumesApis.map(a => '<div class="dep-item">⚡ <code>' + a + '</code></div>').join('') : '<div class="dep-item">None (Leaf Service)</div>') +
+              '</div>' +
+              '<div class="dep-box">' +
+                '<h4>🗄️ Infrastructure & Service Dependencies (' + (comp.dependsOn || []).length + ')</h4>' +
+                ((comp.dependsOn || []).length ? comp.dependsOn.map(d => '<div class="dep-item">📦 <code>' + d + '</code></div>').join('') : '<div class="dep-item">None</div>') +
+              '</div>' +
+            '</div>';
+        }
+
+        function openApiConsole(apiIdx) {
+          const api = data.apis[apiIdx];
+          activeConsoleTarget = api.component;
+          document.getElementById('consoleTitle').textContent = '⚡ Live Explorer: ' + api.title;
+          document.getElementById('consoleSubtitle').textContent = 'Target Service: ' + api.component + ' (' + api.specVersion + ')';
+          const presets = api.presets || [{ label: 'Health Check', method: 'GET', path: '/health', body: '' }];
+          document.getElementById('consolePresets').innerHTML = presets.map((p, i) =>
+            '<button class="btn-action" onclick="loadPreset(' + apiIdx + ',' + i + ')">Preset: ' + p.label + '</button>'
           ).join('');
+          loadPreset(apiIdx, 0);
+          document.getElementById('apiConsoleModal').classList.remove('hidden');
+        }
+
+        function loadPreset(apiIdx, presetIdx) {
+          const api = data.apis[apiIdx];
+          const p = (api.presets || [])[presetIdx];
+          if (!p) return;
+          activeConsoleTarget = p.targetOverride || api.component;
+          document.getElementById('consoleMethod').value = p.method;
+          document.getElementById('consolePath').value = p.path;
+          document.getElementById('consoleBody').value = p.body || '';
+          document.getElementById('consoleOutput').textContent = 'Ready to execute ' + p.method + ' ' + p.path + ' on ' + activeConsoleTarget + '...';
+          document.getElementById('consoleStatusBadge').innerHTML = '';
+        }
+
+        function closeApiConsole() {
+          document.getElementById('apiConsoleModal').classList.add('hidden');
+        }
+
+        async function executeConsoleRequest() {
+          const method = document.getElementById('consoleMethod').value;
+          const path = document.getElementById('consolePath').value;
+          const body = document.getElementById('consoleBody').value;
+          document.getElementById('consoleOutput').textContent = 'Executing live request inside Kubernetes cluster...';
+          try {
+            const res = await fetch('/api/live/execute', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ target: activeConsoleTarget, method, path, body })
+            });
+            const out = await res.json();
+            document.getElementById('consoleStatusBadge').innerHTML =
+              '<span class="pill ' + (out.ok ? 'prod' : 'down') + '">HTTP ' + out.status + ' • ' + out.latencyMs + ' ms</span>';
+            try {
+              document.getElementById('consoleOutput').textContent = JSON.stringify(JSON.parse(out.raw), null, 2);
+            } catch (_) {
+              document.getElementById('consoleOutput').textContent = out.raw;
+            }
+          } catch (err) {
+            document.getElementById('consoleOutput').textContent = 'Error: ' + err.message;
+          }
+        }
+
+        function openScaffolder(tplIdx) {
+          const tpl = data.templates[tplIdx];
+          activeScaffoldStack = tpl.stackKey;
+          document.getElementById('scaffolderTitle').textContent = '🚀 ' + tpl.title;
+          document.getElementById('scfSystem').value = tpl.targetSystem;
+          document.getElementById('scfPort').value = tpl.defaultPort;
+          document.getElementById('scaffolderModal').classList.remove('hidden');
+          runScaffolder();
+        }
+
+        function closeScaffolder() {
+          document.getElementById('scaffolderModal').classList.add('hidden');
+        }
+
+        async function runScaffolder() {
+          const payload = {
+            name: document.getElementById('scfName').value,
+            title: document.getElementById('scfTitleInput').value,
+            domain: document.getElementById('scfDomain').value,
+            system: document.getElementById('scfSystem').value,
+            owner: document.getElementById('scfOwner').value,
+            port: Number(document.getElementById('scfPort').value),
+            stack: activeScaffoldStack,
+            enablePostgres: document.getElementById('scfPostgres').checked,
+            enableKafka: document.getElementById('scfKafka').checked,
+            enableKeda: document.getElementById('scfKeda').checked
+          };
+          const res = await fetch('/api/scaffolder/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          generatedBundle = await res.json();
+          document.getElementById('scfFileTabs').innerHTML = [
+            ['catalogYaml', '📄 catalog-info.yaml'],
+            ['workflowYaml', '⚙️ .github/workflows/service-' + payload.name + '.yml'],
+            ['helmValuesYaml', '☸️ helm/values-snippet.yaml']
+          ].map(([k, label]) => '<button class="btn-action" onclick="showScfFile(\'' + k + '\')">' + label + '</button>').join('');
+          showScfFile('catalogYaml');
+
+          if (!data.components.some(c => c.name === payload.name)) {
+            data.components.push({
+              name: payload.name,
+              title: payload.title,
+              type: 'service',
+              lifecycle: 'experimental',
+              owner: payload.owner,
+              system: payload.system,
+              domain: payload.domain,
+              tech: activeScaffoldStack + ' • Scaffolded Golden Path',
+              port: payload.port,
+              docsUrl: 'http://localhost:' + payload.port,
+              healthUrl: 'http://localhost:' + payload.port + '/health',
+              argoApp: 'microservices-dev',
+              sonarKey: 'msa-' + payload.name,
+              providesApis: [payload.name + '-rest-api'],
+              consumesApis: payload.enableKafka ? ['kafka-commerce-events-asyncapi'] : [],
+              dependsOn: payload.enablePostgres ? ['resource:postgresql-databases'] : [],
+              description: 'Dynamically scaffolded via Backstage IDP Golden Path Scaffolder.'
+            });
+            renderStats();
+            renderCatalog();
+            renderGraph();
+          }
+        }
+
+        function showScfFile(key) {
+          if (!generatedBundle) return;
+          document.getElementById('scfOutput').textContent = generatedBundle[key] || '';
+        }
+
+        function copyScaffolderOutput() {
+          navigator.clipboard.writeText(document.getElementById('scfOutput').textContent || '');
         }
 
         function showTab(tab, btn) {
-          ['catalog', 'apis', 'domains', 'templates', 'portals'].forEach(t => {
+          ['catalog', 'health', 'apis', 'graph', 'templates', 'domains', 'portals'].forEach(t => {
             document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
           });
           document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
+          if (btn) btn.classList.add('active');
         }
 
         init();
@@ -754,7 +1562,21 @@ data:
     </body>
     </html>`;
 
-    const server = http.createServer((req, res) => {
+    function readJsonBody(req) {
+      return new Promise((resolve) => {
+        const chunks = [];
+        req.on('data', (c) => chunks.push(c));
+        req.on('end', () => {
+          try {
+            resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
+          } catch (_) {
+            resolve({});
+          }
+        });
+      });
+    }
+
+    const server = http.createServer(async (req, res) => {
       const url = (req.url || '/').split('?')[0];
       if (url === '/.backstage/health/v1/liveness' || url === '/.backstage/health/v1/readiness' || url === '/healthz') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -764,6 +1586,40 @@ data:
       if (url === '/api/catalog/entities') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(CATALOG_DATA, null, 2));
+        return;
+      }
+      if (url === '/api/live/status') {
+        const statusMap = await probeAllServices();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(statusMap, null, 2));
+        return;
+      }
+      if (url === '/api/live/execute' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const targetCfg = INTERNAL_TARGETS[String(body.target || '')];
+        if (!targetCfg) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, status: 400, latencyMs: 0, raw: 'Unknown internal target service' }));
+          return;
+        }
+        const safePath = String(body.path || '/').startsWith('/') ? String(body.path) : '/' + String(body.path);
+        const method = String(body.method || 'GET').toUpperCase() === 'POST' ? 'POST' : 'GET';
+        const result = await httpRequestInternal({
+          host: targetCfg.host,
+          port: targetCfg.port,
+          path: safePath,
+          method,
+          body: method === 'POST' ? String(body.body || '') : ''
+        });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+        return;
+      }
+      if (url === '/api/scaffolder/generate' && req.method === 'POST') {
+        const body = await readJsonBody(req);
+        const bundle = generateScaffoldBundle(body);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(bundle));
         return;
       }
       res.writeHead(200, {
@@ -913,12 +1769,89 @@ spec:
         - protocol: UDP
           port: 53
         - protocol: TCP
+          port: 80
+        - protocol: TCP
           port: 443
+        - protocol: TCP
+          port: 5000
         - protocol: TCP
           port: 5432
         - protocol: TCP
-          port: 8181
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+        - protocol: TCP
+          port: 8004
+        - protocol: TCP
+          port: 8005
         - protocol: TCP
           port: 8080
         - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8087
+        - protocol: TCP
+          port: 8181
+        - protocol: TCP
+          port: 8200
+        - protocol: TCP
           port: 9090
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backstage-idp-probes
+  namespace: dev
+  labels:
+    app: backstage-idp
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - frontend
+          - cosmo-router
+          - products-service
+          - orders-service
+          - inventory-service
+          - notification-service
+          - payments-service
+          - fulfillment-service
+          - analytics-service
+          - demand-forecast-service
+          - mlflow
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: backstage-idp
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 5000
+        - protocol: TCP
+          port: 8001
+        - protocol: TCP
+          port: 8002
+        - protocol: TCP
+          port: 8003
+        - protocol: TCP
+          port: 8004
+        - protocol: TCP
+          port: 8005
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8085
+        - protocol: TCP
+          port: 8086
+        - protocol: TCP
+          port: 8087
