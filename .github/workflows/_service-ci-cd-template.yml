@@ -201,7 +201,7 @@ jobs:
         # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-go@v7
         with:
-          go-version: '1.24'
+          go-version-file: ${{ inputs.service-dir }}/go.mod
           cache-dependency-path: ${{ inputs.service-dir }}/go.sum
 
       - name: Run Go Unit Tests & Coverage
