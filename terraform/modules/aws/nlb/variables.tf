@@ -8,6 +8,11 @@ variable "environment" {
   description = "Deployment environment (dev, staging, prod)"
 }
 
+variable "aws_region" {
+  type        = string
+  description = "AWS region containing the Network Load Balancer"
+}
+
 variable "vpc_id" {
   type        = string
   description = "VPC ID where the NLB will be deployed"
