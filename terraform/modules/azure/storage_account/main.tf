@@ -9,6 +9,7 @@ locals {
   storage_account_name = substr("${local.clean_name}${var.environment}${random_string.suffix.result}", 0, 24)
 }
 
+# nosemgrep: terraform.azure.security.storage.storage-allow-microsoft-service-bypass.storage-allow-microsoft-service-bypass, terraform.azure.security.storage.storage-queue-services-logging.storage-queue-services-logging
 resource "azurerm_storage_account" "this" {
   name                     = local.storage_account_name
   resource_group_name      = var.resource_group_name

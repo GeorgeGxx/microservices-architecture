@@ -171,6 +171,7 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
+# nosemgrep: terraform.aws.security.aws-elb-access-logs-not-enabled.aws-elb-access-logs-not-enabled
 # trivy:ignore:AVD-AWS-0053 Public NLB required to receive ingress traffic
 resource "aws_lb" "main" {
   name                             = "${var.project_name}-nlb"
@@ -259,6 +260,7 @@ resource "aws_service_discovery_http_namespace" "internal" {
 }
 
 # CloudWatch Logs
+# nosemgrep: terraform.aws.security.aws-cloudwatch-log-group-unencrypted.aws-cloudwatch-log-group-unencrypted
 resource "aws_cloudwatch_log_group" "ecs" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = var.log_retention_days

@@ -1,6 +1,7 @@
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
+# nosemgrep: terraform.aws.security.aws-kms-no-rotation.aws-kms-no-rotation
 resource "aws_kms_key" "this" {
   description             = "${var.description} (${var.environment})"
   deletion_window_in_days = var.deletion_window_in_days

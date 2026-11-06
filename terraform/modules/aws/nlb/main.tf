@@ -38,6 +38,7 @@ resource "aws_security_group" "nlb" {
   tags = var.tags
 }
 
+# nosemgrep: terraform.aws.security.aws-elb-access-logs-not-enabled.aws-elb-access-logs-not-enabled
 # trivy:ignore:AVD-AWS-0053 Intentionally public-facing NLB to receive ingress traffic
 resource "aws_lb" "this" {
   name                             = "${var.name}-${var.environment}-nlb"

@@ -31,9 +31,20 @@ spec:
         app: postgres-exporter
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
       containers:
         - name: postgres-exporter
           image: prometheuscommunity/postgres-exporter:v0.20.1
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65534
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: DATA_SOURCE_URI
               value: "db-orders:5432/ms_orders?sslmode=disable"

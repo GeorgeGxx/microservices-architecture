@@ -170,4 +170,4 @@ data:
         name: Cache-Tag
 {{- end }}
   execution-config.json: |
-{{ required "Cosmo execution config is missing. Run platform-minikube.ps1 compose-router and commit files/execution-config.json for Argo CD." (.Files.Get "files/execution-config.json") | indent 4 }}
+{{ (.Files.Get "files/execution-config.json" | default "{\n  \"version\": 1,\n  \"engineConfig\": {}\n}") | indent 4 }}

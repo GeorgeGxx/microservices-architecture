@@ -27,9 +27,20 @@ spec:
           {{- end -}}
     spec:
       serviceAccountName: products-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
       containers:
         - name: products-service
           image: georgegxx/products-service:1.0.0
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
           command: ["/bin/sh", "-c"]
           args:
             - |

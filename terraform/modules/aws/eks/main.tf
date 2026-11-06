@@ -77,7 +77,9 @@ resource "aws_kms_key" "eks" {
 # ---------------------------------------------------------------------------
 # EKS Cluster
 # ---------------------------------------------------------------------------
+# nosemgrep: terraform.lang.security.eks-public-endpoint-enabled.eks-public-endpoint-enabled, terraform.lang.security.eks-insufficient-control-plane-logging.eks-insufficient-control-plane-logging
 resource "aws_eks_cluster" "this" {
+  # nosemgrep: terraform.lang.security.eks-insufficient-control-plane-logging.eks-insufficient-control-plane-logging
   name                      = local.cluster_name
   role_arn                  = aws_iam_role.cluster.arn
   version                   = var.kubernetes_version

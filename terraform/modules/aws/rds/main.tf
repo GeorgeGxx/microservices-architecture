@@ -53,11 +53,12 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.db.id]
 
-  multi_az                  = var.multi_az
-  deletion_protection       = var.deletion_protection
-  backup_retention_period   = var.backup_retention_days
-  skip_final_snapshot       = var.environment != "prod"
-  final_snapshot_identifier = var.environment == "prod" ? "${var.name}-${var.environment}-final" : null
+  multi_az                        = var.multi_az
+  deletion_protection             = var.deletion_protection
+  backup_retention_period         = var.backup_retention_days
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+  skip_final_snapshot             = var.environment != "prod"
+  final_snapshot_identifier       = var.environment == "prod" ? "${var.name}-${var.environment}-final" : null
 
   tags = local.common_tags
 
