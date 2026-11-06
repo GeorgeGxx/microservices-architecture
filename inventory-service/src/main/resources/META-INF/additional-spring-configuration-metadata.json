@@ -1,0 +1,40 @@
+{
+  "groups": [
+    {
+      "name": "ecommerce",
+      "type": "java.lang.Object",
+      "description": "E-commerce platform custom configuration properties."
+    },
+    {
+      "name": "ecommerce.inventory-reservation",
+      "type": "java.lang.Object",
+      "description": "Inventory reservation lifecycle and scheduler configuration."
+    }
+  ],
+  "properties": [
+    {
+      "name": "ecommerce.inventory-reservation.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Controls whether the inventory reservation expiration scheduler is enabled.",
+      "defaultValue": true
+    },
+    {
+      "name": "ecommerce.inventory-reservation.ttl",
+      "type": "java.lang.String",
+      "description": "Time-to-live ISO-8601 duration for pending inventory reservations before expiration.",
+      "defaultValue": "PT15M"
+    },
+    {
+      "name": "ecommerce.inventory-reservation.expiration-scheduler-delay-ms",
+      "type": "java.lang.Long",
+      "description": "Fixed delay in milliseconds between reservation expiration execution sweeps.",
+      "defaultValue": 10000
+    },
+    {
+      "name": "ecommerce.inventory-reservation.expiration-scheduler-initial-delay-ms",
+      "type": "java.lang.Long",
+      "description": "Initial delay in milliseconds before starting reservation expiration runs.",
+      "defaultValue": 30000
+    }
+  ]
+}
