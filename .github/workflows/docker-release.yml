@@ -33,11 +33,15 @@ jobs:
           GH_REF: ${{ github.ref }}
         run: |
           if [ -n "$INPUT_VERSION" ]; then
-            TAG="$INPUT_VERSION"
+            TAG="${INPUT_VERSION#v}"
           elif [[ "$GH_REF" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
             TAG="${BASH_REMATCH[1]}"
           else
             echo "::error::No valid SemVer release tag specified."
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid SemVer release tag '$TAG'. Expected format X.Y.Z (e.g., 1.0.0, 1.1.0)."
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -361,6 +365,15 @@ jobs:
           echo "Synchronizing GitOps manifests to release tag: $TAG"
           for f in helm/values/values-*.yaml; do
             yq -i "(.. | select(has(\"image\")) | select((.image.repository == \"georgegxx/*\" or .image.repository == \"*/*-service\" or .image.repository == \"*/frontend\" or .image.repository == \"*/mlflow\" or .image.repository == \"*/mlops-training\" or .image.repository == \"*/demand-forecast\") and .image.repository != \"*cosmo/router*\") | .image.tag) = \"$TAG\"" "$f"
+          done
+
+      - name: Enforce 2-Version Docker Hub Retention Across Fleet (Active + Rollback)
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+        run: |
+          for repo in products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service frontend demand-forecast mlops-training mlflow; do
+            bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo" 2
           done
 
       - name: Commit & Push GitOps Release State

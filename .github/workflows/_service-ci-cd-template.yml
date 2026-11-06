@@ -78,13 +78,13 @@ on:
       publish-to-registry:
         required: false
         type: boolean
-        default: true
-        description: 'Whether to push the certified container image to registry'
+        default: false
+        description: 'Whether to push the certified release image to registry (requires explicit SemVer release tag)'
       image-tag:
         required: false
         type: string
         default: ''
-        description: 'Explicit image tag to publish (e.g. 1.0.0). Defaults to git tag SemVer or commit SHA'
+        description: 'Explicit SemVer release tag to publish (e.g. 1.0.0, 1.1.0)'
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -792,8 +792,8 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
-    # Note: Branch staging and master registry pushes are paused until AWS cloud deployment is enabled (set repository variable ENABLE_CLOUD_DEPLOY=true to activate).
-    if: github.event_name != 'pull_request' && (inputs.publish-to-registry != false) && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/develop' || (vars.ENABLE_CLOUD_DEPLOY == 'true' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master')))
+    # Release-only registry policy: only publish when publish-to-registry is explicitly enabled AND a SemVer release tag (inputs.image-tag or refs/tags/v*) is provided.
+    if: github.event_name != 'pull_request' && inputs.publish-to-registry == true && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/v'))
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
@@ -808,6 +808,7 @@ jobs:
         with:
           sparse-checkout: |
             devsecops/compliance/cosign
+            scripts
 
       - name: Install Cosign (Pinned v3.1.3)
         run: |
@@ -827,7 +828,7 @@ jobs:
       - name: Load Image from Tarball
         run: docker load -i "/tmp/${INPUT_SERVICE_NAME}-image.tar"
 
-      - name: Tag and Push to Container Registry (Immutable Promotion on staging/master)
+      - name: Tag and Push Release to Container Registry (Immutable SemVer Only)
         id: registry-push
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
@@ -835,16 +836,25 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Determine the single target tag:
-          # 1. Explicit input tag (e.g. 1.0.0)
-          # 2. Git Tag SemVer (e.g. refs/tags/v1.0.0 -> 1.0.0)
-          # 3. Commit SHA fallback (always immutable)
+          # Determine the single target SemVer release tag:
+          # 1. Explicit input SemVer tag (e.g. 1.0.0, 1.1.0)
+          # 2. Git Tag SemVer (e.g. refs/tags/v1.1.0 -> 1.1.0)
+          # Commit SHA tags are never pushed to Docker Hub to prevent image sprawl.
           if [ -n "$INPUT_IMAGE_TAG" ]; then
             TARGET_TAG="$INPUT_IMAGE_TAG"
           elif [[ "$GH_REF" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
             TARGET_TAG="${BASH_REMATCH[1]}"
           else
-            TARGET_TAG="$GH_SHA"
+            echo "::notice::No explicit SemVer release tag specified; skipping Docker Hub push to avoid commit-SHA tag sprawl."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "digest=" >> "$GITHUB_OUTPUT"
+            echo "image-tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ ! "$TARGET_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid release tag '$TARGET_TAG'. Only SemVer release versions (e.g., 1.0.0, 1.1.0) are permitted in Docker Hub."
+            exit 1
           fi
 
           FINAL_IMAGE="${IMAGE_NAME}:${TARGET_TAG}"
@@ -852,7 +862,7 @@ jobs:
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-            # On staging/prod promotion, check if the exact immutable artifact for this commit SHA
+            # On staging/prod promotion, check if the exact immutable artifact for this release tag
             # was already built and pushed in an earlier stage; if so, promote its digest without overwriting.
             if [ "$GH_REF" = "refs/heads/staging" ] || [ "$GH_REF" = "refs/heads/master" ]; then
               EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
@@ -865,12 +875,12 @@ jobs:
               fi
             fi
 
-            # If target tag differs from github.sha, tag the loaded image
+            # Tag the loaded image with the immutable SemVer release tag
             if [ "$TARGET_TAG" != "$GH_SHA" ]; then
               docker tag "${IMAGE_NAME}:${GH_SHA}" "$FINAL_IMAGE"
             fi
 
-            echo "Pushing single immutable image tag: $FINAL_IMAGE"
+            echo "Pushing single immutable SemVer release tag: $FINAL_IMAGE"
             docker push "$FINAL_IMAGE" 2>&1 | tee /tmp/docker-push.log
             IMAGE_DIGEST="$(sed -n 's/.*digest: \(sha256:[0-9a-f]*\).*/\1/p' /tmp/docker-push.log | tail -n 1)"
             if [[ ! "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -906,6 +916,14 @@ jobs:
             echo "::warning::STATUS: NOT CONFIGURED — COSIGN_PRIVATE_KEY is not set; skipping OCI image signature attachment for $IMMUTABLE_REF."
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Enforce 2-Version Docker Hub Retention Policy (Active + Rollback)
+        if: steps.registry-push.outputs.published == 'true'
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+        run: |
+          bash scripts/prune-dockerhub-tags.sh "$DOCKERHUB_OWNER" "$INPUT_SERVICE_NAME" 2
 
   # ==========================================================
   # STEP 7: 🐙 ArgoCD GitOps Continuous Delivery Synchronization

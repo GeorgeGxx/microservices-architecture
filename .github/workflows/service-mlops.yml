@@ -16,15 +16,15 @@ on:
   workflow_dispatch:
     inputs:
       image-tag:
-        description: 'Explicit image tag to publish (leave empty for git sha or semver from tag)'
+        description: 'Explicit SemVer release tag to publish (e.g. 1.1.0; required when publish-to-registry is true)'
         required: false
         type: string
         default: ''
       publish-to-registry:
-        description: 'Publish image to Docker Registry'
+        description: 'Publish release image to Docker Registry (requires explicit SemVer image-tag)'
         required: false
         type: boolean
-        default: true
+        default: false
 
 concurrency:
   group: mlops-${{ github.ref }}
@@ -46,7 +46,7 @@ jobs:
       helm-values-key: mlops.forecast
       post-deploy-enabled: false
       image-tag: ${{ inputs.image-tag || '' }}
-      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+      publish-to-registry: ${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -75,7 +75,7 @@ jobs:
       helm-values-key: mlops.training
       post-deploy-enabled: false
       image-tag: ${{ inputs.image-tag || '' }}
-      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+      publish-to-registry: ${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -104,7 +104,7 @@ jobs:
       helm-values-key: mlops.mlflow
       post-deploy-enabled: false
       image-tag: ${{ inputs.image-tag || '' }}
-      publish-to-registry: ${{ inputs.publish-to-registry != false }}
+      publish-to-registry: ${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
