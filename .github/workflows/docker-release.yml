@@ -60,18 +60,7 @@ jobs:
       service-dir: products-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-orders:
     name: "📦 Release orders-service"
@@ -83,18 +72,7 @@ jobs:
       service-dir: orders-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-inventory:
     name: "📦 Release inventory-service"
@@ -106,18 +84,7 @@ jobs:
       service-dir: inventory-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-notifications:
     name: "📦 Release notification-service"
@@ -129,18 +96,7 @@ jobs:
       service-dir: notification-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   # ==========================================================
   # ⚡ Polyglot Saga Microservices (Go / NestJS / FastAPI)
@@ -157,18 +113,7 @@ jobs:
       dockerfile-path: payments-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-fulfillment:
     name: "🚚 Release fulfillment-service"
@@ -182,18 +127,7 @@ jobs:
       dockerfile-path: fulfillment-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-analytics:
     name: "📊 Release analytics-service"
@@ -207,18 +141,7 @@ jobs:
       dockerfile-path: analytics-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   # ==========================================================
   # 🌐 Frontend React 19 SPA
@@ -233,18 +156,7 @@ jobs:
       service-dir: frontend
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   # ==========================================================
   # 📈 MLOps Demand Forecasting
@@ -262,18 +174,7 @@ jobs:
       helm-values-key: mlops.forecast
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-mlops-training:
     name: "🧪 Release mlops-training"
@@ -288,18 +189,7 @@ jobs:
       helm-values-key: mlops.training
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   release-mlflow:
     name: "🧪 Release mlflow"
@@ -314,18 +204,7 @@ jobs:
       helm-values-key: mlops.mlflow
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
-    secrets:
-      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
-      ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER }}
-      ARGOCD_AUTH_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
-      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-      SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+    secrets: inherit
 
   # ==========================================================
   # 🐙 GitOps Writeback: Align Helm Values via yq
