@@ -6,6 +6,15 @@ data "aws_vpc" "this" {
   id = var.vpc_id
 }
 
+module "access_logs" {
+  source = "../nlb-access-logs"
+
+  name        = var.name
+  environment = var.environment
+  region      = var.aws_region
+  tags        = var.tags
+}
+
 resource "aws_security_group" "nlb" {
   name        = "${var.name}-${var.environment}-nlb-sg"
   description = "Public Network Load Balancer security group"
@@ -38,7 +47,6 @@ resource "aws_security_group" "nlb" {
   tags = var.tags
 }
 
-# nosemgrep: terraform.aws.security.aws-elb-access-logs-not-enabled.aws-elb-access-logs-not-enabled
 # trivy:ignore:AVD-AWS-0053 Intentionally public-facing NLB to receive ingress traffic
 resource "aws_lb" "this" {
   name                             = "${var.name}-${var.environment}-nlb"
@@ -48,7 +56,16 @@ resource "aws_lb" "this" {
   subnets                          = var.public_subnet_ids
   enable_cross_zone_load_balancing = true
 
+  # NLB access logs capture TLS listeners only; the current listener is TCP.
+  access_logs {
+    enabled = true
+    bucket  = module.access_logs.bucket_name
+    prefix  = module.access_logs.log_prefix
+  }
+
   tags = var.tags
+
+  depends_on = [module.access_logs]
 }
 
 # TCP Target Group pointing to the Istio ingress gateway Service in EKS

@@ -171,7 +171,17 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-# nosemgrep: terraform.aws.security.aws-elb-access-logs-not-enabled.aws-elb-access-logs-not-enabled
+module "nlb_access_logs" {
+  source = "../../modules/aws/nlb-access-logs"
+
+  name        = var.project_name
+  environment = var.environment
+  region      = var.aws_region
+  tags = {
+    Project = var.project_name
+  }
+}
+
 # trivy:ignore:AVD-AWS-0053 Public NLB required to receive ingress traffic
 resource "aws_lb" "main" {
   name                             = "${var.project_name}-nlb"
@@ -181,11 +191,20 @@ resource "aws_lb" "main" {
   subnets                          = aws_subnet.public[*].id
   enable_cross_zone_load_balancing = true
 
+  # NLB access logs capture TLS listeners only; the current listeners are TCP.
+  access_logs {
+    enabled = true
+    bucket  = module.nlb_access_logs.bucket_name
+    prefix  = module.nlb_access_logs.log_prefix
+  }
+
   tags = {
     Name        = "${var.project_name}-nlb"
     Environment = var.environment
     Layer       = "4-Transport"
   }
+
+  depends_on = [module.nlb_access_logs]
 }
 
 resource "aws_lb_target_group" "frontend" {

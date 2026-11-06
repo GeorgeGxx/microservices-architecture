@@ -81,6 +81,7 @@ module "nlb" {
 
   name              = local.name
   environment       = local.env
+  aws_region        = var.aws_region
   vpc_id            = module.vpc.vpc_id
   public_subnet_ids = module.vpc.public_subnet_ids
   tags              = local.tags
