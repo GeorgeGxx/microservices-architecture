@@ -73,7 +73,7 @@ resource "helm_release" "gatekeeper" {
 }
 
 # ==============================================================================
-# 3. ArgoCD (GitOps Engine)
+# 3. ArgoCD (GitOps Engine — v3.6.1 / Helm Chart 10.14.0)
 # ==============================================================================
 resource "helm_release" "argocd" {
   depends_on = [kubernetes_namespace.namespaces]
@@ -81,9 +81,13 @@ resource "helm_release" "argocd" {
   name       = "argocd"
   repository = "https://argoproj.github.io/argo-helm"
   chart      = "argo-cd"
-  version    = "10.11.6"
+  version    = "10.14.0"
   namespace  = "argocd"
   timeout    = 600
+
+  values = [
+    file("${path.module}/../../../helm/values/argocd-minikube.yaml")
+  ]
 
   set_sensitive = [
     {
@@ -130,12 +134,36 @@ resource "helm_release" "argocd" {
       value = "512Mi"
     },
     {
+      name  = "repoServer.resources.requests.cpu"
+      value = "100m"
+    },
+    {
       name  = "repoServer.resources.requests.memory"
       value = "128Mi"
     },
     {
-      name  = "applicationController.resources.requests.memory"
+      name  = "repoServer.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "repoServer.resources.limits.memory"
+      value = "512Mi"
+    },
+    {
+      name  = "controller.resources.requests.cpu"
+      value = "100m"
+    },
+    {
+      name  = "controller.resources.requests.memory"
       value = "128Mi"
+    },
+    {
+      name  = "controller.resources.limits.cpu"
+      value = "500m"
+    },
+    {
+      name  = "controller.resources.limits.memory"
+      value = "512Mi"
     },
     # Fast reconciliation (poll Git every 15s without jitter for rapid dev sync)
     {

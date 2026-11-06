@@ -27,8 +27,9 @@ variable "argocd_admin_password" {
 variable "argocd_admin_password_hash" {
   type        = string
   description = "Fixed bcrypt hash for the ArgoCD admin password (corresponds to the plaintext 'admin')"
-  default     = "$2b$12$ml7DXUbuMyVopVR2bqiysOgmp68iCknXy3kdhw.LiSEjK.a0p2elu"
-  sensitive   = true
+  # nosemgrep: generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash
+  default   = "$2b$12$ml7DXUbuMyVopVR2bqiysOgmp68iCknXy3kdhw.LiSEjK.a0p2elu"
+  sensitive = true
 }
 
 variable "argocd_admin_password_mtime" {

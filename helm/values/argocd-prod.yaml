@@ -1,0 +1,219 @@
+# ==============================================================================
+# Argo CD 3.6.1 — Production AWS EKS GitOps Control-Plane Helm Values Profile
+# Chart: argo/argo-cd 10.14.0 (appVersion: v3.6.1)
+# ==============================================================================
+fullnameOverride: argocd
+
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.6.1"
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  networkPolicy:
+    create: true
+    defaultDenyIngress: true
+
+configs:
+  cm:
+    # Disable local admin account in production; break-glass only via Keycloak OIDC
+    admin.enabled: "false"
+    timeout.reconciliation: "180s"
+    timeout.reconciliation.jitter: "60s"
+    timeout.hard.reconciliation: "0s"
+    exec.enabled: "false"
+    statusbadge.enabled: "false"
+    application.resourceTrackingMethod: "annotation"
+    url: "https://argocd.georgegxx.dev"
+    oidc.config: |
+      name: Keycloak SSO
+      issuer: https://auth.georgegxx.dev/realms/microservices-realm
+      clientID: argocd-client
+      clientSecret: $argocd-oidc-secret:clientSecret
+      requestedScopes:
+        - openid
+        - profile
+        - email
+        - groups
+      requestedIDTokenClaims:
+        groups:
+          essential: true
+  params:
+    server.insecure: "false"
+    server.disable.swagger.ui: "true"
+    controller.status.processors: "20"
+    controller.operation.processors: "10"
+    controller.self.heal.timeout.seconds: "5"
+    controller.kubectl.parallelism.limit: "20"
+    controller.app.state.cache.expiration: "1h"
+    controller.metrics.application.labels: "app.kubernetes.io/part-of,environment,dataplane"
+    controller.metrics.application.conditions: "SyncError,InvalidSpecError,ComparisonError,OperationError"
+    reposerver.default.cache.expiration: "24h"
+    reposerver.parallelism.limit: "10"
+    reposerver.max.combined.directory.manifests.size: "10M"
+    otlp.address: "otel-collector.observability.svc.cluster.local:4317"
+    otlp.insecure: "false"
+    otlp.sample.ratio: "0.1"
+    applicationsetcontroller.enable.new.git.file.globbing: "true"
+    applicationsetcontroller.wq.base.delay.ms: "100"
+    applicationsetcontroller.wq.max.delay.sec: "300"
+    applicationsetcontroller.wq.qps: "50"
+    applicationsetcontroller.wq.burst: "100"
+  rbac:
+    create: true
+    policy.default: "role:readonly"
+    scopes: "[groups, email]"
+    policy.matchMode: "glob"
+    policy.csv: |
+      # Platform Administrators — full control over GitOps control plane
+      p, role:platform-admin, *, *, *, allow
+
+      # DevOps / SRE Engineers — sync, rollback (Argo CD 3.6 granular RBAC), and inspect
+      p, role:devops-engineer, applications, get, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, sync, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, rollback, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, action/*, microservices-architecture/*, allow
+      p, role:devops-engineer, logs, get, microservices-architecture/*, allow
+      p, role:devops-engineer, clusters, get, *, allow
+      p, role:devops-engineer, repositories, get, *, allow
+      p, role:devops-engineer, projects, get, microservices-architecture, allow
+
+      # CI Automation — scoped purely to application get & sync
+      p, role:ci-automation, applications, get, microservices-architecture/*, allow
+      p, role:ci-automation, applications, sync, microservices-architecture/*, allow
+
+      # Group bindings from Keycloak OIDC claims
+      g, platform-admins, role:platform-admin
+      g, devops-engineers, role:devops-engineer
+      g, developers, role:readonly
+
+controller:
+  replicas: 1
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+    rules:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+      spec:
+        - alert: ArgoCDApplicationOutOfSync
+          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Argo CD application {{ $labels.name }} is OutOfSync"
+            description: "Application {{ $labels.name }} in namespace {{ $labels.dest_namespace }} has remained OutOfSync for over 10m."
+        - alert: ArgoCDApplicationUnhealthy
+          expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Argo CD application {{ $labels.name }} is {{ $labels.health_status }}"
+            description: "Application {{ $labels.name }} targeting {{ $labels.dest_server }} is unhealthy ({{ $labels.health_status }})."
+
+server:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 150m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+repoServer:
+  replicas: 2
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+applicationSet:
+  replicas: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false

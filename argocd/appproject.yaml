@@ -95,3 +95,29 @@ spec:
       kind: AuthorizationPolicy
     - group: security.istio.io
       kind: RequestAuthentication
+  orphanedResources:
+    warn: true
+  roles:
+    - name: project-admin
+      description: Full administrative privileges within microservices-architecture AppProject
+      policies:
+        - p, proj:microservices-architecture:project-admin, applications, *, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:project-admin, logs, get, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:project-admin, exec, create, microservices-architecture/*, deny
+      groups:
+        - platform-admins
+    - name: devops-operator
+      description: Sync, inspect, and rollback privileges (Argo CD 3.6 granular rollback RBAC)
+      policies:
+        - p, proj:microservices-architecture:devops-operator, applications, get, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:devops-operator, applications, sync, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:devops-operator, applications, rollback, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:devops-operator, applications, action/*, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:devops-operator, logs, get, microservices-architecture/*, allow
+      groups:
+        - devops-engineers
+    - name: ci-sync
+      description: Least-privilege role for automated GitHub Actions GitOps sync triggers
+      policies:
+        - p, proj:microservices-architecture:ci-sync, applications, get, microservices-architecture/*, allow
+        - p, proj:microservices-architecture:ci-sync, applications, sync, microservices-architecture/*, allow
