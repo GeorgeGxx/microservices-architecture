@@ -1336,7 +1336,7 @@ data:
               '<td>' + c.owner + '<br><span style="color:#94a3b8;font-size:11px">Sonar: ' + c.sonarKey + '</span></td>' +
               '<td>' +
                 '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
-                  '<button class="btn-action" onclick="inspectTopology(\'' + c.name + '\')">🕸️ Topology</button>' +
+                  '<button class="btn-action" data-name="' + c.name + '" onclick="inspectTopology(this.dataset.name)">🕸️ Topology</button>' +
                   '<a class="btn-link" href="' + c.docsUrl + '" target="_blank" rel="noopener">:' + c.port + ' UI ↗</a>' +
                 '</div>' +
               '</td>' +
@@ -1378,11 +1378,16 @@ data:
           renderGraph();
         }
 
+        function selectGraphNode(compName) {
+          selectedGraphComponent = compName;
+          renderGraph();
+        }
+
         function renderGraph() {
           document.getElementById('graphNodeList').innerHTML = data.components.map(c => {
             const h = liveHealth[c.name];
             const dot = h ? (h.status === 'UP' ? '🟢' : '🔴') : '⚪';
-            return '<button class="node-btn ' + (c.name === selectedGraphComponent ? 'active' : '') + '" onclick="selectedGraphComponent=\'' + c.name + '\';renderGraph()">' +
+            return '<button class="node-btn ' + (c.name === selectedGraphComponent ? 'active' : '') + '" data-name="' + c.name + '" onclick="selectGraphNode(this.dataset.name)">' +
               '<span>' + dot + ' <strong>' + c.name + '</strong></span>' +
               '<span class="pill">:' + c.port + '</span>' +
             '</button>';
@@ -1511,7 +1516,7 @@ data:
             ['catalogYaml', '📄 catalog-info.yaml'],
             ['workflowYaml', '⚙️ .github/workflows/service-' + payload.name + '.yml'],
             ['helmValuesYaml', '☸️ helm/values-snippet.yaml']
-          ].map(([k, label]) => '<button class="btn-action" onclick="showScfFile(\'' + k + '\')">' + label + '</button>').join('');
+          ].map(([k, label]) => '<button class="btn-action" data-key="' + k + '" onclick="showScfFile(this.dataset.key)">' + label + '</button>').join('');
           showScfFile('catalogYaml');
 
           if (!data.components.some(c => c.name === payload.name)) {
