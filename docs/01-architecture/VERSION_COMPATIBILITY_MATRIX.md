@@ -43,7 +43,7 @@ This matrix serves as the single source of truth for pinned versions across all 
 | `analytics-service` | Python `3.12` | FastAPI `0.160.0` / SQLAlchemy `2.0` | `python:3.12-slim` | `8087` |
 | `demand-forecast` | Python `3.12` | FastAPI `0.160.0` / Scikit-Learn | `python:3.12-slim` | `8005` |
 | `mlops-training` | Python `3.12` / Java `21` | PySpark `4.2.0` / MLflow `3.17.2` | `python:3.12-slim` | Batch |
-| `backstage-idp` | TypeScript / Node.js `24` | Backstage `1.36.0` | `ghcr.io/backstage/backstage:1.36.0` | `7007` |
+| `backstage-idp` | TypeScript / Node.js `24` | Backstage `1.56.3` | `ghcr.io/backstage/backstage:1.56.3` | `7007` |
 
 ---
 

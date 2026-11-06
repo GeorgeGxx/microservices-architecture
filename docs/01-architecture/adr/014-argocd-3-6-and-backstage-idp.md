@@ -21,9 +21,10 @@ A comprehensive repository-wide audit identified four strategic platform enginee
    - Pin Semgrep to `1.110.0` across GitHub Actions, Azure DevOps, and Bitbucket Pipelines with a centralized policy ruleset at `devsecops/sast/semgrep/semgrep-rules.yaml`.
    - Integrate Cosign `v3.1.3` OCI image signing by immutable `@sha256` digest upon registry push and pre-deployment signature verification before Argo CD or Helm promotion, while preserving `verify-blob` verification on `supply-chain-manifest.json`.
    - Standardize Azure DevOps on Node.js `24.x` (`versionSpec: '24.x'`).
-3. **Adopt Backstage IDP (`v1.36.0`) with Strict Operational Independence:**
-   - Model all Domains, Systems, 12 Components, 9 APIs, 6 Cloud Resources, and 5 Golden Path Scaffolder templates in `catalog-info.yaml` and `backstage/`.
-   - Enforce operational independence: Backstage is strictly a read-only visibility and scaffolding portal and never sits in the runtime request path or blocks CI/CD, Terraform, Gatekeeper, or Argo CD operations.
+3. **Adopt Backstage IDP (`v1.56.3`) with Strict Operational Independence & 2-Version Release Governance:**
+   - Model all 4 Domains, 4 Systems, 12 Components, 11 APIs & Subgraphs, 8 Cloud & Stateful Resources, and 5 Golden Path Scaffolder templates in `catalog-info.yaml` and `backstage/`.
+   - Provide interactive in-cluster health probing (`/api/live/status`), GraphQL/REST API execution (`/api/live/execute`), dependency topology inspection, and Golden Path manifest generation (`/api/scaffolder/generate`) while enforcing strict operational independence from runtime traffic and CI/CD gates.
+   - Enforce an immutable SemVer-only Docker Hub release retention policy (`scripts/prune-dockerhub-tags.sh`) retaining at most 2 versions per repository (`Active N` + `Rollback N-1`, e.g., `1.1.0` and `1.0.0`).
 
 ## 3. Consequences
 

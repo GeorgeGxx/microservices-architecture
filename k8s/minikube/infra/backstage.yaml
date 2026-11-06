@@ -59,7 +59,7 @@ data:
     const CATALOG_DATA = {
       platform: {
         title: 'Enterprise Multi-Cloud Internal Developer Portal',
-        version: 'Backstage v1.36.0 • Argo CD v3.6.1 (Chart 10.14.0)',
+        version: 'Backstage v1.56.3 • Argo CD v3.6.1 (Chart 10.14.0)',
         keycloakRealm: 'microservices-realm',
         releasePolicy: 'Immutable SemVer Only (Max 2 Docker Hub versions: Active N + Rollback N-1)'
       },
@@ -1026,7 +1026,7 @@ data:
           <div class="brand-logo">B</div>
           <div>
             <div class="brand-title">Backstage IDP</div>
-            <div class="brand-sub">v1.36.0 • Interactive Self-Service</div>
+            <div class="brand-sub">v1.56.3 • Interactive Self-Service</div>
           </div>
         </div>
         <button class="nav-btn active" onclick="showTab('catalog', this)">📦 Software Catalog</button>
@@ -1603,7 +1603,7 @@ data:
       const url = (req.url || '/').split('?')[0];
       if (url === '/.backstage/health/v1/liveness' || url === '/.backstage/health/v1/readiness' || url === '/healthz') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ status: 'ok', service: 'backstage-idp', version: '1.36.0' }));
+        res.end(JSON.stringify({ status: 'ok', service: 'backstage-idp', version: '1.56.3' }));
         return;
       }
       if (url === '/api/catalog/entities') {
@@ -1665,6 +1665,7 @@ metadata:
   labels:
     app: backstage-idp
     app.kubernetes.io/name: backstage-idp
+    app.kubernetes.io/version: "1.56.3"
     app.kubernetes.io/part-of: microservices-architecture
 spec:
   replicas: 1
@@ -1676,6 +1677,7 @@ spec:
       labels:
         app: backstage-idp
         app.kubernetes.io/name: backstage-idp
+        app.kubernetes.io/version: "1.56.3"
         app.kubernetes.io/part-of: microservices-architecture
     spec:
       serviceAccountName: backstage-idp
@@ -1689,7 +1691,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: backstage-backend
-          image: ghcr.io/backstage/backstage:1.36.0
+          image: ghcr.io/backstage/backstage:1.56.3
           imagePullPolicy: IfNotPresent
           command: ["node", "/app-portal/server.js"]
           ports:

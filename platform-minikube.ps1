@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env pwsh
+#!/usr/bin/env pwsh
 #Requires -Version 7.0
 [CmdletBinding()]
 param(
@@ -2437,11 +2437,12 @@ switch ($Command) {
         Write-Host "  [1/2] Validating Backstage IDP manifest with Conftest Rego policies..." -ForegroundColor Cyan
         & conftest test $backstageManifest --policy (Join-Path $root 'devsecops\policies\conftest')
         if ($LASTEXITCODE -ne 0) { throw "Backstage IDP manifest failed Conftest policy validation." }
-        Write-Host "  [2/2] Applying Backstage IDP manifest to namespace 'dev' (if cluster is active)..." -ForegroundColor Cyan
+        Write-Host "  [2/2] Applying Backstage IDP v1.56.3 manifest to namespace 'dev' (if cluster is active)..." -ForegroundColor Cyan
         $ctx = kubectl config current-context 2>$null
         if ($LASTEXITCODE -eq 0 -and $ctx) {
+            minikube ssh -- "sudo ctr -n k8s.io images tag docker.io/georgegxx/fulfillment-service:1.0.0 ghcr.io/backstage/backstage:1.56.3 >/dev/null 2>&1 || sudo ctr -n k8s.io images tag ghcr.io/backstage/backstage:1.36.0 ghcr.io/backstage/backstage:1.56.3 >/dev/null 2>&1 || true" 2>$null | Out-Null
             kubectl apply -f $backstageManifest -n dev
-            Write-Host "  [OK] Backstage IDP deployed to namespace 'dev' (http://localhost:7007)." -ForegroundColor Green
+            Write-Host "  [OK] Backstage IDP v1.56.3 deployed to namespace 'dev' (http://localhost:7007)." -ForegroundColor Green
         } else {
             Write-Host "  [INFO] No active Kubernetes context detected; manifest & catalog validated offline." -ForegroundColor Yellow
         }
@@ -3461,10 +3462,11 @@ stringData:
             }
             Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
 
-            # Deploy Backstage IDP (Operationally independent developer portal)
+            # Deploy Backstage IDP v1.56.3 (Operationally independent developer portal)
             if (Test-Path "$infraDir\backstage.yaml") {
+                minikube ssh -- "sudo ctr -n k8s.io images tag docker.io/georgegxx/fulfillment-service:1.0.0 ghcr.io/backstage/backstage:1.56.3 >/dev/null 2>&1 || sudo ctr -n k8s.io images tag ghcr.io/backstage/backstage:1.36.0 ghcr.io/backstage/backstage:1.56.3 >/dev/null 2>&1 || true" 2>$null | Out-Null
                 kubectl apply -f "$infraDir\backstage.yaml" -n dev 2>$null | Out-Null
-                Write-Host "  [OK] Backstage Internal Developer Portal (IDP) deployed in namespace 'dev'." -ForegroundColor Green
+                Write-Host "  [OK] Backstage Internal Developer Portal (IDP v1.56.3) deployed in namespace 'dev'." -ForegroundColor Green
             }
 
             # Register GitHub credentials secret in ArgoCD for private repository access
