@@ -36,8 +36,8 @@ spring:
     password: ${POSTGRES_PASSWORD:postgres}
     hikari:
       pool-name: InventoryHikariPool
-      maximum-pool-size: 5
-      minimum-idle: 2
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:15}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
       idle-timeout: 300000
       max-lifetime: 1800000
       connection-timeout: 20000
@@ -116,6 +116,16 @@ management:
       probes:
         enabled: true
       show-details: ${HEALTH_SHOW_DETAILS:when_authorized}
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,diskSpace
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   info:
     env:
       enabled: true

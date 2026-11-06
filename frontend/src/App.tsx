@@ -3,18 +3,18 @@ import { Navbar } from './components/Navbar';
 import { ToastContainer } from './components/ToastContainer';
 import { CartDrawer } from './components/CartDrawer';
 import { NotificationDrawer } from './components/NotificationDrawer';
-import { QuickViewModal } from './components/QuickViewModal';
-import { ProductQRModal } from './components/ProductQRModal';
-import { CheckoutModal } from './components/CheckoutModal';
-import { ReceiptModal } from './components/ReceiptModal';
-import { CommandPalette } from './components/CommandPalette';
-import { QrScannerModal } from './components/QrScannerModal';
 
 import { CatalogPage } from './pages/CatalogPage';
 
-// Code-splitting for heavy non-initial views
+// Code-splitting for heavy non-initial views and modals
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage').then(m => ({ default: m.OrdersPage })));
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then(m => ({ default: m.AdminDashboardPage })));
+const QuickViewModal = React.lazy(() => import('./components/QuickViewModal').then(m => ({ default: m.QuickViewModal })));
+const ProductQRModal = React.lazy(() => import('./components/ProductQRModal').then(m => ({ default: m.ProductQRModal })));
+const CheckoutModal = React.lazy(() => import('./components/CheckoutModal').then(m => ({ default: m.CheckoutModal })));
+const ReceiptModal = React.lazy(() => import('./components/ReceiptModal').then(m => ({ default: m.ReceiptModal })));
+const CommandPalette = React.lazy(() => import('./components/CommandPalette').then(m => ({ default: m.CommandPalette })));
+const QrScannerModal = React.lazy(() => import('./components/QrScannerModal').then(m => ({ default: m.QrScannerModal })));
 
 import { Product, Order } from './types';
 import { fetchProducts } from './services/graphql';
@@ -169,47 +169,59 @@ export const App: React.FC = () => {
       <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
       <NotificationDrawer />
 
-      {/* Modals */}
-      <QuickViewModal
-        product={currentQuickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-        onOpenQR={(p) => setQrProduct(p)}
-      />
+      {/* Modals loaded lazily on demand */}
+      <React.Suspense fallback={null}>
+        {currentQuickViewProduct && (
+          <QuickViewModal
+            product={currentQuickViewProduct}
+            onClose={() => setQuickViewProduct(null)}
+            onOpenQR={(p) => setQrProduct(p)}
+          />
+        )}
 
-      <ProductQRModal
-        product={qrProduct}
-        onClose={() => setQrProduct(null)}
-      />
+        {qrProduct && (
+          <ProductQRModal
+            product={qrProduct}
+            onClose={() => setQrProduct(null)}
+          />
+        )}
 
-      <CheckoutModal
-        isOpen={isCheckoutOpen && !!user}
-        onClose={() => setIsCheckoutOpen(false)}
-        onOrderSuccess={handleOrderPlaced}
-      />
+        {isCheckoutOpen && !!user && (
+          <CheckoutModal
+            isOpen={isCheckoutOpen && !!user}
+            onClose={() => setIsCheckoutOpen(false)}
+            onOrderSuccess={handleOrderPlaced}
+          />
+        )}
 
-      <ReceiptModal
-        order={receiptOrder}
-        onClose={() => setReceiptOrder(null)}
-      />
+        {receiptOrder && (
+          <ReceiptModal
+            order={receiptOrder}
+            onClose={() => setReceiptOrder(null)}
+          />
+        )}
 
-      <CommandPalette
-        isOpen={isCommandPaletteOpen}
-        onClose={() => setIsCommandPaletteOpen(false)}
-        products={products}
-        onSelectProduct={(p) => setQuickViewProduct(p)}
-        onNavigate={(tab) => setActiveTab(tab)}
-        onOpenQrScanner={user?.isAdmin ? () => setIsQrScannerOpen(true) : undefined}
-      />
+        {isCommandPaletteOpen && (
+          <CommandPalette
+            isOpen={isCommandPaletteOpen}
+            onClose={() => setIsCommandPaletteOpen(false)}
+            products={products}
+            onSelectProduct={(p) => setQuickViewProduct(p)}
+            onNavigate={(tab) => setActiveTab(tab)}
+            onOpenQrScanner={user?.isAdmin ? () => setIsQrScannerOpen(true) : undefined}
+          />
+        )}
 
-      {user?.isAdmin && (
-        <QrScannerModal
-          isOpen={isQrScannerOpen}
-          onClose={() => setIsQrScannerOpen(false)}
-          products={products}
-          onNavigateToOrders={() => setActiveTab('orders')}
-          onOpenReceipt={(o) => setReceiptOrder(o)}
-        />
-      )}
+        {user?.isAdmin && isQrScannerOpen && (
+          <QrScannerModal
+            isOpen={isQrScannerOpen}
+            onClose={() => setIsQrScannerOpen(false)}
+            products={products}
+            onNavigateToOrders={() => setActiveTab('orders')}
+            onOpenReceipt={(o) => setReceiptOrder(o)}
+          />
+        )}
+      </React.Suspense>
     </div>
   );
 };

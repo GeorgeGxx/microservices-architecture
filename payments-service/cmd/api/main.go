@@ -83,9 +83,10 @@ func main() {
 
 	sqlDB, err := db.DB()
 	if err == nil {
-		sqlDB.SetMaxIdleConns(10)
-		sqlDB.SetMaxOpenConns(50)
-		sqlDB.SetConnMaxLifetime(time.Hour)
+		sqlDB.SetMaxIdleConns(5)
+		sqlDB.SetMaxOpenConns(25)
+		sqlDB.SetConnMaxIdleTime(5 * time.Minute)
+		sqlDB.SetConnMaxLifetime(30 * time.Minute)
 	}
 
 	// 2. Auto-migrate schema in PostgreSQL 18
@@ -136,8 +137,12 @@ func main() {
 	}
 
 	server := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: router,
+		Addr:              ":" + cfg.Port,
+		Handler:           router,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
 
 	// 5. Start Server with Graceful Shutdown
