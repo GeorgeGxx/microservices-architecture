@@ -24,8 +24,16 @@ async function bootstrap() {
     }),
   );
 
+  const allowedOrigins = (
+    process.env.CORS_ALLOWED_ORIGINS ||
+    'http://localhost:5173,http://localhost:8080,https://shop.georgegxx.dev'
+  )
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: '*',
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

@@ -33,6 +33,9 @@ def install_kafka_packages(jars_dir: Path) -> int:
         download_url = f"{MAVEN_CENTRAL}/{group_path}/{artifact_id}/{version}/{jar_name}"
         temporary_jar = target_path.with_suffix(".download")
         try:
+            if not download_url.startswith("https://"):
+                raise ValueError(f"Refusing non-HTTPS Maven download URL: {download_url}")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             urllib.request.urlretrieve(download_url, temporary_jar)
             if not zipfile.is_zipfile(temporary_jar):
                 raise RuntimeError(f"Downloaded artifact is not a valid JAR: {download_url}")
@@ -70,6 +73,9 @@ def replace_jar_family(
         temporary_jar = new_jar.with_suffix(new_jar.suffix + ".download")
 
         try:
+            if not download_url.startswith("https://"):
+                raise ValueError(f"Refusing non-HTTPS Maven download URL: {download_url}")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             urllib.request.urlretrieve(download_url, temporary_jar)
             if not zipfile.is_zipfile(temporary_jar):
                 raise RuntimeError(f"Downloaded artifact is not a valid JAR: {download_url}")

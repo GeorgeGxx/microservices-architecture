@@ -1622,6 +1622,9 @@ def push_dashboards(grafana_url: str = None) -> int:
         print("Error: --push requires GRAFANA_TOKEN or both GRAFANA_USERNAME and GRAFANA_PASSWORD.", file=sys.stderr)
         return 1
 
+    if not url.startswith(("http://", "https://")):
+        print(f"Error: Unsupported Grafana URL scheme: {url}", file=sys.stderr)
+        return 1
     headers = {"Content-Type": "application/json", "Authorization": authorization}
     for path in [biz_path, tech_path]:
         try:
@@ -1629,6 +1632,7 @@ def push_dashboards(grafana_url: str = None) -> int:
                 dashboard = json.load(dashboard_file)
             payload = json.dumps({"dashboard": dashboard, "overwrite": True}).encode("utf-8")
             req = urllib.request.Request(f"{url}/api/dashboards/db", data=payload, headers=headers)
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=10) as response:
                 result = json.loads(response.read().decode("utf-8"))
                 print(f"Pushed {path} to Grafana: {result.get('status')}")
@@ -1643,6 +1647,7 @@ def push_dashboards(grafana_url: str = None) -> int:
     ):
         try:
             del_req = urllib.request.Request(f"{url}/api/dashboards/uid/{uid}", headers=headers, method="DELETE")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(del_req, timeout=10):
                 print(f"Removed obsolete {title} dashboard from Grafana.")
         except urllib.error.HTTPError as error:
@@ -1659,6 +1664,9 @@ def push_dashboards(grafana_url: str = None) -> int:
 def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: int, timeout_seconds: int) -> int:
     """Emit demo conversion funnel telemetry events (CART_ADD, CHECKOUT_START, CHECKOUT_STEP) synchronized across orders and analytics services."""
     base = frontend_url.rstrip("/")
+    if not base.startswith(("http://", "https://")):
+        print(f"Error: Unsupported frontend URL scheme: {base}", file=sys.stderr)
+        return 1
     headers = {"Content-Type": "application/json", "User-Agent": "Grafana-Demo-Telemetry/1.0"}
     failures = []
     accepted = 0
@@ -1677,6 +1685,7 @@ def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: i
         for endpoint, payload in cart_endpoints:
             request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
             try:
+                # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                     response.read()
             except Exception as error:
@@ -1691,6 +1700,7 @@ def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: i
             for endpoint, payload in start_endpoints:
                 request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
                 try:
+                    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                     with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                         response.read()
                 except Exception as error:
@@ -1705,6 +1715,7 @@ def emit_funnel_events(frontend_url: str, count: int, category: str, delay_ms: i
             for endpoint, payload in step_endpoints:
                 request = urllib.request.Request(endpoint, data=payload, headers=headers, method="POST")
                 try:
+                    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                     with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
                         response.read()
                 except Exception as error:

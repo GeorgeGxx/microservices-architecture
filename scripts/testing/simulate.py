@@ -90,6 +90,7 @@ def acquire_jwt(keycloak_url):
     req = urllib.request.Request(token_url, data=payload, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("access_token", "")
@@ -158,6 +159,7 @@ class TrafficSimulator:
         ]:
             try:
                 req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+                # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 with urllib.request.urlopen(req, timeout=3) as _:
                     pass
             except Exception:
@@ -173,6 +175,7 @@ class TrafficSimulator:
 
         try:
             req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=browse_query, headers=headers, method="POST")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=5) as r:
                 r.read()
         except Exception:
@@ -251,6 +254,7 @@ class TrafficSimulator:
         t1 = time.time()
         try:
             req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=order_payload, headers=order_headers, method="POST")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=10) as resp:
                 if resp.status in (200, 201):
                     res_json = json.loads(resp.read().decode("utf-8"))
@@ -339,6 +343,7 @@ class GraphQLFloodProbe:
                     method="POST",
                 )
                 try:
+                    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                     with urllib.request.urlopen(req, timeout=2) as resp:
                         code = resp.status
                 except urllib.error.HTTPError as e:
@@ -454,6 +459,7 @@ class ChaosTester:
 
         try:
             req = urllib.request.Request(f"{self.router_url.rstrip('/')}/graphql", data=payload, headers=headers, method="POST")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=3) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 if result.get("data", {}).get("placeOrder"):

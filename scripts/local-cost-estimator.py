@@ -367,6 +367,9 @@ def query_prometheus_rightsize(base_url: str, expression: str) -> Dict[Tuple[str
     """Execute PromQL expression and parse Kubernetes namespace/pod/container metrics."""
     params = urlencode({"query": expression})
     request_url = f"{base_url.rstrip('/')}/api/v1/query?{params}"
+    if not request_url.startswith(("http://", "https://")):
+        raise ValueError(f"Unsupported URL scheme for Prometheus query: {request_url}")
+    # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
     with urlopen(request_url, timeout=15) as response:
         payload = json.load(response)
     if payload.get("status") != "success":

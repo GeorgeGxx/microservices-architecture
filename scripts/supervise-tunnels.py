@@ -20,6 +20,7 @@ tunnels = [
     {"name": "MLflow", "ns": "dev", "svc": "mlflow", "local": 5000, "remote": 5000},
     {"name": "Demand-Forecast", "ns": "dev", "svc": "demand-forecast-service", "local": 8005, "remote": 8005},
     {"name": "ArgoCD", "ns": "argocd", "svc": "argocd-server", "local": 8088, "remote": 80},
+    {"name": "Backstage-IDP", "ns": "dev", "svc": "backstage-idp", "local": 7007, "remote": 7007},
     {"name": "Grafana", "ns": "observability", "svc": "kube-prometheus-grafana", "local": 3000, "remote": 80},
     {"name": "Prometheus", "ns": "observability", "svc": "kube-prometheus-kube-prome-prometheus", "local": 9090, "remote": 9090},
     {"name": "OpenCost UI", "ns": "opencost", "svc": "opencost", "local": 7000, "remote": 9090},

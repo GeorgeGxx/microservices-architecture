@@ -9,7 +9,6 @@
 #   ./scripts/ci/post-deploy-verify.sh --base-url <url> --frontend-url <url> --keycloak-url <url>
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 BASE_URL="${BASE_URL:-}"
 FRONTEND_URL="${FRONTEND_URL:-}"
