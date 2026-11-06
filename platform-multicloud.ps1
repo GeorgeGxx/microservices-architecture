@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #Requires -Version 7.0
 <#
 .SYNOPSIS
@@ -76,7 +76,9 @@ $knownBinPaths = @(
     "C:\Program Files\Graphviz\bin",
     "C:\Program Files (x86)\Graphviz\bin",
     "$env:LOCALAPPDATA\Programs\Graphviz\bin",
-    "$env:LOCALAPPDATA\Microsoft\WinGet\Links"
+    "$env:LOCALAPPDATA\Microsoft\WinGet\Links",
+    "$env:LOCALAPPDATA\pipx\pipx\venvs\semgrep\Scripts",
+    "$env:USERPROFILE\.local\bin"
 )
 foreach ($bp in $knownBinPaths) {
     if ((Test-Path $bp) -and ($env:PATH -notlike "*$bp*")) { $env:PATH = "$bp;$env:PATH" }
@@ -226,6 +228,30 @@ function Invoke-PreDeploySecurityGate {
             }
         } finally {
             Remove-Item -LiteralPath $tempScanDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # --- 1.1b Semgrep SAST Policy Audit ---
+    Write-Host "`n[1b/7] 🔎 Semgrep: Evaluating centralized SAST rules (devsecops/sast/semgrep/semgrep-rules.yaml)..." -ForegroundColor Cyan
+    $semgrepRules = Join-Path $RepoRoot "devsecops\sast\semgrep\semgrep-rules.yaml"
+    if (-not (Get-Command semgrep -ErrorAction SilentlyContinue)) {
+        Show-Warning "semgrep CLI is not found in PATH. Skipping local SAST audit (enforced in CI/CD via pinned Semgrep v1.110.0)."
+        $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "SKIPPED"; Details = "CLI missing locally" })
+    } elseif (-not (Test-Path -LiteralPath $semgrepRules)) {
+        Show-Warning "Semgrep ruleset not found at $semgrepRules."
+        $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "SKIPPED"; Details = "Ruleset missing" })
+        if ($FailFast) { throw "Pre-deploy cannot run without the repository Semgrep ruleset: $semgrepRules" }
+    } else {
+        $semgrepOut = @(& semgrep scan --config $semgrepRules --severity ERROR --error $RepoRoot 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            Show-Success "Semgrep: Zero ERROR-severity SAST findings detected."
+            $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "PASSED"; Details = "Centralized rules compliant" })
+        } else {
+            Show-Failure "Semgrep: SAST security findings detected!"
+            $semgrepOut | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            $results.Add([pscustomobject]@{ Tool = "Semgrep SAST"; Status = "FAILED"; Details = "ERROR findings" })
+            $passed = $false
+            if ($FailFast) { throw "Pre-deploy failed at Semgrep SAST stage." }
         }
     }
 

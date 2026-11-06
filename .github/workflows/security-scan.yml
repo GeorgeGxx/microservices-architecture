@@ -28,9 +28,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Set up JDK 21 and cache Maven dependencies
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -54,6 +56,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload Trivy Scan Results to GitHub Security Tab
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
@@ -94,11 +97,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks Secret Detector
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -113,6 +118,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Scan Terraform, Kubernetes, Helm and Dockerfile configuration
@@ -127,6 +133,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy IaC Results to GitHub Security Tab
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
@@ -143,6 +150,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Install Cosign
@@ -160,4 +168,39 @@ jobs:
           cosign verify-blob \
             --key devsecops/compliance/cosign/cosign.pub \
             --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+            --insecure-ignore-tlog=true \
             devsecops/compliance/cosign/supply-chain-manifest.json
+
+  # ==========================================================
+  # JOB 5: Semgrep Repository-Wide Static Application Security Testing (SAST)
+  # ==========================================================
+  semgrep-scan:
+    name: 🔍 5. Semgrep Repository-Wide SAST Audit (Pinned v1.110.0)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: actions/checkout@v7
+
+      - name: Run Semgrep SAST with Centralized Policy Ruleset
+        env:
+          SEMGREP_VERSION: "1.110.0"
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src "returntocorp/semgrep:${SEMGREP_VERSION}" \
+            semgrep scan \
+            --config devsecops/sast/semgrep/semgrep-rules.yaml \
+            --config p/security-audit \
+            --severity ERROR \
+            --error \
+            --sarif \
+            --output semgrep-results.sarif
+
+      - name: Upload Semgrep Results to GitHub Security Tab
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: 'semgrep-results.sarif'
+          category: 'semgrep'

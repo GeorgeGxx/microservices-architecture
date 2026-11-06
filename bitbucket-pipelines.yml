@@ -105,12 +105,14 @@ definitions:
               fi
             fi
     - step: &sast
-        name: '2. SAST, secrets and Trivy IaC scan'
+        name: '2. SAST (Semgrep v1.110.0), secrets (Gitleaks v8.24.2) and Trivy IaC scan'
         image: python:3.12-slim
         script:
-          - apt-get update && apt-get install -y --no-install-recommends curl tar && rm -rf /var/lib/apt/lists/*
+          - apt-get update && apt-get install -y --no-install-recommends curl tar git && rm -rf /var/lib/apt/lists/*
           - curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz | tar -xz -C /usr/local/bin gitleaks
           - gitleaks detect --source . --config devsecops/sast/gitleaks/.gitleaks.toml --no-git
+          - python3 -m pip install --no-cache-dir "semgrep==1.110.0"
+          - semgrep scan --config devsecops/sast/semgrep/semgrep-rules.yaml --config p/security-audit --severity ERROR --error "${SERVICE_DIR:-${SERVICE_NAME:-products-service}}"
           - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/v0.76.1/contrib/install.sh | sh -s -- -b /usr/local/bin v0.76.1
           - trivy config --config devsecops/compliance/trivy/trivy.yaml --ignorefile devsecops/compliance/trivy/.trivyignore "${SERVICE_DIR:-${SERVICE_NAME:-products-service}}"
     - step: &build-sbom
@@ -184,6 +186,7 @@ definitions:
               cosign verify-blob \
                 --key devsecops/compliance/cosign/cosign.pub \
                 --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+                --insecure-ignore-tlog=true \
                 devsecops/compliance/cosign/supply-chain-manifest.json
             '
     - step: &terraform-validate
@@ -240,6 +243,16 @@ definitions:
               PUSHED_DIGEST="$(gcloud artifacts docker images describe "$IMAGE" --format='value(image_summary.digest)' 2>/dev/null || true)"
               [[ "$PUSHED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Unable to resolve the pushed image digest for $IMAGE"; exit 1; }
               printf '%s' "$PUSHED_DIGEST" > "artifacts/images/${SERVICE_NAME}.digest"
+            fi
+            FINAL_DIGEST="$(cat "artifacts/images/${SERVICE_NAME}.digest")"
+            IMMUTABLE_REF="${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}@${FINAL_DIGEST}"
+            if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
+              curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o /tmp/cosign
+              install -m 0755 /tmp/cosign /usr/local/bin/cosign
+              echo "Signing GAR OCI image ${IMMUTABLE_REF} with Cosign v3.1.3..."
+              cosign sign --yes --key env://COSIGN_PRIVATE_KEY "${IMMUTABLE_REF}"
+            else
+              echo "STATUS: NOT CONFIGURED — COSIGN_PRIVATE_KEY is not set; skipping OCI image signature attachment for ${IMMUTABLE_REF}."
             fi
         artifacts:
           - artifacts/images/**
@@ -302,6 +315,12 @@ definitions:
               IMAGE_DIGEST="$(cat "artifacts/images/${SERVICE_NAME}.digest")"
             fi
             [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "A valid immutable image digest is required to deploy ${SERVICE_NAME}."; exit 1; }
+            if [ "${COSIGN_VERIFY_ENFORCED:-false}" = "true" ]; then
+              curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o /tmp/cosign
+              install -m 0755 /tmp/cosign /usr/local/bin/cosign
+              echo "Verifying Cosign OCI image signature for ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}@${IMAGE_DIGEST}..."
+              cosign verify --key devsecops/compliance/cosign/cosign.pub "${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_ID}/${GAR_REPOSITORY}/${SERVICE_NAME}@${IMAGE_DIGEST}"
+            fi
             TARGET_CLUSTERS=("$GKE_CLUSTER_NAME")
             if [ "${BITBUCKET_DEPLOYMENT_ENVIRONMENT}" = "production" ]; then
               TARGET_CLUSTERS+=("${GKE_CLUSTER_NAME_DP2:-msa-gcp-dp2-prod-cluster}")

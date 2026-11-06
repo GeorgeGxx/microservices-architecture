@@ -82,6 +82,15 @@ steps:
         [[ "$IMAGE_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Unable to resolve an immutable image digest for ${{ parameters.serviceName }}:$(Build.SourceVersion) in ACR."; exit 1; }
         echo "Resolved immutable ACR image digest: ${IMAGE_DIGEST}"
 
+        if [ "${COSIGN_VERIFY_ENFORCED:-false}" = "true" ]; then
+          if ! command -v cosign &>/dev/null; then
+            curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o /tmp/cosign
+            sudo install -m 0755 /tmp/cosign /usr/local/bin/cosign
+          fi
+          echo "Verifying Cosign OCI image signature for ${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}@${IMAGE_DIGEST}..."
+          cosign verify --key devsecops/compliance/cosign/cosign.pub "${{ parameters.acrName }}.azurecr.io/${{ parameters.serviceName }}@${IMAGE_DIGEST}"
+        fi
+
         helm upgrade --install ${{ parameters.helmRelease }} "$CHART_REPOSITORY" \
           --version "$CHART_VERSION" \
           --reuse-values \

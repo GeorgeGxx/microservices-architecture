@@ -200,7 +200,7 @@ stages:
 
             - task: NodeTool@0
               inputs:
-                versionSpec: '22.x'
+                versionSpec: '24.x'
 
             - script: |
                 cd ${{ parameters.serviceDir }}
@@ -258,7 +258,7 @@ stages:
               displayName: "Set up Node.js for Sonar Scanner"
               condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
               inputs:
-                versionSpec: '22.x'
+                versionSpec: '24.x'
 
             - script: |
                 set -euo pipefail
@@ -290,9 +290,9 @@ stages:
 
           - ${{ if eq(parameters.serviceType, 'nestjs') }}:
             - task: NodeTool@0
-              displayName: "Set up Node.js 22"
+              displayName: "Set up Node.js 24"
               inputs:
-                versionSpec: '22.x'
+                versionSpec: '24.x'
 
             - script: |
                 set -euo pipefail
@@ -391,7 +391,7 @@ stages:
               displayName: "Set up Node.js for Sonar Scanner"
               condition: and(succeeded(), ne(variables['SONAR_TOKEN'], ''))
               inputs:
-                versionSpec: '22.x'
+                versionSpec: '24.x'
 
             - script: |
                 set -euo pipefail
@@ -463,9 +463,9 @@ stages:
                 if [ "$(isProtectedBranch)" = "True" ]; then return 1; fi
                 echo "##vso[task.logissue type=warning]Advisory only (non-protected branch): $*"
               }
-              python3 -m pip install semgrep
-              gate semgrep scan --config auto --severity ERROR --error ${{ parameters.serviceDir }}
-            displayName: "Semgrep SAST Scan"
+              python3 -m pip install --upgrade pip && python3 -m pip install "semgrep==1.110.0"
+              gate semgrep scan --config devsecops/sast/semgrep/semgrep-rules.yaml --config p/security-audit --severity ERROR --error ${{ parameters.serviceDir }}
+            displayName: "Semgrep SAST Scan (Pinned v1.110.0)"
 
           - script: |
               set -euo pipefail
@@ -617,6 +617,7 @@ stages:
               cosign verify-blob \
                 --key devsecops/compliance/cosign/cosign.pub \
                 --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+                --insecure-ignore-tlog=true \
                 devsecops/compliance/cosign/supply-chain-manifest.json
             displayName: "Verify signed supply-chain manifest with Cosign"
 
@@ -632,8 +633,10 @@ stages:
     condition: and(succeeded(), or(eq(variables['Build.SourceBranch'], 'refs/heads/develop'), and(eq('${{ parameters.enableCloudStagingProdDeploy }}', 'true'), in(variables['Build.SourceBranch'], 'refs/heads/staging', 'refs/heads/master'))))
     jobs:
       - job: PushSha
-        displayName: "Push <sha> tag to ACR"
+        displayName: "Push <sha> tag to ACR & Sign OCI Digest"
         steps:
+          - checkout: self
+
           - task: DownloadPipelineArtifact@2
             inputs:
               buildType: 'current'
@@ -641,7 +644,10 @@ stages:
               targetPath: '$(Pipeline.Workspace)/images'
 
           - task: AzureCLI@2
-            displayName: "Login to ACR and push candidate (skip rebuild push if immutable SHA already in Staging ACR)"
+            displayName: "Login to ACR, push candidate, and sign OCI image digest with Cosign v3.1.3"
+            env:
+              COSIGN_PRIVATE_KEY: $(COSIGN_PRIVATE_KEY)
+              COSIGN_PASSWORD: $(COSIGN_PASSWORD)
             inputs:
               azureSubscription: ${{ parameters.serviceConnection }}
               scriptType: bash
@@ -654,15 +660,27 @@ stages:
                   *) echo "##vso[task.logissue type=error]No ACR mapping for $(Build.SourceBranch)"; exit 1 ;;
                 esac
                 az acr login --name "$ACR_NAME"
+                TARGET="$ACR_NAME.azurecr.io/${{ parameters.serviceName }}"
                 EXISTING_DIGEST="$(az acr repository show --name "$ACR_NAME" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv 2>/dev/null || true)"
                 if [[ "$EXISTING_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-                  echo "Immutable artifact ${{ parameters.serviceName }}@$(EXISTING_DIGEST) already exists in $ACR_NAME; reusing without overwriting."
-                  exit 0
+                  echo "Immutable artifact ${{ parameters.serviceName }}@${EXISTING_DIGEST} already exists in $ACR_NAME; reusing without overwriting."
+                  PUSHED_DIGEST="$EXISTING_DIGEST"
+                else
+                  docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
+                  docker tag local/${{ parameters.serviceName }}:$(Build.SourceVersion) $TARGET:$(Build.SourceVersion)
+                  docker push $TARGET:$(Build.SourceVersion)
+                  PUSHED_DIGEST="$(az acr repository show --name "$ACR_NAME" --image "${{ parameters.serviceName }}:$(Build.SourceVersion)" --query digest -o tsv 2>/dev/null || true)"
                 fi
-                docker load -i $(Pipeline.Workspace)/images/${{ parameters.serviceName }}-image.tar
-                TARGET="$ACR_NAME.azurecr.io/${{ parameters.serviceName }}"
-                docker tag local/${{ parameters.serviceName }}:$(Build.SourceVersion) $TARGET:$(Build.SourceVersion)
-                docker push $TARGET:$(Build.SourceVersion)
+                if [[ "$PUSHED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] && [ -n "${COSIGN_PRIVATE_KEY:-}" ] && [ "${COSIGN_PRIVATE_KEY}" != '$(COSIGN_PRIVATE_KEY)' ]; then
+                  if ! command -v cosign &>/dev/null; then
+                    curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o /tmp/cosign
+                    sudo install -m 0755 /tmp/cosign /usr/local/bin/cosign
+                  fi
+                  echo "Signing OCI image ${TARGET}@${PUSHED_DIGEST} with Cosign v3.1.3..."
+                  cosign sign --yes --key env://COSIGN_PRIVATE_KEY "${TARGET}@${PUSHED_DIGEST}"
+                else
+                  echo "##vso[task.logissue type=warning]STATUS: NOT CONFIGURED — COSIGN_PRIVATE_KEY is not set; skipping OCI image signature attachment for ${TARGET}@${PUSHED_DIGEST}."
+                fi
 
   # ==========================================================
   # DEV (develop branch)

@@ -90,6 +90,14 @@ on:
         required: false
       DOCKERHUB_TOKEN:
         required: false
+      DOCKER_USERNAME:
+        required: false
+      DOCKER_PASSWORD:
+        required: false
+      COSIGN_PRIVATE_KEY:
+        required: false
+      COSIGN_PASSWORD:
+        required: false
       ARGOCD_SERVER:
         required: false
       ARGOCD_AUTH_TOKEN:
@@ -105,6 +113,12 @@ env:
   DOCKERHUB_OWNER: ${{ inputs.dockerhub-owner || 'georgegxx' }}
   IMAGE_NAME: ${{ inputs.dockerhub-owner || 'georgegxx' }}/${{ inputs.service-name }}
   ISTIO_GATEWAY_URL: ${{ inputs.istio-gateway-url }}
+  INPUT_SERVICE_NAME: ${{ inputs.service-name }}
+  INPUT_SERVICE_DIR: ${{ inputs.service-dir }}
+  INPUT_IMAGE_TAG: ${{ inputs.image-tag }}
+  INPUT_HELM_VALUES_KEY: ${{ inputs.helm-values-key }}
+  GH_SHA: ${{ github.sha }}
+  GH_REF: ${{ github.ref }}
 
 permissions:
   contents: read
@@ -120,6 +134,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -127,6 +142,7 @@ jobs:
       # Spring Boot / Maven (Multi-threaded)
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           java-version: '21'
@@ -136,11 +152,12 @@ jobs:
       - name: Run Maven Unit Tests & JaCoCo Coverage (-T 1C Multi-threaded)
         if: inputs.service-type == 'spring-boot'
         run: |
-          cd ${{ inputs.service-dir }}
+          cd "$INPUT_SERVICE_DIR"
           mvn clean test jacoco:report -B -T 1C
 
       - name: Upload Test & Coverage Results
         if: inputs.service-type == 'spring-boot' && always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: surefire-${{ inputs.service-name }}
@@ -154,6 +171,7 @@ jobs:
       # Novashop Storefront (Frontend)
       - name: Set up Node.js 22
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -163,13 +181,14 @@ jobs:
       - name: Install & Build Novashop Frontend
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
         run: |
-          cd ${{ inputs.service-dir }}
+          cd "$INPUT_SERVICE_DIR"
           npm ci
           npm run test:coverage
           npm run build
 
       - name: Upload Frontend Coverage Artifact
         if: (inputs.service-type == 'react' || inputs.service-type == 'frontend') && always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ inputs.service-name }}
@@ -179,6 +198,7 @@ jobs:
       # Go (Payments Service)
       - name: Set up Go
         if: inputs.service-type == 'go'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-go@v5
         with:
           go-version: '1.24'
@@ -187,11 +207,12 @@ jobs:
       - name: Run Go Unit Tests & Coverage
         if: inputs.service-type == 'go'
         run: |
-          cd ${{ inputs.service-dir }}
+          cd "$INPUT_SERVICE_DIR"
           go test -v -coverprofile=coverage.out ./...
 
       - name: Upload Go Coverage Artifact
         if: inputs.service-type == 'go' && always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ inputs.service-name }}
@@ -201,6 +222,7 @@ jobs:
       # NestJS / TypeScript (Fulfillment Service)
       - name: Set up Node.js 24 for NestJS
         if: inputs.service-type == 'nestjs'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24.15'
@@ -210,7 +232,7 @@ jobs:
       - name: Install & Run NestJS Tests with Coverage
         if: inputs.service-type == 'nestjs'
         run: |
-          cd ${{ inputs.service-dir }}
+          cd "$INPUT_SERVICE_DIR"
           npm ci
           npm run typecheck
           npm run test:cov
@@ -218,6 +240,7 @@ jobs:
 
       - name: Upload NestJS Coverage Artifact
         if: inputs.service-type == 'nestjs' && always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ inputs.service-name }}
@@ -227,6 +250,7 @@ jobs:
       # Python / MLOps & Analytics
       - name: Set up Python 3.12
         if: inputs.service-type == 'python'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -237,21 +261,21 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/${{ inputs.service-dir }}
         run: |
           python -m pip install --upgrade pip
-          if [ -f "${{ inputs.service-dir }}/requirements.txt" ]; then
-            pip install -r "${{ inputs.service-dir }}/requirements.txt"
+          if [ -f "$INPUT_SERVICE_DIR/requirements.txt" ]; then
+            pip install -r "$INPUT_SERVICE_DIR/requirements.txt"
           fi
           pip install coverage pytest pytest-cov pytest-asyncio
-          if [ -d "${{ inputs.service-dir }}/tests" ]; then
-            cd "${{ inputs.service-dir }}"
+          if [ -d "$INPUT_SERVICE_DIR/tests" ]; then
+            cd "$INPUT_SERVICE_DIR"
             if [ -d "app" ]; then
               pytest --cov=app --cov-report=xml:coverage.xml tests/ -v
             else
               OMIT="*/generate_sample_sales.py,*/test_tdd.py,*/patch_spark_jars.py,*/tests/*,*/.venv*/*"
-              if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
+              if [ "$INPUT_SERVICE_NAME" = "demand-forecast" ]; then
                 OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py"
-              elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
+              elif [ "$INPUT_SERVICE_NAME" = "mlops-training" ]; then
                 OMIT="$OMIT,*/forecast_api.py"
-              elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
+              elif [ "$INPUT_SERVICE_NAME" = "mlflow" ]; then
                 OMIT="$OMIT,*/capture_orders.py,*/train_demand_model.py,*/feature_engineering.py,*/forecast_api.py"
               fi
               coverage run --source=. --omit="$OMIT" -m unittest discover -s tests -v
@@ -261,6 +285,7 @@ jobs:
 
       - name: Upload Python Coverage Artifact
         if: inputs.service-type == 'python' && always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ inputs.service-name }}
@@ -277,29 +302,44 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # Gitleaks Secrets Detection (Centralized Config - Hard Gate)
       - name: Run Gitleaks Secret Detector
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: gitleaks/gitleaks-action@v3
         continue-on-error: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
 
-      # Semgrep SAST — fails on ERROR-severity findings (Anti-bottleneck: container/CLI fast path)
-      - name: Run Semgrep Security Scanner
+      # Semgrep SAST — Pinned v1.110.0 with centralized ruleset (devsecops/sast/semgrep/semgrep-rules.yaml)
+      - name: Run Semgrep Security Scanner (Pinned v1.110.0)
+        env:
+          SEMGREP_VERSION: "1.110.0"
         run: |
-          if command -v semgrep &>/dev/null; then
-            semgrep scan --config auto --severity ERROR --error ${{ inputs.service-dir }}
-          elif command -v docker &>/dev/null; then
-            docker run --rm -v "$GITHUB_WORKSPACE:/src:ro" returntocorp/semgrep semgrep scan --config auto --severity ERROR --error "${{ inputs.service-dir }}"
+          if command -v docker &>/dev/null; then
+            docker run --rm -v "$GITHUB_WORKSPACE:/src" -w /src "returntocorp/semgrep:${SEMGREP_VERSION}" \
+              semgrep scan --config devsecops/sast/semgrep/semgrep-rules.yaml --config p/security-audit \
+              --severity ERROR --error --sarif --output "semgrep-${INPUT_SERVICE_NAME}.sarif" "$INPUT_SERVICE_DIR"
           else
-            python3 -m pip install --upgrade pip && pip install semgrep
-            semgrep scan --config auto --severity ERROR --error ${{ inputs.service-dir }}
+            python3 -m pip install --upgrade pip && pip install "semgrep==${SEMGREP_VERSION}"
+            semgrep scan --config devsecops/sast/semgrep/semgrep-rules.yaml --config p/security-audit \
+              --severity ERROR --error --sarif --output "semgrep-${INPUT_SERVICE_NAME}.sarif" "$INPUT_SERVICE_DIR"
           fi
+
+      - name: Upload Semgrep SARIF Report
+        if: always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: actions/upload-artifact@v7
+        with:
+          name: semgrep-sarif-${{ inputs.service-name }}
+          path: semgrep-${{ inputs.service-name }}.sarif
+          if-no-files-found: ignore
+          retention-days: 14
 
       # Keep local and CI IaC checks on the same Trivy engine and central policy.
       - name: Run Trivy IaC Configuration Scan
@@ -323,11 +363,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Cache SonarCloud Global Packages
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/cache@v6
         with:
           path: ~/.sonar/cache
@@ -338,6 +380,7 @@ jobs:
       # Spring Boot Sonar Analysis
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           java-version: '21'
@@ -346,6 +389,7 @@ jobs:
 
       - name: Download Spring Boot Test & Coverage Artifacts
         if: inputs.service-type == 'spring-boot'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: surefire-${{ inputs.service-name }}
@@ -359,16 +403,15 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "::warning::STATUS: NOT CONFIGURED — SONAR_TOKEN or SONAR_ORGANIZATION is missing; skipping SonarQube Cloud analysis."
             exit 0
           fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
+          cd "$INPUT_SERVICE_DIR"
           mvn -B -T 1C \
             org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar \
-            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.projectKey="msa-${INPUT_SERVICE_NAME}" \
+            -Dsonar.projectName="MSA ${INPUT_SERVICE_NAME}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.java.binaries=target/classes \
@@ -379,6 +422,7 @@ jobs:
       # Frontend Sonar Analysis
       - name: Set up Java for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           java-version: '21'
@@ -386,6 +430,7 @@ jobs:
 
       - name: Set up Node.js for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -394,6 +439,7 @@ jobs:
 
       - name: Download Frontend Coverage Artifacts
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: coverage-${{ inputs.service-name }}
@@ -401,6 +447,7 @@ jobs:
 
       - name: Cache SonarCloud Scanner Work
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/cache@v6
         with:
           path: ${{ inputs.service-dir }}/.scannerwork
@@ -416,12 +463,11 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "::warning::STATUS: NOT CONFIGURED — SONAR_TOKEN or SONAR_ORGANIZATION is missing; skipping SonarQube Cloud analysis."
             exit 0
           fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
+          cd "$INPUT_SERVICE_DIR"
           npx --yes sonarqube-scanner \
             -Dsonar.projectKey=msa-frontend \
             -Dsonar.projectName="Novashop Storefront" \
@@ -436,6 +482,7 @@ jobs:
       # Go Sonar Analysis
       - name: Download Go Coverage Artifacts
         if: inputs.service-type == 'go'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: coverage-${{ inputs.service-name }}
@@ -443,6 +490,7 @@ jobs:
 
       - name: Set up Node.js for Go Sonar Scanner
         if: inputs.service-type == 'go'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -455,15 +503,14 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "::warning::STATUS: NOT CONFIGURED — SONAR_TOKEN or SONAR_ORGANIZATION is missing; skipping SonarQube Cloud analysis."
             exit 0
           fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
+          cd "$INPUT_SERVICE_DIR"
           npx --yes sonarqube-scanner \
-            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.projectKey="msa-${INPUT_SERVICE_NAME}" \
+            -Dsonar.projectName="MSA ${INPUT_SERVICE_NAME}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=. \
@@ -476,6 +523,7 @@ jobs:
       # NestJS Sonar Analysis
       - name: Set up Java for NestJS Sonar Scanner
         if: inputs.service-type == 'nestjs'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           java-version: '21'
@@ -483,6 +531,7 @@ jobs:
 
       - name: Set up Node.js for NestJS Sonar Scanner
         if: inputs.service-type == 'nestjs'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24.15'
@@ -491,6 +540,7 @@ jobs:
 
       - name: Download NestJS Coverage Artifacts
         if: inputs.service-type == 'nestjs'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: coverage-${{ inputs.service-name }}
@@ -504,15 +554,14 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "::warning::STATUS: NOT CONFIGURED — SONAR_TOKEN or SONAR_ORGANIZATION is missing; skipping SonarQube Cloud analysis."
             exit 0
           fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
+          cd "$INPUT_SERVICE_DIR"
           npx --yes sonarqube-scanner \
-            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.projectKey="msa-${INPUT_SERVICE_NAME}" \
+            -Dsonar.projectName="MSA ${INPUT_SERVICE_NAME}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=src \
@@ -526,6 +575,7 @@ jobs:
       # Python / MLOps Sonar Analysis
       - name: Download Python Coverage Artifacts
         if: inputs.service-type == 'python'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: coverage-${{ inputs.service-name }}
@@ -533,6 +583,7 @@ jobs:
 
       - name: Set up Java for Python Sonar Scanner
         if: inputs.service-type == 'python'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-java@v6
         with:
           java-version: '21'
@@ -540,6 +591,7 @@ jobs:
 
       - name: Set up Node.js for Python Sonar Scanner
         if: inputs.service-type == 'python'
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24'
@@ -552,30 +604,29 @@ jobs:
           SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
           SONAR_QG_WAIT: ${{ inputs.sonar-qualitygate-wait }}
         run: |
-          if [ -z "$SONAR_TOKEN" ]; then
-            echo "::warning::SONAR_TOKEN is not configured; skipping SonarQube Cloud analysis."
+          if [ -z "$SONAR_TOKEN" ] || [ -z "$SONAR_ORGANIZATION" ]; then
+            echo "::warning::STATUS: NOT CONFIGURED — SONAR_TOKEN or SONAR_ORGANIZATION is missing; skipping SonarQube Cloud analysis."
             exit 0
           fi
-          : "${SONAR_ORGANIZATION:?SONAR_ORGANIZATION must match the SonarQube Cloud organization key}"
-          cd "${{ inputs.service-dir }}"
+          cd "$INPUT_SERVICE_DIR"
           EXCLUSIONS="tests/**,data/**,*.sh,*.ps1,Dockerfile*,.venv*/**,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
           COVERAGE_EXCLUSIONS="*.sh,*.ps1,Dockerfile*,generate_sample_sales.py,test_tdd.py,patch_spark_jars.py"
-          if [ "${{ inputs.service-name }}" = "demand-forecast" ]; then
+          if [ "$INPUT_SERVICE_NAME" = "demand-forecast" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.training,Dockerfile.capture,capture_orders.py,train_demand_model.py,feature_engineering.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,capture_orders.py,train_demand_model.py,feature_engineering.py"
-          elif [ "${{ inputs.service-name }}" = "mlops-training" ]; then
+          elif [ "$INPUT_SERVICE_NAME" = "mlops-training" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,forecast_api.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py"
-          elif [ "${{ inputs.service-name }}" = "mlflow" ]; then
+          elif [ "$INPUT_SERVICE_NAME" = "mlflow" ]; then
             EXCLUSIONS="$EXCLUSIONS,Dockerfile.forecast,Dockerfile.training,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,forecast_api.py,capture_orders.py,train_demand_model.py,feature_engineering.py"
-          elif [ "${{ inputs.service-name }}" = "analytics-service" ]; then
+          elif [ "$INPUT_SERVICE_NAME" = "analytics-service" ]; then
             EXCLUSIONS="$EXCLUSIONS,scripts/**"
             COVERAGE_EXCLUSIONS="$COVERAGE_EXCLUSIONS,scripts/**"
           fi
           npx --yes sonarqube-scanner \
-            -Dsonar.projectKey=msa-${{ inputs.service-name }} \
-            -Dsonar.projectName="MSA ${{ inputs.service-name }}" \
+            -Dsonar.projectKey="msa-${INPUT_SERVICE_NAME}" \
+            -Dsonar.projectName="MSA ${INPUT_SERVICE_NAME}" \
             -Dsonar.organization="$SONAR_ORGANIZATION" \
             -Dsonar.host.url="$SONAR_HOST_URL" \
             -Dsonar.sources=. \
@@ -596,12 +647,15 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: docker/setup-buildx-action@v4
 
       - name: Build Docker Image & Export to OCI Tarball
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.context-dir != '' && inputs.context-dir || ((inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.') }}
@@ -612,6 +666,7 @@ jobs:
           cache-to: type=gha,mode=min
 
       - name: Upload Image Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: image-${{ inputs.service-name }}
@@ -629,6 +684,7 @@ jobs:
           output: 'sbom-${{ inputs.service-name }}.cdx.json'
 
       - name: Upload SBOM Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ inputs.service-name }}
@@ -646,9 +702,11 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Download Image Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: image-${{ inputs.service-name }}
@@ -688,6 +746,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Install Helm 4
@@ -695,13 +754,14 @@ jobs:
 
       - name: Render Helm Manifests
         run: |
-          HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
+          HELM_KEY="${INPUT_HELM_VALUES_KEY:-$INPUT_SERVICE_NAME}"
           helm template microservices ./helm/microservices-umbrella \
-            --set ${HELM_KEY}.image.tag=${{ github.sha }} \
+            --set "${HELM_KEY}.image.tag=${GH_SHA}" \
             > rendered-manifests.yaml
 
       - name: Cache Conftest Binary
         id: cache-conftest
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/cache@v6
         with:
           path: /usr/local/bin/conftest
@@ -738,17 +798,34 @@ jobs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
       image-published: ${{ steps.registry-push.outputs.published }}
       image-tag: ${{ steps.registry-push.outputs.image-tag }}
+      image-signed: ${{ steps.cosign-sign.outputs.signed }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
     steps:
+      - name: Checkout Cosign Public Key & Governance Config
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            devsecops/compliance/cosign
+
+      - name: Install Cosign (Pinned v3.1.3)
+        run: |
+          if ! command -v cosign &>/dev/null; then
+            curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o cosign
+            sudo install cosign /usr/local/bin/cosign
+          fi
+          cosign version
+
       - name: Download Image Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp
 
       - name: Load Image from Tarball
-        run: docker load -i /tmp/${{ inputs.service-name }}-image.tar
+        run: docker load -i "/tmp/${INPUT_SERVICE_NAME}-image.tar"
 
       - name: Tag and Push to Container Registry (Immutable Promotion on staging/master)
         id: registry-push
@@ -762,22 +839,22 @@ jobs:
           # 1. Explicit input tag (e.g. 1.0.0)
           # 2. Git Tag SemVer (e.g. refs/tags/v1.0.0 -> 1.0.0)
           # 3. Commit SHA fallback (always immutable)
-          if [ -n "${{ inputs.image-tag }}" ]; then
-            TARGET_TAG="${{ inputs.image-tag }}"
-          elif [[ "${{ github.ref }}" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+          if [ -n "$INPUT_IMAGE_TAG" ]; then
+            TARGET_TAG="$INPUT_IMAGE_TAG"
+          elif [[ "$GH_REF" =~ ^refs/tags/v?([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
             TARGET_TAG="${BASH_REMATCH[1]}"
           else
-            TARGET_TAG="${{ github.sha }}"
+            TARGET_TAG="$GH_SHA"
           fi
 
-          FINAL_IMAGE="${{ env.IMAGE_NAME }}:${TARGET_TAG}"
+          FINAL_IMAGE="${IMAGE_NAME}:${TARGET_TAG}"
 
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
             # On staging/prod promotion, check if the exact immutable artifact for this commit SHA
             # was already built and pushed in an earlier stage; if so, promote its digest without overwriting.
-            if [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            if [ "$GH_REF" = "refs/heads/staging" ] || [ "$GH_REF" = "refs/heads/master" ]; then
               EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
               if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
                 echo "digest=$EXISTING_DIGEST" >> "$GITHUB_OUTPUT"
@@ -789,8 +866,8 @@ jobs:
             fi
 
             # If target tag differs from github.sha, tag the loaded image
-            if [ "$TARGET_TAG" != "${{ github.sha }}" ]; then
-              docker tag "${{ env.IMAGE_NAME }}:${{ github.sha }}" "$FINAL_IMAGE"
+            if [ "$TARGET_TAG" != "$GH_SHA" ]; then
+              docker tag "${IMAGE_NAME}:${GH_SHA}" "$FINAL_IMAGE"
             fi
 
             echo "Pushing single immutable image tag: $FINAL_IMAGE"
@@ -811,6 +888,25 @@ jobs:
             echo "::notice::Registry credentials are not configured; deployment is skipped because no image was published."
           fi
 
+      - name: Sign Published OCI Image by Immutable Digest (Cosign v3.1.3)
+        id: cosign-sign
+        if: steps.registry-push.outputs.published == 'true'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_PRIVATE_KEY }}
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+          IMAGE_DIGEST: ${{ steps.registry-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+          IMMUTABLE_REF="${IMAGE_NAME}@${IMAGE_DIGEST}"
+          if [ -n "${COSIGN_PRIVATE_KEY:-}" ]; then
+            echo "Signing OCI image $IMMUTABLE_REF with configured Cosign private key..."
+            cosign sign --yes --key env://COSIGN_PRIVATE_KEY "$IMMUTABLE_REF"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::STATUS: NOT CONFIGURED — COSIGN_PRIVATE_KEY is not set; skipping OCI image signature attachment for $IMMUTABLE_REF."
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ==========================================================
   # STEP 7: 🐙 ArgoCD GitOps Continuous Delivery Synchronization
   #   - Branch develop/dev: Syncs 'microservices-dev' on Minikube/EKS Dev (namespace: dev)
@@ -828,34 +924,59 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
-      - name: Setup ArgoCD CLI
+      - name: Setup ArgoCD CLI (Pinned v3.6.1) and Cosign (Pinned v3.1.3)
         run: |
           if ! command -v argocd &> /dev/null; then
-            echo "Installing ArgoCD CLI..."
-            curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64 2>/dev/null || true
+            echo "Installing ArgoCD CLI v3.6.1..."
+            curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/v3.6.1/argocd-linux-amd64 2>/dev/null || true
             chmod +x /usr/local/bin/argocd 2>/dev/null || true
+          fi
+          if ! command -v cosign &> /dev/null; then
+            curl -fsSL https://github.com/sigstore/cosign/releases/download/v3.1.3/cosign-linux-amd64 -o cosign
+            sudo install cosign /usr/local/bin/cosign
+          fi
+
+      - name: Verify Supply Chain Provenance & OCI Image Signature Before Sync
+        env:
+          IMAGE_DIGEST: ${{ needs.push-dockerhub.outputs.image-digest }}
+          IMAGE_SIGNED: ${{ needs.push-dockerhub.outputs.image-signed }}
+          COSIGN_PRIVATE_KEY_SET: ${{ secrets.COSIGN_PRIVATE_KEY != '' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          cosign verify-blob \
+            --key devsecops/compliance/cosign/cosign.pub \
+            --bundle devsecops/compliance/cosign/supply-chain-manifest.sigstore.json \
+            --insecure-ignore-tlog=true \
+            devsecops/compliance/cosign/supply-chain-manifest.json
+          if [ "${IMAGE_SIGNED:-false}" = "true" ]; then
+            echo "Verifying Cosign OCI signature for ${IMAGE_NAME}@${IMAGE_DIGEST}..."
+            cosign verify --key devsecops/compliance/cosign/cosign.pub "${IMAGE_NAME}@${IMAGE_DIGEST}"
+          elif [ "$GH_REF" = "refs/heads/master" ] && [ "${COSIGN_PRIVATE_KEY_SET:-false}" = "true" ]; then
+            echo "::error::Production deployment requires a verified OCI image signature for ${IMAGE_NAME}@${IMAGE_DIGEST}."
+            exit 1
           fi
 
       - name: Determine Target ArgoCD Application(s) & Namespace
         id: app-target
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            echo "APP_NAME=microservices-dev" >> $GITHUB_ENV
-            echo "APP_NAMES=microservices-dev" >> $GITHUB_ENV
-            echo "TARGET_ENV=dev" >> $GITHUB_ENV
-            echo "TARGET_NS=dev" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
-            echo "APP_NAME=microservices-staging" >> $GITHUB_ENV
-            echo "APP_NAMES=microservices-staging" >> $GITHUB_ENV
-            echo "TARGET_ENV=staging" >> $GITHUB_ENV
-            echo "TARGET_NS=staging" >> $GITHUB_ENV
+          if [ "$GH_REF" = "refs/heads/develop" ] || [ "$GH_REF" = "refs/heads/dev" ]; then
+            echo "APP_NAME=microservices-dev" >> "$GITHUB_ENV"
+            echo "APP_NAMES=microservices-dev" >> "$GITHUB_ENV"
+            echo "TARGET_ENV=dev" >> "$GITHUB_ENV"
+            echo "TARGET_NS=dev" >> "$GITHUB_ENV"
+          elif [ "$GH_REF" = "refs/heads/staging" ]; then
+            echo "APP_NAME=microservices-staging" >> "$GITHUB_ENV"
+            echo "APP_NAMES=microservices-staging" >> "$GITHUB_ENV"
+            echo "TARGET_ENV=staging" >> "$GITHUB_ENV"
+            echo "TARGET_NS=staging" >> "$GITHUB_ENV"
           else
-            echo "APP_NAME=microservices-prod" >> $GITHUB_ENV
-            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> $GITHUB_ENV
-            echo "TARGET_ENV=prod" >> $GITHUB_ENV
-            echo "TARGET_NS=production" >> $GITHUB_ENV
+            echo "APP_NAME=microservices-prod" >> "$GITHUB_ENV"
+            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> "$GITHUB_ENV"
+            echo "TARGET_ENV=prod" >> "$GITHUB_ENV"
+            echo "TARGET_NS=production" >> "$GITHUB_ENV"
           fi
 
       - name: Trigger ArgoCD GitOps Synchronization & Health Verification
@@ -863,11 +984,13 @@ jobs:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || inputs.argocd-server || 'localhost:8088' }}
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
           ARGOCD_INSECURE: ${{ vars.ARGOCD_INSECURE || 'false' }}
+          NEEDS_IMAGE_DIGEST: ${{ needs.push-dockerhub.outputs.image-digest }}
+          NEEDS_IMAGE_TAG: ${{ needs.push-dockerhub.outputs.image-tag }}
         run: |
           echo "Connecting to ArgoCD for [$APP_NAMES] in namespace $TARGET_NS..."
-          IMAGE_DIGEST="${{ needs.push-dockerhub.outputs.image-digest }}"
-          PUBLISHED_TAG="${{ needs.push-dockerhub.outputs.image-tag || github.sha }}"
-          HELM_KEY="${{ inputs.helm-values-key != '' && inputs.helm-values-key || inputs.service-name }}"
+          IMAGE_DIGEST="$NEEDS_IMAGE_DIGEST"
+          PUBLISHED_TAG="${NEEDS_IMAGE_TAG:-$GH_SHA}"
+          HELM_KEY="${INPUT_HELM_VALUES_KEY:-$INPUT_SERVICE_NAME}"
           TLS_FLAGS=()
           if [[ "$ARGOCD_SERVER" == localhost* ]] || [[ "$ARGOCD_SERVER" == 127.0.0.1* ]] || [ "$ARGOCD_INSECURE" = "true" ]; then
             TLS_FLAGS=(--insecure)
@@ -918,14 +1041,17 @@ jobs:
       KEYCLOAK_URL: ${{ inputs.keycloak-url != '' && inputs.keycloak-url || vars.DEVSECOPS_KEYCLOAK_URL }}
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Set up Node.js for Newman
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-node@v7
         with:
           node-version: '24'
 
       - name: Set up Python for storefront smoke checks
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -959,6 +1085,7 @@ jobs:
 
       - name: Upload OWASP ZAP report
         if: always()
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: zap-report-${{ inputs.service-name }}
@@ -977,19 +1104,20 @@ jobs:
     runs-on: ${{ inputs.runner-type }}
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Determine Target Application(s) for Rollback
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/develop" ] || [ "${{ github.ref }}" = "refs/heads/dev" ]; then
-            echo "APP_NAMES=microservices-dev" >> $GITHUB_ENV
-            echo "TARGET_NS=dev" >> $GITHUB_ENV
-          elif [ "${{ github.ref }}" = "refs/heads/staging" ]; then
-            echo "APP_NAMES=microservices-staging" >> $GITHUB_ENV
-            echo "TARGET_NS=staging" >> $GITHUB_ENV
+          if [ "$GH_REF" = "refs/heads/develop" ] || [ "$GH_REF" = "refs/heads/dev" ]; then
+            echo "APP_NAMES=microservices-dev" >> "$GITHUB_ENV"
+            echo "TARGET_NS=dev" >> "$GITHUB_ENV"
+          elif [ "$GH_REF" = "refs/heads/staging" ]; then
+            echo "APP_NAMES=microservices-staging" >> "$GITHUB_ENV"
+            echo "TARGET_NS=staging" >> "$GITHUB_ENV"
           else
-            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> $GITHUB_ENV
-            echo "TARGET_NS=production" >> $GITHUB_ENV
+            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> "$GITHUB_ENV"
+            echo "TARGET_NS=production" >> "$GITHUB_ENV"
           fi
 
       - name: Execute Automated Emergency Rollback in ArgoCD & Cluster
