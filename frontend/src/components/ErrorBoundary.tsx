@@ -1,40 +1,42 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
-interface Props {
+interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
 }
 
-interface State {
+interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-    error: null,
-    errorInfo: null,
-  };
-
-  public static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error, errorInfo: null };
+export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = {
+      hasError: false,
+      error: null,
+    };
+    this.handleReset = this.handleReset.bind(this);
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    this.setState({ errorInfo });
-    // Log uncaught client errors to console with structured context
-    console.error('[ErrorBoundary] Uncaught React exception:', error, errorInfo);
+  public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
-  private handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+  public componentDidCatch(error: Error): void {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem('last_client_error', error.message);
+    }
+  }
+
+  public handleReset(): void {
+    this.setState({ hasError: false, error: null });
     window.location.reload();
-  };
+  }
 
-  public render() {
+  public render(): ReactNode {
     if (this.state.hasError) {
       if (this.props.fallback) {
         return this.props.fallback;
@@ -59,8 +61,9 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
             <div className="flex gap-3 justify-center">
               <button
+                type="button"
                 onClick={this.handleReset}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-lg shadow-indigo-600/25"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm bg-indigo-600 hover:bg-indigo-500 text-white transition-colors shadow-lg shadow-indigo-600/25 cursor-pointer"
               >
                 <RefreshCw className="w-4 h-4" />
                 Reload Application

@@ -3,8 +3,10 @@ import { Navbar } from './components/Navbar';
 import { ToastContainer } from './components/ToastContainer';
 import { CartDrawer } from './components/CartDrawer';
 import { NotificationDrawer } from './components/NotificationDrawer';
-
 import { CatalogPage } from './pages/CatalogPage';
+import { Product, Order } from './types';
+import { fetchProducts } from './services/graphql';
+import { useAuth } from './context/AuthContext';
 
 // Code-splitting for heavy non-initial views and modals
 const OrdersPage = React.lazy(() => import('./pages/OrdersPage').then(m => ({ default: m.OrdersPage })));
@@ -15,10 +17,6 @@ const CheckoutModal = React.lazy(() => import('./components/CheckoutModal').then
 const ReceiptModal = React.lazy(() => import('./components/ReceiptModal').then(m => ({ default: m.ReceiptModal })));
 const CommandPalette = React.lazy(() => import('./components/CommandPalette').then(m => ({ default: m.CommandPalette })));
 const QrScannerModal = React.lazy(() => import('./components/QrScannerModal').then(m => ({ default: m.QrScannerModal })));
-
-import { Product, Order } from './types';
-import { fetchProducts } from './services/graphql';
-import { useAuth } from './context/AuthContext';
 
 export const App: React.FC = () => {
   const { user } = useAuth();
@@ -188,7 +186,7 @@ export const App: React.FC = () => {
 
         {isCheckoutOpen && !!user && (
           <CheckoutModal
-            isOpen={isCheckoutOpen && !!user}
+            isOpen={isCheckoutOpen}
             onClose={() => setIsCheckoutOpen(false)}
             onOrderSuccess={handleOrderPlaced}
           />
