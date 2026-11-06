@@ -1,0 +1,146 @@
+# ==============================================================================
+# Argo CD 3.6.1 — Local Minikube / Development Helm Values Profile
+# Chart: argo/argo-cd 10.14.0 (appVersion: v3.6.1)
+# ==============================================================================
+fullnameOverride: argocd
+
+global:
+  image:
+    repository: quay.io/argoproj/argocd
+    tag: "v3.6.1"
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+configs:
+  cm:
+    admin.enabled: "true"
+    timeout.reconciliation: "15s"
+    timeout.reconciliation.jitter: "0s"
+    exec.enabled: "false"
+    statusbadge.enabled: "true"
+    application.resourceTrackingMethod: "annotation"
+  params:
+    server.insecure: "false"
+    server.disable.swagger.ui: "false"
+    controller.status.processors: "10"
+    controller.operation.processors: "5"
+    controller.self.heal.timeout.seconds: "5"
+    controller.app.state.cache.expiration: "15s"
+    reposerver.default.cache.expiration: "15s"
+    reposerver.parallelism.limit: "5"
+    otlp.address: "otel-collector.observability.svc.cluster.local:4317"
+    otlp.insecure: "true"
+    otlp.sample.ratio: "1.0"
+    applicationsetcontroller.enable.new.git.file.globbing: "true"
+    applicationsetcontroller.wq.base.delay.ms: "100"
+    applicationsetcontroller.wq.max.delay.sec: "60"
+    applicationsetcontroller.wq.qps: "20"
+    applicationsetcontroller.wq.burst: "50"
+  rbac:
+    create: true
+    policy.default: "role:readonly"
+    scopes: "[groups, email]"
+    policy.csv: |
+      p, role:platform-admin, *, *, *, allow
+      p, role:devops-engineer, applications, get, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, sync, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, rollback, microservices-architecture/*, allow
+      p, role:devops-engineer, applications, action/*, microservices-architecture/*, allow
+      p, role:devops-engineer, logs, get, microservices-architecture/*, allow
+      p, role:ci-automation, applications, get, microservices-architecture/*, allow
+      p, role:ci-automation, applications, sync, microservices-architecture/*, allow
+      g, platform-admins, role:platform-admin
+      g, devops-engineers, role:devops-engineer
+      g, developers, role:readonly
+
+controller:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+server:
+  replicas: 1
+  insecure: false
+  service:
+    type: NodePort
+    nodePortHttp: 30088
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+repoServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+applicationSet:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+redis:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      additionalLabels:
+        release: kube-prometheus
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false

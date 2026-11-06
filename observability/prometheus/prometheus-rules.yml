@@ -280,3 +280,48 @@ groups:
         expr: sum by (status) (rate(ecommerce_orders_total[5m])) or sum by (status) (rate(ecommerce_orders[5m]))
       - record: job:ecommerce_payments:rate5m
         expr: sum by (status, payment_method) (rate(ecommerce_payments_total[5m]))
+
+  - name: argocd-gitops-alerts
+    interval: 30s
+    rules:
+      - alert: ArgoCDApplicationOutOfSync
+        expr: argocd_app_info{sync_status="OutOfSync"} == 1
+        for: 10m
+        labels:
+          severity: warning
+          category: gitops
+        annotations:
+          summary: "Argo CD application {{ $labels.name }} is OutOfSync"
+          description: "Argo CD application {{ $labels.name }} in namespace {{ $labels.dest_namespace }} has been OutOfSync for more than 10 minutes."
+          runbook: "docs/02-operations/ARGOCD_3_6_UPGRADE_AND_ROLLBACK.md#out-of-sync-remediation"
+
+      - alert: ArgoCDApplicationUnhealthy
+        expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          category: gitops
+        annotations:
+          summary: "Argo CD application {{ $labels.name }} is {{ $labels.health_status }}"
+          description: "Argo CD application {{ $labels.name }} targeting {{ $labels.dest_server }} has been unhealthy ({{ $labels.health_status }}) for more than 5 minutes."
+          runbook: "docs/02-operations/ARGOCD_3_6_UPGRADE_AND_ROLLBACK.md#unhealthy-application-triage"
+
+      - alert: ArgoCDReconciliationLatencyHigh
+        expr: histogram_quantile(0.95, sum by (le) (rate(argocd_app_reconcile_bucket[5m]))) > 30
+        for: 5m
+        labels:
+          severity: warning
+          category: gitops
+        annotations:
+          summary: "Argo CD application reconciliation P95 latency exceeds 30s"
+          description: "Argo CD 3.6 application-controller P95 reconciliation duration is above 30 seconds. Inspect controller status/operation processor queues."
+
+      - alert: ArgoCDRepoServerErrors
+        expr: sum(rate(argocd_git_request_total{request_type="ls-remote", grpc_code!="OK"}[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: gitops
+        annotations:
+          summary: "Argo CD repo-server experiencing elevated Git request errors"
+          description: "Argo CD repo-server failed Git ls-remote requests exceed 0.1/sec over the last 5 minutes."
