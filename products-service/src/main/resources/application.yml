@@ -108,8 +108,10 @@ management:
   opentelemetry:
     resource-attributes:
       "[service.name]": ${spring.application.name}
-      "[service.version]": "1.0"
-      "[deployment.environment]": ${ENVIRONMENT:dev}
+      "[service.namespace]": microservices
+      "[service.version]": ${SERVICE_VERSION:1.0.0}
+      "[deployment.environment.name]": ${ENVIRONMENT:development}
+
     tracing:
       export:
         otlp:
