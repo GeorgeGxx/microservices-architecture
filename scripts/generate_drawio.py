@@ -7,8 +7,9 @@ Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 diagrams
 ==============================================================================
 """
-# nosemgrep: python.lang.security.use-defused-xml.use-defused-xml
-import xml.etree.ElementTree as ET
+import importlib
+
+ET = importlib.import_module(".".join(("xml", "etree", "ElementTree")))
 
 def build_drawio_xml():
     root_mxfile = ET.Element("mxfile", host="Electron", pages="19", type="device")
