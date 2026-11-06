@@ -1,0 +1,79 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: go-gin-microservice-golden-path
+  title: Golden Path — Go 1.26 / Gin High-Throughput Microservice
+  description: Scaffold a low-latency Go 1.26 / Gin microservice with distroless/Alpine non-root containerization, Prometheus metrics, OpenTelemetry tracing, and KEDA autoscaling support.
+  tags:
+    - golden-path
+    - golang-1-26
+    - gin
+    - keda
+spec:
+  owner: group:platform-admins
+  type: service
+  parameters:
+    - title: Service Identity & Ownership
+      required:
+        - component_id
+        - description
+        - owner
+        - system
+      properties:
+        component_id:
+          title: Service Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*-service$'
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner Group
+          type: string
+          default: group:developers
+        system:
+          title: Target System
+          type: string
+          default: novashop-commerce-system
+        service_port:
+          title: Container Port
+          type: integer
+          default: 8085
+    - title: Repository Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+  steps:
+    - id: fetch-base
+      name: Fetch Golden Path Go Gin Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+          service_port: ${{ parameters.service_port }}
+    - id: publish
+      name: Publish Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: feat/scaffold-${{ parameters.component_id }}
+        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Go 1.26 Gin microservice"
+        description: "Automated Golden Path scaffolding for `${{ parameters.component_id }}`."
+        targetPath: ${{ parameters.component_id }}
+    - id: register
+      name: Register Component in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.remoteUrl }}
+        catalogInfoPath: '/catalog-info.yaml'

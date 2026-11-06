@@ -1,0 +1,311 @@
+# ==============================================================================
+# Backstage Catalog — APIs (GraphQL, OpenAPI, AsyncAPI) & Cloud Resources
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: cosmo-supergraph-graphql-api
+  title: Novashop Federated GraphQL Supergraph API
+  description: Unified GraphQL schema federated across Products, Orders, Inventory, Payments, Fulfillment, Analytics, and Demand Forecasting subgraphs.
+  tags:
+    - graphql
+    - federation-v2
+    - cosmo-router
+spec:
+  type: graphql
+  lifecycle: production
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+  definition:
+    $text: ../../cosmo-router/supergraph.yaml
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: products-rest-api
+  title: Products Catalog OpenAPI
+  description: REST & GraphQL subgraph interface for product catalog querying, SKU lookup, and stock price resolution.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Products Service API
+      version: 1.0.0
+    paths:
+      /api/v1/products:
+        get:
+          summary: List catalog products
+          responses:
+            '200':
+              description: Product list returned
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: orders-rest-api
+  title: Orders Saga Orchestration OpenAPI
+  description: REST & GraphQL subgraph interface for order placement, status querying, and saga compensation tracking.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Orders Service API
+      version: 1.0.0
+    paths:
+      /api/v1/orders:
+        post:
+          summary: Create a new customer order and trigger distributed saga
+          responses:
+            '201':
+              description: Order created
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: inventory-rest-api
+  title: Inventory Reservation OpenAPI
+  description: REST interface for stock verification, TTL reservation locking, and stock release.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Inventory Service API
+      version: 1.0.0
+    paths:
+      /api/v1/inventory/reserve:
+        post:
+          summary: Reserve SKU inventory for an active order saga
+          responses:
+            '200':
+              description: Reservation confirmed
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: payments-rest-api
+  title: Payments Authorization OpenAPI
+  description: High-throughput Go/Gin payment processing REST endpoint with idempotency key enforcement.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Payments Service API
+      version: 1.0.0
+    paths:
+      /api/v1/payments:
+        post:
+          summary: Authorize and capture order payment
+          responses:
+            '200':
+              description: Payment processed
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: fulfillment-rest-api
+  title: Warehouse Fulfillment OpenAPI
+  description: NestJS REST endpoint managing shipment dispatches and delivery status updates.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Fulfillment Service API
+      version: 1.0.0
+    paths:
+      /api/v1/shipments:
+        get:
+          summary: Retrieve shipment tracking status
+          responses:
+            '200':
+              description: Shipment details returned
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: analytics-rest-api
+  title: Commercial Telemetry Analytics OpenAPI
+  description: FastAPI endpoint exposing real-time order funnel, payment success ratios, and category revenue metrics.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Analytics Service API
+      version: 1.0.0
+    paths:
+      /api/v1/analytics/summary:
+        get:
+          summary: Return aggregated commercial KPIs
+          responses:
+            '200':
+              description: Analytics summary payload
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: demand-forecast-rest-api
+  title: MLOps Demand Forecast OpenAPI
+  description: FastAPI endpoint returning SKU demand predictions from the active MLflow registered model.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Demand Forecast Inference API
+      version: 1.0.0
+    paths:
+      /forecast:
+        post:
+          summary: Predict future SKU demand over requested horizon
+          responses:
+            '200':
+              description: Forecast response with model version and RMSE metadata
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
+  name: kafka-commerce-events-asyncapi
+  title: Kafka Event-Driven Commerce & Saga AsyncAPI
+  description: Asynchronous event contracts across order-events, payment-events, inventory-events, and fulfillment-events topics.
+spec:
+  type: asyncapi
+  lifecycle: production
+  owner: group:developers
+  system: novashop-commerce-system
+  definition: |
+    asyncapi: 2.6.0
+    info:
+      title: Novashop Event-Driven Commerce Bus
+      version: 1.0.0
+    channels:
+      order-events:
+        description: Order creation, confirmation, and cancellation events
+      payment-events:
+        description: Payment authorization and failure events
+      inventory-events:
+        description: Stock reservation and release events
+      fulfillment-events:
+        description: Shipment creation and delivery events
+---
+# ==============================================================================
+# Infrastructure & Platform Resources
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: postgresql-databases
+  title: Database-per-Service PostgreSQL 18 Fleet
+  description: Isolated relational databases (ms_products, ms_orders, ms_inventory, ms_payments, ms_fulfillment, ms_analytics) provisioned via AWS RDS, Azure PostgreSQL Flexible Server, and GCP Cloud SQL.
+  tags:
+    - postgresql-18
+    - aws-rds
+    - azure-postgresql
+    - gcp-cloudsql
+spec:
+  type: database
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kafka-event-streaming
+  title: Apache Kafka 4.2 KRaft / Managed Event Streaming
+  description: Distributed event streaming backbone (Apache Kafka KRaft in K8s, AWS MSK, Azure Event Hubs Kafka API, GCP Managed Kafka) powering saga choreography and KEDA autoscaling.
+  tags:
+    - kafka-4-2
+    - kraft
+    - aws-msk
+    - azure-eventhubs
+spec:
+  type: messaging-cluster
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: redis-distributed-cache
+  title: Redis 8 Distributed Cache & Rate-Limiter Store
+  description: Low-latency in-memory store backing product catalog caching and Cosmo Router distributed rate limiting (AWS ElastiCache, Azure Managed Redis, GCP Memorystore).
+  tags:
+    - redis-8
+    - cache
+    - rate-limiting
+spec:
+  type: cache
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: keycloak-identity-provider
+  title: Keycloak 26.6.1 Enterprise OIDC Identity Provider (microservices-realm)
+  description: Centralized OAuth2 / OIDC identity provider issuing JWTs for customer storefront authentication, Cosmo Router RBAC, Argo CD 3.6 SSO, Grafana SSO, and Backstage IDP login.
+  tags:
+    - keycloak-26
+    - oidc
+    - oauth2
+    - zero-trust
+spec:
+  type: identity-provider
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: hashicorp-vault-kms
+  title: HashiCorp Vault 1.21.4 & Cloud KMS Secret Store
+  description: Dynamic secret engine, PKI certificate authority for Istio Ambient mTLS, and cloud KMS integration (AWS Secrets Manager/KMS, Azure Key Vault, GCP Secret Manager).
+  tags:
+    - vault
+    - pki
+    - mtls
+    - kms
+spec:
+  type: secret-manager
+  owner: group:platform-admins
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: argocd-gitops-control-plane
+  title: Argo CD 3.6.1 GitOps Control Plane (Helm Chart 10.14.0)
+  description: Declarative GitOps delivery engine managing AWS EKS Primary (DP1) and Secondary (DP2) production dataplanes, Staging, and Minikube environments.
+  tags:
+    - argocd-3-6-1
+    - gitops
+    - helm-10-14-0
+spec:
+  type: gitops-controller
+  owner: group:devops-engineers
+  system: multi-cloud-platform-system

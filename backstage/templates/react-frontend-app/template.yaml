@@ -1,0 +1,74 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: react-frontend-app-golden-path
+  title: Golden Path — React 19 / TypeScript / Node.js 24 Web Application
+  description: Scaffold a React 19 / Vite / TypeScript web application with Clean Architecture, Apollo GraphQL client, Keycloak OIDC PKCE, Vitest coverage, and unprivileged Nginx containerization.
+  tags:
+    - golden-path
+    - react-19
+    - typescript
+    - nodejs-24
+spec:
+  owner: group:platform-admins
+  type: website
+  parameters:
+    - title: Application Identity & Ownership
+      required:
+        - component_id
+        - description
+        - owner
+        - system
+      properties:
+        component_id:
+          title: Application Name
+          type: string
+          pattern: '^[a-z][a-z0-9-]*$'
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner Group
+          type: string
+          default: group:developers
+        system:
+          title: Target System
+          type: string
+          default: novashop-commerce-system
+    - title: Repository Destination
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+  steps:
+    - id: fetch-base
+      name: Fetch Golden Path React 19 Skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          component_id: ${{ parameters.component_id }}
+          description: ${{ parameters.description }}
+          owner: ${{ parameters.owner }}
+          system: ${{ parameters.system }}
+    - id: publish
+      name: Publish Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branchName: feat/scaffold-${{ parameters.component_id }}
+        title: "feat(${{ parameters.component_id }}): scaffold Golden Path React 19 web application"
+        description: "Automated Golden Path scaffolding for `${{ parameters.component_id }}`."
+        targetPath: ${{ parameters.component_id }}
+    - id: register
+      name: Register Component in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.remoteUrl }}
+        catalogInfoPath: '/catalog-info.yaml'

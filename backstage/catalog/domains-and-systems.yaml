@@ -1,0 +1,136 @@
+# ==============================================================================
+# Backstage Catalog — Groups, Domains, and Systems
+# Mapped to Keycloak OIDC Realm (microservices-realm) Groups
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-admins
+  description: Platform Engineering & Cloud Infrastructure Administrators (Keycloak OIDC group)
+spec:
+  type: team
+  profile:
+    displayName: Platform Engineering & Cloud Admins
+    email: platform-admins@georgegxx.dev
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: devops-engineers
+  description: DevSecOps, GitOps (Argo CD 3.6), and Site Reliability Engineering Team
+spec:
+  type: team
+  profile:
+    displayName: DevSecOps & SRE Team
+    email: devops@georgegxx.dev
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: developers
+  description: Application Engineering Teams (Commerce, Fulfillment, Analytics & MLOps)
+spec:
+  type: team
+  profile:
+    displayName: Application Engineering
+    email: developers@georgegxx.dev
+  children: []
+---
+# ==============================================================================
+# Domains
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: commerce
+  description: Core e-commerce customer experience, product catalog, order orchestration, and payment processing
+  links:
+    - url: https://shop.georgegxx.dev
+      title: Novashop Production Storefront
+      icon: web
+spec:
+  owner: group:developers
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: fulfillment-logistics
+  description: Inventory reservation, warehouse fulfillment orchestration, and transactional customer notifications
+spec:
+  owner: group:developers
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: data-mlops
+  description: Real-time Kafka event analytics, demand forecasting inference, and automated PySpark/MLflow model training
+spec:
+  owner: group:developers
+---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: platform-engineering
+  description: Multi-cloud Kubernetes dataplanes (AWS EKS, Azure AKS, GCP GKE), Federated GraphQL Gateway, Argo CD 3.6 GitOps, DevSecOps, Identity, and Observability
+spec:
+  owner: group:platform-admins
+---
+# ==============================================================================
+# Systems
+# ==============================================================================
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: novashop-commerce-system
+  description: Customer-facing storefront, Federated GraphQL BFF, catalog, orders, and high-throughput payments
+  tags:
+    - ecommerce
+    - graphql-federation
+    - saga-pattern
+spec:
+  owner: group:developers
+  domain: commerce
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: supply-chain-fulfillment-system
+  description: Event-driven inventory management, shipment fulfillment, and customer notification system
+  tags:
+    - kafka
+    - event-driven
+    - keda-autoscaling
+spec:
+  owner: group:developers
+  domain: fulfillment-logistics
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: intelligence-mlops-system
+  description: Real-time commercial telemetry analytics and MLflow-backed demand forecasting pipeline
+  tags:
+    - mlops
+    - pyspark
+    - mlflow
+    - fastapi
+spec:
+  owner: group:developers
+  domain: data-mlops
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: multi-cloud-platform-system
+  description: Multi-cloud Kubernetes foundation (AWS EKS DP1+DP2, Azure AKS DP1+DP2, GCP GKE DP1+DP2), Argo CD 3.6.1 GitOps, Istio Ambient mTLS, Vault, Keycloak, and LGTM Observability
+  tags:
+    - aws-eks
+    - azure-aks
+    - gcp-gke
+    - argocd-3-6
+    - istio-ambient
+spec:
+  owner: group:platform-admins
+  domain: platform-engineering

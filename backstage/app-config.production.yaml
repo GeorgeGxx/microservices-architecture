@@ -1,0 +1,59 @@
+# ==============================================================================
+# Backstage IDP — Production Configuration
+# Enforces Keycloak OIDC SSO, TLS, RBAC, and read-only Kubernetes/Argo CD 3.6
+# ==============================================================================
+app:
+  title: Novashop Multi-Cloud Developer Portal
+  baseUrl: https://portal.georgegxx.dev
+
+backend:
+  baseUrl: https://portal.georgegxx.dev
+  listen:
+    port: 7007
+    host: 0.0.0.0
+  cors:
+    origin: https://portal.georgegxx.dev
+    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+    credentials: true
+  database:
+    client: pg
+    connection:
+      host: ${POSTGRES_HOST}
+      port: ${POSTGRES_PORT:-5432}
+      user: ${POSTGRES_USER}
+      password: ${POSTGRES_PASSWORD}
+      ssl:
+        rejectUnauthorized: true
+
+auth:
+  environment: production
+  session:
+    secret: ${BACKSTAGE_AUTH_SESSION_SECRET}
+  providers:
+    oidc:
+      production:
+        metadataUrl: https://auth.georgegxx.dev/realms/microservices-realm/.well-known/openid-configuration
+        clientId: ${KEYCLOAK_CLIENT_ID}
+        clientSecret: ${KEYCLOAK_CLIENT_SECRET}
+        prompt: auto
+        scopes:
+          - openid
+          - profile
+          - email
+          - groups
+
+techdocs:
+  builder: 'external'
+  publisher:
+    type: 'awsS3'
+    awsS3:
+      bucketName: ${TECHDOCS_S3_BUCKET_NAME}
+      region: ${AWS_REGION:-us-east-1}
+
+argocd:
+  appLocatorMethods:
+    - type: 'config'
+      instances:
+        - name: aws-eks-gitops
+          url: https://argocd.georgegxx.dev
+          token: ${ARGOCD_READONLY_TOKEN}

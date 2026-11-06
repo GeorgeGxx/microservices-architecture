@@ -1,0 +1,24 @@
+site_name: Enterprise Multi-Cloud Microservices Architecture
+site_description: Production-grade polyglot microservices, GitOps (Argo CD 3.6.1), DevSecOps, FinOps, and MLOps platform documentation across AWS, Azure, and GCP.
+repo_url: https://github.com/GeorgeGxx/microservices-architecture
+edit_uri: edit/develop/docs/
+
+plugins:
+  - techdocs-core
+
+nav:
+  - Home: README.md
+  - Architecture:
+      - System Architecture: 01-architecture/ARCHITECTURE.md
+      - Backstage IDP Architecture: 01-architecture/BACKSTAGE_IDP_ARCHITECTURE.md
+      - Version Compatibility Matrix: 01-architecture/VERSION_COMPATIBILITY_MATRIX.md
+      - ADR-014 Argo CD 3.6 & Backstage IDP: 01-architecture/adr/014-argocd-3-6-and-backstage-idp.md
+  - Operations & GitOps:
+      - GitOps Operations: 02-operations/GITOPS_OPERATIONS.md
+      - Argo CD 3.6 Upgrade & Rollback Runbook: 02-operations/ARGOCD_3_6_UPGRADE_AND_ROLLBACK.md
+      - BCDR Runbook: 02-operations/BCDR_RUNBOOK.md
+      - FinOps Operations: 02-operations/FINOPS_OPERATIONS.md
+  - Security & DevSecOps:
+      - Security Compliance Matrix: 03-security/SECURITY_COMPLIANCE_MATRIX.md
+  - Observability:
+      - Observability Queries & SLOs: 04-observability/OBSERVABILITY_QUERIES.md

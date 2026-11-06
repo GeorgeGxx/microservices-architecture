@@ -1,0 +1,159 @@
+# ==============================================================================
+# Backstage Internal Developer Portal (IDP) — Kubernetes Deployment Manifest
+# Compliant with Conftest Rego Policies & OPA Gatekeeper Constraints:
+# - Non-root execution (runAsNonRoot: true, runAsUser: 10001)
+# - Read-only root filesystem (readOnlyRootFilesystem: true)
+# - Dropped Linux capabilities (ALL) & allowPrivilegeEscalation: false
+# - Explicit CPU/Memory requests and limits
+# - Liveness & Readiness probes
+# - Operational Independence: Runs in 'dev' or 'platform' namespace without
+#   intercepting or blocking runtime traffic, CI/CD, or Argo CD reconciliation.
+# ==============================================================================
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backstage-idp
+  namespace: dev
+  labels:
+    app: backstage-idp
+    app.kubernetes.io/name: backstage-idp
+    app.kubernetes.io/part-of: microservices-architecture
+automountServiceAccountToken: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-idp
+  namespace: dev
+  labels:
+    app: backstage-idp
+    app.kubernetes.io/name: backstage-idp
+    app.kubernetes.io/part-of: microservices-architecture
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-idp
+  template:
+    metadata:
+      labels:
+        app: backstage-idp
+        app.kubernetes.io/name: backstage-idp
+        app.kubernetes.io/part-of: microservices-architecture
+    spec:
+      serviceAccountName: backstage-idp
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backstage-backend
+          image: ghcr.io/backstage/backstage:1.36.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7007
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: APP_CONFIG_backend_listen_port
+              value: "7007"
+            - name: KEYCLOAK_OIDC_METADATA_URL
+              value: "http://keycloak.auth.svc.cluster.local:8181/realms/microservices-realm/.well-known/openid-configuration"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /.backstage/health/v1/liveness
+              port: 7007
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /.backstage/health/v1/readiness
+              port: 7007
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-idp
+  namespace: dev
+  labels:
+    app: backstage-idp
+    app.kubernetes.io/name: backstage-idp
+    app.kubernetes.io/part-of: microservices-architecture
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 7007
+      targetPort: 7007
+      protocol: TCP
+  selector:
+    app: backstage-idp
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backstage-idp-netpol
+  namespace: dev
+  labels:
+    app: backstage-idp
+spec:
+  podSelector:
+    matchLabels:
+      app: backstage-idp
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 7007
+  egress:
+    - to: []
+      ports:
+        - protocol: TCP
+          port: 53
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 8181
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
