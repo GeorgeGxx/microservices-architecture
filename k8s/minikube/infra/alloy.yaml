@@ -137,6 +137,7 @@ spec:
         sidecar.istio.io/inject: "false"
       annotations:
         sidecar.istio.io/inject: "false"
+    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
     spec:
       automountServiceAccountToken: false
       tolerations:

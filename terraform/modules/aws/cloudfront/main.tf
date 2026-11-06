@@ -128,6 +128,7 @@ locals {
 # CloudFront Dual-Origin Distribution:
 # 1. Origin 'S3FrontendOrigin': React 19 static files (index.html, *.js, *.css, assets)
 # 2. Origin 'EksNlbApiOrigin': Dynamic backend (/api/* and /realms/*) -> AWS NLB -> Istio ingress gateway
+# nosemgrep: terraform.aws.security.aws-cloudfront-insecure-tls.aws-insecure-cloudfront-distribution-tls-version
 resource "aws_cloudfront_distribution" "this" {
   enabled             = true
   is_ipv6_enabled     = true

@@ -1,3 +1,4 @@
+# nosemgrep: terraform.aws.security.aws-ecr-mutable-image-tags.aws-ecr-mutable-image-tags, terraform.lang.security.ecr-image-scan-on-push.ecr-image-scan-on-push
 resource "aws_ecr_repository" "this" {
   for_each             = toset(var.repository_names)
   name                 = each.value

@@ -80,6 +80,7 @@ spec:
           image: oliver006/redis_exporter:v1.94.0
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL

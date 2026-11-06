@@ -310,9 +310,12 @@ rules:
     verbs: ["get", "list", "watch", "create", "update", "patch"]
   - apiGroups: [""]
     resources:
-      - pods
       - services
       - endpoints
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - pods
       - configmaps
       - persistentvolumeclaims
     verbs: ["get", "list", "watch", "create", "update", "patch"]
