@@ -49,6 +49,7 @@ data:
       'analytics-service': { host: 'analytics-service.dev.svc.cluster.local', port: 8087, healthPath: '/health', category: 'Microservice' },
       'demand-forecast-service': { host: 'demand-forecast-service.dev.svc.cluster.local', port: 8005, healthPath: '/health', category: 'MLOps' },
       'mlflow-tracking-server': { host: 'mlflow.dev.svc.cluster.local', port: 5000, healthPath: '/health', category: 'MLOps' },
+      'mlops-training-pipeline': { host: 'mlflow.dev.svc.cluster.local', port: 5000, healthPath: '/api/2.0/mlflow/registered-models/search', category: 'MLOps CronJob', label: 'CRONJOB READY' },
       'keycloak-identity-provider': { host: 'keycloak.auth.svc.cluster.local', port: 8181, healthPath: '/realms/microservices-realm', category: 'Security / IAM' },
       'hashicorp-vault-kms': { host: 'vault.vault.svc.cluster.local', port: 8200, healthPath: '/v1/sys/health', category: 'Secrets / KMS' },
       'argocd-gitops-control-plane': { host: 'argocd-server.argocd.svc.cluster.local', port: 80, healthPath: '/healthz', category: 'GitOps' },
@@ -551,6 +552,7 @@ data:
           category: cfg.category,
           target: `${cfg.host}:${cfg.port}${cfg.healthPath}`,
           status: r.ok ? 'UP' : 'DOWN',
+          badgeLabel: r.ok ? (cfg.label || 'UP') : 'DOWN',
           httpCode: r.status,
           latencyMs: r.latencyMs,
           checkedAt: new Date().toISOString()
@@ -860,7 +862,7 @@ data:
         .pill.domain { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
         .cards-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
           gap: 15px;
         }
         .card {
@@ -871,9 +873,25 @@ data:
           display: flex;
           flex-direction: column;
           gap: 10px;
+          min-width: 0;
+          overflow: hidden;
+          overflow-wrap: anywhere;
+          word-break: break-word;
         }
-        .card h3 { font-size: 15px; color: var(--text-main); }
-        .card p { font-size: 12.6px; color: var(--text-muted); line-height: 1.45; }
+        .card h3 { font-size: 15px; color: var(--text-main); overflow-wrap: anywhere; }
+        .card p { font-size: 12.6px; color: var(--text-muted); line-height: 1.45; overflow-wrap: anywhere; }
+        .card code, .dep-item code {
+          display: inline-block;
+          max-width: 100%;
+          overflow-wrap: anywhere;
+          word-break: break-all;
+          background: rgba(15, 23, 42, 0.65);
+          padding: 3px 7px;
+          border-radius: 5px;
+          font-size: 11.4px;
+          color: #cbd5e1;
+          border: 1px solid rgba(51, 65, 85, 0.65);
+        }
         .card ul { padding-left: 18px; font-size: 12px; color: var(--text-muted); }
         .card li { margin-bottom: 4px; }
         .btn-link, .btn-action {
@@ -1300,9 +1318,9 @@ data:
 
             document.getElementById('healthGrid').innerHTML = entries.map(e =>
               '<div class="card">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">' +
                   '<span class="pill">' + e.category + '</span>' +
-                  '<span class="pill ' + (e.status === 'UP' ? 'prod' : 'down') + '">' + e.status + ' (HTTP ' + e.httpCode + ' • ' + e.latencyMs + ' ms)</span>' +
+                  '<span class="pill ' + (e.status === 'UP' ? 'prod' : 'down') + '">' + (e.badgeLabel || e.status) + ' (HTTP ' + e.httpCode + ' • ' + e.latencyMs + ' ms)</span>' +
                 '</div>' +
                 '<h3>' + e.name + '</h3>' +
                 '<p><code>' + e.target + '</code></p>' +
@@ -1326,7 +1344,7 @@ data:
           document.getElementById('catalogBody').innerHTML = rows.map(c => {
             const h = liveHealth[c.name];
             const healthPill = h
-              ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + h.status + ' (' + h.latencyMs + ' ms)</span>'
+              ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + (h.badgeLabel || h.status) + ' (' + h.latencyMs + ' ms)</span>'
               : '<span class="pill">Probing...</span>';
             return '<tr>' +
               '<td><strong>' + c.name + '</strong><br><span style="color:#38bdf8;font-size:11.5px">' + c.title + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.description + '</span></td>' +
@@ -1403,7 +1421,7 @@ data:
                 '<span class="pill domain">' + comp.domain + '</span> <span class="pill">' + comp.system + '</span>' +
                 '<h2 style="margin-top:6px">' + comp.title + ' (<code>' + comp.name + '</code>)</h2>' +
               '</div>' +
-              '<div>' + (h ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + h.status + ' (' + h.latencyMs + ' ms)</span>' : '') + '</div>' +
+              '<div>' + (h ? '<span class="pill ' + (h.status === 'UP' ? 'prod' : 'down') + '">● ' + (h.badgeLabel || h.status) + ' (' + h.latencyMs + ' ms)</span>' : '') + '</div>' +
             '</div>' +
             '<p style="margin:8px 0">' + comp.description + '</p>' +
             '<div class="dep-columns">' +
