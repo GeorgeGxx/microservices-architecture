@@ -2,13 +2,13 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: nestjs-microservice-golden-path
-  title: Golden Path — NestJS 11 / Node.js 24 Microservice
-  description: Scaffold a production-ready TypeScript / NestJS 11 microservice on Node.js 24 Alpine with OpenTelemetry, Prometheus metrics, Jest coverage, non-root Dockerfile, and DevSecOps CI/CD integration.
+  title: Golden Path — NestJS 12 / Node.js 24 Microservice
+  description: Scaffold a production-ready TypeScript 7 / NestJS 12.2.0 microservice on Node.js 24 Alpine with OpenTelemetry, Prometheus metrics, Jest coverage, non-root Dockerfile, and DevSecOps CI/CD integration.
   tags:
     - golden-path
     - nodejs-24
-    - nestjs-11
-    - typescript
+    - nestjs-12
+    - typescript-7
 spec:
   owner: group:platform-admins
   type: service

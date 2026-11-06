@@ -40,59 +40,286 @@ data:
       platform: {
         title: 'Enterprise Multi-Cloud Internal Developer Portal',
         version: 'Backstage v1.36.0 • Argo CD v3.6.1 (Chart 10.14.0)',
-        keycloakRealm: 'microservices-realm'
+        keycloakRealm: 'microservices-realm',
+        releasePolicy: 'Immutable SemVer Only (Max 2 Docker Hub versions: Active N + Rollback N-1)'
       },
+      groups: [
+        { name: 'group:platform-admins', displayName: 'Platform Engineering & Cloud Admins', email: 'platform-admins@georgegxx.dev', description: 'Platform Engineering, Cloud Infrastructure (AWS/Azure/GCP), IAM, and Zero-Trust Security Administrators (Keycloak OIDC group)' },
+        { name: 'group:devops-engineers', displayName: 'DevSecOps & SRE Team', email: 'devops@georgegxx.dev', description: 'DevSecOps pipelines, GitOps (Argo CD 3.6.1), LGTM Observability, Kiali Service Mesh, and OpenCost FinOps Team' },
+        { name: 'group:developers', displayName: 'Application Engineering', email: 'developers@georgegxx.dev', description: 'Application Engineering Teams across Commerce, Fulfillment Logistics, Analytics, and MLOps' }
+      ],
       domains: [
-        { name: 'commerce-domain', owner: 'commerce-engineering', description: 'Customer-facing storefront, product catalog, order management, and federated GraphQL gateway', systems: ['storefront-and-gateway-system', 'core-commerce-system'] },
-        { name: 'data-and-ai-domain', owner: 'data-ml-engineering', description: 'Event-driven behavioral analytics, demand forecasting, and MLOps model lifecycle', systems: ['data-and-mlops-system'] },
-        { name: 'platform-engineering-domain', owner: 'platform-engineering', description: 'Multi-cloud infrastructure (AWS/Azure/GCP), GitOps (Argo CD 3.6.1), Service Mesh, Observability, and Zero-Trust Security', systems: ['platform-foundation-system'] }
+        { name: 'commerce', owner: 'group:developers', description: 'Core e-commerce customer experience, product catalog, distributed order saga orchestration, and idempotent payment processing', systems: ['novashop-commerce-system'] },
+        { name: 'fulfillment-logistics', owner: 'group:developers', description: 'TTL-bounded inventory reservation, warehouse fulfillment state machine, carrier tracking, and real-time SSE customer notifications', systems: ['supply-chain-fulfillment-system'] },
+        { name: 'data-mlops', owner: 'group:developers', description: 'Real-time Kafka commercial telemetry analytics, SKU demand forecasting inference, and automated PySpark 4.0 / MLflow 3.11.1 model training', systems: ['intelligence-mlops-system'] },
+        { name: 'platform-engineering', owner: 'group:platform-admins', description: 'Multi-cloud Kubernetes dataplanes (AWS EKS, Azure AKS, GCP GKE), Federated GraphQL Gateway, Argo CD 3.6.1 GitOps, Istio Ambient mTLS, Vault, Keycloak, and LGTM Observability', systems: ['multi-cloud-platform-system'] }
       ],
       components: [
-        { name: 'frontend', type: 'website', lifecycle: 'production', owner: 'commerce-engineering', system: 'storefront-and-gateway-system', domain: 'commerce-domain', tech: 'React 19 • Vite • TypeScript • Nginx', port: 5173, argoApp: 'microservices-dev', description: 'Novashop React 19 SPA storefront with Keycloak OIDC PKCE and Apollo GraphQL client' },
-        { name: 'cosmo-router', type: 'service', lifecycle: 'production', owner: 'platform-engineering', system: 'storefront-and-gateway-system', domain: 'commerce-domain', tech: 'WunderGraph Cosmo Router 0.362.0 (Federation v2)', port: 8080, argoApp: 'microservices-dev', description: 'High-performance GraphQL Federation v2 gateway routing across orders, products, inventory, payments, and fulfillment subgraphs' },
-        { name: 'orders-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • PostgreSQL 18 • Kafka', port: 8003, argoApp: 'microservices-dev', description: 'Order orchestration, Saga compensation coordinator, and GraphQL Federation v2 subgraph' },
-        { name: 'products-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • MySQL 9.6 • Redis 8.8', port: 8004, argoApp: 'microservices-dev', description: 'Product catalog, pricing, and Redis-cached GraphQL Federation v2 subgraph' },
-        { name: 'inventory-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • PostgreSQL 18 • Kafka', port: 8001, argoApp: 'microservices-dev', description: 'Real-time stock reservation, warehouse inventory ledger, and Kafka consumer/producer' },
-        { name: 'payments-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Go 1.26.7 • Gin • PostgreSQL 18 • Kafka', port: 8085, argoApp: 'microservices-dev', description: 'Idempotent payment processing engine with Kafka event choreography and Prometheus metrics' },
-        { name: 'fulfillment-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Node.js 24 • NestJS 11 • TypeScript • PostgreSQL 18', port: 8086, argoApp: 'microservices-dev', description: 'Logistics state machine, automated DHL shipment tracking, and GraphQL subgraph' },
-        { name: 'notification-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • SSE • Kafka', port: 8002, argoApp: 'microservices-dev', description: 'Real-time Server-Sent Events (SSE) customer notifications and transactional alerts' },
-        { name: 'analytics-service', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • FastAPI • SQLAlchemy Async • PostgreSQL 18', port: 8087, argoApp: 'microservices-dev', description: 'Conversion funnel telemetry, cohort revenue analytics, and cart abandonment SLI engine' },
-        { name: 'demand-forecast-service', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • FastAPI • PySpark / MLflow Client', port: 8005, argoApp: 'microservices-dev', description: 'SKU demand forecasting API backed by MLflow registered champion models' },
-        { name: 'mlflow-tracking-server', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • MLflow 3.11.1 • PostgreSQL', port: 5000, argoApp: 'microservices-dev', description: 'Centralized MLOps experiment tracking, model registry, and artifact lineage server' },
-        { name: 'mlops-training-job', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • PySpark 4.0 • Scikit-Learn • Kubernetes Job', port: 5000, argoApp: 'microservices-dev', description: 'Distributed demand forecasting model training pipeline with PostgreSQL advisory lock guard' }
+        { name: 'frontend', title: 'Novashop Storefront (React 19)', type: 'website', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'React 19 • TypeScript • Vite • Nginx • Apollo GraphQL Client', port: 5173, docsUrl: 'http://localhost:5173', healthUrl: 'http://localhost:5173/healthz', argoApp: 'microservices-dev', sonarKey: 'msa-frontend', description: 'Customer-facing e-commerce SPA with Clean Architecture, Apollo GraphQL Client, Keycloak OIDC PKCE authentication, and real-time order tracking.' },
+        { name: 'cosmo-router', title: 'WunderGraph Cosmo Federated GraphQL Router', type: 'service', lifecycle: 'production', owner: 'group:platform-admins', system: 'multi-cloud-platform-system', domain: 'platform-engineering', tech: 'WunderGraph Cosmo Router 0.362.0 • Apollo Federation v2 • Go', port: 8080, docsUrl: 'http://localhost:8080', healthUrl: 'http://localhost:8080/health/ready', argoApp: 'microservices-dev', sonarKey: 'cosmo-router', description: 'High-performance Federated GraphQL API Gateway composing products (v2.3), inventory (v2.3), and orders (v2.5 @authenticated) subgraphs with JWT validation, rate limiting, and OTel tracing.' },
+        { name: 'products-service', title: 'Products Catalog Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Redis 8', port: 8004, docsUrl: 'http://localhost:8004/swagger-ui.html', healthUrl: 'http://localhost:8004/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-products-service', description: 'Product catalog, categories, SKU pricing, Redis-backed caching, and GraphQL Federation v2.3 Product (@key sku) subgraph.' },
+        { name: 'orders-service', title: 'Orders Orchestration Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka • Resilience4j', port: 8003, docsUrl: 'http://localhost:8003/swagger-ui.html', healthUrl: 'http://localhost:8003/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-orders-service', description: 'Distributed order saga orchestrator, transactional outbox publisher, Resilience4j circuit breaking, and GraphQL Federation v2.5 (@authenticated) subgraph.' },
+        { name: 'inventory-service', title: 'Inventory Reservation Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka', port: 8001, docsUrl: 'http://localhost:8001/swagger-ui.html', healthUrl: 'http://localhost:8001/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-inventory-service', description: 'Stock level ledger, TTL-bounded (PT15M) inventory reservations, optimistic concurrency control, and GraphQL Federation v2.3 subgraph.' },
+        { name: 'notification-service', title: 'Customer Notification Microservice', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • SSE • Kafka • KEDA', port: 8002, docsUrl: 'http://localhost:8002/swagger-ui.html', healthUrl: 'http://localhost:8002/actuator/health', argoApp: 'microservices-dev', sonarKey: 'msa-notification-service', description: 'Event-driven Kafka consumer dispatching real-time Server-Sent Events (SSE) order, payment, and shipment alerts with KEDA consumer lag autoscaling.' },
+        { name: 'payments-service', title: 'Payments Processing Microservice (Go / Gin)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce', tech: 'Go 1.26.7 • Gin 1.12.0 • GORM 1.31.2 • PostgreSQL 18 • Kafka', port: 8085, docsUrl: 'http://localhost:8085/swagger/index.html', healthUrl: 'http://localhost:8085/health', argoApp: 'microservices-dev', sonarKey: 'msa-payments-service', description: 'Ultra-low-latency Go microservice handling idempotent payment authorization, ledger persistence, refunds, Kafka payment-topic events, and KEDA autoscaling.' },
+        { name: 'fulfillment-service', title: 'Warehouse Fulfillment Microservice (NestJS 12 / Node 24)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics', tech: 'Node.js 24 • NestJS 12.2.0 • TypeScript 7 • TypeORM 1.1.2 • PostgreSQL 18 • Kafka', port: 8086, docsUrl: 'http://localhost:8086/swagger', healthUrl: 'http://localhost:8086/health', argoApp: 'microservices-dev', sonarKey: 'msa-fulfillment-service', description: 'Logistics fulfillment state machine managing shipment creation, DHL carrier tracking numbers, and Kafka fulfillment-topic event choreography.' },
+        { name: 'analytics-service', title: 'Real-Time Commercial Analytics Microservice (FastAPI)', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • FastAPI 0.160.0 • SQLAlchemy 2.0 Async • PostgreSQL 18 • Kafka', port: 8087, docsUrl: 'http://localhost:8087/docs', healthUrl: 'http://localhost:8087/health', argoApp: 'microservices-dev', sonarKey: 'msa-analytics-service', description: 'FastAPI service ingesting Kafka order, payment, and fulfillment streams to compute real-time revenue, conversion funnels, and operational KPIs.' },
+        { name: 'demand-forecast-service', title: 'MLOps Demand Forecast Inference API', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • FastAPI 0.160.0 • Scikit-Learn • MLflow Client', port: 8005, docsUrl: 'http://localhost:8005/docs', healthUrl: 'http://localhost:8005/health', argoApp: 'microservices-dev', sonarKey: 'msa-demand-forecast', description: 'Inference microservice serving SKU-level demand predictions backed by MLflow registered champion models and Prometheus model-drift telemetry.' },
+        { name: 'mlflow-tracking-server', title: 'MLflow Experiment Tracking & Model Registry', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • MLflow 3.11.1 • PostgreSQL 18', port: 5000, docsUrl: 'http://localhost:5000', healthUrl: 'http://localhost:5000/health', argoApp: 'microservices-dev', sonarKey: 'msa-mlflow', description: 'Centralized MLOps model registry and experiment tracking server storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).' },
+        { name: 'mlops-training-pipeline', title: 'PySpark & Scikit-Learn Demand Model Training Pipeline', type: 'service', lifecycle: 'production', owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops', tech: 'Python 3.12 • PySpark 4.0 • Scikit-Learn • MLflow • K8s Job', port: 5000, docsUrl: 'http://localhost:5000/#/experiments/1', healthUrl: 'http://localhost:5000/health', argoApp: 'microservices-dev', sonarKey: 'msa-mlops-training', description: 'Distributed feature engineering (PySpark 4.0), sales event capture, and GradientBoosting/RandomForest training pipeline with PostgreSQL advisory lock guard.' }
       ],
       apis: [
-        { name: 'cosmo-supergraph-graphql-api', type: 'graphql', system: 'storefront-and-gateway-system', owner: 'platform-engineering', endpoint: 'http://localhost:8080/graphql', description: 'Unified Federated GraphQL Supergraph API (orders v2.5, products, inventory, payments, fulfillment)' },
-        { name: 'orders-rest-and-subgraph-api', type: 'openapi', system: 'core-commerce-system', owner: 'commerce-engineering', endpoint: 'http://localhost:8003/actuator/health', description: 'Orders Service REST & GraphQL Subgraph contract with Saga state transitions' },
-        { name: 'payments-rest-api', type: 'openapi', system: 'core-commerce-system', owner: 'commerce-engineering', endpoint: 'http://localhost:8085/health', description: 'Payments Service idempotent transaction API and webhook processor' },
-        { name: 'analytics-funnel-rest-api', type: 'openapi', system: 'data-and-mlops-system', owner: 'data-ml-engineering', endpoint: 'http://localhost:8087/docs', description: 'FastAPI OpenAPI 3.1 specification for funnel events, cohorts, and revenue metrics' },
-        { name: 'demand-forecast-rest-api', type: 'openapi', system: 'data-and-mlops-system', owner: 'data-ml-engineering', endpoint: 'http://localhost:8005/docs', description: 'MLOps SKU demand prediction and model metadata REST API' }
+        {
+          name: 'cosmo-supergraph-graphql-api',
+          title: 'Novashop Federated GraphQL Supergraph API',
+          type: 'graphql',
+          specVersion: 'Apollo Federation v2 (v2.3 / v2.5)',
+          component: 'cosmo-router',
+          system: 'multi-cloud-platform-system',
+          domain: 'platform-engineering',
+          owner: 'group:platform-admins',
+          endpoint: 'http://localhost:8080',
+          healthEndpoint: 'http://localhost:8080/health/ready',
+          description: 'Unified Federated GraphQL Supergraph API composing products-service (:8004/graphql), inventory-service (:8001/graphql), and orders-service (:8003/graphql) with Keycloak RS256 JWT enforcement.',
+          operations: [
+            'POST /graphql (Supergraph Query & Mutation execution)',
+            'Query.products: [Product!]! • Query.product(id: ID!): Product • Query.productBySku(sku: String!): Product',
+            'Query.inventories: [InventoryResponse!]! • Query.inventory(sku: String!): InventoryResponse',
+            'Query.orders: [Order!]! @authenticated • Query.order(id: ID!): Order @authenticated',
+            'Mutation.placeOrder(input: PlaceOrderInput!): Order @authenticated',
+            'Mutation.cancelOrder(id: ID!) • shipOrder(id: ID!) • deliverOrder(id: ID!) @authenticated',
+            'GET /health • GET /health/ready • GET /health/live'
+          ]
+        },
+        {
+          name: 'products-rest-api',
+          title: 'Products Catalog OpenAPI & GraphQL Subgraph (v2.3)',
+          type: 'graphql-openapi',
+          specVersion: 'OpenAPI 3.0.3 + Federation v2.3',
+          component: 'products-service',
+          system: 'novashop-commerce-system',
+          domain: 'commerce',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8004/swagger-ui.html',
+          healthEndpoint: 'http://localhost:8004/actuator/health',
+          description: 'REST & Federated GraphQL Subgraph (Product @key(fields: "sku")) for product catalog querying, SKU lookup, category filtering, and Redis-cached pricing.',
+          operations: [
+            'POST /graphql (Subgraph v2.3: Product @key(fields: "sku"), Query.products, productBySku, product)',
+            'GET /api/v1/products • POST /api/v1/products',
+            'GET /api/v1/products/{id} • PUT /api/v1/products/{id} • DELETE /api/v1/products/{id}',
+            'GET /api/v1/products/sku/{sku}',
+            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+          ]
+        },
+        {
+          name: 'orders-rest-api',
+          title: 'Orders Saga Orchestration OpenAPI & GraphQL Subgraph (v2.5)',
+          type: 'graphql-openapi',
+          specVersion: 'OpenAPI 3.0.3 + Federation v2.5',
+          component: 'orders-service',
+          system: 'novashop-commerce-system',
+          domain: 'commerce',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8003/swagger-ui.html',
+          healthEndpoint: 'http://localhost:8003/actuator/health',
+          description: 'REST & Federated GraphQL Subgraph (Order, OrderLineItem, Product @key(fields: "sku")) for order placement, distributed saga orchestration, and status transitions.',
+          operations: [
+            'POST /graphql (Subgraph v2.5 @authenticated: Query.orders, order; Mutation.placeOrder, cancelOrder, shipOrder, deliverOrder)',
+            'POST /api/v1/orders • GET /api/v1/orders • GET /api/v1/orders/{id}',
+            'PATCH /api/v1/orders/{id}/cancel • PATCH /api/v1/orders/{id}/ship • PATCH /api/v1/orders/{id}/deliver',
+            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+          ]
+        },
+        {
+          name: 'inventory-rest-api',
+          title: 'Inventory Reservation OpenAPI & GraphQL Subgraph (v2.3)',
+          type: 'graphql-openapi',
+          specVersion: 'OpenAPI 3.0.3 + Federation v2.3',
+          component: 'inventory-service',
+          system: 'supply-chain-fulfillment-system',
+          domain: 'fulfillment-logistics',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8001/swagger-ui.html',
+          healthEndpoint: 'http://localhost:8001/actuator/health',
+          description: 'REST & Federated GraphQL Subgraph extending Product (@key sku -> isInStock, quantity) and managing TTL-bounded stock reservations.',
+          operations: [
+            'POST /graphql (Subgraph v2.3: extend Product @key(fields: "sku") { isInStock, quantity }, Query.inventory, inventories)',
+            'GET /api/v1/inventory • GET /api/v1/inventory/{sku} • PUT /api/v1/inventory/{sku}',
+            'POST /api/v1/inventory/reserve • POST /api/v1/inventory/release',
+            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+          ]
+        },
+        {
+          name: 'notification-rest-api',
+          title: 'Customer Notification & Real-Time SSE Stream OpenAPI',
+          type: 'openapi',
+          specVersion: 'OpenAPI 3.0.3 + SSE',
+          component: 'notification-service',
+          system: 'supply-chain-fulfillment-system',
+          domain: 'fulfillment-logistics',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8002/swagger-ui.html',
+          healthEndpoint: 'http://localhost:8002/actuator/health',
+          description: 'REST and Server-Sent Events (SSE) interface broadcasting real-time order confirmation, payment authorization, and shipment alerts.',
+          operations: [
+            'GET /api/v1/notifications (List dispatched customer notifications)',
+            'GET /api/v1/notifications/stream (Real-time Server-Sent Events stream)',
+            'GET /api/v1/notifications/order/{orderNumber}',
+            'GET /v3/api-docs • GET /actuator/health • GET /actuator/prometheus'
+          ]
+        },
+        {
+          name: 'payments-rest-api',
+          title: 'Payments Authorization & Ledger OpenAPI (Go / Gin)',
+          type: 'openapi',
+          specVersion: 'OpenAPI 3.0.3 (Swaggo)',
+          component: 'payments-service',
+          system: 'novashop-commerce-system',
+          domain: 'commerce',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8085/swagger/index.html',
+          healthEndpoint: 'http://localhost:8085/health',
+          description: 'High-throughput Go 1.26.7 / Gin payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
+          operations: [
+            'POST /api/v1/payments (Idempotent payment authorization & capture)',
+            'GET /api/v1/payments • GET /api/v1/payments/:id',
+            'GET /api/v1/payments/order/:orderId • POST /api/v1/payments/:id/refund',
+            'GET /swagger/index.html • GET /health • GET /metrics'
+          ]
+        },
+        {
+          name: 'fulfillment-rest-api',
+          title: 'Warehouse Fulfillment & Carrier Tracking OpenAPI (NestJS 12)',
+          type: 'openapi',
+          specVersion: 'OpenAPI 3.0.3 (@nestjs/swagger)',
+          component: 'fulfillment-service',
+          system: 'supply-chain-fulfillment-system',
+          domain: 'fulfillment-logistics',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8086/swagger',
+          healthEndpoint: 'http://localhost:8086/health',
+          description: 'NestJS 12.2 / TypeScript 7 REST API managing warehouse pick-pack-ship dispatches, DHL tracking numbers, and delivery lifecycle updates.',
+          operations: [
+            'POST /api/v1/fulfillment/shipments • GET /api/v1/fulfillment/shipments',
+            'GET /api/v1/fulfillment/shipments/:orderId',
+            'PATCH /api/v1/fulfillment/shipments/:id/status',
+            'GET /swagger • GET /health • GET /metrics'
+          ]
+        },
+        {
+          name: 'analytics-rest-api',
+          title: 'Commercial Telemetry & Funnel Analytics OpenAPI (FastAPI)',
+          type: 'openapi',
+          specVersion: 'OpenAPI 3.1.0 (FastAPI)',
+          component: 'analytics-service',
+          system: 'intelligence-mlops-system',
+          domain: 'data-mlops',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8087/docs',
+          healthEndpoint: 'http://localhost:8087/health',
+          description: 'FastAPI 0.160.0 service exposing real-time order conversion funnel, payment success ratios, and category revenue telemetry.',
+          operations: [
+            'GET /api/v1/analytics/summary (Aggregated commercial KPIs & revenue)',
+            'GET /api/v1/analytics/funnel (Order -> Payment -> Fulfillment conversion funnel)',
+            'POST /api/v1/analytics/events (Ingest commercial telemetry event)',
+            'GET /docs • GET /openapi.json • GET /health • GET /metrics'
+          ]
+        },
+        {
+          name: 'demand-forecast-rest-api',
+          title: 'MLOps SKU Demand Forecast Inference OpenAPI (FastAPI)',
+          type: 'openapi',
+          specVersion: 'OpenAPI 3.1.0 (FastAPI)',
+          component: 'demand-forecast-service',
+          system: 'intelligence-mlops-system',
+          domain: 'data-mlops',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:8005/docs',
+          healthEndpoint: 'http://localhost:8005/health',
+          description: 'FastAPI inference endpoint returning SKU demand predictions from the active MLflow champion model with RMSE/MAE/R2 metadata.',
+          operations: [
+            'POST /forecast • GET /forecast/{sku} (SKU demand forecast over horizon)',
+            'GET /model-info (Active MLflow run ID, model version, and evaluation metrics)',
+            'POST /retrain (Trigger asynchronous demand model retraining)',
+            'GET /docs • GET /openapi.json • GET /health • GET /metrics'
+          ]
+        },
+        {
+          name: 'mlflow-tracking-rest-api',
+          title: 'MLflow 3.11.1 Experiment Tracking & Model Registry REST API',
+          type: 'openapi',
+          specVersion: 'MLflow REST API v2.0',
+          component: 'mlflow-tracking-server',
+          system: 'intelligence-mlops-system',
+          domain: 'data-mlops',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:5000',
+          healthEndpoint: 'http://localhost:5000/health',
+          description: 'Centralized MLOps REST API and UI for experiment run logging, hyperparameter tracking, artifact lineage, and model version promotion.',
+          operations: [
+            'POST /api/2.0/mlflow/experiments/search • POST /api/2.0/mlflow/runs/search',
+            'GET /api/2.0/mlflow/registered-models/search',
+            'GET /api/2.0/mlflow/model-versions/search',
+            'GET /#/experiments/1 • GET /health'
+          ]
+        },
+        {
+          name: 'kafka-commerce-events-asyncapi',
+          title: 'Kafka Event-Driven Commerce & Saga Bus AsyncAPI',
+          type: 'asyncapi',
+          specVersion: 'AsyncAPI 2.6.0 (Kafka KRaft 4.2)',
+          component: 'kafka-event-streaming',
+          system: 'novashop-commerce-system',
+          domain: 'commerce',
+          owner: 'group:developers',
+          endpoint: 'http://localhost:20001/kiali/',
+          healthEndpoint: 'http://localhost:9090/targets',
+          description: 'Asynchronous event choreography backbone connecting orders-service, inventory-service, payments-service, fulfillment-service, notification-service, analytics-service, and MLOps capture.',
+          operations: [
+            'Topic: orders-topic (OrderCreated, OrderConfirmed, OrderCancelled — 3 partitions)',
+            'Topic: orders-topic.DLT (Dead-Letter Topic for unprocessable order saga events)',
+            'Topic: payments-topic (PaymentAuthorized, PaymentFailed, PaymentRefunded — 3 partitions)',
+            'Topic: fulfillment-topic (ShipmentCreated, ShipmentInTransit, ShipmentDelivered — 3 partitions)'
+          ]
+        }
       ],
       resources: [
-        { name: 'postgresql-clusters', type: 'database', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'PostgreSQL 18-alpine / AWS RDS Multi-AZ', description: 'Dedicated transactional databases per bounded context (orders, inventory, payments, fulfillment, analytics)' },
-        { name: 'mysql-products-db', type: 'database', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'MySQL 9.6 / AWS RDS', description: 'Primary relational store for product catalog and SKU attributes' },
-        { name: 'redis-cache-cluster', type: 'cache', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'Redis 8.8.1-alpine', description: 'Low-latency distributed cache for product lookups and rate-limiting state' },
-        { name: 'kafka-event-backbone', type: 'messaging', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'Apache Kafka KRaft / AWS MSK', description: 'Event-driven choreography backbone (orders-topic, payments-topic, inventory-topic)' },
-        { name: 'hashicorp-vault-kms', type: 'secrets-store', system: 'platform-foundation-system', owner: 'platform-engineering', tech: 'HashiCorp Vault 1.21 + External Secrets Operator', description: 'Zero-trust secrets management synced via Kubernetes ServiceAccount JWT authentication' }
+        { name: 'postgresql-databases', title: 'Database-per-Service PostgreSQL 18 Fleet', type: 'database', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'PostgreSQL 18-alpine / AWS RDS / Azure Flexible Server / GCP Cloud SQL', description: '6 isolated relational databases: ms_products (db-products:5432), ms_orders (db-orders:5432), ms_inventory (db-inventory:5432), ms_payments (db-payments:5432), ms_fulfillment (db-fulfillment:5432), and ms_analytics (db-analytics:5432).' },
+        { name: 'kafka-event-streaming', title: 'Apache Kafka 4.2 KRaft / Managed Event Streaming', type: 'messaging-cluster', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Apache Kafka 4.2 KRaft / AWS MSK / Azure Event Hubs / GCP Managed Kafka', description: 'Distributed event streaming backbone (orders-topic, orders-topic.DLT, payments-topic, fulfillment-topic) powering saga choreography and KEDA consumer-lag autoscaling.' },
+        { name: 'redis-distributed-cache', title: 'Redis 8 Distributed Cache & Rate-Limiter Store', type: 'cache', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Redis 8.8.1-alpine / AWS ElastiCache / Azure Managed Redis / GCP Memorystore', description: 'Low-latency in-memory store backing product catalog caching (products-service) and distributed rate limiting.' },
+        { name: 'keycloak-identity-provider', title: 'Keycloak 26.6.1 Enterprise OIDC Identity Provider', type: 'identity-provider', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Keycloak 26.6.1 (Realm: microservices-realm • RS256 JWKS)', description: 'Centralized OAuth2 / OIDC PKCE identity provider issuing JWTs for Novashop storefront, Cosmo Router @authenticated guards, Argo CD SSO, Grafana SSO, and Backstage IDP RBAC.' },
+        { name: 'hashicorp-vault-kms', title: 'HashiCorp Vault 1.21.4 & Cloud KMS Secret Store', type: 'secret-manager', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'HashiCorp Vault 1.21.4 + External Secrets / AWS KMS / Azure Key Vault / GCP Secret Manager', description: 'Dynamic secret engine, PKI certificate authority for Istio Ambient mTLS, and zero-trust secret injection.' },
+        { name: 'argocd-gitops-control-plane', title: 'Argo CD 3.6.1 GitOps Control Plane (Helm Chart 10.14.0)', type: 'gitops-controller', system: 'multi-cloud-platform-system', owner: 'group:devops-engineers', tech: 'Argo CD v3.6.1 • Helm 4.3.1 • KEDA • Rollout Health Gates', description: 'Declarative GitOps delivery engine managing Minikube (microservices-dev), Staging, and AWS EKS Primary (DP1) / Secondary (DP2) production dataplanes.' },
+        { name: 'lgtm-observability-stack', title: 'LGTM Observability, Kiali Mesh & OpenCost FinOps Stack', type: 'observability-platform', system: 'multi-cloud-platform-system', owner: 'group:devops-engineers', tech: 'Prometheus 89.2.2 • Grafana • Loki • Tempo 3.0.5 • Alloy • Kiali • OpenCost', description: 'Full-stack OpenTelemetry trace correlation, log aggregation, Prometheus SLO alerting, Istio Ambient mTLS topology, and FinOps cost allocation.' }
       ],
       templates: [
-        { name: 'spring-boot-microservice', title: 'Spring Boot 4.0 + Java 21 Microservice', language: 'Java 21', path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Distroless non-root Dockerfile', 'Helm chart + KEDA autoscaler', 'GitHub Actions + Semgrep/Trivy gates', 'OpenTelemetry + Prometheus actuator'] },
-        { name: 'go-gin-microservice', title: 'Go 1.26 + Gin Event-Driven Microservice', language: 'Go 1.26', path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Multi-stage scratch/distroless build', 'Kafka consumer/producer + Prometheus', 'Helm chart + NetworkPolicy', 'Automated CI/CD + Cosign signing'] },
-        { name: 'nestjs-microservice', title: 'NestJS 11 + Node.js 24 TypeScript Service', language: 'TypeScript / Node 24', path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened runtime', 'GraphQL Federation v2 subgraph', 'Jest coverage + SonarCloud gate', 'Helm chart + Istio VirtualService'] },
-        { name: 'python-fastapi-microservice', title: 'Python 3.12 + FastAPI Analytics/ML Service', language: 'Python 3.12', path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy + Pydantic v2', 'OpenTelemetry + Prometheus instrumentator', 'Pytest coverage + Semgrep SAST', 'Helm chart + KEDA scaling'] },
-        { name: 'react-frontend-app', title: 'React 19 + Vite Micro-Frontend Application', language: 'TypeScript / React 19', path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak OIDC PKCE integration', 'Apollo GraphQL client', 'Unprivileged Nginx 1.27 container', 'CSP & OWASP security headers'] }
+        { name: 'spring-boot-microservice-golden-path', title: 'Golden Path — Spring Boot 4.1.2 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4.1.2', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
+        { name: 'go-gin-microservice-golden-path', title: 'Golden Path — Go 1.26.7 / Gin High-Throughput Microservice', language: 'Go 1.26.7 • Gin 1.12.0', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
+        { name: 'nestjs-microservice-golden-path', title: 'Golden Path — NestJS 12.2 / Node.js 24 Microservice', language: 'Node.js 24 • NestJS 12.2 • TS 7', targetSystem: 'supply-chain-fulfillment-system', path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1.1.2', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
+        { name: 'python-fastapi-microservice-golden-path', title: 'Golden Path — Python 3.12 / FastAPI 0.160 Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.160', targetSystem: 'intelligence-mlops-system', path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2.0.38 + Pydantic v2.14 + OpenAPI 3.1 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3.11.1 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
+        { name: 'react-frontend-app-golden-path', title: 'Golden Path — React 19 / TypeScript / Vite Web Application', language: 'React 19 • TypeScript • Nginx', targetSystem: 'novashop-commerce-system', path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak 26 OIDC PKCE authentication flow', 'Apollo GraphQL Client connected to Cosmo Router (:8080/graphql)', 'Unprivileged Nginx container on port 8080/5173', 'Strict CSP, HSTS, X-Frame-Options & OWASP security headers'] }
       ],
       portals: [
-        { name: 'Novashop Storefront', url: 'http://localhost:5173', category: 'Application', status: 'Active' },
-        { name: 'Cosmo Router GraphQL', url: 'http://localhost:8080/graphql', category: 'Gateway', status: 'Active' },
-        { name: 'Argo CD v3.6.1 GitOps', url: 'http://localhost:8088', category: 'GitOps', status: 'Active' },
-        { name: 'Grafana Dashboards', url: 'http://localhost:3000', category: 'Observability', status: 'Active' },
-        { name: 'Prometheus TSDB', url: 'http://localhost:9090', category: 'Observability', status: 'Active' },
-        { name: 'Kiali Service Mesh', url: 'http://localhost:20001/kiali', category: 'Service Mesh', status: 'Active' },
-        { name: 'Keycloak IAM OIDC', url: 'http://localhost:8181', category: 'Security / IAM', status: 'Active' },
-        { name: 'HashiCorp Vault', url: 'http://localhost:8200', category: 'Secrets', status: 'Active' },
-        { name: 'MLflow Registry', url: 'http://localhost:5000', category: 'MLOps', status: 'Active' },
-        { name: 'OpenCost FinOps', url: 'http://localhost:7000', category: 'FinOps', status: 'Active' }
+        { name: 'Novashop Storefront (React 19)', url: 'http://localhost:5173', category: 'Storefront SPA', namespace: 'dev', auth: 'Public / Keycloak OIDC', status: 'Active' },
+        { name: 'Cosmo Router GraphQL Playground', url: 'http://localhost:8080', category: 'Federated Gateway', namespace: 'dev', auth: 'Open / Bearer JWT', status: 'Active' },
+        { name: 'Products Service Swagger UI', url: 'http://localhost:8004/swagger-ui.html', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Orders Service Swagger UI', url: 'http://localhost:8003/swagger-ui.html', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Inventory Service Swagger UI', url: 'http://localhost:8001/swagger-ui.html', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Notification Service Swagger UI', url: 'http://localhost:8002/swagger-ui.html', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Payments Service Swagger UI', url: 'http://localhost:8085/swagger/index.html', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Fulfillment Service Swagger UI', url: 'http://localhost:8086/swagger', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Analytics Service OpenAPI UI', url: 'http://localhost:8087/docs', category: 'Microservice API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'Demand Forecast OpenAPI UI', url: 'http://localhost:8005/docs', category: 'MLOps API', namespace: 'dev', auth: 'Open', status: 'Active' },
+        { name: 'MLflow 3.11.1 Tracking & Registry UI', url: 'http://localhost:5000', category: 'MLOps', namespace: 'dev', auth: 'Local Tunnel', status: 'Active' },
+        { name: 'Argo CD v3.6.1 GitOps Console', url: 'http://localhost:8088', category: 'GitOps', namespace: 'argocd', auth: 'admin / admin', status: 'Active' },
+        { name: 'Backstage IDP Portal & Catalog API', url: 'http://localhost:7007/api/catalog/entities', category: 'IDP API', namespace: 'dev', auth: 'Keycloak SSO / Open', status: 'Active' },
+        { name: 'Keycloak 26.6.1 IAM Console', url: 'http://localhost:8181', category: 'Security / IAM', namespace: 'auth', auth: 'admin / admin', status: 'Active' },
+        { name: 'HashiCorp Vault 1.21.4 UI', url: 'http://localhost:8200', category: 'Secrets / KMS', namespace: 'vault', auth: 'Token: root', status: 'Active' },
+        { name: 'Grafana LGTM Observability', url: 'http://localhost:3000', category: 'Observability', namespace: 'observability', auth: 'admin / admin', status: 'Active' },
+        { name: 'Prometheus Targets & Alerts', url: 'http://localhost:9090/targets', category: 'Observability', namespace: 'observability', auth: 'Public', status: 'Active' },
+        { name: 'Grafana Alloy Collector UI', url: 'http://localhost:3300', category: 'Observability', namespace: 'observability', auth: 'Open', status: 'Active' },
+        { name: 'Kiali Service Mesh Console', url: 'http://localhost:20001/kiali/', category: 'Service Mesh', namespace: 'istio-system', auth: 'Anonymous', status: 'Active' },
+        { name: 'OpenCost FinOps Allocation UI', url: 'http://localhost:7000', category: 'FinOps', namespace: 'opencost', auth: 'Local Tunnel', status: 'Active' }
       ]
     };
 
@@ -355,10 +582,11 @@ data:
           <div class="toolbar">
             <input type="search" id="searchInput" placeholder="Filter services by name, tech stack, system, or owner..." oninput="renderCatalog()" />
             <select id="domainFilter" onchange="renderCatalog()">
-              <option value="">All Domains</option>
-              <option value="commerce-domain">commerce-domain</option>
-              <option value="data-and-ai-domain">data-and-ai-domain</option>
-              <option value="platform-engineering-domain">platform-engineering-domain</option>
+              <option value="">All Domains (4)</option>
+              <option value="commerce">commerce</option>
+              <option value="fulfillment-logistics">fulfillment-logistics</option>
+              <option value="data-mlops">data-mlops</option>
+              <option value="platform-engineering">platform-engineering</option>
             </select>
           </div>
           <table>
@@ -367,9 +595,9 @@ data:
                 <th>Component</th>
                 <th>Domain / System</th>
                 <th>Technology Stack</th>
-                <th>Owner</th>
+                <th>Owner / Sonar</th>
                 <th>Lifecycle</th>
-                <th>Local Port</th>
+                <th>Endpoints (UI / Health)</th>
               </tr>
             </thead>
             <tbody id="catalogBody"></tbody>
@@ -377,6 +605,15 @@ data:
         </section>
 
         <section id="tab-apis" class="hidden">
+          <div class="toolbar">
+            <input type="search" id="apiSearchInput" placeholder="Filter APIs & Subgraphs by name, service, endpoint, or GraphQL/REST operation..." oninput="renderApis()" />
+            <select id="apiTypeFilter" onchange="renderApis()">
+              <option value="">All API Types (11)</option>
+              <option value="graphql">GraphQL Supergraph & Subgraphs</option>
+              <option value="openapi">OpenAPI REST & SSE Contracts</option>
+              <option value="asyncapi">AsyncAPI Kafka Event Bus</option>
+            </select>
+          </div>
           <div class="cards-grid" id="apisGrid"></div>
         </section>
 
@@ -399,45 +636,45 @@ data:
         function init() {
           document.getElementById('stats').innerHTML = [
             { v: data.components.length, l: 'Catalog Microservices & Apps' },
-            { v: data.apis.length, l: 'GraphQL & OpenAPI Contracts' },
-            { v: data.resources.length, l: 'Stateful & Security Resources' },
+            { v: data.apis.length, l: 'GraphQL, OpenAPI & AsyncAPI Contracts' },
+            { v: data.resources.length, l: 'Stateful, IAM & Cloud Resources' },
             { v: data.templates.length, l: 'Golden Path Scaffolder Templates' },
-            { v: data.domains.length, l: 'Bounded Architecture Domains' }
+            { v: data.domains.length, l: 'Bounded Architecture Domains' },
+            { v: data.portals.length, l: 'Active Platform Tunnels & Consoles' }
           ].map(s => '<div class="stat-card"><div class="stat-value">' + s.v + '</div><div class="stat-label">' + s.l + '</div></div>').join('');
 
           renderCatalog();
-
-          document.getElementById('apisGrid').innerHTML = data.apis.map(a =>
-            '<div class="card">' +
-              '<div><span class="pill">' + a.type.toUpperCase() + '</span> <span class="pill domain">' + a.system + '</span></div>' +
-              '<h3>' + a.name + '</h3>' +
-              '<p>' + a.description + '</p>' +
-              '<p><strong>Owner:</strong> ' + a.owner + '</p>' +
-              '<a class="btn-link" href="' + a.endpoint + '" target="_blank" rel="noopener">Open Endpoint ↗</a>' +
-            '</div>'
-          ).join('');
+          renderApis();
 
           document.getElementById('domainsGrid').innerHTML =
             data.domains.map(d =>
               '<div class="card">' +
-                '<div><span class="pill domain">DOMAIN</span></div>' +
+                '<div><span class="pill domain">DOMAIN</span> <span class="pill prod">' + d.owner + '</span></div>' +
                 '<h3>' + d.name + '</h3>' +
                 '<p>' + d.description + '</p>' +
-                '<p><strong>Owner:</strong> ' + d.owner + ' • <strong>Systems:</strong> ' + d.systems.join(', ') + '</p>' +
+                '<p><strong>System:</strong> <code>' + d.systems.join(', ') + '</code></p>' +
+              '</div>'
+            ).join('') +
+            data.groups.map(g =>
+              '<div class="card">' +
+                '<div><span class="pill">KEYCLOAK OIDC GROUP</span></div>' +
+                '<h3>' + g.displayName + '</h3>' +
+                '<p>' + g.description + '</p>' +
+                '<p><strong>Entity Ref:</strong> <code>' + g.name + '</code> • <strong>Contact:</strong> ' + g.email + '</p>' +
               '</div>'
             ).join('') +
             data.resources.map(r =>
               '<div class="card">' +
-                '<div><span class="pill">' + r.type.toUpperCase() + '</span></div>' +
-                '<h3>' + r.name + '</h3>' +
+                '<div><span class="pill">' + r.type.toUpperCase() + '</span> <span class="pill domain">' + r.system + '</span></div>' +
+                '<h3>' + r.title + '</h3>' +
                 '<p>' + r.description + '</p>' +
-                '<p><strong>Technology:</strong> ' + r.tech + '</p>' +
+                '<p><strong>Technology:</strong> ' + r.tech + '<br><strong>Owner:</strong> ' + r.owner + '</p>' +
               '</div>'
             ).join('');
 
           document.getElementById('templatesGrid').innerHTML = data.templates.map(t =>
             '<div class="card">' +
-              '<div><span class="pill prod">' + t.language + '</span></div>' +
+              '<div><span class="pill prod">' + t.language + '</span> <span class="pill domain">' + t.targetSystem + '</span></div>' +
               '<h3>' + t.title + '</h3>' +
               '<p><code>' + t.path + '</code></p>' +
               '<ul>' + t.features.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
@@ -446,10 +683,36 @@ data:
 
           document.getElementById('portalsGrid').innerHTML = data.portals.map(p =>
             '<div class="card">' +
-              '<div><span class="pill">' + p.category + '</span> <span class="pill prod">' + p.status + '</span></div>' +
+              '<div><span class="pill">' + p.category + '</span> <span class="pill domain">ns: ' + p.namespace + '</span> <span class="pill prod">' + p.status + '</span></div>' +
               '<h3>' + p.name + '</h3>' +
-              '<p><code>' + p.url + '</code></p>' +
-              '<a class="btn-link" href="' + p.url + '" target="_blank" rel="noopener">Launch Portal ↗</a>' +
+              '<p><code>' + p.url + '</code><br><span style="font-size:11.5px;color:#94a3b8">Auth: ' + p.auth + '</span></p>' +
+              '<a class="btn-link" href="' + p.url + '" target="_blank" rel="noopener">Launch Console ↗</a>' +
+            '</div>'
+          ).join('');
+        }
+
+        function renderApis() {
+          const q = (document.getElementById('apiSearchInput').value || '').toLowerCase();
+          const tFilter = document.getElementById('apiTypeFilter').value;
+          const items = data.apis.filter(a => {
+            if (tFilter && !a.type.includes(tFilter)) return false;
+            return !q || [a.name, a.title, a.component, a.system, a.specVersion, a.description, ...(a.operations || [])].some(v => v.toLowerCase().includes(q));
+          });
+          document.getElementById('apisGrid').innerHTML = items.map(a =>
+            '<div class="card">' +
+              '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                '<span class="pill">' + a.specVersion + '</span>' +
+                '<span class="pill domain">' + a.component + '</span>' +
+                '<span class="pill prod">' + a.domain + '</span>' +
+              '</div>' +
+              '<h3>' + a.title + '</h3>' +
+              '<p style="font-size:11.5px;color:#38bdf8"><code>' + a.name + '</code> • System: <code>' + a.system + '</code></p>' +
+              '<p>' + a.description + '</p>' +
+              '<ul>' + (a.operations || []).map(op => '<li><code>' + op + '</code></li>').join('') + '</ul>' +
+              '<div style="display:flex;gap:8px;margin-top:auto;padding-top:6px">' +
+                '<a class="btn-link" href="' + a.endpoint + '" target="_blank" rel="noopener">Open Swagger / UI ↗</a>' +
+                '<a class="btn-link" style="background:rgba(34,197,94,0.14);color:#4ade80" href="' + a.healthEndpoint + '" target="_blank" rel="noopener">Health / Readiness ↗</a>' +
+              '</div>' +
             '</div>'
           ).join('');
         }
@@ -459,16 +722,21 @@ data:
           const dom = document.getElementById('domainFilter').value;
           const rows = data.components.filter(c => {
             if (dom && c.domain !== dom) return false;
-            return !q || [c.name, c.tech, c.system, c.owner, c.description].some(v => v.toLowerCase().includes(q));
+            return !q || [c.name, c.title, c.tech, c.system, c.owner, c.description].some(v => v.toLowerCase().includes(q));
           });
           document.getElementById('catalogBody').innerHTML = rows.map(c =>
             '<tr>' +
-              '<td><strong>' + c.name + '</strong><br><span style="color:#94a3b8;font-size:11.5px">' + c.description + '</span></td>' +
+              '<td><strong>' + c.name + '</strong><br><span style="color:#38bdf8;font-size:11.5px">' + c.title + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.description + '</span></td>' +
               '<td><span class="pill domain">' + c.domain + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.system + '</span></td>' +
               '<td>' + c.tech + '</td>' +
-              '<td>' + c.owner + '</td>' +
+              '<td>' + c.owner + '<br><span style="color:#94a3b8;font-size:11px">Sonar: ' + c.sonarKey + '</span></td>' +
               '<td><span class="pill prod">' + c.lifecycle + '</span></td>' +
-              '<td><a class="btn-link" href="http://localhost:' + c.port + '" target="_blank" rel="noopener">:' + c.port + ' ↗</a></td>' +
+              '<td>' +
+                '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+                  '<a class="btn-link" href="' + c.docsUrl + '" target="_blank" rel="noopener">:' + c.port + ' UI/Docs ↗</a>' +
+                  '<a class="btn-link" style="background:rgba(34,197,94,0.14);color:#4ade80" href="' + c.healthUrl + '" target="_blank" rel="noopener">Health ↗</a>' +
+                '</div>' +
+              '</td>' +
             '</tr>'
           ).join('');
         }
