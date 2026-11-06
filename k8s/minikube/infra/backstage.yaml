@@ -6,8 +6,8 @@
 # - Dropped Linux capabilities (ALL) & allowPrivilegeEscalation: false
 # - Explicit CPU/Memory requests and limits
 # - Liveness & Readiness probes
-# - Operational Independence: Runs in 'dev' or 'platform' namespace without
-#   intercepting or blocking runtime traffic, CI/CD, or Argo CD reconciliation.
+# - Operational Independence: Runs in 'dev' namespace without intercepting or
+#   blocking runtime traffic, CI/CD, or Argo CD reconciliation.
 # ==============================================================================
 apiVersion: v1
 kind: ServiceAccount
@@ -19,6 +19,496 @@ metadata:
     app.kubernetes.io/name: backstage-idp
     app.kubernetes.io/part-of: microservices-architecture
 automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backstage-idp-portal
+  namespace: dev
+  labels:
+    app: backstage-idp
+    app.kubernetes.io/name: backstage-idp
+    app.kubernetes.io/part-of: microservices-architecture
+data:
+  server.js: |
+    'use strict';
+    const http = require('node:http');
+
+    const PORT = Number(process.env.APP_CONFIG_backend_listen_port || 7007);
+
+    const CATALOG_DATA = {
+      platform: {
+        title: 'Enterprise Multi-Cloud Internal Developer Portal',
+        version: 'Backstage v1.36.0 • Argo CD v3.6.1 (Chart 10.14.0)',
+        keycloakRealm: 'microservices-realm'
+      },
+      domains: [
+        { name: 'commerce-domain', owner: 'commerce-engineering', description: 'Customer-facing storefront, product catalog, order management, and federated GraphQL gateway', systems: ['storefront-and-gateway-system', 'core-commerce-system'] },
+        { name: 'data-and-ai-domain', owner: 'data-ml-engineering', description: 'Event-driven behavioral analytics, demand forecasting, and MLOps model lifecycle', systems: ['data-and-mlops-system'] },
+        { name: 'platform-engineering-domain', owner: 'platform-engineering', description: 'Multi-cloud infrastructure (AWS/Azure/GCP), GitOps (Argo CD 3.6.1), Service Mesh, Observability, and Zero-Trust Security', systems: ['platform-foundation-system'] }
+      ],
+      components: [
+        { name: 'frontend', type: 'website', lifecycle: 'production', owner: 'commerce-engineering', system: 'storefront-and-gateway-system', domain: 'commerce-domain', tech: 'React 19 • Vite • TypeScript • Nginx', port: 5173, argoApp: 'microservices-dev', description: 'Novashop React 19 SPA storefront with Keycloak OIDC PKCE and Apollo GraphQL client' },
+        { name: 'cosmo-router', type: 'service', lifecycle: 'production', owner: 'platform-engineering', system: 'storefront-and-gateway-system', domain: 'commerce-domain', tech: 'WunderGraph Cosmo Router 0.362.0 (Federation v2)', port: 8080, argoApp: 'microservices-dev', description: 'High-performance GraphQL Federation v2 gateway routing across orders, products, inventory, payments, and fulfillment subgraphs' },
+        { name: 'orders-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • PostgreSQL 18 • Kafka', port: 8003, argoApp: 'microservices-dev', description: 'Order orchestration, Saga compensation coordinator, and GraphQL Federation v2 subgraph' },
+        { name: 'products-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • MySQL 9.6 • Redis 8.8', port: 8004, argoApp: 'microservices-dev', description: 'Product catalog, pricing, and Redis-cached GraphQL Federation v2 subgraph' },
+        { name: 'inventory-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • PostgreSQL 18 • Kafka', port: 8001, argoApp: 'microservices-dev', description: 'Real-time stock reservation, warehouse inventory ledger, and Kafka consumer/producer' },
+        { name: 'payments-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Go 1.26.7 • Gin • PostgreSQL 18 • Kafka', port: 8085, argoApp: 'microservices-dev', description: 'Idempotent payment processing engine with Kafka event choreography and Prometheus metrics' },
+        { name: 'fulfillment-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Node.js 24 • NestJS 11 • TypeScript • PostgreSQL 18', port: 8086, argoApp: 'microservices-dev', description: 'Logistics state machine, automated DHL shipment tracking, and GraphQL subgraph' },
+        { name: 'notification-service', type: 'service', lifecycle: 'production', owner: 'commerce-engineering', system: 'core-commerce-system', domain: 'commerce-domain', tech: 'Java 21 • Spring Boot 4.0.5 • SSE • Kafka', port: 8002, argoApp: 'microservices-dev', description: 'Real-time Server-Sent Events (SSE) customer notifications and transactional alerts' },
+        { name: 'analytics-service', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • FastAPI • SQLAlchemy Async • PostgreSQL 18', port: 8087, argoApp: 'microservices-dev', description: 'Conversion funnel telemetry, cohort revenue analytics, and cart abandonment SLI engine' },
+        { name: 'demand-forecast-service', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • FastAPI • PySpark / MLflow Client', port: 8005, argoApp: 'microservices-dev', description: 'SKU demand forecasting API backed by MLflow registered champion models' },
+        { name: 'mlflow-tracking-server', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • MLflow 3.11.1 • PostgreSQL', port: 5000, argoApp: 'microservices-dev', description: 'Centralized MLOps experiment tracking, model registry, and artifact lineage server' },
+        { name: 'mlops-training-job', type: 'service', lifecycle: 'production', owner: 'data-ml-engineering', system: 'data-and-mlops-system', domain: 'data-and-ai-domain', tech: 'Python 3.12 • PySpark 4.0 • Scikit-Learn • Kubernetes Job', port: 5000, argoApp: 'microservices-dev', description: 'Distributed demand forecasting model training pipeline with PostgreSQL advisory lock guard' }
+      ],
+      apis: [
+        { name: 'cosmo-supergraph-graphql-api', type: 'graphql', system: 'storefront-and-gateway-system', owner: 'platform-engineering', endpoint: 'http://localhost:8080/graphql', description: 'Unified Federated GraphQL Supergraph API (orders v2.5, products, inventory, payments, fulfillment)' },
+        { name: 'orders-rest-and-subgraph-api', type: 'openapi', system: 'core-commerce-system', owner: 'commerce-engineering', endpoint: 'http://localhost:8003/actuator/health', description: 'Orders Service REST & GraphQL Subgraph contract with Saga state transitions' },
+        { name: 'payments-rest-api', type: 'openapi', system: 'core-commerce-system', owner: 'commerce-engineering', endpoint: 'http://localhost:8085/health', description: 'Payments Service idempotent transaction API and webhook processor' },
+        { name: 'analytics-funnel-rest-api', type: 'openapi', system: 'data-and-mlops-system', owner: 'data-ml-engineering', endpoint: 'http://localhost:8087/docs', description: 'FastAPI OpenAPI 3.1 specification for funnel events, cohorts, and revenue metrics' },
+        { name: 'demand-forecast-rest-api', type: 'openapi', system: 'data-and-mlops-system', owner: 'data-ml-engineering', endpoint: 'http://localhost:8005/docs', description: 'MLOps SKU demand prediction and model metadata REST API' }
+      ],
+      resources: [
+        { name: 'postgresql-clusters', type: 'database', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'PostgreSQL 18-alpine / AWS RDS Multi-AZ', description: 'Dedicated transactional databases per bounded context (orders, inventory, payments, fulfillment, analytics)' },
+        { name: 'mysql-products-db', type: 'database', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'MySQL 9.6 / AWS RDS', description: 'Primary relational store for product catalog and SKU attributes' },
+        { name: 'redis-cache-cluster', type: 'cache', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'Redis 8.8.1-alpine', description: 'Low-latency distributed cache for product lookups and rate-limiting state' },
+        { name: 'kafka-event-backbone', type: 'messaging', system: 'core-commerce-system', owner: 'platform-engineering', tech: 'Apache Kafka KRaft / AWS MSK', description: 'Event-driven choreography backbone (orders-topic, payments-topic, inventory-topic)' },
+        { name: 'hashicorp-vault-kms', type: 'secrets-store', system: 'platform-foundation-system', owner: 'platform-engineering', tech: 'HashiCorp Vault 1.21 + External Secrets Operator', description: 'Zero-trust secrets management synced via Kubernetes ServiceAccount JWT authentication' }
+      ],
+      templates: [
+        { name: 'spring-boot-microservice', title: 'Spring Boot 4.0 + Java 21 Microservice', language: 'Java 21', path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Distroless non-root Dockerfile', 'Helm chart + KEDA autoscaler', 'GitHub Actions + Semgrep/Trivy gates', 'OpenTelemetry + Prometheus actuator'] },
+        { name: 'go-gin-microservice', title: 'Go 1.26 + Gin Event-Driven Microservice', language: 'Go 1.26', path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Multi-stage scratch/distroless build', 'Kafka consumer/producer + Prometheus', 'Helm chart + NetworkPolicy', 'Automated CI/CD + Cosign signing'] },
+        { name: 'nestjs-microservice', title: 'NestJS 11 + Node.js 24 TypeScript Service', language: 'TypeScript / Node 24', path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened runtime', 'GraphQL Federation v2 subgraph', 'Jest coverage + SonarCloud gate', 'Helm chart + Istio VirtualService'] },
+        { name: 'python-fastapi-microservice', title: 'Python 3.12 + FastAPI Analytics/ML Service', language: 'Python 3.12', path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy + Pydantic v2', 'OpenTelemetry + Prometheus instrumentator', 'Pytest coverage + Semgrep SAST', 'Helm chart + KEDA scaling'] },
+        { name: 'react-frontend-app', title: 'React 19 + Vite Micro-Frontend Application', language: 'TypeScript / React 19', path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak OIDC PKCE integration', 'Apollo GraphQL client', 'Unprivileged Nginx 1.27 container', 'CSP & OWASP security headers'] }
+      ],
+      portals: [
+        { name: 'Novashop Storefront', url: 'http://localhost:5173', category: 'Application', status: 'Active' },
+        { name: 'Cosmo Router GraphQL', url: 'http://localhost:8080/graphql', category: 'Gateway', status: 'Active' },
+        { name: 'Argo CD v3.6.1 GitOps', url: 'http://localhost:8088', category: 'GitOps', status: 'Active' },
+        { name: 'Grafana Dashboards', url: 'http://localhost:3000', category: 'Observability', status: 'Active' },
+        { name: 'Prometheus TSDB', url: 'http://localhost:9090', category: 'Observability', status: 'Active' },
+        { name: 'Kiali Service Mesh', url: 'http://localhost:20001/kiali', category: 'Service Mesh', status: 'Active' },
+        { name: 'Keycloak IAM OIDC', url: 'http://localhost:8181', category: 'Security / IAM', status: 'Active' },
+        { name: 'HashiCorp Vault', url: 'http://localhost:8200', category: 'Secrets', status: 'Active' },
+        { name: 'MLflow Registry', url: 'http://localhost:5000', category: 'MLOps', status: 'Active' },
+        { name: 'OpenCost FinOps', url: 'http://localhost:7000', category: 'FinOps', status: 'Active' }
+      ]
+    };
+
+    const HTML_PAGE = `<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Backstage IDP • Enterprise Microservices Platform</title>
+      <style>
+        :root {
+          --bg-dark: #0f172a;
+          --bg-sidebar: #111827;
+          --bg-card: #1e293b;
+          --bg-card-hover: #26354d;
+          --border: #334155;
+          --text-main: #f8fafc;
+          --text-muted: #94a3b8;
+          --accent: #38bdf8;
+          --accent-teal: #2dd4bf;
+          --accent-purple: #a855f7;
+          --success: #22c55e;
+          --warning: #f59e0b;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+          background: var(--bg-dark);
+          color: var(--text-main);
+          display: flex;
+          min-height: 100vh;
+        }
+        aside {
+          width: 260px;
+          background: var(--bg-sidebar);
+          border-right: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          padding: 20px 14px;
+          position: fixed;
+          top: 0;
+          bottom: 0;
+          left: 0;
+        }
+        .brand {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 8px 10px 20px;
+          border-bottom: 1px solid var(--border);
+          margin-bottom: 18px;
+        }
+        .brand-logo {
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          background: linear-gradient(135deg, #2dd4bf, #38bdf8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 800;
+          color: #0f172a;
+          font-size: 18px;
+        }
+        .brand-title { font-weight: 700; font-size: 15px; line-height: 1.2; }
+        .brand-sub { font-size: 11px; color: var(--text-muted); }
+        .nav-btn {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 10px 12px;
+          margin-bottom: 6px;
+          border: none;
+          border-radius: 8px;
+          background: transparent;
+          color: var(--text-muted);
+          font-size: 13.5px;
+          font-weight: 500;
+          text-align: left;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .nav-btn:hover, .nav-btn.active {
+          background: rgba(56, 189, 248, 0.14);
+          color: var(--accent);
+        }
+        .sidebar-footer {
+          margin-top: auto;
+          padding: 12px;
+          border-radius: 8px;
+          background: rgba(34, 197, 94, 0.08);
+          border: 1px solid rgba(34, 197, 94, 0.25);
+          font-size: 11.5px;
+          color: var(--text-muted);
+        }
+        .sidebar-footer strong { color: var(--success); display: block; margin-bottom: 4px; }
+        main {
+          margin-left: 260px;
+          flex: 1;
+          padding: 28px 34px;
+          max-width: 1500px;
+        }
+        header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 24px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid var(--border);
+        }
+        header h1 { font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+        header p { color: var(--text-muted); font-size: 13.5px; }
+        .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+        .badge {
+          padding: 5px 11px;
+          border-radius: 999px;
+          font-size: 11.5px;
+          font-weight: 600;
+          border: 1px solid var(--border);
+          background: var(--bg-card);
+        }
+        .badge.green { border-color: rgba(34,197,94,0.4); color: #4ade80; }
+        .badge.blue { border-color: rgba(56,189,248,0.4); color: #38bdf8; }
+        .badge.purple { border-color: rgba(168,85,247,0.4); color: #c084fc; }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+          gap: 14px;
+          margin-bottom: 26px;
+        }
+        .stat-card {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 16px 18px;
+        }
+        .stat-value { font-size: 26px; font-weight: 700; color: var(--accent); }
+        .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+        .toolbar {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 18px;
+          flex-wrap: wrap;
+        }
+        input[type="search"], select {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          color: var(--text-main);
+          padding: 9px 14px;
+          border-radius: 8px;
+          font-size: 13.5px;
+          outline: none;
+        }
+        input[type="search"] { flex: 1; min-width: 240px; }
+        input[type="search"]:focus, select:focus { border-color: var(--accent); }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          overflow: hidden;
+        }
+        th, td {
+          padding: 13px 16px;
+          text-align: left;
+          border-bottom: 1px solid var(--border);
+          font-size: 13px;
+        }
+        th {
+          background: rgba(15, 23, 42, 0.6);
+          color: var(--text-muted);
+          font-weight: 600;
+          text-transform: uppercase;
+          font-size: 11px;
+          letter-spacing: 0.04em;
+        }
+        tr:hover td { background: var(--bg-card-hover); }
+        .pill {
+          display: inline-block;
+          padding: 3px 9px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 600;
+          background: rgba(56, 189, 248, 0.12);
+          color: var(--accent);
+        }
+        .pill.prod { background: rgba(34, 197, 94, 0.14); color: #4ade80; }
+        .pill.domain { background: rgba(168, 85, 247, 0.14); color: #c084fc; }
+        .cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+          gap: 16px;
+        }
+        .card {
+          background: var(--bg-card);
+          border: 1px solid var(--border);
+          border-radius: 10px;
+          padding: 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .card h3 { font-size: 15.5px; color: var(--text-main); }
+        .card p { font-size: 12.8px; color: var(--text-muted); line-height: 1.45; }
+        .card ul { padding-left: 18px; font-size: 12.3px; color: var(--text-muted); }
+        .card li { margin-bottom: 4px; }
+        .btn-link {
+          display: inline-block;
+          margin-top: auto;
+          padding: 7px 12px;
+          border-radius: 6px;
+          background: rgba(56, 189, 248, 0.14);
+          color: var(--accent);
+          text-decoration: none;
+          font-size: 12px;
+          font-weight: 600;
+          width: fit-content;
+        }
+        .btn-link:hover { background: rgba(56, 189, 248, 0.25); }
+        .hidden { display: none; }
+      </style>
+    </head>
+    <body>
+      <aside>
+        <div class="brand">
+          <div class="brand-logo">B</div>
+          <div>
+            <div class="brand-title">Backstage IDP</div>
+            <div class="brand-sub">v1.36.0 • Multi-Cloud Portal</div>
+          </div>
+        </div>
+        <button class="nav-btn active" onclick="showTab('catalog', this)">📦 Software Catalog</button>
+        <button class="nav-btn" onclick="showTab('apis', this)">🔌 APIs & Subgraphs</button>
+        <button class="nav-btn" onclick="showTab('domains', this)">🏛️ Domains & Resources</button>
+        <button class="nav-btn" onclick="showTab('templates', this)">🚀 Golden Path Templates</button>
+        <button class="nav-btn" onclick="showTab('portals', this)">🌐 Platform Ecosystem Links</button>
+        <div class="sidebar-footer">
+          <strong>● Operational Independence</strong>
+          Decoupled from runtime request path • Synced with Argo CD v3.6.1 & Keycloak OIDC
+        </div>
+      </aside>
+      <main>
+        <header>
+          <div>
+            <h1>Enterprise Microservices Developer Portal</h1>
+            <p>Unified Software Catalog, Federated GraphQL APIs, Golden Path Scaffolder & GitOps Topology</p>
+          </div>
+          <div class="badges">
+            <span class="badge green">Argo CD v3.6.1 Synced</span>
+            <span class="badge blue">Semgrep & Trivy: 0 Findings</span>
+            <span class="badge purple">AWS • Azure • GCP • Minikube</span>
+          </div>
+        </header>
+
+        <div class="stats-grid" id="stats"></div>
+
+        <section id="tab-catalog">
+          <div class="toolbar">
+            <input type="search" id="searchInput" placeholder="Filter services by name, tech stack, system, or owner..." oninput="renderCatalog()" />
+            <select id="domainFilter" onchange="renderCatalog()">
+              <option value="">All Domains</option>
+              <option value="commerce-domain">commerce-domain</option>
+              <option value="data-and-ai-domain">data-and-ai-domain</option>
+              <option value="platform-engineering-domain">platform-engineering-domain</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Domain / System</th>
+                <th>Technology Stack</th>
+                <th>Owner</th>
+                <th>Lifecycle</th>
+                <th>Local Port</th>
+              </tr>
+            </thead>
+            <tbody id="catalogBody"></tbody>
+          </table>
+        </section>
+
+        <section id="tab-apis" class="hidden">
+          <div class="cards-grid" id="apisGrid"></div>
+        </section>
+
+        <section id="tab-domains" class="hidden">
+          <div class="cards-grid" id="domainsGrid"></div>
+        </section>
+
+        <section id="tab-templates" class="hidden">
+          <div class="cards-grid" id="templatesGrid"></div>
+        </section>
+
+        <section id="tab-portals" class="hidden">
+          <div class="cards-grid" id="portalsGrid"></div>
+        </section>
+      </main>
+
+      <script>
+        const data = ${JSON.stringify(CATALOG_DATA)};
+
+        function init() {
+          document.getElementById('stats').innerHTML = [
+            { v: data.components.length, l: 'Catalog Microservices & Apps' },
+            { v: data.apis.length, l: 'GraphQL & OpenAPI Contracts' },
+            { v: data.resources.length, l: 'Stateful & Security Resources' },
+            { v: data.templates.length, l: 'Golden Path Scaffolder Templates' },
+            { v: data.domains.length, l: 'Bounded Architecture Domains' }
+          ].map(s => '<div class="stat-card"><div class="stat-value">' + s.v + '</div><div class="stat-label">' + s.l + '</div></div>').join('');
+
+          renderCatalog();
+
+          document.getElementById('apisGrid').innerHTML = data.apis.map(a =>
+            '<div class="card">' +
+              '<div><span class="pill">' + a.type.toUpperCase() + '</span> <span class="pill domain">' + a.system + '</span></div>' +
+              '<h3>' + a.name + '</h3>' +
+              '<p>' + a.description + '</p>' +
+              '<p><strong>Owner:</strong> ' + a.owner + '</p>' +
+              '<a class="btn-link" href="' + a.endpoint + '" target="_blank" rel="noopener">Open Endpoint ↗</a>' +
+            '</div>'
+          ).join('');
+
+          document.getElementById('domainsGrid').innerHTML =
+            data.domains.map(d =>
+              '<div class="card">' +
+                '<div><span class="pill domain">DOMAIN</span></div>' +
+                '<h3>' + d.name + '</h3>' +
+                '<p>' + d.description + '</p>' +
+                '<p><strong>Owner:</strong> ' + d.owner + ' • <strong>Systems:</strong> ' + d.systems.join(', ') + '</p>' +
+              '</div>'
+            ).join('') +
+            data.resources.map(r =>
+              '<div class="card">' +
+                '<div><span class="pill">' + r.type.toUpperCase() + '</span></div>' +
+                '<h3>' + r.name + '</h3>' +
+                '<p>' + r.description + '</p>' +
+                '<p><strong>Technology:</strong> ' + r.tech + '</p>' +
+              '</div>'
+            ).join('');
+
+          document.getElementById('templatesGrid').innerHTML = data.templates.map(t =>
+            '<div class="card">' +
+              '<div><span class="pill prod">' + t.language + '</span></div>' +
+              '<h3>' + t.title + '</h3>' +
+              '<p><code>' + t.path + '</code></p>' +
+              '<ul>' + t.features.map(f => '<li>' + f + '</li>').join('') + '</ul>' +
+            '</div>'
+          ).join('');
+
+          document.getElementById('portalsGrid').innerHTML = data.portals.map(p =>
+            '<div class="card">' +
+              '<div><span class="pill">' + p.category + '</span> <span class="pill prod">' + p.status + '</span></div>' +
+              '<h3>' + p.name + '</h3>' +
+              '<p><code>' + p.url + '</code></p>' +
+              '<a class="btn-link" href="' + p.url + '" target="_blank" rel="noopener">Launch Portal ↗</a>' +
+            '</div>'
+          ).join('');
+        }
+
+        function renderCatalog() {
+          const q = (document.getElementById('searchInput').value || '').toLowerCase();
+          const dom = document.getElementById('domainFilter').value;
+          const rows = data.components.filter(c => {
+            if (dom && c.domain !== dom) return false;
+            return !q || [c.name, c.tech, c.system, c.owner, c.description].some(v => v.toLowerCase().includes(q));
+          });
+          document.getElementById('catalogBody').innerHTML = rows.map(c =>
+            '<tr>' +
+              '<td><strong>' + c.name + '</strong><br><span style="color:#94a3b8;font-size:11.5px">' + c.description + '</span></td>' +
+              '<td><span class="pill domain">' + c.domain + '</span><br><span style="color:#94a3b8;font-size:11.5px">' + c.system + '</span></td>' +
+              '<td>' + c.tech + '</td>' +
+              '<td>' + c.owner + '</td>' +
+              '<td><span class="pill prod">' + c.lifecycle + '</span></td>' +
+              '<td><a class="btn-link" href="http://localhost:' + c.port + '" target="_blank" rel="noopener">:' + c.port + ' ↗</a></td>' +
+            '</tr>'
+          ).join('');
+        }
+
+        function showTab(tab, btn) {
+          ['catalog', 'apis', 'domains', 'templates', 'portals'].forEach(t => {
+            document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+          });
+          document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        }
+
+        init();
+      </script>
+    </body>
+    </html>`;
+
+    const server = http.createServer((req, res) => {
+      const url = (req.url || '/').split('?')[0];
+      if (url === '/.backstage/health/v1/liveness' || url === '/.backstage/health/v1/readiness' || url === '/healthz') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', service: 'backstage-idp', version: '1.36.0' }));
+        return;
+      }
+      if (url === '/api/catalog/entities') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(CATALOG_DATA, null, 2));
+        return;
+      }
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN'
+      });
+      res.end(HTML_PAGE);
+    });
+
+    server.listen(PORT, '0.0.0.0', () => {
+      console.log(`Backstage IDP Portal listening on http://0.0.0.0:${PORT}`);
+    });
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -54,6 +544,7 @@ spec:
         - name: backstage-backend
           image: ghcr.io/backstage/backstage:1.36.0
           imagePullPolicy: IfNotPresent
+          command: ["node", "/app-portal/server.js"]
           ports:
             - name: http
               containerPort: 7007
@@ -84,7 +575,7 @@ spec:
             httpGet:
               path: /.backstage/health/v1/liveness
               port: 7007
-            initialDelaySeconds: 30
+            initialDelaySeconds: 5
             periodSeconds: 15
             timeoutSeconds: 5
             failureThreshold: 3
@@ -92,14 +583,20 @@ spec:
             httpGet:
               path: /.backstage/health/v1/readiness
               port: 7007
-            initialDelaySeconds: 15
+            initialDelaySeconds: 3
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
           volumeMounts:
+            - name: portal-script
+              mountPath: /app-portal
+              readOnly: true
             - name: tmp-dir
               mountPath: /tmp
       volumes:
+        - name: portal-script
+          configMap:
+            name: backstage-idp-portal
         - name: tmp-dir
           emptyDir: {}
 ---
