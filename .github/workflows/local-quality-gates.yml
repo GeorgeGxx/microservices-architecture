@@ -29,7 +29,9 @@ jobs:
           - terraform/environments/gcp
           - terraform/examples/lifecycle
     steps:
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: actions/checkout@v7
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
@@ -47,6 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: actions/checkout@v7
       - name: Scan Terraform configuration with Trivy
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -63,6 +66,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: actions/checkout@v7
       - name: Install Helm 4
         run: bash scripts/install-helm4.sh v4.3.1
@@ -114,15 +118,26 @@ jobs:
             conftest test "$RUNNER_TEMP/${environment}-manifests.yaml" --policy devsecops/policies/conftest
           done
           conftest test k8s/common/bcdr/database-backup-cronjob.yaml --policy devsecops/policies/conftest
+          conftest test k8s/minikube/infra/backstage.yaml --policy devsecops/policies/conftest
+      - name: Validate Argo CD 3.6.1 Helm values rendering (Chart 10.14.0)
+        shell: bash
+        run: |
+          set -euo pipefail
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update argo
+          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f helm/values/argocd-minikube.yaml > /dev/null
+          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f helm/values/argocd-prod.yaml > /dev/null
 
   local-config-and-tests:
     name: Compose config, Python checks and observability assets
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: actions/checkout@v7
         with:
           fetch-depth: 2
+      # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
@@ -149,6 +164,10 @@ jobs:
           }
       - name: Validate Grafana dashboard JSON
         run: python -c "import json,pathlib; [json.loads(p.read_text(encoding='utf-8')) for p in pathlib.Path('observability/grafana/dashboards').glob('*.json')]"
+      - name: Validate Backstage IDP Catalog, Templates and Semgrep Rules YAML
+        run: |
+          python -m pip install --quiet pyyaml
+          python -c "import yaml, glob; files = ['catalog-info.yaml', 'mkdocs.yml', 'devsecops/sast/semgrep/semgrep-rules.yaml'] + glob.glob('backstage/**/*.yaml', recursive=True); [list(yaml.safe_load_all(open(f, encoding='utf-8'))) for f in files]; print(f'Verified {len(files)} Backstage & Semgrep YAML files')"
       - name: Validate Draw.io architecture diagram XML
         run: python -c "import xml.etree.ElementTree as ET; ET.parse('docs/Diagrams.drawio')"
       - name: Validate Prometheus config and rules

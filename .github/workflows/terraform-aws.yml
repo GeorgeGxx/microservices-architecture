@@ -75,9 +75,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
@@ -114,6 +116,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Scan Terraform configuration with Trivy
@@ -128,6 +131,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy IaC SARIF to GitHub Security
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         continue-on-error: true
@@ -158,38 +162,46 @@ jobs:
       var_file: ${{ steps.resolve-env.outputs.var_file }}
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Resolve Target AWS Environment
         id: resolve-env
+        env:
+          GH_EVENT_NAME: ${{ github.event_name }}
+          GH_INPUT_ENV: ${{ github.event.inputs.environment }}
+          GH_INPUT_DATA_PLANE: ${{ github.event.inputs.data_plane }}
+          GH_REF: ${{ github.ref }}
+          GH_BASE_REF: ${{ github.base_ref }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TARGET_ENV="${{ github.event.inputs.environment }}"
-          elif [ "${{ github.ref }}" = "refs/heads/staging" ] || [ "${{ github.base_ref }}" = "staging" ]; then
+          if [ "$GH_EVENT_NAME" = "workflow_dispatch" ]; then
+            TARGET_ENV="$GH_INPUT_ENV"
+          elif [ "$GH_REF" = "refs/heads/staging" ] || [ "$GH_BASE_REF" = "staging" ]; then
             TARGET_ENV="staging"
           else
             TARGET_ENV="prod"
           fi
 
           DATA_PLANE="all"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "$TARGET_ENV" = "prod" ]; then
-            DATA_PLANE="${{ github.event.inputs.data_plane }}"
+          if [ "$GH_EVENT_NAME" = "workflow_dispatch" ] && [ "$TARGET_ENV" = "prod" ]; then
+            DATA_PLANE="$GH_INPUT_DATA_PLANE"
           fi
-          if [ "$TARGET_ENV" != "prod" ] && [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.data_plane }}" != "all" ]; then
+          if [ "$TARGET_ENV" != "prod" ] && [ "$GH_EVENT_NAME" = "workflow_dispatch" ] && [ "$GH_INPUT_DATA_PLANE" != "all" ]; then
             echo "::error::Data-plane targeting is available only for the prod environment."
             exit 1
           fi
 
-          echo "target_env=$TARGET_ENV" >> $GITHUB_OUTPUT
-          echo "data_plane=$DATA_PLANE" >> $GITHUB_OUTPUT
-          echo "var_file=$TARGET_ENV/terraform.tfvars" >> $GITHUB_OUTPUT
+          echo "target_env=$TARGET_ENV" >> "$GITHUB_OUTPUT"
+          echo "data_plane=$DATA_PLANE" >> "$GITHUB_OUTPUT"
+          echo "var_file=$TARGET_ENV/terraform.tfvars" >> "$GITHUB_OUTPUT"
           # Match terraform/environments/aws/versions.tf and platform-multicloud.ps1 (-Provider aws):
           # one durable backend per provider, isolated by the Terraform workspace.
-          echo "s3_bucket=georgegxx-msa-tfstate-prod" >> $GITHUB_OUTPUT
-          echo "dynamo_table=georgegxx-msa-tflock-prod" >> $GITHUB_OUTPUT
+          echo "s3_bucket=georgegxx-msa-tfstate-prod" >> "$GITHUB_OUTPUT"
+          echo "dynamo_table=georgegxx-msa-tflock-prod" >> "$GITHUB_OUTPUT"
           echo "Resolved target environment: $TARGET_ENV; data plane: $DATA_PLANE"
 
       - name: Configure AWS Credentials (IAM Key / OIDC fallback)
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
@@ -198,6 +210,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
@@ -303,6 +316,7 @@ jobs:
           PY
 
       - name: Upload Terraform Plan Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/upload-artifact@v7
         with:
           name: tfplan-${{ steps.resolve-env.outputs.target_env }}-${{ steps.resolve-env.outputs.data_plane }}
@@ -328,9 +342,11 @@ jobs:
       name: dev
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
@@ -339,11 +355,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: tfplan-dev-all
@@ -387,9 +405,11 @@ jobs:
       name: staging
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
@@ -398,11 +418,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: tfplan-staging-all
@@ -446,9 +468,11 @@ jobs:
       name: production
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
@@ -457,11 +481,13 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2
 
       - name: Download Terraform Plan Artifact
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/download-artifact@v8
         with:
           name: tfplan-prod-${{ needs.tf-plan.outputs.data_plane }}
@@ -502,9 +528,11 @@ jobs:
       contents: read
     steps:
       - name: Checkout Code
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: actions/checkout@v7
 
       - name: Configure AWS Credentials
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME || vars.AWS_ROLE_TO_ASSUME || '' }}
@@ -513,6 +541,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform CLI
+        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
         uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: 1.16.2

@@ -1,4 +1,8 @@
-# GitOps Operations & Argo CD Multi-Cluster Runbook
+# GitOps Operations & Argo CD 3.6.1 Multi-Cluster Runbook
+
+> **Control Plane Version:** Argo CD `v3.6.1` (`argo/argo-cd` Helm chart `10.14.0`)
+> **Helm Values Profiles:** [`helm/values/argocd-minikube.yaml`](../../helm/values/argocd-minikube.yaml) (Dev/Minikube) and [`helm/values/argocd-prod.yaml`](../../helm/values/argocd-prod.yaml) (Production AWS EKS HA)
+> **Upgrade & Rollback Runbook:** See [`ARGOCD_3_6_UPGRADE_AND_ROLLBACK.md`](./ARGOCD_3_6_UPGRADE_AND_ROLLBACK.md)
 
 ## 1. Argo CD Application Inventory (`argocd/`)
 
