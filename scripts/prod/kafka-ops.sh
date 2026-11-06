@@ -12,7 +12,6 @@
 #   ./scripts/prod/kafka-ops.sh reset-offset --group <name> --topic <name> [--dry-run|--execute]
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 BOOTSTRAP_SERVER="${KAFKA_BOOTSTRAP_SERVER:-localhost:29092}"
 CONTAINER_NAME="${KAFKA_CONTAINER:-kafka}"

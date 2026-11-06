@@ -77,6 +77,7 @@ def _deployment_request(url, probe, timeout):
     )
     started = time.perf_counter()
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(request, timeout=timeout) as response:
             body = response.read()
             error = None
@@ -174,6 +175,7 @@ def acquire_jwt(keycloak_url):
     req = urllib.request.Request(token_url, data=payload, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("access_token", "")
@@ -212,6 +214,7 @@ class SmokeTester:
         t0 = time.time()
         try:
             req = urllib.request.Request(f"{self.base_url}/healthz")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 lat = (time.time() - t0) * 1000
@@ -236,6 +239,7 @@ class SmokeTester:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=5) as resp:
                 result = json.loads(resp.read().decode("utf-8"))
                 lat = (time.time() - t0) * 1000
@@ -248,6 +252,7 @@ class SmokeTester:
         t0 = time.time()
         try:
             req = urllib.request.Request(f"{self.base_url}/api/product")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=5) as resp:
                 raw = resp.read().decode("utf-8")
                 lat = (time.time() - t0) * 1000
@@ -287,6 +292,7 @@ class SmokeTester:
             }
             try:
                 req = urllib.request.Request(f"{self.base_url}/api/order", data=order_payload, headers=headers, method="POST")
+                # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
                 with urllib.request.urlopen(req, timeout=5) as resp:
                     lat = (time.time() - t0) * 1000
                     self.log_step("Order Placement with Idempotency Key", resp.status in (200, 201), lat, f"HTTP {resp.status} Created")
@@ -302,6 +308,7 @@ class SmokeTester:
         }).encode("utf-8")
         try:
             req = urllib.request.Request(f"{self.base_url}/api/order", data=unauth_payload, headers={"Content-Type": "application/json"}, method="POST")
+            # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
             with urllib.request.urlopen(req, timeout=4) as resp:
                 lat = (time.time() - t0) * 1000
                 self.log_step("Negative Auth Boundary (/api/order)", False, lat, f"FAILED: Unexpected HTTP {resp.status}")

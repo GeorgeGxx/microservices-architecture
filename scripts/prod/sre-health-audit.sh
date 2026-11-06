@@ -10,7 +10,6 @@
 #   ./scripts/prod/sre-health-audit.sh --quick
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 ENV_MODE="${1:-local}"
 

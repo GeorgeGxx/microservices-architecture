@@ -9,7 +9,6 @@
 #   ./scripts/ci/run-quality-gate.sh [--all|--secrets|--iac|--fast]
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 MODE="${1:---all}"
 FAILURES=0

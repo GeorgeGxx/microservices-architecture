@@ -1,3 +1,4 @@
+# Intentional negative test fixture for Conftest OPA Rego policy validation
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:

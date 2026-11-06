@@ -14,7 +14,6 @@
 #   ./scripts/prod/pg-bcdr-engine.sh verify-drill --file <path.dump>
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 # --- Configuration & Defaults ---
 PGUSER="${PGUSER:-postgres}"

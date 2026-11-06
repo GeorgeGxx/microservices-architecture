@@ -10,7 +10,6 @@
 #   sudo ./scripts/prod/node-hardening.sh
 # ==============================================================================
 set -Eeuo pipefail
-IFS=$'\n\t'
 
 if [[ "$EUID" -ne 0 ]]; then
   echo "❌ Error: This script requires superuser privileges (root or sudo)." >&2

@@ -1,4 +1,4 @@
-#!/usr/bin/env pwsh
+﻿#!/usr/bin/env pwsh
 #Requires -Version 7.0
 <#
 .SYNOPSIS
@@ -497,6 +497,71 @@ function Ensure-KeycloakUser {
 
 Ensure-KeycloakUser -username "admin_user" -password "admin" -roles @("ADMIN", "USER") -firstName "Admin" -lastName "User"
 Ensure-KeycloakUser -username "basic_user" -password "password" -roles @("USER") -firstName "Basic" -lastName "User"
+
+# Ensure OIDC Clients for Argo CD 3.6.1 (argocd-client) and Backstage IDP (backstage-portal)
+foreach ($ssoClient in @(
+    @{ clientId = "argocd-client"; redirectUris = @("https://localhost:8088/*", "http://localhost:8088/*", "https://argocd.georgegxx.dev/*") },
+    @{ clientId = "backstage-portal"; redirectUris = @("http://localhost:7007/*", "http://localhost:3000/*", "https://portal.georgegxx.dev/*") }
+)) {
+    try {
+        $existingSso = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients?clientId=$($ssoClient.clientId)"
+        $ssoPayload = @{
+            clientId = $ssoClient.clientId
+            enabled = $true
+            publicClient = $false
+            redirectUris = $ssoClient.redirectUris
+            webOrigins = @("*", "+")
+            protocol = "openid-connect"
+            standardFlowEnabled = $true
+            directAccessGrantsEnabled = $true
+        } | ConvertTo-Json
+        if (-not $existingSso -or $existingSso.Count -eq 0) {
+            Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients" -Body $ssoPayload
+            Write-Host "  [OK] Created OIDC SSO client: $($ssoClient.clientId)" -ForegroundColor Green
+        } else {
+            Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$($existingSso[0].id)" -Body $ssoPayload
+            Write-Host "  [OK] Updated OIDC SSO client: $($ssoClient.clientId)" -ForegroundColor DarkGray
+        }
+    } catch {
+        Write-Host "  Note: Could not provision OIDC client $($ssoClient.clientId): $_" -ForegroundColor DarkGray
+    }
+}
+
+# Ensure Platform Governance Groups (platform-admins, devops-engineers, developers) & User Memberships
+$groupIds = @{}
+foreach ($grpName in @("platform-admins", "devops-engineers", "developers")) {
+    try {
+        $existingGrps = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/groups?search=$grpName"
+        $matchedGrp = $existingGrps | Where-Object { $_.name -eq $grpName } | Select-Object -First 1
+        if (-not $matchedGrp) {
+            Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/groups" -Body (@{ name = $grpName } | ConvertTo-Json)
+            $existingGrps = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/groups?search=$grpName"
+            $matchedGrp = $existingGrps | Where-Object { $_.name -eq $grpName } | Select-Object -First 1
+            Write-Host "  [OK] Created OIDC RBAC group: $grpName" -ForegroundColor Green
+        }
+        if ($matchedGrp) { $groupIds[$grpName] = $matchedGrp.id }
+    } catch {
+        Write-Host "  Note: Could not ensure group ${grpName}: $_" -ForegroundColor DarkGray
+    }
+}
+
+foreach ($membership in @(
+    @{ username = "admin_user"; groups = @("platform-admins", "devops-engineers") },
+    @{ username = "basic_user"; groups = @("developers") }
+)) {
+    try {
+        $uList = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/users?username=$($membership.username)"
+        if ($uList -and $uList.Count -gt 0) {
+            $uId = $uList[0].id
+            foreach ($gName in $membership.groups) {
+                if ($groupIds[$gName]) {
+                    Invoke-KeycloakAdmin -Method Put -Uri "$KeycloakUrl/admin/realms/$Realm/users/$uId/groups/$($groupIds[$gName])"
+                }
+            }
+            Write-Host "  [OK] Bound user '$($membership.username)' to OIDC groups: $($membership.groups -join ', ')" -ForegroundColor Green
+        }
+    } catch {}
+}
 
 Write-Host "`n=======================================================" -ForegroundColor Green
 Write-Host "  KEYCLOAK BOOTSTRAP COMPLETE!                        " -ForegroundColor Green
