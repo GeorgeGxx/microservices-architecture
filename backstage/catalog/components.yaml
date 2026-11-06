@@ -74,10 +74,6 @@ spec:
     - products-rest-api
     - orders-rest-api
     - inventory-rest-api
-    - payments-rest-api
-    - fulfillment-rest-api
-    - analytics-rest-api
-    - demand-forecast-rest-api
   dependsOn:
     - component:products-service
     - component:orders-service
@@ -222,6 +218,8 @@ spec:
   lifecycle: production
   owner: group:developers
   system: supply-chain-fulfillment-system
+  providesApis:
+    - notification-rest-api
   consumesApis:
     - kafka-commerce-events-asyncapi
   dependsOn:
@@ -266,8 +264,8 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: fulfillment-service
-  title: Warehouse Fulfillment Microservice (NestJS / Node 24)
-  description: TypeScript / NestJS 11 microservice on Node.js 24 managing shipment creation, carrier tracking, and fulfillment lifecycle transitions.
+  title: Warehouse Fulfillment Microservice (NestJS 12 / Node 24)
+  description: TypeScript 7 / NestJS 12.2.0 microservice on Node.js 24 managing shipment creation, carrier tracking, and fulfillment lifecycle transitions.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -279,8 +277,8 @@ metadata:
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
     - nodejs-24
-    - nestjs-11
-    - typescript
+    - nestjs-12
+    - typescript-7
     - postgresql
     - kafka
     - keda
@@ -360,6 +358,8 @@ spec:
   system: intelligence-mlops-system
   providesApis:
     - demand-forecast-rest-api
+  consumesApis:
+    - mlflow-tracking-rest-api
   dependsOn:
     - component:mlflow-tracking-server
 ---
@@ -368,7 +368,7 @@ kind: Component
 metadata:
   name: mlops-training-pipeline
   title: PySpark & Scikit-Learn Demand Model Training Pipeline
-  description: Automated feature engineering (PySpark), sales event capture, and GradientBoosting/RandomForest model training pipeline registering artifacts in MLflow.
+  description: Automated feature engineering (PySpark 4.0), sales event capture, and GradientBoosting/RandomForest model training pipeline registering artifacts in MLflow.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -377,7 +377,7 @@ metadata:
     sonarqube.org/project-key: msa-mlops-training
   tags:
     - python-3-12
-    - pyspark
+    - pyspark-4-0
     - mlflow
     - mlops-training
 spec:
@@ -387,6 +387,7 @@ spec:
   system: intelligence-mlops-system
   consumesApis:
     - kafka-commerce-events-asyncapi
+    - mlflow-tracking-rest-api
   dependsOn:
     - component:mlflow-tracking-server
     - resource:kafka-event-streaming
@@ -396,7 +397,7 @@ kind: Component
 metadata:
   name: mlflow-tracking-server
   title: MLflow Experiment Tracking & Model Registry
-  description: Centralized MLOps model registry and experiment tracking server storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).
+  description: Centralized MLOps model registry and experiment tracking server (MLflow 3.11.1) storing trained demand forecasting models and evaluation metrics (RMSE, MAE, R2).
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -404,7 +405,7 @@ metadata:
     argocd/app-name: microservices-prod
     sonarqube.org/project-key: msa-mlflow
   tags:
-    - mlflow
+    - mlflow-3-11
     - model-registry
     - mlops
 spec:
@@ -412,3 +413,7 @@ spec:
   lifecycle: production
   owner: group:developers
   system: intelligence-mlops-system
+  providesApis:
+    - mlflow-tracking-rest-api
+  dependsOn:
+    - resource:postgresql-databases

@@ -94,6 +94,36 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
+  name: notification-rest-api
+  title: Customer Notification & SSE Stream OpenAPI
+  description: REST and Server-Sent Events (SSE) interface for real-time order, payment, and shipment notifications.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: supply-chain-fulfillment-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: Notification Service API
+      version: 1.0.0
+    paths:
+      /api/v1/notifications:
+        get:
+          summary: List customer notifications
+          responses:
+            '200':
+              description: Notification list returned
+      /api/v1/notifications/stream:
+        get:
+          summary: Subscribe to real-time Server-Sent Events (SSE) notification stream
+          responses:
+            '200':
+              description: SSE stream opened
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
   name: payments-rest-api
   title: Payments Authorization OpenAPI
   description: High-throughput Go/Gin payment processing REST endpoint with idempotency key enforcement.
@@ -190,9 +220,39 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
+  name: mlflow-tracking-rest-api
+  title: MLflow Tracking & Model Registry REST API
+  description: MLflow 3.11.1 REST API for experiment tracking, run metrics logging, and champion model version registry.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: MLflow Tracking Server API
+      version: 2.0.0
+    paths:
+      /api/2.0/mlflow/experiments/search:
+        post:
+          summary: Search MLOps experiments
+          responses:
+            '200':
+              description: Experiment list returned
+      /api/2.0/mlflow/registered-models/search:
+        get:
+          summary: Search registered demand forecast models
+          responses:
+            '200':
+              description: Registered model list returned
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
   name: kafka-commerce-events-asyncapi
   title: Kafka Event-Driven Commerce & Saga AsyncAPI
-  description: Asynchronous event contracts across order-events, payment-events, inventory-events, and fulfillment-events topics.
+  description: Asynchronous event contracts across orders-topic, orders-topic.DLT, payments-topic, and fulfillment-topic.
 spec:
   type: asyncapi
   lifecycle: production
@@ -204,14 +264,14 @@ spec:
       title: Novashop Event-Driven Commerce Bus
       version: 1.0.0
     channels:
-      order-events:
+      orders-topic:
         description: Order creation, confirmation, and cancellation events
-      payment-events:
-        description: Payment authorization and failure events
-      inventory-events:
-        description: Stock reservation and release events
-      fulfillment-events:
-        description: Shipment creation and delivery events
+      orders-topic.DLT:
+        description: Dead-letter topic for unprocessable order saga events
+      payments-topic:
+        description: Payment authorization, capture, and failure events
+      fulfillment-topic:
+        description: Shipment creation, carrier tracking, and delivery events
 ---
 # ==============================================================================
 # Infrastructure & Platform Resources
@@ -307,5 +367,24 @@ metadata:
     - helm-10-14-0
 spec:
   type: gitops-controller
+  owner: group:devops-engineers
+  system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: lgtm-observability-stack
+  title: LGTM Observability, Kiali Service Mesh & OpenCost FinOps Stack
+  description: Unified telemetry stack with Prometheus, Grafana, Loki, Tempo, Grafana Alloy, Kiali Istio Ambient topology, and OpenCost FinOps cost allocation.
+  tags:
+    - prometheus
+    - grafana
+    - loki
+    - tempo
+    - alloy
+    - kiali
+    - opencost
+spec:
+  type: observability-platform
   owner: group:devops-engineers
   system: multi-cloud-platform-system
