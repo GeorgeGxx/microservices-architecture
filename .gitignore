@@ -44,4 +44,5 @@ node_modules/
 **/*.tsbuildinfo
 cosign.key
 devsecops/compliance/cosign/*.key
+trivy-report.*
 scratch/
