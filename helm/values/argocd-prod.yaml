@@ -205,6 +205,8 @@ redis:
     limits:
       cpu: 500m
       memory: 512Mi
+  exporter:
+    enabled: true
   metrics:
     enabled: true
     serviceMonitor:
