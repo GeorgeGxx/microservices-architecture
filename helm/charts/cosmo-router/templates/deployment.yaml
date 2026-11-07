@@ -58,6 +58,7 @@ spec:
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 10
             timeoutSeconds: 5
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold | default 3 }}
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
@@ -65,6 +66,7 @@ spec:
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 5 }}
             periodSeconds: 15
             timeoutSeconds: 5
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold | default 5 }}
           volumeMounts:
             - name: config
               mountPath: /dist/config

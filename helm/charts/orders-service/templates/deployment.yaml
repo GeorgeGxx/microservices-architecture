@@ -59,7 +59,7 @@ spec:
               path: {{ .Values.probes.livenessPath }}
               port: {{ .Values.containerPort }}
             periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
-            timeoutSeconds: 5
+            timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 10 }}
             failureThreshold: {{ .Values.probes.startupFailureThreshold | default 30 }}
           readinessProbe:
             httpGet:
@@ -68,6 +68,7 @@ spec:
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 20
             timeoutSeconds: 10
+            failureThreshold: {{ .Values.probes.readinessFailureThreshold | default 3 }}
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.livenessPath }}
@@ -75,6 +76,7 @@ spec:
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 10 }}
             periodSeconds: 30
             timeoutSeconds: 10
+            failureThreshold: {{ .Values.probes.livenessFailureThreshold | default 5 }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
