@@ -17,6 +17,15 @@ spec:
   pollingInterval: {{ .Values.keda.pollingInterval | default 15 }}
   {{- end }}
   triggers:
+    {{- if and .Values.keda.kafka .Values.keda.kafka.enabled }}
+    - type: kafka
+      metadata:
+        bootstrapServers: {{ .Values.keda.kafka.bootstrapServers | default "kafka.data.svc.cluster.local:9092" | quote }}
+        consumerGroup: {{ .Values.keda.kafka.consumerGroup | default "inventory-service" | quote }}
+        topic: {{ .Values.keda.kafka.topic | default "orders-topic" | quote }}
+        lagThreshold: {{ .Values.keda.kafka.lagThreshold | default "10" | quote }}
+        offsetResetPolicy: {{ .Values.keda.kafka.offsetResetPolicy | default "latest" | quote }}
+    {{- end }}
     {{- if and .Values.keda.prometheus .Values.keda.prometheus.enabled }}
     - type: prometheus
       metadata:
