@@ -32,6 +32,13 @@ keda:
   maxReplicaCount: 3
   pollingInterval: 15
   cooldownPeriod: 300
+  kafka:
+    enabled: true
+    bootstrapServers: kafka.data.svc.cluster.local:9092
+    consumerGroup: inventory-service
+    topic: orders-topic
+    lagThreshold: "10"
+    offsetResetPolicy: latest
   prometheus:
     enabled: false
     serverAddress: "http://kube-prometheus-stack-prometheus.observability.svc.cluster.local:9090"

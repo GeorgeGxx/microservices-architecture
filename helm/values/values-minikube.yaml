@@ -51,6 +51,19 @@ inventory-service:
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "inventory-service"
+      topic: "orders-topic"
+      lagThreshold: "10"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 notification-service:
   image: { repository: georgegxx/notification-service, tag: "1.0.0" }
   serviceAccount:
@@ -62,6 +75,19 @@ notification-service:
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    kafka:
+      enabled: true
+      bootstrapServers: "kafka.data.svc.cluster.local:9092"
+      consumerGroup: "notification-service"
+      topic: "orders-topic"
+      lagThreshold: "10"
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 orders-service:
   image: { repository: georgegxx/orders-service, tag: "1.0.0" }
   serviceAccount:
@@ -73,6 +99,13 @@ orders-service:
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 products-service:
   image: { repository: georgegxx/products-service, tag: "1.0.0" }
   serviceAccount:
@@ -84,6 +117,13 @@ products-service:
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+  keda:
+    enabled: true
+    minReplicaCount: 1
+    maxReplicaCount: 3
+    cpu:
+      enabled: true
+      targetUtilizationPercentage: 70
 payments-service:
   image: { repository: georgegxx/payments-service, tag: "1.0.0" }
   serviceAccount:
