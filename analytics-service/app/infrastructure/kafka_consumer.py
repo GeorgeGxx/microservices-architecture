@@ -1,11 +1,19 @@
 import asyncio
 import json
 import logging
+from typing import Optional
 from aiokafka import AIOKafkaConsumer
 from app.config import settings
 from app.infrastructure.database import AsyncSessionLocal
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
 from app.domain.models import FunnelEvent, EventType, FunnelMetrics
+from app.domain.event_contracts import (
+    OrderEventContract,
+    PaymentEventContract,
+    FulfillmentEventContract,
+    OrderItemContract,
+    unpack_cloud_event,
+)
 from app.infrastructure.metrics import (
     cart_abandonment_gauge,
     cohort_orders_gauge,
@@ -26,12 +34,14 @@ FULFILLMENT_STATUS_MAP = {
     "SHIPMENT_CANCELLED": "CANCELLED",
 }
 
+
 class AnalyticsKafkaConsumer:
     def __init__(self):
         self.consumer = None
         self.is_running = False
         self.consume_task = None
         self._order_stages: dict[str, str] = {}
+        self._processed_event_ids: set[str] = set()
 
     async def start(self):
         brokers = settings.kafka_brokers
@@ -75,9 +85,9 @@ class AnalyticsKafkaConsumer:
             logger.exception("Error in Kafka consume loop")
 
     @staticmethod
-    def _is_completed_payment(topic: str, payload: dict) -> bool:
-        event_type = payload.get("event_type") or payload.get("eventType") or ""
-        status = payload.get("status") or payload.get("orderStatus") or ""
+    def _is_completed_payment(topic: str, payment: PaymentEventContract) -> bool:
+        event_type = (payment.event_type or "").upper()
+        status = (payment.status or "").upper()
         is_payment = topic == settings.kafka_payments_topic or event_type == "PAYMENT_COMPLETED"
         is_failed = status in ("FAILED", "REFUNDED") or event_type in ("PAYMENT_FAILED", "PAYMENT_REFUNDED")
         return is_payment and not is_failed
@@ -121,19 +131,19 @@ class AnalyticsKafkaConsumer:
             logger.info(f"Processed payment event for order #{order_number}, updated analytics metrics")
 
     @staticmethod
-    async def _track_sku_sales(items: list[dict] | None) -> None:
+    async def _track_sku_sales(items: Optional[list[OrderItemContract]]) -> None:
         if not items:
             return
         async with AsyncSessionLocal() as session:
             state_repo = SqlAlchemyAnalyticsStateRepository(session)
             for item in items:
-                sku = item.get("sku")
+                sku = item.sku
                 if sku:
-                    qty = int(item.get("quantity") or 1)
+                    qty = int(item.quantity or 1)
                     sku_sales_gauge.labels(str(sku)).inc(qty)
                     await state_repo.record_sku_sales(str(sku), qty)
 
-    def _update_pipeline_stage(self, order_number: str | None, new_status: str) -> None:
+    def _update_pipeline_stage(self, order_number: Optional[str], new_status: str) -> None:
         if not order_number:
             if new_status in PIPELINE_STATUSES:
                 active_pipeline_gauge.labels(new_status).inc()
@@ -160,38 +170,55 @@ class AnalyticsKafkaConsumer:
         else:
             self._order_stages.pop(order_number, None)
 
-    async def _handle_orders_event(self, payload: dict) -> None:
-        order_number = payload.get("orderNumber") or payload.get("order_number")
-        status = str(payload.get("orderStatus") or payload.get("status") or "").upper()
+    async def _handle_orders_event(self, order_data: dict) -> None:
+        order = OrderEventContract.model_validate(order_data)
+        status = (order.order_status or "").upper()
         if status == "IN_TRANSIT":
             status = "SHIPPED"
         if status:
-            self._update_pipeline_stage(order_number, status)
+            self._update_pipeline_stage(order.order_number, status)
 
-        await self._track_sku_sales(payload.get("items"))
+        await self._track_sku_sales(order.items)
 
-    def _handle_fulfillment_event(self, payload: dict) -> None:
-        order_number = payload.get("orderNumber") or payload.get("order_number")
-        event_type = str(payload.get("eventType") or payload.get("event_type") or "").upper()
+    def _handle_fulfillment_event(self, fulfillment_data: dict) -> None:
+        fulfillment = FulfillmentEventContract.model_validate(fulfillment_data)
+        event_type = (fulfillment.event_type or "").upper()
         mapped_status = FULFILLMENT_STATUS_MAP.get(event_type)
         if mapped_status:
-            self._update_pipeline_stage(order_number, mapped_status)
+            self._update_pipeline_stage(fulfillment.order_number, mapped_status)
 
-    async def _handle_payment_event(self, topic: str, payload: dict) -> None:
-        if not self._is_completed_payment(topic, payload):
+    async def _handle_payment_event(self, topic: str, payment_data: dict) -> None:
+        payment = PaymentEventContract.model_validate(payment_data)
+        if not self._is_completed_payment(topic, payment):
             return
 
-        order_number = payload.get("order_number") or payload.get("orderNumber")
-        amount = float(payload.get("amount") or 0.0)
-        user_id = payload.get("user_id") or payload.get("userId") or "user"
-        items_count = int(payload.get("items_count") or 1)
+        order_number = payment.order_number
+        amount = float(payment.amount or 0.0)
+        user_id = payment.user_id or "user"
+        items_count = int(payment.items_count or 1)
         if order_number and amount > 0:
             await self._record_completed_payment(order_number, amount, user_id, items_count)
 
     async def _process_message(self, msg) -> None:
         try:
-            payload = json.loads(msg.value.decode("utf-8"))
+            raw_payload = json.loads(msg.value.decode("utf-8"))
             topic = msg.topic
+
+            # Unpack CloudEvents 1.0 envelope or flat JSON contract
+            event_type, payload, event_id = unpack_cloud_event(raw_payload)
+
+            # In-memory LRU idempotency deduplication
+            offset_val = getattr(msg, "offset", 0)
+            offset_str = str(offset_val) if isinstance(offset_val, (int, str)) else "0"
+            order_key = payload.get("orderNumber") or payload.get("order_number") or ""
+            dedup_key = event_id or f"{topic}:{offset_str}:{order_key}"
+            if dedup_key in self._processed_event_ids:
+                logger.debug(f"Skipping duplicate event key {dedup_key}")
+                return
+
+            if len(self._processed_event_ids) > 10000:
+                self._processed_event_ids.clear()
+            self._processed_event_ids.add(dedup_key)
 
             if topic == settings.kafka_orders_topic:
                 await self._handle_orders_event(payload)
@@ -210,5 +237,6 @@ class AnalyticsKafkaConsumer:
             self.is_running = False
             await self.consumer.stop()
             logger.info("Kafka Consumer stopped cleanly")
+
 
 kafka_consumer = AnalyticsKafkaConsumer()
