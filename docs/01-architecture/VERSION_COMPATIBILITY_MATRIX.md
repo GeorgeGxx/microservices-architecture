@@ -40,6 +40,7 @@ This matrix serves as the single source of truth for pinned versions across all 
 | `notification-service` | Java `21` (Temurin) | Spring Boot `4.1.0` | `eclipse-temurin:21-jre-alpine` | `8002` |
 | `payments-service` | Go `1.26` | Gin `v1.12.0` / GORM | `gcr.io/distroless/static-debian12:nonroot` | `8085` |
 | `fulfillment-service` | TypeScript / Node.js `24-alpine` | NestJS `12.2.0` / TypeORM | `node:24-alpine` | `8086` |
+| `ai-service` | Python `3.12` | FastAPI `0.160.0` / LangGraph `0.3+` / MCP `1.3+` | `python:3.12-slim` | `8010` |
 | `analytics-service` | Python `3.12` | FastAPI `0.160.0` / SQLAlchemy `2.0` | `python:3.12-slim` | `8087` |
 | `demand-forecast` | Python `3.12` | FastAPI `0.160.0` / Scikit-Learn | `python:3.12-slim` | `8005` |
 | `mlops-training` | Python `3.12` / Java `21` | PySpark `4.2.0` / MLflow `3.17.2` | `python:3.12-slim` | Batch |
@@ -57,4 +58,6 @@ This matrix serves as the single source of truth for pinned versions across all 
 | **OpenTelemetry Collector** | `0.159.0` | OTLP gRPC (`4317`) and HTTP (`4318`) |
 | **Prometheus Blackbox Exporter** | `v0.29.0` | Synthetic endpoint probing |
 | **Keycloak IAM** | `26.8.1` | Enterprise OIDC SSO (`microservices-realm`) |
+| **Ollama Local LLM** | `latest` (`llama3.1:8b`) | On-device private LLM inference (`ollama:11434`) |
+| **Arize Phoenix** | `latest` / `v7.0+` | Open-source LLM tracing, spans & automated evals (`phoenix:6006`) |
 | **PostgreSQL / Redis / Kafka** | `18` / `8.8.1` / `Confluent 8.3.2` | Stateful data & messaging layer |
