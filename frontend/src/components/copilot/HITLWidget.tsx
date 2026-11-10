@@ -62,14 +62,14 @@ export const HITLWidget: React.FC<HITLWidgetProps> = ({ payload, onResolved }) =
       ) : (
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handleAction('APPROVE')}
+            onClick={() => void handleAction('APPROVE')}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition"
           >
             <CheckCircle className="h-3.5 w-3.5" />
             Authorize Refund
           </button>
           <button
-            onClick={() => handleAction('REJECT')}
+            onClick={() => void handleAction('REJECT')}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-rose-950/80 hover:text-rose-300 border border-slate-700 text-slate-300 text-xs font-semibold transition"
           >
             <XCircle className="h-3.5 w-3.5" />
