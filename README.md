@@ -14,9 +14,15 @@
   <img src="https://img.shields.io/badge/PySpark-4.2.0%20MLOps-E25A1C.svg?style=for-the-badge&logo=apachespark" alt="PySpark" />
   <img src="https://img.shields.io/badge/DevSecOps-12--Stage%20Pipeline-success.svg?style=for-the-badge&logo=githubactions" alt="DevSecOps" />
   <img src="https://img.shields.io/badge/Newman%20Tests-23%2F23%20Passing-brightgreen.svg?style=for-the-badge&logo=postman" alt="Newman 23/23 Passing" />
+  <img src="https://img.shields.io/badge/FastAPI-0.160.0-009688.svg?style=for-the-badge&logo=fastapi" alt="FastAPI 0.160.0" />
+  <img src="https://img.shields.io/badge/LangGraph-0.3-4338ca.svg?style=for-the-badge&logo=chainlink" alt="LangGraph 0.3" />
+  <img src="https://img.shields.io/badge/Ollama-Llama_3.1_8B-black.svg?style=for-the-badge&logo=ollama" alt="Ollama Local LLM" />
+  <img src="https://img.shields.io/badge/Arize_Phoenix-7.0-7c3aed.svg?style=for-the-badge" alt="Arize Phoenix Evals" />
+  <img src="https://img.shields.io/badge/PostgreSQL-18-336791.svg?style=for-the-badge&logo=postgresql" alt="PostgreSQL 18" />
+  <img src="https://img.shields.io/badge/Redis-8.8.1-dc2626.svg?style=for-the-badge&logo=redis" alt="Redis 8.8.1" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4**, and **React 19 + TailwindCSS v4**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling (Kafka Lag & Prometheus RPS)**, **Automated MLOps Demand Forecasting (PySpark Structured Streaming & MLflow)**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4**, **React 19 + TailwindCSS v4**, and **Autonomous AI Copilot (FastAPI 0.160 + LangGraph 0.3 + MCP + Ollama)**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling**, **Automated MLOps Demand Forecasting**, **Local Multi-Agent RAG & Tool Execution**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
 
 **Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs 30+ containers when optional MLOps workloads are enabled.
 
@@ -65,6 +71,12 @@ graph TB
         FORECAST["Demand Forecast API<br/>(Port 8005 • RBAC Protected)"]
     end
 
+    subgraph AICopilot["🧠 AI Copilot & Agent Orchestration"]
+        AI["AI Copilot Service (:8010)<br/>(FastAPI • LangGraph • MCP Gateway)"]
+        OLLAMA["Ollama Engine (:11434)<br/>(Llama-3.1-8B • Auto-Pull)"]
+        PHOENIX["Arize Phoenix (:6006)<br/>(LLM Traces & Evals)"]
+    end
+
     subgraph Observability["📊 Full-Stack Observability (LGTM Stack)"]
         PROM["Prometheus (:9090)<br/>(Micrometer 2.2.1 • PromQL)"]
         LOKI["Grafana Loki (:3100)<br/>(Centralized Logs • LogQL)"]
@@ -82,6 +94,13 @@ graph TB
     ISTIO -->|Subgraph _entities / GraphQL| ORD
     ISTIO -->|Subgraph _entities / GraphQL| INV
     ISTIO -->|SSE Stream| NOTIF
+
+    SPA -->|Floating Copilot Drawer| AI
+    AI -->|MCP Query & Tracking| ORD
+    AI -->|MCP Catalog Verification| PROD
+    AI -->|MCP Stock Check| INV
+    AI -->|Local Inference| OLLAMA
+    AI -->|LLM Spans & Evals| PHOENIX
 
     ISTIO --> PROD
     ISTIO --> ORD
@@ -186,6 +205,21 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 | **16** | *Agnostic POS QR Scanner & Omnichannel Architecture* | Omnichannel retail cashier workflow, dual-engine BarcodeDetector + jsQR decoding, camera race-condition lock, Nginx Permissions-Policy, PostgreSQL row locks, and live POS order fulfillment. |
 | **17** | *Level 5 Hyper-Scale Resilience & Cell-Based Architecture Blueprint* | The 6 resilience pillars: Zero Dual-Write Transactional Outbox, Redis 8 Idempotency, Non-Blocking Kafka DLQ (@RetryableTopic + DLT replay), Netflix Vegas Adaptive Concurrency Limits (TCP congestion control), Cell-Based multi-tenancy (cell-alpha/cell-beta blast radius isolation), and automated chaos drills. |
 | **18** | *Platform Layers A to E Implementation Blueprint* | Unified architectural implementation across Layer A (Service Mesh & NetSec), Layer B (Edge Federation & Auth), Layer C (Kafka Sagas & Redis Idempotency), Layer D (Full-Stack LGTM Observability & Trace Correlation), and Layer E (Vault Secrets & Dynamic Credentials). |
+| **19** | *Autonomous AI Copilot & Multi-Agent Architecture (LangGraph + MCP)* | Local multi-agent reasoning with Ollama (Llama-3.1-8B), LangGraph 0.3 StateGraph supervisor routing, Model Context Protocol (MCP) tool integration over Spring Boot microservices, RAG vector retrieval, and Human-in-the-Loop refund governance. |
+
+---
+
+### 🤖 Autonomous AI Copilot & Multi-Agent Architecture
+
+The platform embeds an **on-premise, local-first Multi-Agent AI system** (`ai-service` on port `8010`) directly accessible via the floating Copilot drawer in the React 19 storefront (`:5173`):
+
+- **Orchestration**: **LangGraph 0.3+** and **LangChain 0.3+** stateful workflow with a deterministic Supervisor Router directing queries across specialized sub-agents (`ProductAdvisor`, `OrderSupport`, `PolicyFAQ`).
+- **Tools (Model Context Protocol - MCP)**: Exposes typed MCP tools (`get_order_details`, `check_inventory`, `request_refund`, `calculate_shipping`) that query the live Spring Boot microservices (`orders-service:8003`, `products-service:8004`, `inventory-service:8001`) via HTTP/REST.
+- **Knowledge Layer (RAG)**: ChromaDB / hybrid vector retriever indexing structured product catalog specifications and store warranty/return policy documents.
+- **Local Models**: **Ollama** running locally on port `11434` (`llama3.1:8b` / `qwen2.5:7b`), automatically provisioned via the `ollama-init` sidecar container.
+- **Safety Gate (HITL)**: Automated refunds exceeding **$50.00 USD** trigger a LangGraph execution interrupt, surfacing an approval ticket in the supervisor interface before financial disbursement.
+- **Observability**: **Arize Phoenix** (port `6006`) with OpenTelemetry auto-instrumentation for token telemetry, prompt/response tracing, and automated golden dataset evaluation suites.
+- **Architecture Specification**: Complete 8-layer architecture documentation and diagrams available at [`docs/AI_ARCHITECTURE.md`](./docs/AI_ARCHITECTURE.md).
 
 ---
 
