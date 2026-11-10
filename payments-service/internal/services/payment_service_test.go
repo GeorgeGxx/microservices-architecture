@@ -3,6 +3,7 @@ package services_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
 
@@ -110,6 +111,9 @@ func (m *MockPaymentRepository) GetPendingOutboxEvents(ctx context.Context, limi
 func (m *MockPaymentRepository) UpdateOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if _, exists := m.outboxEvents[event.ID.String()]; !exists {
+		return errors.New("outbox event not found")
+	}
 	m.outboxEvents[event.ID.String()] = event
 	return nil
 }

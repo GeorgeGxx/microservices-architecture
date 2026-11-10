@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Sparkles, ChevronDown, Cpu, Layers } from 'lucide-react';
+import { Bot, X, Send, Sparkles } from 'lucide-react';
 import { HITLWidget } from './HITLWidget';
 
 interface Message {
@@ -152,10 +152,10 @@ export const AICopilot: React.FC = () => {
             <span className="text-slate-500 flex items-center gap-1 shrink-0">
               <Sparkles className="h-3 w-3 text-indigo-400" /> Shortcuts:
             </span>
-            {samplePrompts.map((sp, idx) => (
+            {samplePrompts.map((sp) => (
               <button
-                key={idx}
-                onClick={() => handleSendMessage(sp.prompt)}
+                key={sp.label}
+                onClick={() => void handleSendMessage(sp.prompt)}
                 disabled={isLoading}
                 className="whitespace-nowrap px-2.5 py-1 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition text-[11px] disabled:opacity-40"
               >
@@ -223,7 +223,7 @@ export const AICopilot: React.FC = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSendMessage(input);
+              void handleSendMessage(input);
             }}
             className="p-3 border-t border-slate-800 bg-slate-900/90 flex gap-2"
           >
