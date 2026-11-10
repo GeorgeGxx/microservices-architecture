@@ -1,0 +1,56 @@
+[
+  {
+    "sku": "PROD-SONY-WH1000",
+    "name": "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
+    "category": "Audio & Electronics",
+    "price": 349.99,
+    "rating": 4.8,
+    "description": "Premium over-ear headphones with Active Noise Cancellation (ANC), 30-hour battery life, speak-to-chat, and crystal-clear calling.",
+    "tags": ["audio", "headphones", "bluetooth", "noise-cancelling", "sony", "travel"]
+  },
+  {
+    "sku": "PROD-APPLE-MBA15",
+    "name": "Apple MacBook Air 15-inch M3",
+    "category": "Computers & Laptops",
+    "price": 1299.00,
+    "rating": 4.9,
+    "description": "Ultralight laptop powered by the Apple M3 chip. 15.3-inch Liquid Retina Display, 18 hours battery life, MagSafe charging.",
+    "tags": ["laptop", "apple", "macbook", "m3", "ultrabook", "student", "creator"]
+  },
+  {
+    "sku": "PROD-LOGI-MXM3S",
+    "name": "Logitech MX Master 3S Wireless Performance Mouse",
+    "category": "Accessories",
+    "price": 99.99,
+    "rating": 4.7,
+    "description": "Ergonomic precision mouse with 8,000 DPI sensor, quiet electromagnetic MagSpeed scroll wheel, multi-computer flow support.",
+    "tags": ["mouse", "logitech", "ergonomic", "productivity", "office"]
+  },
+  {
+    "sku": "PROD-NIKE-PEG40",
+    "name": "Nike Air Zoom Pegasus 40 Running Shoes",
+    "category": "Footwear & Sports",
+    "price": 130.00,
+    "rating": 4.6,
+    "description": "Classic road running shoe with dual Zoom Air units and Nike React foam for energized cushioning on road training sessions.",
+    "tags": ["shoes", "nike", "running", "sports", "footwear", "fitness"]
+  },
+  {
+    "sku": "PROD-KINDLE-PW11",
+    "name": "Kindle Paperwhite 16GB Signature Edition",
+    "category": "Electronics & Books",
+    "price": 189.99,
+    "rating": 4.8,
+    "description": "Dedicated e-reader with 6.8 inch 300 ppi glare-free screen, adjustable warm light, wireless Qi charging, IPX8 waterproof rating.",
+    "tags": ["ereader", "kindle", "books", "reading", "waterproof"]
+  },
+  {
+    "sku": "PROD-YETI-RAMB20",
+    "name": "Yeti Rambler 20 oz Tumbler Stainless Steel",
+    "category": "Home & Kitchen",
+    "price": 35.00,
+    "rating": 4.9,
+    "description": "Double-wall vacuum insulated stainless steel travel tumbler with MagSlider lid. Keeps coffee steaming hot or ice water cold for hours.",
+    "tags": ["tumbler", "yeti", "drinkware", "coffee", "outdoor", "travel"]
+  }
+]

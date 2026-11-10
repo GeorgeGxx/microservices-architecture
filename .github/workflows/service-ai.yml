@@ -1,0 +1,45 @@
+name: AI Service CI/CD
+
+on:
+  push:
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
+    paths:
+      - 'ai-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-ai.yml'
+  pull_request:
+    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
+    paths:
+      - 'ai-service/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/service-ai.yml'
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Explicit SemVer release tag to publish (e.g. 1.1.0; required when publish-to-registry is true)'
+        required: false
+        type: string
+        default: ''
+      publish-to-registry:
+        description: 'Publish release image to Docker Registry (requires explicit SemVer image-tag)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ai-service-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pipeline:
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: ai-service
+      service-type: python
+      service-dir: ai-service
+      context-dir: ai-service
+      dockerfile-path: ai-service/Dockerfile
+      image-tag: ${{ inputs.image-tag || '' }}
+      publish-to-registry: ${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}
+    # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
+    secrets: inherit

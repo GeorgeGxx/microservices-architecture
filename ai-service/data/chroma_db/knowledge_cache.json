@@ -1,0 +1,147 @@
+[
+  {
+    "id": "policy-1.-return-&-refund-policy",
+    "content": "## 1. Return & Refund Policy\n- **Window**: Customers may request a full refund or return within **30 calendar days** of delivery.\n- **Condition**: Items must be in their original packaging, unused, and include all original accessories, cables, and manuals.\n- **Refund Process**: Once a return is initiated and received, refunds are issued to the original payment method within 3 to 5 business days.\n- **Restocking Fees**: No restocking fees are charged for defective products or store errors. A 10% fee applies to opened non-defective computer hardware.\n- **Supervisor Authorization Rule**: Any automated refund exceeding **$50.00 USD** automatically triggers a human-in-the-loop review by a senior store manager before funds are disbursed.",
+    "metadata": {
+      "type": "policy",
+      "title": "1. Return & Refund Policy"
+    }
+  },
+  {
+    "id": "policy-2.-shipping-&-delivery",
+    "content": "## 2. Shipping & Delivery\n- **Standard Shipping**: 3-5 business days across the contiguous United States. Free on orders over $50.00; otherwise $5.99 flat rate.\n- **Express Shipping**: 1-2 business days via DHL Express for $14.99.\n- **Order Processing**: Orders placed before 2:00 PM EST ship same day from our nearest distribution fulfillment center.\n- **Tracking**: Real-time DHL tracking numbers are generated automatically upon carrier dispatch.",
+    "metadata": {
+      "type": "policy",
+      "title": "2. Shipping & Delivery"
+    }
+  },
+  {
+    "id": "policy-3.-product-warranty-&-technica",
+    "content": "## 3. Product Warranty & Technical Support\n- **Standard Warranty**: All electronics and accessories include a 1-year limited manufacturer warranty covering hardware defects.\n- **Extended Protection**: AuraCare+ provides 2-year accidental damage coverage for laptops and audio gear.\n- **Defective on Arrival (DOA)**: Products found non-functional within 48 hours of delivery qualify for instant expedited replacement at zero cost.",
+    "metadata": {
+      "type": "policy",
+      "title": "3. Product Warranty & Technical Support"
+    }
+  },
+  {
+    "id": "policy-4.-price-match-guarantee",
+    "content": "## 4. Price Match Guarantee\n- We match current pre-tax prices for identical, new items sold and shipped by major authorized retailers within 14 days of purchase.",
+    "metadata": {
+      "type": "policy",
+      "title": "4. Price Match Guarantee"
+    }
+  },
+  {
+    "id": "product-PROD-SONY-WH1000",
+    "content": "Product: Sony WH-1000XM5 Wireless Noise Cancelling Headphones\nCategory: Audio & Electronics\nPrice: $349.99\nRating: 4.8 / 5.0\nDescription: Premium over-ear headphones with Active Noise Cancellation (ANC), 30-hour battery life, speak-to-chat, and crystal-clear calling.\nTags: audio, headphones, bluetooth, noise-cancelling, sony, travel",
+    "metadata": {
+      "type": "product",
+      "title": "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
+      "sku": "PROD-SONY-WH1000",
+      "price": 349.99,
+      "category": "Audio & Electronics",
+      "tags": [
+        "audio",
+        "headphones",
+        "bluetooth",
+        "noise-cancelling",
+        "sony",
+        "travel"
+      ]
+    }
+  },
+  {
+    "id": "product-PROD-APPLE-MBA15",
+    "content": "Product: Apple MacBook Air 15-inch M3\nCategory: Computers & Laptops\nPrice: $1299.0\nRating: 4.9 / 5.0\nDescription: Ultralight laptop powered by the Apple M3 chip. 15.3-inch Liquid Retina Display, 18 hours battery life, MagSafe charging.\nTags: laptop, apple, macbook, m3, ultrabook, student, creator",
+    "metadata": {
+      "type": "product",
+      "title": "Apple MacBook Air 15-inch M3",
+      "sku": "PROD-APPLE-MBA15",
+      "price": 1299.0,
+      "category": "Computers & Laptops",
+      "tags": [
+        "laptop",
+        "apple",
+        "macbook",
+        "m3",
+        "ultrabook",
+        "student",
+        "creator"
+      ]
+    }
+  },
+  {
+    "id": "product-PROD-LOGI-MXM3S",
+    "content": "Product: Logitech MX Master 3S Wireless Performance Mouse\nCategory: Accessories\nPrice: $99.99\nRating: 4.7 / 5.0\nDescription: Ergonomic precision mouse with 8,000 DPI sensor, quiet electromagnetic MagSpeed scroll wheel, multi-computer flow support.\nTags: mouse, logitech, ergonomic, productivity, office",
+    "metadata": {
+      "type": "product",
+      "title": "Logitech MX Master 3S Wireless Performance Mouse",
+      "sku": "PROD-LOGI-MXM3S",
+      "price": 99.99,
+      "category": "Accessories",
+      "tags": [
+        "mouse",
+        "logitech",
+        "ergonomic",
+        "productivity",
+        "office"
+      ]
+    }
+  },
+  {
+    "id": "product-PROD-NIKE-PEG40",
+    "content": "Product: Nike Air Zoom Pegasus 40 Running Shoes\nCategory: Footwear & Sports\nPrice: $130.0\nRating: 4.6 / 5.0\nDescription: Classic road running shoe with dual Zoom Air units and Nike React foam for energized cushioning on road training sessions.\nTags: shoes, nike, running, sports, footwear, fitness",
+    "metadata": {
+      "type": "product",
+      "title": "Nike Air Zoom Pegasus 40 Running Shoes",
+      "sku": "PROD-NIKE-PEG40",
+      "price": 130.0,
+      "category": "Footwear & Sports",
+      "tags": [
+        "shoes",
+        "nike",
+        "running",
+        "sports",
+        "footwear",
+        "fitness"
+      ]
+    }
+  },
+  {
+    "id": "product-PROD-KINDLE-PW11",
+    "content": "Product: Kindle Paperwhite 16GB Signature Edition\nCategory: Electronics & Books\nPrice: $189.99\nRating: 4.8 / 5.0\nDescription: Dedicated e-reader with 6.8 inch 300 ppi glare-free screen, adjustable warm light, wireless Qi charging, IPX8 waterproof rating.\nTags: ereader, kindle, books, reading, waterproof",
+    "metadata": {
+      "type": "product",
+      "title": "Kindle Paperwhite 16GB Signature Edition",
+      "sku": "PROD-KINDLE-PW11",
+      "price": 189.99,
+      "category": "Electronics & Books",
+      "tags": [
+        "ereader",
+        "kindle",
+        "books",
+        "reading",
+        "waterproof"
+      ]
+    }
+  },
+  {
+    "id": "product-PROD-YETI-RAMB20",
+    "content": "Product: Yeti Rambler 20 oz Tumbler Stainless Steel\nCategory: Home & Kitchen\nPrice: $35.0\nRating: 4.9 / 5.0\nDescription: Double-wall vacuum insulated stainless steel travel tumbler with MagSlider lid. Keeps coffee steaming hot or ice water cold for hours.\nTags: tumbler, yeti, drinkware, coffee, outdoor, travel",
+    "metadata": {
+      "type": "product",
+      "title": "Yeti Rambler 20 oz Tumbler Stainless Steel",
+      "sku": "PROD-YETI-RAMB20",
+      "price": 35.0,
+      "category": "Home & Kitchen",
+      "tags": [
+        "tumbler",
+        "yeti",
+        "drinkware",
+        "coffee",
+        "outdoor",
+        "travel"
+      ]
+    }
+  }
+]
