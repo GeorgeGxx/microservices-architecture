@@ -1,5 +1,5 @@
-# Build Stage
-FROM golang:alpine AS builder
+# Build Stage - Pin to patched Go 1.26 release
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
