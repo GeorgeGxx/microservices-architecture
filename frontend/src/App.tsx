@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { ToastContainer } from './components/ToastContainer';
 import { CartDrawer } from './components/CartDrawer';
 import { NotificationDrawer } from './components/NotificationDrawer';
+import { AICopilot } from './components/copilot/AICopilot';
 import { CatalogPage } from './pages/CatalogPage';
 import { Product, Order } from './types';
 import { fetchProducts } from './services/graphql';
@@ -166,6 +167,7 @@ export const App: React.FC = () => {
       {/* Sliding Drawers */}
       <CartDrawer onOpenCheckout={() => setIsCheckoutOpen(true)} />
       <NotificationDrawer />
+      <AICopilot />
 
       {/* Modals loaded lazily on demand */}
       <React.Suspense fallback={null}>

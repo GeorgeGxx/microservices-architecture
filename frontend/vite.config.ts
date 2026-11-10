@@ -18,6 +18,11 @@ export default defineConfig({
     port: 5173,
     host: '0.0.0.0',
     proxy: {
+      '/api/ai': {
+        target: 'http://localhost:8010',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/ai/, '/api'),
+      },
       '/graphql': {
         target: 'http://localhost:8080',
         changeOrigin: true,
