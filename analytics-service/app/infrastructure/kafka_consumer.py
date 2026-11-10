@@ -208,7 +208,7 @@ class AnalyticsKafkaConsumer:
             topic = msg.topic
 
             # Unpack CloudEvents 1.0 envelope or flat JSON contract
-            event_type, payload, event_id = unpack_cloud_event(raw_payload)
+            _, payload, event_id = unpack_cloud_event(raw_payload)
 
             # In-memory LRU idempotency deduplication
             offset_val = getattr(msg, "offset", None)

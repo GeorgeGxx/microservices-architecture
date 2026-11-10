@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger, Optional } from '@ne
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Kafka, Producer, Partitioners } from 'kafkajs';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 import type { EventPublisher } from '../../application/ports/event-publisher.port';
 import { ShipmentDispatchedEvent } from '../../domain/events/shipment-dispatched.event';
 import { ShipmentDeliveredEvent } from '../../domain/events/shipment-delivered.event';
@@ -90,7 +90,7 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
       specversion: '1.0',
       id: eventId,
       source: '/fulfillment-service',
-      type: `com.georgegxx.fulfillment.${eventType.toLowerCase().replace(/_/g, '-')}`,
+      type: `com.georgegxx.fulfillment.${eventType.toLowerCase().replaceAll('_', '-')}`,
       time: new Date().toISOString(),
       datacontenttype: 'application/json',
       data: {

@@ -132,7 +132,7 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 	s.dispatchAudit(payment.ID, string(payment.Status), fmt.Sprintf("Processed charge for order %s, amount %f %s", payment.OrderNumber, payment.Amount, payment.Currency))
 
 	// 5. Emit Kafka Saga Events
-	s.dispatchSagaEvents(req, payment)
+	s.dispatchSagaEvents(ctx, req, payment)
 
 	return s.toProcessPaymentResponse(payment), nil
 }
@@ -198,7 +198,7 @@ func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *mo
 	return payment
 }
 
-func (s *paymentService) dispatchSagaEvents(req models.ProcessPaymentRequest, payment *models.Payment) {
+func (s *paymentService) dispatchSagaEvents(ctx context.Context, req models.ProcessPaymentRequest, payment *models.Payment) {
 	var eventType string
 	var payloadBytes []byte
 	var aggregateID string
@@ -253,7 +253,7 @@ func (s *paymentService) dispatchSagaEvents(req models.ProcessPaymentRequest, pa
 	}
 
 	if len(payloadBytes) > 0 {
-		_ = s.repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+		_ = s.repo.SaveOutboxEvent(ctx, &models.OutboxEvent{
 			ID:            uuid.New(),
 			AggregateType: "PAYMENT",
 			AggregateID:   aggregateID,
@@ -304,7 +304,7 @@ func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPay
 	}
 
 	payloadBytes, _ := json.Marshal(refundedEvent)
-	_ = s.repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+	_ = s.repo.SaveOutboxEvent(ctx, &models.OutboxEvent{
 		ID:            uuid.New(),
 		AggregateType: "PAYMENT",
 		AggregateID:   payment.OrderNumber,

@@ -96,14 +96,10 @@ func (c *OrderEventConsumer) extractHeader(headers []kafka.Header, key string) s
 	return ""
 }
 
-func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) error {
-	headers := msg.Headers
-	carrier := (*HeaderCarrier)(&headers)
-	msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
-
-	messageID := c.extractHeader(headers, "ce_id")
+func (c *OrderEventConsumer) parseEventPayload(msg kafka.Message) (*models.OrderEventPayload, string, error) {
+	messageID := c.extractHeader(msg.Headers, "ce_id")
 	if messageID == "" {
-		messageID = c.extractHeader(headers, "idempotency-key")
+		messageID = c.extractHeader(msg.Headers, "idempotency-key")
 	}
 
 	var eventPayload models.OrderEventPayload
@@ -121,13 +117,99 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		if eventPayload.EventType == "" && cloudEvent.Type != "" {
 			eventPayload.EventType = cloudEvent.Type
 		}
-	} else {
-		if err := json.Unmarshal(msg.Value, &eventPayload); err != nil {
-			log.Printf("[Kafka Consumer] Malformed JSON payload at offset %d: %v", msg.Offset, err)
-			// Non-retryable poison pill; commit to avoid infinite processing loops
-			_ = c.reader.CommitMessages(msgCtx, msg)
-			return nil
-		}
+		return &eventPayload, messageID, nil
+	}
+
+	if err := json.Unmarshal(msg.Value, &eventPayload); err != nil {
+		return nil, "", err
+	}
+	return &eventPayload, messageID, nil
+}
+
+func isCompensationEvent(orderStatus, eventType string) bool {
+	return strings.EqualFold(orderStatus, "CANCELLED") ||
+		strings.EqualFold(orderStatus, "ORDER_CANCELLED") ||
+		strings.EqualFold(eventType, "SHIPMENT_FAILED")
+}
+
+func isForwardPaymentEvent(orderStatus string) bool {
+	return strings.EqualFold(orderStatus, "PENDING_PAYMENT") || strings.EqualFold(orderStatus, "PLACED")
+}
+
+func (c *OrderEventConsumer) recordProcessed(ctx context.Context, messageID, eventType string) {
+	if c.repo == nil || messageID == "" {
+		return
+	}
+	_ = c.repo.RecordProcessedMessage(ctx, &models.ProcessedMessage{
+		MessageID:   messageID,
+		ConsumerID:  "payments-service",
+		EventType:   eventType,
+		ProcessedAt: time.Now().UTC(),
+	})
+}
+
+func (c *OrderEventConsumer) handleCompensatingRefund(ctx context.Context, msg kafka.Message, payload *models.OrderEventPayload, orderNumber, messageID string) error {
+	reason := payload.Reason
+	if reason == "" {
+		reason = "Saga backward compensation (" + payload.ResolveStatus() + payload.ResolveEventType() + ")"
+	}
+	log.Printf("[Kafka Consumer] Executing Saga compensating refund for order %s (reason: %s)", orderNumber, reason)
+	_, err := c.processor.RefundPayment(ctx, models.RefundPaymentRequest{
+		OrderNumber: orderNumber,
+		Reason:      reason,
+	})
+	if err != nil {
+		log.Printf("[Kafka Consumer] Compensating refund skipped/failed for order %s: %v", orderNumber, err)
+		return err
+	}
+
+	c.recordProcessed(ctx, messageID, payload.ResolveEventType())
+	return c.reader.CommitMessages(ctx, msg)
+}
+
+func (c *OrderEventConsumer) handleForwardPayment(ctx context.Context, msg kafka.Message, payload *models.OrderEventPayload, orderNumber, messageID string) error {
+	idempotencyKey := payload.IdempotencyKey
+	if idempotencyKey == "" {
+		idempotencyKey = "kafka-" + orderNumber
+	}
+
+	req := models.ProcessPaymentRequest{
+		OrderNumber:     orderNumber,
+		Amount:          payload.ResolveAmount(),
+		Currency:        "USD",
+		PaymentMethod:   payload.ResolvePaymentMethod(),
+		CustomerEmail:   payload.CustomerEmail,
+		CustomerName:    payload.CustomerName,
+		ShippingAddress: payload.ShippingAddress,
+		City:            payload.City,
+		PostalCode:      payload.PostalCode,
+		Phone:           payload.Phone,
+		DeliveryMethod:  payload.DeliveryMethod,
+		UserID:          payload.UserID,
+		ItemsCount:      payload.ItemsCount,
+		IdempotencyKey:  idempotencyKey,
+	}
+
+	log.Printf("[Kafka Consumer] Dispatched Saga payment processing for order %s ($%.2f via %s)", orderNumber, req.Amount, req.PaymentMethod)
+	if _, err := c.processor.ProcessPayment(ctx, req); err != nil {
+		log.Printf("[Kafka Consumer] Failed to process payment for order %s: %v", orderNumber, err)
+		return err
+	}
+
+	c.recordProcessed(ctx, messageID, payload.ResolveEventType())
+	return c.reader.CommitMessages(ctx, msg)
+}
+
+func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) error {
+	headers := msg.Headers
+	carrier := (*HeaderCarrier)(&headers)
+	msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
+
+	eventPayload, messageID, err := c.parseEventPayload(msg)
+	if err != nil {
+		log.Printf("[Kafka Consumer] Malformed JSON payload at offset %d: %v", msg.Offset, err)
+		_ = c.reader.CommitMessages(msgCtx, msg)
+		return nil
 	}
 
 	orderNumber := eventPayload.ResolveOrderNumber()
@@ -145,91 +227,22 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		}
 	}
 
-	// Consumer Idempotency Check: prevent duplicate event processing
 	if c.repo != nil && messageID != "" {
-		processed, err := c.repo.IsMessageProcessed(msgCtx, messageID)
-		if err == nil && processed {
+		if processed, err := c.repo.IsMessageProcessed(msgCtx, messageID); err == nil && processed {
 			log.Printf("[Kafka Consumer] Message %s already processed; deduplicating", messageID)
 			return c.reader.CommitMessages(msgCtx, msg)
 		}
 	}
 
-	// Backward Saga Compensation: Refund payment if order is CANCELLED or fulfillment SHIPMENT_FAILED
-	if strings.EqualFold(orderStatus, "CANCELLED") ||
-		strings.EqualFold(orderStatus, "ORDER_CANCELLED") ||
-		strings.EqualFold(eventType, "SHIPMENT_FAILED") {
-		reason := eventPayload.Reason
-		if reason == "" {
-			reason = "Saga backward compensation (" + orderStatus + eventType + ")"
-		}
-		log.Printf("[Kafka Consumer] Executing Saga compensating refund for order %s (reason: %s)", orderNumber, reason)
-		_, err := c.processor.RefundPayment(msgCtx, models.RefundPaymentRequest{
-			OrderNumber: orderNumber,
-			Reason:      reason,
-		})
-		if err != nil {
-			log.Printf("[Kafka Consumer] Compensating refund skipped/failed for order %s: %v", orderNumber, err)
-			return err
-		}
+	if isCompensationEvent(orderStatus, eventType) {
+		return c.handleCompensatingRefund(msgCtx, msg, eventPayload, orderNumber, messageID)
+	}
 
-		if c.repo != nil && messageID != "" {
-			_ = c.repo.RecordProcessedMessage(msgCtx, &models.ProcessedMessage{
-				MessageID:   messageID,
-				ConsumerID:  "payments-service",
-				EventType:   eventType,
-				ProcessedAt: time.Now().UTC(),
-			})
-		}
+	if !isForwardPaymentEvent(orderStatus) {
 		return c.reader.CommitMessages(msgCtx, msg)
 	}
 
-	// Forward Saga Transition: Process orders awaiting payment (PENDING_PAYMENT or PLACED)
-	if !strings.EqualFold(orderStatus, "PENDING_PAYMENT") && !strings.EqualFold(orderStatus, "PLACED") {
-		return c.reader.CommitMessages(msgCtx, msg)
-	}
-
-	totalAmount := eventPayload.ResolveAmount()
-	paymentMethod := eventPayload.ResolvePaymentMethod()
-
-	idempotencyKey := eventPayload.IdempotencyKey
-	if idempotencyKey == "" {
-		idempotencyKey = "kafka-" + orderNumber
-	}
-
-	req := models.ProcessPaymentRequest{
-		OrderNumber:     orderNumber,
-		Amount:          totalAmount,
-		Currency:        "USD",
-		PaymentMethod:   paymentMethod,
-		CustomerEmail:   eventPayload.CustomerEmail,
-		CustomerName:    eventPayload.CustomerName,
-		ShippingAddress: eventPayload.ShippingAddress,
-		City:            eventPayload.City,
-		PostalCode:      eventPayload.PostalCode,
-		Phone:           eventPayload.Phone,
-		DeliveryMethod:  eventPayload.DeliveryMethod,
-		UserID:          eventPayload.UserID,
-		ItemsCount:      eventPayload.ItemsCount,
-		IdempotencyKey:  idempotencyKey,
-	}
-
-	log.Printf("[Kafka Consumer] Dispatched Saga payment processing for order %s ($%.2f via %s)", orderNumber, totalAmount, paymentMethod)
-	_, err := c.processor.ProcessPayment(msgCtx, req)
-	if err != nil {
-		log.Printf("[Kafka Consumer] Failed to process payment for order %s: %v", orderNumber, err)
-		return err
-	}
-
-	if c.repo != nil && messageID != "" {
-		_ = c.repo.RecordProcessedMessage(msgCtx, &models.ProcessedMessage{
-			MessageID:   messageID,
-			ConsumerID:  "payments-service",
-			EventType:   eventType,
-			ProcessedAt: time.Now().UTC(),
-		})
-	}
-
-	return c.reader.CommitMessages(msgCtx, msg)
+	return c.handleForwardPayment(msgCtx, msg, eventPayload, orderNumber, messageID)
 }
 
 func (c *OrderEventConsumer) Close() error {

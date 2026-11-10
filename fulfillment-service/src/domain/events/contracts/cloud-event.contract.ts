@@ -34,7 +34,7 @@ export interface OrderItemContract {
 
 export interface OrderEventContract {
   orderNumber: string;
-  orderStatus: OrderStatus | string;
+  orderStatus: OrderStatus;
   itemsCount?: number;
   totalAmount?: number;
   customerName?: string;
@@ -59,8 +59,8 @@ export type PaymentEventType =
 export type PaymentStatus = 'COMPLETED' | 'FAILED' | 'REFUNDED' | 'PENDING';
 
 export interface PaymentEventContract {
-  event_type: PaymentEventType | string;
-  status: PaymentStatus | string;
+  event_type: PaymentEventType;
+  status: PaymentStatus;
   order_number: string;
   payment_id?: string;
   amount?: number;
@@ -87,7 +87,7 @@ export type FulfillmentEventType =
   | 'SHIPMENT_FAILED';
 
 export interface FulfillmentEventContract {
-  eventType: FulfillmentEventType | string;
+  eventType: FulfillmentEventType;
   orderNumber: string;
   shipmentId?: string;
   carrier?: string;

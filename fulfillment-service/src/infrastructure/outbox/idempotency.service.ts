@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProcessedMessageOrmEntity } from '../persistence/entities/processed-message.orm-entity';
+import { extractErrorMessage } from '../utils/error.util';
 
 @Injectable()
 export class IdempotencyService {
@@ -21,7 +22,7 @@ export class IdempotencyService {
       const found = await this.processedRepo.findOne({ where: { messageId } });
       return Boolean(found);
     } catch (err: unknown) {
-      this.logger.warn(`Could not verify idempotency for message ${messageId}: ${String(err)}`);
+      this.logger.warn(`Could not verify idempotency for message ${messageId}: ${extractErrorMessage(err)}`);
       return false;
     }
   }
@@ -44,7 +45,7 @@ export class IdempotencyService {
         .orIgnore()
         .execute();
     } catch (err: unknown) {
-      this.logger.warn(`Error persisting processed message #${messageId}: ${String(err)}`);
+      this.logger.warn(`Error persisting processed message #${messageId}: ${extractErrorMessage(err)}`);
     }
   }
 }
