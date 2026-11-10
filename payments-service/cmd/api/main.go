@@ -90,8 +90,8 @@ func main() {
 	}
 
 	// 2. Auto-migrate schema in PostgreSQL 18
-	log.Println("[Main] Running GORM auto-migrations for Payment and PaymentAuditLog...")
-	if err := db.AutoMigrate(&models.Payment{}, &models.PaymentAuditLog{}); err != nil {
+	log.Println("[Main] Running GORM auto-migrations for Payment, PaymentAuditLog, ProcessedMessage, and OutboxEvent...")
+	if err := db.AutoMigrate(&models.Payment{}, &models.PaymentAuditLog{}, &models.ProcessedMessage{}, &models.OutboxEvent{}); err != nil {
 		log.Fatalf("[Main] Failed to migrate database: %v", err)
 	}
 
@@ -105,8 +105,8 @@ func main() {
 
 	// Start Kafka Consumers in dedicated background goroutines (orders-topic & fulfillment-topic for Saga compensation)
 	consumerCtx, stopConsumer := context.WithCancel(context.Background())
-	consumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaOrdersTopic, cfg.KafkaGroupID, paymentSvc)
-	fulfillmentConsumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaFulfillmentTopic, cfg.KafkaGroupID+"-fulfillment", paymentSvc)
+	consumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaOrdersTopic, cfg.KafkaGroupID, paymentSvc, repo)
+	fulfillmentConsumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaFulfillmentTopic, cfg.KafkaGroupID+"-fulfillment", paymentSvc, repo)
 	go consumer.Start(consumerCtx)
 	go fulfillmentConsumer.Start(consumerCtx)
 

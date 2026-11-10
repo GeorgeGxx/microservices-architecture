@@ -131,3 +131,88 @@ type PaymentRefundedEvent struct {
 	Reason      string    `json:"reason"`
 	Timestamp   time.Time `json:"timestamp"`
 }
+
+// ProcessedMessage provides exactly-once consumer idempotency deduplication
+type ProcessedMessage struct {
+	MessageID   string    `gorm:"type:varchar(128);primaryKey" json:"message_id"`
+	ConsumerID  string    `gorm:"type:varchar(64);not null" json:"consumer_id"`
+	EventType   string    `gorm:"type:varchar(64)" json:"event_type"`
+	ProcessedAt time.Time `gorm:"not null" json:"processed_at"`
+}
+
+// OutboxEvent provides Transactional Outbox atomic Kafka dispatch
+type OutboxEvent struct {
+	ID            uuid.UUID  `gorm:"type:uuid;primaryKey" json:"id"`
+	AggregateType string     `gorm:"type:varchar(64);not null" json:"aggregate_type"`
+	AggregateID   string     `gorm:"type:varchar(128);not null" json:"aggregate_id"`
+	EventType     string     `gorm:"type:varchar(64);not null" json:"event_type"`
+	Payload       string     `gorm:"type:text;not null" json:"payload"`
+	Status        string     `gorm:"type:varchar(20);default:'PENDING';not null;index" json:"status"`
+	RetryCount    int        `gorm:"default:0" json:"retry_count"`
+	CreatedAt     time.Time  `gorm:"not null;index" json:"created_at"`
+	ProcessedAt   *time.Time `json:"processed_at,omitempty"`
+}
+
+// OrderEventPayload represents typed order events consumed by payments-service
+type OrderEventPayload struct {
+	OrderNumber     string  `json:"orderNumber"`
+	AltOrderNumber  string  `json:"order_number"`
+	OrderStatus     string  `json:"orderStatus"`
+	AltOrderStatus  string  `json:"status"`
+	EventType       string  `json:"eventType"`
+	AltEventType    string  `json:"event_type"`
+	TotalAmount     float64 `json:"totalAmount"`
+	AltTotalAmount  float64 `json:"total_amount"`
+	PaymentMethod   string  `json:"paymentMethod"`
+	AltPaymentMethod string `json:"payment_method"`
+	CustomerEmail   string  `json:"customerEmail"`
+	CustomerName    string  `json:"customerName"`
+	ShippingAddress string  `json:"shippingAddress"`
+	City            string  `json:"city"`
+	PostalCode      string  `json:"postalCode"`
+	Phone           string  `json:"phone"`
+	DeliveryMethod  string  `json:"deliveryMethod"`
+	UserID          string  `json:"userId"`
+	ItemsCount      int     `json:"itemsCount"`
+	IdempotencyKey  string  `json:"idempotencyKey"`
+	Reason          string  `json:"reason"`
+}
+
+func (p *OrderEventPayload) ResolveOrderNumber() string {
+	if p.OrderNumber != "" {
+		return p.OrderNumber
+	}
+	return p.AltOrderNumber
+}
+
+func (p *OrderEventPayload) ResolveStatus() string {
+	if p.OrderStatus != "" {
+		return p.OrderStatus
+	}
+	return p.AltOrderStatus
+}
+
+func (p *OrderEventPayload) ResolveEventType() string {
+	if p.EventType != "" {
+		return p.EventType
+	}
+	return p.AltEventType
+}
+
+func (p *OrderEventPayload) ResolveAmount() float64 {
+	if p.TotalAmount > 0 {
+		return p.TotalAmount
+	}
+	return p.AltTotalAmount
+}
+
+func (p *OrderEventPayload) ResolvePaymentMethod() string {
+	if p.PaymentMethod != "" {
+		return p.PaymentMethod
+	}
+	if p.AltPaymentMethod != "" {
+		return p.AltPaymentMethod
+	}
+	return "CARD_VISA"
+}
+
