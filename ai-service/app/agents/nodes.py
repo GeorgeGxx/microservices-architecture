@@ -63,27 +63,92 @@ def _extract_order_or_tracking_id(user_msg: str) -> Optional[str]:
         return f"ORD-{ord_match.group(1)}"
 
     # 2. Carrier tracking numbers (e.g. DHL-88239104, FDX-D1D28072, UPS-12345)
-    carrier_match = re.search(r"\b([A-Za-z]{2,5}-[A-Za-z0-9]+)\b", user_msg)
+    carrier_match = re.search(r"\b[A-Za-z]{2,5}-[A-Za-z0-9]+\b", user_msg)
     if carrier_match:
-        return carrier_match.group(1).upper()
+        return carrier_match.group(0).upper()
 
     # 3. Explicit tracking keywords (e.g. tracking FDX-D1D28072, guia DHL8823)
-    keyword_match = re.search(
-        r"(?:tracking|guia|guía|rastreo|shipment)\s*(?:number|code|id|no\.?|#)?\s*[:#]?\s*([A-Za-z0-9\-]+)",
-        user_msg,
-        re.IGNORECASE
-    )
+    keyword_match = re.search(r"\b(?:tracking|guia|guía|rastreo|shipment)\s*[:#]?\s*([A-Za-z0-9-]+)\b", user_msg, re.IGNORECASE)
     if keyword_match:
-        val = keyword_match.group(1).strip("-").upper()
+        val = keyword_match.group(1).upper()
         if len(val) >= 4:
             return val
 
     # 4. Numeric order patterns (e.g. order #1001, pedido 1002)
-    order_num_match = re.search(r"(?:order|pedido)\s*(?:number|id|no\.?|#)?\s*[:#]?\s*(\d{1,8})\b", user_msg, re.IGNORECASE)
+    order_num_match = re.search(r"\b(?:order|pedido)\s*[:#]?\s*(\d{1,8})\b", user_msg, re.IGNORECASE)
     if order_num_match:
         return f"ORD-{order_num_match.group(1)}"
 
     return None
+
+
+def _format_order_status_reply(data: Dict[str, Any]) -> str:
+    items_summary = ", ".join([f"{it['name']} (x{it['qty']})" for it in data.get("items", [])]) if data.get("items") else "Standard catalog items"
+    carrier_label = data.get("carrier", "Carrier")
+    return (
+        f"📦 **Order Status for {data['order_id']}**:\n"
+        f"- **Status:** {data['status']}\n"
+        f"- **Carrier:** {carrier_label}\n"
+        f"- **Tracking Number:** `{data['tracking_number']}`\n"
+        f"- **Items:** {items_summary}\n"
+        f"- **Total:** ${data.get('total', 0.0):.2f} USD\n\n"
+        f"Do you need additional assistance with this shipment or wish to initiate an exchange?"
+    )
+
+
+async def _handle_refund_flow(order_id: Optional[str], user_msg: str) -> Dict[str, Any]:
+    if not order_id:
+        reply_text = (
+            "To process a refund or return request, please provide your **Order ID** (e.g., `ORD-1001` or `ORD-1002`)."
+        )
+        return {
+            "messages": [AIMessage(content=reply_text)],
+            "current_agent": "order_support",
+            "hitl_pending": False,
+            "final_output": reply_text
+        }
+
+    resolved_order_id = order_id
+    if not resolved_order_id.startswith("ORD-"):
+        lookup = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": resolved_order_id})
+        if lookup.get("success") and "data" in lookup and "order_id" in lookup["data"]:
+            resolved_order_id = lookup["data"]["order_id"]
+
+    amount_match = re.search(r"\$\s*(\d+(?:\.\d{1,2})?)", user_msg)
+    if not amount_match:
+        amount_match = re.search(r"\b(\d+(?:\.\d{1,2})?)\s*(?:usd|dollars|dolares)\b", user_msg, re.IGNORECASE)
+    amount = float(amount_match.group(1)) if amount_match else 75.00
+
+    tool_result = await EcommerceMCPServer.call_tool("request_refund", {
+        "order_id": resolved_order_id,
+        "amount": amount,
+        "reason": user_msg
+    })
+
+    if amount > settings.REFUND_AUTO_APPROVE_LIMIT:
+        reply_text = (
+            f"We have registered your refund request for order **{resolved_order_id}** in the amount of **${amount:.2f} USD**.\n\n"
+            f"⚠️ **Attention:** In accordance with store security policies, refunds exceeding ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD "
+            f"require authorization from a human supervisor. Your request has been routed to the real-time supervisor approval queue."
+        )
+        return {
+            "messages": [AIMessage(content=reply_text)],
+            "current_agent": "order_support",
+            "hitl_pending": True,
+            "hitl_payload": tool_result["data"],
+            "final_output": reply_text
+        }
+
+    reply_text = (
+        f"Your refund request for order **{resolved_order_id}** for **${amount:.2f} USD** was **automatically approved**.\n"
+        f"Ticket reference: `{tool_result['data']['refund_ticket']}`. The credit will reflect on your original payment method in 3 to 5 business days."
+    )
+    return {
+        "messages": [AIMessage(content=reply_text)],
+        "current_agent": "order_support",
+        "hitl_pending": False,
+        "final_output": reply_text
+    }
 
 
 async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
@@ -94,57 +159,7 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
     is_refund = any(w in user_msg.lower() for w in ["refund", "reembolso", "devolver", "return", "cancel"])
 
     if is_refund:
-        if not order_id:
-            reply_text = (
-                "To process a refund or return request, please provide your **Order ID** (e.g., `ORD-1001` or `ORD-1002`)."
-            )
-            return {
-                "messages": [AIMessage(content=reply_text)],
-                "current_agent": "order_support",
-                "hitl_pending": False,
-                "final_output": reply_text
-            }
-
-        if not order_id.startswith("ORD-"):
-            lookup = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
-            if lookup.get("success") and "data" in lookup and "order_id" in lookup["data"]:
-                order_id = lookup["data"]["order_id"]
-
-        amount_match = re.search(r"\$\s*(\d+(?:\.\d{1,2})?)", user_msg)
-        if not amount_match:
-            amount_match = re.search(r"\b(\d+(?:\.\d{1,2})?)\s*(?:usd|dollars|dolares)\b", user_msg, re.IGNORECASE)
-        amount = float(amount_match.group(1)) if amount_match else 75.00
-
-        tool_result = await EcommerceMCPServer.call_tool("request_refund", {
-            "order_id": order_id,
-            "amount": amount,
-            "reason": user_msg
-        })
-
-        if amount > settings.REFUND_AUTO_APPROVE_LIMIT:
-            reply_text = (
-                f"We have registered your refund request for order **{order_id}** in the amount of **${amount:.2f} USD**.\n\n"
-                f"⚠️ **Attention:** In accordance with store security policies, refunds exceeding ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD "
-                f"require authorization from a human supervisor. Your request has been routed to the real-time supervisor approval queue."
-            )
-            return {
-                "messages": [AIMessage(content=reply_text)],
-                "current_agent": "order_support",
-                "hitl_pending": True,
-                "hitl_payload": tool_result["data"],
-                "final_output": reply_text
-            }
-        else:
-            reply_text = (
-                f"Your refund request for order **{order_id}** for **${amount:.2f} USD** was **automatically approved**.\n"
-                f"Ticket reference: `{tool_result['data']['refund_ticket']}`. The credit will reflect on your original payment method in 3 to 5 business days."
-            )
-            return {
-                "messages": [AIMessage(content=reply_text)],
-                "current_agent": "order_support",
-                "hitl_pending": False,
-                "final_output": reply_text
-            }
+        return await _handle_refund_flow(order_id, user_msg)
 
     # Order details lookup
     if not order_id:
@@ -161,18 +176,7 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
     tool_result = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
     if tool_result.get("success"):
-        data = tool_result["data"]
-        items_summary = ", ".join([f"{it['name']} (x{it['qty']})" for it in data.get("items", [])]) if data.get("items") else "Standard catalog items"
-        carrier_label = data.get("carrier", "Carrier")
-        reply_text = (
-            f"📦 **Order Status for {data['order_id']}**:\n"
-            f"- **Status:** {data['status']}\n"
-            f"- **Carrier:** {carrier_label}\n"
-            f"- **Tracking Number:** `{data['tracking_number']}`\n"
-            f"- **Items:** {items_summary}\n"
-            f"- **Total:** ${data.get('total', 0.0):.2f} USD\n\n"
-            f"Do you need additional assistance with this shipment or wish to initiate an exchange?"
-        )
+        reply_text = _format_order_status_reply(tool_result["data"])
     else:
         reply_text = (
             f"🔍 **Shipment / Order Lookup**:\n"
