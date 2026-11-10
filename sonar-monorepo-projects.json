@@ -28,6 +28,10 @@
     "projectName": "Analytics Service"
   },
   {
+    "projectKey": "msa-ai-service",
+    "projectName": "AI Copilot Service"
+  },
+  {
     "projectKey": "msa-frontend",
     "projectName": "Novashop Storefront"
   },
