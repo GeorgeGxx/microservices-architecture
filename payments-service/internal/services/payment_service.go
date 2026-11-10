@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -198,12 +199,15 @@ func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *mo
 }
 
 func (s *paymentService) dispatchSagaEvents(req models.ProcessPaymentRequest, payment *models.Payment) {
-	if s.producer == nil {
-		return
-	}
+	var eventType string
+	var payloadBytes []byte
+	var aggregateID string
+
 	if payment.Status == models.PaymentStatusCompleted {
+		eventType = "PAYMENT_COMPLETED"
+		aggregateID = payment.ID.String()
 		completedEvent := models.PaymentCompletedEvent{
-			EventType:       "PAYMENT_COMPLETED",
+			EventType:       eventType,
 			Status:          string(models.PaymentStatusCompleted),
 			PaymentID:       payment.ID.String(),
 			OrderNumber:     payment.OrderNumber,
@@ -222,24 +226,43 @@ func (s *paymentService) dispatchSagaEvents(req models.ProcessPaymentRequest, pa
 			ItemsCount:      req.ItemsCount,
 			Timestamp:       payment.UpdatedAt,
 		}
-		go func() {
-			_ = s.producer.PublishPaymentCompleted(context.Background(), completedEvent)
-		}()
-		return
+		payloadBytes, _ = json.Marshal(completedEvent)
+		if s.producer != nil {
+			go func() {
+				_ = s.producer.PublishPaymentCompleted(context.Background(), completedEvent)
+			}()
+		}
+	} else {
+		eventType = "PAYMENT_FAILED"
+		aggregateID = payment.OrderNumber
+		failedEvent := models.PaymentFailedEvent{
+			EventType:   eventType,
+			Status:      string(models.PaymentStatusFailed),
+			OrderNumber: payment.OrderNumber,
+			Amount:      payment.Amount,
+			Reason:      payment.FailureReason,
+			ErrorCode:   "PAYMENT_DECLINED",
+			Timestamp:   payment.UpdatedAt,
+		}
+		payloadBytes, _ = json.Marshal(failedEvent)
+		if s.producer != nil {
+			go func() {
+				_ = s.producer.PublishPaymentFailed(context.Background(), failedEvent)
+			}()
+		}
 	}
 
-	failedEvent := models.PaymentFailedEvent{
-		EventType:   "PAYMENT_FAILED",
-		Status:      string(models.PaymentStatusFailed),
-		OrderNumber: payment.OrderNumber,
-		Amount:      payment.Amount,
-		Reason:      payment.FailureReason,
-		ErrorCode:   "PAYMENT_DECLINED",
-		Timestamp:   payment.UpdatedAt,
+	if len(payloadBytes) > 0 {
+		_ = s.repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+			ID:            uuid.New(),
+			AggregateType: "PAYMENT",
+			AggregateID:   aggregateID,
+			EventType:     eventType,
+			Payload:       string(payloadBytes),
+			Status:        "PUBLISHED",
+			CreatedAt:     time.Now().UTC(),
+		})
 	}
-	go func() {
-		_ = s.producer.PublishPaymentFailed(context.Background(), failedEvent)
-	}()
 }
 
 func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPaymentRequest) (*models.Payment, error) {
@@ -271,15 +294,27 @@ func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPay
 
 	s.dispatchAudit(payment.ID, "REFUND", fmt.Sprintf("Refunded order %s reason: %s", payment.OrderNumber, req.Reason))
 
+	refundedEvent := models.PaymentRefundedEvent{
+		EventType:   "PAYMENT_REFUNDED",
+		Status:      string(models.PaymentStatusRefunded),
+		OrderNumber: payment.OrderNumber,
+		Amount:      payment.Amount,
+		Reason:      reasonTag,
+		Timestamp:   payment.UpdatedAt,
+	}
+
+	payloadBytes, _ := json.Marshal(refundedEvent)
+	_ = s.repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+		ID:            uuid.New(),
+		AggregateType: "PAYMENT",
+		AggregateID:   payment.OrderNumber,
+		EventType:     "PAYMENT_REFUNDED",
+		Payload:       string(payloadBytes),
+		Status:        "PUBLISHED",
+		CreatedAt:     time.Now().UTC(),
+	})
+
 	if s.producer != nil {
-		refundedEvent := models.PaymentRefundedEvent{
-			EventType:   "PAYMENT_REFUNDED",
-			Status:      string(models.PaymentStatusRefunded),
-			OrderNumber: payment.OrderNumber,
-			Amount:      payment.Amount,
-			Reason:      reasonTag,
-			Timestamp:   payment.UpdatedAt,
-		}
 		go func() {
 			_ = s.producer.PublishPaymentRefunded(context.Background(), refundedEvent)
 		}()

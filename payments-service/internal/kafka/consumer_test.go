@@ -208,3 +208,47 @@ func TestHandleMessage_ProcessorError(t *testing.T) {
 	mockReader.AssertNotCalled(t, "CommitMessages")
 	mockProcessor.AssertExpectations(t)
 }
+
+func TestHandleMessage_CloudEventEnvelope(t *testing.T) {
+	mockReader := new(mockMessageReader)
+	mockProcessor := new(mockPaymentProcessor)
+
+	mockReader.On("CommitMessages", mock.Anything, mock.Anything).Return(nil)
+	mockProcessor.On("ProcessPayment", mock.Anything, mock.MatchedBy(func(req models.ProcessPaymentRequest) bool {
+		return req.OrderNumber == "ORD-CE-999" && req.Amount == 299.99
+	})).Return(&models.ProcessPaymentResponse{OrderNumber: "ORD-CE-999"}, nil)
+
+	consumer := &OrderEventConsumer{
+		reader:    mockReader,
+		processor: mockProcessor,
+		stopChan:  make(chan struct{}),
+	}
+
+	cloudEvent := map[string]interface{}{
+		"specversion": "1.0",
+		"id":          "evt-uuid-1234",
+		"type":        "com.microservices.orders.order.created.v1",
+		"source":      "/orders-service",
+		"data": map[string]interface{}{
+			"orderNumber":   "ORD-CE-999",
+			"status":        "PLACED",
+			"totalAmount":   299.99,
+			"paymentMethod": "CARD_VISA",
+			"customerEmail": "ce@example.com",
+		},
+	}
+	raw, _ := json.Marshal(cloudEvent)
+
+	msg := kafka.Message{
+		Key:   []byte("ORD-CE-999"),
+		Value: raw,
+		Headers: []kafka.Header{
+			{Key: "ce_id", Value: []byte("evt-uuid-1234")},
+		},
+	}
+
+	err := consumer.handleMessage(context.Background(), msg)
+	assert.NoError(t, err)
+	mockReader.AssertExpectations(t)
+	mockProcessor.AssertExpectations(t)
+}

@@ -74,6 +74,26 @@ func (m *MockPaymentRepository) CreateAuditLog(ctx context.Context, log *models.
 	return nil
 }
 
+func (m *MockPaymentRepository) IsMessageProcessed(ctx context.Context, messageID string) (bool, error) {
+	return false, nil
+}
+
+func (m *MockPaymentRepository) RecordProcessedMessage(ctx context.Context, msg *models.ProcessedMessage) error {
+	return nil
+}
+
+func (m *MockPaymentRepository) SaveOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	return nil
+}
+
+func (m *MockPaymentRepository) GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OutboxEvent, error) {
+	return nil, nil
+}
+
+func (m *MockPaymentRepository) UpdateOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	return nil
+}
+
 // MockProducer
 type MockEventProducer struct {
 	mock.Mock

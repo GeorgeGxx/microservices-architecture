@@ -7,6 +7,7 @@ import (
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type PaymentRepository interface {
@@ -16,6 +17,15 @@ type PaymentRepository interface {
 	FindByOrderNumber(ctx context.Context, orderNumber string) (*models.Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (*models.Payment, error)
 	CreateAuditLog(ctx context.Context, log *models.PaymentAuditLog) error
+
+	// Consumer Idempotency
+	IsMessageProcessed(ctx context.Context, messageID string) (bool, error)
+	RecordProcessedMessage(ctx context.Context, msg *models.ProcessedMessage) error
+
+	// Transactional Outbox
+	SaveOutboxEvent(ctx context.Context, event *models.OutboxEvent) error
+	GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OutboxEvent, error)
+	UpdateOutboxEvent(ctx context.Context, event *models.OutboxEvent) error
 }
 
 type paymentRepository struct {
@@ -75,4 +85,41 @@ func (r *paymentRepository) FindByIdempotencyKey(ctx context.Context, key string
 
 func (r *paymentRepository) CreateAuditLog(ctx context.Context, log *models.PaymentAuditLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
+}
+
+func (r *paymentRepository) IsMessageProcessed(ctx context.Context, messageID string) (bool, error) {
+	if messageID == "" {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&models.ProcessedMessage{}).Where("message_id = ?", messageID).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+func (r *paymentRepository) RecordProcessedMessage(ctx context.Context, msg *models.ProcessedMessage) error {
+	if msg == nil || msg.MessageID == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(msg).Error
+}
+
+func (r *paymentRepository) SaveOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	return r.db.WithContext(ctx).Create(event).Error
+}
+
+func (r *paymentRepository) GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OutboxEvent, error) {
+	var events []models.OutboxEvent
+	err := r.db.WithContext(ctx).
+		Where("status = ?", "PENDING").
+		Order("created_at asc").
+		Limit(limit).
+		Find(&events).Error
+	return events, err
+}
+
+func (r *paymentRepository) UpdateOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	return r.db.WithContext(ctx).Save(event).Error
 }

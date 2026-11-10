@@ -12,6 +12,12 @@ import type { EventPublisher } from '../../application/ports/event-publisher.por
 import { FulfillmentMetricsService } from '../metrics/fulfillment-metrics.service';
 import { ShipmentOrmEntity } from '../persistence/entities/shipment.orm-entity';
 import { ShipmentStatus } from '../../domain/value-objects/shipment-status.enum';
+import {
+  parseCloudEvent,
+  PaymentEventContract,
+  OrderEventContract,
+} from '../../domain/events/contracts/cloud-event.contract';
+import { IdempotencyService } from '../outbox/idempotency.service';
 import { extractErrorMessage } from '../utils/error.util';
 
 @Injectable()
@@ -32,6 +38,8 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     @Optional()
     @InjectRepository(ShipmentOrmEntity)
     private readonly shipmentRepo?: Repository<ShipmentOrmEntity>,
+    @Optional()
+    private readonly idempotencyService?: IdempotencyService,
   ) {
     const brokers = (process.env.KAFKA_BOOTSTRAP_SERVERS || process.env.KAFKA_BROKERS || 'localhost:9092').split(',');
     this.kafka = new Kafka({
@@ -66,10 +74,27 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
           if (!message.value) return;
           try {
             const raw = JSON.parse(message.value.toString());
+            const parsed = parseCloudEvent(raw);
+
+            // Exactly-once semantic idempotency check
+            const messageId =
+              parsed.id ||
+              message.key?.toString() ||
+              `${topic}:${(parsed.data as any).orderNumber || (parsed.data as any).order_number || 'none'}:${message.offset}`;
+
+            if (this.idempotencyService && (await this.idempotencyService.isProcessed(messageId))) {
+              this.logger.debug(`Skipping already processed message #${messageId} on topic ${topic}`);
+              return;
+            }
+
             if (topic === this.ordersTopic) {
-              await this.handleOrderEvent(raw);
+              await this.handleOrderEvent(parsed.data as OrderEventContract);
             } else {
-              await this.handlePaymentEvent(raw);
+              await this.handlePaymentEvent(parsed.data as PaymentEventContract);
+            }
+
+            if (this.idempotencyService) {
+              await this.idempotencyService.markProcessed(messageId, 'fulfillment-consumer', parsed.eventType);
             }
           } catch (err: unknown) {
             const errorMsg = extractErrorMessage(err);
@@ -92,15 +117,15 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private isNegativePaymentEvent(raw: Record<string, any>): boolean {
-    const eventType = raw.event_type || raw.eventType;
-    const status = raw.status || raw.paymentStatus;
+  private isNegativePaymentEvent(payment: PaymentEventContract): boolean {
+    const eventType = String(payment.event_type || '').toUpperCase();
+    const status = String(payment.status || '').toUpperCase();
     return (
       eventType === 'PAYMENT_FAILED' ||
       eventType === 'PAYMENT_REFUNDED' ||
       status === 'FAILED' ||
       status === 'REFUNDED' ||
-      Boolean(raw.error_code)
+      Boolean(payment.error_code)
     );
   }
 
@@ -118,14 +143,13 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     return 'DHL Express';
   }
 
-  private async handlePaymentEvent(raw: Record<string, any>): Promise<void> {
-    const orderNumber = raw.order_number || raw.orderNumber;
-    if (!orderNumber || this.isNegativePaymentEvent(raw)) {
+  private async handlePaymentEvent(payment: PaymentEventContract): Promise<void> {
+    const orderNumber = payment.order_number || (payment as any).orderNumber;
+    if (!orderNumber || this.isNegativePaymentEvent(payment)) {
       return;
     }
 
-    const streetVal = raw.shipping_address || raw.street;
-    const street = typeof streetVal === 'string' ? streetVal : '100 Main St';
+    const street = payment.shipping_address || (payment as any).street || '100 Main St';
     if (street.includes('FAIL_SHIPMENT')) {
       const reason = 'Undeliverable shipping address rejected by carrier validation';
       this.logger.warn(`Fulfillment validation failed for order #${orderNumber}: ${reason}`);
@@ -135,16 +159,16 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const carrier = this.resolveCarrier(raw.delivery_method || raw.deliveryMethod || raw.carrier);
+    const carrier = this.resolveCarrier(payment.delivery_method || (payment as any).carrier);
 
     this.logger.log(`Received PaymentCompleted for order #${orderNumber}, creating shipment via ${carrier}...`);
     const created = await this.createShipmentUseCase.execute({
       orderNumber,
-      recipientName: raw.customer_name || raw.recipientName || 'Customer',
+      recipientName: payment.customer_name || (payment as any).recipientName || 'Customer',
       street,
-      city: raw.city || 'Metropolis',
-      postalCode: raw.postal_code || raw.postalCode || '10001',
-      phone: raw.phone,
+      city: payment.city || 'Metropolis',
+      postalCode: payment.postal_code || (payment as any).postalCode || '10001',
+      phone: payment.phone,
       carrier,
     });
 
@@ -161,16 +185,11 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Successfully created shipment for order #${orderNumber} via Saga event`);
   }
 
-  private getStatusString(raw: Record<string, any>): string {
-    const val = raw.orderStatus || raw.status || raw.eventType;
-    return typeof val === 'string' ? val.toUpperCase() : '';
-  }
-
-  private async handleOrderEvent(raw: Record<string, any>): Promise<void> {
-    const orderNumber = raw.orderNumber || raw.order_number;
+  private async handleOrderEvent(order: OrderEventContract): Promise<void> {
+    const orderNumber = order.orderNumber || (order as any).order_number;
     if (!orderNumber || !this.shipmentRepo) return;
 
-    const rawStatus = this.getStatusString(raw);
+    const rawStatus = String(order.orderStatus || (order as any).status || '').toUpperCase();
 
     if (rawStatus === 'CANCELLED' || rawStatus === 'ORDER_CANCELLED') {
       await this.handleOrderCancelled(orderNumber);
@@ -188,35 +207,38 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
     }
     shipment.status = ShipmentStatus.CANCELLED;
     await this.shipmentRepo?.save(shipment);
-    this.logger.log(`Shipment for order #${orderNumber} marked as CANCELLED via async Kafka event`);
-    await this.metricsService?.refreshFromDatabase();
+    if (this.metricsService?.refreshFromDatabase) {
+      await this.metricsService.refreshFromDatabase();
+    }
+    this.logger.warn(`Shipment for cancelled order #${orderNumber} was marked CANCELLED`);
   }
 
   private async handleOrderShipped(orderNumber: string): Promise<void> {
     const shipment = await this.shipmentRepo?.findOne({ where: { orderNumber } });
-    if (!shipment || shipment.status === ShipmentStatus.DISPATCHED || shipment.status === ShipmentStatus.DELIVERED) {
-      return;
+    if (!shipment || shipment.status === ShipmentStatus.DELIVERED) return;
+    if (shipment.status !== ShipmentStatus.DISPATCHED) {
+      shipment.status = ShipmentStatus.DISPATCHED;
+      shipment.dispatchedAt = new Date();
+      await this.shipmentRepo?.save(shipment);
+      if (this.metricsService?.refreshFromDatabase) {
+        await this.metricsService.refreshFromDatabase();
+      }
+      this.logger.log(`Shipment for order #${orderNumber} marked DISPATCHED via upstream event`);
     }
-    shipment.status = ShipmentStatus.DISPATCHED;
-    shipment.dispatchedAt = shipment.dispatchedAt || new Date();
-    await this.shipmentRepo?.save(shipment);
-    this.logger.log(`Shipment for order #${orderNumber} marked as DISPATCHED via async Kafka event`);
-    await this.metricsService?.refreshFromDatabase();
   }
 
   private async handleOrderDelivered(orderNumber: string): Promise<void> {
     const shipment = await this.shipmentRepo?.findOne({ where: { orderNumber } });
-    if (!shipment || shipment.status === ShipmentStatus.DELIVERED) {
-      return;
+    if (!shipment) return;
+    if (shipment.status !== ShipmentStatus.DELIVERED) {
+      shipment.status = ShipmentStatus.DELIVERED;
+      shipment.deliveredAt = new Date();
+      await this.shipmentRepo?.save(shipment);
+      if (this.metricsService?.refreshFromDatabase) {
+        await this.metricsService.refreshFromDatabase();
+      }
+      this.logger.log(`Shipment for order #${orderNumber} marked DELIVERED via upstream event`);
     }
-    shipment.status = ShipmentStatus.DELIVERED;
-    shipment.deliveredAt = shipment.deliveredAt || new Date();
-    if (!shipment.dispatchedAt) {
-      shipment.dispatchedAt = shipment.deliveredAt;
-    }
-    await this.shipmentRepo?.save(shipment);
-    this.logger.log(`Shipment for order #${orderNumber} marked as DELIVERED via async Kafka event`);
-    await this.metricsService?.refreshFromDatabase();
   }
 
   async onModuleDestroy() {

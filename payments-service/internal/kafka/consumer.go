@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/georgegxx/payments-service/internal/models"
+	"github.com/georgegxx/payments-service/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel"
 )
@@ -27,10 +28,11 @@ type messageReader interface {
 type OrderEventConsumer struct {
 	reader    messageReader
 	processor PaymentProcessor
+	repo      repository.PaymentRepository
 	stopChan  chan struct{}
 }
 
-func NewOrderEventConsumer(brokers []string, topic, groupID string, processor PaymentProcessor) *OrderEventConsumer {
+func NewOrderEventConsumer(brokers []string, topic, groupID string, processor PaymentProcessor, repo ...repository.PaymentRepository) *OrderEventConsumer {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:        brokers,
 		Topic:          topic,
@@ -42,9 +44,15 @@ func NewOrderEventConsumer(brokers []string, topic, groupID string, processor Pa
 		StartOffset:    kafka.LastOffset,
 	})
 
+	var r repository.PaymentRepository
+	if len(repo) > 0 {
+		r = repo[0]
+	}
+
 	return &OrderEventConsumer{
 		reader:    reader,
 		processor: processor,
+		repo:      r,
 		stopChan:  make(chan struct{}),
 	}
 }
@@ -79,41 +87,78 @@ func (c *OrderEventConsumer) Start(ctx context.Context) {
 	}
 }
 
+func (c *OrderEventConsumer) extractHeader(headers []kafka.Header, key string) string {
+	for _, h := range headers {
+		if strings.EqualFold(h.Key, key) {
+			return string(h.Value)
+		}
+	}
+	return ""
+}
+
 func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) error {
 	headers := msg.Headers
 	carrier := (*HeaderCarrier)(&headers)
 	msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
 
-	var rawEvent map[string]interface{}
-	if err := json.Unmarshal(msg.Value, &rawEvent); err != nil {
-		log.Printf("[Kafka Consumer] Malformed JSON payload at offset %d: %v", msg.Offset, err)
-		// Non-retryable poison pill; commit to avoid infinite processing loops
-		_ = c.reader.CommitMessages(msgCtx, msg)
-		return nil
+	messageID := c.extractHeader(headers, "ce_id")
+	if messageID == "" {
+		messageID = c.extractHeader(headers, "idempotency-key")
 	}
 
-	orderStatus, _ := rawEvent["status"].(string)
-	if orderStatus == "" {
-		orderStatus, _ = rawEvent["orderStatus"].(string)
-	}
-	eventType, _ := rawEvent["eventType"].(string)
-	if eventType == "" {
-		eventType, _ = rawEvent["event_type"].(string)
+	var eventPayload models.OrderEventPayload
+	var cloudEvent struct {
+		ID   string          `json:"id"`
+		Type string          `json:"type"`
+		Data json.RawMessage `json:"data"`
 	}
 
-	orderNumber, _ := rawEvent["orderNumber"].(string)
-	if orderNumber == "" {
-		orderNumber, _ = rawEvent["order_number"].(string)
+	if err := json.Unmarshal(msg.Value, &cloudEvent); err == nil && len(cloudEvent.Data) > 0 {
+		if messageID == "" && cloudEvent.ID != "" {
+			messageID = cloudEvent.ID
+		}
+		_ = json.Unmarshal(cloudEvent.Data, &eventPayload)
+		if eventPayload.EventType == "" && cloudEvent.Type != "" {
+			eventPayload.EventType = cloudEvent.Type
+		}
+	} else {
+		if err := json.Unmarshal(msg.Value, &eventPayload); err != nil {
+			log.Printf("[Kafka Consumer] Malformed JSON payload at offset %d: %v", msg.Offset, err)
+			// Non-retryable poison pill; commit to avoid infinite processing loops
+			_ = c.reader.CommitMessages(msgCtx, msg)
+			return nil
+		}
 	}
+
+	orderNumber := eventPayload.ResolveOrderNumber()
 	if orderNumber == "" {
 		orderNumber = string(msg.Key)
+	}
+	orderStatus := eventPayload.ResolveStatus()
+	eventType := eventPayload.ResolveEventType()
+
+	if messageID == "" {
+		if eventPayload.IdempotencyKey != "" {
+			messageID = eventPayload.IdempotencyKey
+		} else if orderNumber != "" {
+			messageID = orderNumber + ":" + orderStatus + ":" + eventType
+		}
+	}
+
+	// Consumer Idempotency Check: prevent duplicate event processing
+	if c.repo != nil && messageID != "" {
+		processed, err := c.repo.IsMessageProcessed(msgCtx, messageID)
+		if err == nil && processed {
+			log.Printf("[Kafka Consumer] Message %s already processed; deduplicating", messageID)
+			return c.reader.CommitMessages(msgCtx, msg)
+		}
 	}
 
 	// Backward Saga Compensation: Refund payment if order is CANCELLED or fulfillment SHIPMENT_FAILED
 	if strings.EqualFold(orderStatus, "CANCELLED") ||
 		strings.EqualFold(orderStatus, "ORDER_CANCELLED") ||
 		strings.EqualFold(eventType, "SHIPMENT_FAILED") {
-		reason, _ := rawEvent["reason"].(string)
+		reason := eventPayload.Reason
 		if reason == "" {
 			reason = "Saga backward compensation (" + orderStatus + eventType + ")"
 		}
@@ -126,6 +171,15 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 			log.Printf("[Kafka Consumer] Compensating refund skipped/failed for order %s: %v", orderNumber, err)
 			return err
 		}
+
+		if c.repo != nil && messageID != "" {
+			_ = c.repo.RecordProcessedMessage(msgCtx, &models.ProcessedMessage{
+				MessageID:   messageID,
+				ConsumerID:  "payments-service",
+				EventType:   eventType,
+				ProcessedAt: time.Now().UTC(),
+			})
+		}
 		return c.reader.CommitMessages(msgCtx, msg)
 	}
 
@@ -134,21 +188,10 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		return c.reader.CommitMessages(msgCtx, msg)
 	}
 
-	totalAmount, _ := rawEvent["totalAmount"].(float64)
-	paymentMethod, _ := rawEvent["paymentMethod"].(string)
-	if paymentMethod == "" {
-		paymentMethod = "CARD_VISA"
-	}
-	customerEmail, _ := rawEvent["customerEmail"].(string)
-	customerName, _ := rawEvent["customerName"].(string)
-	shippingAddress, _ := rawEvent["shippingAddress"].(string)
-	city, _ := rawEvent["city"].(string)
-	postalCode, _ := rawEvent["postalCode"].(string)
-	phone, _ := rawEvent["phone"].(string)
-	deliveryMethod, _ := rawEvent["deliveryMethod"].(string)
-	userID, _ := rawEvent["userId"].(string)
-	itemsCountFloat, _ := rawEvent["itemsCount"].(float64)
-	idempotencyKey, _ := rawEvent["idempotencyKey"].(string)
+	totalAmount := eventPayload.ResolveAmount()
+	paymentMethod := eventPayload.ResolvePaymentMethod()
+
+	idempotencyKey := eventPayload.IdempotencyKey
 	if idempotencyKey == "" {
 		idempotencyKey = "kafka-" + orderNumber
 	}
@@ -158,15 +201,15 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		Amount:          totalAmount,
 		Currency:        "USD",
 		PaymentMethod:   paymentMethod,
-		CustomerEmail:   customerEmail,
-		CustomerName:    customerName,
-		ShippingAddress: shippingAddress,
-		City:            city,
-		PostalCode:      postalCode,
-		Phone:           phone,
-		DeliveryMethod:  deliveryMethod,
-		UserID:          userID,
-		ItemsCount:      int(itemsCountFloat),
+		CustomerEmail:   eventPayload.CustomerEmail,
+		CustomerName:    eventPayload.CustomerName,
+		ShippingAddress: eventPayload.ShippingAddress,
+		City:            eventPayload.City,
+		PostalCode:      eventPayload.PostalCode,
+		Phone:           eventPayload.Phone,
+		DeliveryMethod:  eventPayload.DeliveryMethod,
+		UserID:          eventPayload.UserID,
+		ItemsCount:      eventPayload.ItemsCount,
 		IdempotencyKey:  idempotencyKey,
 	}
 
@@ -176,6 +219,16 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		log.Printf("[Kafka Consumer] Failed to process payment for order %s: %v", orderNumber, err)
 		return err
 	}
+
+	if c.repo != nil && messageID != "" {
+		_ = c.repo.RecordProcessedMessage(msgCtx, &models.ProcessedMessage{
+			MessageID:   messageID,
+			ConsumerID:  "payments-service",
+			EventType:   eventType,
+			ProcessedAt: time.Now().UTC(),
+		})
+	}
+
 	return c.reader.CommitMessages(msgCtx, msg)
 }
 
