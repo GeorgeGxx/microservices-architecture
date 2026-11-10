@@ -119,47 +119,41 @@ from app.models.llm_factory import ensure_ollama_model_installed
 from app.tools.mcp_server import EcommerceMCPServer
 
 
-@pytest.mark.asyncio
-async def test_security_utilities():
-    user = await get_current_user(None)
+def test_security_utilities():
+    user = get_current_user(None)
     assert user["sub"] == "dev-user"
     assert "ROLE_ADMIN" in user["roles"]
 
     checker = require_role("ROLE_SUPERVISOR")
-    res = await checker(user)
+    res = checker(user)
     assert res == user
 
 
-@pytest.mark.asyncio
-async def test_security_enabled_enforcement():
-    original = settings.SECURITY_ENABLED
-    try:
-        settings.SECURITY_ENABLED = True
-        # 1. Missing credentials triggers 401
-        with pytest.raises(HTTPException) as exc_info_401:
-            await get_current_user(None)
-        assert exc_info_401.value.status_code == 401
+def test_security_enabled_enforcement(monkeypatch):
+    monkeypatch.setattr(settings, "SECURITY_ENABLED", True)
+    # 1. Missing credentials triggers 401
+    with pytest.raises(HTTPException) as exc_info_401:
+        get_current_user(None)
+    assert exc_info_401.value.status_code == 401
 
-        # 2. Valid credentials returns user dict
-        creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-sample-token")
-        authed_user = await get_current_user(creds)
-        assert authed_user["token"] == "jwt-sample-token"
-        assert "ROLE_USER" in authed_user["roles"]
+    # 2. Valid credentials returns user dict
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-sample-token")
+    authed_user = get_current_user(creds)
+    assert authed_user["token"] == "jwt-sample-token"
+    assert "ROLE_USER" in authed_user["roles"]
 
-        # 3. Insufficient role triggers 403
-        supervisor_checker = require_role("ROLE_SUPERVISOR")
-        with pytest.raises(HTTPException) as exc_info_403:
-            await supervisor_checker(authed_user)
-        assert exc_info_403.value.status_code == 403
+    # 3. Insufficient role triggers 403
+    supervisor_checker = require_role("ROLE_SUPERVISOR")
+    with pytest.raises(HTTPException) as exc_info_403:
+        supervisor_checker(authed_user)
+    assert exc_info_403.value.status_code == 403
 
-        # 4. Matching role or ROLE_ADMIN passes
-        user_checker = require_role("ROLE_USER")
-        assert (await user_checker(authed_user)) == authed_user
+    # 4. Matching role or ROLE_ADMIN passes
+    user_checker = require_role("ROLE_USER")
+    assert user_checker(authed_user) == authed_user
 
-        admin_user = {"sub": "admin", "roles": ["ROLE_ADMIN"]}
-        assert (await supervisor_checker(admin_user)) == admin_user
-    finally:
-        settings.SECURITY_ENABLED = original
+    admin_user = {"sub": "admin", "roles": ["ROLE_ADMIN"]}
+    assert supervisor_checker(admin_user) == admin_user
 
 
 @pytest.mark.asyncio
@@ -200,18 +194,14 @@ def test_local_fallback_chat_model_list_content():
     assert "DHL" in res.content
 
 
-def test_get_chat_model_provider_branches():
-    original_provider = settings.LLM_PROVIDER
-    try:
-        settings.LLM_PROVIDER = "ollama"
-        model_ollama = get_chat_model()
-        assert model_ollama is not None
+def test_get_chat_model_provider_branches(monkeypatch):
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "ollama")
+    model_ollama = get_chat_model()
+    assert model_ollama is not None
 
-        settings.LLM_PROVIDER = "openai"
-        model_openai = get_chat_model()
-        assert model_openai is not None
-    finally:
-        settings.LLM_PROVIDER = original_provider
+    monkeypatch.setattr(settings, "LLM_PROVIDER", "openai")
+    model_openai = get_chat_model()
+    assert model_openai is not None
 
 
 @pytest.mark.asyncio
@@ -236,14 +226,10 @@ def test_config_defaults():
     assert settings.REFUND_AUTO_APPROVE_LIMIT == 50.0
 
 
-def test_telemetry_setup_no_crash():
+def test_telemetry_setup_no_crash(monkeypatch):
     setup_observability()
-    original = settings.ENABLE_OBSERVABILITY
-    try:
-        settings.ENABLE_OBSERVABILITY = True
-        setup_observability()
-    finally:
-        settings.ENABLE_OBSERVABILITY = original
+    monkeypatch.setattr(settings, "ENABLE_OBSERVABILITY", True)
+    setup_observability()
 
 
 @pytest.mark.asyncio

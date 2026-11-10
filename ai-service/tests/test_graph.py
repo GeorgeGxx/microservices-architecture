@@ -1,12 +1,10 @@
 import pytest
 from langchain_core.messages import HumanMessage
-from app.agents.graph import ecommerce_agent_app
 from app.agents.nodes import supervisor_router_node
 from app.tools.mcp_server import EcommerceMCPServer
 
 
-@pytest.mark.asyncio
-async def test_supervisor_order_intent_routing():
+def test_supervisor_order_intent_routing():
     state = {
         "messages": [HumanMessage(content="Where is my package ORD-1001 shipped via DHL?")],
         "current_agent": "supervisor",
@@ -15,12 +13,11 @@ async def test_supervisor_order_intent_routing():
         "hitl_payload": None,
         "final_output": None
     }
-    res = await supervisor_router_node(state)
+    res = supervisor_router_node(state)
     assert res["detected_intent"] == "order_support"
 
 
-@pytest.mark.asyncio
-async def test_supervisor_catalog_intent_routing():
+def test_supervisor_catalog_intent_routing():
     state = {
         "messages": [HumanMessage(content="Recommend a powerful laptop for design and programming")],
         "current_agent": "supervisor",
@@ -29,7 +26,7 @@ async def test_supervisor_catalog_intent_routing():
         "hitl_payload": None,
         "final_output": None
     }
-    res = await supervisor_router_node(state)
+    res = supervisor_router_node(state)
     assert res["detected_intent"] == "catalog"
 
 

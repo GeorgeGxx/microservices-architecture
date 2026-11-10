@@ -1,4 +1,3 @@
-import json
 import re
 from typing import Dict, Any
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
@@ -10,7 +9,7 @@ from app.tools.mcp_server import EcommerceMCPServer
 from app.config import settings
 
 
-async def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
+def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     if not messages:
         return {"current_agent": "supervisor", "detected_intent": "general"}
@@ -59,7 +58,7 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
     messages = state.get("messages", [])
-    user_msg = messages[-1].content
+    user_msg = messages[-1].content if messages else ""
 
     order_match = re.search(r"ORD-\d+", user_msg, re.IGNORECASE)
     order_id = order_match.group(0).upper() if order_match else "ORD-1001"

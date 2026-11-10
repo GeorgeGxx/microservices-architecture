@@ -6,7 +6,7 @@ from app.config import settings
 security_bearer = HTTPBearer(auto_error=False)
 
 
-async def get_current_user(
+def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_bearer)
 ) -> Optional[Dict[str, Any]]:
     """
@@ -31,7 +31,7 @@ def require_role(role: str):
     """
     Dependency factory to enforce role-based access control (RBAC).
     """
-    async def role_checker(user: Optional[Dict[str, Any]] = Depends(get_current_user)):
+    def role_checker(user: Optional[Dict[str, Any]] = Depends(get_current_user)):
         if not settings.SECURITY_ENABLED:
             return user
         roles = user.get("roles", []) if user else []
