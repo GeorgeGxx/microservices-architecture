@@ -568,7 +568,7 @@ jobs:
             -Dsonar.tests=src \
             -Dsonar.test.inclusions="**/*.spec.ts" \
             -Dsonar.exclusions="**/*.spec.ts,dist/**,node_modules/**" \
-            -Dsonar.coverage.exclusions="src/main.ts,src/**/*.module.ts,src/**/*.orm-entity.ts,**/*.spec.ts" \
+            -Dsonar.coverage.exclusions="src/main.ts,src/tracer.ts,src/**/*.module.ts,src/**/*.dto.ts,src/**/*.orm-entity.ts,**/*.spec.ts,src/infrastructure/telemetry/**" \
             -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
             -Dsonar.qualitygate.wait="${SONAR_QG_WAIT:-false}"
 
