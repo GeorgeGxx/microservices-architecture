@@ -34,6 +34,7 @@ SERVICES = [
     "payments-service",
     "fulfillment-service",
     "analytics-service",
+    "ai-service",
 ]
 
 MLOPS_SERVICES = [

@@ -126,6 +126,19 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ai-service-sa
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: ai-service
+    app.kubernetes.io/part-of: microservices-architecture
+    environment: {{ $env | quote }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: false
 {{- if .Values.mlops.enabled }}
 ---
 apiVersion: v1

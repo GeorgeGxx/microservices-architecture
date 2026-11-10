@@ -23,5 +23,8 @@ dependencies:
 - name: analytics-service
   repository: file://../charts/analytics-service
   version: 1.0.1
-digest: sha256:7170cb7a9b0ab0749ed91bbb50c3a6ae94009ec521b522023ce6b1e8759d22a8
-generated: "2026-10-30T08:14:40.1968023-06:00"
+- name: ai-service
+  repository: file://../charts/ai-service
+  version: 1.0.0
+digest: sha256:3b299f0dc2992887ecf5edaf666e3998af56fba2cee76c9c49086f76178bc34e
+generated: "2026-11-10T15:22:42.3363344-06:00"

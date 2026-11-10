@@ -76,6 +76,18 @@ spec:
             port:
               number: 8087
 
+    - name: ai-service-route
+      match:
+        - uri:
+            prefix: /api/ai/
+      rewrite:
+        uri: /api/
+      route:
+        - destination:
+            host: ai-service.dev.svc.cluster.local
+            port:
+              number: 8010
+
     - name: frontend-routes
       match:
         - uri:

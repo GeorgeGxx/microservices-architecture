@@ -13,7 +13,7 @@ spec:
     - name: microservices-architecture-alerts
       rules:
         - alert: ServiceDown
-          expr: up{job=~"cosmo-router|inventory-service|notification-service|orders-service|products-service"} == 0
+          expr: up{job=~"cosmo-router|inventory-service|notification-service|orders-service|products-service|ai-service"} == 0
           for: 3m
           labels:
             severity: critical

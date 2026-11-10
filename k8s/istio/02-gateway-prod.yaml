@@ -98,6 +98,19 @@ spec:
               number: 8087
       timeout: 10s
 
+    # Autonomous AI Copilot & MCP Gateway API -> Routed to AI Service
+    - match:
+        - uri:
+            prefix: /api/ai/
+      rewrite:
+        uri: /api/
+      route:
+        - destination:
+            host: ai-service.production.svc.cluster.local
+            port:
+              number: 8010
+      timeout: 30s
+
     # 4. Keycloak Public Auth (No /admin/ exposed to internet)
     - match:
         - uri:

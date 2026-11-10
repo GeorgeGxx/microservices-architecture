@@ -117,6 +117,18 @@ spec:
             port:
               number: 8087
 
+    # 1.9 Autonomous AI Copilot & MCP Gateway API -> Routed to AI Service
+    - match:
+        - uri:
+            prefix: /api/ai/
+      rewrite:
+        uri: /api/
+      route:
+        - destination:
+            host: ai-service.dev.svc.cluster.local
+            port:
+              number: 8010
+
     # 2. Keycloak Auth requests -> Routed to Keycloak (Administrative /admin/ console is restricted from public edge)
     - match:
         - uri:

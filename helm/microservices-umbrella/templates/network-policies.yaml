@@ -62,6 +62,9 @@ spec:
         - podSelector:
             matchLabels:
               app: frontend
+        - podSelector:
+            matchLabels:
+              app: ai-service
       ports:
         - protocol: TCP
           port: 8080
@@ -87,6 +90,7 @@ spec:
           - "payments-service"
           - "fulfillment-service"
           - "analytics-service"
+          - "ai-service"
   policyTypes:
     - Ingress
   ingress:
@@ -103,6 +107,9 @@ spec:
         - podSelector:
             matchLabels:
               app: orders-service
+        - podSelector:
+            matchLabels:
+              app: ai-service
       ports:
         - protocol: TCP
           port: 8001
@@ -118,6 +125,8 @@ spec:
           port: 8086
         - protocol: TCP
           port: 8087
+        - protocol: TCP
+          port: 8010
 ---
 # 04. Allow Egress to Backing Infrastructure (Data, Auth, Vault, Observability, Istio)
 apiVersion: networking.k8s.io/v1
@@ -161,6 +170,8 @@ spec:
           port: 3200
         - protocol: TCP
           port: 3300
+        - protocol: TCP
+          port: 6006
         - protocol: TCP
           port: 9090
     # Allow egress to 'data' namespace (PostgreSQL 18: 5432, Redis: 6379, Kafka: 9092/9093/9094)

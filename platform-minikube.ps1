@@ -3236,7 +3236,7 @@ function Invoke-MinikubePlatform {
             } elseif ($DeployCanaryOption) {
                 @("orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
             } else {
-                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "ai-service", "frontend")
                 if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                 $allSvc
             }
@@ -3654,7 +3654,7 @@ stringData:
                 } elseif ($DeployCanaryOption) {
                     @("orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
                 } else {
-                    $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
+                    $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "ai-service", "frontend")
                     if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                     $allSvc
                 }
@@ -3703,7 +3703,8 @@ stringData:
                 @{ Ns = "dev"; App = "notification-service"; Name = "Notification Microservice" },
                 @{ Ns = "dev"; App = "payments-service"; Name = "Payments Microservice" },
                 @{ Ns = "dev"; App = "fulfillment-service"; Name = "Fulfillment Microservice" },
-                @{ Ns = "dev"; App = "analytics-service"; Name = "Analytics Microservice" }
+                @{ Ns = "dev"; App = "analytics-service"; Name = "Analytics Microservice" },
+                @{ Ns = "dev"; App = "ai-service"; Name = "AI Copilot Microservice" }
             )
             foreach ($item in $criticalWorkloads) {
                 & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
@@ -3798,7 +3799,7 @@ stringData:
             $servicesToLoad = if ($cleanSvc -and $cleanSvc -ne "all") {
                 @($cleanSvc)
             } else {
-                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "frontend")
+                $allSvc = @("products-service", "orders-service", "inventory-service", "notification-service", "payments-service", "fulfillment-service", "analytics-service", "ai-service", "frontend")
                 if ($WithMlops) { $allSvc += @("demand-forecast", "mlops-training", "mlflow") }
                 $allSvc
             }
