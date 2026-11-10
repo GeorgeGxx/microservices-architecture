@@ -53,6 +53,11 @@ func (m *MockPaymentService) GetPaymentByID(ctx context.Context, id uuid.UUID) (
 	return args.Get(0).(*models.Payment), args.Error(1)
 }
 
+func (m *MockPaymentService) FlushPendingOutbox(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func (m *MockPaymentService) Stop() {}
 
 func setupRouter(h *handlers.PaymentHandler) *gin.Engine {

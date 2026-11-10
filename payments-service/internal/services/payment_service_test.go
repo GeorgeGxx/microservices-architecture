@@ -2,6 +2,7 @@ package services_test
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 
@@ -15,13 +16,15 @@ import (
 // MockPaymentRepository is an in-memory mock implementation
 type MockPaymentRepository struct {
 	mock.Mock
-	payments map[string]*models.Payment
-	mu       sync.RWMutex
+	payments     map[string]*models.Payment
+	outboxEvents map[string]*models.OutboxEvent
+	mu           sync.RWMutex
 }
 
 func NewMockPaymentRepository() *MockPaymentRepository {
 	return &MockPaymentRepository{
-		payments: make(map[string]*models.Payment),
+		payments:     make(map[string]*models.Payment),
+		outboxEvents: make(map[string]*models.OutboxEvent),
 	}
 }
 
@@ -83,14 +86,31 @@ func (m *MockPaymentRepository) RecordProcessedMessage(ctx context.Context, msg 
 }
 
 func (m *MockPaymentRepository) SaveOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.outboxEvents[event.ID.String()] = event
 	return nil
 }
 
 func (m *MockPaymentRepository) GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OutboxEvent, error) {
-	return nil, nil
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	var pending []models.OutboxEvent
+	for _, ev := range m.outboxEvents {
+		if ev.Status == "PENDING" {
+			pending = append(pending, *ev)
+			if limit > 0 && len(pending) >= limit {
+				break
+			}
+		}
+	}
+	return pending, nil
 }
 
 func (m *MockPaymentRepository) UpdateOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.outboxEvents[event.ID.String()] = event
 	return nil
 }
 
@@ -269,4 +289,48 @@ func TestGetPaymentQueries(t *testing.T) {
 	notFound, err := svc.GetPaymentByOrder(context.Background(), "ORD-NONE")
 	assert.NoError(t, err)
 	assert.Nil(t, notFound)
+}
+
+func TestFlushPendingOutbox(t *testing.T) {
+	repo := NewMockPaymentRepository()
+	producer := new(MockEventProducer)
+	producer.On("PublishPaymentCompleted", mock.Anything, mock.Anything).Return(nil)
+	producer.On("PublishPaymentRefunded", mock.Anything, mock.Anything).Return(nil)
+
+	completedBytes, _ := json.Marshal(models.PaymentCompletedEvent{
+		EventType:   "PAYMENT_COMPLETED",
+		OrderNumber: "ORD-FLUSH-1",
+		Amount:      50.0,
+	})
+	refundedBytes, _ := json.Marshal(models.PaymentRefundedEvent{
+		EventType:   "PAYMENT_REFUNDED",
+		OrderNumber: "ORD-FLUSH-2",
+		Amount:      30.0,
+	})
+
+	_ = repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+		ID:            uuid.New(),
+		AggregateType: "PAYMENT",
+		AggregateID:   "ORD-FLUSH-1",
+		EventType:     "PAYMENT_COMPLETED",
+		Payload:       string(completedBytes),
+		Status:        "PENDING",
+	})
+	_ = repo.SaveOutboxEvent(context.Background(), &models.OutboxEvent{
+		ID:            uuid.New(),
+		AggregateType: "PAYMENT",
+		AggregateID:   "ORD-FLUSH-2",
+		EventType:     "PAYMENT_REFUNDED",
+		Payload:       string(refundedBytes),
+		Status:        "PENDING",
+	})
+
+	svc := services.NewPaymentService(repo, producer)
+	defer svc.Stop()
+
+	err := svc.FlushPendingOutbox(context.Background())
+	assert.NoError(t, err)
+
+	pending, _ := repo.GetPendingOutboxEvents(context.Background(), 10)
+	assert.Empty(t, pending)
 }

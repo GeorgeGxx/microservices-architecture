@@ -22,6 +22,7 @@ type PaymentService interface {
 	RefundPayment(ctx context.Context, req models.RefundPaymentRequest) (*models.Payment, error)
 	GetPaymentByOrder(ctx context.Context, orderNumber string) (*models.Payment, error)
 	GetPaymentByID(ctx context.Context, id uuid.UUID) (*models.Payment, error)
+	FlushPendingOutbox(ctx context.Context) error
 	Stop()
 }
 
@@ -51,6 +52,10 @@ func NewPaymentService(repo repository.PaymentRepository, producer kafka.EventPr
 		svc.workerWg.Add(1)
 		go svc.auditWorker(i)
 	}
+
+	// Launch background worker for Transactional Outbox retry drainer
+	svc.workerWg.Add(1)
+	go svc.outboxDrainerWorker()
 
 	return svc
 }
@@ -253,15 +258,88 @@ func (s *paymentService) dispatchSagaEvents(ctx context.Context, req models.Proc
 	}
 
 	if len(payloadBytes) > 0 {
-		_ = s.repo.SaveOutboxEvent(ctx, &models.OutboxEvent{
+		outboxEvent := &models.OutboxEvent{
 			ID:            uuid.New(),
 			AggregateType: "PAYMENT",
 			AggregateID:   aggregateID,
 			EventType:     eventType,
 			Payload:       string(payloadBytes),
-			Status:        "PUBLISHED",
+			Status:        "PENDING",
 			CreatedAt:     time.Now().UTC(),
-		})
+		}
+		_ = s.repo.SaveOutboxEvent(ctx, outboxEvent)
+
+		if s.producer != nil {
+			go s.publishSingleOutboxEvent(context.Background(), outboxEvent)
+		}
+	}
+}
+
+func (s *paymentService) publishSingleOutboxEvent(ctx context.Context, ev *models.OutboxEvent) {
+	if s.producer == nil {
+		return
+	}
+	var pubErr error
+	switch ev.EventType {
+	case "PAYMENT_COMPLETED":
+		var completedEvent models.PaymentCompletedEvent
+		if err := json.Unmarshal([]byte(ev.Payload), &completedEvent); err == nil {
+			pubErr = s.producer.PublishPaymentCompleted(ctx, completedEvent)
+		}
+	case "PAYMENT_FAILED":
+		var failedEvent models.PaymentFailedEvent
+		if err := json.Unmarshal([]byte(ev.Payload), &failedEvent); err == nil {
+			pubErr = s.producer.PublishPaymentFailed(ctx, failedEvent)
+		}
+	case "PAYMENT_REFUNDED":
+		var refundedEvent models.PaymentRefundedEvent
+		if err := json.Unmarshal([]byte(ev.Payload), &refundedEvent); err == nil {
+			pubErr = s.producer.PublishPaymentRefunded(ctx, refundedEvent)
+		}
+	default:
+		return
+	}
+
+	if pubErr == nil {
+		now := time.Now().UTC()
+		ev.Status = "PUBLISHED"
+		ev.ProcessedAt = &now
+		_ = s.repo.UpdateOutboxEvent(ctx, ev)
+	} else {
+		ev.RetryCount++
+		_ = s.repo.UpdateOutboxEvent(ctx, ev)
+	}
+}
+
+func (s *paymentService) FlushPendingOutbox(ctx context.Context) error {
+	if s.producer == nil {
+		return nil
+	}
+	events, err := s.repo.GetPendingOutboxEvents(ctx, 25)
+	if err != nil {
+		return err
+	}
+
+	for i := range events {
+		s.publishSingleOutboxEvent(ctx, &events[i])
+	}
+	return nil
+}
+
+func (s *paymentService) outboxDrainerWorker() {
+	defer s.workerWg.Done()
+	log.Printf("[PaymentService] Outbox drainer worker goroutine started")
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.stopChan:
+			log.Printf("[PaymentService] Outbox drainer worker goroutine stopping")
+			return
+		case <-ticker.C:
+			_ = s.FlushPendingOutbox(context.Background())
+		}
 	}
 }
 
@@ -304,20 +382,19 @@ func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPay
 	}
 
 	payloadBytes, _ := json.Marshal(refundedEvent)
-	_ = s.repo.SaveOutboxEvent(ctx, &models.OutboxEvent{
+	outboxEvent := &models.OutboxEvent{
 		ID:            uuid.New(),
 		AggregateType: "PAYMENT",
 		AggregateID:   payment.OrderNumber,
 		EventType:     "PAYMENT_REFUNDED",
 		Payload:       string(payloadBytes),
-		Status:        "PUBLISHED",
+		Status:        "PENDING",
 		CreatedAt:     time.Now().UTC(),
-	})
+	}
+	_ = s.repo.SaveOutboxEvent(ctx, outboxEvent)
 
 	if s.producer != nil {
-		go func() {
-			_ = s.producer.PublishPaymentRefunded(context.Background(), refundedEvent)
-		}()
+		go s.publishSingleOutboxEvent(context.Background(), outboxEvent)
 	}
 
 	return payment, nil
