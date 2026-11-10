@@ -398,6 +398,9 @@ spec:
           image: prom/prometheus:v3.14.0
           securityContext:
             allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
             runAsNonRoot: true
             runAsUser: 65534
           args:

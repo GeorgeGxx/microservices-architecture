@@ -47,16 +47,6 @@ rules:
       - update
       - patch
   - apiGroups:
-      - extensions
-    resources:
-      - deployments
-      - daemonsets
-    verbs:
-      - list
-      - get
-      - update
-      - patch
-  - apiGroups:
       - batch
     resources:
       - cronjobs
@@ -142,7 +132,7 @@ spec:
             - name: RELOADER_DEPLOYMENT_NAME
               value: reloader-reloader
           image: ghcr.io/stakater/reloader:v1.4.14
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           livenessProbe:
             failureThreshold: 5
             httpGet:
