@@ -44,6 +44,87 @@ async def test_order_support_node_details():
 
 
 @pytest.mark.asyncio
+async def test_order_support_node_unknown_tracking_fdx():
+    state = {
+        "messages": [HumanMessage(content="Show me status of DHL Tracking FDX-D1D28072")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "FDX-D1D28072" in res["final_output"]
+    assert "could not find" in res["final_output"].lower()
+    assert "Order Status for ORD-1001" not in res["final_output"]
+    assert "Sony WH-1000XM5" not in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_order_support_node_known_tracking_dhl():
+    state = {
+        "messages": [HumanMessage(content="Show me status of shipment DHL-88239104")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "ORD-1001" in res["final_output"]
+    assert "DHL-88239104" in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_order_support_node_missing_order_id():
+    state = {
+        "messages": [HumanMessage(content="Can you track my package?")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "Please provide your" in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_order_support_node_refund_missing_order_id():
+    state = {
+        "messages": [HumanMessage(content="I want a refund for my item")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "Order ID" in res["final_output"]
+    assert res["hitl_pending"] is False
+
+
+@pytest.mark.asyncio
+async def test_order_support_node_refund_with_tracking_number():
+    state = {
+        "messages": [HumanMessage(content="I want to refund $25.00 for tracking DHL-88239104")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "ORD-1001" in res["final_output"]
+    assert "automatically approved" in res["final_output"]
+
+
+@pytest.mark.asyncio
 async def test_order_support_node_auto_refund():
     state = {
         "messages": [HumanMessage(content="Request a refund of $30.00 for order ORD-1001")],
