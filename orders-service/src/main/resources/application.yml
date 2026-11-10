@@ -34,7 +34,7 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
         "[default_batch_fetch_size]": 25    # Avoids N+1 problem in order lines

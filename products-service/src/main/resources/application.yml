@@ -27,10 +27,15 @@ spring:
       connection-timeout: 20000
       leak-detection-threshold: 15000
 
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
+    enabled: true
+
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: ${HIBERNATE_DDL_AUTO:update}
+      ddl-auto: ${HIBERNATE_DDL_AUTO:validate}
     properties:
       hibernate:
         "[default_batch_fetch_size]": 25    # Optimizes relationships (categories, images, variants)
