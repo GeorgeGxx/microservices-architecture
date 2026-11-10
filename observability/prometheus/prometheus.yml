@@ -78,6 +78,14 @@ scrape_configs:
           service: 'demand-forecast-service'
           job: 'mlops'
 
+  - job_name: 'ai-service'
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['ai-service:8010']
+        labels:
+          service: 'ai-service'
+          job: 'ai-copilot'
+
   - job_name: 'redis'
     metrics_path: /metrics
     static_configs:
@@ -148,7 +156,7 @@ scrape_configs:
       module: [http_2xx]
     static_configs:
       - targets:
-          - http://frontend:80/healthz
+          - http://frontend:8080/healthz
           - http://cosmo-router:8080/health/ready
           - http://keycloak:8181/realms/microservices-realm
     relabel_configs:

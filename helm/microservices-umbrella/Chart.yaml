@@ -32,3 +32,6 @@ dependencies:
   - name: analytics-service
     version: "1.0.1"
     repository: "file://../charts/analytics-service"
+  - name: ai-service
+    version: "1.0.0"
+    repository: "file://../charts/ai-service"

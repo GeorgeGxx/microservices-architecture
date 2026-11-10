@@ -129,3 +129,16 @@ spec:
   portLevelMtls:
     8087:
       mode: PERMISSIVE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: ai-service-metrics
+  namespace: dev
+spec:
+  selector:
+    matchLabels:
+      app: ai-service
+  portLevelMtls:
+    8010:
+      mode: PERMISSIVE

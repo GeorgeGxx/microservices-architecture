@@ -333,6 +333,46 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: ai-service
+  title: AuraCommerce AI Copilot & Multi-Agent Service
+  description: Python 3.12 / FastAPI service orchestrating LangGraph multi-agent workflows, Model Context Protocol (MCP) tool execution, ChromaDB RAG, and Arize Phoenix LLM observability.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: ai-service
+    argocd/app-name: microservices-prod
+    sonarqube.org/project-key: msa-ai-service
+    devsecops.georgegxx.dev/sast-scanner: semgrep-1.110.0
+    devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
+    devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
+  tags:
+    - python-3-12
+    - fastapi
+    - langgraph
+    - mcp
+    - rag
+    - ollama
+    - phoenix
+spec:
+  type: service
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  providesApis:
+    - ai-copilot-rest-api
+  consumesApis:
+    - orders-rest-api
+    - products-rest-api
+    - inventory-rest-api
+  dependsOn:
+    - component:orders-service
+    - component:products-service
+    - component:inventory-service
+    - resource:redis-distributed-cache
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: demand-forecast-service
   title: MLOps Demand Forecast Inference API
   description: Python 3.12 / FastAPI inference microservice serving SKU-level demand predictions backed by MLflow registered models and Prometheus model-drift telemetry.

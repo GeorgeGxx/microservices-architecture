@@ -29,6 +29,7 @@ $servicePortMap = @{
     "analytics-service"       = 8087
     "demand-forecast-service" = 8005
     "cosmo-router"            = 8080
+    "ai-service"              = 8010
     "frontend"                = 5173
 }
 $serviceActuatorMap = @{

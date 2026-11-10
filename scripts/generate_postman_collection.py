@@ -964,6 +964,116 @@ def build_postman_collection():
                         "response": []
                     }
                 ]
+            },
+            {
+                "name": "🤖 AI Copilot (ai-service)",
+                "item": [
+                    {
+                        "name": "1. AI Copilot Health Check",
+                        "event": [
+                            {
+                                "listen": "test",
+                                "script": {
+                                    "type": "text/javascript",
+                                    "exec": [
+                                        "pm.test('Status is 200 OK', () => {",
+                                        "    pm.response.to.have.status(200);",
+                                        "});",
+                                        "const res = pm.response.json();",
+                                        "pm.test('AI service status is healthy', () => {",
+                                        "    pm.expect(res.status).to.eql('healthy');",
+                                        "});"
+                                    ]
+                                }
+                            }
+                        ],
+                        "request": {
+                            "auth": {"type": "noauth"},
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/ai/health",
+                                "host": ["{{base_url}}"],
+                                "path": ["api", "ai", "health"]
+                            },
+                            "description": "Verifies AI Copilot service health and LLM provider connectivity."
+                        },
+                        "response": []
+                    },
+                    {
+                        "name": "2. List Available Copilot Tools",
+                        "event": [
+                            {
+                                "listen": "test",
+                                "script": {
+                                    "type": "text/javascript",
+                                    "exec": [
+                                        "pm.test('Status is 200 OK', () => {",
+                                        "    pm.response.to.have.status(200);",
+                                        "});",
+                                        "const res = pm.response.json();",
+                                        "pm.test('Tools array is returned', () => {",
+                                        "    pm.expect(res.tools).to.be.an('array');",
+                                        "});"
+                                    ]
+                                }
+                            }
+                        ],
+                        "request": {
+                            "auth": {"type": "noauth"},
+                            "method": "GET",
+                            "header": [],
+                            "url": {
+                                "raw": "{{base_url}}/api/ai/tools",
+                                "host": ["{{base_url}}"],
+                                "path": ["api", "ai", "tools"]
+                            },
+                            "description": "Lists the MCP-compatible microservice tools registered in the LangGraph agent."
+                        },
+                        "response": []
+                    },
+                    {
+                        "name": "3. Chat Query - Order Status Assistance",
+                        "event": [
+                            {
+                                "listen": "test",
+                                "script": {
+                                    "type": "text/javascript",
+                                    "exec": [
+                                        "pm.test('Status is 200 OK', () => {",
+                                        "    pm.response.to.have.status(200);",
+                                        "});",
+                                        "const res = pm.response.json();",
+                                        "pm.test('Response contains message', () => {",
+                                        "    pm.expect(res.message).to.be.a('string');",
+                                        "});"
+                                    ]
+                                }
+                            }
+                        ],
+                        "request": {
+                            "method": "POST",
+                            "header": [
+                                {"key": "Content-Type", "value": "application/json", "type": "text"},
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
+                            ],
+                            "body": {
+                                "mode": "raw",
+                                "raw": json.dumps({
+                                    "query": "Where is my order ORD-1001?",
+                                    "conversation_id": "test-postman-conv"
+                                }, indent=2)
+                            },
+                            "url": {
+                                "raw": "{{base_url}}/api/ai/chat",
+                                "host": ["{{base_url}}"],
+                                "path": ["api", "ai", "chat"]
+                            },
+                            "description": "Interacts with AI Copilot LangGraph Multi-Agent orchestrator using Bearer token authentication."
+                        },
+                        "response": []
+                    }
+                ]
             }
         ],
         "event": [
@@ -1060,6 +1170,8 @@ def build_postman_collection():
             "/api/notifications/stream",
             "/api/product",
             "/api/inventory/in-stock",
+            "/api/ai/health",
+            "/api/ai/tools",
         )
         for item in items:
             if "item" in item:

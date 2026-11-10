@@ -196,6 +196,42 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
+  name: ai-copilot-rest-api
+  title: AuraCommerce AI Copilot & MCP Gateway API
+  description: FastAPI interface for multi-agent conversational reasoning, RAG catalog/policy retrieval, and Human-in-the-Loop refund authorization.
+spec:
+  type: openapi
+  lifecycle: production
+  owner: group:developers
+  system: intelligence-mlops-system
+  definition: |
+    openapi: 3.0.3
+    info:
+      title: AI Copilot Service API
+      version: 1.0.0
+    paths:
+      /api/chat:
+        post:
+          summary: Dispatch user inquiry through LangGraph multi-agent graph
+          responses:
+            '200':
+              description: Agent reasoning reply returned
+      /api/tools:
+        get:
+          summary: List registered Model Context Protocol (MCP) tools
+          responses:
+            '200':
+              description: Tools manifest returned
+      /api/hitl/approve:
+        post:
+          summary: Human-in-the-Loop supervisor authorization for refunds > $50
+          responses:
+            '200':
+              description: Decision confirmed in StateGraph
+---
+apiVersion: backstage.io/v1alpha1
+kind: API
+metadata:
   name: demand-forecast-rest-api
   title: MLOps Demand Forecast OpenAPI
   description: FastAPI endpoint returning SKU demand predictions from the active MLflow registered model.

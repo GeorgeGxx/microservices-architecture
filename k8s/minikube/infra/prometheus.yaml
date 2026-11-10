@@ -54,20 +54,20 @@ data:
         relabel_configs:
           - source_labels: [__meta_kubernetes_pod_label_app]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|payments-service|fulfillment-service|analytics-service)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|payments-service|fulfillment-service|analytics-service|ai-service)
           - source_labels: [__meta_kubernetes_pod_label_app, __meta_kubernetes_pod_container_port_number]
             action: keep
-            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002|demand-forecast-service;8005|payments-service;8085|fulfillment-service;8086|analytics-service;8087)
+            regex: (cosmo-router;9090|products-service;8004|inventory-service;8001|orders-service;8003|notification-service;8002|demand-forecast-service;8005|payments-service;8085|fulfillment-service;8086|analytics-service;8087|ai-service;8010)
           - source_labels: [__meta_kubernetes_pod_container_name]
             action: keep
-            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|forecast-api|payments-service|fulfillment-service|analytics-service)
+            regex: (cosmo-router|products-service|inventory-service|orders-service|notification-service|demand-forecast-service|forecast-api|payments-service|fulfillment-service|analytics-service|ai-service)
           - source_labels: [__meta_kubernetes_pod_ip, __meta_kubernetes_pod_container_port_number]
             regex: (.+);(.+)
             replacement: $1:$2
             target_label: __address__
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
-            regex: (cosmo-router|demand-forecast-service|payments-service|fulfillment-service|analytics-service)
+            regex: (cosmo-router|demand-forecast-service|payments-service|fulfillment-service|analytics-service|ai-service)
             replacement: /metrics
           - source_labels: [__meta_kubernetes_pod_label_app]
             target_label: __metrics_path__
