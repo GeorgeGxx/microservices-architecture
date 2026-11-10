@@ -1,15 +1,14 @@
 from typing import Any, List, Optional
-
-try:
-    import httpx
-except ImportError:
-    httpx = None
+import logging
+import httpx
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import BaseMessage, AIMessage
 from langchain_core.outputs import ChatResult, ChatGeneration
 
 from app.config import settings
+
+logger = logging.getLogger("llm_factory")
 
 
 class LocalFallbackChatModel(BaseChatModel):
@@ -26,29 +25,36 @@ class LocalFallbackChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
-        last_msg = messages[-1].content.lower() if messages else ""
+        del stop, run_manager, kwargs  # Unused parameters in fallback engine
+        last_msg = ""
+        if messages:
+            content = messages[-1].content
+            if isinstance(content, str):
+                last_msg = content.lower()
+            elif isinstance(content, list):
+                last_msg = " ".join(str(part) for part in content).lower()
 
-        if "order" in last_msg or "ord-" in last_msg or "shipping" in last_msg or "track" in last_msg:
+        if any(term in last_msg for term in ["order", "ord-", "shipping", "track"]):
             reply = (
-                "Consulté nuestro sistema de órdenes de microservicios mediante la herramienta MCP `get_order_details`. "
-                "Tu pedido está registrado y cuenta con guía de rastreo activa por DHL Express."
+                "I retrieved your microservices order details using our MCP `get_order_details` tool. "
+                "Your package is registered and has an active tracking number via DHL Express."
             )
-        elif "refund" in last_msg or "devoluc" in last_msg or "reembolso" in last_msg:
+        elif any(term in last_msg for term in ["refund", "return", "cancel"]):
             reply = (
-                "Para procesar tu solicitud de devolución o reembolso, nuestra política de microservicios permite hasta 30 días posteriores "
-                "a la entrega. Si el monto supera los $50 USD, requerirá autorización humana de nuestro supervisor."
+                "To process your refund or return, our microservices policy permits returns within 30 days of delivery. "
+                "Refunds exceeding $50.00 USD require human supervisor authorization via our review queue."
             )
-        elif "laptop" in last_msg or "headphone" in last_msg or "recomiend" in last_msg or "precio" in last_msg or "comprar" in last_msg:
+        elif any(term in last_msg for term in ["laptop", "headphone", "recommend", "price", "buy", "product"]):
             reply = (
-                "Te sugiero revisar nuestro catálogo sincronizado con el servicio de productos: contamos con la MacBook Air 15 M3 ($1,299 USD) para productividad, "
-                "los audífonos Sony WH-1000XM5 ($349.99 USD) con cancelación de ruido, y el mouse Logitech MX Master 3S ($99.99 USD). "
-                "¿Deseas verificar disponibilidad en el inventario?"
+                "Based on our microservices product catalog, I recommend the MacBook Air 15 M3 ($1,299 USD) for high performance, "
+                "Sony WH-1000XM5 ($349.99 USD) with noise cancelling, or Logitech MX Master 3S ($99.99 USD). "
+                "Would you like me to check real-time warehouse inventory?"
             )
         else:
             reply = (
-                "¡Hola! Soy tu asistente inteligente de AuraCommerce AI integrado en la plataforma de microservicios. "
-                "Puedo ayudarte a buscar y recomendar productos de nuestro catálogo, rastrear tus envíos por DHL en tiempo real, "
-                "o tramitar devoluciones y garantías. ¿En qué te puedo colaborar hoy?"
+                "Hello! I am your AuraCommerce AI Copilot integrated into our enterprise microservices platform. "
+                "I can assist you with real-time DHL tracking, product recommendations, inventory lookups, and return policies. "
+                "How may I help you today?"
             )
 
         gen = ChatGeneration(message=AIMessage(content=reply))
@@ -63,8 +69,6 @@ async def ensure_ollama_model_installed(base_url: str, model_name: str):
     """
     Automatically queries the Ollama server and triggers a download if the model is missing.
     """
-    if not httpx:
-        return
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             res = await client.get(f"{base_url}/api/tags")
@@ -74,38 +78,41 @@ async def ensure_ollama_model_installed(base_url: str, model_name: str):
                 has_model = any(model_name in m or model_base in m for m in installed_models)
 
                 if not has_model:
-                    print(f"[Ollama] Model '{model_name}' not found locally. Initiating automated download in background...")
+                    logger.info("[Ollama] Model '%s' not found locally. Initiating automated background pull...", model_name)
                     async with httpx.AsyncClient(timeout=1800.0) as pull_client:
                         pull_res = await pull_client.post(
                             f"{base_url}/api/pull",
                             json={"name": model_name, "stream": False}
                         )
                         if pull_res.status_code == 200:
-                            print(f"[Ollama] Automated download of '{model_name}' completed successfully!")
+                            logger.info("[Ollama] Automated download of '%s' completed successfully!", model_name)
                 else:
-                    print(f"[Ollama] Model '{model_name}' is already installed and verified.")
-    except Exception as e:
-        print(f"[Ollama] Could not verify or auto-pull model: {e}")
+                    logger.info("[Ollama] Model '%s' is already installed and verified.", model_name)
+    except (httpx.HTTPError, OSError) as exc:
+        logger.debug("[Ollama] Could not verify or auto-pull model: %s", exc)
 
 
 def get_chat_model(temperature: Optional[float] = None) -> BaseChatModel:
+    if settings.LLM_PROVIDER in ("fallback", "test", "mock"):
+        return LocalFallbackChatModel()
+
     temp = temperature if temperature is not None else settings.OLLAMA_TEMPERATURE
 
     if settings.LLM_PROVIDER == "ollama":
         try:
             from langchain_ollama import ChatOllama
             try:
-                res = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=1.0)
+                res = httpx.get(f"{settings.OLLAMA_BASE_URL}/api/tags", timeout=0.2)
                 if res.status_code == 200:
                     return ChatOllama(
                         base_url=settings.OLLAMA_BASE_URL,
                         model=settings.OLLAMA_MODEL,
                         temperature=temp
                     )
-            except Exception:
-                pass
+            except (httpx.HTTPError, OSError) as exc:
+                logger.debug("[ModelFactory] Ollama healthcheck failed, falling back: %s", exc)
         except ImportError:
-            pass
+            logger.debug("[ModelFactory] langchain_ollama not available")
 
     if settings.LLM_PROVIDER == "openai" and settings.OPENAI_API_KEY:
         try:
@@ -115,7 +122,7 @@ def get_chat_model(temperature: Optional[float] = None) -> BaseChatModel:
                 temperature=temp,
                 api_key=settings.OPENAI_API_KEY
             )
-        except Exception as e:
-            print(f"[ModelFactory] Failed to load OpenAI model: {e}")
+        except (ImportError, ValueError, RuntimeError) as exc:
+            logger.warning("[ModelFactory] Failed to load OpenAI model: %s", exc)
 
     return LocalFallbackChatModel()

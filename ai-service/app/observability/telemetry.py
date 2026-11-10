@@ -1,4 +1,7 @@
+import logging
 from app.config import settings
+
+logger = logging.getLogger("observability_telemetry")
 
 
 def setup_observability():
@@ -18,6 +21,6 @@ def setup_observability():
         trace.set_tracer_provider(provider)
 
         LangChainInstrumentor().instrument()
-        print(f"[Observability] OpenTelemetry tracing active -> Arize Phoenix at {settings.PHOENIX_COLLECTOR_ENDPOINT}")
-    except Exception as e:
-        print(f"[Observability] Collector connection: {e}")
+        logger.info("[Observability] OpenTelemetry tracing active -> Arize Phoenix at %s", settings.PHOENIX_COLLECTOR_ENDPOINT)
+    except (ImportError, RuntimeError, ValueError) as exc:
+        logger.debug("[Observability] Collector setup notice: %s", exc)

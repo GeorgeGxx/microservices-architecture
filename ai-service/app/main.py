@@ -1,6 +1,7 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Set
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -16,16 +17,21 @@ from app.tools.mcp_server import EcommerceMCPServer, MCP_TOOLS_MANIFEST
 from app.models.llm_factory import ensure_ollama_model_installed
 from app.security import get_current_user, require_role
 
+logger = logging.getLogger("ai_service")
+background_tasks: Set[asyncio.Task] = set()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print(f"[{settings.APP_NAME}] Starting AI Copilot Service on port {settings.PORT}...")
+    logger.info("[%s] Starting AI Copilot Service on port %s...", settings.APP_NAME, settings.PORT)
     ingest_all()
     setup_observability()
     if settings.LLM_PROVIDER == "ollama":
-        asyncio.create_task(ensure_ollama_model_installed(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL))
+        task = asyncio.create_task(ensure_ollama_model_installed(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL))
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
     yield
-    print(f"[{settings.APP_NAME}] Shutting down.")
+    logger.info("[%s] Shutting down.", settings.APP_NAME)
 
 
 app = FastAPI(
@@ -35,13 +41,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Enable CORS for the single React 19 Frontend (:5173) and local development
+# Explicit allowed origins to satisfy security standards (prevents wildcard with credentials)
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:30088",
+    "http://localhost:8080",
+    "http://localhost:8010",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
 # Expose a minimal Prometheus-compatible metric until app instrumentation is configured.
@@ -119,7 +133,8 @@ async def chat_endpoint(
             hitl_payload=final_state.get("hitl_payload")
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}")
+        logger.error("Agent workflow error: %s", e)
+        raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}") from e
 
 
 @app.get("/api/tools")

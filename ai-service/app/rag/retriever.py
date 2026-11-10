@@ -1,8 +1,10 @@
-import os
 import json
+import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from app.config import settings
+
+logger = logging.getLogger("rag_retriever")
 
 
 class LocalRAGStore:
@@ -18,8 +20,8 @@ class LocalRAGStore:
             try:
                 with open(cache_file, "r", encoding="utf-8") as f:
                     self.documents = json.load(f)
-            except Exception as e:
-                print(f"[RAG] Warning reading cache: {e}")
+            except (json.JSONDecodeError, OSError) as exc:
+                logger.warning("[RAG] Warning reading cache: %s", exc)
                 self.documents = []
 
     def add_documents(self, docs: List[Dict[str, Any]]):
