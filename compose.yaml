@@ -297,10 +297,15 @@ services:
     ports:
       - "127.0.0.1:8001:8001"
     environment:
-      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-validate}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     restart: unless-stopped
     depends_on:
       db-inventory:
@@ -348,9 +353,14 @@ services:
     ports:
       - "127.0.0.1:8002:8002"
     environment:
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     restart: unless-stopped
     depends_on:
       kafka:
@@ -376,10 +386,15 @@ services:
     environment:
       INVENTORY_SERVICE_URI: ${INVENTORY_SERVICE_URI:-http://inventory-service:8001}
       PRODUCTS_SERVICE_URI: ${PRODUCTS_SERVICE_URI:-http://products-service:8004}
-      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-validate}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     restart: unless-stopped
     depends_on:
       db-orders:
@@ -623,10 +638,15 @@ services:
     ports:
       - "127.0.0.1:8004:8004"
     environment:
-      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-validate}
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES}
       TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-1.0}
+    deploy:
+      resources:
+        limits:
+          memory: 768m
     restart: unless-stopped
     depends_on:
       db-products:
