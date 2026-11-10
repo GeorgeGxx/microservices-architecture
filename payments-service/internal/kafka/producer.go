@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/georgegxx/payments-service/internal/models"
+	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel"
 )
@@ -45,13 +47,44 @@ func NewEventProducer(brokers []string, topic string) EventProducer {
 }
 
 func (p *eventProducer) publishEvent(ctx context.Context, orderNumber, eventType string, event interface{}, logDetail string) error {
-	payload, err := json.Marshal(event)
+	eventId := uuid.New().String()
+	cloudEventType := "com.georgegxx.payments." + strings.ToLower(strings.ReplaceAll(eventType, "_", "-"))
+	currentTime := time.Now().UTC().Format(time.RFC3339)
+
+	// Build CloudEvents 1.0 envelope with root backward-compatibility fields
+	cloudEventMap := map[string]interface{}{
+		"specversion":     "1.0",
+		"id":              eventId,
+		"source":          "/payments-service",
+		"type":            cloudEventType,
+		"time":            currentTime,
+		"datacontenttype": "application/json",
+		"data":            event,
+	}
+
+	eventBytes, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal %s: %w", eventType, err)
 	}
 
+	var flatMap map[string]interface{}
+	if err := json.Unmarshal(eventBytes, &flatMap); err == nil {
+		for k, v := range flatMap {
+			cloudEventMap[k] = v
+		}
+	}
+
+	payload, err := json.Marshal(cloudEventMap)
+	if err != nil {
+		return fmt.Errorf("failed to marshal CloudEvent %s: %w", eventType, err)
+	}
+
 	headers := []kafka.Header{
 		{Key: "event_type", Value: []byte(eventType)},
+		{Key: "ce_specversion", Value: []byte("1.0")},
+		{Key: "ce_type", Value: []byte(cloudEventType)},
+		{Key: "ce_source", Value: []byte("/payments-service")},
+		{Key: "ce_id", Value: []byte(eventId)},
 	}
 	carrier := (*HeaderCarrier)(&headers)
 	otel.GetTextMapPropagator().Inject(ctx, carrier)
