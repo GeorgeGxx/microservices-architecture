@@ -45,7 +45,7 @@ configMap:
     OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector.observability.svc.cluster.local:4318"
     OTEL_METRICS_EXPORTER: "none"
     TRACING_SAMPLING_PROBABILITY: "1.0"
-    HIBERNATE_DDL_AUTO: "update"
+    HIBERNATE_DDL_AUTO: "validate"
     INVENTORY_RESERVATION_TTL: "PT15M"
     REDIS_HOST: "redis"
     REDIS_PORT: "6379"
