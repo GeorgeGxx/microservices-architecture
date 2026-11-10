@@ -1,11 +1,10 @@
-<?xml version='1.0' encoding='utf-8'?>
-<mxfile host="Electron" pages="19" type="device">
+<mxfile host="Electron" pages="20">
   <diagram id="page_general_arch" name="1. General Architecture &amp; Microservices">
     <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t1" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Spring Boot 4 • React 19 • TailwindCSS v4 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t1" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;ECOMMERCE - MICROSERVICES ARCHITECTURE OVERVIEW&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Spring Boot 4 • React 19 • TailwindCSS v4 • Keycloak 26 • Kafka KRaft • Istio Mesh • HashiCorp Vault • Full-Stack Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -229,7 +228,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t2" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;HASHICORP VAULT - ZERO-TOUCH ENTERPRISE SECURITY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Automated provisioning, least-privilege policy isolation, and advanced cryptographic engines&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t2" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;HASHICORP VAULT - ZERO-TOUCH ENTERPRISE SECURITY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Automated provisioning, least-privilege policy isolation, and advanced cryptographic engines&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="v_box_init" parent="1" value="&lt;b&gt;1. STARTUP PHASE (Zero-Touch)&lt;/b&gt;&lt;br&gt;compose.yaml: vault-init container&lt;br&gt;• Waits for Vault to be healthy&lt;br&gt;• Enables KV-v2, Transit, Database, Audit&lt;br&gt;• Seeds microservices credentials&lt;br&gt;• Exits cleanly (exit 0)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=15;" vertex="1">
@@ -238,7 +237,7 @@
         <mxCell id="v_box_server" parent="1" value="&lt;b&gt;2. HASHICORP VAULT SERVER&lt;/b&gt;&lt;br&gt;Core Security Engine (Port 8200)&lt;br&gt;• Token &amp; Kubernetes Authentication&lt;br&gt;• Policy Enforcement Engine&lt;br&gt;• Telemetry &amp; Prometheus metrics&lt;br&gt;• Real-time Audit logging" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EDE9FE;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="540" y="120" width="460" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="v_box_cli" parent="1" value="&lt;b&gt;3. OPERATOR &amp; CLI CLIENT (Host)&lt;/b&gt;&lt;br&gt;• Windows Host CLI: Hashicorp.Vault (v2.2.0)&lt;br&gt;• $env:VAULT_ADDR = 'http://127.0.0.1:8200'&lt;br&gt;• $env:VAULT_TOKEN = 'root'&lt;br&gt;• vault read database/creds/*-db-role&lt;br&gt;• platform-minikube.ps1 vault -VaultAction seed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#EAB308;strokeWidth=2;fontColor=#854D0E;fontSize=12;align=left;spacingLeft=15;" vertex="1">
+        <mxCell id="v_box_cli" parent="1" value="&lt;b&gt;3. OPERATOR &amp; CLI CLIENT (Host)&lt;/b&gt;&lt;br&gt;• Windows Host CLI: Hashicorp.Vault (v2.2.0)&lt;br&gt;• $env:VAULT_ADDR = &#39;http://127.0.0.1:8200&#39;&lt;br&gt;• $env:VAULT_TOKEN = &#39;root&#39;&lt;br&gt;• vault read database/creds/*-db-role&lt;br&gt;• platform-minikube.ps1 vault -VaultAction seed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#EAB308;strokeWidth=2;fontColor=#854D0E;fontSize=12;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="1040" y="120" width="380" height="140" as="geometry" />
         </mxCell>
         <mxCell id="e_kv" parent="1" value="&lt;b&gt;KV-v2 Secrets Engine&lt;/b&gt;&lt;br&gt;secret/application&lt;br&gt;secret/products-service • orders-service&lt;br&gt;secret/inventory-service • notification-service&lt;br&gt;secret/payments-service • fulfillment-service&lt;br&gt;secret/analytics-service • cosmo-router" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10.5;align=left;spacingLeft=10;" vertex="1">
@@ -294,7 +293,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t3" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;DYNAMIC DATABASE SECRET ROTATION SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Ephemeral user generation, automated revocation, and transparent lease renewals&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t3" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;DYNAMIC DATABASE SECRET ROTATION SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Ephemeral user generation, automated revocation, and transparent lease renewals&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="act_docker" parent="1" value="&lt;b&gt;1. Docker / K8s&lt;br&gt;Bootstrap&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E2E8F0;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;" vertex="1">
@@ -330,10 +329,10 @@
         <mxCell id="s3" parent="1" value="3. Microservice requests DB connection: GET database/creds/products-db-role" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="750" y="340" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s4" parent="1" value="4. Vault executes in Postgres: CREATE ROLE 'v-token-prod-a1b2' PASSWORD 'X#9...' VALID UNTIL 1h" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s4" parent="1" value="4. Vault executes in Postgres: CREATE ROLE &#39;v-token-prod-a1b2&#39; PASSWORD &#39;X#9...&#39; VALID UNTIL 1h" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="410" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s5" parent="1" value="5. Vault delivers dynamic user 'v-token-prod-a1b2' &amp; temporary password (Lease TTL: 1h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s5" parent="1" value="5. Vault delivers dynamic user &#39;v-token-prod-a1b2&#39; &amp; temporary password (Lease TTL: 1h)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2FE;strokeColor=#0284C7;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="750" y="480" width="280" height="40" as="geometry" />
         </mxCell>
         <mxCell id="s6" parent="1" value="6. Microservice opens JDBC connection pool using the ephemeral user credentials" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
@@ -342,10 +341,10 @@
         <mxCell id="s7" parent="1" value="⏰ &lt;b&gt;1 HOUR ELAPSES (Lease TTL Expiration)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontColor=#991B1B;fontSize=12;align=center;" vertex="1">
           <mxGeometry x="380" y="620" width="680" height="35" as="geometry" />
         </mxCell>
-        <mxCell id="s8" parent="1" value="7. Vault destroys previous user in Postgres: DROP ROLE 'v-token-prod-a1b2'" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s8" parent="1" value="7. Vault destroys previous user in Postgres: DROP ROLE &#39;v-token-prod-a1b2&#39;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="680" width="280" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="s9" parent="1" value="8. Vault generates &amp; issues new user 'v-token-prod-c3d4' with zero service downtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="s9" parent="1" value="8. Vault generates &amp; issues new user &#39;v-token-prod-c3d4&#39; with zero service downtime" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DCFCE7;strokeColor=#16A34A;fontSize=11;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="470" y="750" width="560" height="40" as="geometry" />
         </mxCell>
       </root>
@@ -356,7 +355,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t4" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ISTIO SERVICE MESH - ZERO-TRUST MTLS &amp; TRAFFIC SHAPING&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;STRICT mTLS security with SPIFFE identities, Vault Intermediate CA, and progressive Canary releases&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t4" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;ISTIO SERVICE MESH - ZERO-TRUST MTLS &amp; TRAFFIC SHAPING&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;STRICT mTLS security with SPIFFE identities, Vault Intermediate CA, and progressive Canary releases&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="i_ingress" parent="1" value="&lt;b&gt;🌐 ISTIO INGRESS GATEWAY&lt;/b&gt;&lt;br&gt;microservices-gateway (Port 80 / 443)&lt;br&gt;TLS Termination • Edge Routing to Mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#312E81;fontSize=12;" vertex="1">
@@ -365,25 +364,25 @@
         <mxCell id="i_istiod" parent="1" value="&lt;b&gt;🛡️ ISTIOD CONTROL PLANE&lt;/b&gt;&lt;br&gt;Citadel CA &amp; Discovery Server&lt;br&gt;Mounted Secret: &lt;b&gt;istio-system/cacerts&lt;/b&gt;&lt;br&gt;(Signed by Vault PKI Intermediate CA)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#DB2777;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
           <mxGeometry x="500" y="140" width="360" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
+        <mxCell id="i_mesh_box" parent="1" value="&lt;b&gt;🔒 ZERO-TRUST SERVICE MESH (PeerAuthentication: STRICT mTLS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#64748B;&#39;&gt;Actuator Scrape Ports (8080, 8001-8004): PERMISSIVE for Prometheus Scraping&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
           <mxGeometry x="100" y="280" width="1340" height="480" as="geometry" />
         </mxCell>
-        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: cosmo-router&lt;/b&gt;&lt;br&gt;HTTP Service ports: http-router 8080; http-metrics 9090&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/cosmo-router&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
+        <mxCell id="pod_gw" parent="1" value="&lt;b&gt;Pod: cosmo-router&lt;/b&gt;&lt;br&gt;HTTP Service ports: http-router 8080; http-metrics 9090&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;spiffe://cluster.local/ns/ecommerce/sa/cosmo-router&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=10;" vertex="1">
           <mxGeometry x="140" y="350" width="320" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_prod_v1" parent="1" value="&lt;b&gt;Pod: products-service (v1 - 90%)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;spiffe://cluster.local/ns/ecommerce/sa/products-service&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="540" y="350" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - staged traffic)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Distinct immutable candidate image&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
+        <mxCell id="pod_prod_v2" parent="1" value="&lt;b&gt;Pod: products-service (v2 Canary - staged traffic)&lt;/b&gt;&lt;br&gt;App Container (8004)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Distinct immutable candidate image&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;" vertex="1">
           <mxGeometry x="960" y="350" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_orders" parent="1" value="&lt;b&gt;Pod: orders-service&lt;/b&gt;&lt;br&gt;App Container (8003)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Resilience4j Circuit Breaker &amp; Outlier Detection&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_orders" parent="1" value="&lt;b&gt;Pod: orders-service&lt;/b&gt;&lt;br&gt;App Container (8003)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Resilience4j Circuit Breaker &amp; Outlier Detection&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="140" y="520" width="320" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_inv" parent="1" value="&lt;b&gt;Pod: inventory-service&lt;/b&gt;&lt;br&gt;App Container (8001)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Stock Validation &amp; Lock Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_inv" parent="1" value="&lt;b&gt;Pod: inventory-service&lt;/b&gt;&lt;br&gt;App Container (8001)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Stock Validation &amp; Lock Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="540" y="520" width="340" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="pod_notif" parent="1" value="&lt;b&gt;Pod: notification-service&lt;/b&gt;&lt;br&gt;App Container (8002)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style='color:#059669;'&gt;Event Driven Consumer&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
+        <mxCell id="pod_notif" parent="1" value="&lt;b&gt;Pod: notification-service&lt;/b&gt;&lt;br&gt;App Container (8002)&lt;br&gt;+ Envoy Sidecar Proxy&lt;br&gt;&lt;span style=&#39;color:#059669;&#39;&gt;Event Driven Consumer&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;" vertex="1">
           <mxGeometry x="960" y="520" width="340" height="90" as="geometry" />
         </mxCell>
         <mxCell id="ie1" parent="1" value="Rotates X.509 certs (24h)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#DB2777;strokeWidth=1.5;dashed=1;" edge="1" source="i_istiod" target="pod_gw">
@@ -406,13 +405,13 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t5" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;CONFIGURATION PRECEDENCE &amp; SECRET ISOLATION HIERARCHY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Why zero collisions or race conditions exist between Spring Cloud Vault, Sidecar, ESO, and .env&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t5" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;CONFIGURATION PRECEDENCE &amp; SECRET ISOLATION HIERARCHY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Why zero collisions or race conditions exist between Spring Cloud Vault, Sidecar, ESO, and .env&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="p1" parent="1" value="&lt;b&gt;LEVEL 1: Operating System Environment Variables (Highest Priority)&lt;/b&gt;&lt;br&gt;• Local &lt;b&gt;.env&lt;/b&gt; file in Docker Compose&lt;br&gt;• Injected secrets from &lt;b&gt;Vault Agent Sidecar&lt;/b&gt; (/vault/secrets/database.env)&lt;br&gt;• Standard Kubernetes Secret mounted via &lt;b&gt;External Secrets Operator (ESO)&lt;/b&gt;&lt;br&gt;&lt;i&gt;Overrides any packaged or static application configuration.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="200" y="130" width="1100" height="90" as="geometry" />
         </mxCell>
-        <mxCell id="p2" parent="1" value="&lt;b&gt;LEVEL 2: Active Profile Properties (application-vault.yml)&lt;/b&gt;&lt;br&gt;• Active &lt;b&gt;strictly&lt;/b&gt; when passing &lt;code&gt;--spring.profiles.active=vault&lt;/code&gt;&lt;br&gt;• Connects directly via REST API to Vault Server to load secrets into JVM memory&lt;br&gt;• &lt;i&gt;If the 'vault' profile is not active, this bootstrap configuration remains totally inert.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=20;" vertex="1">
+        <mxCell id="p2" parent="1" value="&lt;b&gt;LEVEL 2: Active Profile Properties (application-vault.yml)&lt;/b&gt;&lt;br&gt;• Active &lt;b&gt;strictly&lt;/b&gt; when passing &lt;code&gt;--spring.profiles.active=vault&lt;/code&gt;&lt;br&gt;• Connects directly via REST API to Vault Server to load secrets into JVM memory&lt;br&gt;• &lt;i&gt;If the &#39;vault&#39; profile is not active, this bootstrap configuration remains totally inert.&lt;/i&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#A855F7;strokeWidth=2;fontColor=#581C87;fontSize=12;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="200" y="260" width="1100" height="90" as="geometry" />
         </mxCell>
         <mxCell id="p3" parent="1" value="&lt;b&gt;LEVEL 3: Base Application Properties (application.yml)&lt;/b&gt;&lt;br&gt;• Default fallback properties packaged inside the Spring Boot JAR&lt;br&gt;• Parameterized placeholders: &lt;code&gt;${SPRING_DATASOURCE_URL:...}&lt;/code&gt;&lt;br&gt;• Acts as a safe fallback when no environment variables or Vault profiles are supplied." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F5F9;strokeColor=#64748B;strokeWidth=2;fontColor=#1E293B;fontSize=12;align=left;spacingLeft=20;" vertex="1">
@@ -429,7 +428,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t6" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Namespaces include dev, opencost, auth, data, observability, vault, and istio-system&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t6" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;KUBERNETES &amp; MINIKUBE CLUSTER TOPOLOGY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Namespaces include dev, opencost, auth, data, observability, vault, and istio-system&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1200" height="50" as="geometry" />
         </mxCell>
         <mxCell id="ns_vault" parent="1" value="&lt;b&gt;🔒 NAMESPACE: vault&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -497,7 +496,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t7" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;END-TO-END REQUEST FLOW &amp; ORDER PROCESSING SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Complete journey: React 19 SPA ➔ Istio Ingress ➔ Cosmo Router v2 ➔ Federated Subgraphs ➔ Kafka ➔ Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t7" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;END-TO-END REQUEST FLOW &amp; ORDER PROCESSING SEQUENCE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Complete journey: React 19 SPA ➔ Istio Ingress ➔ Cosmo Router v2 ➔ Federated Subgraphs ➔ Kafka ➔ Observability&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1300" height="50" as="geometry" />
         </mxCell>
         <mxCell id="e_fe" parent="1" value="&lt;b&gt;1. Client / SPA&lt;br&gt;(React 19 + Tailwind)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
@@ -554,7 +553,7 @@
         <mxCell id="st2" parent="1" value="2. Ingress Controller (Istio) routes auth requests directly to Keycloak" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="325" y="235" width="385" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="st3" parent="1" value="3. Keycloak validates credentials, issues signed JWT Access Token (JWKS, roles, 'sub')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="st3" parent="1" value="3. Keycloak validates credentials, issues signed JWT Access Token (JWKS, roles, &#39;sub&#39;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="135" y="280" width="385" height="32" as="geometry" />
         </mxCell>
         <mxCell id="st4" parent="1" value="4. GraphQL POST / (Authorization: Bearer &amp;lt;JWT&amp;gt;, X-Idempotency-Key, traceparent)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
@@ -595,7 +594,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t8" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MATURE E-COMMERCE OBSERVABILITY &amp; BUSINESS INTELLIGENCE (5 DIMENSIONS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;High-cardinality prevention (O(1) discrete cohorts), observed funnel event activity, order fulfillment, and distributed saga resilience&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t8" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;MATURE E-COMMERCE OBSERVABILITY &amp; BUSINESS INTELLIGENCE (5 DIMENSIONS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;High-cardinality prevention (O(1) discrete cohorts), observed funnel event activity, order fulfillment, and distributed saga resilience&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="30" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="d1" parent="1" value="&lt;b&gt;1. Financial &amp; Executive Triad&lt;/b&gt;&lt;br&gt;• Gross Orders Placed (7)&lt;br&gt;• Cancelled Orders &amp;amp; Loss (4)&lt;br&gt;• True Net Completed Orders (3)&lt;br&gt;• Order Cancellation Rate (% OCR)&lt;br&gt;• Reconciled AOV ($/Net Order)&lt;br&gt;• Live Cart Abandonment Rate (75%)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;align=left;spacingLeft=15;" vertex="1">
@@ -639,7 +638,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t9" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;LOCAL DEVSECOPS PLATFORM &amp; GITHUB ACTIONS DELIVERY FLOW&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Automatic PR/push quality gates • digest-based image delivery • Minikube local platform&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t9" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;LOCAL DEVSECOPS PLATFORM &amp; GITHUB ACTIONS DELIVERY FLOW&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Automatic PR/push quality gates • digest-based image delivery • Minikube local platform&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_ci" parent="1" value="&lt;b&gt;🔨 CI PHASE: Continuous Integration &amp; Shift-Left Security (GitHub Actions Windows Runner)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -740,7 +739,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t10" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;KEDA v2.21.0 Event-driven Autoscaling • Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t10" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;PRODUCTION-GRADE RESILIENCY, SECRETS, CANARY &amp; ALERTING ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;KEDA v2.21.0 Event-driven Autoscaling • Horizontal Pod Autoscaler (HPA) • PodDisruptionBudgets (PDB) • External Secrets Operator + Vault • Istio Canary Mesh • Alertmanager Routing&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c_hpa" parent="1" value="&lt;b&gt;⚖️ AUTOSCALING &amp; HIGH AVAILABILITY (KEDA v2.21.0 + HPA &amp; PDB)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -767,7 +766,7 @@
         <mxCell id="c_eso" parent="1" value="&lt;b&gt;🔐 SECRETS MANAGEMENT (ESO + VAULT)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="510" y="90" width="420" height="470" as="geometry" />
         </mxCell>
-        <mxCell id="n_vault_dev" parent="1" value="&lt;b&gt;HashiCorp Vault (Port 8200)&lt;/b&gt;&lt;br&gt;• KV-v2 Secrets Engine at 'secret/'&lt;br&gt;• secret/data/application (DB &amp; JWT)&lt;br&gt;• secret/data/cosmo-router (Config &amp; JWKS)&lt;br&gt;• secret/data/orders-service (Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
+        <mxCell id="n_vault_dev" parent="1" value="&lt;b&gt;HashiCorp Vault (Port 8200)&lt;/b&gt;&lt;br&gt;• KV-v2 Secrets Engine at &#39;secret/&#39;&lt;br&gt;• secret/data/application (DB &amp; JWT)&lt;br&gt;• secret/data/cosmo-router (Config &amp; JWKS)&lt;br&gt;• secret/data/orders-service (Kafka)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
           <mxGeometry x="530" y="140" width="380" height="80" as="geometry" />
         </mxCell>
         <mxCell id="n_store" parent="1" value="&lt;b&gt;SecretStore: vault-secret-store&lt;/b&gt;&lt;br&gt;• API: external-secrets.io/v1&lt;br&gt;• Auth: Kubernetes Token SecretRef&lt;br&gt;• Target Server: http://vault.vault.svc:8200&lt;br&gt;• Status: Valid (ReadWrite)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=11;" vertex="1">
@@ -850,22 +849,22 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t11" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MULTI-CLOUD INFRASTRUCTURE (AWS • AZURE • GCP) &amp; AUTOMATION SUITE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;12 Kubernetes clusters: 4 per provider (dev, staging, two prod) • 3 workspaces per provider • Unified CLI &amp; FinOps&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t11" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;MULTI-CLOUD INFRASTRUCTURE (AWS • AZURE • GCP) &amp; AUTOMATION SUITE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;12 Kubernetes clusters: 4 per provider (dev, staging, two prod) • 3 workspaces per provider • Unified CLI &amp; FinOps&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="c_aws" parent="1" value="&lt;b&gt;☁️ AMAZON WEB SERVICES (AWS)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/aws/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_aws" parent="1" value="&lt;b&gt;☁️ AMAZON WEB SERVICES (AWS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;terraform/modules/aws/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="60" y="90" width="570" height="470" as="geometry" />
         </mxCell>
         <mxCell id="aws_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; shared VPC per environment&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; EKS dev + staging; two independent prod clusters/data planes (dp1, dp2)&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; RDS PostgreSQL 18 (Multi-AZ)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; ElastiCache Redis OSS 7.1 (AWS latest)&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Amazon MSK Provisioned (Kafka 4.1.x; M5; closest supported to local Kafka 4.3.x)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; S3 Assets Bucket (SSE-KMS, Versioning)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; AWS KMS (CMK Key &amp; Alias)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; IAM IRSA (OIDC Trust Provider)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; Istio Ingress + Network Load Balancer (NLB L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; CloudFront + WAFv2 (S3 Static SPA + NLB Dynamic API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; CloudWatch Alarms &amp; Dashboards&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Route53 Zone + Apex Alias to CloudFront + ACM SSL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="150" width="530" height="390" as="geometry" />
         </mxCell>
-        <mxCell id="c_azure" parent="1" value="&lt;b&gt;☁️ MICROSOFT AZURE CLOUD&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/azure/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_azure" parent="1" value="&lt;b&gt;☁️ MICROSOFT AZURE CLOUD&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;terraform/modules/azure/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="660" y="90" width="570" height="470" as="geometry" />
         </mxCell>
         <mxCell id="azure_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; VNet + dedicated prod AKS subnets&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; AKS dev + staging; two independent prod clusters/data planes (dp1, dp2)&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Azure PostgreSQL Flexible Server (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Azure Cache for Redis (TLS 1.2)&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Azure Event Hubs (Kafka Surface)&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Azure Storage Account (Blob Containers)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Azure Key Vault (Soft-delete, Purge)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; Azure Workload Identity (Federated Creds)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; Istio Ingress + Azure Standard Load Balancer (L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; Front Door Premium (Storage Blob SPA + AKS SLB API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Azure Monitor (Log Analytics, App Insights)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Azure DNS Zone + Custom Apex Records to Front Door" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="680" y="150" width="530" height="390" as="geometry" />
         </mxCell>
-        <mxCell id="c_gcp" parent="1" value="&lt;b&gt;☁️ GOOGLE CLOUD PLATFORM (GCP)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;terraform/modules/gcp/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_gcp" parent="1" value="&lt;b&gt;☁️ GOOGLE CLOUD PLATFORM (GCP)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;terraform/modules/gcp/ (dev • staging • prod)&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="1260" y="90" width="580" height="470" as="geometry" />
         </mxCell>
         <mxCell id="gcp_m1" parent="1" value="• &lt;b&gt;Networking:&lt;/b&gt; Google Cloud VPC + Cloud NAT; separate secondary ranges for prod dp2&lt;br&gt;• &lt;b&gt;Kubernetes:&lt;/b&gt; GKE Autopilot dev + staging; two independent prod clusters/data planes (dp1, dp2)&lt;br&gt;• &lt;b&gt;Database:&lt;/b&gt; Cloud SQL PostgreSQL 18 (HA)&lt;br&gt;• &lt;b&gt;Cache:&lt;/b&gt; Cloud Memorystore for Redis 7.2&lt;br&gt;• &lt;b&gt;Messaging:&lt;/b&gt; Managed Kafka / Cloud PubSub &amp; DLQ&lt;br&gt;• &lt;b&gt;Storage:&lt;/b&gt; Google Cloud Storage (CMEK, Uniform Access)&lt;br&gt;• &lt;b&gt;Security:&lt;/b&gt; Google Cloud KMS (KeyRing &amp; CryptoKey)&lt;br&gt;• &lt;b&gt;Identity:&lt;/b&gt; GCP Workload Identity (GSA to KSA)&lt;br&gt;• &lt;b&gt;Ingress (Model 2):&lt;/b&gt; Istio Ingress + Passthrough Network Load Balancer (L4)&lt;br&gt;• &lt;b&gt;Dual-Origin CDN:&lt;/b&gt; Cloud Armor + Cloud CDN (GCS Bucket SPA + Istio NLB API)&lt;br&gt;• &lt;b&gt;Observability:&lt;/b&gt; Cloud Monitoring (Dashboards &amp; Alerts)&lt;br&gt;• &lt;b&gt;DNS:&lt;/b&gt; Cloud DNS Managed Zone + Global A-Record to Load Balancer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
@@ -894,10 +893,10 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t12" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;MULTI-CLOUD CI/CD &amp; RECOVERY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;GitHub Actions publishes the immutable GHCR chart • Azure DevOps and Bitbucket consume its pinned version • Terraform exposes the shared chart coordinates&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t12" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;MULTI-CLOUD CI/CD &amp; RECOVERY ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;GitHub Actions publishes the immutable GHCR chart • Azure DevOps and Bitbucket consume its pinned version • Terraform exposes the shared chart coordinates&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
-        <mxCell id="c_gha_argo" parent="1" value="&lt;b&gt;🐙 GITHUB ACTIONS (CI) + ARGOCD (CD)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;AWS EKS &amp; Minikube Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_gha_argo" parent="1" value="&lt;b&gt;🐙 GITHUB ACTIONS (CI) + ARGOCD (CD)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;AWS EKS &amp; Minikube Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBEB;strokeColor=#F59E0B;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#78350F;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="60" y="90" width="570" height="500" as="geometry" />
         </mxCell>
         <mxCell id="gha_ci_box" parent="1" value="&lt;b&gt;GitHub Actions (CI) + ArgoCD v3.6.1 (GitOps CD):&lt;/b&gt;&lt;br&gt;• PR/push gates: tests, Semgrep 1.110.0, Trivy 0.76.1, Gitleaks, Helm 4.3.1 &amp;amp; OPA policy fixtures&lt;br&gt;• Publish immutable SemVer only (max 2 Docker Hub versions: Active N + Rollback N-1 via prune-dockerhub-tags.sh)&lt;br&gt;• &lt;b&gt;yq GitOps Writeback:&lt;/b&gt; Automates values-*.yaml synchronization upon SemVer release&lt;br&gt;• ArgoCD deploys by digest or SemVer pin; Backstage IDP v1.56.3 (:7007) provides interactive catalog &amp;amp; live probes&lt;br&gt;• Recovery: Git revert, ArgoCD revision rollback, or kubectl rollout undo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
@@ -906,10 +905,10 @@
         <mxCell id="argo_cd_box" parent="1" value="&lt;b&gt;ArgoCD (Strictly CD - GitOps):&lt;/b&gt;&lt;br&gt;• &lt;b&gt;develop:&lt;/b&gt; &lt;code&gt;application-dev.yaml&lt;/code&gt; ➔ Minikube (&lt;code&gt;dev&lt;/code&gt; ns)&lt;br&gt;• &lt;b&gt;staging:&lt;/b&gt; &lt;code&gt;application-staging.yaml&lt;/code&gt; ➔ configured staging cluster (&lt;code&gt;staging&lt;/code&gt; ns)&lt;br&gt;• &lt;b&gt;master:&lt;/b&gt; &lt;code&gt;application-prod.yaml&lt;/code&gt; ➔ configured production cluster (&lt;code&gt;production&lt;/code&gt; ns)&lt;br&gt;• Applications remain Git-sourced; OCI migration awaits package publication and registry access&lt;br&gt;• Reconciliation and rollback remain separate from Terraform state recovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#FDE68A;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="80" y="310" width="530" height="160" as="geometry" />
         </mxCell>
-        <mxCell id="argo_roll_box" parent="1" value="&lt;b&gt;🔄 Recovery Controls:&lt;/b&gt;&lt;br&gt;• Revert desired-state Git commits for normal recovery&lt;br&gt;• Check auto-sync before using ArgoCD's emergency rollback&lt;br&gt;• Terraform state locks are recovered manually after investigation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
+        <mxCell id="argo_roll_box" parent="1" value="&lt;b&gt;🔄 Recovery Controls:&lt;/b&gt;&lt;br&gt;• Revert desired-state Git commits for normal recovery&lt;br&gt;• Check auto-sync before using ArgoCD&#39;s emergency rollback&lt;br&gt;• Terraform state locks are recovered manually after investigation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#78350F;fontSize=10;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="80" y="490" width="530" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="c_azdo" parent="1" value="&lt;b&gt;🔷 AZURE DEVOPS (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;Azure Cloud &amp; AKS Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_azdo" parent="1" value="&lt;b&gt;🔷 AZURE DEVOPS (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;Azure Cloud &amp; AKS Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="660" y="90" width="570" height="500" as="geometry" />
         </mxCell>
         <mxCell id="azdo_stages" parent="1" value="&lt;b&gt;Shared Azure DevOps application template (14 numbered stages + rollbacks):&lt;/b&gt;&lt;br&gt;• Per-service roots: frontend, inventory, orders, products, notification, demand-forecast, mlops-training&lt;br&gt;• Cosmo Router has separate config/supergraph validation&lt;br&gt;• 1-6. Shift-Left: Tests (Maven/React/Python), security, image/SBOM, policy, ACR candidate&lt;br&gt;• 7-8,14. Deploy directly to AKS via Helm umbrella chart with &lt;code&gt;yq&lt;/code&gt; OCI metadata extraction&lt;br&gt;• 9-13. Post-Deploy Gates: Newman, Cypress, k6, OWASP ZAP DAST, and atomic Helm rollback&lt;br&gt;• Production canary awaits its production-specific Istio manifest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10;align=left;spacingLeft=15;" vertex="1">
@@ -918,7 +917,7 @@
         <mxCell id="azdo_tf_box" parent="1" value="&lt;b&gt;Terraform Azure validation (pipelines/infra.yml):&lt;/b&gt;&lt;br&gt;• Workspaces: &lt;code&gt;dev&lt;/code&gt;, &lt;code&gt;staging&lt;/code&gt;, &lt;code&gt;prod&lt;/code&gt;&lt;br&gt;• Reads umbrella chart metadata and exposes repository/version/reference outputs&lt;br&gt;• fmt/init/validate only; cloud plan/apply awaits Blob state and locking&lt;br&gt;• &lt;code&gt;infra-stages.yml&lt;/code&gt; remains a saved-plan/apply helper" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#BFDBFE;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
           <mxGeometry x="680" y="410" width="530" height="160" as="geometry" />
         </mxCell>
-        <mxCell id="c_bb" parent="1" value="&lt;b&gt;🪣 BITBUCKET PIPELINES (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:11px;color:#64748B;'&gt;Google Cloud Platform &amp; GKE Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c_bb" parent="1" value="&lt;b&gt;🪣 BITBUCKET PIPELINES (SINGLE UNIFIED PIPELINE)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#64748B;&#39;&gt;Google Cloud Platform &amp; GKE Ecosystem&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="1260" y="90" width="580" height="500" as="geometry" />
         </mxCell>
         <mxCell id="bb_stages" parent="1" value="&lt;b&gt;Bitbucket pipelines: 14 numbered stages per branch:&lt;/b&gt;&lt;br&gt;• Multi-stack: Spring Boot (Maven), Storefront (Node), MLOps (Python PySpark/FastAPI)&lt;br&gt;• &lt;b&gt;develop/staging:&lt;/b&gt; verification, environment image publish/deploy, API and storefront gates&lt;br&gt;• &lt;b&gt;master:&lt;/b&gt; QA, manual promotion of the same image SHA and rolling release&lt;br&gt;• Deploy directly to GKE via Helm umbrella chart with pinned &lt;code&gt;yq&lt;/code&gt; metadata validation&lt;br&gt;• Post-Deploy Gates: Newman contract, k6 SLA, OWASP ZAP DAST, and atomic Helm rollback&lt;br&gt;• Helm uses &lt;code&gt;--atomic&lt;/code&gt;; post-deploy QA recovery is operator-led" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#A7F3D0;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=15;" vertex="1">
@@ -956,22 +955,22 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t13" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;THE 5-PHASE END-TO-END DELIVERY LIFECYCLE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Enterprise DevSecOps governance • Automated quality and security gates • Continuous reliability feedback&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t13" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;THE 5-PHASE END-TO-END DELIVERY LIFECYCLE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Enterprise DevSecOps governance • Automated quality and security gates • Continuous reliability feedback&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="260" y="25" width="1400" height="55" as="geometry" />
         </mxCell>
-        <mxCell id="phase1_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 1&lt;br&gt;STRATEGIC CONCEPTION &amp;amp; THREAT MODELING&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Business / PO 🔵&lt;/b&gt;&lt;br&gt;Value-stream hypothesis, functional acceptance &amp;amp; evil user stories&lt;br&gt;&lt;br&gt;&lt;b&gt;Solution Arch &amp;amp; Tech Lead 🟢&lt;/b&gt;&lt;br&gt;Baseline architecture, Schema-First design &amp;amp; approved ADRs&lt;br&gt;&lt;br&gt;&lt;b&gt;Cybersecurity Lead 🟡&lt;/b&gt;&lt;br&gt;STRIDE threat modeling &amp;amp; abuse cases&lt;br&gt;&lt;br&gt;&lt;b&gt;QA Automation 🟠&lt;/b&gt;&lt;br&gt;Contract &amp;amp; BDD acceptance test suites&lt;br&gt;&lt;br&gt;&lt;b&gt;🚦 Gate: Definition of Ready (DoR)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#1E3A8A;" vertex="1">
+        <mxCell id="phase1_delivery" parent="1" value="&lt;b style=&#39;font-size:15px;&#39;&gt;PHASE 1&lt;br&gt;STRATEGIC CONCEPTION &amp;amp; THREAT MODELING&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Business / PO 🔵&lt;/b&gt;&lt;br&gt;Value-stream hypothesis, functional acceptance &amp;amp; evil user stories&lt;br&gt;&lt;br&gt;&lt;b&gt;Solution Arch &amp;amp; Tech Lead 🟢&lt;/b&gt;&lt;br&gt;Baseline architecture, Schema-First design &amp;amp; approved ADRs&lt;br&gt;&lt;br&gt;&lt;b&gt;Cybersecurity Lead 🟡&lt;/b&gt;&lt;br&gt;STRIDE threat modeling &amp;amp; abuse cases&lt;br&gt;&lt;br&gt;&lt;b&gt;QA Automation 🟠&lt;/b&gt;&lt;br&gt;Contract &amp;amp; BDD acceptance test suites&lt;br&gt;&lt;br&gt;&lt;b&gt;🚦 Gate: Definition of Ready (DoR)&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#EFF6FF;strokeColor=#3B82F6;fontColor=#1E3A8A;" vertex="1">
           <mxGeometry x="50" y="135" width="340" height="600" as="geometry" />
         </mxCell>
-        <mxCell id="phase2_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 2&lt;br&gt;SECURE CONSTRUCTION &amp;amp; SHIFT-LEFT&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Dev Team 🔴 &amp;amp; Tech Lead 🟢&lt;/b&gt;&lt;br&gt;Test-Driven Development (TDD), clean code &amp;amp; SOLID standards&lt;br&gt;Pre-commit secret detection (Gitleaks)&lt;br&gt;Non-destructive DB schema evolution (Expand/Contract)&lt;br&gt;Multi-cloud Terraform infrastructure as code&lt;br&gt;&lt;br&gt;&lt;b&gt;Pull Request &amp;amp; Peer Review&lt;/b&gt;&lt;br&gt;Mandatory peer approval on conventional commits" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FFFBEB;strokeColor=#F59E0B;fontColor=#78350F;" vertex="1">
+        <mxCell id="phase2_delivery" parent="1" value="&lt;b style=&#39;font-size:15px;&#39;&gt;PHASE 2&lt;br&gt;SECURE CONSTRUCTION &amp;amp; SHIFT-LEFT&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Dev Team 🔴 &amp;amp; Tech Lead 🟢&lt;/b&gt;&lt;br&gt;Test-Driven Development (TDD), clean code &amp;amp; SOLID standards&lt;br&gt;Pre-commit secret detection (Gitleaks)&lt;br&gt;Non-destructive DB schema evolution (Expand/Contract)&lt;br&gt;Multi-cloud Terraform infrastructure as code&lt;br&gt;&lt;br&gt;&lt;b&gt;Pull Request &amp;amp; Peer Review&lt;/b&gt;&lt;br&gt;Mandatory peer approval on conventional commits" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FFFBEB;strokeColor=#F59E0B;fontColor=#78350F;" vertex="1">
           <mxGeometry x="418" y="135" width="340" height="600" as="geometry" />
         </mxCell>
-        <mxCell id="phase3_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 3&lt;br&gt;AUTOMATED QUALITY &amp;amp; SECURITY GATES&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;CI/CD Pipeline (Automated ⚙️) - DoD Level 1&lt;/b&gt;&lt;br&gt;1. Maven, React &amp;amp; Python compile cleanly&lt;br&gt;2. Polyglot test line coverage ≥ 80% (JaCoCo, Vitest, Coverage.py)&lt;br&gt;3. Shift-Left SAST: SonarCloud Quality Gate (Passed)&lt;br&gt;4. SCA &amp;amp; secret scanning: Trivy 0.76.1 &amp;amp; Gitleaks&lt;br&gt;5. IaC configuration scan: Trivy; policy enforcement: Conftest Rego&lt;br&gt;6. Supply-chain verification: Sigstore Cosign (cosign.pub)&lt;br&gt;&lt;br&gt;&lt;b&gt;Immutable Container Delivery&lt;/b&gt;&lt;br&gt;Multi-stage non-root container build with Trivy scan" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#064E3B;" vertex="1">
+        <mxCell id="phase3_delivery" parent="1" value="&lt;b style=&#39;font-size:15px;&#39;&gt;PHASE 3&lt;br&gt;AUTOMATED QUALITY &amp;amp; SECURITY GATES&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;CI/CD Pipeline (Automated ⚙️) - DoD Level 1&lt;/b&gt;&lt;br&gt;1. Maven, React &amp;amp; Python compile cleanly&lt;br&gt;2. Polyglot test line coverage ≥ 80% (JaCoCo, Vitest, Coverage.py)&lt;br&gt;3. Shift-Left SAST: SonarCloud Quality Gate (Passed)&lt;br&gt;4. SCA &amp;amp; secret scanning: Trivy 0.76.1 &amp;amp; Gitleaks&lt;br&gt;5. IaC configuration scan: Trivy; policy enforcement: Conftest Rego&lt;br&gt;6. Supply-chain verification: Sigstore Cosign (cosign.pub)&lt;br&gt;&lt;br&gt;&lt;b&gt;Immutable Container Delivery&lt;/b&gt;&lt;br&gt;Multi-stage non-root container build with Trivy scan" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#ECFDF5;strokeColor=#10B981;fontColor=#064E3B;" vertex="1">
           <mxGeometry x="786" y="135" width="340" height="600" as="geometry" />
         </mxCell>
-        <mxCell id="phase4_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 4&lt;br&gt;STAGING VALIDATION &amp;amp; GITOPS PROMOTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;GitOps Continuous Delivery (ArgoCD) 🔘&lt;/b&gt;&lt;br&gt;Deploy to staging with Helm umbrella charts&lt;br&gt;&lt;br&gt;&lt;b&gt;Dynamic Assurance Suite (DoD Level 2)&lt;/b&gt;&lt;br&gt;6. Newman API contract check: 23/23 pass&lt;br&gt;7. Cosmo Router federated GraphQL composition&lt;br&gt;8. k6 load &amp;amp; SLO benchmark: p95 &amp;lt; 200 ms&lt;br&gt;9. OWASP ZAP baseline dynamic DAST&lt;br&gt;&lt;br&gt;&lt;b&gt;Production Promotion (DoD Level 3)&lt;/b&gt;&lt;br&gt;OPA Gatekeeper admission control&lt;br&gt;Istio canary progressive rollout: 10% → 100%" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FEF2F2;strokeColor=#EF4444;fontColor=#7F1D1D;" vertex="1">
+        <mxCell id="phase4_delivery" parent="1" value="&lt;b style=&#39;font-size:15px;&#39;&gt;PHASE 4&lt;br&gt;STAGING VALIDATION &amp;amp; GITOPS PROMOTION&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;GitOps Continuous Delivery (ArgoCD) 🔘&lt;/b&gt;&lt;br&gt;Deploy to staging with Helm umbrella charts&lt;br&gt;&lt;br&gt;&lt;b&gt;Dynamic Assurance Suite (DoD Level 2)&lt;/b&gt;&lt;br&gt;6. Newman API contract check: 23/23 pass&lt;br&gt;7. Cosmo Router federated GraphQL composition&lt;br&gt;8. k6 load &amp;amp; SLO benchmark: p95 &amp;lt; 200 ms&lt;br&gt;9. OWASP ZAP baseline dynamic DAST&lt;br&gt;&lt;br&gt;&lt;b&gt;Production Promotion (DoD Level 3)&lt;/b&gt;&lt;br&gt;OPA Gatekeeper admission control&lt;br&gt;Istio canary progressive rollout: 10% → 100%" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#FEF2F2;strokeColor=#EF4444;fontColor=#7F1D1D;" vertex="1">
           <mxGeometry x="1154" y="135" width="340" height="600" as="geometry" />
         </mxCell>
-        <mxCell id="phase5_delivery" parent="1" value="&lt;b style='font-size:15px;'&gt;PHASE 5&lt;br&gt;CONTINUOUS RELIABILITY &amp;amp; CLOSED-LOOP FEEDBACK&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;SRE / Platform / Observability 🔘&lt;/b&gt;&lt;br&gt;Full-Stack LGTM Telemetry:&lt;br&gt;• Distributed tracing: Grafana Tempo (TraceQL)&lt;br&gt;• Centralized logging: Grafana Loki (LogQL)&lt;br&gt;• Golden signals &amp;amp; metrics: Prometheus (PromQL)&lt;br&gt;&lt;br&gt;&lt;b&gt;Incident &amp;amp; RCA Management&lt;/b&gt;&lt;br&gt;Anomaly trigger / PagerAlert / ServiceNow&lt;br&gt;P1/P2 root-cause analysis &amp;amp; blameless post-mortem&lt;br&gt;&lt;br&gt;&lt;b&gt;Closed-Loop Backlog Feed 🔴 🔵&lt;/b&gt;&lt;br&gt;Regression tests added to Newman / k6&lt;br&gt;Preventive security &amp;amp; technical debt backlog" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;" vertex="1">
+        <mxCell id="phase5_delivery" parent="1" value="&lt;b style=&#39;font-size:15px;&#39;&gt;PHASE 5&lt;br&gt;CONTINUOUS RELIABILITY &amp;amp; CLOSED-LOOP FEEDBACK&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;SRE / Platform / Observability 🔘&lt;/b&gt;&lt;br&gt;Full-Stack LGTM Telemetry:&lt;br&gt;• Distributed tracing: Grafana Tempo (TraceQL)&lt;br&gt;• Centralized logging: Grafana Loki (LogQL)&lt;br&gt;• Golden signals &amp;amp; metrics: Prometheus (PromQL)&lt;br&gt;&lt;br&gt;&lt;b&gt;Incident &amp;amp; RCA Management&lt;/b&gt;&lt;br&gt;Anomaly trigger / PagerAlert / ServiceNow&lt;br&gt;P1/P2 root-cause analysis &amp;amp; blameless post-mortem&lt;br&gt;&lt;br&gt;&lt;b&gt;Closed-Loop Backlog Feed 🔴 🔵&lt;/b&gt;&lt;br&gt;Regression tests added to Newman / k6&lt;br&gt;Preventive security &amp;amp; technical debt backlog" style="rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fontSize=12;align=left;verticalAlign=top;spacing=14;fillColor=#F5F3FF;strokeColor=#8B5CF6;fontColor=#4C1D95;" vertex="1">
           <mxGeometry x="1522" y="135" width="340" height="600" as="geometry" />
         </mxCell>
         <mxCell id="lifecycle_flow_1" parent="1" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeWidth=2;endArrow=block;endFill=1;strokeColor=#64748B;" edge="1" source="phase1_delivery" target="phase2_delivery">
@@ -1005,7 +1004,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t14" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;GRAPHQL SUPERGRAPH - 6-LAYER DEFENSE-IN-DEPTH ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;WunderGraph Cosmo Router • Apollo Federation v2 • Keycloak JWKS • K8s Hardening • Zero-Trust L3/L4 Network Policies&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t14" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;GRAPHQL SUPERGRAPH - 6-LAYER DEFENSE-IN-DEPTH ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;WunderGraph Cosmo Router • Apollo Federation v2 • Keycloak JWKS • K8s Hardening • Zero-Trust L3/L4 Network Policies&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
         </mxCell>
         <mxCell id="c14_client" parent="1" value="&lt;b&gt;🌐 CLIENT LAYER&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -1029,7 +1028,7 @@
         <mxCell id="n14_netpol_rules" parent="1" value="&lt;b&gt;NetworkPolicy Enforcement&lt;/b&gt;&lt;br&gt;• Ingress: Only from frontend / istio-system on :8080&lt;br&gt;• Egress: Only to subgraphs (:8001-:8004), Keycloak (:8181) &amp;amp; OTel (:4318)&lt;br&gt;• All other lateral ports BLOCKED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#312E81;fontSize=10;align=left;spacingLeft=10;" vertex="1">
           <mxGeometry x="365" y="260" width="240" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="c14_cosmo" parent="1" value="&lt;b&gt;🔒 LAYER 5: K8S POD &amp;amp; CONTAINER HARDENING (WunderGraph Cosmo Router 0.362.0)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;color:#64748B;'&gt;Distroless UID/GID 65532 • readOnlyRootFilesystem: true • allowPrivilegeEscalation: false • drop: [ALL] • seccomp: RuntimeDefault • automountServiceAccountToken: false&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
+        <mxCell id="c14_cosmo" parent="1" value="&lt;b&gt;🔒 LAYER 5: K8S POD &amp;amp; CONTAINER HARDENING (WunderGraph Cosmo Router 0.362.0)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#64748B;&#39;&gt;Distroless UID/GID 65532 • readOnlyRootFilesystem: true • allowPrivilegeEscalation: false • drop: [ALL] • seccomp: RuntimeDefault • automountServiceAccountToken: false&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
           <mxGeometry x="660" y="100" width="750" height="740" as="geometry" />
         </mxCell>
         <mxCell id="n14_l4" parent="1" value="&lt;b&gt;🚦 LAYER 4: Traffic Shaping &amp;amp; Strict CORS&lt;/b&gt;&lt;br&gt;• max_request_body_size: 1MB • max_header_bytes: 1MiB (prevents buffer overflow &amp;amp; memory exhaustion)&lt;br&gt;• Strict CORS: localhost:5173 / 127.0.0.1:5173 whitelist • Allow: GET, POST, OPTIONS&lt;br&gt;• Connection pooling: 64 max_conns_per_host • Timeouts: 3s dial, 20s request" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=10;align=left;spacingLeft=15;" vertex="1">
@@ -1115,7 +1114,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t15" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;SEQUENCE: GRAPHQL SUPERGRAPH REQUEST LIFECYCLE &amp;amp; FAIL-CLOSED EDGE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Chronological execution flow • Pre-fetch field authorization kill-switch • Parallel Apollo Federation v2 entity resolution&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t15" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;SEQUENCE: GRAPHQL SUPERGRAPH REQUEST LIFECYCLE &amp;amp; FAIL-CLOSED EDGE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Chronological execution flow • Pre-fetch field authorization kill-switch • Parallel Apollo Federation v2 entity resolution&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
         </mxCell>
         <mxCell id="p15_client" parent="1" value="&lt;b&gt;1. Client / SPA&lt;/b&gt;&lt;br&gt;(React 19 Frontend)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;fontColor=#1E3A8A;fontSize=11;" vertex="1">
@@ -1190,13 +1189,13 @@
         <mxCell id="s15_8" parent="1" value="8b. Concurrent query to Products Subgraph (resolve base product fields: sku, name, price)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="750" y="630" width="575" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="s15_9" parent="1" value="9b. Products Service returns catalog records [{ sku: 'SKU-001', name: 'Laptop', price: 1200 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="s15_9" parent="1" value="9b. Products Service returns catalog records [{ sku: &#39;SKU-001&#39;, name: &#39;Laptop&#39;, price: 1200 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="750" y="675" width="575" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="s15_10" parent="1" value="10b. Concurrent query to Inventory Subgraph resolving Product entity by @key(fields: 'sku')" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="s15_10" parent="1" value="10b. Concurrent query to Inventory Subgraph resolving Product entity by @key(fields: &#39;sku&#39;)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="750" y="720" width="805" height="32" as="geometry" />
         </mxCell>
-        <mxCell id="s15_11" parent="1" value="11b. Inventory Service returns stock data [{ sku: 'SKU-001', isInStock: true, quantity: 45 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
+        <mxCell id="s15_11" parent="1" value="11b. Inventory Service returns stock data [{ sku: &#39;SKU-001&#39;, isInStock: true, quantity: 45 }]" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;fontSize=10;align=left;spacingLeft=8;" vertex="1">
           <mxGeometry x="750" y="765" width="805" height="32" as="geometry" />
         </mxCell>
         <mxCell id="s15_12" parent="1" value="12. Cosmo Router merges entity partials into unified GraphQL response in Go memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;fontSize=10;align=left;spacingLeft=8;" vertex="1">
@@ -1216,7 +1215,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t16" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;AGNOSTIC POS QR SCANNER &amp;amp; OMNICHANNEL STOREFRONT ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;React 19 • Dual-Engine BarcodeDetector + jsQR • Spring Microservices Correlation • PostgreSQL TEXT Persist &amp;amp; Redis • DevSecOps Permissions-Policy&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t16" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;AGNOSTIC POS QR SCANNER &amp;amp; OMNICHANNEL STOREFRONT ARCHITECTURE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;React 19 • Dual-Engine BarcodeDetector + jsQR • Spring Microservices Correlation • PostgreSQL TEXT Persist &amp;amp; Redis • DevSecOps Permissions-Policy&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
         </mxCell>
         <mxCell id="c16_input" parent="1" value="&lt;b&gt;📷 CAPTURE &amp;amp; INPUT MODALITIES&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=13;dashed=1;" vertex="1">
@@ -1270,7 +1269,7 @@
         <mxCell id="n16_ord_svc" parent="1" value="&lt;b&gt;Orders Service (:8003)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Live Order Verification:&lt;/b&gt; Resolves order status, items, address&lt;br&gt;• &lt;b&gt;Omnichannel POS Fulfillment:&lt;/b&gt;&lt;br&gt;  mutation { shipOrder(id) } ➔ SHIPPED&lt;br&gt;  mutation { deliverOrder(id) } ➔ DELIVERED&lt;br&gt;• &lt;b&gt;Audit Telemetry Ingestion:&lt;/b&gt; POST /api/order/funnel&lt;br&gt;  Captures QR_PRODUCT_SCANNED &amp;amp; QR_ORDER_SCANNED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1100" y="315" width="340" height="155" as="geometry" />
         </mxCell>
-        <mxCell id="n16_prod_svc" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Image Upload Handling:&lt;/b&gt; Compressed base64 Data URL (≤ 256KiB)&lt;br&gt;• &lt;b&gt;Strict Field Validation:&lt;/b&gt; SKU &amp;amp; Name regex patterns&lt;br&gt;• &lt;b&gt;RFC 7807 Exception Aggregator:&lt;/b&gt; GlobalExceptionHandler joins field errors into 'message' &amp;amp; 'fields' map for client transparency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n16_prod_svc" parent="1" value="&lt;b&gt;Products Service (:8004)&lt;/b&gt;&lt;br&gt;• &lt;b&gt;Image Upload Handling:&lt;/b&gt; Compressed base64 Data URL (≤ 256KiB)&lt;br&gt;• &lt;b&gt;Strict Field Validation:&lt;/b&gt; SKU &amp;amp; Name regex patterns&lt;br&gt;• &lt;b&gt;RFC 7807 Exception Aggregator:&lt;/b&gt; GlobalExceptionHandler joins field errors into &#39;message&#39; &amp;amp; &#39;fields&#39; map for client transparency" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1100" y="500" width="340" height="140" as="geometry" />
         </mxCell>
         <mxCell id="n16_notif_svc" parent="1" value="&lt;b&gt;Notification Service (:8002)&lt;/b&gt;&lt;br&gt;• Consumes Kafka fulfillment events&lt;br&gt;• Dispatches customer delivery notification &amp;amp; authenticated tenant-scoped SSE update" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
@@ -1353,7 +1352,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t17" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;LEVEL 5 HYPER-SCALE RESILIENCE &amp;amp; CELL-BASED ARCHITECTURE BLUEPRINT&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Zero Dual-Write Transactional Outbox • Distributed Redis 8 Idempotency • Non-Blocking Dead Letter Queue (DLQ) • Netflix Vegas Adaptive Concurrency Limits • Cell-Based Multi-Tenancy • Chaos Drills&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t17" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;LEVEL 5 HYPER-SCALE RESILIENCE &amp;amp; CELL-BASED ARCHITECTURE BLUEPRINT&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Zero Dual-Write Transactional Outbox • Distributed Redis 8 Idempotency • Non-Blocking Dead Letter Queue (DLQ) • Netflix Vegas Adaptive Concurrency Limits • Cell-Based Multi-Tenancy • Chaos Drills&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="300" y="25" width="1400" height="50" as="geometry" />
         </mxCell>
         <mxCell id="c17_cells" parent="1" value="&lt;b&gt;🌐 PILLAR 5: CELL-BASED ARCHITECTURE &amp;amp; BLAST RADIUS ISOLATION&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#CBD5E1;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#475569;fontSize=12;dashed=1;" vertex="1">
@@ -1419,7 +1418,7 @@
         <mxCell id="n17_db_acid" parent="1" value="&lt;b&gt;PostgreSQL 18 Atomic ACID Boundary&lt;/b&gt;&lt;br&gt;Single &lt;code&gt;@Transactional&lt;/code&gt; Commit:&lt;br&gt;1. Insert / Update &lt;code&gt;orders&lt;/code&gt; record&lt;br&gt;2. Insert &lt;code&gt;outbox_events&lt;/code&gt; record (PENDING)&lt;br&gt;&lt;b&gt;Zero dual-write gap:&lt;/b&gt; Never commits DB without event" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=8;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="970" y="220" width="390" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="n17_outbox_poller" parent="1" value="&lt;b&gt;OutboxProcessor (Async Poller)&lt;/b&gt;&lt;br&gt;• Runs on 500ms fixed delay&lt;br&gt;• Queries &lt;code&gt;outbox_events WHERE status='PENDING'&lt;/code&gt;&lt;br&gt;• Batch fetch with optimistic locking&lt;br&gt;• Asynchronously dispatches to Kafka broker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n17_outbox_poller" parent="1" value="&lt;b&gt;OutboxProcessor (Async Poller)&lt;/b&gt;&lt;br&gt;• Runs on 500ms fixed delay&lt;br&gt;• Queries &lt;code&gt;outbox_events WHERE status=&#39;PENDING&#39;&lt;/code&gt;&lt;br&gt;• Batch fetch with optimistic locking&lt;br&gt;• Asynchronously dispatches to Kafka broker" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=11;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="970" y="355" width="390" height="95" as="geometry" />
         </mxCell>
         <mxCell id="n17_state_writer" parent="1" value="&lt;b&gt;OutboxEventStateWriter (Isolated Bean)&lt;/b&gt;&lt;br&gt;• &lt;code&gt;@Transactional(REQUIRES_NEW)&lt;/code&gt;&lt;br&gt;• SonarCloud S2229 compliant (No self-invocation)&lt;br&gt;• Marks status &lt;code&gt;PUBLISHED&lt;/code&gt; or &lt;code&gt;FAILED&lt;/code&gt;&lt;br&gt;• Metrics: &lt;code&gt;ecommerce_outbox_events_published_total&lt;/code&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=11;align=left;spacingLeft=12;" vertex="1">
@@ -1478,10 +1477,10 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t18" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;PLATFORM LAYERS A TO E IMPLEMENTATION BLUEPRINT (DOCKER COMPOSE &amp;amp; MINIKUBE)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;Unified Architectural Parity: Layer A (Service Mesh) &amp;bull; Layer B (Edge Federation) &amp;bull; Layer C (Kafka Sagas) &amp;bull; Layer D (Observability) &amp;bull; Layer E (Secrets Management)&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t18" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;PLATFORM LAYERS A TO E IMPLEMENTATION BLUEPRINT (DOCKER COMPOSE &amp;amp; MINIKUBE)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;Unified Architectural Parity: Layer A (Service Mesh) &amp;bull; Layer B (Edge Federation) &amp;bull; Layer C (Kafka Sagas) &amp;bull; Layer D (Observability) &amp;bull; Layer E (Secrets Management)&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
         </mxCell>
-        <mxCell id="n18_la_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; LAYER A: SERVICE MESH &amp;amp; NETWORK SECURITY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Zero-Trust mTLS &amp;amp; Least-Privilege Access&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#3730A3;fontSize=12;" vertex="1">
+        <mxCell id="n18_la_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; LAYER A: SERVICE MESH &amp;amp; NETWORK SECURITY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Zero-Trust mTLS &amp;amp; Least-Privilege Access&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#3730A3;fontSize=12;" vertex="1">
           <mxGeometry x="55" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n18_la_1" parent="1" value="&lt;b&gt;Istio Service Mesh (Minikube)&lt;/b&gt;&lt;br&gt;&amp;bull; STRICT mTLS across dev, staging &amp;amp; prod&lt;br&gt;&amp;bull; Default PeerAuthentication: STRICT&lt;br&gt;&amp;bull; Workload SPIFFE Identity validation&lt;br&gt;&amp;bull; DestinationRules connection pooling &amp;amp; circuit breakers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1496,7 +1495,7 @@
         <mxCell id="n18_la_4" parent="1" value="&lt;b&gt;Strategic Roadmap: Ambient Mode&lt;/b&gt;&lt;br&gt;&amp;bull; Evaluation for hyper-scale production&lt;br&gt;&amp;bull; In-node ztunnel L4 mTLS daemon&lt;br&gt;&amp;bull; Waypoint proxies for L7 authorization&lt;br&gt;&amp;bull; Eliminates ~100MB RAM sidecar per pod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#4338CA;strokeWidth=1.5;fontColor=#312E81;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="55" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n18_lb_hdr" parent="1" value="&lt;b&gt;&amp;#128640; LAYER B: EDGE FEDERATION &amp;amp; IDENTITY&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;GraphQL Federation v2 &amp;amp; OIDC Gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
+        <mxCell id="n18_lb_hdr" parent="1" value="&lt;b&gt;&amp;#128640; LAYER B: EDGE FEDERATION &amp;amp; IDENTITY&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;GraphQL Federation v2 &amp;amp; OIDC Gateway&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=2;fontColor=#831843;fontSize=12;" vertex="1">
           <mxGeometry x="420" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n18_lb_1" parent="1" value="&lt;b&gt;Cosmo Router Gateway v2 (Go)&lt;/b&gt;&lt;br&gt;&amp;bull; Apollo Federation v2 Supergraph Execution&lt;br&gt;&amp;bull; Static compiled execution-config.json&lt;br&gt;&amp;bull; Subgraph query planning across all 9 services&lt;br&gt;&amp;bull; HTTP/2, WebSocket subscriptions, OTLP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1511,7 +1510,7 @@
         <mxCell id="n18_lb_4" parent="1" value="&lt;b&gt;Edge Response Caching &amp;amp; Guardrails&lt;/b&gt;&lt;br&gt;&amp;bull; In-memory LFU/LRU response cache (10,000 entries)&lt;br&gt;&amp;bull; Sub-ms wire speed edge query reads (&amp;lt;0.5ms)&lt;br&gt;&amp;bull; Surrogate Cache-Tag response headers for CDN purges&lt;br&gt;&amp;bull; Query Depth (&amp;le;12) &amp;amp; Alias (&amp;le;5) limiters" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#DB2777;strokeWidth=1.5;fontColor=#831843;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="420" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n18_lc_hdr" parent="1" value="&lt;b&gt;&amp;#9889; LAYER C: EVENT-DRIVEN MESSAGING &amp;amp; SAGAS&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Kafka KRaft, Redis Idempotency &amp;amp; Outbox&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
+        <mxCell id="n18_lc_hdr" parent="1" value="&lt;b&gt;&amp;#9889; LAYER C: EVENT-DRIVEN MESSAGING &amp;amp; SAGAS&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Kafka KRaft, Redis Idempotency &amp;amp; Outbox&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
           <mxGeometry x="785" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n18_lc_1" parent="1" value="&lt;b&gt;Confluent 8.3.2 / Kafka 4.3.x (KRaft)&lt;/b&gt;&lt;br&gt;&amp;bull; Zookeeper-less distributed consensus&lt;br&gt;&amp;bull; High-throughput partitioned topics:&lt;br&gt;  orders-topic &amp;bull; payments-topic &amp;bull; fulfillment-topic&lt;br&gt;&amp;bull; Minikube &amp;amp; Compose identical cluster topology" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1526,13 +1525,13 @@
         <mxCell id="n18_lc_4" parent="1" value="&lt;b&gt;DLQ &amp;amp; Polyglot Schema Contracts&lt;/b&gt;&lt;br&gt;&amp;bull; @RetryableTopic backoff with orders-topic.DLT&lt;br&gt;&amp;bull; Formal JSON Schema contracts in contracts/events/&lt;br&gt;&amp;bull; Validates Java 21, Go 1.26, TS 7 &amp;amp; Python 3.12&lt;br&gt;&amp;bull; Automated test via scripts/test_event_contracts.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=1.5;fontColor=#78350F;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="785" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n18_ld_hdr" parent="1" value="&lt;b&gt;&amp;#128202; LAYER D: OBSERVABILITY &amp;amp; FINOPS&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;LGTM Stack, Tracing &amp;amp; OpenCost UI&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n18_ld_hdr" parent="1" value="&lt;b&gt;&amp;#128202; LAYER D: OBSERVABILITY &amp;amp; FINOPS&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;LGTM Stack, Tracing &amp;amp; OpenCost UI&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="1150" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n18_ld_1" parent="1" value="&lt;b&gt;Unified LGTM Telemetry Stack&lt;/b&gt;&lt;br&gt;&amp;bull; Prometheus 3.x pull-based metrics (:9090)&lt;br&gt;&amp;bull; Loki 3.x multiline log stream engine (:3100)&lt;br&gt;&amp;bull; Tempo 3.x high-volume trace storage (:3200)&lt;br&gt;&amp;bull; Grafana 13.x unified SRE &amp;amp; FinOps dashboards" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1150" y="175" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n18_ld_2" parent="1" value="&lt;b&gt;Bidirectional Trace-to-Log Correlation&lt;/b&gt;&lt;br&gt;&amp;bull; Loki derivedFields: Regex captures traceId &amp;amp;&lt;br&gt;  renders instant 1-click 'Tempo' trace button&lt;br&gt;&amp;bull; Tempo tracesToLogsV2: Span navigates to Loki&lt;br&gt;&amp;bull; Instant RCA from 500 error log to trace waterfall" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n18_ld_2" parent="1" value="&lt;b&gt;Bidirectional Trace-to-Log Correlation&lt;/b&gt;&lt;br&gt;&amp;bull; Loki derivedFields: Regex captures traceId &amp;amp;&lt;br&gt;  renders instant 1-click &#39;Tempo&#39; trace button&lt;br&gt;&amp;bull; Tempo tracesToLogsV2: Span navigates to Loki&lt;br&gt;&amp;bull; Instant RCA from 500 error log to trace waterfall" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1150" y="320" width="345" height="145" as="geometry" />
         </mxCell>
         <mxCell id="n18_ld_3" parent="1" value="&lt;b&gt;Synthetic Blackbox Probing &amp;amp; SLOs&lt;/b&gt;&lt;br&gt;&amp;bull; Prometheus Blackbox Exporter (:9115)&lt;br&gt;&amp;bull; Outside-in HTTP probes: SPA, Router, Keycloak&lt;br&gt;&amp;bull; Sub-15ms roundtrip latency tracking&lt;br&gt;&amp;bull; OutsideInSLOAvailabilityDrop burn rate alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1541,7 +1540,7 @@
         <mxCell id="n18_ld_4" parent="1" value="&lt;b&gt;OpenCost FinOps Real-Time UI (:7000)&lt;/b&gt;&lt;br&gt;&amp;bull; Container &amp;amp; namespace spend allocation&lt;br&gt;&amp;bull; Real-time CPU, RAM &amp;amp; storage cost tracking&lt;br&gt;&amp;bull; Prometheus metrics engine integration&lt;br&gt;&amp;bull; Cluster budget adherence &amp;amp; rightsizing insights" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;strokeWidth=1.5;fontColor=#065F46;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1150" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n18_le_hdr" parent="1" value="&lt;b&gt;&amp;#128274; LAYER E: SECRETS MANAGEMENT &amp;amp; ZERO-TRUST&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Vault KV-v2, Reloader &amp;amp; Transit Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;" vertex="1">
+        <mxCell id="n18_le_hdr" parent="1" value="&lt;b&gt;&amp;#128274; LAYER E: SECRETS MANAGEMENT &amp;amp; ZERO-TRUST&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Vault KV-v2, Reloader &amp;amp; Transit Engine&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;" vertex="1">
           <mxGeometry x="1515" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n18_le_1" parent="1" value="&lt;b&gt;HashiCorp Vault KV-v2 (Port 8200)&lt;/b&gt;&lt;br&gt;&amp;bull; Encrypted secret engine mounted at secret/&lt;br&gt;&amp;bull; Application database &amp;amp; JWT master secrets&lt;br&gt;&amp;bull; Per-service isolated secret paths&lt;br&gt;&amp;bull; Audit logging device enabled to /vault/file" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1567,25 +1566,25 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="t19" parent="1" value="&lt;b style='font-size:22px;color:#1E293B;'&gt;ENTERPRISE PRODUCTION HARDENING &amp;amp; KEDA EVENT-DRIVEN AUTOSCALING BLUEPRINT&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:13px;color:#64748B;'&gt;CIS Kubernetes Benchmark 5.2 &amp;bull; NIST SP 800-190 &amp;bull; OPA Gatekeeper &amp;bull; Cloud Workload Identity (IRSA/AKS) &amp;bull; Ingress WAF &amp;bull; KEDA Kafka Lag Scaling&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
+        <mxCell id="t19" parent="1" value="&lt;b style=&#39;font-size:22px;color:#1E293B;&#39;&gt;ENTERPRISE PRODUCTION HARDENING &amp;amp; KEDA EVENT-DRIVEN AUTOSCALING BLUEPRINT&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:13px;color:#64748B;&#39;&gt;CIS Kubernetes Benchmark 5.2 &amp;bull; NIST SP 800-190 &amp;bull; OPA Gatekeeper &amp;bull; Cloud Workload Identity (IRSA/AKS) &amp;bull; Ingress WAF &amp;bull; KEDA Kafka Lag Scaling&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" vertex="1">
           <mxGeometry x="250" y="25" width="1420" height="55" as="geometry" />
         </mxCell>
-        <mxCell id="n19_p1_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; PHASE 1: POD HARDENING (RESTRICTED)&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;CIS Benchmark 5.2 &amp;bull; NIST SP 800-190 &amp;bull; Istio CNI&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#3730A3;fontSize=12;" vertex="1">
+        <mxCell id="n19_p1_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; PHASE 1: POD HARDENING (RESTRICTED)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;CIS Benchmark 5.2 &amp;bull; NIST SP 800-190 &amp;bull; Istio CNI&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#6366F1;strokeWidth=2;fontColor=#3730A3;fontSize=12;" vertex="1">
           <mxGeometry x="55" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n19_p1_1" parent="1" value="&lt;b&gt;Pod Security Admission (PSA Restricted)&lt;/b&gt;&lt;br&gt;&amp;bull; Namespaces: production, prod, staging&lt;br&gt;&amp;bull; &lt;code&gt;pod-security.kubernetes.io/enforce: restricted&lt;/code&gt;&lt;br&gt;&amp;bull; Blocks any pod with privileged access&lt;br&gt;&amp;bull; Enforces non-root execution (UID 65532 / 10001)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="55" y="175" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n19_p1_2" parent="1" value="&lt;b&gt;OPA Gatekeeper Constraint (Restricted Profile)&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;k8spodsecurityrestricted&lt;/code&gt; ConstraintTemplate&lt;br&gt;&amp;bull; &lt;code&gt;enforce-pod-security-restricted&lt;/code&gt; Constraint&lt;br&gt;&amp;bull; &lt;code&gt;allowPrivilegeEscalation: false&lt;/code&gt;&lt;br&gt;&amp;bull; &lt;code&gt;capabilities.drop: ['ALL']&lt;/code&gt;&lt;br&gt;&amp;bull; &lt;code&gt;readOnlyRootFilesystem: true&lt;/code&gt; on app containers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n19_p1_2" parent="1" value="&lt;b&gt;OPA Gatekeeper Constraint (Restricted Profile)&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;k8spodsecurityrestricted&lt;/code&gt; ConstraintTemplate&lt;br&gt;&amp;bull; &lt;code&gt;enforce-pod-security-restricted&lt;/code&gt; Constraint&lt;br&gt;&amp;bull; &lt;code&gt;allowPrivilegeEscalation: false&lt;/code&gt;&lt;br&gt;&amp;bull; &lt;code&gt;capabilities.drop: [&#39;ALL&#39;]&lt;/code&gt;&lt;br&gt;&amp;bull; &lt;code&gt;readOnlyRootFilesystem: true&lt;/code&gt; on app containers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="55" y="320" width="345" height="145" as="geometry" />
         </mxCell>
         <mxCell id="n19_p1_3" parent="1" value="&lt;b&gt;Istio CNI Plugin (Zero Elevated Privileges)&lt;/b&gt;&lt;br&gt;&amp;bull; Eliminates &lt;code&gt;istio-init&lt;/code&gt; &amp;amp; &lt;code&gt;NET_ADMIN&lt;/code&gt;&lt;br&gt;&amp;bull; CNI DaemonSet in kube-system configures iptables&lt;br&gt;&amp;bull; Workload pods run with 0 Linux capabilities&lt;br&gt;&amp;bull; Clean compliance with Restricted Pod Security" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#6366F1;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="55" y="480" width="345" height="145" as="geometry" />
         </mxCell>
-        <mxCell id="n19_p1_4" parent="1" value="&lt;b&gt;Mesh Sidecar Workload Lifecycle Guard&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;sidecar.istio.io/inject: 'true'&lt;/code&gt;: All microservices&lt;br&gt;&amp;bull; &lt;code&gt;sidecar.istio.io/inject: 'false'&lt;/code&gt;: CronJobs / MLOps&lt;br&gt;&amp;bull; Eliminates Envoy daemon deadlock upon job exit 0&lt;br&gt;&amp;bull; Zero degraded warnings in Kiali service mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#4338CA;strokeWidth=1.5;fontColor=#312E81;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
+        <mxCell id="n19_p1_4" parent="1" value="&lt;b&gt;Mesh Sidecar Workload Lifecycle Guard&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;sidecar.istio.io/inject: &#39;true&#39;&lt;/code&gt;: All microservices&lt;br&gt;&amp;bull; &lt;code&gt;sidecar.istio.io/inject: &#39;false&#39;&lt;/code&gt;: CronJobs / MLOps&lt;br&gt;&amp;bull; Eliminates Envoy daemon deadlock upon job exit 0&lt;br&gt;&amp;bull; Zero degraded warnings in Kiali service mesh" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EEF2FF;strokeColor=#4338CA;strokeWidth=1.5;fontColor=#312E81;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="55" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n19_p2_hdr" parent="1" value="&lt;b&gt;&amp;#128274; PHASE 2: WORKLOAD IDENTITIES &amp;amp; ESO&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Vault K8s Auth &amp;bull; Azure WI &amp;bull; AWS IRSA&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;" vertex="1">
+        <mxCell id="n19_p2_hdr" parent="1" value="&lt;b&gt;&amp;#128274; PHASE 2: WORKLOAD IDENTITIES &amp;amp; ESO&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Vault K8s Auth &amp;bull; Azure WI &amp;bull; AWS IRSA&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#8B5CF6;strokeWidth=2;fontColor=#4C1D95;fontSize=12;" vertex="1">
           <mxGeometry x="420" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n19_p2_1" parent="1" value="&lt;b&gt;Vault Kubernetes Native Auth Method&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;ClusterSecretStore&lt;/code&gt;: vault-k8s-cluster-secret-store&lt;br&gt;&amp;bull; Authenticates via projected ServiceAccount JWT&lt;br&gt;&amp;bull; Zero permanent root tokens in cluster&lt;br&gt;&amp;bull; Vault role: microservices-role in namespace vault" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#8B5CF6;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1600,7 +1599,7 @@
         <mxCell id="n19_p2_4" parent="1" value="&lt;b&gt;Strict Out-of-Band Secret Architecture&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;secret.create: false&lt;/code&gt; enforced in Helm umbrella&lt;br&gt;&amp;bull; All database passwords &amp;amp; JWT keys synced via ESO&lt;br&gt;&amp;bull; GitOps releases completely free of plaintext credentials&lt;br&gt;&amp;bull; PCI-DSS / SOC 2 Type II audit compliant" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E8FF;strokeColor=#7C3AED;strokeWidth=1.5;fontColor=#4C1D95;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="420" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n19_p3_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; PHASE 3: EDGE WAF &amp;amp; SUPPLY CHAIN&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;cert-manager &amp;bull; Ingress Rate Limit &amp;bull; Cosign&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
+        <mxCell id="n19_p3_hdr" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039; PHASE 3: EDGE WAF &amp;amp; SUPPLY CHAIN&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;cert-manager &amp;bull; Ingress Rate Limit &amp;bull; Cosign&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#EF4444;strokeWidth=2;fontColor=#7F1D1D;fontSize=12;" vertex="1">
           <mxGeometry x="785" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n19_p3_1" parent="1" value="&lt;b&gt;cert-manager Automated TLS 1.3 Lifecycle&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;ClusterIssuer&lt;/code&gt;: letsencrypt-production (ACME HTTP-01)&lt;br&gt;&amp;bull; Auto-provisions 90-day certificates for msa.example.com&lt;br&gt;&amp;bull; &lt;code&gt;renewBefore: 720h&lt;/code&gt; (30-day pre-expiry renewal)&lt;br&gt;&amp;bull; Zero expired certificate incidents in production" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#EF4444;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1615,7 +1614,7 @@
         <mxCell id="n19_p3_4" parent="1" value="&lt;b&gt;Supply Chain Integrity Controls (Cosign)&lt;/b&gt;&lt;br&gt;&amp;bull; Gatekeeper constraint: &lt;code&gt;enforce-image-signatures&lt;/code&gt;&lt;br&gt;&amp;bull; Blocks mutable tags (&lt;code&gt;:latest&lt;/code&gt;, &lt;code&gt;:dev&lt;/code&gt;, &lt;code&gt;:snapshot&lt;/code&gt;)&lt;br&gt;&amp;bull; Digest enforcement is disabled (&lt;code&gt;enforceDigest: false&lt;/code&gt;)&lt;br&gt;&amp;bull; CI verifies the signed manifest via &lt;code&gt;cosign.pub&lt;/code&gt; with Rekor checks enabled&lt;br&gt;&amp;bull; Per-image signing and signature admission checks are not yet configured" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEE2E2;strokeColor=#DC2626;strokeWidth=1.5;fontColor=#991B1B;fontSize=9.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="785" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n19_keda_hdr" parent="1" value="&lt;b&gt;&amp;#9889; KEDA EVENT-DRIVEN AUTOSCALING&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Kafka Lag &amp;bull; Prometheus RPS &amp;bull; Collision Guard&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
+        <mxCell id="n19_keda_hdr" parent="1" value="&lt;b&gt;&amp;#9889; KEDA EVENT-DRIVEN AUTOSCALING&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Kafka Lag &amp;bull; Prometheus RPS &amp;bull; Collision Guard&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#F59E0B;strokeWidth=2;fontColor=#78350F;fontSize=12;" vertex="1">
           <mxGeometry x="1150" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n19_keda_1" parent="1" value="&lt;b&gt;Kafka Consumer Lag Scalers (min: 1, max: 3)&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;b&gt;payments-service:&lt;/b&gt; orders-topic (payments-group)&lt;br&gt;&amp;bull; &lt;b&gt;fulfillment-service:&lt;/b&gt; payments-topic (fulfillment-group)&lt;br&gt;&amp;bull; &lt;b&gt;notification-service:&lt;/b&gt; orders-topic (notification-group)&lt;br&gt;&amp;bull; &lt;b&gt;analytics-service:&lt;/b&gt; orders-topic (analytics-group)&lt;br&gt;&amp;bull; &lt;code&gt;lagThreshold: 10&lt;/code&gt; triggers instant scale-out" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#F59E0B;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1630,7 +1629,7 @@
         <mxCell id="n19_keda_4" parent="1" value="&lt;b&gt;Production Cooldown &amp;amp; Stability&lt;/b&gt;&lt;br&gt;&amp;bull; &lt;code&gt;pollingInterval: 15s&lt;/code&gt; for rapid burst detection&lt;br&gt;&amp;bull; &lt;code&gt;cooldownPeriod: 300s&lt;/code&gt; (5-minute scale-in dampener)&lt;br&gt;&amp;bull; Prevents pod thrashing during intermittent spikes&lt;br&gt;&amp;bull; PodDisruptionBudget (minAvailable: 1) quorum guard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF3C7;strokeColor=#D97706;strokeWidth=1.5;fontColor=#78350F;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
           <mxGeometry x="1150" y="640" width="345" height="130" as="geometry" />
         </mxCell>
-        <mxCell id="n19_sre_hdr" parent="1" value="&lt;b&gt;&amp;#128202; COMPLIANCE &amp;amp; SRE AUDIT ENGINE&lt;/b&gt;&lt;br&gt;&lt;span style='font-size:10px;'&gt;Gatekeeper Audit &amp;bull; Trivy &amp;bull; Zero Violations&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
+        <mxCell id="n19_sre_hdr" parent="1" value="&lt;b&gt;&amp;#128202; COMPLIANCE &amp;amp; SRE AUDIT ENGINE&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;&#39;&gt;Gatekeeper Audit &amp;bull; Trivy &amp;bull; Zero Violations&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#10B981;strokeWidth=2;fontColor=#064E3B;fontSize=12;" vertex="1">
           <mxGeometry x="1515" y="100" width="345" height="60" as="geometry" />
         </mxCell>
         <mxCell id="n19_sre_1" parent="1" value="&lt;b&gt;Continuous Policy-as-Code Audit&lt;/b&gt;&lt;br&gt;&amp;bull; OPA Gatekeeper constraints run audit loops&lt;br&gt;&amp;bull; &lt;code&gt;kubectl get constraints&lt;/code&gt;: 0 violations&lt;br&gt;&amp;bull; &lt;code&gt;enforce-pod-security-restricted&lt;/code&gt;: Active (deny)&lt;br&gt;&amp;bull; &lt;code&gt;enforce-image-signatures&lt;/code&gt;: Active (deny)&lt;br&gt;&amp;bull; &lt;code&gt;enforce-trusted-registry&lt;/code&gt;: Active (deny)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#10B981;strokeWidth=1.5;fontColor=#1E293B;fontSize=10.5;align=left;spacingLeft=12;" vertex="1">
@@ -1647,6 +1646,195 @@
         </mxCell>
         <mxCell id="n19_banner" parent="1" value="&lt;b&gt;&amp;#128737;&amp;#65039;&amp;#9889; PRODUCTION GOVERNANCE &amp;amp; HARDENING SUMMARY:&lt;/b&gt; The platform achieves end-to-end Zero-Trust posture by integrating Pod Security Standards (Restricted), Istio CNI, Cloud Workload Identity (IRSA/AKS), Vault native Kubernetes authentication, cert-manager TLS 1.3 automated lifecycle, perimeter WAF rate limiting, and KEDA multi-source event autoscaling. All policies are auditable in GitOps and verifiable in real-time." style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=2;fontColor=#1E293B;fontSize=11.5;align=left;spacingLeft=20;" vertex="1">
           <mxGeometry x="55" y="795" width="1805" height="80" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="page_vault_lifecycle_flow" name="20. HashiCorp Vault - Enterprise Architecture &amp; Lifecycle Flow">
+    <mxGraphModel dx="2141" dy="1049" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1120" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="h_title" parent="1" style="text;html=1;align=center;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:22px;color:#0F172A;&#39;&gt;HASHICORP VAULT - ENTERPRISE ZERO-TRUST ARCHITECTURE &amp;amp; LIFECYCLE FLOW&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:12.5px;color:#475569;&#39;&gt;Multi-Cloud Workload Identity Federation • Auto-Unseal • Dynamic Ephemeral DB Credentials • In-Memory tmpfs Injection • Automated Lease Revocation&lt;/span&gt;" vertex="1">
+          <mxGeometry height="50" width="1400" x="260" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="box_aws" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFBF5;strokeColor=#FF9900;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#232F3E;fontSize=12;dashed=1;" value="&lt;b&gt;☁️ CLOUD PLATFORM &amp;amp; RESILIENCE ENCLAVE (AWS / Azure / GCP)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="360" width="440" x="50" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_kms" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#DD344C;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.key_management_service;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="85" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_kms" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Cloud KMS / HSM&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;AWS KMS • Azure Key Vault • GCP Cloud KMS&lt;br&gt;&lt;b style=&#39;color:#DD344C;&#39;&gt;Auto-Unseal Mechanism:&lt;/b&gt; Envelope encryption wraps Vault Master Key. Shamir-less automated startup.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="330" x="145" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_raft" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#505050;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.databases.database_cube;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="85" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_raft" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Integrated Raft HA Storage&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;3-Node Local Cluster (1 Leader + 2 Standbys)&lt;br&gt;Sub-millisecond localized replication.&lt;br&gt;AES-GCM-256 encrypted persistent blocks.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="330" x="145" y="235" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_audit" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#E7157B;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudtrail;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="85" y="335" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_audit" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Immutable Audit Device&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Ships non-bypassable JSON log stream to SIEM / Loki.&lt;br&gt;Every access, token request, and policy evaluation is recorded before completing transaction.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="330" x="145" y="330" as="geometry" />
+        </mxCell>
+        <mxCell id="box_vault" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF5FF;strokeColor=#7C3AED;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#581C87;fontSize=12;" value="&lt;b&gt;🛡️ HASHICORP VAULT ENTERPRISE CONTROL PLANE (:8200 TLS)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="360" width="580" x="520" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_vault_mgr" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#7C3AED;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.secrets_manager;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="550" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_vault_mgr" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Core API Gateway &amp;amp; TLS Dispatcher&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Strict mTLS / TLS 1.3 endpoint • Prometheus metrics exporter (/v1/sys/metrics)&lt;br&gt;High-throughput stateful cryptographic engine&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="470" x="610" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_k8s_auth" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#326CE5;strokeColor=#ffffff;shape=mxgraph.kubernetes.icon2;prIcon=sa;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="550" y="225" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_k8s_auth" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Kubernetes Auth Engine (/v1/auth/kubernetes)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Validates projected OIDC tokens • Maps (ServiceAccount, Namespace) ➔ Vault Role&lt;br&gt;Zero long-lived tokens; purely ephemeral workload authentication&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="470" x="610" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_policy" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#0072C6;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.azure.script_file;" value="" vertex="1">
+          <mxGeometry height="48" width="40" x="554" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_policy" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;RBAC &amp;amp; Policy Engine (Least-Privilege Isolation)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Fine-grained HCL path rules (e.g., &lt;code&gt;database/creds/orders-role&lt;/code&gt; [read])&lt;br&gt;Strict workload boundaries (products cannot read orders credentials)&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="470" x="610" y="295" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_token_mgr" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#7C3AED;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.security.lock_protected;" value="" vertex="1">
+          <mxGeometry height="48" width="40" x="554" y="375" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_token_mgr" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Token &amp;amp; Lease Lifecycle Manager&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Issues short-lived client tokens (1h TTL) with attached Lease IDs.&lt;br&gt;&lt;b style=&#39;color:#DC2626;&#39;&gt;Automated Revocation:&lt;/b&gt; Expiration or pod deletion instantly triggers database role termination.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="470" x="610" y="370" as="geometry" />
+        </mxCell>
+        <mxCell id="box_targets" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F0FDF4;strokeColor=#10B981;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#064E3B;fontSize=12;dashed=1;" value="&lt;b&gt;⚡ DYNAMIC ENGINES &amp;amp; TARGET DATA STORES&lt;/b&gt;" vertex="1">
+          <mxGeometry height="360" width="740" x="1130" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_rds" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#2E73B8;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.rds;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="1160" y="145" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_rds" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;Dynamic Database Engine ➔ PostgreSQL Database&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Zero shared static credentials. Vault connects as admin and dynamically executes:&lt;/span&gt;&lt;br&gt;&lt;code style=&#39;font-size:10px;background:#E2E8F0;padding:2px;&#39;&gt;CREATE ROLE &quot;v_app_orders_xyz&quot; WITH PASSWORD &#39;...&#39; VALID UNTIL &#39;2026-11-09 15:00&#39;;&lt;/code&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#DC2626;&#39;&gt;Upon TTL expiration, Vault executes: &lt;code&gt;REVOKE ALL ...; DROP ROLE &quot;v_app_orders_xyz&quot;;&lt;/code&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="68" width="630" x="1220" y="135" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_kv" parent="1" style="sketch=0;shadow=0;dashed=0;html=1;strokeColor=none;fillColor=#1E3A8A;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;outlineConnect=0;align=center;shape=mxgraph.office.databases.database_cube;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="1160" y="225" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_kv" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;KV-v2 Secrets Engine (Static / Versioned Secrets)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;Path: &lt;code&gt;secret/data/orders-service&lt;/code&gt; • Stripe API keys, 3rd party webhook secrets&lt;br&gt;Version tracking, soft deletes, and zero Git plaintext exposure.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="630" x="1220" y="220" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_pki" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#DD344C;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=1;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.certificate_manager_3;" value="" vertex="1">
+          <mxGeometry height="48" width="48" x="1160" y="305" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_pki" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b&gt;PKI Certificate Engine &amp;amp; Transit Encryption (EaaS)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10.5px;color:#64748B;&#39;&gt;&lt;b&gt;PKI:&lt;/b&gt; Issues short-lived X.509 certificates to Istio CA (&lt;code&gt;istio-system/cacerts&lt;/code&gt;) for mTLS mesh.&lt;br&gt;&lt;b&gt;Transit:&lt;/b&gt; Cryptography-as-a-Service for credit cards and PII (keys never leave Vault memory).&lt;/span&gt;" vertex="1">
+          <mxGeometry height="58" width="630" x="1220" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="box_k8s" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#326CE5;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;dashed=1;" value="&lt;b&gt;☸️ KUBERNETES CLUSTER (Workload Identity &amp;amp; Zero-Plaintext Consumption)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="390" width="1820" x="50" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_kube_api" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#326CE5;strokeColor=#ffffff;shape=mxgraph.kubernetes.icon2;prIcon=api;" value="" vertex="1">
+          <mxGeometry height="55" width="55" x="90" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_kube_api" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:13px;&#39;&gt;Kubernetes API Server&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#475569;&#39;&gt;• TokenReview API Endpoint&lt;br&gt;• Cryptographically verifies projected JWT&lt;br&gt;• Confirms namespace, SA &amp;amp; Pod UID&lt;/span&gt;" vertex="1">
+          <mxGeometry height="55" width="260" x="155" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_injector" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#F97316;strokeColor=#ffffff;shape=mxgraph.kubernetes.icon2;prIcon=svc;" value="" vertex="1">
+          <mxGeometry height="55" width="55" x="90" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_injector" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:13px;&#39;&gt;Vault Agent Sidecar Injector&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#475569;&#39;&gt;• Mutating Webhook Controller&lt;br&gt;• Intercepts pod annotations:&lt;br&gt;&lt;code&gt;vault.hashicorp.com/agent-inject: &quot;true&quot;&lt;/code&gt;&lt;br&gt;• Mounts in-memory tmpfs volume&lt;/span&gt;" vertex="1">
+          <mxGeometry height="65" width="260" x="155" y="625" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_eso" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#10B981;strokeColor=#ffffff;shape=mxgraph.kubernetes.icon2;prIcon=secret;" value="" vertex="1">
+          <mxGeometry height="55" width="55" x="90" y="730" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_eso" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:13px;&#39;&gt;External Secrets Operator (ESO)&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#475569;&#39;&gt;• Alternative GitOps-friendly sync&lt;br&gt;• Syncs Vault ➔ native K8s Secret&lt;br&gt;• Zero per-pod sidecar RAM footprint&lt;/span&gt;" vertex="1">
+          <mxGeometry height="65" width="260" x="155" y="725" as="geometry" />
+        </mxCell>
+        <mxCell id="box_pod" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#2563EB;strokeWidth=2;verticalAlign=top;align=left;spacingLeft=15;spacingTop=10;fontColor=#1E3A8A;fontSize=12;" value="&lt;b&gt;📦 WORKLOAD POD RUNTIME (orders-service-654df65cf6-s8v8w)&lt;/b&gt;" vertex="1">
+          <mxGeometry height="320" width="1390" x="450" y="520" as="geometry" />
+        </mxCell>
+        <mxCell id="icon_pod_symbol" parent="1" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#326CE5;strokeColor=#ffffff;shape=mxgraph.kubernetes.icon2;prIcon=pod;" value="" vertex="1">
+          <mxGeometry height="55" width="55" x="480" y="565" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_pod_meta" parent="1" style="text;html=1;align=left;verticalAlign=middle;rounded=0;" value="&lt;b style=&#39;font-size:13px;&#39;&gt;orders-service Container&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;color:#475569;&#39;&gt;Namespace: &lt;b&gt;dev&lt;/b&gt; • Runtime: Java 21 / Spring Boot 4&lt;br&gt;&lt;b style=&#39;color:#059669;&#39;&gt;Security Profile:&lt;/b&gt; runAsNonRoot: true • readOnlyRootFilesystem: true • drop ALL capabilities&lt;/span&gt;" vertex="1">
+          <mxGeometry height="60" width="460" x="545" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="card_token" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=1.5;fontColor=#1E3A8A;fontSize=11;" value="&lt;b&gt;1. Identity Token&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#64748B;&#39;&gt;Projected ServiceAccount OIDC JWT&lt;br&gt;Mounted at &lt;code&gt;/var/run/secrets/tokens&lt;/code&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="240" x="480" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="card_agent" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAF5FF;strokeColor=#7C3AED;strokeWidth=1.5;fontColor=#581C87;fontSize=11;" value="&lt;b&gt;2. Vault Agent Sidecar&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#64748B;&#39;&gt;Authenticates via K8s Auth&lt;br&gt;Fetches credentials &amp;amp; renews lease&lt;br&gt;Signals SIGHUP to app upon secret update&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="270" x="750" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="card_tmpfs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ECFDF5;strokeColor=#059669;strokeWidth=2;fontColor=#064E3B;fontSize=11;" value="&lt;b&gt;3. RAM Volume (tmpfs) - Zero Disk&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#065F46;&#39;&gt;Path: &lt;code&gt;/vault/secrets/database.env&lt;/code&gt;&lt;br&gt;Rendered strictly in memory RAM.&lt;br&gt;&lt;b&gt;Zero secret touches host physical disk.&lt;/b&gt;&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="280" x="1050" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="card_app_db" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8FAFC;strokeColor=#475569;strokeWidth=1.5;fontColor=#1E293B;fontSize=11;" value="&lt;b&gt;4. Application HikariCP Pool&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:10px;color:#1E293B;&#39;&gt;Sources &lt;code&gt;SPRING_DATASOURCE_*&lt;/code&gt;&lt;br&gt;Connects to PostgreSQL with dynamic user&lt;br&gt;Seamless connection rotation upon renewal&lt;/span&gt;" vertex="1">
+          <mxGeometry height="70" width="250" x="1360" y="650" as="geometry" />
+        </mxCell>
+        <mxCell id="badge_mesh" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FDF2F8;strokeColor=#EC4899;strokeWidth=1.5;fontColor=#831843;fontSize=11;align=left;spacingLeft=15;" value="&lt;b&gt;🔒 Istio Ambient / Sidecar Mesh:&lt;/b&gt; Mutual TLS 1.3 cryptographic identity enforced between all pods using Vault PKI intermediate CA." vertex="1">
+          <mxGeometry height="40" width="1130" x="480" y="745" as="geometry" />
+        </mxCell>
+        <mxCell id="box_legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FEF9C3;strokeColor=#CA8A04;strokeWidth=1.5;fontColor=#713F12;fontSize=11.5;align=left;spacingLeft=20;verticalAlign=middle;" value="&lt;b&gt;📋 END-TO-END ZERO-TRUST SEQUENCE TRAIL:&lt;/b&gt;&lt;br&gt;&lt;span style=&#39;font-size:11px;&#39;&gt;① &lt;b&gt;Deployment Interception:&lt;/b&gt; Vault Injector mutates pod &amp;amp; mounts RAM &lt;code&gt;tmpfs&lt;/code&gt;. ➔ ② &lt;b&gt;Auth Request:&lt;/b&gt; Agent submits ServiceAccount JWT to &lt;code&gt;/v1/auth/kubernetes/login&lt;/code&gt;. ➔ ③ &lt;b&gt;TokenReview Validation:&lt;/b&gt; Vault validates JWT with Kube API Server. ➔ ④ &lt;b&gt;Policy Enforcement:&lt;/b&gt; Vault maps role to HCL policy &amp;amp; generates ephemeral Client Token. ➔ ⑤ &lt;b&gt;Dynamic Role Creation:&lt;/b&gt; Vault connects to PostgreSQL &amp;amp; generates ephemeral user with TTL. ➔ ⑥ &lt;b&gt;In-Memory Delivery:&lt;/b&gt; Agent templates credentials into RAM disk. ➔ ⑦ &lt;b&gt;Auto-Revoke:&lt;/b&gt; On pod death or TTL expiry, Vault automatically executes &lt;code&gt;DROP ROLE&lt;/code&gt;.&lt;/span&gt;" vertex="1">
+          <mxGeometry height="90" width="1820" x="50" y="890" as="geometry" />
+        </mxCell>
+        <mxCell id="e_kms_vault" edge="1" parent="1" source="icon_kms" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#FF9900;strokeWidth=2;fontColor=#B45309;fontSize=11;fontStyle=1;" target="icon_vault_mgr" value="Auto-Unseal (Wrap/Unwrap Master Key)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_vault_audit" edge="1" parent="1" source="icon_vault_mgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#E7157B;strokeWidth=2;fontColor=#9D174D;fontSize=11;fontStyle=1;" target="icon_audit" value="Immutable Audit Log">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="169" />
+              <mxPoint x="510" y="359" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_auth_kube" edge="1" parent="1" source="icon_k8s_auth" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#326CE5;strokeWidth=2;fontColor=#1D4ED8;fontSize=11;fontStyle=1;" target="icon_kube_api" value="③ TokenReview API (Verify JWT &amp;amp; UID)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="430" y="249" />
+              <mxPoint x="430" y="557" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_agent_auth" edge="1" parent="1" source="card_agent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#7C3AED;strokeWidth=2;fontColor=#6D28D9;fontSize=11;fontStyle=1;" target="icon_k8s_auth" value="② POST /v1/auth/kubernetes (Presents JWT)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="885" y="470" />
+              <mxPoint x="574" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_vault_rds" edge="1" parent="1" source="icon_token_mgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;fontColor=#047857;fontSize=11;fontStyle=1;" target="icon_rds" value="⑤ CREATE ROLE &quot;v_app_...&quot; VALID UNTIL ...">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="399" />
+              <mxPoint x="1110" y="169" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_creds_agent" edge="1" parent="1" source="lbl_rds" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#10B981;strokeWidth=2;fontColor=#047857;fontSize=11;fontStyle=1;" target="card_agent" value="⑥ Deliver Credentials + Lease ID">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1150" y="200" />
+              <mxPoint x="1150" y="460" />
+              <mxPoint x="930" y="460" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_agent_tmpfs" edge="1" parent="1" source="card_agent" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#059669;strokeWidth=2;fontColor=#065F46;fontSize=10;fontStyle=1;" target="card_tmpfs" value="Writes in RAM">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_tmpfs_app" edge="1" parent="1" source="card_tmpfs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#2563EB;strokeWidth=2;fontColor=#1D4ED8;fontSize=10;fontStyle=1;" target="card_app_db" value="Opens DB Connection">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_inj_pod" edge="1" parent="1" source="icon_injector" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#F97316;strokeWidth=2;fontColor=#C2410C;fontSize=11;fontStyle=1;" target="box_pod" value="① Mutates Pod Spec">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_revoke_rds" edge="1" parent="1" source="icon_token_mgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;strokeColor=#DC2626;strokeWidth=2;dashed=1;fontColor=#B91C1C;fontSize=11;fontStyle=1;" target="icon_rds" value="⑦ Expiry Trigger ➔ DROP ROLE &quot;v_app_...&quot;">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="800" y="440" />
+              <mxPoint x="1184" y="440" />
+            </Array>
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
