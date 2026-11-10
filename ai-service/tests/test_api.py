@@ -86,4 +86,3 @@ async def test_trigger_evals_endpoint():
         res = await client.post("/api/evals/run")
         assert res.status_code == 200
         assert "score_percentage" in res.json()
-

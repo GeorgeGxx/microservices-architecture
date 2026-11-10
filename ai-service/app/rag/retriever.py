@@ -30,6 +30,24 @@ class LocalRAGStore:
         with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(self.documents, f, indent=2)
 
+    @staticmethod
+    def _calculate_score(doc: Dict[str, Any], query_tokens: set) -> float:
+        content = doc.get("content", "").lower()
+        title = doc.get("metadata", {}).get("title", "").lower()
+        tags = " ".join(doc.get("metadata", {}).get("tags", [])).lower()
+
+        score = 0.0
+        for token in query_tokens:
+            if len(token) <= 2:
+                continue
+            if token in title:
+                score += 3.0
+            if token in tags:
+                score += 2.0
+            if token in content:
+                score += 1.0
+        return score
+
     def search(self, query: str, doc_type: Optional[str] = None, top_k: int = 3) -> List[Dict[str, Any]]:
         if not self.documents:
             return []
@@ -40,22 +58,7 @@ class LocalRAGStore:
         for doc in self.documents:
             if doc_type and doc.get("metadata", {}).get("type") != doc_type:
                 continue
-
-            content = doc.get("content", "").lower()
-            title = doc.get("metadata", {}).get("title", "").lower()
-            tags = " ".join(doc.get("metadata", {}).get("tags", [])).lower()
-
-            score = 0.0
-            for token in query_tokens:
-                if len(token) <= 2:
-                    continue
-                if token in title:
-                    score += 3.0
-                if token in tags:
-                    score += 2.0
-                if token in content:
-                    score += 1.0
-
+            score = self._calculate_score(doc, query_tokens)
             scored_docs.append((score, doc))
 
         scored_docs.sort(key=lambda x: x[0], reverse=True)

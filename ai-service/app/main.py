@@ -1,7 +1,8 @@
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
-from typing import List, Optional, Dict, Any, Set
+from typing import Optional, Dict, Any, Set, Annotated
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
@@ -72,8 +73,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     reply: str
     active_agent: str
-    intent: Optional[str]
-    hitl_pending: bool
+    intent: Optional[str] = None
+    hitl_pending: bool = False
     hitl_payload: Optional[Dict[str, Any]] = None
 
 
@@ -105,11 +106,19 @@ async def health_check():
     }
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post(
+    "/api/chat",
+    response_model=ChatResponse,
+    responses={
+        400: {"description": "Bad Request - Empty message"},
+        500: {"description": "Agent workflow error"}
+    }
+)
 async def chat_endpoint(
     req: ChatRequest,
-    current_user: Optional[Dict[str, Any]] = Depends(get_current_user)
+    current_user: Annotated[Optional[Dict[str, Any]], Depends(get_current_user)] = None
 ):
+    del current_user
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
@@ -133,7 +142,7 @@ async def chat_endpoint(
             hitl_payload=final_state.get("hitl_payload")
         )
     except Exception as e:
-        logger.error("Agent workflow error: %s", e)
+        logger.exception("Agent workflow error: %s", e)
         raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}") from e
 
 
@@ -145,8 +154,9 @@ async def get_mcp_tools():
 @app.post("/api/hitl/approve")
 async def approve_hitl(
     req: HITLApprovalRequest,
-    supervisor_user: Optional[Dict[str, Any]] = Depends(require_role("ROLE_SUPERVISOR"))
+    supervisor_user: Annotated[Optional[Dict[str, Any]], Depends(require_role("ROLE_SUPERVISOR"))] = None
 ):
+    del supervisor_user
     status = "AUTHORIZED" if req.action.upper() == "APPROVE" else "DENIED"
     return {
         "success": True,
@@ -165,4 +175,5 @@ async def trigger_evals():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=True)
+    app_host = os.getenv("APP_HOST", "127.0.0.1")
+    uvicorn.run("app.main:app", host=app_host, port=settings.PORT, reload=False)
