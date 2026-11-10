@@ -1,0 +1,11 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.25.0
+ignore:
+  'std/crypto/x509':
+    - '*':
+        reason: 'Go stdlib crypto/x509 by design does not perform dynamic OCSP/CRL revocation checks. payments-service uses internal cluster networking with WithInsecure() for OTLP traces, and the Go compiler is on 1.26.10+.'
+        expires: 2030-01-01T00:00:00.000Z
+  'CWE-299':
+    - '*':
+        reason: 'Go standard library crypto/x509 does not perform automated online revocation checks by design.'
+        expires: 2030-01-01T00:00:00.000Z
