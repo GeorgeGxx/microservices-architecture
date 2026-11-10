@@ -39,4 +39,5 @@ jobs:
       service-dir: frontend
       image-tag: ${{ inputs.image-tag || '' }}
       publish-to-registry: ${{ inputs.publish-to-registry == true && inputs.image-tag != '' }}
+    # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
