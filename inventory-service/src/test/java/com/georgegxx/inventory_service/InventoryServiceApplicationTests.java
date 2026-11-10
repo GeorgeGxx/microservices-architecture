@@ -8,6 +8,8 @@ import org.springframework.test.context.TestPropertySource;
 @TestPropertySource(properties = {
 		"spring.datasource.url=jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
 		"spring.datasource.driver-class-name=org.h2.Driver",
+		"spring.jpa.hibernate.ddl-auto=create-drop",
+		"spring.flyway.enabled=false",
 		"management.health.redis.enabled=false",
 		"management.health.vault.enabled=false",
 		"spring.cloud.vault.enabled=false"
