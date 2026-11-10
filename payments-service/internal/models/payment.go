@@ -215,4 +215,3 @@ func (p *OrderEventPayload) ResolvePaymentMethod() string {
 	}
 	return "CARD_VISA"
 }
-

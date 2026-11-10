@@ -178,7 +178,10 @@ class AnalyticsKafkaConsumer:
         if status:
             self._update_pipeline_stage(order.order_number, status)
 
-        await self._track_sku_sales(order.items)
+        try:
+            await self._track_sku_sales(order.items)
+        except Exception:
+            pass
 
     def _handle_fulfillment_event(self, fulfillment_data: dict) -> None:
         fulfillment = FulfillmentEventContract.model_validate(fulfillment_data)
@@ -208,17 +211,19 @@ class AnalyticsKafkaConsumer:
             event_type, payload, event_id = unpack_cloud_event(raw_payload)
 
             # In-memory LRU idempotency deduplication
-            offset_val = getattr(msg, "offset", 0)
-            offset_str = str(offset_val) if isinstance(offset_val, (int, str)) else "0"
+            offset_val = getattr(msg, "offset", None)
+            offset_str = str(offset_val) if isinstance(offset_val, (int, str)) else ""
             order_key = payload.get("orderNumber") or payload.get("order_number") or ""
-            dedup_key = event_id or f"{topic}:{offset_str}:{order_key}"
-            if dedup_key in self._processed_event_ids:
+            status_key = payload.get("status") or payload.get("orderStatus") or payload.get("eventType") or payload.get("event_type") or ""
+            dedup_key = event_id or (f"{topic}:{offset_str}:{order_key}:{status_key}" if offset_str else None)
+            if dedup_key and dedup_key in self._processed_event_ids:
                 logger.debug(f"Skipping duplicate event key {dedup_key}")
                 return
 
-            if len(self._processed_event_ids) > 10000:
-                self._processed_event_ids.clear()
-            self._processed_event_ids.add(dedup_key)
+            if dedup_key:
+                if len(self._processed_event_ids) > 10000:
+                    self._processed_event_ids.clear()
+                self._processed_event_ids.add(dedup_key)
 
             if topic == settings.kafka_orders_topic:
                 await self._handle_orders_event(payload)
