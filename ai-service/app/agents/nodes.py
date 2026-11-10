@@ -68,14 +68,14 @@ def _extract_order_or_tracking_id(user_msg: str) -> Optional[str]:
         return carrier_match.group(0).upper()
 
     # 3. Explicit tracking keywords (e.g. tracking FDX-D1D28072, guia DHL8823)
-    keyword_match = re.search(r"\b(?:tracking|guia|guía|rastreo|shipment)\s*[:#]?\s*([A-Za-z0-9-]+)\b", user_msg, re.IGNORECASE)
+    keyword_match = re.search(r"(?:tracking|guia|guía|rastreo|shipment)[\s:#]+([a-z0-9-]+)", user_msg, re.IGNORECASE)
     if keyword_match:
-        val = keyword_match.group(1).upper()
+        val = keyword_match.group(1).strip("-").upper()
         if len(val) >= 4:
             return val
 
     # 4. Numeric order patterns (e.g. order #1001, pedido 1002)
-    order_num_match = re.search(r"\b(?:order|pedido)\s*[:#]?\s*(\d{1,8})\b", user_msg, re.IGNORECASE)
+    order_num_match = re.search(r"(?:order|pedido)[\s:#]+(\d{1,8})\b", user_msg, re.IGNORECASE)
     if order_num_match:
         return f"ORD-{order_num_match.group(1)}"
 
