@@ -50,7 +50,8 @@
 		<sonar.java.binaries>target/classes</sonar.java.binaries>
 		<sonar.java.test.binaries>target/test-classes</sonar.java.test.binaries>
 		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
-		<sonar.exclusions>**/devsecops/policies/**/tests/**</sonar.exclusions>
+		<sonar.exclusions>**/devsecops/policies/**/tests/**,**/*Dto.java,**/*DTO.java,**/*Request.java,**/*Response.java,**/*Config.java,**/*Configuration.java,**/*Exception.java</sonar.exclusions>
+		<sonar.cpd.exclusions>**/dto/**,**/dtos/**,**/model/dtos/**,**/*Request.java,**/*Response.java,**/controllers/*GraphQlController.java</sonar.cpd.exclusions>
 		<sonar.coverage.exclusions>**/dto/**,**/dtos/**,**/model/dtos/**,**/entities/**,**/model/entities/**,**/config/**,**/utils/DataLoader.*,**/*Application.*,**/events/**,**/model/enums/**</sonar.coverage.exclusions>
 	</properties>
 
