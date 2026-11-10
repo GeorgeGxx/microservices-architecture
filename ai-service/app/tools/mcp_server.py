@@ -5,8 +5,11 @@ Includes resilient fallbacks for offline testing.
 """
 from typing import Dict, Any, List
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from app.config import settings
+
+logger = logging.getLogger("mcp_server")
 
 try:
     import httpx
@@ -82,7 +85,7 @@ class EcommerceMCPServer:
             if httpx:
                 try:
                     numeric_id = order_id.replace("ORD-", "")
-                    async with httpx.AsyncClient(timeout=3.0) as client:
+                    async with httpx.AsyncClient(timeout=0.3) as client:
                         res = await client.get(f"{settings.ORDERS_SERVICE_URL}/api/order/{numeric_id}")
                         if res.status_code == 200:
                             order_data = res.json()
@@ -98,8 +101,8 @@ class EcommerceMCPServer:
                                     "items": order_data.get("orderItems", [])
                                 }
                             }
-                except Exception:
-                    pass
+                except (httpx.HTTPError, OSError) as exc:
+                    logger.debug("Live orders-service lookup bypassed: %s", exc)
 
             # Fallback mock dataset for immediate offline development
             known_orders = {
@@ -144,20 +147,27 @@ class EcommerceMCPServer:
             # Attempt live lookup to Inventory Service (:8001)
             if httpx:
                 try:
-                    async with httpx.AsyncClient(timeout=3.0) as client:
+                    async with httpx.AsyncClient(timeout=0.3) as client:
                         res = await client.get(f"{settings.INVENTORY_SERVICE_URL}/api/inventory/{sku}")
                         if res.status_code == 200:
                             in_stock = res.json() is True
                             return {
                                 "success": True,
                                 "source": "inventory-service-live",
-                                "data": {"sku": sku, "in_stock": in_stock, "warehouse": "Central-Fulfillment"}
+                                "data": {
+                                    "sku": sku,
+                                    "in_stock": in_stock,
+                                    "available": in_stock,
+                                    "stock": 10 if in_stock else 0,
+                                    "warehouse": "Central-Fulfillment"
+                                }
                             }
-                except Exception:
-                    pass
+                except (httpx.HTTPError, OSError) as exc:
+                    logger.debug("Live inventory-service lookup bypassed: %s", exc)
 
             # Fallback
             known_stock = {
+                "LAPTOP-PRO": {"sku": "LAPTOP-PRO", "stock": 50, "warehouse": "US-East-1", "available": True},
                 "PROD-SONY-WH1000": {"sku": "PROD-SONY-WH1000", "stock": 42, "warehouse": "US-East-1", "available": True},
                 "PROD-APPLE-MBA15": {"sku": "PROD-APPLE-MBA15", "stock": 18, "warehouse": "US-West-2", "available": True},
                 "PROD-LOGI-MXM3S": {"sku": "PROD-LOGI-MXM3S", "stock": 85, "warehouse": "US-East-1", "available": True},
@@ -166,8 +176,19 @@ class EcommerceMCPServer:
                 "PROD-YETI-RAMB20": {"sku": "PROD-YETI-RAMB20", "stock": 150, "warehouse": "US-South-1", "available": True}
             }
             if sku in known_stock:
-                return {"success": True, "source": "local-cache", "data": known_stock[sku]}
-            return {"success": True, "data": {"sku": sku, "stock": 0, "available": False, "message": "Out of stock or unknown SKU"}}
+                stock_info = dict(known_stock[sku])
+                stock_info["in_stock"] = stock_info.get("available", True)
+                return {"success": True, "source": "local-cache", "data": stock_info}
+            return {
+                "success": True,
+                "data": {
+                    "sku": sku,
+                    "stock": 0,
+                    "available": False,
+                    "in_stock": False,
+                    "message": "Out of stock or unknown SKU"
+                }
+            }
 
         elif name == "request_refund":
             order_id = arguments.get("order_id")
@@ -180,7 +201,7 @@ class EcommerceMCPServer:
             return {
                 "success": True,
                 "data": {
-                    "refund_ticket": f"REF-{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                    "refund_ticket": f"REF-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
                     "order_id": order_id,
                     "amount": amount,
                     "reason": reason,

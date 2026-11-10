@@ -1,8 +1,10 @@
 import asyncio
+import logging
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage
 from app.agents.graph import ecommerce_agent_app
 
+logger = logging.getLogger("observability_evals")
 
 GOLDEN_EVAL_DATASET = [
     {
@@ -30,9 +32,7 @@ GOLDEN_EVAL_DATASET = [
 
 
 async def run_evaluations() -> Dict[str, Any]:
-    print("=" * 60)
-    print("Running Microservices AI Copilot Evals...")
-    print("=" * 60)
+    logger.info("Running Microservices AI Copilot Evals...")
 
     total_tests = len(GOLDEN_EVAL_DATASET)
     passed = 0
@@ -76,7 +76,7 @@ async def run_evaluations() -> Dict[str, Any]:
             "status": "PASS" if is_success else "FAIL"
         }
         results.append(eval_row)
-        print(f"[{eval_row['status']}] Test #{idx}: {query[:40]}... -> Agent: {actual_agent} (HITL: {actual_hitl})")
+        logger.info("[%s] Test #%d: %s... -> Agent: %s (HITL: %s)", eval_row['status'], idx, query[:40], actual_agent, actual_hitl)
 
     score_pct = (passed / total_tests) * 100
     summary = {
@@ -85,9 +85,7 @@ async def run_evaluations() -> Dict[str, Any]:
         "score_percentage": f"{score_pct:.1f}%",
         "details": results
     }
-    print("=" * 60)
-    print(f"Eval Run Summary: {passed}/{total_tests} passed ({score_pct:.1f}%)")
-    print("=" * 60)
+    logger.info("Eval Run Summary: %d/%d passed (%.1f%%)", passed, total_tests, score_pct)
     return summary
 
 

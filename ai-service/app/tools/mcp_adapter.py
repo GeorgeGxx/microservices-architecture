@@ -2,9 +2,8 @@
 LangChain Adapter for Model Context Protocol (MCP) Tools.
 Translates MCP tool declarations and invocations into LangChain BaseTool objects.
 """
-from typing import Type
-import asyncio
-from langchain_core.tools import BaseTool, tool
+import json
+from langchain_core.tools import tool
 from pydantic import BaseModel, Field
 
 from app.tools.mcp_server import EcommerceMCPServer
@@ -30,31 +29,31 @@ class ShippingInput(BaseModel):
 
 
 @tool("get_order_details", args_schema=OrderDetailsInput)
-def get_order_details(order_id: str) -> str:
+async def get_order_details(order_id: str) -> str:
     """Fetches shipping status, carrier, tracking number, and line items for an order."""
-    res = asyncio.run(EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id}))
-    return str(res)
+    res = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
+    return json.dumps(res)
 
 
 @tool("check_inventory", args_schema=InventoryInput)
-def check_inventory(sku: str) -> str:
+async def check_inventory(sku: str) -> str:
     """Checks real-time inventory count and fulfillment warehouse location for a product SKU."""
-    res = asyncio.run(EcommerceMCPServer.call_tool("check_inventory", {"sku": sku}))
-    return str(res)
+    res = await EcommerceMCPServer.call_tool("check_inventory", {"sku": sku})
+    return json.dumps(res)
 
 
 @tool("request_refund", args_schema=RefundInput)
-def request_refund(order_id: str, amount: float, reason: str) -> str:
+async def request_refund(order_id: str, amount: float, reason: str) -> str:
     """Initiates a return or refund for an order. Flags approval if amount exceeds policy threshold."""
-    res = asyncio.run(EcommerceMCPServer.call_tool("request_refund", {"order_id": order_id, "amount": amount, "reason": reason}))
-    return str(res)
+    res = await EcommerceMCPServer.call_tool("request_refund", {"order_id": order_id, "amount": amount, "reason": reason})
+    return json.dumps(res)
 
 
 @tool("calculate_shipping", args_schema=ShippingInput)
-def calculate_shipping(dest_zip: str, weight_kg: float = 1.0) -> str:
+async def calculate_shipping(dest_zip: str, weight_kg: float = 1.0) -> str:
     """Calculates shipping delivery options and rates by destination zip and parcel weight."""
-    res = asyncio.run(EcommerceMCPServer.call_tool("calculate_shipping", {"dest_zip": dest_zip, "weight_kg": weight_kg}))
-    return str(res)
+    res = await EcommerceMCPServer.call_tool("calculate_shipping", {"dest_zip": dest_zip, "weight_kg": weight_kg})
+    return json.dumps(res)
 
 
 def get_all_ecommerce_tools():

@@ -1,10 +1,13 @@
 import json
+import logging
 from pathlib import Path
 from app.rag.retriever import rag_store
 
+logger = logging.getLogger("rag_ingest")
+
 
 def ingest_all():
-    print("[RAG] Ingesting policies and product catalog...")
+    logger.info("[RAG] Ingesting policies and product catalog...")
     base_dir = Path(__file__).parent / "data"
     docs = []
 
@@ -13,7 +16,7 @@ def ingest_all():
     if policies_path.exists():
         with open(policies_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
+
         sections = content.split("## ")
         for sec in sections:
             if not sec.strip() or sec.startswith("# AuraCommerce"):
@@ -51,7 +54,7 @@ def ingest_all():
             })
 
     rag_store.add_documents(docs)
-    print(f"[RAG] Successfully ingested {len(docs)} documents into Knowledge Base.")
+    logger.info("[RAG] Successfully ingested %d documents into Knowledge Base.", len(docs))
 
 
 if __name__ == "__main__":
