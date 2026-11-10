@@ -72,8 +72,11 @@ export class PaymentEventsConsumer implements OnModuleInit, OnModuleDestroy {
               await this.handlePaymentEvent(raw);
             }
           } catch (err: unknown) {
-            const message = extractErrorMessage(err);
-            this.logger.error(`Error processing Kafka event on topic ${topic}: ${message}`);
+            const errorMsg = extractErrorMessage(err);
+            this.logger.error(`Error processing Kafka event on topic ${topic}: ${errorMsg}`);
+            if (this.eventPublisher?.publishDlq) {
+              await this.eventPublisher.publishDlq(topic, message.value.toString(), errorMsg);
+            }
           }
         },
       });

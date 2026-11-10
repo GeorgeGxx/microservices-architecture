@@ -182,7 +182,7 @@ func TestHandleMessage_ProcessorError(t *testing.T) {
 	mockReader := new(mockMessageReader)
 	mockProcessor := new(mockPaymentProcessor)
 
-	mockReader.On("CommitMessages", mock.Anything, mock.Anything).Return(nil)
+	// In a reliable consumer, CommitMessages must NOT be called if processing returns an error
 	mockProcessor.On("ProcessPayment", mock.Anything, mock.Anything).Return(nil, errors.New("processor failure"))
 
 	consumer := &OrderEventConsumer{
@@ -203,7 +203,8 @@ func TestHandleMessage_ProcessorError(t *testing.T) {
 		Value: raw,
 	}
 
-	consumer.handleMessage(context.Background(), msg)
-	mockReader.AssertExpectations(t)
+	err := consumer.handleMessage(context.Background(), msg)
+	assert.Error(t, err)
+	mockReader.AssertNotCalled(t, "CommitMessages")
 	mockProcessor.AssertExpectations(t)
 }

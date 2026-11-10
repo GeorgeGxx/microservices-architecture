@@ -71,28 +71,25 @@ func (c *OrderEventConsumer) Start(ctx context.Context) {
 				continue
 			}
 
-			// Process message in dedicated goroutine
-			go c.handleMessage(ctx, msg)
+			// Process message synchronously to guarantee partition ordering & transactional commit safety
+			if err := c.handleMessage(ctx, msg); err != nil {
+				log.Printf("[Kafka Consumer] Failed to process message at offset %d: %v", msg.Offset, err)
+			}
 		}
 	}
 }
 
-func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) {
+func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Message) error {
 	headers := msg.Headers
 	carrier := (*HeaderCarrier)(&headers)
 	msgCtx := otel.GetTextMapPropagator().Extract(ctx, carrier)
 
-	// Commit message offset once handled
-	defer func() {
-		if err := c.reader.CommitMessages(msgCtx, msg); err != nil {
-			log.Printf("[Kafka Consumer] Failed to commit message at offset %d: %v", msg.Offset, err)
-		}
-	}()
-
 	var rawEvent map[string]interface{}
 	if err := json.Unmarshal(msg.Value, &rawEvent); err != nil {
 		log.Printf("[Kafka Consumer] Malformed JSON payload at offset %d: %v", msg.Offset, err)
-		return
+		// Non-retryable poison pill; commit to avoid infinite processing loops
+		_ = c.reader.CommitMessages(msgCtx, msg)
+		return nil
 	}
 
 	orderStatus, _ := rawEvent["status"].(string)
@@ -127,13 +124,14 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 		})
 		if err != nil {
 			log.Printf("[Kafka Consumer] Compensating refund skipped/failed for order %s: %v", orderNumber, err)
+			return err
 		}
-		return
+		return c.reader.CommitMessages(msgCtx, msg)
 	}
 
 	// Forward Saga Transition: Process orders awaiting payment (PENDING_PAYMENT or PLACED)
 	if !strings.EqualFold(orderStatus, "PENDING_PAYMENT") && !strings.EqualFold(orderStatus, "PLACED") {
-		return
+		return c.reader.CommitMessages(msgCtx, msg)
 	}
 
 	totalAmount, _ := rawEvent["totalAmount"].(float64)
@@ -176,7 +174,9 @@ func (c *OrderEventConsumer) handleMessage(ctx context.Context, msg kafka.Messag
 	_, err := c.processor.ProcessPayment(msgCtx, req)
 	if err != nil {
 		log.Printf("[Kafka Consumer] Failed to process payment for order %s: %v", orderNumber, err)
+		return err
 	}
+	return c.reader.CommitMessages(msgCtx, msg)
 }
 
 func (c *OrderEventConsumer) Close() error {

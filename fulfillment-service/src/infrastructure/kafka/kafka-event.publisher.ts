@@ -138,4 +138,29 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
       this.logger.error(`Failed to publish ShipmentFailedEvent for order #${orderNumber}: ${message}`);
     }
   }
+
+  async publishDlq(sourceTopic: string, rawMessage: unknown, error: string): Promise<void> {
+    const dlqTopic = `${sourceTopic}.dlq`;
+    try {
+      await this.ensureConnected();
+      await this.producer.send({
+        topic: dlqTopic,
+        messages: [
+          {
+            value: JSON.stringify({
+              sourceTopic,
+              payload: rawMessage,
+              error,
+              deadLetteredAt: new Date().toISOString(),
+            }),
+            headers: { errorType: 'PROCESSING_FAILURE' },
+          },
+        ],
+      });
+      this.logger.warn(`Routed unprocessable Kafka message from ${sourceTopic} to DLQ ${dlqTopic}: ${error}`);
+    } catch (err: unknown) {
+      const message = extractErrorMessage(err);
+      this.logger.error(`Failed to route message to DLQ ${dlqTopic}: ${message}`);
+    }
+  }
 }

@@ -46,7 +46,7 @@ class AnalyticsKafkaConsumer:
                     bootstrap_servers=brokers,
                     group_id=settings.kafka_group_id,
                     auto_offset_reset=settings.kafka_auto_offset_reset,
-                    enable_auto_commit=True,
+                    enable_auto_commit=False,
                 )
                 await self.consumer.start()
                 self.is_running = True
@@ -67,6 +67,8 @@ class AnalyticsKafkaConsumer:
         try:
             async for msg in self.consumer:
                 await self._process_message(msg)
+                if self.consumer:
+                    await self.consumer.commit()
         except asyncio.CancelledError:
             raise
         except Exception:
