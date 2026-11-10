@@ -3,13 +3,11 @@ CloudEvents 1.0 and strongly-typed domain event contracts for analytics-service.
 Aligned with CNCF CloudEvents v1.0 and centralized schemas in contracts/events/.
 """
 
-from typing import Any, Generic, List, Optional, TypeVar
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
-T = TypeVar("T")
 
-
-class CloudEventEnvelope(BaseModel, Generic[T]):
+class CloudEventEnvelope[T](BaseModel):
     """CloudEvents 1.0 compliant specification envelope."""
     specversion: str = "1.0"
     id: str
