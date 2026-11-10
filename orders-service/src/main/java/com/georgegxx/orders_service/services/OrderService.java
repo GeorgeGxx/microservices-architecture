@@ -453,7 +453,7 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse shipOrder(Long id) {
-        return transitionOrderById(id, order -> order.ship(), OrderStatus.SHIPPED);
+        return transitionOrderById(id, Order::ship, OrderStatus.SHIPPED);
     }
 
     @Caching(evict = {
@@ -462,7 +462,7 @@ public class OrderService implements InitializingBean {
     })
     @Transactional
     public OrderResponse deliverOrder(Long id) {
-        return transitionOrderById(id, order -> order.deliver(), OrderStatus.DELIVERED);
+        return transitionOrderById(id, Order::deliver, OrderStatus.DELIVERED);
     }
 
     private OrderResponse transitionOrderById(Long id, Consumer<Order> transition, OrderStatus targetStatus) {
