@@ -38,13 +38,19 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<springdoc.version>3.1.0</springdoc.version>
 		<snappy-java.version>1.1.10.11</snappy-java.version>
-		<!-- Observability Logging Engine: SLF4J v2.0.20 & Logback v1.5.38 -->
+		<flyway.version>13.5.0</flyway.version>
+		<jackson-databind.version>2.21.8</jackson-databind.version>
+		<tools-jackson.version>3.1.8</tools-jackson.version>
+		<zstd-jni.version>1.5.7-14</zstd-jni.version>
+		<bouncycastle.version>1.86</bouncycastle.version>
+		<!-- Observability Logging Engine: SLF4J v2.0.20 & Logback v1.6.5 -->
 		<slf4j.version>2.0.20</slf4j.version>
-		<logback.version>1.5.38</logback.version>
+		<logback.version>1.6.5</logback.version>
 		<!-- SonarCloud & Quality Gate Properties -->
 		<sonar.java.binaries>target/classes</sonar.java.binaries>
 		<sonar.java.test.binaries>target/test-classes</sonar.java.test.binaries>
 		<sonar.coverage.jacoco.xmlReportPaths>target/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+		<sonar.exclusions>**/devsecops/policies/**/tests/**</sonar.exclusions>
 		<sonar.coverage.exclusions>**/dto/**,**/dtos/**,**/model/dtos/**,**/entities/**,**/model/entities/**,**/config/**,**/utils/DataLoader.*,**/*Application.*,**/events/**,**/model/enums/**</sonar.coverage.exclusions>
 	</properties>
 
@@ -87,6 +93,12 @@
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>jakarta.validation</groupId>
+					<artifactId>jakarta.validation-api</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -167,7 +179,66 @@
 				<artifactId>snappy-java</artifactId>
 				<version>${snappy-java.version}</version>
 			</dependency>
-			<!-- SLF4J v2.0.20 & Logback v1.5.38 Explicit Version Pinning for Observability -->
+			<!-- Security Patches for Snyk Security (SNYK-JAVA-TOOLSJACKSONCORE-21761838, SNYK-JAVA-COMFASTERXMLJACKSONCORE-21761837) -->
+			<dependency>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-core</artifactId>
+				<version>${flyway.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.flywaydb</groupId>
+				<artifactId>flyway-database-postgresql</artifactId>
+				<version>${flyway.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${jackson-databind.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-databind</artifactId>
+				<version>${tools-jackson.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>tools.jackson.core</groupId>
+				<artifactId>jackson-core</artifactId>
+				<version>${tools-jackson.version}</version>
+			</dependency>
+			<!-- Security Patches for ZSTD-JNI (SNYK-JAVA-COMGITHUBLUBEN-19653585, SNYK-JAVA-COMGITHUBLUBEN-19659571) -->
+			<dependency>
+				<groupId>com.github.luben</groupId>
+				<artifactId>zstd-jni</artifactId>
+				<version>${zstd-jni.version}</version>
+			</dependency>
+			<!-- Security Patches for BouncyCastle (SNYK-JAVA-ORGBOUNCYCASTLE-20419436, SNYK-JAVA-ORGBOUNCYCASTLE-20419452) -->
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcprov-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcpkix-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.bouncycastle</groupId>
+				<artifactId>bcutil-jdk18on</artifactId>
+				<version>${bouncycastle.version}</version>
+			</dependency>
+			<!-- Security Exclusion for GlassFish JAXB XXE Vulnerability (CVE-2026-92877) in Hibernate -->
+			<dependency>
+				<groupId>org.hibernate.orm</groupId>
+				<artifactId>hibernate-core</artifactId>
+				<exclusions>
+					<exclusion>
+						<groupId>org.glassfish.jaxb</groupId>
+						<artifactId>jaxb-runtime</artifactId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<!-- SLF4J v2.0.20 & Logback v1.6.5 Explicit Version Pinning for Observability & Security (SNYK-JAVA-CHQOSLOGBACK-19882330, SNYK-JAVA-CHQOSLOGBACK-20824362) -->
 			<dependency>
 				<groupId>org.slf4j</groupId>
 				<artifactId>slf4j-api</artifactId>
