@@ -117,7 +117,7 @@ public class Order {
             return 0.0;
         }
         return this.orderItems.stream()
-                .mapToDouble(item -> item.getLineTotal())
+                .mapToDouble(OrderItems::getLineTotal)
                 .sum();
     }
 
