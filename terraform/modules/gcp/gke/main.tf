@@ -14,6 +14,12 @@ resource "google_container_cluster" "this" {
     services_secondary_range_name = var.services_range_name
   }
 
+  master_auth {
+    client_certificate_config {
+      issue_client_certificate = false
+    }
+  }
+
   private_cluster_config {
     enable_private_nodes    = true
     enable_private_endpoint = false

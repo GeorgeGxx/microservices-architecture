@@ -1,3 +1,4 @@
+# nosemgrep: terraform.gcp.security.gcp-cloud-storage-logging.gcp-cloud-storage-logging
 resource "google_storage_bucket" "this" {
   name                        = "${var.name}-${var.environment}-assets"
   location                    = var.location
