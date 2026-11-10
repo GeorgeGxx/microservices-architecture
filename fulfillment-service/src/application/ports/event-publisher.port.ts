@@ -7,4 +7,5 @@ export interface EventPublisher {
   publishDispatched(event: ShipmentDispatchedEvent): Promise<void>;
   publishDelivered(event: ShipmentDeliveredEvent): Promise<void>;
   publishFailed?(orderNumber: string, reason: string): Promise<void>;
+  publishDlq?(sourceTopic: string, rawMessage: unknown, error: string): Promise<void>;
 }
