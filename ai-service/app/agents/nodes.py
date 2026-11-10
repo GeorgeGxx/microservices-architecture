@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 
 from app.agents.state import EcommerceAgentState
@@ -56,16 +56,60 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
     }
 
 
+def _extract_order_or_tracking_id(user_msg: str) -> Optional[str]:
+    # 1. Standard Order ID (e.g. ORD-1001)
+    ord_match = re.search(r"\bORD-(\d+)\b", user_msg, re.IGNORECASE)
+    if ord_match:
+        return f"ORD-{ord_match.group(1)}"
+
+    # 2. Carrier tracking numbers (e.g. DHL-88239104, FDX-D1D28072, UPS-12345)
+    carrier_match = re.search(r"\b([A-Za-z]{2,5}-[A-Za-z0-9]+)\b", user_msg)
+    if carrier_match:
+        return carrier_match.group(1).upper()
+
+    # 3. Explicit tracking keywords (e.g. tracking FDX-D1D28072, guia DHL8823)
+    keyword_match = re.search(
+        r"(?:tracking|guia|guía|rastreo|shipment)\s*(?:number|code|id|no\.?|#)?\s*[:#]?\s*([A-Za-z0-9\-]+)",
+        user_msg,
+        re.IGNORECASE
+    )
+    if keyword_match:
+        val = keyword_match.group(1).strip("-").upper()
+        if len(val) >= 4:
+            return val
+
+    # 4. Numeric order patterns (e.g. order #1001, pedido 1002)
+    order_num_match = re.search(r"(?:order|pedido)\s*(?:number|id|no\.?|#)?\s*[:#]?\s*(\d{1,8})\b", user_msg, re.IGNORECASE)
+    if order_num_match:
+        return f"ORD-{order_num_match.group(1)}"
+
+    return None
+
+
 async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
 
-    order_match = re.search(r"ORD-\d+", user_msg, re.IGNORECASE)
-    order_id = order_match.group(0).upper() if order_match else "ORD-1001"
-
+    order_id = _extract_order_or_tracking_id(user_msg)
     is_refund = any(w in user_msg.lower() for w in ["refund", "reembolso", "devolver", "return", "cancel"])
 
     if is_refund:
+        if not order_id:
+            reply_text = (
+                "To process a refund or return request, please provide your **Order ID** (e.g., `ORD-1001` or `ORD-1002`)."
+            )
+            return {
+                "messages": [AIMessage(content=reply_text)],
+                "current_agent": "order_support",
+                "hitl_pending": False,
+                "final_output": reply_text
+            }
+
+        if not order_id.startswith("ORD-"):
+            lookup = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
+            if lookup.get("success") and "data" in lookup and "order_id" in lookup["data"]:
+                order_id = lookup["data"]["order_id"]
+
         amount_match = re.search(r"\$\s*(\d+(?:\.\d{1,2})?)", user_msg)
         if not amount_match:
             amount_match = re.search(r"\b(\d+(?:\.\d{1,2})?)\s*(?:usd|dollars|dolares)\b", user_msg, re.IGNORECASE)
@@ -103,21 +147,38 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
             }
 
     # Order details lookup
+    if not order_id:
+        reply_text = (
+            "Please provide your **Order ID** (e.g., `ORD-1001`) or **Carrier Tracking Number** "
+            "(e.g., `DHL-88239104`) so I can check its current status."
+        )
+        return {
+            "messages": [AIMessage(content=reply_text)],
+            "current_agent": "order_support",
+            "hitl_pending": False,
+            "final_output": reply_text
+        }
+
     tool_result = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
     if tool_result.get("success"):
         data = tool_result["data"]
         items_summary = ", ".join([f"{it['name']} (x{it['qty']})" for it in data.get("items", [])]) if data.get("items") else "Standard catalog items"
+        carrier_label = data.get("carrier", "Carrier")
         reply_text = (
             f"📦 **Order Status for {data['order_id']}**:\n"
             f"- **Status:** {data['status']}\n"
-            f"- **Carrier:** {data['carrier']}\n"
-            f"- **DHL Tracking Number:** `{data['tracking_number']}`\n"
+            f"- **Carrier:** {carrier_label}\n"
+            f"- **Tracking Number:** `{data['tracking_number']}`\n"
             f"- **Items:** {items_summary}\n"
             f"- **Total:** ${data.get('total', 0.0):.2f} USD\n\n"
             f"Do you need additional assistance with this shipment or wish to initiate an exchange?"
         )
     else:
-        reply_text = f"We could not find order `{order_id}` in our microservices database. Please verify your order number (e.g., ORD-1001, ORD-1002)."
+        reply_text = (
+            f"🔍 **Shipment / Order Lookup**:\n"
+            f"We could not find an order or shipment matching **`{order_id}`** in our database.\n\n"
+            f"Please verify your Order ID (e.g., `ORD-1234`) or Carrier Tracking Number (e.g., `DHL-88239104`)."
+        )
 
     return {
         "messages": [AIMessage(content=reply_text)],

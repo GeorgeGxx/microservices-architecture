@@ -79,8 +79,10 @@ class EcommerceMCPServer:
     @classmethod
     async def _handle_get_order_details(cls, arguments: Dict[str, Any]) -> Dict[str, Any]:
         order_id = str(arguments.get("order_id", "")).strip().upper()
+        if not order_id:
+            return {"success": False, "error": "Order ID or tracking number is required."}
 
-        if httpx:
+        if httpx and order_id.startswith("ORD-"):
             try:
                 numeric_id = order_id.replace("ORD-", "")
                 async with httpx.AsyncClient(timeout=0.3) as client:
@@ -136,7 +138,14 @@ class EcommerceMCPServer:
         }
         if order_id in known_orders:
             return {"success": True, "source": "local-cache", "data": known_orders[order_id]}
-        return {"success": False, "error": f"Order {order_id} not found in store database."}
+        if f"ORD-{order_id}" in known_orders:
+            return {"success": True, "source": "local-cache", "data": known_orders[f"ORD-{order_id}"]}
+
+        for order_info in known_orders.values():
+            if order_info.get("tracking_number", "").upper() == order_id:
+                return {"success": True, "source": "local-cache", "data": order_info}
+
+        return {"success": False, "error": f"Order or tracking number '{order_id}' not found in store database."}
 
     @classmethod
     async def _handle_check_inventory(cls, arguments: Dict[str, Any]) -> Dict[str, Any]:

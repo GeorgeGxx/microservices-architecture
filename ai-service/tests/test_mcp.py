@@ -45,6 +45,28 @@ async def test_mcp_unknown_tool():
 
 
 @pytest.mark.asyncio
+async def test_mcp_get_order_details_variations():
+    res_ord = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "ORD-1001"})
+    assert res_ord["success"] is True
+    assert res_ord["data"]["order_id"] == "ORD-1001"
+
+    res_num = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "1001"})
+    assert res_num["success"] is True
+    assert res_num["data"]["order_id"] == "ORD-1001"
+
+    res_track = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "DHL-88239104"})
+    assert res_track["success"] is True
+    assert res_track["data"]["order_id"] == "ORD-1001"
+
+    res_missing = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "FDX-D1D28072"})
+    assert res_missing["success"] is False
+    assert "not found" in res_missing["error"]
+
+    res_empty = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": ""})
+    assert res_empty["success"] is False
+
+
+@pytest.mark.asyncio
 async def test_mcp_adapter_tools_registered():
     tools = get_all_ecommerce_tools()
     assert len(tools) == 4
