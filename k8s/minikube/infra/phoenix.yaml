@@ -1,0 +1,96 @@
+# ==============================================================================
+# Microservices Architecture - Arize Phoenix LLM Observability & Evals
+# Namespace: observability (with transparent dev bridge)
+# Port: 6006 (UI & OTLP Traces HTTP Collector)
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix
+  namespace: observability
+  labels:
+    app: phoenix
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: observability
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 6006
+      targetPort: 6006
+      nodePort: 30606
+  selector:
+    app: phoenix
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: phoenix
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: phoenix.observability.svc.cluster.local
+  ports:
+    - name: http
+      port: 6006
+      targetPort: 6006
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix
+  namespace: observability
+  labels:
+    app: phoenix
+    app.kubernetes.io/part-of: devsecops-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix
+  template:
+    metadata:
+      labels:
+        app: phoenix
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: phoenix
+          image: arizephoenix/phoenix:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PHOENIX_ENABLE_AUTH
+              value: "false"
+            - name: PHOENIX_PORT
+              value: "6006"
+            - name: PHOENIX_HOST
+              value: "0.0.0.0"
+          ports:
+            - name: http
+              containerPort: 6006
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+              ephemeral-storage: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+              ephemeral-storage: "1Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 6006
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 6006
+            initialDelaySeconds: 20
+            periodSeconds: 20
+            timeoutSeconds: 3

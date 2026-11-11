@@ -2614,6 +2614,7 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 🐙 ArgoCD 3.6.1 GitOps       │ http://localhost:8088                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 🏛️ Backstage IDP Portal      │ http://localhost:7007                      │ Keycloak SSO   │" -ForegroundColor White
     Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 👁️ Arize Phoenix (LLM)     │ http://localhost:6006                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📊 Alloy Collector UI        │ http://localhost:3300                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
@@ -3290,11 +3291,12 @@ function Invoke-MinikubePlatform {
                 & kubectl @istioLabels 2>$null | Out-Null
             }
 
-            Write-Host "  ▶ Deploying LGTM Telemetry Stack (Tempo 3.0, Loki 3.7, Alloy, OTel, Grafana Datasources)..." -ForegroundColor White
+            Write-Host "  ▶ Deploying LGTM Telemetry Stack (Tempo 3.0, Loki 3.7, Alloy, OTel, Phoenix, Grafana Datasources)..." -ForegroundColor White
             if (Test-Path "$infraDir\tempo.yaml") { kubectl apply -f "$infraDir\tempo.yaml" 2>$null }
             if (Test-Path "$infraDir\loki.yaml") { kubectl apply -f "$infraDir\loki.yaml" 2>$null }
             if (Test-Path "$infraDir\alloy.yaml") { kubectl apply -f "$infraDir\alloy.yaml" 2>$null }
             if (Test-Path "$infraDir\otel.yaml") { kubectl apply -f "$infraDir\otel.yaml" 2>$null }
+            if (Test-Path "$infraDir\phoenix.yaml") { kubectl apply -f "$infraDir\phoenix.yaml" 2>$null }
             if (Test-Path "$infraDir\grafana-datasources.yaml") { kubectl apply -f "$infraDir\grafana-datasources.yaml" 2>$null }
             Write-Host "  [OK] Observability telemetry stack active." -ForegroundColor Green
 
