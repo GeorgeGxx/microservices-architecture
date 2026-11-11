@@ -155,7 +155,7 @@ resource "helm_release" "argocd" {
     },
     {
       name  = "controller.resources.requests.memory"
-      value = "128Mi"
+      value = "256Mi"
     },
     {
       name  = "controller.resources.limits.cpu"
@@ -163,7 +163,7 @@ resource "helm_release" "argocd" {
     },
     {
       name  = "controller.resources.limits.memory"
-      value = "512Mi"
+      value = "1024Mi"
     },
     # Fast reconciliation (poll Git every 15s without jitter for rapid dev sync)
     {
