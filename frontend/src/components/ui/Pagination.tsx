@@ -26,8 +26,8 @@ export const Pagination: React.FC<PaginationProps> = ({
   const endItem = Math.min(currentPage * pageSize, totalItems);
 
   return (
-    <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
+    <div className="glass-card p-4 rounded-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-8 flex-wrap">
+      <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-slate-400 text-center">
         <span>
           Showing <strong className="text-white">{startItem}</strong> to{' '}
           <strong className="text-white">{endItem}</strong> of{' '}
@@ -55,7 +55,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center justify-center gap-2">
           <button
             onClick={() => onPageChange((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
