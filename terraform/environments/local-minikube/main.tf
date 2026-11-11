@@ -234,7 +234,7 @@ resource "helm_release" "observability" {
     },
     {
       name  = "prometheus.prometheusSpec.resources.requests.cpu"
-      value = "200m"
+      value = "250m"
     },
     {
       name  = "prometheus.prometheusSpec.resources.requests.memory"
@@ -242,11 +242,11 @@ resource "helm_release" "observability" {
     },
     {
       name  = "prometheus.prometheusSpec.resources.limits.cpu"
-      value = "800m"
+      value = "1000m"
     },
     {
       name  = "prometheus.prometheusSpec.resources.limits.memory"
-      value = "1024Mi"
+      value = "1536Mi"
     },
     # Disable non-exposed host components in Minikube to keep all Prometheus targets green
     {
