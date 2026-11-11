@@ -19,6 +19,7 @@ tunnels = [
     {"name": "Keycloak", "ns": "auth", "svc": "keycloak", "local": 8181, "remote": 8181},
     {"name": "MLflow", "ns": "dev", "svc": "mlflow", "local": 5000, "remote": 5000},
     {"name": "Demand-Forecast", "ns": "dev", "svc": "demand-forecast-service", "local": 8005, "remote": 8005},
+    {"name": "AI-Service", "ns": "dev", "svc": "ai-service", "local": 8010, "remote": 8010},
     {"name": "ArgoCD", "ns": "argocd", "svc": "argocd-server", "local": 8088, "remote": 80},
     {"name": "Backstage-IDP", "ns": "dev", "svc": "backstage-idp", "local": 7007, "remote": 7007},
     {"name": "Grafana", "ns": "observability", "svc": "kube-prometheus-grafana", "local": 3000, "remote": 80},
