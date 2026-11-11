@@ -102,7 +102,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
   const hasActiveFilters = Boolean(searchQuery || favoritesOnly || selectedCategory !== 'All' || inStockOnly || maxPrice < 3000);
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-6 pb-20 animate-in fade-in duration-300">
       {/* Compact Hero Banner with Optimized Distribution */}
       <div className="relative overflow-hidden rounded-2xl glass-card px-6 py-5 md:px-8 md:py-6 border border-slate-800">
         <div className="absolute top-0 right-0 -mt-10 -mr-10 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -196,17 +196,17 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
               <span>In Stock Only</span>
             </label>
 
-            <div className="flex items-center gap-2 bg-slate-950/60 border border-slate-800 px-3 py-1.5 rounded-xl">
+            <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
               <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent text-xs text-slate-300 focus:outline-none cursor-pointer"
+                className="bg-slate-900 text-xs text-slate-200 focus:outline-none cursor-pointer"
               >
-                <option value="featured">Featured Catalog</option>
-                <option value="price-asc">Price: Low to High</option>
-                <option value="price-desc">Price: High to Low</option>
-                <option value="rating">Top Rated</option>
+                <option value="featured" className="bg-slate-900 text-slate-200">Featured Catalog</option>
+                <option value="price-asc" className="bg-slate-900 text-slate-200">Price: Low to High</option>
+                <option value="price-desc" className="bg-slate-900 text-slate-200">Price: High to Low</option>
+                <option value="rating" className="bg-slate-900 text-slate-200">Top Rated</option>
               </select>
             </div>
           </div>
