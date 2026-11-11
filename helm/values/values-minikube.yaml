@@ -27,8 +27,8 @@ cosmo-router:
     create: false
     name: "cosmo-router-sa"
   resources:
-    requests: { cpu: 100m, memory: 128Mi }
-    limits: { cpu: 500m, memory: 256Mi }
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 250m, memory: 256Mi }
   graphql:
     introspection: true
     playgroundEnabled: true
@@ -46,8 +46,8 @@ inventory-service:
     create: false
     name: "inventory-service-sa"
   resources:
-    requests: { cpu: 300m, memory: 512Mi }
-    limits: { cpu: 1000m, memory: 1536Mi }
+    requests: { cpu: 100m, memory: 768Mi }
+    limits: { cpu: 500m, memory: 1280Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
@@ -70,8 +70,8 @@ notification-service:
     create: false
     name: "notification-service-sa"
   resources:
-    requests: { cpu: 300m, memory: 512Mi }
-    limits: { cpu: 1000m, memory: 1536Mi }
+    requests: { cpu: 100m, memory: 640Mi }
+    limits: { cpu: 500m, memory: 1024Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
@@ -94,8 +94,8 @@ orders-service:
     create: false
     name: "orders-service-sa"
   resources:
-    requests: { cpu: 300m, memory: 512Mi }
-    limits: { cpu: 1000m, memory: 1536Mi }
+    requests: { cpu: 100m, memory: 768Mi }
+    limits: { cpu: 500m, memory: 1280Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
@@ -112,8 +112,8 @@ products-service:
     create: false
     name: "products-service-sa"
   resources:
-    requests: { cpu: 300m, memory: 512Mi }
-    limits: { cpu: 1000m, memory: 1536Mi }
+    requests: { cpu: 100m, memory: 640Mi }
+    limits: { cpu: 500m, memory: 1024Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
@@ -130,8 +130,8 @@ payments-service:
     create: false
     name: "payments-service-sa"
   resources:
-    requests: { cpu: 150m, memory: 192Mi }
-    limits: { cpu: 500m, memory: 512Mi }
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 250m, memory: 256Mi }
   keda:
     enabled: true
     minReplicaCount: 1
@@ -151,8 +151,8 @@ fulfillment-service:
     create: false
     name: "fulfillment-service-sa"
   resources:
-    requests: { cpu: 200m, memory: 256Mi }
-    limits: { cpu: 500m, memory: 512Mi }
+    requests: { cpu: 50m, memory: 144Mi }
+    limits: { cpu: 250m, memory: 256Mi }
   keda:
     enabled: true
     minReplicaCount: 1
@@ -172,8 +172,8 @@ analytics-service:
     create: false
     name: "analytics-service-sa"
   resources:
-    requests: { cpu: 150m, memory: 192Mi }
-    limits: { cpu: 500m, memory: 512Mi }
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 250m, memory: 256Mi }
   keda:
     enabled: true
     minReplicaCount: 1
@@ -194,8 +194,8 @@ ai-service:
     create: false
     name: "ai-service-sa"
   resources:
-    requests: { cpu: 200m, memory: 512Mi }
-    limits: { cpu: 1000m, memory: 1024Mi }
+    requests: { cpu: 75m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 768Mi }
   env:
     APP_ENV: "production"
     PORT: "8010"
