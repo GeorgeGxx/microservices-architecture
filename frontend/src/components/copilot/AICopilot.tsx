@@ -174,12 +174,12 @@ export const AICopilot: React.FC = () => {
         </button>
       )}
 
-      {/* Slide-over Chat Window */}
+      {/* Floating Chat Widget Window */}
       {isOpen && (
         <div
-          className={`fixed inset-y-0 sm:inset-y-auto sm:top-20 sm:bottom-5 ${
-            dockSide === 'left' ? 'left-0 sm:left-5' : 'right-0 sm:right-5'
-          } z-50 w-full sm:w-[350px] md:w-[370px] sm:max-h-[min(680px,calc(100vh-6.5rem))] bg-slate-950/95 backdrop-blur-xl sm:rounded-2xl border border-slate-800/90 shadow-2xl shadow-indigo-950/40 flex flex-col transition-all duration-300 overflow-hidden`}
+          className={`fixed inset-x-0 bottom-0 max-sm:h-[85vh] max-sm:rounded-t-2xl sm:inset-x-auto sm:bottom-6 ${
+            dockSide === 'left' ? 'sm:left-6' : 'sm:right-6'
+          } z-50 w-full sm:w-[360px] md:w-[380px] sm:h-[520px] sm:max-h-[calc(100vh-120px)] bg-slate-950/95 backdrop-blur-xl sm:rounded-2xl border border-slate-800/90 shadow-2xl shadow-indigo-950/40 flex flex-col transition-all duration-200 overflow-hidden`}
         >
           {/* Header */}
           <div className="px-3.5 py-2.5 border-b border-slate-800/80 bg-slate-900/90 backdrop-blur-md flex items-center justify-between">
