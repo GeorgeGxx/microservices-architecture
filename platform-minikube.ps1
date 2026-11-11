@@ -3200,7 +3200,8 @@ function Invoke-MinikubePlatform {
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
-                    "--addons=metrics-server"
+                    "--addons=metrics-server",
+                    "--extra-config=kubelet.housekeeping-interval=10s"
                 )
 
                 $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
@@ -3686,7 +3687,8 @@ stringData:
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
-                    "--addons=metrics-server"
+                    "--addons=metrics-server",
+                    "--extra-config=kubelet.housekeeping-interval=10s"
                 )
 
                 $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
