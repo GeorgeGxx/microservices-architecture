@@ -173,6 +173,8 @@ spec:
         - protocol: TCP
           port: 6006
         - protocol: TCP
+          port: 11434
+        - protocol: TCP
           port: 9090
     # Allow egress to 'data' namespace (PostgreSQL 18: 5432, Redis: 6379, Kafka: 9092/9093/9094)
     - to:
