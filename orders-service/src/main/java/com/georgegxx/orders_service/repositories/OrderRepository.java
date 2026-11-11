@@ -19,6 +19,9 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.orderNumber = :orderNumber")
     Optional<Order> findByOrderNumberWithItems(@Param("orderNumber") String orderNumber);
 
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE LOWER(o.orderNumber) = LOWER(:identifier) OR UPPER(o.trackingNumber) = UPPER(:identifier)")
+    Optional<Order> findByOrderNumberOrTrackingNumberWithItems(@Param("identifier") String identifier);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.orderItems WHERE o.orderNumber = :orderNumber")
     Optional<Order> findByOrderNumberWithItemsForUpdate(@Param("orderNumber") String orderNumber);

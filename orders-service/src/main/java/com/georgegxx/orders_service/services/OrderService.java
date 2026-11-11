@@ -567,6 +567,31 @@ public class OrderService implements InitializingBean {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public Optional<OrderResponse> trackOrder(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            return Optional.empty();
+        }
+        String cleaned = identifier.trim();
+
+        Optional<Order> orderOpt = this.orderRepository.findByOrderNumberOrTrackingNumberWithItems(cleaned);
+        if (orderOpt.isPresent()) {
+            return orderOpt.map(this::mapOrderToOrderResponse);
+        }
+
+        String numericStr = cleaned.toUpperCase(Locale.ROOT).startsWith("ORD-")
+                ? cleaned.substring(4)
+                : cleaned;
+        try {
+            Long id = Long.parseLong(numericStr);
+            return this.orderRepository.findByIdWithItems(id).map(this::mapOrderToOrderResponse);
+        } catch (NumberFormatException ignored) {
+            // Identifier is not numeric, lookup concluded without match
+        }
+
+        return Optional.empty();
+    }
+
     public void recordFunnelEvent(FunnelEventRequest request) {
         if (request == null || request.getEventType() == null) {
             return;
