@@ -196,6 +196,19 @@ ai-service:
   resources:
     requests: { cpu: 200m, memory: 512Mi }
     limits: { cpu: 1000m, memory: 1024Mi }
+  env:
+    APP_ENV: "production"
+    PORT: "8010"
+    LLM_PROVIDER: "ollama"
+    OLLAMA_BASE_URL: "http://ollama:11434"
+    OLLAMA_MODEL: "llama3.1:8b"
+    ORDERS_SERVICE_URL: "http://orders-service:8003"
+    PRODUCTS_SERVICE_URL: "http://products-service:8004"
+    INVENTORY_SERVICE_URL: "http://inventory-service:8001"
+    COSMO_ROUTER_URL: "http://cosmo-router:8080/graphql"
+    REDIS_URL: "redis://redis:6379/0"
+    ENABLE_OBSERVABILITY: "true"
+    PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix:6006/v1/traces"
 
 mlops:
   enabled: true

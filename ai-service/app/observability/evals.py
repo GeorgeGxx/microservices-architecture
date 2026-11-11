@@ -3,6 +3,7 @@ import logging
 from typing import Dict, Any, List
 from langchain_core.messages import HumanMessage
 from app.agents.graph import ecommerce_agent_app
+from app.observability.telemetry import flush_telemetry
 
 logger = logging.getLogger("observability_evals")
 
@@ -86,6 +87,7 @@ async def run_evaluations() -> Dict[str, Any]:
         "details": results
     }
     logger.info("Eval Run Summary: %d/%d passed (%.1f%%)", passed, total_tests, score_pct)
+    flush_telemetry()
     return summary
 
 
