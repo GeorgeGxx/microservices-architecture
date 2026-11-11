@@ -37,7 +37,7 @@ The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool
 | **Kubernetes & Mesh** | `minikube` | 1.39.0+ | `Kubernetes.minikube` | Local single-node Kubernetes cluster hypervisor and driver. |
 | **Kubernetes & Mesh** | `kubectl` | 1.32.0+ | `Kubernetes.kubectl` | Kubernetes cluster control plane administration and manifest application. |
 | **Kubernetes & Mesh** | `helm` | 3.17.0+ | `Helm.Helm` | Package manager deploying the umbrella chart (`helm/microservices-umbrella`). |
-| **Kubernetes & Mesh** | `istioctl` | 1.31.3+ | `Istio.Istio` | Service mesh control plane setup, STRICT mTLS enforcement, and Kiali dashboards. |
+| **Kubernetes & Mesh** | `istioctl` | 1.32.0+ | `Istio.Istio` | Service mesh control plane setup, STRICT mTLS enforcement, and Kiali dashboards. |
 | **Kubernetes & Mesh** | `cloudflared` | 2026.9.1+ | `Cloudflare.cloudflared` | Secure Zero-Trust edge tunneling for remote DAST, Newman, and webhook drills. |
 | **DevSecOps & Security** | `gitleaks` | 8.24.0+ | `Gitleaks.Gitleaks` | Shift-left secret detection in commits and working trees (`platform-minikube.ps1 security-scan`). |
 | **DevSecOps & Security** | `trivy` | 0.60.0+ | `AquaSecurity.Trivy` | Comprehensive vulnerability and misconfiguration scanner for containers and Helm charts. |

@@ -10,7 +10,7 @@ This matrix serves as the single source of truth for pinned versions across all 
 | **Argo CD Helm Chart** | **`10.14.0`** | `argo/argo-cd` | Minikube (`main.tf`), AWS EKS (`argocd-prod.yaml`) | Verified |
 | **Helm CLI** | **`v4.3.1`** | `scripts/install-helm4.sh` | GitHub Actions, Azure DevOps, Bitbucket Pipelines | Verified |
 | **OPA Gatekeeper** | **`v3.23.0`** | `gatekeeper/gatekeeper` | Minikube, EKS, AKS, GKE | Verified |
-| **Istio Service Mesh (Ambient)** | **`v1.31.3`** | `istio/base`, `istiod`, `ztunnel` | Minikube, EKS, AKS, GKE | Verified |
+| **Istio Service Mesh (Ambient)** | **`v1.32.0`** | `istio/base`, `istiod`, `ztunnel` | Minikube, EKS, AKS, GKE | Verified |
 | **KEDA Autoscaler** | **`v2.21.0`** | `kedacore/keda` | Minikube, EKS, AKS, GKE | Verified |
 
 ---
