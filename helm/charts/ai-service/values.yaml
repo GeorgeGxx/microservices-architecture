@@ -16,9 +16,11 @@ resources:
   requests:
     cpu: 200m
     memory: 512Mi
+    ephemeral-storage: 256Mi
   limits:
     cpu: 2000m
     memory: 1024Mi
+    ephemeral-storage: 512Mi
 
 autoscaling:
   enabled: false
@@ -35,7 +37,10 @@ serviceAccount:
   automountServiceAccountToken: false
   name: ""
 
-podAnnotations: {}
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8010"
+  prometheus.io/path: "/metrics"
 
 podSecurityContext:
   runAsNonRoot: true
@@ -55,6 +60,9 @@ probes:
   readinessPath: /api/health
   livenessPath: /api/health
   initialDelaySeconds: 15
+  startupPeriodSeconds: 5
+  startupTimeoutSeconds: 3
+  startupFailureThreshold: 30
 
 env:
   APP_ENV: "production"
@@ -68,3 +76,14 @@ env:
   COSMO_ROUTER_URL: "http://cosmo-router:8080/graphql"
   REDIS_URL: "redis://redis:6379/0"
   ENABLE_OBSERVABILITY: "false"
+
+envFrom: []
+
+serviceMonitor:
+  enabled: true
+  path: /metrics
+  interval: 15s
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
