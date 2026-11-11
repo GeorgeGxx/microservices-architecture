@@ -1,0 +1,100 @@
+# ==============================================================================
+# Microservices Architecture - Ollama Local LLM Inference Engine
+# Namespace: observability (with transparent dev bridge)
+# Port: 11434 (HTTP API & Model Inference)
+# ==============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: observability
+  labels:
+    app: ollama
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: observability
+spec:
+  type: NodePort
+  ports:
+    - name: http
+      port: 11434
+      targetPort: 11434
+      nodePort: 31434
+  selector:
+    app: ollama
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: dev
+  labels:
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: dev
+spec:
+  type: ExternalName
+  externalName: ollama.observability.svc.cluster.local
+  ports:
+    - name: http-ollama
+      port: 11434
+      targetPort: 11434
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: observability
+  labels:
+    app: ollama
+    app.kubernetes.io/part-of: devsecops-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: ollama
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: OLLAMA_HOST
+              value: "0.0.0.0:11434"
+            - name: OLLAMA_KEEP_ALIVE
+              value: "24h"
+          ports:
+            - name: http
+              containerPort: 11434
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "512Mi"
+              ephemeral-storage: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4096Mi"
+              ephemeral-storage: "8Gi"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 11434
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: ollama-data
+              mountPath: /root/.ollama
+      volumes:
+        - name: ollama-data
+          emptyDir: {}
