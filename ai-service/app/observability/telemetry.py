@@ -32,6 +32,32 @@ def setup_observability():
         logger.warning("[Observability] Collector setup notice: %s", exc)
 
 
+def emit_startup_trace():
+    """Emits an initial bootstrap trace so Arize Phoenix has instant visibility on startup."""
+    if not settings.ENABLE_OBSERVABILITY:
+        return
+    try:
+        from opentelemetry import trace
+        tracer = trace.get_tracer("ai_service.bootstrap")
+        with tracer.start_as_current_span(
+            "ai_copilot_service_initialization",
+            attributes={
+                "openinference.span.kind": "chain",
+                "service.name": "ai-service",
+                "service.version": "1.0.0",
+                "app.status": "healthy",
+                "input.value": "AI Copilot Platform Bootstrap",
+                "output.value": "AI Copilot Service Online with LangGraph, ChromaDB, and MCP Tools",
+                "llm.provider": settings.LLM_PROVIDER,
+                "project.name": "default",
+            }
+        ):
+            logger.info("[Observability] Bootstrap warmup trace emitted to Arize Phoenix")
+        flush_telemetry()
+    except Exception as exc:
+        logger.warning("[Observability] Failed to emit startup trace: %s", exc)
+
+
 def flush_telemetry():
     try:
         from opentelemetry import trace

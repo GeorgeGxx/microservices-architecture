@@ -3606,6 +3606,16 @@ stringData:
                 if ($LASTEXITCODE -ne 0) { throw "Router/storefront deployment smoke gate failed with exit code $LASTEXITCODE. Platform is not declared ready." }
             }
 
+            Write-Host "  ▶ Seeding Arize Phoenix Traces via AI Copilot Evals..." -ForegroundColor White
+            try {
+                $evalResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8010/api/evals/run" -Method Post -TimeoutSec 15 -ErrorAction SilentlyContinue
+                if ($evalResponse.passed -gt 0) {
+                    Write-Host "  [OK] AI Copilot evaluation suite completed ($($evalResponse.passed)/$($evalResponse.total_evals) passed). Traces active in Arize Phoenix." -ForegroundColor Green
+                }
+            } catch {
+                Write-Host "  [INFO] AI Copilot eval trace warmup deferred." -ForegroundColor Yellow
+            }
+
             Write-Host "`n[10/10] 💰 Offline FinOps Architecture Estimate..." -ForegroundColor Yellow
             $costEstimator = Join-Path $scriptsDir "local-cost-estimator.py"
             if (Test-Path $costEstimator) { python $costEstimator --env minikube }
@@ -3840,6 +3850,16 @@ stringData:
             Write-Host "`n[6/6] 🔌 Connecting Resilient Local Port-Forward Tunnels..." -ForegroundColor Yellow
             Start-LocalTunnelSupervisor
             Write-Host "  [OK] Resilient port-forward tunnel daemon active." -ForegroundColor Green
+
+            Write-Host "  ▶ Seeding Arize Phoenix Traces via AI Copilot Evals..." -ForegroundColor White
+            try {
+                $evalResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8010/api/evals/run" -Method Post -TimeoutSec 15 -ErrorAction SilentlyContinue
+                if ($evalResponse.passed -gt 0) {
+                    Write-Host "  [OK] AI Copilot evaluation suite completed ($($evalResponse.passed)/$($evalResponse.total_evals) passed). Traces active in Arize Phoenix." -ForegroundColor Green
+                }
+            } catch {
+                Write-Host "  [INFO] AI Copilot eval trace warmup deferred." -ForegroundColor Yellow
+            }
 
             $stopwatch.Stop()
             $elapsedSec = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
