@@ -49,7 +49,7 @@ spec:
           command:
             - sh
             - -c
-            - "if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then rm -rf /var/lib/postgresql/data/pgdata; fi && chmod 700 /var/lib/postgresql/data"
+            - "if [ ! -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then rm -rf /var/lib/postgresql/data/pgdata; fi && mkdir -p /var/lib/postgresql/data/pgdata && chmod 700 /var/lib/postgresql/data/pgdata"
           resources:
             requests:
               cpu: 10m
