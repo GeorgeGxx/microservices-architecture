@@ -30,6 +30,10 @@ rules:
       - services
       - serviceaccounts
     verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - pods/portforward
+    verbs: ["create", "post"]
   - apiGroups: ["apps"]
     resources:
       - deployments
@@ -66,6 +70,7 @@ rules:
   - apiGroups: ["extensions.istio.io"]
     resources:
       - wasmplugins
+      - trafficextensions
     verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
   - apiGroups: ["networking.k8s.io"]
     resources:
@@ -79,6 +84,11 @@ rules:
       - grpcroutes
       - tlsroutes
       - tcproutes
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
