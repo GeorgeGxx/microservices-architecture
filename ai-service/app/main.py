@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage
 
 from app.config import settings
 from app.rag.ingest import ingest_all
-from app.observability.telemetry import setup_observability
+from app.observability.telemetry import setup_observability, flush_telemetry
 from app.observability.evals import run_evaluations
 from app.agents.graph import ecommerce_agent_app
 from app.tools.mcp_server import EcommerceMCPServer, MCP_TOOLS_MANIFEST
@@ -146,6 +146,7 @@ async def chat_endpoint(
 
     try:
         final_state = await ecommerce_agent_app.ainvoke(initial_state, config=thread_config)
+        flush_telemetry()
         return ChatResponse(
             reply=final_state.get("final_output", "Processed successfully."),
             active_agent=final_state.get("current_agent", "supervisor"),
