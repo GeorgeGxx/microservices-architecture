@@ -86,3 +86,45 @@ async def test_trigger_evals_endpoint():
         res = await client.post("/api/evals/run")
         assert res.status_code == 200
         assert "score_percentage" in res.json()
+
+
+@pytest.mark.asyncio
+async def test_chat_endpoint_security_admin_override(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "SECURITY_ENABLED", True)
+    from app.security import get_current_user
+    app.dependency_overrides[get_current_user] = lambda: {
+        "roles": ["ROLE_ADMIN"],
+        "preferred_username": "operator_admin"
+    }
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            res = await client.post("/api/chat", json={
+                "message": "Audit telemetry and system status",
+                "thread_id": "test-admin-sec"
+            })
+            assert res.status_code == 200
+            data = res.json()
+            assert data["active_agent"] == "admin_operations"
+            assert "operator_admin" in data["reply"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_chat_endpoint_agent_workflow_error(monkeypatch):
+    from app.agents.graph import ecommerce_agent_app
+
+    async def mock_ainvoke(*args, **kwargs):
+        raise RuntimeError("Synthetic graph pipeline crash")
+
+    monkeypatch.setattr(ecommerce_agent_app, "ainvoke", mock_ainvoke)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        res = await client.post("/api/chat", json={
+            "message": "Crash test message",
+            "thread_id": "test-crash"
+        })
+        assert res.status_code == 500
+        assert "Agent workflow error" in res.json()["detail"]
