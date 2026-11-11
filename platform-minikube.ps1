@@ -51,7 +51,7 @@ param(
     [int]$Cpus = 8,
     [int]$MemoryMb = 16384,
     [string]$DiskSize = "40g",
-    [switch]$EnableGpu = $true,
+    [switch]$EnableGpu = $false,
     [string]$CosignImage = "",
     [string]$CosignKey = "",
     [switch]$CosignIgnoreTlog = $false,
@@ -3050,7 +3050,7 @@ function Invoke-MinikubePlatform {
         [string]$DiskBudget = "40g",
         [int]$CanaryV1Weight = 90,
         [int]$CanaryV2Weight = 10,
-        [switch]$EnableGpu = $true,
+        [switch]$EnableGpu = $false,
         [switch]$PurgeAll = $false
     )
 
@@ -3189,10 +3189,7 @@ function Invoke-MinikubePlatform {
                         $effectiveCpus = $maxDockerCpus
                     }
                 }
-                $hasNvidia = $false
-                if ($EnableGpu) {
-                    $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
-                }
+                $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
 
                 $minikubeStartArgs = @(
                     "start",
@@ -3200,23 +3197,14 @@ function Invoke-MinikubePlatform {
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
+                    "--container-runtime=containerd",
                     "--addons=metrics-server",
                     "--extra-config=kubelet.housekeeping-interval=10s"
                 )
 
-                $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
-                $existingRuntime = $clusterProfile.Config.ContainerRuntime
-
                 if ($hasNvidia) {
-                    if (-not $clusterProfile) {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected. Initializing Minikube with GPU acceleration (--container-runtime=docker --gpus all)..." -ForegroundColor Cyan
-                        $minikubeStartArgs += @("--container-runtime=docker", "--gpus=all")
-                    } elseif ($existingRuntime -eq 'docker') {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected and Docker runtime active. Enabling GPU acceleration..." -ForegroundColor Cyan
-                        $minikubeStartArgs += @("--gpus=all")
-                    } else {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected. (Minikube uses containerd; GPU active in Docker Compose. To enable in Minikube, re-create with --container-runtime=docker --gpus all)." -ForegroundColor Yellow
-                    }
+                    Write-Host "  [GPU] Host NVIDIA GPU detected. Minikube operates with high-performance native containerd runtime." -ForegroundColor Cyan
+                    Write-Host "  [GPU] GPU acceleration is dedicated to Docker Compose / Host Ollama (http://localhost:11434)." -ForegroundColor Cyan
                 }
 
                 Write-Host "  ▶ Starting Minikube ($effectiveCpus CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk, Ingress, Metrics-Server)..." -ForegroundColor White
@@ -3676,10 +3664,7 @@ stringData:
                         $effectiveCpus = $maxDockerCpus
                     }
                 }
-                $hasNvidia = $false
-                if ($EnableGpu) {
-                    $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
-                }
+                $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
 
                 $minikubeStartArgs = @(
                     "start",
@@ -3687,23 +3672,14 @@ stringData:
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
+                    "--container-runtime=containerd",
                     "--addons=metrics-server",
                     "--extra-config=kubelet.housekeeping-interval=10s"
                 )
 
-                $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
-                $existingRuntime = $clusterProfile.Config.ContainerRuntime
-
                 if ($hasNvidia) {
-                    if (-not $clusterProfile) {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected. Initializing Minikube with GPU acceleration (--container-runtime=docker --gpus all)..." -ForegroundColor Cyan
-                        $minikubeStartArgs += @("--container-runtime=docker", "--gpus=all")
-                    } elseif ($existingRuntime -eq 'docker') {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected and Docker runtime active. Enabling GPU acceleration..." -ForegroundColor Cyan
-                        $minikubeStartArgs += @("--gpus=all")
-                    } else {
-                        Write-Host "  [GPU] NVIDIA RTX GPU detected. (Minikube uses containerd; GPU active in Docker Compose. To enable in Minikube, re-create with --container-runtime=docker --gpus all)." -ForegroundColor Yellow
-                    }
+                    Write-Host "  [GPU] Host NVIDIA GPU detected. Minikube operates with high-performance native containerd runtime." -ForegroundColor Cyan
+                    Write-Host "  [GPU] GPU acceleration is dedicated to Docker Compose / Host Ollama (http://localhost:11434)." -ForegroundColor Cyan
                 }
 
                 Write-Host "  ▶ Resuming Minikube cluster ($effectiveCpus CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk)..." -ForegroundColor White

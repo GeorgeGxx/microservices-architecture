@@ -154,8 +154,7 @@ The platform leverages the host machine's dedicated NVIDIA GPU to accelerate inf
             count: 1
             capabilities: [gpu]
   `
-* **Minikube Integration:** platform-minikube.ps1 dynamically detects host GPU capabilities via 
-vidia-smi and passes --gpus=all when initializing clusters with the Docker container runtime.
+* **Minikube Architecture:** platform-minikube.ps1 prioritizes cluster stability using the native containerd runtime, while dedicated GPU acceleration is natively offloaded to Docker Compose / Windows host Ollama (http://localhost:11434).
 * **Inference Speed:** Enables 45+ tokens/second throughput for 8B parameter models, cutting response latency from ~8-12 seconds on CPU down to < 1.2 seconds on GPU.
 
 ---
