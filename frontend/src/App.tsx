@@ -126,7 +126,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1">
+      <main className="flex-1 pt-16">
         {activeTab === 'catalog' && (
           <CatalogPage
             products={products}
