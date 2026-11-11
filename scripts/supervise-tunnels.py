@@ -28,6 +28,7 @@ tunnels = [
     {"name": "Tempo", "ns": "observability", "svc": "tempo", "local": 3200, "remote": 3200},
     {"name": "Loki", "ns": "observability", "svc": "loki", "local": 3100, "remote": 3100},
     {"name": "Alloy", "ns": "observability", "svc": "alloy", "local": 3300, "remote": 3300},
+    {"name": "Phoenix", "ns": "observability", "svc": "phoenix", "local": 6006, "remote": 6006},
     {"name": "Kiali", "ns": "istio-system", "svc": "kiali", "local": 20001, "remote": 20001},
 ]
 
