@@ -61,7 +61,7 @@ app.add_middleware(
 
 # Expose a minimal Prometheus-compatible metric until app instrumentation is configured.
 @app.get("/metrics", response_class=PlainTextResponse, include_in_schema=False)
-async def metrics():
+def metrics():
     return "# HELP ai_service_up AI service process is running.\n# TYPE ai_service_up gauge\nai_service_up 1\n"
 
 
@@ -87,7 +87,7 @@ class HITLApprovalRequest(BaseModel):
 
 
 @app.get("/api/health")
-async def health_check():
+def health_check():
     return {
         "status": "healthy",
         "service": settings.APP_NAME,
@@ -158,16 +158,15 @@ async def chat_endpoint(
 
 
 @app.get("/api/tools")
-async def get_mcp_tools():
+def get_mcp_tools():
     return {"tools": EcommerceMCPServer.list_tools()}
 
 
-@app.post("/api/hitl/approve")
-async def approve_hitl(
-    req: HITLApprovalRequest,
-    supervisor_user: Annotated[Optional[Dict[str, Any]], Depends(require_role("ROLE_SUPERVISOR"))] = None
-):
-    del supervisor_user
+@app.post(
+    "/api/hitl/approve",
+    dependencies=[Depends(require_role("ROLE_SUPERVISOR"))]
+)
+def approve_hitl(req: HITLApprovalRequest):
     status = "AUTHORIZED" if req.action.upper() == "APPROVE" else "DENIED"
     return {
         "success": True,
