@@ -161,7 +161,7 @@ export const DemandForecastPanel: React.FC = () => {
             ))}
           </div>
 
-          <p className="text-[11px] text-slate-500">
+          <p className="text-[11px] text-slate-500 text-center py-1">
             Data source: {forecast.dataSource === 'synthetic' ? 'synthetic sample' : 'captured sales'} · Last observed sales date: {formatDate(forecast.historyEndDate)}
           </p>
         </>
