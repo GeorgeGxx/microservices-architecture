@@ -2609,6 +2609,7 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
+    Write-Host "│ 🤖 AI Copilot Swagger UI     │ http://localhost:8010/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
     Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
     Write-Host "│ 🐙 ArgoCD 3.6.1 GitOps       │ http://localhost:8088                      │ admin / admin  │" -ForegroundColor White
