@@ -1,9 +1,11 @@
 import pytest
 from langchain_core.messages import HumanMessage
 from app.agents.nodes import (
+    supervisor_router_node,
     product_advisor_node,
     order_support_node,
     policy_faq_node,
+    admin_ops_node,
     general_fallback_node,
 )
 from app.models.llm_factory import LocalFallbackChatModel, get_chat_model
@@ -46,7 +48,7 @@ async def test_order_support_node_details():
 @pytest.mark.asyncio
 async def test_order_support_node_unknown_tracking_fdx():
     state = {
-        "messages": [HumanMessage(content="Show me status of DHL Tracking FDX-D1D28072")],
+        "messages": [HumanMessage(content="Show me status of DHL Tracking FDX-NONEXISTENT999")],
         "current_agent": "supervisor",
         "hitl_pending": False,
         "tool_calls": [],
@@ -55,7 +57,7 @@ async def test_order_support_node_unknown_tracking_fdx():
     }
     res = await order_support_node(state)
     assert res["current_agent"] == "order_support"
-    assert "FDX-D1D28072" in res["final_output"]
+    assert "FDX-NONEXISTENT999" in res["final_output"]
     assert "could not find" in res["final_output"].lower()
     assert "Order Status for ORD-1001" not in res["final_output"]
     assert "Sony WH-1000XM5" not in res["final_output"]
@@ -333,3 +335,68 @@ async def test_run_evaluations():
     summary = await run_evaluations()
     assert summary["total_evals"] == 4
     assert summary["passed"] >= 3
+
+
+def test_supervisor_router_admin_role():
+    state_admin = {
+        "messages": [HumanMessage(content="Audit federated microservices health and metrics")],
+        "user_role": "admin",
+        "username": "admin_user"
+    }
+    res_admin = supervisor_router_node(state_admin)
+    assert res_admin["detected_intent"] == "admin_ops"
+
+    state_cust = {
+        "messages": [HumanMessage(content="Audit federated microservices health and metrics")],
+        "user_role": "customer",
+        "username": "shopper"
+    }
+    res_cust = supervisor_router_node(state_cust)
+    assert res_cust["detected_intent"] != "admin_ops"
+
+
+@pytest.mark.asyncio
+async def test_admin_ops_node():
+    state = {
+        "messages": [HumanMessage(content="Show me admin status")],
+        "user_role": "admin",
+        "username": "admin_jorge"
+    }
+    res = await admin_ops_node(state)
+    assert res["current_agent"] == "admin_operations"
+    assert "admin_jorge" in res["final_output"]
+    assert "Federated Supergraph" in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_order_support_admin_refund_and_status():
+    state_refund = {
+        "messages": [HumanMessage(content="I want to process a refund for order ORD-1002 in amount of $120.00 USD")],
+        "user_role": "admin",
+        "username": "admin_jorge"
+    }
+    res_ref = await order_support_node(state_refund)
+    assert res_ref["hitl_pending"] is True
+    assert "Supervisor Decision Gate" in res_ref["final_output"]
+    assert "admin_jorge" in res_ref["final_output"]
+
+    state_status = {
+        "messages": [HumanMessage(content="Show status of order ORD-1001")],
+        "user_role": "admin",
+        "username": "admin_jorge"
+    }
+    res_stat = await order_support_node(state_status)
+    assert "Admin Audit" in res_stat["final_output"]
+    assert "admin_jorge" in res_stat["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_product_advisor_admin_role():
+    state = {
+        "messages": [HumanMessage(content="Recommend laptop")],
+        "user_role": "admin",
+        "username": "admin_jorge"
+    }
+    res = await product_advisor_node(state)
+    assert res["current_agent"] == "product_advisor"
+    assert len(res["messages"]) > 0

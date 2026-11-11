@@ -58,7 +58,7 @@ async def test_mcp_get_order_details_variations():
     assert res_track["success"] is True
     assert res_track["data"]["order_id"] == "ORD-1001"
 
-    res_missing = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "FDX-D1D28072"})
+    res_missing = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "FDX-NONEXISTENT999"})
     assert res_missing["success"] is False
     assert "not found" in res_missing["error"]
 

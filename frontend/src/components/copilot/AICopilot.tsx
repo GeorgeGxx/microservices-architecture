@@ -3,6 +3,7 @@ import { Bot, X, Send, Sparkles, PanelLeft, PanelRight } from 'lucide-react';
 import { HITLWidget } from './HITLWidget';
 import { useCart } from '../../context/CartContext';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface Message {
   id: string;
@@ -15,6 +16,7 @@ interface Message {
 }
 
 export const AICopilot: React.FC = () => {
+  const { user } = useAuth();
   const { isCartOpen, setIsCartOpen } = useCart();
   const { isDrawerOpen, setIsDrawerOpen } = useNotifications();
 
@@ -32,8 +34,10 @@ export const AICopilot: React.FC = () => {
     {
       id: 'welcome',
       sender: 'agent',
-      content: 'Hello! I am your AI Shopping Copilot powered by **LangGraph** and **MCP** tools.\n\nI can help you with:\n- 📦 **DHL Tracking** (e.g. `ORD-1001` or `1`)\n- 🔍 **Product Catalog Recommendations via RAG**\n- 🛡️ **Store Return & Warranty Policies**\n- 💰 **Automated & Supervisor-Approved Refunds**',
-      agentName: 'Supervisor Router',
+      content: user?.isAdmin
+        ? `Welcome, Administrator **${user.username}**! 🛡️\n\nAI Copilot is operating in **Admin Mode** with elevated privileges.\n- 📊 **Federated Metrics & Subgraphs Health**\n- ⚡ **Real-Time Supervisor HITL Decision Gates**\n- 📦 **Global Order Audit by UUID & Carrier**\n- 📈 **Demand Forecasting & Inventory Safety Stock**`
+        : 'Hello! I am your AI Shopping Copilot powered by **LangGraph** and **MCP** tools.\n\nI can help you with:\n- 📦 **DHL Tracking** (e.g. `ORD-1001` or `1`)\n- 🔍 **Product Catalog Recommendations via RAG**\n- 🛡️ **Store Return & Warranty Policies**\n- 💰 **Automated & Supervisor-Approved Refunds**',
+      agentName: user?.isAdmin ? 'Enterprise Supervisor Router' : 'Supervisor Router',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -95,10 +99,20 @@ export const AICopilot: React.FC = () => {
     setIsLoading(true);
 
     try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (user?.token) {
+        headers['Authorization'] = `Bearer ${user.token}`;
+      }
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, thread_id: 'session-copilot-spa' })
+        headers,
+        body: JSON.stringify({
+          message: text,
+          thread_id: `session-copilot-${user?.username || 'spa'}`,
+          user_role: user?.isAdmin ? 'admin' : 'customer',
+          username: user?.username || 'guest'
+        })
       });
 
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -140,12 +154,19 @@ export const AICopilot: React.FC = () => {
     setMessages((prev) => [...prev, confirmationMsg]);
   };
 
-  const samplePrompts = [
-    { label: '📦 Track DHL ORD-1001', prompt: 'What is the shipping status of my order ORD-1001?' },
-    { label: '💻 Recommend Laptop', prompt: 'Recommend a high-performance laptop for software development and design.' },
-    { label: '⚠️ Request Refund (HITL)', prompt: 'I would like to request a refund of $120.00 USD for order ORD-1002.' },
-    { label: '📜 Return Policies', prompt: 'What are the return, warranty, and refund policies of the store?' }
-  ];
+  const samplePrompts = user?.isAdmin
+    ? [
+        { label: '📊 System Status', prompt: 'Audit federated microservices health and telemetry status.' },
+        { label: '⚡ Review Refund (HITL)', prompt: 'I want to review and process refund for order ORD-1002 in amount of $120.00 USD.' },
+        { label: '📦 Admin Track UUID', prompt: 'Audit status of order 4c5a7ac3-5298-45c1-ba16-6d575e021563' },
+        { label: '📈 Demand Forecast', prompt: 'Recommend high-performance laptops and check inventory safety stock requirements.' }
+      ]
+    : [
+        { label: '📦 Track DHL ORD-1001', prompt: 'What is the shipping status of my order ORD-1001?' },
+        { label: '💻 Recommend Laptop', prompt: 'Recommend a high-performance laptop for software development and design.' },
+        { label: '⚠️ Request Refund', prompt: 'I would like to request a refund of $120.00 USD for order ORD-1002.' },
+        { label: '📜 Return Policies', prompt: 'What are the return, warranty, and refund policies of the store?' }
+      ];
 
   return (
     <>
@@ -168,7 +189,7 @@ export const AICopilot: React.FC = () => {
               Copilot
             </span>
             <span className="text-[9px] font-mono leading-none text-indigo-400">
-              LangGraph
+              {user?.isAdmin ? 'Admin Mode' : 'LangGraph'}
             </span>
           </div>
         </button>
@@ -190,11 +211,19 @@ export const AICopilot: React.FC = () => {
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="font-bold text-xs text-white">AI Copilot</h3>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono border border-indigo-500/20">
-                    LangGraph + MCP
-                  </span>
+                  {user?.isAdmin ? (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20 font-bold">
+                      ADMIN
+                    </span>
+                  ) : (
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono border border-indigo-500/20">
+                      LangGraph + MCP
+                    </span>
+                  )}
                 </div>
-                <p className="text-[10px] text-slate-400 leading-tight">Store Assistant</p>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  {user?.isAdmin ? `Logged as ${user.username} (Operator)` : 'Store Assistant'}
+                </p>
               </div>
             </div>
 

@@ -68,6 +68,8 @@ async def metrics():
 class ChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = "default-session"
+    user_role: Optional[str] = "customer"
+    username: Optional[str] = "guest"
 
 
 class ChatResponse(BaseModel):
@@ -118,14 +120,23 @@ async def chat_endpoint(
     req: ChatRequest,
     current_user: Annotated[Optional[Dict[str, Any]], Depends(get_current_user)] = None
 ):
-    del current_user
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
+
+    user_role = req.user_role or "customer"
+    username = req.username or "guest"
+    if current_user and settings.SECURITY_ENABLED:
+        roles = current_user.get("roles", [])
+        if "ROLE_ADMIN" in roles or "admin" in roles:
+            user_role = "admin"
+        username = current_user.get("preferred_username", username)
 
     thread_config = {"configurable": {"thread_id": req.thread_id}}
     initial_state = {
         "messages": [HumanMessage(content=req.message)],
         "current_agent": "supervisor",
+        "user_role": user_role,
+        "username": username,
         "hitl_pending": False,
         "tool_calls": [],
         "hitl_payload": None,
