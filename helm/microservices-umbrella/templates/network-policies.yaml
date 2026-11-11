@@ -257,6 +257,8 @@ spec:
         - protocol: TCP
           port: 8005
         - protocol: TCP
+          port: 8010
+        - protocol: TCP
           port: 8080
         - protocol: TCP
           port: 8085
