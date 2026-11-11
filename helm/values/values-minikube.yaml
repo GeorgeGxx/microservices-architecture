@@ -205,3 +205,7 @@ mlops:
     image: { repository: georgegxx/mlops-training, tag: "1.0.0" }
   forecast:
     image: { repository: georgegxx/demand-forecast, tag: "1.0.0" }
+
+configMap:
+  data:
+    HIBERNATE_DDL_AUTO: "update"

@@ -61,3 +61,7 @@ ingress:
   annotations:
     kubernetes.io/ingress.class: "istio"
   hosts: []
+
+configMap:
+  data:
+    HIBERNATE_DDL_AUTO: "update"
