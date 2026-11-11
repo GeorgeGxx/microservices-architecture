@@ -12,7 +12,7 @@ export const ToastContainer: React.FC = () => {
       aria-label="Notifications"
       aria-live="polite"
       aria-relevant="additions text"
-      className="pointer-events-none fixed bottom-4 right-3 z-50 flex max-h-[min(65vh,480px)] w-[calc(100vw-1.5rem)] max-w-[310px] sm:max-w-[320px] flex-col space-y-2 overflow-y-auto sm:bottom-5 sm:right-5"
+      className="pointer-events-none fixed top-20 right-3 z-50 flex max-h-[min(65vh,480px)] w-[calc(100vw-1.5rem)] max-w-[310px] sm:max-w-[340px] flex-col space-y-2 overflow-y-auto sm:top-20 sm:right-6"
     >
       {toasts.map((toast) => {
         let Icon = Info;

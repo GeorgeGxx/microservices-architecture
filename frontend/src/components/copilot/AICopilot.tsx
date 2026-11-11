@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Bot, X, Send, Sparkles } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Bot, X, Send, Sparkles, PanelLeft, PanelRight } from 'lucide-react';
 import { HITLWidget } from './HITLWidget';
+import { useCart } from '../../context/CartContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 interface Message {
   id: string;
@@ -13,7 +15,19 @@ interface Message {
 }
 
 export const AICopilot: React.FC = () => {
+  const { isCartOpen, setIsCartOpen } = useCart();
+  const { isDrawerOpen, setIsDrawerOpen } = useNotifications();
+
   const [isOpen, setIsOpen] = useState(false);
+  const [dockSide, setDockSide] = useState<'left' | 'right'>(() => {
+    try {
+      const saved = localStorage.getItem('copilot_dock_side');
+      return saved === 'right' ? 'right' : 'left';
+    } catch {
+      return 'left';
+    }
+  });
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -26,6 +40,39 @@ export const AICopilot: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Close Copilot if Cart or Notification drawer opens and they conflict (same side or narrow viewport)
+  useEffect(() => {
+    if ((isCartOpen || isDrawerOpen) && isOpen) {
+      const isNarrowScreen = typeof window !== 'undefined' && window.innerWidth < 1024;
+      if (dockSide === 'right' || isNarrowScreen) {
+        setIsOpen(false);
+      }
+    }
+  }, [isCartOpen, isDrawerOpen, dockSide, isOpen]);
+
+  const handleOpenCopilot = useCallback(() => {
+    const isNarrowScreen = typeof window !== 'undefined' && window.innerWidth < 1024;
+    if (dockSide === 'right' || isNarrowScreen) {
+      setIsCartOpen(false);
+      setIsDrawerOpen(false);
+    }
+    setIsOpen(true);
+  }, [dockSide, setIsCartOpen, setIsDrawerOpen]);
+
+  const toggleDockSide = useCallback(() => {
+    const nextSide = dockSide === 'left' ? 'right' : 'left';
+    setDockSide(nextSide);
+    try {
+      localStorage.setItem('copilot_dock_side', nextSide);
+    } catch {
+      // ignore storage errors
+    }
+    if (nextSide === 'right' && (isCartOpen || isDrawerOpen)) {
+      setIsCartOpen(false);
+      setIsDrawerOpen(false);
+    }
+  }, [dockSide, isCartOpen, isDrawerOpen, setIsCartOpen, setIsDrawerOpen]);
 
   useEffect(() => {
     if (isOpen) {
@@ -105,8 +152,10 @@ export const AICopilot: React.FC = () => {
       {/* Floating Action Button */}
       {!isOpen && (
         <button
-          onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all duration-200 border border-indigo-400/30"
+          onClick={handleOpenCopilot}
+          className={`fixed bottom-6 ${
+            dockSide === 'left' ? 'left-6' : 'right-6'
+          } z-40 flex items-center gap-2.5 px-4 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium shadow-xl shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all duration-200 border border-indigo-400/30`}
           aria-label="Open AI Copilot"
         >
           <div className="relative">
@@ -120,7 +169,11 @@ export const AICopilot: React.FC = () => {
 
       {/* Slide-over Chat Drawer */}
       {isOpen && (
-        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[440px] md:w-[480px] bg-slate-950 border-l border-slate-800 shadow-2xl flex flex-col transition-all duration-300">
+        <div
+          className={`fixed inset-y-0 ${
+            dockSide === 'left' ? 'left-0 border-r' : 'right-0 border-l'
+          } z-50 w-full sm:w-[440px] md:w-[480px] bg-slate-950 border-slate-800 shadow-2xl flex flex-col transition-all duration-300`}
+        >
           {/* Header */}
           <div className="px-5 py-4 border-b border-slate-800 bg-slate-900/90 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -138,13 +191,34 @@ export const AICopilot: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
-              aria-label="Close Copilot"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={toggleDockSide}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition flex items-center gap-1 text-xs"
+                title={dockSide === 'left' ? "Dock Copilot to right" : "Dock Copilot to left"}
+                aria-label={dockSide === 'left' ? "Dock Copilot to right" : "Dock Copilot to left"}
+              >
+                {dockSide === 'left' ? (
+                  <>
+                    <PanelRight className="h-4 w-4" />
+                    <span className="hidden sm:inline text-[11px]">Dock Right</span>
+                  </>
+                ) : (
+                  <>
+                    <PanelLeft className="h-4 w-4" />
+                    <span className="hidden sm:inline text-[11px]">Dock Left</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                aria-label="Close Copilot"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Quick suggestions */}
