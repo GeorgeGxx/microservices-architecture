@@ -48,7 +48,7 @@ param(
     [ValidateRange(1, 100)]
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
-    [int]$Cpus = 12,
+    [int]$Cpus = 8,
     [int]$MemoryMb = 16384,
     [string]$DiskSize = "40g",
     [switch]$EnableGpu = $true,
@@ -1938,7 +1938,7 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 12 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
+if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
 if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $Command -notin @("up", "bootstrap", "apply", "start", "resume", "security-scan")) {
@@ -3045,7 +3045,7 @@ function Invoke-MinikubePlatform {
         [string]$ImageToVerify = "",
         [string]$PublicKeyPath = "",
         [switch]$FastResume = $false,
-        [int]$CpuCount = 12,
+        [int]$CpuCount = 8,
         [int]$RamMb = 16384,
         [string]$DiskBudget = "40g",
         [int]$CanaryV1Weight = 90,
@@ -3180,6 +3180,15 @@ function Invoke-MinikubePlatform {
                         $effectiveRamMb = $adjustedRamMb
                     }
                 }
+                $effectiveCpus = $CpuCount
+                $dockerCpus = docker info --format '{{.NCPU}}' 2>$null
+                if ($dockerCpus -match '^\d+$') {
+                    $maxDockerCpus = [int]$dockerCpus
+                    if ($effectiveCpus -gt $maxDockerCpus) {
+                        Write-Host "  [INFO] Docker Desktop available CPUs: $maxDockerCpus (requested: $effectiveCpus). Auto-adjusting Minikube CPU allocation to $maxDockerCpus." -ForegroundColor Yellow
+                        $effectiveCpus = $maxDockerCpus
+                    }
+                }
                 $hasNvidia = $false
                 if ($EnableGpu) {
                     $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
@@ -3187,7 +3196,7 @@ function Invoke-MinikubePlatform {
 
                 $minikubeStartArgs = @(
                     "start",
-                    "--cpus=$CpuCount",
+                    "--cpus=$effectiveCpus",
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
@@ -3209,10 +3218,10 @@ function Invoke-MinikubePlatform {
                     }
                 }
 
-                Write-Host "  ▶ Starting Minikube ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk, Ingress, Metrics-Server)..." -ForegroundColor White
+                Write-Host "  ▶ Starting Minikube ($effectiveCpus CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk, Ingress, Metrics-Server)..." -ForegroundColor White
                 & minikube $minikubeStartArgs
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Error "Failed to start Minikube. Verify Docker Desktop is active."
+                    throw "Failed to start Minikube. Verify Docker Desktop is active and has sufficient resources."
                 }
             } else {
                 Write-Host "  [OK] Minikube is already active and healthy." -ForegroundColor Green
@@ -3645,6 +3654,15 @@ stringData:
                         $effectiveRamMb = $adjustedRamMb
                     }
                 }
+                $effectiveCpus = $CpuCount
+                $dockerCpus = docker info --format '{{.NCPU}}' 2>$null
+                if ($dockerCpus -match '^\d+$') {
+                    $maxDockerCpus = [int]$dockerCpus
+                    if ($effectiveCpus -gt $maxDockerCpus) {
+                        Write-Host "  [INFO] Docker Desktop available CPUs: $maxDockerCpus (requested: $effectiveCpus). Auto-adjusting Minikube CPU allocation to $maxDockerCpus." -ForegroundColor Yellow
+                        $effectiveCpus = $maxDockerCpus
+                    }
+                }
                 $hasNvidia = $false
                 if ($EnableGpu) {
                     $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
@@ -3652,7 +3670,7 @@ stringData:
 
                 $minikubeStartArgs = @(
                     "start",
-                    "--cpus=$CpuCount",
+                    "--cpus=$effectiveCpus",
                     "--memory=$effectiveRamMb",
                     "--disk-size=$DiskBudget",
                     "--driver=docker",
@@ -3674,7 +3692,7 @@ stringData:
                     }
                 }
 
-                Write-Host "  ▶ Resuming Minikube cluster ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk)..." -ForegroundColor White
+                Write-Host "  ▶ Resuming Minikube cluster ($effectiveCpus CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk)..." -ForegroundColor White
                 & minikube $minikubeStartArgs
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to start Minikube. Verify Docker Desktop is active."
