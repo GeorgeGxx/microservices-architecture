@@ -6,6 +6,26 @@ opencost:
   exporter:
     replicas: 1
     defaultClusterId: microservices-minikube-dev
+    extraVolumeMounts:
+      - name: var-configs
+        mountPath: /var/configs
+  customPricing:
+    enabled: true
+    configmapName: custom-pricing-model
+    configPath: /tmp/custom-config
+    createConfigmap: true
+    provider: custom
+    costModel:
+      description: "Minikube Local Dev FinOps Pricing Model"
+      CPU: 0.031611
+      spotCPU: 0.006655
+      RAM: 0.004237
+      spotRAM: 0.000892
+      GPU: 0.95
+      storage: 0.10
+      zoneNetworkEgress: 0.01
+      regionNetworkEgress: 0.01
+      internetNetworkEgress: 0.12
   prometheus:
     internal:
       enabled: true
@@ -38,3 +58,7 @@ opencost:
       enabled: true
       additionalLabels:
         release: kube-prometheus
+
+extraVolumes:
+  - name: var-configs
+    emptyDir: {}

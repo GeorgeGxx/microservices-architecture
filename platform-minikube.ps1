@@ -3227,6 +3227,7 @@ function Invoke-MinikubePlatform {
                 Write-Host "  [OK] Minikube is already active and healthy." -ForegroundColor Green
             }
             minikube update-context 2>$null | Out-Null
+            kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             # `--addons=metrics-server` is only passed when Minikube starts.
             # Existing clusters therefore need an explicit, idempotent enable;
@@ -3246,6 +3247,7 @@ function Invoke-MinikubePlatform {
                 }
             }
             Write-Host "  [OK] Resource metrics API (v1beta1.metrics.k8s.io) is healthy and active." -ForegroundColor Green
+            kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             if ($BuildImages) {
                 Write-Host "`n🔨 [-Build] Building container images from Dockerfiles..." -ForegroundColor Yellow
@@ -3711,6 +3713,7 @@ stringData:
                 Write-Host "  [OK] Minikube is active and healthy." -ForegroundColor Green
             }
             minikube update-context 2>$null | Out-Null
+            kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             $hasDevNs = kubectl get namespace dev --no-headers 2>$null
             if (-not $hasDevNs) {
