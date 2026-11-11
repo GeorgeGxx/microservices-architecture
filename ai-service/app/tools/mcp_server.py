@@ -78,27 +78,32 @@ class EcommerceMCPServer:
 
     @classmethod
     async def _handle_get_order_details(cls, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        order_id = str(arguments.get("order_id", "")).strip().upper()
-        if not order_id:
+        raw_order_id = str(arguments.get("order_id", "")).strip()
+        order_id = raw_order_id.upper()
+        if not raw_order_id:
             return {"success": False, "error": "Order ID or tracking number is required."}
 
-        if httpx and order_id.startswith("ORD-"):
+        if httpx and raw_order_id:
             try:
-                numeric_id = order_id.replace("ORD-", "")
-                async with httpx.AsyncClient(timeout=0.3) as client:
-                    res = await client.get(f"{settings.ORDERS_SERVICE_URL}/api/order/{numeric_id}")
+                async with httpx.AsyncClient(timeout=0.8) as client:
+                    res = await client.get(f"{settings.ORDERS_SERVICE_URL}/api/order/tracking/{raw_order_id}")
                     if res.status_code == 200:
                         order_data = res.json()
+                        raw_items = order_data.get("orderItems", []) or []
+                        items = [
+                            {"sku": it.get("sku", ""), "name": it.get("sku", "Product"), "qty": it.get("quantity", 1), "price": it.get("price", 0.0)}
+                            for it in raw_items
+                        ]
                         return {
                             "success": True,
                             "source": "orders-service-live",
                             "data": {
-                                "order_id": f"ORD-{order_data.get('id', order_id)}",
+                                "order_id": order_data.get("orderNumber") or f"ORD-{order_data.get('id', order_id)}",
                                 "status": order_data.get("orderStatus", "Processing"),
-                                "carrier": order_data.get("carrier", DEFAULT_CARRIER),
-                                "tracking_number": order_data.get("trackingNumber", "DHL-88239104"),
+                                "carrier": order_data.get("carrier") or DEFAULT_CARRIER,
+                                "tracking_number": order_data.get("trackingNumber", "N/A"),
                                 "total": order_data.get("totalAmount", 0.0),
-                                "items": order_data.get("orderItems", [])
+                                "items": items
                             }
                         }
             except (httpx.HTTPError, OSError) as exc:

@@ -57,6 +57,11 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 
 def _extract_order_or_tracking_id(user_msg: str) -> Optional[str]:
+    # 0. UUID order format (e.g. 4c5a7ac3-5298-45c1-ba16-6d575e021563)
+    uuid_match = re.search(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b", user_msg)
+    if uuid_match:
+        return uuid_match.group(0).lower()
+
     # 1. Standard Order ID (e.g. ORD-1001)
     ord_match = re.search(r"\bORD-(\d+)\b", user_msg, re.IGNORECASE)
     if ord_match:

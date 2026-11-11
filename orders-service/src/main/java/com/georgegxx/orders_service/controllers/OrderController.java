@@ -79,6 +79,20 @@ public class OrderController {
         this.orderService.recordFunnelEvent(request);
     }
 
+    @Operation(summary = "Track order status", description = "Public tracking lookup by order UUID, tracking number, or numeric order ID")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Order found"),
+            @ApiResponse(responseCode = "404", description = "Order not found")
+    })
+    @GetMapping("/tracking/{identifier}")
+    public ResponseEntity<OrderResponse> trackOrder(
+            @Parameter(description = "Order UUID, carrier tracking code or order ID", required = true)
+            @PathVariable("identifier") String identifier) {
+        return this.orderService.trackOrder(identifier)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    }
+
     @Operation(summary = "Get orders", description = "Retrieves orders. Administrators view all system orders; standard users retrieve exclusively their personal orders.")
     @GetMapping
     @ResponseStatus(HttpStatus.OK)

@@ -78,6 +78,21 @@ async def test_order_support_node_known_tracking_dhl():
 
 
 @pytest.mark.asyncio
+async def test_order_support_node_uuid_order():
+    state = {
+        "messages": [HumanMessage(content="Where is order 4c5a7ac3-5298-45c1-ba16-6d575e021563?")],
+        "current_agent": "supervisor",
+        "hitl_pending": False,
+        "tool_calls": [],
+        "hitl_payload": None,
+        "final_output": None
+    }
+    res = await order_support_node(state)
+    assert res["current_agent"] == "order_support"
+    assert "4c5a7ac3-5298-45c1-ba16-6d575e021563" in res["final_output"]
+
+
+@pytest.mark.asyncio
 async def test_order_support_node_missing_order_id():
     state = {
         "messages": [HumanMessage(content="Can you track my package?")],

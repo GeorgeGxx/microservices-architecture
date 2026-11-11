@@ -648,4 +648,35 @@ class OrderServiceTest {
         orderService.handleSagaShipmentDispatched(null, null, null);
         orderService.handleSagaShipmentDelivered(null);
     }
+
+    @Test
+    void testTrackOrderVariations() {
+        Order sample = Order.builder()
+                .id(8L)
+                .orderNumber("4c5a7ac3-5298-45c1-ba16-6d575e021563")
+                .trackingNumber("FDX-D1D28072")
+                .carrier("FedEx")
+                .orderStatus(OrderStatus.DELIVERED)
+                .totalAmount(85.58)
+                .build();
+
+        when(orderRepository.findByOrderNumberOrTrackingNumberWithItems("FDX-D1D28072"))
+                .thenReturn(Optional.of(sample));
+        when(orderRepository.findByIdWithItems(8L))
+                .thenReturn(Optional.of(sample));
+
+        Optional<OrderResponse> byTracking = orderService.trackOrder("FDX-D1D28072");
+        assertTrue(byTracking.isPresent());
+        assertEquals("4c5a7ac3-5298-45c1-ba16-6d575e021563", byTracking.get().orderNumber());
+
+        Optional<OrderResponse> byId = orderService.trackOrder("ORD-8");
+        assertTrue(byId.isPresent());
+        assertEquals("FDX-D1D28072", byId.get().trackingNumber());
+
+        Optional<OrderResponse> byEmpty = orderService.trackOrder("");
+        assertFalse(byEmpty.isPresent());
+
+        Optional<OrderResponse> byUnknown = orderService.trackOrder("UNKNOWN-NOT-FOUND");
+        assertFalse(byUnknown.isPresent());
+    }
 }

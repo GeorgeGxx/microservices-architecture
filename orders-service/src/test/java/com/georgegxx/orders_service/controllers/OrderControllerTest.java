@@ -186,4 +186,29 @@ class OrderControllerTest {
         assertThatThrownBy(() -> orderController.placeOrderFallback(req, jwt, "key", wrappedState))
                 .isInstanceOf(IllegalStateException.class);
     }
+
+    @Test
+    @DisplayName("trackOrder should return 200 OK when order is found")
+    void testTrackOrderFound() {
+        OrderResponse resp = sampleResponse(8L, "4c5a7ac3-5298-45c1-ba16-6d575e021563");
+        when(orderService.trackOrder("FDX-D1D28072")).thenReturn(java.util.Optional.of(resp));
+
+        ResponseEntity<OrderResponse> response = orderController.trackOrder("FDX-D1D28072");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().orderNumber()).isEqualTo("4c5a7ac3-5298-45c1-ba16-6d575e021563");
+        verify(orderService).trackOrder("FDX-D1D28072");
+    }
+
+    @Test
+    @DisplayName("trackOrder should return 404 NOT FOUND when order does not exist")
+    void testTrackOrderNotFound() {
+        when(orderService.trackOrder("UNKNOWN-CODE")).thenReturn(java.util.Optional.empty());
+
+        ResponseEntity<OrderResponse> response = orderController.trackOrder("UNKNOWN-CODE");
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        verify(orderService).trackOrder("UNKNOWN-CODE");
+    }
 }
