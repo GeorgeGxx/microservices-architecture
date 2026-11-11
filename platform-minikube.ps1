@@ -48,9 +48,10 @@ param(
     [ValidateRange(1, 100)]
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
-    [int]$Cpus = 8,
+    [int]$Cpus = 12,
     [int]$MemoryMb = 16384,
     [string]$DiskSize = "40g",
+    [switch]$EnableGpu = $true,
     [string]$CosignImage = "",
     [string]$CosignKey = "",
     [switch]$CosignIgnoreTlog = $false,
@@ -1937,7 +1938,7 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
+if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 12 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
 if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $Command -notin @("up", "bootstrap", "apply", "start", "resume", "security-scan")) {
@@ -2013,7 +2014,7 @@ switch ($Command) {
     { $_ -in @("up", "bootstrap") } {
         if ($Platform -eq "minikube") {
             $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
-            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$Fast
+            Invoke-MinikubePlatform -SubCommand up -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -EnableGpu:$EnableGpu -FastResume:$Fast
         } else {
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction apply -Env $targetCloudEnv -AutoApproveSwitch:$AutoApprove -DataPlane $DataPlane
         }
@@ -2022,7 +2023,7 @@ switch ($Command) {
     { $_ -in @("start", "resume") } {
         if ($Platform -eq "minikube") {
             $tagToBuild = if ($ImageTag) { $ImageTag } else { "1.0.0" }
-            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -FastResume:$true
+            Invoke-MinikubePlatform -SubCommand start -BuildImages:$Build -WithMlops:$IncludeMlops -PushImages:$Push -PushOnlyImages:$PushOnly -TargetTag $tagToBuild -TargetService $Service -EnableIstioMesh:$enableIstio -DeployCanaryOption:$DeployCanary -CanaryImageTag $CanaryImageTag -BypassScans:$SkipScans -IgnoreCosignTransparencyLog:$CosignIgnoreTlog -ImageToVerify $CosignImage -PublicKeyPath $CosignKey -CpuCount $Cpus -RamMb $MemoryMb -DiskBudget $DiskSize -CanaryV1Weight $V1Weight -CanaryV2Weight $V2Weight -EnableGpu:$EnableGpu -FastResume:$true
         } else {
             throw "'$Command' is supported only for -Platform minikube to resume a paused local cluster."
         }
@@ -3044,18 +3045,19 @@ function Invoke-MinikubePlatform {
         [string]$ImageToVerify = "",
         [string]$PublicKeyPath = "",
         [switch]$FastResume = $false,
-        [int]$CpuCount = 8,
+        [int]$CpuCount = 12,
         [int]$RamMb = 16384,
         [string]$DiskBudget = "40g",
         [int]$CanaryV1Weight = 90,
         [int]$CanaryV2Weight = 10,
+        [switch]$EnableGpu = $true,
         [switch]$PurgeAll = $false
     )
 
     switch ($SubCommand) {
         "up" {
             if ($FastResume) {
-                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -FastResume:$true
+                Invoke-MinikubePlatform -SubCommand start -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -EnableGpu:$EnableGpu -FastResume:$true
                 return
             }
 
@@ -3178,8 +3180,37 @@ function Invoke-MinikubePlatform {
                         $effectiveRamMb = $adjustedRamMb
                     }
                 }
+                $hasNvidia = $false
+                if ($EnableGpu) {
+                    $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
+                }
+
+                $minikubeStartArgs = @(
+                    "start",
+                    "--cpus=$CpuCount",
+                    "--memory=$effectiveRamMb",
+                    "--disk-size=$DiskBudget",
+                    "--driver=docker",
+                    "--addons=metrics-server"
+                )
+
+                $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
+                $existingRuntime = $clusterProfile.Config.ContainerRuntime
+
+                if ($hasNvidia) {
+                    if (-not $clusterProfile) {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected. Initializing Minikube with GPU acceleration (--container-runtime=docker --gpus all)..." -ForegroundColor Cyan
+                        $minikubeStartArgs += @("--container-runtime=docker", "--gpus=all")
+                    } elseif ($existingRuntime -eq 'docker') {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected and Docker runtime active. Enabling GPU acceleration..." -ForegroundColor Cyan
+                        $minikubeStartArgs += @("--gpus=all")
+                    } else {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected. (Minikube uses containerd; GPU active in Docker Compose. To enable in Minikube, re-create with --container-runtime=docker --gpus all)." -ForegroundColor Yellow
+                    }
+                }
+
                 Write-Host "  ▶ Starting Minikube ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk, Ingress, Metrics-Server)..." -ForegroundColor White
-                minikube start --cpus=$CpuCount --memory=$effectiveRamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
+                & minikube $minikubeStartArgs
                 if ($LASTEXITCODE -ne 0) {
                     Write-Error "Failed to start Minikube. Verify Docker Desktop is active."
                 }
@@ -3614,8 +3645,37 @@ stringData:
                         $effectiveRamMb = $adjustedRamMb
                     }
                 }
+                $hasNvidia = $false
+                if ($EnableGpu) {
+                    $hasNvidia = [bool](Get-Command nvidia-smi -ErrorAction SilentlyContinue)
+                }
+
+                $minikubeStartArgs = @(
+                    "start",
+                    "--cpus=$CpuCount",
+                    "--memory=$effectiveRamMb",
+                    "--disk-size=$DiskBudget",
+                    "--driver=docker",
+                    "--addons=metrics-server"
+                )
+
+                $clusterProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid 2>$null | Where-Object { $_.Name -eq 'minikube' }
+                $existingRuntime = $clusterProfile.Config.ContainerRuntime
+
+                if ($hasNvidia) {
+                    if (-not $clusterProfile) {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected. Initializing Minikube with GPU acceleration (--container-runtime=docker --gpus all)..." -ForegroundColor Cyan
+                        $minikubeStartArgs += @("--container-runtime=docker", "--gpus=all")
+                    } elseif ($existingRuntime -eq 'docker') {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected and Docker runtime active. Enabling GPU acceleration..." -ForegroundColor Cyan
+                        $minikubeStartArgs += @("--gpus=all")
+                    } else {
+                        Write-Host "  [GPU] NVIDIA RTX GPU detected. (Minikube uses containerd; GPU active in Docker Compose. To enable in Minikube, re-create with --container-runtime=docker --gpus all)." -ForegroundColor Yellow
+                    }
+                }
+
                 Write-Host "  ▶ Resuming Minikube cluster ($CpuCount CPUs, $([math]::Round($effectiveRamMb / 1024, 1)) GB RAM, $DiskBudget Disk)..." -ForegroundColor White
-                minikube start --cpus=$CpuCount --memory=$effectiveRamMb --disk-size=$DiskBudget --driver=docker --addons=metrics-server
+                & minikube $minikubeStartArgs
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to start Minikube. Verify Docker Desktop is active."
                 }
@@ -3628,7 +3688,7 @@ stringData:
             if (-not $hasDevNs) {
                 Write-Host "  [WARN] 'dev' namespace not found. Cluster has not been initialized." -ForegroundColor Yellow
                 Write-Host "  ▶ Escalating to full bootstrap (up)..." -ForegroundColor Yellow
-                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight
+                Invoke-MinikubePlatform -SubCommand up -BuildImages:$BuildImages -WithMlops:$WithMlops -PushImages:$PushImages -PushOnlyImages:$PushOnlyImages -TargetTag $TargetTag -TargetService $TargetService -EnableIstioMesh:$EnableIstioMesh -DeployCanaryOption:$DeployCanaryOption -CanaryImageTag $CanaryImageTag -BypassScans:$BypassScans -IgnoreCosignTransparencyLog:$IgnoreCosignTransparencyLog -ImageToVerify $ImageToVerify -PublicKeyPath $PublicKeyPath -CpuCount $CpuCount -RamMb $RamMb -DiskBudget $DiskBudget -CanaryV1Weight $CanaryV1Weight -CanaryV2Weight $CanaryV2Weight -EnableGpu:$EnableGpu
                 return
             }
 

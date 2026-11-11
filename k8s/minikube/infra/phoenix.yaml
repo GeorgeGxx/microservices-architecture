@@ -2,7 +2,24 @@
 # Microservices Architecture - Arize Phoenix LLM Observability & Evals
 # Namespace: observability (with transparent dev bridge)
 # Port: 6006 (UI & OTLP Traces HTTP Collector)
+# Storage: PersistentVolumeClaim (phoenix-pvc)
 # ==============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: phoenix-pvc
+  namespace: observability
+  labels:
+    app: phoenix
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: observability
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -68,6 +85,8 @@ spec:
               value: "6006"
             - name: PHOENIX_HOST
               value: "0.0.0.0"
+            - name: PHOENIX_WORKING_DIR
+              value: "/data"
           ports:
             - name: http
               containerPort: 6006
@@ -101,3 +120,10 @@ spec:
             initialDelaySeconds: 10
             periodSeconds: 20
             timeoutSeconds: 3
+          volumeMounts:
+            - name: phoenix-storage
+              mountPath: /data
+      volumes:
+        - name: phoenix-storage
+          persistentVolumeClaim:
+            claimName: phoenix-pvc
