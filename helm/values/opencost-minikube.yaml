@@ -6,6 +6,34 @@ opencost:
   exporter:
     replicas: 1
     defaultClusterId: microservices-minikube-dev
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 1024Mi
+    livenessProbe:
+      enabled: true
+      path: /healthz
+      initialDelaySeconds: 20
+      periodSeconds: 15
+      timeoutSeconds: 5
+      failureThreshold: 5
+    readinessProbe:
+      enabled: true
+      path: /healthz
+      initialDelaySeconds: 20
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 5
+    startupProbe:
+      enabled: true
+      path: /healthz
+      initialDelaySeconds: 10
+      periodSeconds: 5
+      timeoutSeconds: 5
+      failureThreshold: 30
     extraVolumeMounts:
       - name: var-configs
         mountPath: /var/configs
