@@ -2,7 +2,24 @@
 # Microservices Architecture - Ollama Local LLM Inference Engine
 # Namespace: observability (with transparent dev bridge)
 # Port: 11434 (HTTP API & Model Inference)
+# Storage: PersistentVolumeClaim (ollama-pvc)
 # ==============================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: observability
+  labels:
+    app: ollama
+    app.kubernetes.io/part-of: devsecops-platform
+    environment: observability
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 15Gi
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -97,4 +114,5 @@ spec:
               mountPath: /root/.ollama
       volumes:
         - name: ollama-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: ollama-pvc
