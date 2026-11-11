@@ -7,6 +7,9 @@ from app.agents.nodes import (
     policy_faq_node,
     admin_ops_node,
     general_fallback_node,
+    _synthesize_product_recommendation,
+    _synthesize_policy_response,
+    _extract_order_or_tracking_id,
 )
 from app.models.llm_factory import LocalFallbackChatModel, get_chat_model
 from app.security import get_current_user, require_role
@@ -400,3 +403,117 @@ async def test_product_advisor_admin_role():
     res = await product_advisor_node(state)
     assert res["current_agent"] == "product_advisor"
     assert len(res["messages"]) > 0
+
+
+def test_supervisor_router_node_empty_messages():
+    res = supervisor_router_node({"messages": []})
+    assert res["detected_intent"] == "general"
+
+
+def test_synthesize_product_recommendation_empty():
+    res = _synthesize_product_recommendation([], "laptop", "customer")
+    assert "could not find a specific match" in res
+
+
+def test_synthesize_product_recommendation_admin():
+    items = [
+        {
+            "content": "Product: MacBook Pro 16\nDescription: M3 Max 36GB\nTags: laptop, apple",
+            "metadata": {"title": "MacBook Pro 16", "price": 2499.00, "sku": "PROD-MBP16", "category": "Laptops"}
+        }
+    ]
+    res = _synthesize_product_recommendation(items, "MacBook", "admin")
+    assert "Enterprise Operations & Catalog Breakdown" in res
+    assert "Projected Margin" in res
+    assert "PROD-MBP16" in res
+    assert "25 units per fulfillment center" in res
+
+
+def test_synthesize_product_recommendation_customer():
+    items = [
+        {
+            "content": "Product: MacBook Air 15\nDescription: Ultra-fast M3 chip\nTags: laptop",
+            "metadata": {"title": "MacBook Air 15", "price": 1299.00, "rating": 4.9, "category": "Laptops"}
+        }
+    ]
+    res = _synthesize_product_recommendation(items, "MacBook", "customer")
+    assert "top recommendations" in res
+    assert "MacBook Air 15" in res
+    assert "$1299.00 USD" in res
+    assert "Ultra-fast M3 chip" in res
+
+
+def test_synthesize_policy_response():
+    res_empty = _synthesize_policy_response([])
+    assert "30-day return window" in res_empty
+
+    policies = [{"content": "## Return Policy\nReturns accepted within 30 days."}]
+    res_full = _synthesize_policy_response(policies)
+    assert "AuraCommerce Store Policies" in res_full
+    assert "Returns accepted within 30 days." in res_full
+
+
+@pytest.mark.asyncio
+async def test_product_advisor_node_fallback(monkeypatch):
+    class MockFailingLLM:
+        async def ainvoke(self, *args, **kwargs):
+            raise TimeoutError("Simulated LLM latency timeout")
+
+    monkeypatch.setattr("app.agents.nodes.get_chat_model", lambda *args, **kwargs: MockFailingLLM())
+
+    state = {
+        "messages": [HumanMessage(content="Recommend a laptop for design")],
+        "user_role": "customer"
+    }
+    res = await product_advisor_node(state)
+    assert res["current_agent"] == "product_advisor"
+    assert "top recommendations" in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_policy_faq_node_fallback(monkeypatch):
+    class MockFailingLLM:
+        async def ainvoke(self, *args, **kwargs):
+            raise TimeoutError("Simulated LLM latency timeout")
+
+    monkeypatch.setattr("app.agents.nodes.get_chat_model", lambda *args, **kwargs: MockFailingLLM())
+
+    state = {
+        "messages": [HumanMessage(content="What is your return policy?")],
+        "user_role": "customer"
+    }
+    res = await policy_faq_node(state)
+    assert res["current_agent"] == "policy_faq"
+    assert "AuraCommerce Store Policies" in res["final_output"] or "30-day" in res["final_output"]
+
+
+@pytest.mark.asyncio
+async def test_general_fallback_node_fallbacks(monkeypatch):
+    class MockFailingLLM:
+        async def ainvoke(self, *args, **kwargs):
+            raise RuntimeError("Simulated LLM failure")
+
+    monkeypatch.setattr("app.agents.nodes.get_chat_model", lambda *args, **kwargs: MockFailingLLM())
+
+    # Customer fallback
+    res_cust = await general_fallback_node({
+        "messages": [HumanMessage(content="Hello assistant")],
+        "user_role": "customer",
+        "username": "shopper"
+    })
+    assert "AuraCommerce Shopping Copilot" in res_cust["final_output"]
+
+    # Admin fallback
+    res_adm = await general_fallback_node({
+        "messages": [HumanMessage(content="Hello supervisor")],
+        "user_role": "admin",
+        "username": "admin_jorge"
+    })
+    assert "AuraCommerce Admin Copilot" in res_adm["final_output"]
+    assert "admin_jorge" in res_adm["final_output"]
+
+
+def test_extract_order_or_tracking_id_patterns():
+    assert _extract_order_or_tracking_id("status of tracking FDX-D1D28072") == "FDX-D1D28072"
+    assert _extract_order_or_tracking_id("status of pedido #1001") == "ORD-1001"
+    assert _extract_order_or_tracking_id("tracking my status") is None

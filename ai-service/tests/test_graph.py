@@ -1,6 +1,7 @@
 import pytest
 from langchain_core.messages import HumanMessage
 from app.agents.nodes import supervisor_router_node
+from app.agents.graph import route_decision, ecommerce_agent_app
 from app.tools.mcp_server import EcommerceMCPServer
 
 
@@ -54,3 +55,26 @@ async def test_hitl_refund_threshold_triggers():
     })
     assert res_low["data"]["requires_approval"] is False
     assert res_low["data"]["status"] == "AUTO_APPROVED"
+
+
+def test_route_decision_branches():
+    assert route_decision({"detected_intent": "catalog"}) == "product_advisor"
+    assert route_decision({"detected_intent": "order_support"}) == "order_support"
+    assert route_decision({"detected_intent": "policy_faq"}) == "policy_faq"
+    assert route_decision({"detected_intent": "admin_ops"}) == "admin_ops"
+    assert route_decision({"detected_intent": "unknown_intent"}) == "general_fallback"
+    assert route_decision({}) == "general_fallback"
+
+
+@pytest.mark.asyncio
+async def test_ecommerce_agent_app_compiled():
+    assert ecommerce_agent_app is not None
+    config = {"configurable": {"thread_id": "test-graph-compiled"}}
+    res = await ecommerce_agent_app.ainvoke({
+        "messages": [HumanMessage(content="Hello AI")],
+        "user_role": "customer",
+        "username": "user1"
+    }, config=config)
+    assert res is not None
+    assert "messages" in res
+    assert res.get("final_output") is not None
