@@ -3712,8 +3712,18 @@ stringData:
                 @{ Ns = "dev"; App = "ai-service"; Name = "AI Copilot Microservice" }
             )
             foreach ($item in $criticalWorkloads) {
-                & kubectl wait --namespace $($item.Ns) --for=condition=ready pod -l app=$($item.App) --timeout=60s 2>$null | Out-Null
-                if ($LASTEXITCODE -ne 0) {
+                $timeoutSec = if ($item.App -eq "keycloak") { 240 } else { 90 }
+                $isReady = $false
+                $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+                while ($stopwatch.Elapsed.TotalSeconds -lt $timeoutSec) {
+                    $readyCount = @((kubectl get pods --namespace $($item.Ns) -l app=$($item.App) -o json 2>$null | ConvertFrom-Json).items | Where-Object { ($_.status.conditions | Where-Object { $_.type -eq 'Ready' }).status -eq 'True' }).Count
+                    if ($readyCount -ge 1) {
+                        $isReady = $true
+                        break
+                    }
+                    Start-Sleep -Seconds 2
+                }
+                if (-not $isReady) {
                     throw "Timed out waiting for '$($item.Name)' to become Ready in namespace '$($item.Ns)'."
                 }
             }
