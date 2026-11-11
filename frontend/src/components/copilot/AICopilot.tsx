@@ -36,7 +36,7 @@ export const AICopilot: React.FC = () => {
       sender: 'agent',
       content: user?.isAdmin
         ? `Welcome, Administrator **${user.username}**! 🛡️\n\nAI Copilot is operating in **Admin Mode** with elevated privileges.\n- 📊 **Federated Metrics & Subgraphs Health**\n- ⚡ **Real-Time Supervisor HITL Decision Gates**\n- 📦 **Global Order Audit by UUID & Carrier**\n- 📈 **Demand Forecasting & Inventory Safety Stock**`
-        : 'Hello! I am your AI Shopping Copilot powered by **LangGraph** and **MCP** tools.\n\nI can help you with:\n- 📦 **DHL Tracking** (e.g. `ORD-1001` or `1`)\n- 🔍 **Product Catalog Recommendations via RAG**\n- 🛡️ **Store Return & Warranty Policies**\n- 💰 **Automated & Supervisor-Approved Refunds**',
+        : 'Hello! I am your AI Shopping Copilot powered by **LangGraph** and **MCP** tools.\n\nI can help you with:\n- 📦 **Order & Shipment Tracking** (by Order UUID, ID, or Carrier code)\n- 🔍 **Product Catalog Recommendations via RAG**\n- 🛡️ **Store Return & Warranty Policies**\n- 💰 **Automated & Supervisor-Approved Refunds**',
       agentName: user?.isAdmin ? 'Enterprise Supervisor Router' : 'Supervisor Router',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -156,16 +156,16 @@ export const AICopilot: React.FC = () => {
 
   const samplePrompts = user?.isAdmin
     ? [
-        { label: '📊 System Status', prompt: 'Audit federated microservices health and telemetry status.' },
-        { label: '⚡ Review Refund (HITL)', prompt: 'I want to review and process refund for order ORD-1002 in amount of $120.00 USD.' },
-        { label: '📦 Admin Track UUID', prompt: 'Audit status of order 4c5a7ac3-5298-45c1-ba16-6d575e021563' },
+        { label: '📊 Supergraph Audit', prompt: 'Audit federated microservices health and telemetry status.' },
+        { label: '⚡ Review Refunds', prompt: 'I want to review and process pending refund tickets (HITL).' },
+        { label: '📦 Order UUID Audit', prompt: 'Audit status of order 4c5a7ac3-5298-45c1-ba16-6d575e021563' },
         { label: '📈 Demand Forecast', prompt: 'Recommend high-performance laptops and check inventory safety stock requirements.' }
       ]
     : [
-        { label: '📦 Track DHL ORD-1001', prompt: 'What is the shipping status of my order ORD-1001?' },
+        { label: '📦 Track Shipment', prompt: 'What is the shipping status of my order?' },
         { label: '💻 Recommend Laptop', prompt: 'Recommend a high-performance laptop for software development and design.' },
-        { label: '⚠️ Request Refund', prompt: 'I would like to request a refund of $120.00 USD for order ORD-1002.' },
-        { label: '📜 Return Policies', prompt: 'What are the return, warranty, and refund policies of the store?' }
+        { label: '🛡️ Return Policies', prompt: 'What are the return, warranty, and refund policies of the store?' },
+        { label: '💳 Request Refund', prompt: 'I would like to request a refund for an order.' }
       ];
 
   return (
@@ -258,20 +258,28 @@ export const AICopilot: React.FC = () => {
           </div>
 
           {/* Quick suggestions */}
-          <div className="px-3 py-1.5 border-b border-slate-800/60 bg-slate-900/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none text-xs">
-            <span className="text-slate-500 flex items-center gap-1 shrink-0 text-[10px]">
-              <Sparkles className="h-2.5 w-2.5 text-indigo-400" /> Prompts:
-            </span>
-            {samplePrompts.map((sp) => (
-              <button
-                key={sp.label}
-                onClick={() => void handleSendMessage(sp.prompt)}
-                disabled={isLoading}
-                className="whitespace-nowrap px-2 py-0.5 rounded-full bg-slate-800/80 hover:bg-slate-700 border border-slate-700/60 text-slate-300 hover:text-white transition text-[10px] disabled:opacity-40"
-              >
-                {sp.label}
-              </button>
-            ))}
+          <div className="p-2 border-b border-slate-800/60 bg-slate-900/50">
+            <div className="flex items-center justify-between mb-1.5 px-0.5">
+              <span className="text-slate-400 flex items-center gap-1 text-[10px] font-medium">
+                <Sparkles className="h-2.5 w-2.5 text-indigo-400" /> Quick Prompts
+              </span>
+              <span className="text-[9px] text-slate-500 font-mono">
+                {user?.isAdmin ? 'Operator Actions' : 'Suggestions'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {samplePrompts.map((sp) => (
+                <button
+                  key={sp.label}
+                  onClick={() => void handleSendMessage(sp.prompt)}
+                  disabled={isLoading}
+                  className="w-full text-left truncate px-2 py-1.5 rounded-lg bg-slate-800/70 hover:bg-slate-700/90 border border-slate-700/60 text-slate-300 hover:text-white transition-colors text-[10px] font-medium disabled:opacity-40"
+                  title={sp.prompt}
+                >
+                  {sp.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Message List */}
