@@ -7,6 +7,7 @@ from app.agents.nodes import (
     product_advisor_node,
     order_support_node,
     policy_faq_node,
+    admin_ops_node,
     general_fallback_node,
 )
 
@@ -19,6 +20,8 @@ def route_decision(state: EcommerceAgentState) -> str:
         return "order_support"
     elif intent == "policy_faq":
         return "policy_faq"
+    elif intent == "admin_ops":
+        return "admin_ops"
     return "general_fallback"
 
 
@@ -29,6 +32,7 @@ def create_ecommerce_graph():
     workflow.add_node("product_advisor", product_advisor_node)
     workflow.add_node("order_support", order_support_node)
     workflow.add_node("policy_faq", policy_faq_node)
+    workflow.add_node("admin_ops", admin_ops_node)
     workflow.add_node("general_fallback", general_fallback_node)
 
     workflow.set_entry_point("supervisor")
@@ -40,6 +44,7 @@ def create_ecommerce_graph():
             "product_advisor": "product_advisor",
             "order_support": "order_support",
             "policy_faq": "policy_faq",
+            "admin_ops": "admin_ops",
             "general_fallback": "general_fallback"
         }
     )
@@ -47,6 +52,7 @@ def create_ecommerce_graph():
     workflow.add_edge("product_advisor", END)
     workflow.add_edge("order_support", END)
     workflow.add_edge("policy_faq", END)
+    workflow.add_edge("admin_ops", END)
     workflow.add_edge("general_fallback", END)
 
     checkpointer = MemorySaver()

@@ -11,6 +11,8 @@ class EcommerceAgentState(TypedDict):
     messages: Annotated[List[BaseMessage], add_messages]
     current_agent: str
     detected_intent: Optional[str]
+    user_role: Optional[str]
+    username: Optional[str]
     tool_calls: Optional[List[Dict[str, Any]]]
     hitl_pending: bool
     hitl_payload: Optional[Dict[str, Any]]

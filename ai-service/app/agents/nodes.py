@@ -15,8 +15,11 @@ def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
         return {"current_agent": "supervisor", "detected_intent": "general"}
 
     last_user_msg = messages[-1].content.lower()
+    user_role = state.get("user_role", "customer")
 
-    if any(k in last_user_msg for k in ["order", "ord-", "tracking", "track", "shipment", "carrier", "refund", "devoluc", "reembolso", "paquete", "dhl"]):
+    if user_role == "admin" and any(k in last_user_msg for k in ["admin", "telemetry", "metric", "forecast", "pronostico", "stock global", "inventario global", "hitl", "supervis", "microservice", "health", "system", "audit"]):
+        intent = "admin_ops"
+    elif any(k in last_user_msg for k in ["order", "ord-", "tracking", "track", "shipment", "carrier", "refund", "devoluc", "reembolso", "paquete", "dhl"]):
         intent = "order_support"
     elif any(k in last_user_msg for k in ["recommend", "laptop", "headphone", "mouse", "shoes", "precio", "catalogo", "catalog", "buy", "comprar", "suger"]):
         intent = "catalog"
@@ -34,17 +37,28 @@ def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
 async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     query = messages[-1].content if messages else ""
+    user_role = state.get("user_role", "customer")
 
     retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
     context_str = "\n\n".join([doc["content"] for doc in retrieved_items]) if retrieved_items else "No specific catalog item matched."
 
-    prompt = (
-        "You are the AuraCommerce Product Specialist Advisor integrated with the products microservice. "
-        "Use the following products retrieved from our knowledge base:\n"
-        f"{context_str}\n\n"
-        f"Customer inquiry: {query}\n\n"
-        "Provide a clear, engaging recommendation highlighting key specifications, price, and customer benefits in English."
-    )
+    if user_role == "admin":
+        prompt = (
+            "You are the AuraCommerce Enterprise Operations Advisor assisting a store Administrator. "
+            "Use the following catalog items:\n"
+            f"{context_str}\n\n"
+            f"Admin inquiry: {query}\n\n"
+            "Provide an operational breakdown in English highlighting key specifications, retail price, "
+            "estimated margin (~30%), safety stock requirements, and fulfillment guidance."
+        )
+    else:
+        prompt = (
+            "You are the AuraCommerce Product Specialist Advisor integrated with the products microservice. "
+            "Use the following products retrieved from our knowledge base:\n"
+            f"{context_str}\n\n"
+            f"Customer inquiry: {query}\n\n"
+            "Provide a clear, engaging recommendation highlighting key specifications, price, and customer benefits in English."
+        )
 
     llm = get_chat_model(temperature=0.3)
     response = await llm.ainvoke([SystemMessage(content=prompt), HumanMessage(content=query)])
@@ -87,21 +101,36 @@ def _extract_order_or_tracking_id(user_msg: str) -> Optional[str]:
     return None
 
 
-def _format_order_status_reply(data: Dict[str, Any]) -> str:
+def _format_order_status_reply(data: Dict[str, Any], user_role: str = "customer", username: str = "guest") -> str:
     items_summary = ", ".join([f"{it['name']} (x{it['qty']})" for it in data.get("items", [])]) if data.get("items") else "Standard catalog items"
     carrier_label = data.get("carrier", "Carrier")
-    return (
+    reply = (
         f"📦 **Order Status for {data['order_id']}**:\n"
         f"- **Status:** {data['status']}\n"
         f"- **Carrier:** {carrier_label}\n"
         f"- **Tracking Number:** `{data['tracking_number']}`\n"
         f"- **Items:** {items_summary}\n"
-        f"- **Total:** ${data.get('total', 0.0):.2f} USD\n\n"
-        f"Do you need additional assistance with this shipment or wish to initiate an exchange?"
+        f"- **Total:** ${data.get('total', 0.0):.2f} USD\n"
     )
+    if user_role == "admin":
+        reply += (
+            f"- **Admin Audit:** Verified via Federated Orders Subgraph | Auditor: `{username}`\n"
+            f"- **Fulfillment Pipeline:** Ready for dispatch / Carrier API synchronized\n\n"
+            f"Supervisor controls: You can issue adjustments, trigger refunds, or audit traces."
+        )
+    else:
+        reply += (
+            f"\nDo you need additional assistance with this shipment or wish to initiate an exchange?"
+        )
+    return reply
 
 
-async def _handle_refund_flow(order_id: Optional[str], user_msg: str) -> Dict[str, Any]:
+async def _handle_refund_flow(
+    order_id: Optional[str],
+    user_msg: str,
+    user_role: str = "customer",
+    username: str = "guest"
+) -> Dict[str, Any]:
     if not order_id:
         reply_text = (
             "To process a refund or return request, please provide your **Order ID** (e.g., `ORD-1001` or `ORD-1002`)."
@@ -131,11 +160,18 @@ async def _handle_refund_flow(order_id: Optional[str], user_msg: str) -> Dict[st
     })
 
     if amount > settings.REFUND_AUTO_APPROVE_LIMIT:
-        reply_text = (
-            f"We have registered your refund request for order **{resolved_order_id}** in the amount of **${amount:.2f} USD**.\n\n"
-            f"⚠️ **Attention:** In accordance with store security policies, refunds exceeding ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD "
-            f"require authorization from a human supervisor. Your request has been routed to the real-time supervisor approval queue."
-        )
+        if user_role == "admin":
+            reply_text = (
+                f"⚡ **Supervisor Decision Gate (Admin User: `{username}`)**:\n\n"
+                f"Order **{resolved_order_id}** has a pending refund request for **${amount:.2f} USD** awaiting authorization.\n"
+                f"As an authorized store administrator, you can directly **Approve** or **Deny** this transaction using the decision gate below:"
+            )
+        else:
+            reply_text = (
+                f"We have registered your refund request for order **{resolved_order_id}** in the amount of **${amount:.2f} USD**.\n\n"
+                f"⚠️ **Attention:** In accordance with store security policies, refunds exceeding ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD "
+                f"require authorization from a human supervisor. Your request has been routed to the real-time supervisor approval queue."
+            )
         return {
             "messages": [AIMessage(content=reply_text)],
             "current_agent": "order_support",
@@ -159,12 +195,14 @@ async def _handle_refund_flow(order_id: Optional[str], user_msg: str) -> Dict[st
 async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
     messages = state.get("messages", [])
     user_msg = messages[-1].content if messages else ""
+    user_role = state.get("user_role", "customer")
+    username = state.get("username", "guest")
 
     order_id = _extract_order_or_tracking_id(user_msg)
     is_refund = any(w in user_msg.lower() for w in ["refund", "reembolso", "devolver", "return", "cancel"])
 
     if is_refund:
-        return await _handle_refund_flow(order_id, user_msg)
+        return await _handle_refund_flow(order_id, user_msg, user_role=user_role, username=username)
 
     # Order details lookup
     if not order_id:
@@ -181,7 +219,7 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
     tool_result = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": order_id})
     if tool_result.get("success"):
-        reply_text = _format_order_status_reply(tool_result["data"])
+        reply_text = _format_order_status_reply(tool_result["data"], user_role=user_role, username=username)
     else:
         reply_text = (
             f"🔍 **Shipment / Order Lookup**:\n"
@@ -194,6 +232,23 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
         "current_agent": "order_support",
         "hitl_pending": False,
         "final_output": reply_text
+    }
+
+
+async def admin_ops_node(state: EcommerceAgentState) -> Dict[str, Any]:
+    username = state.get("username", "admin")
+    reply = (
+        f"🛡️ **Admin Operations Portal (User: `{username}`)**:\n\n"
+        f"• **Federated Supergraph**: Cosmo Router v2, Products, Orders, Inventory, Payments & Fulfillment active.\n"
+        f"• **Demand Forecasting**: Integrated with MLflow & Prophet (`/api/forecast/preview`).\n"
+        f"• **Observability**: OpenTelemetry distributed tracing active on Alloy & Tempo (`:3200`).\n"
+        f"• **Supervisor HITL Gate**: StateGraph approval gates active for refunds > ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD.\n\n"
+        f"Supervisor commands: Query inventory alerts, inspect order UUIDs, or review pending refund tickets."
+    )
+    return {
+        "messages": [AIMessage(content=reply)],
+        "current_agent": "admin_operations",
+        "final_output": reply
     }
 
 
