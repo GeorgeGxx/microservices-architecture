@@ -13,6 +13,11 @@ async def test_health_endpoint():
         assert "layers" in data
         assert "microservices_links" in data["layers"]
 
+        # Also verify /health root alias
+        res_root = await client.get("/health")
+        assert res_root.status_code == 200
+        assert res_root.json()["status"] == "healthy"
+
 
 @pytest.mark.asyncio
 async def test_metrics_endpoint():

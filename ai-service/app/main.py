@@ -86,6 +86,7 @@ class HITLApprovalRequest(BaseModel):
     supervisor_notes: Optional[str] = "Approved by store supervisor"
 
 
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
     return {
