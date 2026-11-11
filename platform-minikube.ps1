@@ -3202,6 +3202,17 @@ function Invoke-MinikubePlatform {
                     "--extra-config=kubelet.housekeeping-interval=10s"
                 )
 
+                # Minikube cannot switch the container runtime of an existing profile.
+                # Legacy profiles created with the Docker runtime (GPU passthrough era) are
+                # resumed as-is and the operator is told how to migrate to containerd.
+                $existingProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'minikube' }
+                $existingRuntime = if ($existingProfile) { $existingProfile.Config.KubernetesConfig.ContainerRuntime } else { $null }
+                if ($existingRuntime -and $existingRuntime -ne 'containerd') {
+                    $minikubeStartArgs = @($minikubeStartArgs | Where-Object { $_ -ne "--container-runtime=containerd" })
+                    Write-Host "  [WARN] Existing Minikube profile uses the '$existingRuntime' runtime (legacy Docker-in-Docker, prone to kubelet I/O timeouts)." -ForegroundColor Yellow
+                    Write-Host "  [WARN] Migrate to containerd: .\platform-minikube.ps1 down -Destroy ; .\platform-minikube.ps1 up" -ForegroundColor Yellow
+                }
+
                 if ($hasNvidia) {
                     Write-Host "  [GPU] Host NVIDIA GPU detected. Minikube operates with high-performance native containerd runtime." -ForegroundColor Cyan
                     Write-Host "  [GPU] GPU acceleration is dedicated to Docker Compose / Host Ollama (http://localhost:11434)." -ForegroundColor Cyan
@@ -3676,6 +3687,17 @@ stringData:
                     "--addons=metrics-server",
                     "--extra-config=kubelet.housekeeping-interval=10s"
                 )
+
+                # Minikube cannot switch the container runtime of an existing profile.
+                # Legacy profiles created with the Docker runtime (GPU passthrough era) are
+                # resumed as-is and the operator is told how to migrate to containerd.
+                $existingProfile = minikube profile list -o json 2>$null | ConvertFrom-Json | Select-Object -ExpandProperty valid -ErrorAction SilentlyContinue | Where-Object { $_.Name -eq 'minikube' }
+                $existingRuntime = if ($existingProfile) { $existingProfile.Config.KubernetesConfig.ContainerRuntime } else { $null }
+                if ($existingRuntime -and $existingRuntime -ne 'containerd') {
+                    $minikubeStartArgs = @($minikubeStartArgs | Where-Object { $_ -ne "--container-runtime=containerd" })
+                    Write-Host "  [WARN] Existing Minikube profile uses the '$existingRuntime' runtime (legacy Docker-in-Docker, prone to kubelet I/O timeouts)." -ForegroundColor Yellow
+                    Write-Host "  [WARN] Migrate to containerd: .\platform-minikube.ps1 down -Destroy ; .\platform-minikube.ps1 up" -ForegroundColor Yellow
+                }
 
                 if ($hasNvidia) {
                     Write-Host "  [GPU] Host NVIDIA GPU detected. Minikube operates with high-performance native containerd runtime." -ForegroundColor Cyan
