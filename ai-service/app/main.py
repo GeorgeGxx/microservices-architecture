@@ -11,7 +11,7 @@ from langchain_core.messages import HumanMessage
 
 from app.config import settings
 from app.rag.ingest import ingest_all
-from app.observability.telemetry import setup_observability, flush_telemetry
+from app.observability.telemetry import setup_observability, emit_startup_trace, flush_telemetry
 from app.observability.evals import run_evaluations
 from app.agents.graph import ecommerce_agent_app
 from app.tools.mcp_server import EcommerceMCPServer, MCP_TOOLS_MANIFEST
@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
     logger.info("[%s] Starting AI Copilot Service on port %s...", settings.APP_NAME, settings.PORT)
     ingest_all()
     setup_observability()
+    emit_startup_trace()
     if settings.LLM_PROVIDER == "ollama":
         task = asyncio.create_task(ensure_ollama_model_installed(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL))
         background_tasks.add(task)
