@@ -305,7 +305,7 @@ resource "helm_release" "keda" {
     },
     {
       name  = "operator.resources.limits.memory"
-      value = "256Mi"
+      value = "384Mi"
     },
     {
       name  = "metricsServer.resources.requests.cpu"
@@ -321,7 +321,7 @@ resource "helm_release" "keda" {
     },
     {
       name  = "metricsServer.resources.limits.memory"
-      value = "256Mi"
+      value = "384Mi"
     }
   ]
 }

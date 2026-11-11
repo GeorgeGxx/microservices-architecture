@@ -60,10 +60,10 @@ controller:
   resources:
     requests:
       cpu: 100m
-      memory: 128Mi
+      memory: 256Mi
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 1024Mi
   metrics:
     enabled: true
     serviceMonitor:
@@ -77,6 +77,16 @@ server:
   service:
     type: NodePort
     nodePortHttp: 30088
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 5
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
   resources:
     requests:
       cpu: 100m
@@ -93,6 +103,16 @@ server:
 
 repoServer:
   replicas: 1
+  readinessProbe:
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 5
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
   resources:
     requests:
       cpu: 100m
