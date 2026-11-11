@@ -103,8 +103,7 @@ def _synthesize_product_recommendation(
     return "\n".join(lines)
 
 
-def _synthesize_policy_response(retrieved_policies: List[Dict[str, Any]], query: str) -> str:
-    del query  # Policy reply synthesizes the retrieved policy articles directly
+def _synthesize_policy_response(retrieved_policies: List[Dict[str, Any]], _query: Optional[str] = None) -> str:
     if not retrieved_policies:
         return (
             "🛡️ **AuraCommerce Store Policy**:\n\n"
@@ -213,7 +212,7 @@ def _format_order_status_reply(data: Dict[str, Any], user_role: str = "customer"
         )
     else:
         reply += (
-            f"\nDo you need additional assistance with this shipment or wish to initiate an exchange?"
+            "\nDo you need additional assistance with this shipment or wish to initiate an exchange?"
         )
     return reply
 
@@ -329,6 +328,7 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 
 async def admin_ops_node(state: EcommerceAgentState) -> Dict[str, Any]:
+    await asyncio.sleep(0)
     username = state.get("username", "admin")
     reply = (
         f"🛡️ **Admin Operations Portal (User: `{username}`)**:\n\n"
@@ -401,12 +401,12 @@ async def general_fallback_node(state: EcommerceAgentState) -> Dict[str, Any]:
             )
         else:
             reply_content = (
-                f"Hello! I am your **AuraCommerce Shopping Copilot**.\n\n"
-                f"How can I assist you today?\n"
-                f"- 📦 **Order & Shipment Tracking**: Inquire about any order ID, UUID, or carrier tracking number.\n"
-                f"- 🔍 **Product Recommendations**: Ask for laptops, accessories, monitors, or deals.\n"
-                f"- 🛡️ **Return & Warranty**: Check our 30-day return policies and warranty guarantees.\n"
-                f"- 💰 **Refund Processing**: Request instant refunds or supervisor authorization."
+                "Hello! I am your **AuraCommerce Shopping Copilot**.\n\n"
+                "How can I assist you today?\n"
+                "- 📦 **Order & Shipment Tracking**: Inquire about any order ID, UUID, or carrier tracking number.\n"
+                "- 🔍 **Product Recommendations**: Ask for laptops, accessories, monitors, or deals.\n"
+                "- 🛡️ **Return & Warranty**: Check our 30-day return policies and warranty guarantees.\n"
+                "- 💰 **Refund Processing**: Request instant refunds or supervisor authorization."
             )
 
     return {

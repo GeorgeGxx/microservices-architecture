@@ -25,7 +25,6 @@ class LocalFallbackChatModel(BaseChatModel):
         run_manager: Any = None,
         **kwargs: Any,
     ) -> ChatResult:
-        del stop, run_manager, kwargs  # Unused parameters in fallback engine
         last_msg = ""
         if messages:
             content = messages[-1].content
