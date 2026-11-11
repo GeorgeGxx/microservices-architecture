@@ -14,7 +14,8 @@
 | Component | Minimum Specification | Recommended Specification | Architectural Justification |
 | :--- | :--- | :--- | :--- |
 | **Operating System** | Windows 10/11 64-bit Pro / Enterprise | Windows 11 (64-bit) or Ubuntu 22.04+ LTS | PowerShell 7+ (`pwsh`) host environment and Docker Desktop / WSL2 integration. |
-| **CPU Allocation** | 6 Physical Cores (8 vCPUs) | 8+ Physical Cores (16 vCPUs) | Minikube VM allocates 8 vCPUs to support ~20+ microservices, Kafka, Redis, and Istio sidecars. |
+| **CPU Allocation** | 6 Physical Cores (8 vCPUs) | 8+ Physical Cores (16 vCPUs) | Minikube VM allocates 12 vCPUs (`-Cpus 12`) to effortlessly support ~25+ microservices, AI Copilot, Ollama GPU, Kafka KRaft, Redis 8, and Istio sidecars without CPU throttling. |
+| **GPU Acceleration** | None (CPU Fallback) | NVIDIA RTX Dedicated (8GB VRAM) | NVIDIA RTX 3070 Laptop GPU pass-through (`--gpus=all` / CUDA 13.5) for local LLM inference via Ollama at 45+ tokens/sec. |
 | **RAM (Memory)** | 16 GB Total Host RAM | 32 GB Total Host RAM | Docker Desktop reserves ~20 GiB; Minikube provisions 16 GiB for stable multi-service operation. |
 | **Storage (Disk)** | 40 GB Free SSD Space | 80+ GB NVMe SSD | Container image layers, Minikube VM disk, Kafka log segments, and persistent volumes. |
 | **Virtualization** | Hardware Virtualization Enabled | VT-x / AMD-V + WSL2 / Hyper-V Backend | Required for Docker Desktop container engine and Minikube hypervisor driver. |
@@ -69,7 +70,9 @@ You can audit and automatically install all missing developer tools with a singl
 
 ### 4. Local Resource Profile & Memory Sizing Considerations
 
-- **Host Allocation:** Reserve ~20 GiB for Docker Desktop and use Minikube settings of 8 CPUs, 16 GiB RAM, and 40 GB disk. This leaves headroom for background daemons and image caches while running the full stack (~20+ containers across microservices, datastores, MLOps, and observability).
+- **Host Allocation:** Reserve ~20-24 GiB for Docker Desktop and use Minikube settings of 12 CPUs (`-Cpus 12`), 16-20 GiB RAM, and 40 GB disk. This provides an expansive SRE scaling budget (6.2 cores available for KEDA burst auto-scaling) while running the complete stack (~25+ containers across microservices, datastores, MLOps, AI Copilot, Ollama, and full LGTM observability).
+- **GPU Hardware Acceleration:** When an NVIDIA GPU is present (e.g. NVIDIA GeForce RTX 3070 8GB), `platform-minikube.ps1` and `compose.yaml` configure dedicated GPU pass-through (`--gpus=all`) to enable ultra-fast local LLM inference.
+- **Persistent Storage (PVCs):** Arize Phoenix (`phoenix-pvc` 5Gi) and Ollama (`ollama-pvc` 15Gi) utilize persistent volumes on Minikube's `standard` StorageClass, eliminating trace loss and 4.7 GB model re-downloads across pod restarts.
 - **Fulfillment toolchain:** Fulfillment is pinned to Node.js 24.15, NestJS 12.2.0, TypeScript 7.0.2, and TypeORM 1.1.2. TypeORM 1.1.2 requires Node >=24.11. The Compose/Docker build uses `FULFILLMENT_NODE_VERSION` (default `24.15-alpine`); local development should use Node >=24.11. TypeScript 7.0 currently exposes the compiler CLI but not the compiler API required by Nest CLI, so `npm run build` invokes `tsc` directly, `npm run start:dev` uses `tsx`, and Jest uses SWC with Node's ESM test runner.
 - **Fulfillment runtime image:** The image upgrades Alpine packages during build and uses npm 12.2.1 to install the locked production dependencies; npm, npx, and the npm cache are removed from the final runtime image. A version-checked postinstall guard prevents KafkaJS 2.2.4 from repeatedly scheduling idle negative-timeout checks; it fails explicitly if KafkaJS changes. Run package-management and test commands from the local development toolchain, not inside the production container.
 - **Database schema mode:** Docker Compose and Minikube use `HIBERNATE_DDL_AUTO=update` for local development. Inventory and Orders apply their Flyway migrations at startup; staging and production Helm values use `validate`. Review the migration history and schema validation before promoting a release. Do not use Hibernate `update` as a production migration strategy.
