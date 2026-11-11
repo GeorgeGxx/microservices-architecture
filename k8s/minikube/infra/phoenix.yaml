@@ -78,19 +78,26 @@ spec:
               ephemeral-storage: "256Mi"
             limits:
               cpu: "1000m"
-              memory: "1024Mi"
-              ephemeral-storage: "1Gi"
+              memory: "2048Mi"
+              ephemeral-storage: "2Gi"
+          startupProbe:
+            httpGet:
+              path: /
+              port: 6006
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /
               port: 6006
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
               path: /
               port: 6006
-            initialDelaySeconds: 20
+            initialDelaySeconds: 10
             periodSeconds: 20
             timeoutSeconds: 3
