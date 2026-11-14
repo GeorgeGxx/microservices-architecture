@@ -1027,12 +1027,12 @@
     },
     {
       "id": 21,
-      "type": "bargauge",
-      "title": "\ud83d\udcca Live Available Stock by SKU & Low Stock Alerts",
-      "description": "Units available in warehouse per SKU with stock health thresholds: Green (>20), Yellow (<10 Low), Red (<5 Critical).",
+      "type": "stat",
+      "title": "\u26a0\ufe0f Low Stock & Out-of-Stock SKUs",
+      "description": "SKUs with 10 or fewer units remaining (Red = Out of Stock, Amber <= 10).",
       "gridPos": {
         "h": 7,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 28
       },
@@ -1043,7 +1043,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "short",
-          "min": 0,
+          "noValue": "All SKUs Healthy",
           "color": {
             "mode": "thresholds"
           },
@@ -1056,20 +1056,18 @@
               },
               {
                 "color": "#f59e0b",
-                "value": 5
-              },
-              {
-                "color": "#10b981",
-                "value": 20
+                "value": 1
               }
             ]
           }
         }
       },
       "options": {
-        "orientation": "horizontal",
-        "displayMode": "gradient",
-        "showUnfilled": true,
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value_and_name",
         "reduceOptions": {
           "values": false,
           "calcs": [
@@ -1083,7 +1081,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "ecommerce_inventory_sku_stock",
+          "expr": "ecommerce_inventory_sku_stock <= 10",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -1095,8 +1093,8 @@
       "description": "Sales volume market share per product SKU, indicating customer demand.",
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 12,
+        "w": 16,
+        "x": 8,
         "y": 28
       },
       "datasource": {

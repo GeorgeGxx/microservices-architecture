@@ -8,7 +8,7 @@ from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, RedirectResponse
 from app.config import settings
 from app.infrastructure.database import engine, Base, AsyncSessionLocal
-from app.infrastructure.orm_models import OrderSaleOrm
+from app.infrastructure.orm_models import OrderSaleOrm, ProcessedAnalyticsEventOrm
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
 from app.domain.models import FunnelEvent, EventType, FunnelMetrics
 from app.infrastructure.metrics import (
@@ -21,7 +21,7 @@ from app.infrastructure.metrics import (
     funnel_events_counter,
 )
 from app.infrastructure.kafka_consumer import kafka_consumer
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.presentation.routers import router
 from app.infrastructure.telemetry import setup_telemetry
 from prometheus_fastapi_instrumentator import Instrumentator
@@ -131,6 +131,15 @@ async def lifespan(app: FastAPI):
 
             orders_gauge.labels("COMPLETED").set(completed)
             revenue_gauge.set(round(totals.get("total_revenue_usd", 0.0), 2))
+
+            # Hydrate cancelled orders count from persistent event store
+            cancelled_res = await session.execute(
+                select(func.count(ProcessedAnalyticsEventOrm.event_key)).where(
+                    ProcessedAnalyticsEventOrm.event_key.like("%:CANCELLED")
+                )
+            )
+            cancelled_count = cancelled_res.scalar() or 0
+            orders_gauge.labels("CANCELLED").set(cancelled_count)
 
             cart_adds = funnel_counts.get("CART_ADD", 0)
             checkout_starts = funnel_counts.get("CHECKOUT_START", 0)
