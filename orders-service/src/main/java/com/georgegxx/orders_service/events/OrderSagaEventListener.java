@@ -100,35 +100,40 @@ public class OrderSagaEventListener {
             Map<String, Object> parsed = JsonUtils.fromJson(payload, Map.class);
             raw = parsed;
         } catch (Exception parseEx) {
-            String dltTopic = ("payment".equals(eventDomain) ? OrderConstants.PAYMENTS_TOPIC : OrderConstants.FULFILLMENT_TOPIC) + "-dlt";
-            log.error("Poison pill malformed JSON received in Saga {} event (routing to {}): {}",
-                    eventDomain, dltTopic, parseEx.getMessage());
-            org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate =
-                    this.kafkaTemplateProvider != null ? this.kafkaTemplateProvider.getIfAvailable() : null;
-            if (kafkaTemplate != null) {
-                try {
-                    kafkaTemplate.send(dltTopic, payload);
-                } catch (Exception sendEx) {
-                    log.error("Failed to publish malformed Saga {} payload to DLT '{}': {}",
-                            eventDomain, dltTopic, sendEx.getMessage());
-                }
-            }
-            handleDltMessage(payload, dltTopic);
+            routeMalformedPayloadToDlt(payload, eventDomain, parseEx);
             return;
         }
         if (raw == null) {
             return;
         }
         String orderNumber = extractString(raw, "order_number", "orderNumber");
-        if (orderNumber != null && !orderNumber.isBlank()) {
+        if (orderNumber == null || orderNumber.isBlank()) {
+            return;
+        }
+        try {
+            handler.accept(orderNumber, raw);
+        } catch (Exception ex) {
+            log.error("Transient failure processing Saga {} event for order #{} (triggering retry/DLQ): {}",
+                    eventDomain, orderNumber, ex.getMessage(), ex);
+            throw new RuntimeException("Saga event processing failure in " + eventDomain + ": " + ex.getMessage(), ex);
+        }
+    }
+
+    private void routeMalformedPayloadToDlt(String payload, String eventDomain, Exception parseEx) {
+        String dltTopic = ("payment".equals(eventDomain) ? OrderConstants.PAYMENTS_TOPIC : OrderConstants.FULFILLMENT_TOPIC) + "-dlt";
+        log.error("Poison pill malformed JSON received in Saga {} event (routing to {}): {}",
+                eventDomain, dltTopic, parseEx.getMessage());
+        org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate =
+                this.kafkaTemplateProvider != null ? this.kafkaTemplateProvider.getIfAvailable() : null;
+        if (kafkaTemplate != null) {
             try {
-                handler.accept(orderNumber, raw);
-            } catch (Exception ex) {
-                log.error("Transient failure processing Saga {} event for order #{} (triggering retry/DLQ): {}",
-                        eventDomain, orderNumber, ex.getMessage(), ex);
-                throw new RuntimeException("Saga event processing failure in " + eventDomain + ": " + ex.getMessage(), ex);
+                kafkaTemplate.send(dltTopic, payload);
+            } catch (Exception sendEx) {
+                log.error("Failed to publish malformed Saga {} payload to DLT '{}': {}",
+                        eventDomain, dltTopic, sendEx.getMessage());
             }
         }
+        handleDltMessage(payload, dltTopic);
     }
 
     private String extractString(Map<String, Object> map, String primaryKey, String fallbackKey) {
