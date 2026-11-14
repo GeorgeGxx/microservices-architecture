@@ -1,0 +1,8 @@
+# Snyk (https://snyk.io) policy file for payments-service
+version: v1.25.0
+ignore:
+  'SNYK-GOLANG-STDCRYPTOX509-21400137':
+    - '*':
+        reason: 'CVE-2026-111943 / GO-2026-6809 (eMudhra CA denylist in crypto/x509) is patched in Go 1.26.10 (go.mod and Dockerfile). Ignored for Snyk IDE host runtime compatibility when host Go is 1.26.7.'
+        expires: 2030-01-01T00:00:00.000Z
+patch: {}

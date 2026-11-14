@@ -1,5 +1,5 @@
-# Build Stage - Pin to patched Go 1.26 release
-FROM golang:1.26-alpine AS builder
+# Build Stage - Pin to patched Go 1.26.10 release (mitigates CVE-2026-111943 / GO-2026-6809)
+FROM golang:1.26.10-alpine AS builder
 
 WORKDIR /app
 

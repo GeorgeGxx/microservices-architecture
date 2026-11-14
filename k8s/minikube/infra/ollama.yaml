@@ -74,11 +74,31 @@ spec:
         app: ollama
     spec:
       automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: ollama
-          image: ollama/ollama:latest
+          image: ollama/ollama:0.6.2
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
           env:
+            - name: HOME
+              value: "/tmp"
+            - name: OLLAMA_MODELS
+              value: "/tmp/.ollama/models"
             - name: OLLAMA_HOST
               value: "0.0.0.0:11434"
             - name: OLLAMA_KEEP_ALIVE
@@ -111,7 +131,7 @@ spec:
             timeoutSeconds: 3
           volumeMounts:
             - name: ollama-data
-              mountPath: /root/.ollama
+              mountPath: /tmp/.ollama
       volumes:
         - name: ollama-data
           persistentVolumeClaim:
