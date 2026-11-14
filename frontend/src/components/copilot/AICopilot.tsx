@@ -115,6 +115,18 @@ export const AICopilot: React.FC = () => {
         })
       });
 
+      if (res.status === 401) {
+        const authMsg: Message = {
+          id: `agent-auth-${Date.now()}`,
+          sender: 'agent',
+          content: 'Authentication required: Please sign in with your account to use the AI Copilot.',
+          agentName: 'AI Copilot Security',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages((prev) => [...prev, authMsg]);
+        return;
+      }
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
