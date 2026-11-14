@@ -1020,9 +1020,10 @@ def build_postman_collection():
                             }
                         ],
                         "request": {
-                            "auth": {"type": "noauth"},
                             "method": "GET",
-                            "header": [],
+                            "header": [
+                                {"key": "Authorization", "value": "Bearer {{user_jwt_token}}", "type": "text"}
+                            ],
                             "url": {
                                 "raw": "{{base_url}}/api/ai/tools",
                                 "host": ["{{base_url}}"],
@@ -1044,8 +1045,8 @@ def build_postman_collection():
                                         "    pm.response.to.have.status(200);",
                                         "});",
                                         "const res = pm.response.json();",
-                                        "pm.test('Response contains message', () => {",
-                                        "    pm.expect(res.message).to.be.a('string');",
+                                        "pm.test('Response contains reply', () => {",
+                                        "    pm.expect(res.reply).to.be.a('string');",
                                         "});"
                                     ]
                                 }
@@ -1060,8 +1061,8 @@ def build_postman_collection():
                             "body": {
                                 "mode": "raw",
                                 "raw": json.dumps({
-                                    "query": "Where is my order ORD-1001?",
-                                    "conversation_id": "test-postman-conv"
+                                    "message": "Where is my order ORD-1001?",
+                                    "thread_id": "test-postman-conv"
                                 }, indent=2)
                             },
                             "url": {
@@ -1171,7 +1172,6 @@ def build_postman_collection():
             "/api/product",
             "/api/inventory/in-stock",
             "/api/ai/health",
-            "/api/ai/tools",
         )
         for item in items:
             if "item" in item:
