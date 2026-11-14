@@ -2122,8 +2122,8 @@ if ($Command -eq "set-tag") {
 if (($Push -or $PushOnly) -and ($Command -ne "build" -and -not $Build)) {
     throw "-Push and -PushOnly are valid only with 'build' or when specifying '-Build'."
 }
-if ($IncludeMlops -and ($Command -ne "build" -and -not $Build)) {
-    throw "-IncludeMlops is valid only with 'build' or when specifying '-Build'."
+if ($IncludeMlops -and ($Command -notin @("up", "bootstrap", "start", "resume", "build"))) {
+    throw "-IncludeMlops is valid only with 'up', 'bootstrap', 'start', 'resume', or 'build'."
 }
 if ($SimulateOrders -and $Command -ne "mlops-train") {
     throw "-SimulateOrders is valid only with 'mlops-train'."
@@ -3396,11 +3396,24 @@ function Invoke-MinikubePlatform {
                         }
                     }
                 }
-                Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
+                Write-Host "  ▶ Synchronizing local Docker images into Minikube containerd store..." -ForegroundColor White
+                $loadCacheRoot = if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA "microservices-architecture\minikube-load-cache" } else { $null }
+                if ($loadCacheRoot) { New-Item -ItemType Directory -Path $loadCacheRoot -Force | Out-Null }
                 foreach ($svc in $servicesToLoad) {
-                    $hasLocal = docker images -q "georgegxx/${svc}:${TargetTag}" 2>$null
-                    if ($hasLocal) {
-                        minikube image load "georgegxx/${svc}:${TargetTag}" --overwrite 2>$null
+                    $expectedImg = "georgegxx/${svc}:${TargetTag}"
+                    $localImgId = (docker image inspect --format '{{.Id}}' $expectedImg 2>$null | Select-Object -First 1)
+                    if ($localImgId) {
+                        $localImgId = $localImgId.Trim()
+                        $inMinikube = @($minikubeImagesRaw | Where-Object { $_ -match [regex]::Escape($expectedImg) }).Count -gt 0
+                        $cacheFile = if ($loadCacheRoot) { Join-Path $loadCacheRoot ("$svc-$TargetTag.id" -replace '[^a-zA-Z0-9_.-]', '_') } else { $null }
+                        $cachedId = if ($cacheFile -and (Test-Path -LiteralPath $cacheFile -PathType Leaf)) { (Get-Content -LiteralPath $cacheFile -Raw).Trim() } else { "" }
+                        if (-not $BuildImages -and $inMinikube -and $cachedId -eq $localImgId) {
+                            continue
+                        }
+                        minikube image load $expectedImg --overwrite 2>$null
+                        if ($LASTEXITCODE -eq 0 -and $cacheFile) {
+                            Set-Content -LiteralPath $cacheFile -Value $localImgId -NoNewline
+                        }
                     }
                 }
                 if ($DeployCanaryOption) {
