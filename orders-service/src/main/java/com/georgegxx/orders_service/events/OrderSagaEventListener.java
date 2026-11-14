@@ -25,9 +25,7 @@ public class OrderSagaEventListener {
 
     private final OrderService orderService;
     private final MeterRegistry meterRegistry;
-
-    @org.springframework.beans.factory.annotation.Autowired(required = false)
-    private org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate;
+    private final org.springframework.beans.factory.ObjectProvider<org.springframework.kafka.core.KafkaTemplate<String, String>> kafkaTemplateProvider;
 
     @RetryableTopic(
             attempts = "3",
@@ -105,9 +103,11 @@ public class OrderSagaEventListener {
             String dltTopic = ("payment".equals(eventDomain) ? OrderConstants.PAYMENTS_TOPIC : OrderConstants.FULFILLMENT_TOPIC) + "-dlt";
             log.error("Poison pill malformed JSON received in Saga {} event (routing to {}): {}",
                     eventDomain, dltTopic, parseEx.getMessage());
-            if (this.kafkaTemplate != null) {
+            org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate =
+                    this.kafkaTemplateProvider != null ? this.kafkaTemplateProvider.getIfAvailable() : null;
+            if (kafkaTemplate != null) {
                 try {
-                    this.kafkaTemplate.send(dltTopic, payload);
+                    kafkaTemplate.send(dltTopic, payload);
                 } catch (Exception sendEx) {
                     log.error("Failed to publish malformed Saga {} payload to DLT '{}': {}",
                             eventDomain, dltTopic, sendEx.getMessage());

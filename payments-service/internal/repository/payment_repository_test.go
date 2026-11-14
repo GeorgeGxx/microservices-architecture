@@ -185,3 +185,69 @@ func TestPaymentRepository_CreateAuditLog(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestPaymentRepository_CreateAndUpdateWithOutbox(t *testing.T) {
+	gormDB, mock := setupMockDB(t)
+	repo := NewPaymentRepository(gormDB)
+
+	now := time.Now().UTC()
+	payment := &models.Payment{
+		ID:            uuid.New(),
+		OrderNumber:   "ORD-OUTBOX-1",
+		Amount:        120.0,
+		Currency:      "USD",
+		Status:        models.PaymentStatusCompleted,
+		PaymentMethod: "CARD_VISA",
+		CreatedAt:     now,
+		UpdatedAt:     now,
+	}
+	outbox := &models.OutboxEvent{
+		ID:            uuid.New(),
+		AggregateType: "PAYMENT",
+		AggregateID:   "ORD-OUTBOX-1",
+		EventType:     "PAYMENT_COMPLETED",
+		Payload:       "{}",
+		Status:        "PENDING",
+		CreatedAt:     now,
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "payments"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "outbox_events"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	assert.NoError(t, repo.CreatePaymentWithOutbox(context.Background(), payment, outbox))
+	assert.NoError(t, mock.ExpectationsWereMet())
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "payments"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "outbox_events"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	assert.NoError(t, repo.UpdatePaymentWithOutbox(context.Background(), payment, outbox))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPaymentRepository_GetPendingOutboxEvents(t *testing.T) {
+	gormDB, mock := setupMockDB(t)
+	repo := NewPaymentRepository(gormDB)
+
+	evID := uuid.New()
+	mock.ExpectBegin()
+	mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "outbox_events"`)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "aggregate_type", "aggregate_id", "event_type", "payload", "status"}).
+			AddRow(evID, "PAYMENT", "ORD-1", "PAYMENT_COMPLETED", "{}", "PENDING"))
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "outbox_events"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	events, err := repo.GetPendingOutboxEvents(context.Background(), 10)
+	assert.NoError(t, err)
+	assert.Len(t, events, 1)
+	assert.Equal(t, "PROCESSING", events[0].Status)
+	assert.NoError(t, mock.ExpectationsWereMet())
+}

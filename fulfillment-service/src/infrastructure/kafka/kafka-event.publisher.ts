@@ -215,10 +215,12 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
       take: batchSize,
       order: { createdAt: 'ASC' },
     });
-    for (const ev of pendingEvents) {
-      ev.status = 'PROCESSING';
-      ev.lockedAt = now;
-      await this.outboxRepo.save(ev);
+    if (pendingEvents.length > 0) {
+      for (const ev of pendingEvents) {
+        ev.status = 'PROCESSING';
+        ev.lockedAt = now;
+      }
+      await this.outboxRepo.save(pendingEvents);
     }
     return pendingEvents;
   }
