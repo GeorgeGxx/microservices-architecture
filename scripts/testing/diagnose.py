@@ -132,7 +132,7 @@ def verify_swagger(router_url: str):
             try:
                 req = urllib.request.Request(doc_url)
                 # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
-                with urllib.request.urlopen(req, timeout=2) as resp:
+                with urllib.request.urlopen(req, timeout=8) as resp:
                     doc = json.loads(resp.read().decode("utf-8"))
                     title = doc.get("info", {}).get("title", svc)
                     endpoints_count = len(doc.get("paths", {}))
@@ -275,7 +275,7 @@ def check_jvm(prom_url: str):
     queries = {
         "Heap Memory Used": 'jvm_memory_used_bytes{area="heap"}',
         "Live Threads": "jvm_threads_live_threads",
-        "JVM CPU Usage": "jvm_cpu_recent_utilization_ratio",
+        "JVM CPU Usage": "process_cpu_usage or jvm_cpu_recent_utilization_ratio",
     }
     for label, q in queries.items():
         results = query_promql(prom_url, q)
