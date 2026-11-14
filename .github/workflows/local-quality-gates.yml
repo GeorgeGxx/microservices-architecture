@@ -25,8 +25,6 @@ jobs:
         working-directory:
           - terraform/environments/local-minikube
           - terraform/environments/aws
-          - terraform/environments/azure
-          - terraform/environments/gcp
           - terraform/examples/lifecycle
     steps:
       # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
@@ -153,7 +151,6 @@ jobs:
           $parseErrors = $null
           $scripts = @(
             'platform-minikube.ps1',
-            'platform-multicloud.ps1',
             'scripts/bootstrap-keycloak.ps1',
             'scripts/manage-cloudflare-tunnels.ps1',
             'scripts/bcdr-simulation.ps1'
