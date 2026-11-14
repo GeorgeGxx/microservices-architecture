@@ -6,9 +6,13 @@
 KSV-0053
 AVD-KSV-0053
 
-# KSV-0056: CI/CD Deployer role requires service and networkpolicy management to reconcile Helm chart resources
+# KSV-0056 / KSV-0048 / KSV-0049: CI/CD Deployer, Developer dev RBAC, and Stakater Reloader ClusterRoles require workload/configmap management
 KSV-0056
 AVD-KSV-0056
+KSV-0048
+AVD-KSV-0048
+KSV-0049
+AVD-KSV-0049
 
 # KSV-0046 / KSV-0041: Kiali Service Mesh Visualizer and Reloader ClusterRoles require mesh and secret inspection
 KSV-0046
@@ -20,13 +24,25 @@ AVD-KSV-0041
 KSV-0108
 AVD-KSV-0108
 
-# KSV-0109: Local dev Alertmanager ConfigMap template
+# KSV-0109 / KSV-01010: ConfigMap key-name heuristic false positives on non-secret endpoints/YAML keys (router.yaml, KEYCLOAK_ISSUER_URI, etc.)
 KSV-0109
 AVD-KSV-0109
+KSV-01010
+AVD-KSV-01010
 
-# KSV-0014: Stateful local Minikube infrastructure pods (PostgreSQL, MySQL, Kafka, Loki, Prometheus, Tempo, Vault, Keycloak) require writable paths
+# KSV-0014 / KSV-0104: Stateful local Minikube infrastructure pods (PostgreSQL, MySQL, Kafka, Loki, Prometheus, Tempo, Vault, Keycloak)
 KSV-0014
 AVD-KSV-0014
+KSV-0104
+AVD-KSV-0104
+
+# KSV-0012 / KSV-0022 / KSV-0023: Grafana Alloy DaemonSet on local Minikube requires root/hostPath (/var/log) for pod log collection
+KSV-0012
+AVD-KSV-0012
+KSV-0022
+AVD-KSV-0022
+KSV-0023
+AVD-KSV-0023
 
 # KSV-0118 / KSV-0017: Local development infrastructure support tools and Conftest negative test fixture
 # (Note: Privileged containers on actual workloads are strictly blocked by Conftest OPA Rego and Semgrep SAST)
@@ -34,6 +50,18 @@ KSV-0118
 AVD-KSV-0118
 KSV-0017
 AVD-KSV-0017
+
+# KSV-0125: Default Helm values use georgegxx/* image repository names (overridden to ECR in AWS production deployments)
+KSV-0125
+AVD-KSV-0125
+
+# DS-0001: Chainguard public distroless Nginx image (cgr.dev/chainguard/nginx) only publishes :latest on the free tier
+DS-0001
+AVD-DS-0001
+
+# AWS-0178: Optional AWS compact EC2 / ECS Fargate reference architectures omit paid VPC Flow Logs in non-prod
+AWS-0178
+AVD-AWS-0178
 
 # CVE-2026-91403: OpenJDK <= 21.0.13 eMudhra intermediate CA compromise (JSSE / javax.net.ssl).
 # Mitigated in-image across builder (bellsoft/liberica-openjdk-alpine:21) and runtime (gcr.io/distroless/java21-debian13:nonroot)

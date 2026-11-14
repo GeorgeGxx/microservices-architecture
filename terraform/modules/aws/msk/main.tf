@@ -66,7 +66,7 @@ resource "aws_msk_cluster" "this" {
     encryption_at_rest_kms_key_arn = var.kms_key_arn
 
     encryption_in_transit {
-      client_broker = "TLS_PLAINTEXT"
+      client_broker = "TLS"
       in_cluster    = true
     }
   }
