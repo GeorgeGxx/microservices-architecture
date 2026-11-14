@@ -322,12 +322,6 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8001/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     networks:
       - spring
   ### Postgres database for inventory
@@ -381,12 +375,6 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8002/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     networks:
       - spring
 
@@ -423,12 +411,6 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8003/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     networks:
       - spring
   ### Postgres database for orders
@@ -679,12 +661,6 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8004/actuator/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
     networks:
       - spring
   ### Postgres database for products
