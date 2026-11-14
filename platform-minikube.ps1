@@ -3144,6 +3144,30 @@ except Exception:
     }
 }
 
+function Invoke-AiCopilotEvalWarmup {
+    <#
+    .SYNOPSIS
+        Acquires an admin JWT from Keycloak and triggers AI Copilot evaluations to seed Phoenix traces.
+    #>
+    Write-Host "  ▶ Seeding Arize Phoenix Traces via AI Copilot Evals..." -ForegroundColor White
+    try {
+        $tokenResp = Invoke-RestMethod -Uri "http://127.0.0.1:8181/realms/microservices-realm/protocol/openid-connect/token" -Method Post -Body @{
+            client_id  = "microservices_frontend"
+            grant_type = "password"
+            username   = "admin_user"
+            password   = "admin"
+        } -TimeoutSec 10 -ErrorAction Stop
+        $evalResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8010/api/evals/run" -Method Post -Headers @{
+            Authorization = "Bearer $($tokenResp.access_token)"
+        } -TimeoutSec 30 -ErrorAction Stop
+        if ($evalResponse.passed -gt 0) {
+            Write-Host "  [OK] AI Copilot evaluation suite completed ($($evalResponse.passed)/$($evalResponse.total_evals) passed). Traces active in Arize Phoenix." -ForegroundColor Green
+        }
+    } catch {
+        Write-Host "  [INFO] AI Copilot eval trace warmup deferred ($($_.Exception.Message))." -ForegroundColor Yellow
+    }
+}
+
 function Invoke-MinikubePlatform {
     param(
         [Parameter(Mandatory = $true)]
@@ -3736,15 +3760,7 @@ stringData:
                 if ($LASTEXITCODE -ne 0) { throw "Router/storefront deployment smoke gate failed with exit code $LASTEXITCODE. Platform is not declared ready." }
             }
 
-            Write-Host "  ▶ Seeding Arize Phoenix Traces via AI Copilot Evals..." -ForegroundColor White
-            try {
-                $evalResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8010/api/evals/run" -Method Post -TimeoutSec 15 -ErrorAction SilentlyContinue
-                if ($evalResponse.passed -gt 0) {
-                    Write-Host "  [OK] AI Copilot evaluation suite completed ($($evalResponse.passed)/$($evalResponse.total_evals) passed). Traces active in Arize Phoenix." -ForegroundColor Green
-                }
-            } catch {
-                Write-Host "  [INFO] AI Copilot eval trace warmup deferred." -ForegroundColor Yellow
-            }
+            Invoke-AiCopilotEvalWarmup
 
             Write-Host "`n[10/10] 💰 Offline FinOps Architecture Estimate..." -ForegroundColor Yellow
             $costEstimator = Join-Path $scriptsDir "local-cost-estimator.py"
@@ -3976,15 +3992,7 @@ stringData:
             Start-LocalTunnelSupervisor
             Write-Host "  [OK] Resilient port-forward tunnel daemon active." -ForegroundColor Green
 
-            Write-Host "  ▶ Seeding Arize Phoenix Traces via AI Copilot Evals..." -ForegroundColor White
-            try {
-                $evalResponse = Invoke-RestMethod -Uri "http://127.0.0.1:8010/api/evals/run" -Method Post -TimeoutSec 15 -ErrorAction SilentlyContinue
-                if ($evalResponse.passed -gt 0) {
-                    Write-Host "  [OK] AI Copilot evaluation suite completed ($($evalResponse.passed)/$($evalResponse.total_evals) passed). Traces active in Arize Phoenix." -ForegroundColor Green
-                }
-            } catch {
-                Write-Host "  [INFO] AI Copilot eval trace warmup deferred." -ForegroundColor Yellow
-            }
+            Invoke-AiCopilotEvalWarmup
 
             $stopwatch.Stop()
             $elapsedSec = [math]::Round($stopwatch.Elapsed.TotalSeconds, 1)
