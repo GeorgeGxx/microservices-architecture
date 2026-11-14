@@ -221,35 +221,75 @@ from app.tools.mcp_server import EcommerceMCPServer
 
 
 def test_security_utilities():
+    # In non-production dev bypass mode, anonymous fallback receives least-privilege ROLE_USER only
     user = get_current_user(None)
     assert user["sub"] == "dev-user"
-    assert "ROLE_ADMIN" in user["roles"]
+    assert user["roles"] == ["ROLE_USER"]
+    assert "ROLE_ADMIN" not in user["roles"]
 
-    checker = require_role("ROLE_SUPERVISOR")
-    res = checker(user)
-    assert res == user
+    user_checker = require_role("ROLE_USER")
+    assert user_checker(user) == user
+
+    supervisor_checker = require_role("ROLE_SUPERVISOR")
+    with pytest.raises(HTTPException) as exc_info:
+        supervisor_checker(user)
+    assert exc_info.value.status_code == 403
 
 
 def test_security_enabled_enforcement(monkeypatch):
+    import time
+    import jwt
+    from cryptography.hazmat.primitives.asymmetric import rsa
+
     monkeypatch.setattr(settings, "SECURITY_ENABLED", True)
     # 1. Missing credentials triggers 401
     with pytest.raises(HTTPException) as exc_info_401:
         get_current_user(None)
     assert exc_info_401.value.status_code == 401
 
-    # 2. Valid credentials returns user dict
-    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-sample-token")
+    # 2. Malformed/unverified token triggers 401
+    bad_creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials="jwt-sample-token")
+    with pytest.raises(HTTPException) as exc_info_bad:
+        get_current_user(bad_creds)
+    assert exc_info_bad.value.status_code == 401
+
+    # 3. Valid RS256 signed token returns verified principal and normalized roles
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    public_key = private_key.public_key()
+
+    class DummySigningKey:
+        key = public_key
+
+    class DummyJWKClient:
+        def get_signing_key_from_jwt(self, token):
+            return DummySigningKey()
+
+    monkeypatch.setattr("app.security._get_jwk_client", lambda uri: DummyJWKClient())
+    now = int(time.time())
+    signed_token = jwt.encode(
+        {
+            "sub": "user-1",
+            "preferred_username": "shopper_user",
+            "iss": "http://localhost:8181/realms/microservices-realm",
+            "iat": now,
+            "exp": now + 300,
+            "realm_access": {"roles": ["user"]},
+        },
+        private_key,
+        algorithm="RS256",
+    )
+    creds = HTTPAuthorizationCredentials(scheme="Bearer", credentials=signed_token)
     authed_user = get_current_user(creds)
-    assert authed_user["token"] == "jwt-sample-token"
+    assert authed_user["sub"] == "user-1"
     assert "ROLE_USER" in authed_user["roles"]
 
-    # 3. Insufficient role triggers 403
+    # 4. Insufficient role triggers 403
     supervisor_checker = require_role("ROLE_SUPERVISOR")
     with pytest.raises(HTTPException) as exc_info_403:
         supervisor_checker(authed_user)
     assert exc_info_403.value.status_code == 403
 
-    # 4. Matching role or ROLE_ADMIN passes
+    # 5. Matching role or ROLE_ADMIN passes
     user_checker = require_role("ROLE_USER")
     assert user_checker(authed_user) == authed_user
 
