@@ -1375,11 +1375,14 @@
             }
           ],
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_jwt_token}}",
+                "type": "text"
+              }
+            ],
             "url": {
               "raw": "{{base_url}}/api/ai/tools",
               "host": [
@@ -1407,8 +1410,8 @@
                   "    pm.response.to.have.status(200);",
                   "});",
                   "const res = pm.response.json();",
-                  "pm.test('Response contains message', () => {",
-                  "    pm.expect(res.message).to.be.a('string');",
+                  "pm.test('Response contains reply', () => {",
+                  "    pm.expect(res.reply).to.be.a('string');",
                   "});"
                 ]
               }
@@ -1430,7 +1433,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"query\": \"Where is my order ORD-1001?\",\n  \"conversation_id\": \"test-postman-conv\"\n}"
+              "raw": "{\n  \"message\": \"Where is my order ORD-1001?\",\n  \"thread_id\": \"test-postman-conv\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/ai/chat",
