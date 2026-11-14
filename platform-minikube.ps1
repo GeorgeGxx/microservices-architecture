@@ -400,9 +400,7 @@ function Assert-SelectedCloudPrerequisites {
 
     $providerTool = switch ($Platform) {
         "aws" { "aws" }
-        "azure" { "az" }
-        "gcp" { "gcloud" }
-        default { throw "Unsupported cloud platform '$Platform'." }
+        default { throw "Unsupported cloud platform '$Platform'. This repository deploys only to AWS (EKS)." }
     }
     $requiredTools = @($providerTool)
     if ($CommandName -in @("plan", "apply", "destroy", "status", "doctor", "verify", "unlock")) {
@@ -427,8 +425,6 @@ function Assert-SelectedCloudPrerequisites {
         $context = [string]$contextOutput
         $contextPattern = switch ($Platform) {
             "aws" { '(?i)(arn:aws:eks|eks)' }
-            "azure" { '(?i)(aks|azure|clusteruser_)' }
-            "gcp" { '(?i)(gke|gcp)' }
         }
         if ($context -notmatch $contextPattern) {
             throw "Kubernetes context '$context' does not look like a $Platform context. Select the intended cluster before running '$CommandName'."
@@ -459,7 +455,7 @@ function Set-TerraformWorkspace {
 function Assert-CloudRemoteBackend {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet("aws", "azure", "gcp")]
+        [ValidateSet("aws")]
         [string]$CloudProvider
     )
 
@@ -472,7 +468,7 @@ function Assert-CloudRemoteBackend {
 function Initialize-CloudTerraformBackend {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet("aws", "azure", "gcp")]
+        [ValidateSet("aws")]
         [string]$CloudProvider
     )
 
@@ -484,7 +480,7 @@ function Initialize-CloudTerraformBackend {
 
 function Get-CloudTerraformTargetArguments {
     param(
-        [Parameter(Mandatory = $true)][ValidateSet("aws", "azure", "gcp")][string]$CloudProvider,
+        [Parameter(Mandatory = $true)][ValidateSet("aws")][string]$CloudProvider,
         [Parameter(Mandatory = $true)][ValidateSet("all", "primary", "secondary")][string]$Selection
     )
 
@@ -492,10 +488,6 @@ function Get-CloudTerraformTargetArguments {
     $targets = switch ("$CloudProvider/$Selection") {
         "aws/primary" { @("module.eks", "module.irsa_lb_controller") }
         "aws/secondary" { @("module.eks_dp2") }
-        "azure/primary" { @("module.aks") }
-        "azure/secondary" { @("azurerm_subnet.aks_dataplane_2", "module.aks_dp2") }
-        "gcp/primary" { @("module.gke") }
-        "gcp/secondary" { @("module.gke_dp2") }
     }
     if (-not $targets) {
         throw "No Terraform target mapping exists for '$CloudProvider' data plane '$Selection'."
@@ -1055,7 +1047,7 @@ function Invoke-LocalDevSecOpsScan {
     [CmdletBinding()]
     param(
         [switch]$IncludeRenderedPolicy,
-        [ValidateSet('minikube', 'aws', 'azure', 'gcp')]
+        [ValidateSet('minikube', 'aws')]
         [string]$TargetPlatform = 'minikube',
         [string]$ImageToVerify = $CosignImage,
         [string]$PublicKey = $CosignKey,
@@ -1437,7 +1429,7 @@ function Invoke-UnifiedPlatformVerify {
     [CmdletBinding()]
     param(
         [Parameter(Position = 0)]
-        [ValidateSet("minikube", "aws", "azure", "gcp")]
+        [ValidateSet("minikube", "aws")]
         [string]$Mode = "minikube",
 
         [Parameter(Position = 1)]
@@ -1636,7 +1628,7 @@ function Test-Tool {
 function Invoke-CloudPlatform {
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet("aws", "azure", "gcp")]
+        [ValidateSet("aws")]
         [string]$CloudProvider,
 
         [Parameter(Mandatory = $true)]
@@ -1655,14 +1647,14 @@ function Invoke-CloudPlatform {
     $dataPlaneSelection = if ($DataPlane) { $DataPlane } else { "all" }
     $isProductionTerraformAction = $Env -eq "prod" -and $CloudAction -in @("plan", "apply", "destroy")
     if ($isProductionTerraformAction -and -not $DataPlane) {
-        throw "Production Terraform actions require an explicit -DataPlane primary|secondary|all. Single-plane selections are scoped to their EKS/AKS/GKE Terraform modules; 'all' includes shared infrastructure."
+        throw "Production Terraform actions require an explicit -DataPlane primary|secondary|all. Single-plane selections are scoped to their EKS Terraform modules; 'all' includes shared infrastructure."
     }
     if ($dataPlaneSelection -eq "secondary" -and $Env -ne "prod") {
         throw "The secondary data plane exists only in the prod Terraform workspace."
     }
 
     if ($CloudAction -eq "sync-argocd" -and $CloudProvider -ne "aws") {
-        throw "sync-argocd is available only for AWS. Azure DevOps deploys to AKS with Helm; Bitbucket Pipelines deploys to GKE with Helm."
+        throw "sync-argocd is available only for AWS."
     }
 
     $cloudTfDir = Join-Path $root "terraform\environments\$CloudProvider"
@@ -1740,8 +1732,6 @@ function Invoke-CloudPlatform {
                 Write-Host "`n[OK] $($CloudProvider.ToUpper()) Infrastructure provisioned successfully." -ForegroundColor Green
                 $deliveryMessage = switch ($CloudProvider) {
                     "aws" { "GitHub Actions builds images; Argo CD deploys workloads from the configured GitOps source." }
-                    "azure" { "Azure DevOps builds/publishes images and deploys Helm releases directly to AKS." }
-                    "gcp" { "Bitbucket Pipelines builds/publishes images and deploys Helm releases directly to GKE." }
                 }
                 Write-Host "Terraform provisions infrastructure only. $deliveryMessage" -ForegroundColor Cyan
             } finally {
@@ -2040,7 +2030,7 @@ if ($Platform -ne "minikube" -and $Environment -eq "prod" -and $Command -in @("p
     throw "Production Terraform commands require an explicit -DataPlane primary|secondary|all. A primary/secondary selection scopes Terraform to that cluster module; 'all' also manages shared infrastructure."
 }
 if ($Platform -ne "minikube" -and $Command -eq "sync-argocd" -and $Platform -ne "aws") {
-    throw "'sync-argocd' is AWS-only. Azure DevOps deploys to AKS with Helm; Bitbucket Pipelines deploys to GKE with Helm."
+    throw "'sync-argocd' is AWS-only."
 }
 if ($Platform -ne "minikube" -and $DataPlane -and $Command -notin @("doctor", "verify", "status", "plan", "apply", "destroy")) {
     throw "-DataPlane is available only with cloud doctor, verify, status, plan, apply, or destroy."
@@ -2223,14 +2213,10 @@ switch ($Command) {
             & helm rollback microservices --namespace dev --wait --timeout 5m
             if ($LASTEXITCODE -ne 0) { throw "Helm rollback failed for namespace 'dev'." }
             Write-Host "  [OK] Helm rollback completed on namespace 'dev'." -ForegroundColor Green
-        } elseif ($Platform -eq "azure") {
-            throw "Azure AKS application rollback is owned by the Azure DevOps deployment pipeline; rerun its rollback stage for the failed release."
         } elseif ($Platform -eq "aws") {
             throw "AWS workloads are GitOps-managed. Revert the intended application change in the source repository and allow Argo CD to reconcile it; use 'sync-argocd' only to request reconciliation."
-        } elseif ($Platform -eq "gcp") {
-            throw "GCP application deployment and rollback are owned by Bitbucket Pipelines; rerun the appropriate pipeline deployment/rollback step."
         } else {
-            throw "Azure AKS application deployment and rollback are owned by Azure DevOps; rerun its appropriate deployment/rollback stage."
+            throw "Unsupported platform '$Platform' for rollback."
         }
     }
 
@@ -2259,7 +2245,7 @@ switch ($Command) {
             Write-Host "  [OK] ArgoCD hard sync triggered." -ForegroundColor Green
         } else {
             if ($Platform -ne "aws") {
-                throw "'sync-argocd' is AWS-only. Azure DevOps deploys to AKS with Helm; Bitbucket Pipelines deploys to GKE with Helm."
+                throw "'sync-argocd' is AWS-only."
             }
             Invoke-CloudPlatform -CloudProvider $Platform -CloudAction sync-argocd -Env $targetCloudEnv
         }
@@ -2280,9 +2266,9 @@ switch ($Command) {
     }
 
     "doctor-cloud" {
-        Show-Banner "Multi-Cloud Istio Validation"
+        Show-Banner "AWS EKS Istio Validation"
         if ($Platform -eq "minikube") {
-            Write-Host "This check is for AWS / Azure / GCP. Use -Platform aws|azure|gcp with this command." -ForegroundColor Yellow
+            Write-Host "This check is for AWS EKS. Use -Platform aws with this command." -ForegroundColor Yellow
             return
         }
         if (-not (Invoke-UnifiedPlatformVerify -Mode $Platform -Environment $targetCloudEnv)) { exit 1 }
