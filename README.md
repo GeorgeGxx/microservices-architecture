@@ -22,7 +22,7 @@
   <img src="https://img.shields.io/badge/Redis-8.8.1-dc2626.svg?style=for-the-badge&logo=redis" alt="Redis 8.8.1" />
 </p>
 
-> **Enterprise Multi-Cloud Microservices Platform** built with **Java 21**, **Spring Boot 4**, **React 19 + TailwindCSS v4**, and **Autonomous AI Copilot (FastAPI 0.160 + LangGraph 0.3 + MCP + Ollama)**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling**, **Automated MLOps Demand Forecasting**, **Local Multi-Agent RAG & Tool Execution**, and full **DevSecOps & RBAC automation** across AWS, Azure, GCP, and local Minikube.
+> **Enterprise AWS Cloud-Native Microservices Platform** built with **Java 21**, **Spring Boot 4**, **React 19 + TailwindCSS v4**, and **Autonomous AI Copilot (FastAPI 0.160 + LangGraph 0.3 + MCP + Ollama)**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling**, **Automated MLOps Demand Forecasting**, **Local Multi-Agent RAG & Tool Execution**, and full **DevSecOps & GitOps automation** on **AWS EKS (Terraform + GitHub Actions + ArgoCD)** and **local Minikube**.
 
 **Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs 30+ containers when optional MLOps workloads are enabled.
 
@@ -143,7 +143,7 @@ In-depth architectural specifications, multi-cloud topologies, operational runbo
 ```mermaid
 graph TD
     User([👤 Team Member / Auditor]) --> Role{Select Your Objective}
-    Role -->|Understand System Design| Arch["🏗️ 01. Architecture<br/>Domain Microservices, Supergraph, Multi-Cloud"]
+    Role -->|Understand System Design| Arch["🏗️ 01. Architecture<br/>Domain Microservices, Supergraph, AWS EKS"]
     Role -->|Run Locally or Operate Stack| Ops["🚀 02. Operations<br/>Minikube, Platform CLI, Cloudflare Tunnels, Helm"]
     Role -->|Security, CI/CD & Testing| QA["🛡️ 03. DevSecOps & Quality<br/>Pipelines, Quality Gates, DoD, k6, Newman, ZAP"]
     Role -->|Telemetry & SRE Monitoring| Obs["📊 04. Observability<br/>Grafana Dashboards, PromQL, LogQL, TraceQL"]
@@ -153,9 +153,9 @@ graph TD
 
 | Pillar | Focus & Key Contents | Core Documents | Target Audience |
 | :--- | :--- | :--- | :--- |
-| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, multi-cloud infrastructure topologies (AWS, Azure, GCP), formalized Architecture Decision Records (ADRs), enterprise API design (RFC 7807 & GraphQL), Business Continuity / Disaster Recovery (BCDR), Terraform governance, identity federation, and Kubernetes platform security. | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [ARCHITECTURE_AUDIT.md](./docs/01-architecture/ARCHITECTURE_AUDIT.md)<br/>• [DISASTER_RECOVERY_STRATEGY.md](./docs/01-architecture/DISASTER_RECOVERY_STRATEGY.md)<br/>• [API_DESIGN_AND_CONTRACTS.md](./docs/01-architecture/API_DESIGN_AND_CONTRACTS.md)<br/>• [Architecture Decision Records (ADRs)](./docs/01-architecture/adr/README.md)<br/>• [MULTI_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md)<br/>• [TERRAFORM_GOVERNANCE.md](./docs/01-architecture/TERRAFORM_GOVERNANCE.md)<br/>• [IDENTITY_AND_SECRETS.md](./docs/01-architecture/IDENTITY_AND_SECRETS.md)<br/>• [KUBERNETES_PLATFORM_SECURITY.md](./docs/01-architecture/KUBERNETES_PLATFORM_SECURITY.md) | Software Architects, Developers |
-| **02. Operations** | Full Docker Compose service stack, Minikube cluster setup, Istio service mesh, platform-specific PowerShell CLI entrypoints, Cloudflare Zero-Trust Tunnels, Helm Canary rollouts, Argo CD GitOps multi-cluster operations, production dual-dataplane operations (`DP1` + `DP2`), production release criteria, and lightweight deployment patterns (ECS Fargate & EC2 Ansible). | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [RELEASE_CRITERIA_AND_GOVERNANCE.md](./docs/02-operations/RELEASE_CRITERIA_AND_GOVERNANCE.md)<br/>• [LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md](./docs/02-operations/LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md)<br/>• [GITOPS_OPERATIONS.md](./docs/02-operations/GITOPS_OPERATIONS.md)<br/>• [PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md](./docs/02-operations/PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md) | DevOps, Platform Engineers, SysAdmins |
-| **03. DevSecOps & Testing** | Multi-CI/CD pipelines (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage), Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, Git workflows, branch-to-environment promotion strategy, DevSecOps maturity assessment, remediation changelog, and enterprise DevSecOps governance model & RACI matrix. | • [DEVSECOPS_GOVERNANCE_AND_MODEL.md](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md)<br/>• [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md)<br/>• [BRANCH_ENVIRONMENT_STRATEGY.md](./docs/03-devsecops-and-testing/BRANCH_ENVIRONMENT_STRATEGY.md)<br/>• [DEVSECOPS_MATURITY_ASSESSMENT.md](./docs/03-devsecops-and-testing/DEVSECOPS_MATURITY_ASSESSMENT.md)<br/>• [REMEDIATION_CHANGELOG.md](./docs/03-devsecops-and-testing/REMEDIATION_CHANGELOG.md) | SecOps, QA Engineers, Cloud Engineers, Architects |
+| **01. Architecture** | Domain-Driven Design (DDD), Saga compensation, Keycloak 26 IAM, Vault secrets, React 19 context, AWS EKS infrastructure topologies (dev, staging, dual-dataplane prod), formalized Architecture Decision Records (ADRs), enterprise API design (RFC 7807 & GraphQL), Business Continuity / Disaster Recovery (BCDR), Terraform governance, identity federation, and Kubernetes platform security. | • [ARCHITECTURE.md](./docs/01-architecture/ARCHITECTURE.md)<br/>• [ARCHITECTURE_AUDIT.md](./docs/01-architecture/ARCHITECTURE_AUDIT.md)<br/>• [DISASTER_RECOVERY_STRATEGY.md](./docs/01-architecture/DISASTER_RECOVERY_STRATEGY.md)<br/>• [API_DESIGN_AND_CONTRACTS.md](./docs/01-architecture/API_DESIGN_AND_CONTRACTS.md)<br/>• [Architecture Decision Records (ADRs)](./docs/01-architecture/adr/README.md)<br/>• [AWS_CLOUD_INFRASTRUCTURE.md](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md)<br/>• [TERRAFORM_GOVERNANCE.md](./docs/01-architecture/TERRAFORM_GOVERNANCE.md)<br/>• [IDENTITY_AND_SECRETS.md](./docs/01-architecture/IDENTITY_AND_SECRETS.md)<br/>• [KUBERNETES_PLATFORM_SECURITY.md](./docs/01-architecture/KUBERNETES_PLATFORM_SECURITY.md) | Software Architects, Developers |
+| **02. Operations** | Full Docker Compose service stack, Minikube cluster setup, Istio service mesh, unified `platform-minikube.ps1` CLI, Cloudflare Zero-Trust Tunnels, Helm Canary rollouts, Argo CD GitOps operations, production dual-dataplane operations (`DP1` + `DP2`), production release criteria, and lightweight AWS deployment patterns (ECS Fargate & EC2 Ansible). | • [LOCAL_DEPLOYMENT.md](./docs/02-operations/LOCAL_DEPLOYMENT.md)<br/>• [RELEASE_CRITERIA_AND_GOVERNANCE.md](./docs/02-operations/RELEASE_CRITERIA_AND_GOVERNANCE.md)<br/>• [LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md](./docs/02-operations/LIGHTWEIGHT_DEPLOYMENT_PATTERNS.md)<br/>• [PLATFORM_CLI_REFERENCE.md](./docs/02-operations/PLATFORM_CLI_REFERENCE.md)<br/>• [CLOUDFLARE_TUNNELS.md](./docs/02-operations/CLOUDFLARE_TUNNELS.md)<br/>• [HELM_AND_CANARY.md](./docs/02-operations/HELM_AND_CANARY.md)<br/>• [GITOPS_OPERATIONS.md](./docs/02-operations/GITOPS_OPERATIONS.md)<br/>• [PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md](./docs/02-operations/PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md) | DevOps, Platform Engineers, SysAdmins |
+| **03. DevSecOps & Testing** | GitHub Actions CI + ArgoCD GitOps CD pipelines, Quality Gates (DoR/DoD), Newman contract tests, k6 load testing, OWASP ZAP DAST, Git workflows, branch-to-environment promotion strategy, DevSecOps maturity assessment, remediation changelog, and enterprise DevSecOps governance model & RACI matrix. | • [DEVSECOPS_GOVERNANCE_AND_MODEL.md](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md)<br/>• [DEVSECOPS_PIPELINES.md](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md)<br/>• [QUALITY_GATES_AND_DOD.md](./docs/03-devsecops-and-testing/QUALITY_GATES_AND_DOD.md)<br/>• [DYNAMIC_AND_CHAOS_TESTING.md](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md)<br/>• [GIT_WORKFLOW_AND_COLLABORATION.md](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md)<br/>• [BRANCH_ENVIRONMENT_STRATEGY.md](./docs/03-devsecops-and-testing/BRANCH_ENVIRONMENT_STRATEGY.md)<br/>• [DEVSECOPS_MATURITY_ASSESSMENT.md](./docs/03-devsecops-and-testing/DEVSECOPS_MATURITY_ASSESSMENT.md)<br/>• [REMEDIATION_CHANGELOG.md](./docs/03-devsecops-and-testing/REMEDIATION_CHANGELOG.md) | SecOps, QA Engineers, Cloud Engineers, Architects |
 | **04. Observability** | Full-stack LGTM telemetry handbook: PromQL queries (RED metrics, JVM, funnels), LogQL (Loki correlation), and TraceQL (Tempo distributed spans). | • [OBSERVABILITY_QUERIES.md](./docs/04-observability/OBSERVABILITY_QUERIES.md) | SRE, Operations Engineers |
 | **API Collections** | Unified Newman & Postman API suite with Federation v2 queries, Keycloak login flows, and end-to-end order orchestration. | • [Postman Collection](./devsecops/testing/newman/microservices.postman_collection.json) | API Developers, QA |
 
@@ -170,13 +170,13 @@ Select the recommended reading sequence tailored to your day-to-day responsibili
 
 - **🛡️ DevSecOps, SRE & QA Engineers:**
   1. [03. DevSecOps Governance & Model](./docs/03-devsecops-and-testing/DEVSECOPS_GOVERNANCE_AND_MODEL.md): End-to-end 5-phase delivery model, BPMN lifecycle, role profiles, and organizational RACI matrix.
-  2. [03. CI/CD Pipelines](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md): Multi-cloud pipeline engine (GitHub Actions 12-stage, Azure DevOps 14-stage, Bitbucket 14-stage) and static checks (Gitleaks, Semgrep, Trivy, OPA).
+  2. [03. CI/CD Pipelines](./docs/03-devsecops-and-testing/DEVSECOPS_PIPELINES.md): GitHub Actions CI + ArgoCD GitOps CD pipeline engine and static checks (Gitleaks, Semgrep, Trivy, OPA).
   3. [03. Dynamic & Chaos Testing](./docs/03-devsecops-and-testing/DYNAMIC_AND_CHAOS_TESTING.md): Run Newman contract regressions, k6 performance/SLO gates, and OWASP ZAP DAST scans.
   4. [04. Observability Handbook](./docs/04-observability/OBSERVABILITY_QUERIES.md): Query metrics (PromQL), logs (LogQL), and distributed spans (TraceQL) across the Grafana LGTM stack.
   5. [02. Cloudflare Tunnels](./docs/02-operations/CLOUDFLARE_TUNNELS.md): Expose local or staging endpoints securely to remote GitHub Actions runners.
 
 - **☁️ Cloud Platform & Infrastructure Architects:**
-  1. [01. Multi-Cloud Infrastructure](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md): Review Terraform modules, provider architectures (AWS EKS, Azure AKS, GCP GKE), remote backends, and state locks.
+  1. [01. AWS Cloud Infrastructure](./docs/01-architecture/MULTI_CLOUD_INFRASTRUCTURE.md): Review Terraform modules, AWS EKS architecture, remote S3/DynamoDB backend, and state locks.
   2. [02. Platform CLI Reference](./docs/02-operations/PLATFORM_CLI_REFERENCE.md): Single operational tool for cluster lifecycles, secrets, and canary routing.
   3. [02. Helm Chart & Canary Releases](./docs/02-operations/HELM_AND_CANARY.md): Manage Umbrella Helm chart delivery, OCI registries, and Istio canary traffic splitting.
   4. [03. Git Workflow & Rollbacks](./docs/03-devsecops-and-testing/GIT_WORKFLOW_AND_COLLABORATION.md): Release branching, hotfixes, GitOps ArgoCD syncs, and 4-tier disaster recovery.
@@ -197,8 +197,8 @@ All visual architectural views are maintained in [`docs/Diagrams.drawio`](./docs
 | **08** | *Mature E-Commerce Observability Architecture* | Unified LGTM telemetry pipeline: OpenTelemetry Collector, Prometheus TSDB, Grafana dashboards, Loki log streaming, and Tempo distributed tracing. |
 | **09** | *Local DevSecOps Platform & GitHub Actions Delivery* | Pre-commit maturity gates, 7-step CI delivery workflow, SAST (Semgrep, Gitleaks), Trivy container scanning, OPA Conftest, and GitOps synchronization with ArgoCD. |
 | **10** | *Resiliency, Secrets, Canary & Alerts* | Resilience4j circuit breakers, Istio Canary traffic shifting (10% to 100%), Alertmanager rules, and chaos resilience simulation. |
-| **11** | *Multi-Cloud IaC & CLI Automation Suite* | Independent Minikube, AWS, Azure, and GCP CLI entrypoints, multi-cloud Terraform workspaces, OpenCost monitoring, and FinOps budgeting. |
-| **12** | *Multi-Cloud CI/CD & Recovery Architecture* | Cross-cloud delivery matrix: GitHub Actions (12-stage DevSecOps flow + ArgoCD GitOps), Azure DevOps (14-stage AKS delivery), Bitbucket Pipelines (14-stage GKE delivery), and 4-tier disaster recovery. |
+| **11** | *AWS IaC & CLI Automation Suite* | `platform-minikube.ps1` CLI entrypoint, AWS EKS Terraform workspaces, OpenCost monitoring, and FinOps budgeting. |
+| **12** | *AWS CI/CD (GitHub Actions + ArgoCD) & Recovery* | GitHub Actions DevSecOps CI + ArgoCD v3.6 GitOps CD on AWS EKS and 4-tier disaster recovery. |
 | **13** | *The 5-Phase End-to-End Delivery Lifecycle* | Enterprise DevSecOps governance, Shift-Left threat modeling, automated Level 1/2/3 Quality Gates, and continuous SRE closed-loop telemetry feedback. |
 | **14** | *GraphQL Supergraph - 6-Layer Defense-in-Depth Architecture* | Edge protection, depth limiting (≤12), alias restriction (≤5), @authenticated pre-fetch field kill-switch, JWKS RS256 validation, and NetPol isolation. |
 | **15** | *Sequence - GraphQL Supergraph Request Lifecycle & Edge Protection* | Chronological request lifecycle from React 19 client to Cosmo Router gateway, fail-closed validation forks, and parallel Apollo Federation v2 entity resolution. |
@@ -377,7 +377,6 @@ microservices-architecture/
 │   ├── playbooks/deploy-compact-stack.yml # Master Docker, UFW & Systemd deployment
 │   └── templates/                  # Compose stack & multi-DB initialization
 ├── argocd/                         # 🐙 ArgoCD GitOps Applications & ApplicationSets (dev, staging, prod)
-├── azure-devops/                   # 🔷 Azure DevOps Pipeline definitions
 ├── backups/                        # 💾 BCDR disaster recovery drills & automated database snapshots
 ├── cosmo-router/                   # 🌐 Cosmo Router Federation v2 Gateway (Port 8080)
 ├── devsecops/                      # 🛡️ Centralized DevSecOps Security Hub
@@ -387,7 +386,7 @@ microservices-architecture/
 │   ├── sast/gitleaks/              # Hardcoded credential detection (.gitleaks.toml)
 │   └── testing/                    # k6 performance SLOs & Newman integration test collections
 ├── docs/                           # 📚 Enterprise Platform Documentation (4 Specialized Pillars)
-│   ├── 01-architecture/            # ADRs, System Architecture, Disaster Recovery & Multi-Cloud
+│   ├── 01-architecture/            # ADRs, System Architecture, Disaster Recovery & AWS EKS
 │   ├── 02-operations/              # Minikube, Governance, Cloudflare Tunnels & Helm Canary
 │   ├── 03-devsecops-and-testing/   # Governance Model, CI/CD Pipelines, Quality Gates, Chaos & Git Workflow
 │   ├── 04-observability/           # Telemetry Handbook, PromQL, LogQL & TraceQL queries
@@ -403,7 +402,7 @@ microservices-architecture/
 │   ├── common/                     # Core namespaces, RBAC roles & StorageClasses
 │   ├── istio/                      # VirtualServices, DestinationRules, Gateway & mTLS policies
 │   ├── minikube/                   # Local cluster deployment manifests & local secrets
-│   └── [aks|eks|gke]/              # Managed cloud Kubernetes configurations
+│   └── eks/                        # Managed AWS EKS Kubernetes configurations
 ├── mlops/                          # 🧪 MLOps Pipeline & Forecasting Subsystem
 │   ├── Dockerfile.forecast         # Online inference server (`georgegxx/demand-forecast`)
 │   ├── Dockerfile.training         # Headless PySpark batch auto-trainer (`georgegxx/mlops-training`)
@@ -429,19 +428,16 @@ microservices-architecture/
 │   ├── local-cost-estimator.py     # Unified FinOps suite (Terraform plan-delta & K8s right-sizing)
 │   ├── manage-cloudflare-tunnels.ps1 # Cloudflare Zero Trust tunnel manager & DNS sync
 │   └── update_dashboards.py        # Grafana dashboard generator & live publisher
-├── terraform/                      # 🌍 Multi-Cloud Infrastructure as Code (IaC)
-│   ├── backend-config/             # Remote state backend definitions (S3, Azure Blob, GCS)
-│   ├── environments/               # Target workspaces (aws, azure, gcp, dev, staging, prod)
-│   └── modules/                    # Reusable cloud modules (VPC, EKS, AKS, GKE, RDS, Vault)
+├── terraform/                      # 🌍 AWS Infrastructure as Code (IaC)
+│   ├── environments/               # Target workspaces (aws, aws-ecs-fargate, aws-ec2-compact, local-minikube)
+│   └── modules/                    # Reusable AWS & shared modules (VPC, EKS, RDS, MSK, S3, OIDC)
 ├── .env.example                    # Environment variables template
 ├── .gitattributes                  # Git line-ending and binary attributes configuration
 ├── .gitignore                      # Git ignore patterns
 ├── .gitleaksignore                 # Baseline allowlist and suppressions for secrets scanner
-├── bitbucket-pipelines.yml         # Bitbucket Pipelines CI/CD configuration
 ├── compose.yaml                    # Local multi-service development stack (30+ containers with optional workloads)
 ├── LICENSE                         # MIT License file
-├── platform-minikube.ps1           # Local Minikube platform CLI & lifecycle orchestrator
-├── platform-multicloud.ps1         # Multi-Cloud (AWS, Azure, GCP) Enterprise Orchestrator
+├── platform-minikube.ps1           # Unified Minikube & AWS CLI lifecycle orchestrator
 ├── pom.xml                         # Maven Multi-Module Reactor (Java 21, Spring Boot 4)
 ├── README.md                       # Master architecture documentation & quickstart guide
 └── sonar-monorepo-projects.json    # SonarQube / SonarCloud multi-module matrix metadata

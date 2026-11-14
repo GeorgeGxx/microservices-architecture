@@ -1,5 +1,5 @@
-site_name: Enterprise Multi-Cloud Microservices Architecture
-site_description: Production-grade polyglot microservices, GitOps (Argo CD 3.6.1), DevSecOps, FinOps, and MLOps platform documentation across AWS, Azure, and GCP.
+site_name: Enterprise AWS Microservices Architecture
+site_description: Production-grade polyglot microservices, GitOps (Argo CD 3.6.1), DevSecOps, FinOps, and MLOps platform documentation on AWS EKS and Minikube.
 repo_url: https://github.com/GeorgeGxx/microservices-architecture
 edit_uri: edit/develop/docs/
 
