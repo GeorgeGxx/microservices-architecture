@@ -159,20 +159,22 @@ func main() {
 	<-quit
 	log.Println("[Main] Shutting down payments-service gracefully...")
 
-	// Stop Kafka Consumer & Service Workers
+	// 1. Drain in-flight HTTP requests before stopping background workers and Kafka producers
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Printf("[Main] HTTP server shutdown error: %v", err)
+	}
+
+	// 2. Stop Kafka Consumers, Service Workers, and Producer
 	stopConsumer()
 	_ = consumer.Close()
 	_ = fulfillmentConsumer.Close()
 	paymentSvc.Stop()
 	_ = producer.Close()
 
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancelShutdown()
 	if tp != nil {
 		_ = tp.Shutdown(shutdownCtx)
-	}
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("[Main] Server forced to shutdown: %v", err)
 	}
 
 	log.Println("[Main] payments-service exited cleanly.")

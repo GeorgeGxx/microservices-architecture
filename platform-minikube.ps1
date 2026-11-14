@@ -82,10 +82,13 @@ param(
     [switch]$SimulateOrders = $false,
     [ValidateRange(10, 900)]
     [int]$RunTimeoutSeconds = 180,
-    [switch]$Destroy = $false
+    [switch]$Destroy = $false,
+    [switch]$UpgradeTerraformProviders = $false
 )
 
+#region Section 1-5: Platform Configuration, Logging, Native Execution & Cosmo Router Fingerprinting
 $Platform = "minikube"
+$WgcCliVersion = "0.133.3"
 # Runtime setup and Minikube-specific helpers are embedded in this standalone CLI.
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -114,10 +117,75 @@ $dashboardsDir = Join-Path $root "observability\grafana\dashboards"
 $docsDir       = Join-Path $root "docs"
 $enableIstio = if ($WithoutIstio) { $false } else { $WithIstio }
 
+function Invoke-NativeCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$Executable,
+        [Parameter()][string[]]$Arguments = @(),
+        [Parameter()][string]$Description = "",
+        [Parameter()][switch]$AllowNonZeroExit
+    )
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        $output = @(& $Executable @Arguments 2>&1)
+        $exitCode = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 0 }
+        if ($exitCode -ne 0 -and -not $AllowNonZeroExit) {
+            $label = if ($Description) { $Description } else { "$Executable $($Arguments -join ' ')" }
+            if ($output.Count -gt 0) {
+                $output | ForEach-Object { Write-Host "    $_" -ForegroundColor Red }
+            }
+            throw "$label failed with exit code $exitCode."
+        }
+        return [PSCustomObject]@{
+            ExitCode = $exitCode
+            Output   = $output
+        }
+    } finally {
+        $ErrorActionPreference = $prevEap
+    }
+}
+
+function Get-CosmoRouterCompositionFingerprint {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfigDir,
+        [Parameter()][string]$WgcVersion = "0.133.3"
+    )
+    $inputFiles = [System.Collections.Generic.List[string]]::new()
+    $supergraphPath = Join-Path $ConfigDir "supergraph.yaml"
+    $routerYamlPath = Join-Path $ConfigDir "router.yaml"
+    if (Test-Path -LiteralPath $supergraphPath -PathType Leaf) { $inputFiles.Add($supergraphPath) }
+    if (Test-Path -LiteralPath $routerYamlPath -PathType Leaf) { $inputFiles.Add($routerYamlPath) }
+    $subgraphsDir = Join-Path $ConfigDir "subgraphs"
+    if (Test-Path -LiteralPath $subgraphsDir -PathType Container) {
+        Get-ChildItem -LiteralPath $subgraphsDir -Filter "*.graphql" -File |
+            Sort-Object FullName |
+            ForEach-Object { $inputFiles.Add($_.FullName) }
+    }
+
+    $manifestBuilder = [System.Text.StringBuilder]::new()
+    [void]$manifestBuilder.AppendLine("wgc:$WgcVersion")
+    foreach ($file in $inputFiles) {
+        $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash
+        $relName = [System.IO.Path]::GetFileName($file)
+        [void]$manifestBuilder.AppendLine("${relName}:${hash}")
+    }
+
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($manifestBuilder.ToString())
+        $digest = $sha256.ComputeHash($bytes)
+        return [BitConverter]::ToString($digest).Replace("-", "").ToLowerInvariant()
+    } finally {
+        $sha256.Dispose()
+    }
+}
+
 function Invoke-CosmoRouterCompose {
     $configDir = Join-Path $root "cosmo-router"
     $inputFile = Join-Path $configDir "supergraph.yaml"
     $outputFile = Join-Path $configDir "execution-config.json"
+    $fingerprintFile = Join-Path $configDir ".composition-fingerprint.sha256"
     $chartConfigFile = Join-Path $root "helm\charts\cosmo-router\files\execution-config.json"
     if (-not (Test-Path -LiteralPath $inputFile -PathType Leaf)) {
         throw "Cosmo Router supergraph source is missing: $inputFile"
@@ -126,12 +194,31 @@ function Invoke-CosmoRouterCompose {
         throw "npx is required to compose Federation. Install Node.js and retry."
     }
 
+    $currentFingerprint = Get-CosmoRouterCompositionFingerprint -ConfigDir $configDir -WgcVersion $WgcCliVersion
     Push-Location $root
     try {
         $needCompose = $true
         if ((Test-Path -LiteralPath $outputFile -PathType Leaf) -and ((Get-Item $outputFile).Length -ge 100)) {
-            if ((Get-Item $outputFile).LastWriteTime -ge (Get-Item $inputFile).LastWriteTime) {
-                $needCompose = $false
+            if (Test-Path -LiteralPath $fingerprintFile -PathType Leaf) {
+                $savedFingerprint = (Get-Content -LiteralPath $fingerprintFile -Raw).Trim()
+                if ($savedFingerprint -eq $currentFingerprint) {
+                    $needCompose = $false
+                }
+            } elseif ((Get-Item $outputFile).LastWriteTime -ge (Get-Item $inputFile).LastWriteTime) {
+                $SubgraphsNewer = $false
+                $subgraphsDir = Join-Path $configDir "subgraphs"
+                if (Test-Path -LiteralPath $subgraphsDir -PathType Container) {
+                    foreach ($sg in (Get-ChildItem -LiteralPath $subgraphsDir -Filter "*.graphql" -File)) {
+                        if ($sg.LastWriteTime -gt (Get-Item $outputFile).LastWriteTime) {
+                            $SubgraphsNewer = $true
+                            break
+                        }
+                    }
+                }
+                if (-not $SubgraphsNewer) {
+                    $needCompose = $false
+                    Set-Content -LiteralPath $fingerprintFile -Value $currentFingerprint -NoNewline -Encoding UTF8
+                }
             }
         }
         if ($needCompose) {
@@ -140,12 +227,13 @@ function Invoke-CosmoRouterCompose {
             try {
                 $cmdNpx = Get-Command npx.cmd -ErrorAction SilentlyContinue
                 $npxExec = if ($cmdNpx) { $cmdNpx.Source } else { "npx" }
-                $composeOutput = @(& $npxExec --yes wgc@0.133.3 router compose --input $inputFile --out $outputFile 2>&1)
+                $composeOutput = @(& $npxExec --yes "wgc@$WgcCliVersion" router compose --input $inputFile --out $outputFile 2>&1)
                 $composeExitCode = $LASTEXITCODE
                 if ($composeExitCode -ne 0) {
                     if ($composeOutput.Count -gt 0) { $composeOutput | ForEach-Object { Write-Host $_ } }
                     throw "Cosmo Router composition failed with exit code $composeExitCode. See diagnostics above."
                 }
+                Set-Content -LiteralPath $fingerprintFile -Value $currentFingerprint -NoNewline -Encoding UTF8
             } finally {
                 $ErrorActionPreference = $prevEap
             }
@@ -179,6 +267,48 @@ function Invoke-CosmoRouterCompose {
     }
     Write-Host "Federation execution config is ready: $outputFile" -ForegroundColor Cyan
 }
+
+function Ensure-MinikubeMetricsServer {
+    <#
+    .SYNOPSIS
+    11-step Minikube metrics-server diagnostic, enablement, and reconciliation workflow.
+    #>
+    Write-Host "  ▶ Ensuring Minikube metrics-server is enabled for HPA/KEDA CPU metrics..." -ForegroundColor White
+
+    # Step 1-5: Inspect APIService v1beta1.metrics.k8s.io, deployment, pods, and endpoints
+    $apiServiceStatus = (kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath="{.status.conditions[?(@.type=='Available')].status}" 2>$null)
+    $deployReady = (kubectl get deployment metrics-server -n kube-system -o jsonpath="{.status.readyReplicas}" 2>$null)
+    $endpoints = (kubectl get endpoints metrics-server -n kube-system -o jsonpath="{.subsets[*].addresses[*].ip}" 2>$null)
+
+    if ($apiServiceStatus -ne "True" -or -not $deployReady -or -not $endpoints) {
+        # Step 6-8: Enable addon idempotently and patch kubelet insecure TLS flags if needed
+        minikube addons enable metrics-server 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            throw "Could not enable Minikube metrics-server addon. KEDA CPU scalers require v1beta1.metrics.k8s.io."
+        }
+        $argsList = (kubectl get deployment metrics-server -n kube-system -o jsonpath="{.spec.template.spec.containers[0].args}" 2>$null)
+        if ($argsList -and ($argsList -notmatch "--kubelet-insecure-tls")) {
+            kubectl patch deployment metrics-server -n kube-system --type='json' -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-","value":"--kubelet-insecure-tls"}]' 2>$null | Out-Null
+        }
+
+        # Step 9: Wait for rollout and APIService registration
+        Write-Host "  ▶ Waiting for metrics-server deployment and initial scrape cycle (up to 240s)..." -ForegroundColor White
+        kubectl rollout status deployment/metrics-server -n kube-system --timeout=180s 2>$null | Out-Null
+        kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=240s 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            # Step 11: Emit structured failure diagnostics
+            Write-Host "  [DIAGNOSTIC] metrics-server pods in kube-system:" -ForegroundColor Yellow
+            kubectl get pods -n kube-system -l k8s-app=metrics-server 2>$null | ForEach-Object { Write-Host "    $_" }
+            kubectl describe apiservice v1beta1.metrics.k8s.io 2>$null | Select-Object -Last 15 | ForEach-Object { Write-Host "    $_" }
+            throw "Minikube metrics-server did not publish v1beta1.metrics.k8s.io within 240 seconds."
+        }
+    }
+
+    # Step 10: Verify node metrics query responds
+    kubectl top nodes 2>$null | Out-Null
+    Write-Host "  [OK] Resource metrics API (v1beta1.metrics.k8s.io) is healthy and active." -ForegroundColor Green
+}
+#endregion Section 1-5
 
 function Get-TerraformDirectoryMutexName {
     param([Parameter(Mandatory = $true)][string]$Directory)
@@ -2067,7 +2197,9 @@ switch ($Command) {
             Show-Banner "Minikube Local Terraform Plan"
             Push-Location $tfMinikubeDir
             try {
-                Invoke-TerraformCommand -Arguments @("init", "-upgrade", "-input=false", "-no-color") -Description "Terraform init (Minikube)"
+                $tfInitArgs = @("init", "-input=false", "-no-color")
+                if ($UpgradeTerraformProviders) { $tfInitArgs += "-upgrade" }
+                Invoke-TerraformCommand -Arguments $tfInitArgs -Description "Terraform init (Minikube)"
                 Invoke-TerraformCommand -Arguments @("plan", "-no-color") -Description "Terraform plan (Minikube)" -ShowSuccessSummary
             } finally {
                 Pop-Location
@@ -2412,7 +2544,9 @@ switch ($Command) {
             if ($Platform -ne "minikube") { Assert-CloudRemoteBackend -CloudProvider $Platform }
             Push-Location $graphTfDir
             try {
-                Invoke-TerraformCommand -Arguments @("init", "-upgrade", "-input=false", "-no-color") -Description "Terraform init for dependency graph"
+                $tfInitArgs = @("init", "-input=false", "-no-color")
+                if ($UpgradeTerraformProviders) { $tfInitArgs += "-upgrade" }
+                Invoke-TerraformCommand -Arguments $tfInitArgs -Description "Terraform init for dependency graph"
                 $outPath = Join-Path $root "docs\terraform-graph.png"
                 terraform graph | dot -Tpng -o $outPath
                 if ($LASTEXITCODE -ne 0) { throw "Terraform graph rendering failed." }
@@ -3220,24 +3354,8 @@ function Invoke-MinikubePlatform {
             minikube update-context 2>$null | Out-Null
             kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
-            # `--addons=metrics-server` is only passed when Minikube starts.
-            # Existing clusters therefore need an explicit, idempotent enable;
-            # KEDA CPU triggers and Kubernetes HPAs otherwise remain unhealthy.
-            Write-Host "  ▶ Ensuring Minikube metrics-server is enabled for HPA/KEDA CPU metrics..." -ForegroundColor White
-            $isMetricsAvailable = ((kubectl get apiservice v1beta1.metrics.k8s.io -o jsonpath="{.status.conditions[0].status}" 2>$null) -eq 'True')
-            if (-not $isMetricsAvailable) {
-                minikube addons enable metrics-server
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Could not enable Minikube metrics-server. KEDA CPU scalers cannot become healthy without the resource metrics API."
-                }
-                Write-Host "  ▶ Waiting for metrics-server deployment and initial scrape cycle (up to 240s)..." -ForegroundColor White
-                kubectl rollout status deployment/metrics-server -n kube-system --timeout=180s 2>$null | Out-Null
-                kubectl wait --for=condition=Available apiservice/v1beta1.metrics.k8s.io --timeout=240s
-                if ($LASTEXITCODE -ne 0) {
-                    throw "Minikube metrics-server did not publish v1beta1.metrics.k8s.io within 240 seconds. Check `kubectl get pods -n kube-system` before retrying Helm."
-                }
-            }
-            Write-Host "  [OK] Resource metrics API (v1beta1.metrics.k8s.io) is healthy and active." -ForegroundColor Green
+            # Ensure Minikube metrics-server is healthy via 11-step diagnostic & recovery workflow
+            Ensure-MinikubeMetricsServer
             kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             if ($BuildImages) {
@@ -3300,7 +3418,9 @@ function Invoke-MinikubePlatform {
             $terraformChdir = "-chdir=$tfMinikubeDir"
             Write-Host "  Terraform working directory: $tfMinikubeDir" -ForegroundColor DarkGray
             Write-Host "  Terraform files: $($terraformConfigFiles.Name -join ', ')" -ForegroundColor DarkGray
-            Invoke-TerraformCommand -Arguments @($terraformChdir, "init", "-upgrade", "-input=false", "-no-color") -Description "Terraform init (Minikube)"
+            $tfInitUpArgs = @($terraformChdir, "init", "-input=false", "-no-color")
+            if ($UpgradeTerraformProviders) { $tfInitUpArgs += "-upgrade" }
+            Invoke-TerraformCommand -Arguments $tfInitUpArgs -Description "Terraform init (Minikube)"
             Invoke-TerraformCommand -Arguments @($terraformChdir, "apply", "-input=false", "-auto-approve", "-no-color") -Description "Terraform apply (Minikube)" -ShowSuccessSummary
             Write-Host "  [OK] Platform namespaces and core helm controllers applied." -ForegroundColor Green
 
@@ -3456,9 +3576,13 @@ stringData:
                 throw "Keycloak bootstrap script is missing at '$keycloakBootstrapScript'. Cosmo Router requires the realm JWKS before startup."
             }
 
-            Write-Host "`n[8/10] 🚀 Deploying Microservices, React Frontend & MLOps Workloads..." -ForegroundColor Yellow
-            Write-Host "  ▶ Deploying Minikube MLOps Workloads (Namespace 'dev')..." -ForegroundColor White
-            Invoke-MinikubeMlopsDeployment
+            Write-Host "`n[8/10] 🚀 Deploying Microservices, React Frontend & Optional MLOps Workloads..." -ForegroundColor Yellow
+            if ($WithMlops) {
+                Write-Host "  ▶ [-IncludeMlops] Deploying Minikube MLOps Workloads (Namespace 'dev')..." -ForegroundColor White
+                Invoke-MinikubeMlopsDeployment
+            } else {
+                Write-Host "  [SKIP] MLOps image build and training skipped by default (pass -IncludeMlops or run '.\platform-minikube.ps1 mlops' to enable)." -ForegroundColor DarkGray
+            }
 
             Write-Host "  ▶ Deploying Microservices & React Frontend via Helm..." -ForegroundColor White
             $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
@@ -3774,6 +3898,7 @@ stringData:
                 @{ Ns = "data"; App = "db-analytics"; Name = "PostgreSQL Analytics DB" },
                 @{ Ns = "data"; App = "redis"; Name = "Redis Cache" },
                 @{ Ns = "data"; App = "kafka"; Name = "Kafka Event Broker" },
+                @{ Ns = "auth"; App = "db-keycloak"; Name = "PostgreSQL Keycloak DB" },
                 @{ Ns = "auth"; App = "keycloak"; Name = "Keycloak IAM" },
                 @{ Ns = "dev"; App = "cosmo-router"; Name = "Cosmo GraphQL Router" },
                 @{ Ns = "dev"; App = "frontend"; Name = "Presentation Frontend" },

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 
 interface HITLWidgetProps {
   payload: {
@@ -12,24 +13,34 @@ interface HITLWidgetProps {
 }
 
 export const HITLWidget: React.FC<HITLWidgetProps> = ({ payload, onResolved }) => {
+  const { user } = useAuth();
   const [resolved, setResolved] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleAction = async (action: 'APPROVE' | 'REJECT') => {
+    setErrorMsg(null);
     try {
-      await fetch('/api/ai/hitl/approve', {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (user?.token) {
+        headers['Authorization'] = `Bearer ${user.token}`;
+      }
+
+      const res = await fetch('/api/ai/hitl/approve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           ticket_id: payload.refund_ticket,
           action: action,
           supervisor_notes: `Manual action via supervisor UI: ${action}`
         })
       });
+      if (!res.ok) {
+        throw new Error(`Supervisor authorization required (HTTP ${res.status})`);
+      }
       setResolved(action);
       onResolved(payload.refund_ticket, action);
     } catch (e) {
-      console.error(e);
-      setResolved(action);
+      setErrorMsg(e instanceof Error ? e.message : 'Authorization failed');
     }
   };
 
@@ -75,6 +86,11 @@ export const HITLWidget: React.FC<HITLWidgetProps> = ({ payload, onResolved }) =
             <XCircle className="h-3.5 w-3.5" />
             Reject
           </button>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mt-2 text-[11px] text-rose-400 font-mono">
+          {errorMsg}
         </div>
       )}
     </div>

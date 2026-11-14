@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/georgegxx/payments-service/internal/models"
@@ -34,7 +35,7 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.StandardResponse{
 			Success: false,
-			Message: "Invalid payment request payload: " + err.Error(),
+			Message: "Invalid payment request payload",
 		})
 		return
 	}
@@ -46,9 +47,10 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 
 	resp, err := h.service.ProcessPayment(c.Request.Context(), req)
 	if err != nil {
+		log.Printf("[PaymentHandler] ProcessPayment failed for order %s: %v", req.OrderNumber, err)
 		c.JSON(http.StatusInternalServerError, models.StandardResponse{
 			Success: false,
-			Message: "Payment processing error: " + err.Error(),
+			Message: "Payment processing error",
 		})
 		return
 	}
@@ -76,16 +78,17 @@ func (h *PaymentHandler) RefundPayment(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, models.StandardResponse{
 			Success: false,
-			Message: "Invalid refund payload: " + err.Error(),
+			Message: "Invalid refund payload",
 		})
 		return
 	}
 
 	payment, err := h.service.RefundPayment(c.Request.Context(), req)
 	if err != nil {
+		log.Printf("[PaymentHandler] RefundPayment rejected for order %s: %v", req.OrderNumber, err)
 		c.JSON(http.StatusBadRequest, models.StandardResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Refund request could not be processed",
 		})
 		return
 	}
@@ -119,9 +122,10 @@ func (h *PaymentHandler) GetPaymentByOrder(c *gin.Context) {
 
 	payment, err := h.service.GetPaymentByOrder(c.Request.Context(), orderNumber)
 	if err != nil {
+		log.Printf("[PaymentHandler] GetPaymentByOrder failed for order %s: %v", orderNumber, err)
 		c.JSON(http.StatusInternalServerError, models.StandardResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Failed to retrieve payment record",
 		})
 		return
 	}
@@ -164,9 +168,10 @@ func (h *PaymentHandler) GetPaymentByID(c *gin.Context) {
 
 	payment, err := h.service.GetPaymentByID(c.Request.Context(), id)
 	if err != nil {
+		log.Printf("[PaymentHandler] GetPaymentByID failed for id %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, models.StandardResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Failed to retrieve payment record",
 		})
 		return
 	}

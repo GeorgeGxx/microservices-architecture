@@ -42,9 +42,21 @@ class Settings(BaseSettings):
     REFUND_AUTO_APPROVE_LIMIT: float = 50.0
 
     # Keycloak / OAuth2 Security
-    SECURITY_ENABLED: bool = Field(default=False, validation_alias="SECURITY_ENABLED")
+    # Secure-by-default: JWT authentication is enabled unless explicitly disabled in non-production environments.
+    SECURITY_ENABLED: bool = Field(default=True, validation_alias="SECURITY_ENABLED")
+    DEV_AUTH_BYPASS: bool = Field(default=False, validation_alias="DEV_AUTH_BYPASS")
     KEYCLOAK_ISSUER: str = Field(default="http://localhost:8181/realms/microservices-realm", validation_alias="KEYCLOAK_ISSUER")
     KEYCLOAK_JWKS_URI: str = Field(default="http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs", validation_alias="KEYCLOAK_JWKS_URI")
+    KEYCLOAK_AUDIENCE: str = Field(default="", validation_alias="KEYCLOAK_AUDIENCE")
+
+    def is_dev_bypass_active(self) -> bool:
+        """
+        Development authentication bypass is strictly forbidden in production and staging.
+        """
+        env = (self.APP_ENV or "production").strip().lower()
+        if env in {"production", "prod", "staging"}:
+            return False
+        return (not self.SECURITY_ENABLED) or self.DEV_AUTH_BYPASS
 
 
 settings = Settings()

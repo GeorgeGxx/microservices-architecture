@@ -125,13 +125,15 @@ async def chat_endpoint(
     if not req.message.strip():
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
-    user_role = req.user_role or "customer"
-    username = req.username or "guest"
-    if current_user and settings.SECURITY_ENABLED:
-        roles = current_user.get("roles", [])
-        if "ROLE_ADMIN" in roles or "admin" in roles:
+    # Derive user role and identity exclusively from the verified security principal;
+    # never trust client-supplied role fields for privilege elevation.
+    user_role = "customer"
+    username = "guest"
+    if current_user:
+        roles = [str(r).upper() for r in current_user.get("roles", [])]
+        if "ROLE_ADMIN" in roles or "ADMIN" in roles or "ROLE_SUPERVISOR" in roles:
             user_role = "admin"
-        username = current_user.get("preferred_username", username)
+        username = current_user.get("preferred_username") or current_user.get("sub") or "authenticated-user"
 
     thread_config = {"configurable": {"thread_id": req.thread_id}}
     initial_state = {
@@ -160,7 +162,10 @@ async def chat_endpoint(
         raise HTTPException(status_code=500, detail=f"Agent workflow error: {str(e)}") from e
 
 
-@app.get("/api/tools")
+@app.get(
+    "/api/tools",
+    dependencies=[Depends(get_current_user)]
+)
 def get_mcp_tools():
     return {"tools": EcommerceMCPServer.list_tools()}
 
@@ -180,7 +185,10 @@ def approve_hitl(req: HITLApprovalRequest):
     }
 
 
-@app.post("/api/evals/run")
+@app.post(
+    "/api/evals/run",
+    dependencies=[Depends(require_role("ROLE_ADMIN"))]
+)
 async def trigger_evals():
     summary = await run_evaluations()
     return summary

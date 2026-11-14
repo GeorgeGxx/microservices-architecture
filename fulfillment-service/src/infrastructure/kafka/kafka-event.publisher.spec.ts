@@ -62,4 +62,23 @@ describe('KafkaEventPublisher', () => {
       }),
     );
   });
+
+  it('should propagate outbox persistence failure instead of sending uncommitted events to Kafka', async () => {
+    const failingOutboxRepo: any = {
+      create: jest.fn((x) => x),
+      save: jest.fn().mockRejectedValue(new Error('DB connection lost')),
+    };
+    const outboxPublisher = new KafkaEventPublisher(failingOutboxRepo);
+    (outboxPublisher as any).producer = mockProducer;
+
+    await expect(outboxPublisher.publishFailed('ORD-DB-ERR', 'Reason')).rejects.toThrow('DB connection lost');
+    expect(mockProducer.send).not.toHaveBeenCalled();
+  });
+
+  it('should rethrow when publishDlq fails so consumer does not commit offsets', async () => {
+    mockProducer.send.mockRejectedValueOnce(new Error('DLQ broker unavailable'));
+    await expect(publisher.publishDlq('payments-topic', { orderNumber: 'ORD-9' }, 'parse error')).rejects.toThrow(
+      'DLQ broker unavailable',
+    );
+  });
 });

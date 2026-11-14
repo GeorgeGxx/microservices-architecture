@@ -116,19 +116,16 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
 
     let outboxEntry: OutboxEventOrmEntity | undefined;
     if (this.outboxRepo) {
-      try {
-        outboxEntry = this.outboxRepo.create({
-          aggregateType: 'Shipment',
-          aggregateId: orderNumber,
-          eventType,
-          payload: serialized,
-          status: 'PENDING',
-          retryCount: 0,
-        });
-        outboxEntry = await this.outboxRepo.save(outboxEntry);
-      } catch (dbErr: unknown) {
-        this.logger.warn(`Could not write outbox event for order #${orderNumber}: ${extractErrorMessage(dbErr)}`);
-      }
+      outboxEntry = this.outboxRepo.create({
+        aggregateType: 'Shipment',
+        aggregateId: orderNumber,
+        eventType,
+        payload: serialized,
+        status: 'PROCESSING',
+        retryCount: 0,
+        lockedAt: new Date(),
+      });
+      outboxEntry = await this.outboxRepo.save(outboxEntry);
     }
 
     try {
@@ -152,6 +149,7 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
 
       if (outboxEntry && this.outboxRepo) {
         outboxEntry.status = 'PUBLISHED';
+        outboxEntry.lockedAt = undefined;
         outboxEntry.processedAt = new Date();
         await this.outboxRepo.save(outboxEntry);
       }
@@ -161,6 +159,8 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
       const message = extractErrorMessage(err);
       this.logger.error(`Failed to dispatch ${eventType} for order #${orderNumber} immediately: ${message}. Retained in outbox.`);
       if (outboxEntry && this.outboxRepo) {
+        outboxEntry.status = 'PENDING';
+        outboxEntry.lockedAt = undefined;
         outboxEntry.retryCount += 1;
         await this.outboxRepo.save(outboxEntry);
       }
@@ -176,17 +176,57 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
   }
 
   /**
-   * Asynchronous sweep that drains pending outbox events when Kafka connectivity recovers.
+   * Asynchronous sweep that atomically claims and drains pending outbox events
+   * using FOR UPDATE SKIP LOCKED when running against PostgreSQL.
    */
+  private async claimPendingOutboxBatch(batchSize = 25): Promise<OutboxEventOrmEntity[]> {
+    if (!this.outboxRepo) return [];
+    const now = new Date();
+    const staleThreshold = new Date(now.getTime() - 2 * 60 * 1000);
+
+    if (this.outboxRepo.manager && typeof this.outboxRepo.manager.transaction === 'function') {
+      return this.outboxRepo.manager.transaction(async (em) => {
+        const events = await em
+          .createQueryBuilder(OutboxEventOrmEntity, 'outbox')
+          .setLock('pessimistic_write')
+          .setOnLocked('skip_locked')
+          .where('outbox.status = :pending OR (outbox.status = :processing AND outbox.lockedAt < :stale)', {
+            pending: 'PENDING',
+            processing: 'PROCESSING',
+            stale: staleThreshold,
+          })
+          .orderBy('outbox.createdAt', 'ASC')
+          .take(batchSize)
+          .getMany();
+
+        for (const ev of events) {
+          ev.status = 'PROCESSING';
+          ev.lockedAt = now;
+        }
+        if (events.length > 0) {
+          await em.save(OutboxEventOrmEntity, events);
+        }
+        return events;
+      });
+    }
+
+    const pendingEvents = await this.outboxRepo.find({
+      where: { status: 'PENDING' },
+      take: batchSize,
+      order: { createdAt: 'ASC' },
+    });
+    for (const ev of pendingEvents) {
+      ev.status = 'PROCESSING';
+      ev.lockedAt = now;
+      await this.outboxRepo.save(ev);
+    }
+    return pendingEvents;
+  }
+
   async flushPendingOutbox(): Promise<void> {
     if (!this.outboxRepo || this.isShuttingDown) return;
     try {
-      const pendingEvents = await this.outboxRepo.find({
-        where: { status: 'PENDING' },
-        take: 25,
-        order: { createdAt: 'ASC' },
-      });
-
+      const pendingEvents = await this.claimPendingOutboxBatch(25);
       if (!pendingEvents.length) return;
 
       await this.ensureConnected();
@@ -204,13 +244,13 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
             ],
           });
           event.status = 'PUBLISHED';
+          event.lockedAt = undefined;
           event.processedAt = new Date();
           await this.outboxRepo.save(event);
         } catch (dispatchErr: unknown) {
           event.retryCount += 1;
-          if (event.retryCount >= 5) {
-            event.status = 'FAILED';
-          }
+          event.lockedAt = undefined;
+          event.status = event.retryCount >= 5 ? 'FAILED' : 'PENDING';
           await this.outboxRepo.save(event);
           this.logger.warn(`Outbox retry ${event.retryCount} failed for event ${event.id}: ${extractErrorMessage(dispatchErr)}`);
           break;
@@ -265,6 +305,7 @@ export class KafkaEventPublisher implements EventPublisher, OnModuleInit, OnModu
     } catch (err: unknown) {
       const message = extractErrorMessage(err);
       this.logger.error(`Failed to route message to DLQ ${dlqTopic}: ${message}`);
+      throw err;
     }
   }
 }

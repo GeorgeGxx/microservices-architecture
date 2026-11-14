@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/google/uuid"
@@ -12,7 +13,9 @@ import (
 
 type PaymentRepository interface {
 	CreatePayment(ctx context.Context, payment *models.Payment) error
+	CreatePaymentWithOutbox(ctx context.Context, payment *models.Payment, outboxEvent *models.OutboxEvent) error
 	UpdatePayment(ctx context.Context, payment *models.Payment) error
+	UpdatePaymentWithOutbox(ctx context.Context, payment *models.Payment, outboxEvent *models.OutboxEvent) error
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Payment, error)
 	FindByOrderNumber(ctx context.Context, orderNumber string) (*models.Payment, error)
 	FindByIdempotencyKey(ctx context.Context, key string) (*models.Payment, error)
@@ -40,8 +43,36 @@ func (r *paymentRepository) CreatePayment(ctx context.Context, payment *models.P
 	return r.db.WithContext(ctx).Create(payment).Error
 }
 
+func (r *paymentRepository) CreatePaymentWithOutbox(ctx context.Context, payment *models.Payment, outboxEvent *models.OutboxEvent) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(payment).Error; err != nil {
+			return err
+		}
+		if outboxEvent != nil {
+			if err := tx.Create(outboxEvent).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
 func (r *paymentRepository) UpdatePayment(ctx context.Context, payment *models.Payment) error {
 	return r.db.WithContext(ctx).Save(payment).Error
+}
+
+func (r *paymentRepository) UpdatePaymentWithOutbox(ctx context.Context, payment *models.Payment, outboxEvent *models.OutboxEvent) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(payment).Error; err != nil {
+			return err
+		}
+		if outboxEvent != nil {
+			if err := tx.Create(outboxEvent).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *paymentRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.Payment, error) {
@@ -112,11 +143,33 @@ func (r *paymentRepository) SaveOutboxEvent(ctx context.Context, event *models.O
 
 func (r *paymentRepository) GetPendingOutboxEvents(ctx context.Context, limit int) ([]models.OutboxEvent, error) {
 	var events []models.OutboxEvent
-	err := r.db.WithContext(ctx).
-		Where("status = ?", "PENDING").
-		Order("created_at asc").
-		Limit(limit).
-		Find(&events).Error
+	staleThreshold := time.Now().UTC().Add(-2 * time.Minute)
+	now := time.Now().UTC()
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Where("status = ? OR (status = ? AND locked_at < ?)", "PENDING", "PROCESSING", staleThreshold).
+			Order("created_at asc").
+			Limit(limit).
+			Find(&events).Error; err != nil {
+			return err
+		}
+		if len(events) == 0 {
+			return nil
+		}
+		ids := make([]uuid.UUID, 0, len(events))
+		for i := range events {
+			events[i].Status = "PROCESSING"
+			events[i].LockedAt = &now
+			ids = append(ids, events[i].ID)
+		}
+		return tx.Model(&models.OutboxEvent{}).
+			Where("id IN ?", ids).
+			Updates(map[string]interface{}{
+				"status":    "PROCESSING",
+				"locked_at": now,
+			}).Error
+	})
 	return events, err
 }
 

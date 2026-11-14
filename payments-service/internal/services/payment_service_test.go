@@ -40,10 +40,34 @@ func (m *MockPaymentRepository) CreatePayment(ctx context.Context, p *models.Pay
 	return nil
 }
 
+func (m *MockPaymentRepository) CreatePaymentWithOutbox(ctx context.Context, p *models.Payment, outboxEvent *models.OutboxEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.payments[p.OrderNumber] = p
+	if p.IdempotencyKey != "" {
+		m.payments["idem:"+p.IdempotencyKey] = p
+	}
+	m.payments["id:"+p.ID.String()] = p
+	if outboxEvent != nil {
+		m.outboxEvents[outboxEvent.ID.String()] = outboxEvent
+	}
+	return nil
+}
+
 func (m *MockPaymentRepository) UpdatePayment(ctx context.Context, p *models.Payment) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.payments[p.OrderNumber] = p
+	return nil
+}
+
+func (m *MockPaymentRepository) UpdatePaymentWithOutbox(ctx context.Context, p *models.Payment, outboxEvent *models.OutboxEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.payments[p.OrderNumber] = p
+	if outboxEvent != nil {
+		m.outboxEvents[outboxEvent.ID.String()] = outboxEvent
+	}
 	return nil
 }
 
@@ -263,6 +287,45 @@ func TestRefundPayment_SuccessAndErrors(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "cannot refund payment")
+
+	// 5. Partial refund followed by remaining balance refund
+	_, err = svc.ProcessPayment(context.Background(), models.ProcessPaymentRequest{
+		OrderNumber:    "ORD-PARTIAL-1",
+		Amount:         100.00,
+		Currency:       "USD",
+		PaymentMethod:  "CARD_VISA",
+		IdempotencyKey: "idem-partial-1",
+	})
+	assert.NoError(t, err)
+
+	partialRefunded, err := svc.RefundPayment(context.Background(), models.RefundPaymentRequest{
+		OrderNumber: "ORD-PARTIAL-1",
+		Amount:      40.00,
+		Currency:    "USD",
+		Reason:      "Damaged item",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, models.PaymentStatusPartiallyRefunded, partialRefunded.Status)
+	assert.Equal(t, 40.00, partialRefunded.RefundedAmount)
+
+	// Over-refund exceeding remaining balance (60.00) must fail
+	_, err = svc.RefundPayment(context.Background(), models.RefundPaymentRequest{
+		OrderNumber: "ORD-PARTIAL-1",
+		Amount:      70.00,
+		Reason:      "Over-refund attempt",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds remaining refundable balance")
+
+	// Refund remaining 60.00 transitions status to REFUNDED
+	finalRefunded, err := svc.RefundPayment(context.Background(), models.RefundPaymentRequest{
+		OrderNumber: "ORD-PARTIAL-1",
+		Amount:      60.00,
+		Reason:      "Remaining refund",
+	})
+	assert.NoError(t, err)
+	assert.Equal(t, models.PaymentStatusRefunded, finalRefunded.Status)
+	assert.Equal(t, 100.00, finalRefunded.RefundedAmount)
 }
 
 func TestGetPaymentQueries(t *testing.T) {

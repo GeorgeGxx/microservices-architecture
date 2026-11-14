@@ -282,6 +282,12 @@ services:
         condition: service_healthy
       analytics-service:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${FRONTEND_INTERNAL_PORT:-8080}/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     networks:
       - spring
 
@@ -316,6 +322,12 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8001/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - spring
   ### Postgres database for inventory
@@ -369,6 +381,12 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8002/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - spring
 
@@ -405,6 +423,12 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8003/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - spring
   ### Postgres database for orders
@@ -655,6 +679,12 @@ services:
         condition: service_healthy
       otel-collector:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8004/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - spring
   ### Postgres database for products
@@ -967,7 +997,7 @@ services:
 
   ### 🧠 Local LLM Inference Engine (Ollama)
   ollama:
-    image: ollama/ollama:latest
+    image: ollama/ollama:${OLLAMA_VERSION:-0.6.2}
     container_name: ollama
     ports:
       - "127.0.0.1:11434:11434"
@@ -994,7 +1024,7 @@ services:
 
   ### Automated Local Model Downloader
   ollama-init:
-    image: ollama/ollama:latest
+    image: ollama/ollama:${OLLAMA_VERSION:-0.6.2}
     container_name: ollama-init
     environment:
       - OLLAMA_HOST=http://ollama:11434
@@ -1018,7 +1048,7 @@ services:
 
   ### 👁️ LLM Observability & Evals (Arize Phoenix)
   phoenix:
-    image: arizephoenix/phoenix:latest
+    image: arizephoenix/phoenix:${PHOENIX_VERSION:-version-8.0.0}
     container_name: phoenix
     ports:
       - "127.0.0.1:6006:6006" # Phoenix UI & OTLP HTTP
@@ -1038,8 +1068,11 @@ services:
     ports:
       - "127.0.0.1:8010:8010"
     environment:
-      - APP_ENV=production
+      - APP_ENV=${AI_APP_ENV:-production}
       - PORT=8010
+      - SECURITY_ENABLED=${AI_SECURITY_ENABLED:-true}
+      - KEYCLOAK_ISSUER=${KEYCLOAK_ISSUER_URI:-http://localhost:8181/realms/microservices-realm}
+      - KEYCLOAK_JWKS_URI=${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
       - LLM_PROVIDER=ollama
       - OLLAMA_BASE_URL=http://ollama:11434
       - OLLAMA_MODEL=llama3.1:8b
@@ -1057,6 +1090,12 @@ services:
         condition: service_completed_successfully
       phoenix:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
     deploy:
       resources:
         limits:
