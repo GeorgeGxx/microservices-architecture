@@ -248,13 +248,9 @@ python -m unittest discover -s mlops/tests -v
 Automated multi-scenario chaos drill suite validating Level 5 Hyper-Scale architecture pillars under active runtime failure conditions:
 
 ```powershell
-# Execute full chaos drill suite
+# Execute full chaos drill suite (cross-platform PowerShell 7 / pwsh)
+.\platform-minikube.ps1 chaos-drills
 .\scripts\chaos\run-chaos-drills.ps1
-```
-
-```bash
-# Linux / CI runner equivalent
-bash ./scripts/chaos/run-chaos-drills.sh
 ```
 
 #### Executed Chaos Scenarios:
