@@ -48,6 +48,24 @@ public class SecurityConfig {
                 .build();
     }
 
+    @Bean
+    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder(
+            @org.springframework.beans.factory.annotation.Value(
+                    "${KEYCLOAK_JWT_URI:http://localhost:8181/realms/microservices-realm/protocol/openid-connect/certs}")
+            String jwkSetUri) {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder =
+                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> validator =
+                new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                        new org.springframework.security.oauth2.jwt.JwtTimestampValidator(),
+                        new org.springframework.security.oauth2.jwt.JwtClaimValidator<String>(
+                                org.springframework.security.oauth2.jwt.JwtClaimNames.ISS,
+                                iss -> iss != null && iss.endsWith("/realms/microservices-realm")));
+        jwtDecoder.setJwtValidator(validator);
+        return jwtDecoder;
+    }
+
     @SuppressWarnings("unchecked")
     private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();

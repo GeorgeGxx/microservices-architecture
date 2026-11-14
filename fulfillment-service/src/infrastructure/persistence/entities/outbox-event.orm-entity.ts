@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
-export type OutboxStatus = 'PENDING' | 'PUBLISHED' | 'FAILED';
+export type OutboxStatus = 'PENDING' | 'PROCESSING' | 'PUBLISHED' | 'FAILED';
 
 @Entity('outbox_events')
 export class OutboxEventOrmEntity {
@@ -28,6 +28,9 @@ export class OutboxEventOrmEntity {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @Column({ name: 'locked_at', type: 'timestamp', nullable: true })
+  lockedAt?: Date;
 
   @Column({ name: 'processed_at', type: 'timestamp', nullable: true })
   processedAt?: Date;

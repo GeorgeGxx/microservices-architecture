@@ -29,3 +29,11 @@ class SkuSaleOrm(Base):
     sku = Column(String(64), primary_key=True)
     units_sold = Column(Integer, default=0, nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class ProcessedAnalyticsEventOrm(Base):
+    __tablename__ = "processed_analytics_events"
+
+    event_key = Column(String(255), primary_key=True)
+    topic = Column(String(100), nullable=False, index=True)
+    processed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)

@@ -106,3 +106,36 @@ async def test_kafka_consumer_stop():
 
     assert task.cancelled() or task.done()
     assert consumer.is_running is False
+
+
+@pytest.mark.asyncio
+async def test_kafka_consumer_does_not_mark_failed_message_as_processed():
+    consumer = AnalyticsKafkaConsumer()
+    payload = {
+        "specversion": "1.0",
+        "id": "evt-retry-test-1",
+        "type": "com.microservices.payments.completed",
+        "source": "/payments-service",
+        "data": {
+            "eventType": "PAYMENT_COMPLETED",
+            "order_number": "ORD-RETRY-1",
+            "amount": 99.0,
+            "user_id": "cust-retry",
+            "items_count": 1,
+        },
+    }
+    raw_msg = MagicMock()
+    raw_msg.topic = "payments-topic"
+    raw_msg.offset = 42
+    raw_msg.value = json.dumps(payload).encode("utf-8")
+
+    with patch.object(consumer, "_record_completed_payment", side_effect=RuntimeError("Transient DB failure")):
+        ok = await consumer._process_message(raw_msg)
+        assert ok is False
+        assert "evt-retry-test-1" not in consumer._processed_event_ids
+
+    with patch.object(consumer, "_record_completed_payment", new_callable=AsyncMock) as mock_rec:
+        ok2 = await consumer._process_message(raw_msg)
+        assert ok2 is True
+        mock_rec.assert_awaited_once_with("ORD-RETRY-1", 99.0, "cust-retry", 1)
+        assert "evt-retry-test-1" in consumer._processed_event_ids

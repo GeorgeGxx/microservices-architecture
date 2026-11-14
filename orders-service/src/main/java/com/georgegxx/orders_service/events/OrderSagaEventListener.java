@@ -26,6 +26,9 @@ public class OrderSagaEventListener {
     private final OrderService orderService;
     private final MeterRegistry meterRegistry;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private org.springframework.kafka.core.KafkaTemplate<String, String> kafkaTemplate;
+
     @RetryableTopic(
             attempts = "3",
             backOff = @BackOff(delay = 1000, multiplier = 2.0),
@@ -81,7 +84,9 @@ public class OrderSagaEventListener {
 
     @DltHandler
     public void handleDltMessage(String payload, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        log.error("Dead Letter Queue (DLQ) received unprocessable message on topic '{}': {}", topic, payload);
+        int payloadLength = payload != null ? payload.length() : 0;
+        log.error("Dead Letter Queue (DLQ) received unprocessable message on topic '{}' (payloadLength={})",
+                topic, payloadLength);
         if (this.meterRegistry != null) {
             this.meterRegistry.counter("ecommerce_kafka_dlq_total", "topic", topic != null ? topic : "unknown").increment();
         }
@@ -97,8 +102,18 @@ public class OrderSagaEventListener {
             Map<String, Object> parsed = JsonUtils.fromJson(payload, Map.class);
             raw = parsed;
         } catch (Exception parseEx) {
-            log.error("Poison pill malformed JSON received in Saga {} event: {}", eventDomain, parseEx.getMessage());
-            handleDltMessage(payload, eventDomain + "-topic-dlt");
+            String dltTopic = ("payment".equals(eventDomain) ? OrderConstants.PAYMENTS_TOPIC : OrderConstants.FULFILLMENT_TOPIC) + "-dlt";
+            log.error("Poison pill malformed JSON received in Saga {} event (routing to {}): {}",
+                    eventDomain, dltTopic, parseEx.getMessage());
+            if (this.kafkaTemplate != null) {
+                try {
+                    this.kafkaTemplate.send(dltTopic, payload);
+                } catch (Exception sendEx) {
+                    log.error("Failed to publish malformed Saga {} payload to DLT '{}': {}",
+                            eventDomain, dltTopic, sendEx.getMessage());
+                }
+            }
+            handleDltMessage(payload, dltTopic);
             return;
         }
         if (raw == null) {

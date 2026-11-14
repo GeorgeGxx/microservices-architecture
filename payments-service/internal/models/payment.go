@@ -9,10 +9,11 @@ import (
 type PaymentStatus string
 
 const (
-	PaymentStatusPending   PaymentStatus = "PENDING"
-	PaymentStatusCompleted PaymentStatus = "COMPLETED"
-	PaymentStatusFailed    PaymentStatus = "FAILED"
-	PaymentStatusRefunded  PaymentStatus = "REFUNDED"
+	PaymentStatusPending           PaymentStatus = "PENDING"
+	PaymentStatusCompleted         PaymentStatus = "COMPLETED"
+	PaymentStatusFailed            PaymentStatus = "FAILED"
+	PaymentStatusPartiallyRefunded PaymentStatus = "PARTIALLY_REFUNDED"
+	PaymentStatusRefunded          PaymentStatus = "REFUNDED"
 )
 
 // Payment represents a financial transaction record in PostgreSQL 18
@@ -20,6 +21,7 @@ type Payment struct {
 	ID             uuid.UUID     `gorm:"type:uuid;primaryKey" json:"id"`
 	OrderNumber    string        `gorm:"type:varchar(64);index;not null" json:"order_number"`
 	Amount         float64       `gorm:"type:decimal(12,2);not null" json:"amount"`
+	RefundedAmount float64       `gorm:"type:decimal(12,2);default:0;not null" json:"refunded_amount"`
 	Currency       string        `gorm:"type:varchar(3);default:'USD';not null" json:"currency"`
 	Status         PaymentStatus `gorm:"type:varchar(20);index;not null" json:"status"`
 	PaymentMethod  string        `gorm:"type:varchar(50);not null" json:"payment_method"`
@@ -71,9 +73,11 @@ type ProcessPaymentResponse struct {
 }
 
 type RefundPaymentRequest struct {
-	OrderNumber string  `json:"order_number" binding:"required" example:"ORD-12345"`
-	Reason      string  `json:"reason" example:"Customer cancellation"`
-	Amount      float64 `json:"amount" example:"99.99"`
+	OrderNumber    string  `json:"order_number" binding:"required" example:"ORD-12345"`
+	Reason         string  `json:"reason" example:"Customer cancellation"`
+	Amount         float64 `json:"amount" example:"99.99"`
+	Currency       string  `json:"currency,omitempty" example:"USD"`
+	IdempotencyKey string  `json:"idempotency_key,omitempty" example:"refund-idem-1"`
 }
 
 type StandardResponse struct {
@@ -150,6 +154,7 @@ type OutboxEvent struct {
 	Status        string     `gorm:"type:varchar(20);default:'PENDING';not null;index" json:"status"`
 	RetryCount    int        `gorm:"default:0" json:"retry_count"`
 	CreatedAt     time.Time  `gorm:"not null;index" json:"created_at"`
+	LockedAt      *time.Time `gorm:"index" json:"locked_at,omitempty"`
 	ProcessedAt   *time.Time `json:"processed_at,omitempty"`
 }
 

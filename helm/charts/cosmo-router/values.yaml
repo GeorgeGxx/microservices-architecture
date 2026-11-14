@@ -69,6 +69,9 @@ telemetry:
 
 responseCache:
   enabled: true
+  # Global caching across all queries must remain false by default to prevent
+  # cross-tenant caching of authenticated order queries.
+  allEnabled: false
   storage:
     provider: memory
     maxEntries: 10000

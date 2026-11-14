@@ -163,7 +163,7 @@ data:
         provider: {{ .Values.responseCache.storage.provider | default "memory" }}
         max_entries: {{ .Values.responseCache.storage.maxEntries | default 10000 }}
       all:
-        enabled: true
+        enabled: {{ .Values.responseCache.allEnabled | default false }}
         fallback_ttl: {{ .Values.responseCache.fallbackTtl | default "30s" }}
       cache_tag_header:
         enabled: {{ .Values.responseCache.cacheTagHeader | default true }}

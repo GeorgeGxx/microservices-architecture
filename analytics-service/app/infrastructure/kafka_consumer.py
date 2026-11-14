@@ -1,10 +1,12 @@
 import asyncio
+from collections import OrderedDict
 import json
 import logging
 from typing import Optional
 from aiokafka import AIOKafkaConsumer
 from app.config import settings
 from app.infrastructure.database import AsyncSessionLocal
+from app.infrastructure.orm_models import ProcessedAnalyticsEventOrm
 from app.infrastructure.repositories import SqlAlchemyAnalyticsStateRepository, SqlAlchemyFunnelRepository
 from app.domain.models import FunnelEvent, EventType, FunnelMetrics
 from app.domain.event_contracts import (
@@ -36,12 +38,14 @@ FULFILLMENT_STATUS_MAP = {
 
 
 class AnalyticsKafkaConsumer:
+    MAX_LRU_DEDUP_KEYS = 10000
+
     def __init__(self):
         self.consumer = None
         self.is_running = False
         self.consume_task = None
         self._order_stages: dict[str, str] = {}
-        self._processed_event_ids: set[str] = set()
+        self._processed_event_ids: OrderedDict[str, None] = OrderedDict()
 
     async def start(self):
         brokers = settings.kafka_brokers
@@ -76,9 +80,20 @@ class AnalyticsKafkaConsumer:
     async def _consume_loop(self):
         try:
             async for msg in self.consumer:
-                await self._process_message(msg)
-                if self.consumer:
-                    await self.consumer.commit()
+                committed = False
+                for attempt in range(1, 4):
+                    should_commit = await self._process_message(msg)
+                    if should_commit:
+                        if self.consumer:
+                            await self.consumer.commit()
+                        committed = True
+                        break
+                    await asyncio.sleep(min(2 ** attempt, 5))
+                if not committed:
+                    logger.error(
+                        "Failed to process Kafka message on topic %s after 3 attempts; offset not committed",
+                        getattr(msg, "topic", "unknown"),
+                    )
         except asyncio.CancelledError:
             raise
         except Exception:
@@ -202,28 +217,67 @@ class AnalyticsKafkaConsumer:
         if order_number and amount > 0:
             await self._record_completed_payment(order_number, amount, user_id, items_count)
 
-    async def _process_message(self, msg) -> None:
+    def _remember_dedup_key(self, dedup_key: str) -> None:
+        if not dedup_key:
+            return
+        self._processed_event_ids[dedup_key] = None
+        self._processed_event_ids.move_to_end(dedup_key)
+        while len(self._processed_event_ids) > self.MAX_LRU_DEDUP_KEYS:
+            self._processed_event_ids.popitem(last=False)
+
+    async def _is_durably_processed(self, dedup_key: str) -> bool:
+        if not dedup_key:
+            return False
+        if dedup_key in self._processed_event_ids:
+            self._processed_event_ids.move_to_end(dedup_key)
+            return True
+        try:
+            async with AsyncSessionLocal() as session:
+                get_fn = getattr(session, "get", None)
+                if callable(get_fn):
+                    existing = await get_fn(ProcessedAnalyticsEventOrm, dedup_key)
+                    if isinstance(existing, ProcessedAnalyticsEventOrm):
+                        self._remember_dedup_key(dedup_key)
+                        return True
+        except Exception:
+            pass
+        return False
+
+    async def _mark_durably_processed(self, dedup_key: str, topic: str) -> None:
+        if not dedup_key:
+            return
+        self._remember_dedup_key(dedup_key)
+        try:
+            async with AsyncSessionLocal() as session:
+                add_fn = getattr(session, "add", None)
+                commit_fn = getattr(session, "commit", None)
+                if callable(add_fn) and callable(commit_fn):
+                    add_fn(ProcessedAnalyticsEventOrm(event_key=dedup_key, topic=topic or "unknown"))
+                    await commit_fn()
+        except Exception:
+            pass
+
+    async def _process_message(self, msg) -> bool:
         try:
             raw_payload = json.loads(msg.value.decode("utf-8"))
+        except Exception:
+            logger.warning("Dropping malformed JSON payload on topic %s", getattr(msg, "topic", "unknown"))
+            return True
+
+        try:
             topic = msg.topic
 
             # Unpack CloudEvents 1.0 envelope or flat JSON contract
             _, payload, event_id = unpack_cloud_event(raw_payload)
 
-            # In-memory LRU idempotency deduplication
             offset_val = getattr(msg, "offset", None)
             offset_str = str(offset_val) if isinstance(offset_val, (int, str)) else ""
             order_key = payload.get("orderNumber") or payload.get("order_number") or ""
             status_key = payload.get("status") or payload.get("orderStatus") or payload.get("eventType") or payload.get("event_type") or ""
             dedup_key = event_id or (f"{topic}:{offset_str}:{order_key}:{status_key}" if offset_str else None)
-            if dedup_key and dedup_key in self._processed_event_ids:
+            if dedup_key and await self._is_durably_processed(dedup_key):
                 logger.debug(f"Skipping duplicate event key {dedup_key}")
-                return
-
-            if dedup_key:
-                if len(self._processed_event_ids) > 10000:
-                    self._processed_event_ids.clear()
-                self._processed_event_ids.add(dedup_key)
+                return True
 
             if topic == settings.kafka_orders_topic:
                 await self._handle_orders_event(payload)
@@ -231,8 +285,14 @@ class AnalyticsKafkaConsumer:
                 self._handle_fulfillment_event(payload)
 
             await self._handle_payment_event(topic, payload)
+
+            # Record deduplication key only AFTER all domain handlers and DB writes succeed
+            if dedup_key:
+                await self._mark_durably_processed(dedup_key, topic)
+            return True
         except Exception:
             logger.exception("Failed to handle Kafka message")
+            return False
 
     async def stop(self):
         if self.consume_task and not self.consume_task.done():

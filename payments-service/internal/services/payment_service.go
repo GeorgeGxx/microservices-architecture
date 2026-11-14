@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -32,12 +33,51 @@ type paymentService struct {
 	auditChan chan *models.PaymentAuditLog
 	workerWg  sync.WaitGroup
 	stopChan  chan struct{}
+	stopOnce  sync.Once
 }
 
 const (
 	auditQueueSize = 500
 	auditWorkers   = 3
 )
+
+func normalizePaymentMethodLabel(method string) string {
+	upper := strings.ToUpper(strings.TrimSpace(method))
+	switch {
+	case upper == "CARD_VISA" || upper == "VISA":
+		return "CARD_VISA"
+	case upper == "CARD_MASTERCARD" || upper == "MASTERCARD":
+		return "CARD_MASTERCARD"
+	case upper == "CARD_AMEX" || upper == "AMEX":
+		return "CARD_AMEX"
+	case upper == "PAYPAL":
+		return "PAYPAL"
+	case upper == "APPLE_PAY":
+		return "APPLE_PAY"
+	case strings.Contains(upper, "DECLINE"):
+		return "SIMULATED_DECLINE"
+	default:
+		return "OTHER"
+	}
+}
+
+func normalizeRefundReasonLabel(reason string) string {
+	lower := strings.ToLower(strings.TrimSpace(reason))
+	switch {
+	case lower == "":
+		return "general"
+	case strings.Contains(lower, "cancel"):
+		return "customer_cancellation"
+	case strings.Contains(lower, "damage") || strings.Contains(lower, "defect"):
+		return "damaged_item"
+	case strings.Contains(lower, "fraud"):
+		return "fraud_prevention"
+	case strings.Contains(lower, "shipment") || strings.Contains(lower, "delivery") || strings.Contains(lower, "fulfillment"):
+		return "fulfillment_compensation"
+	default:
+		return "other"
+	}
+}
 
 func NewPaymentService(repo repository.PaymentRepository, producer kafka.EventProducer) PaymentService {
 	svc := &paymentService{
@@ -67,12 +107,18 @@ func (s *paymentService) auditWorker(workerID int) {
 	for {
 		select {
 		case <-s.stopChan:
-			// Drain remaining logs before exiting
-			for logItem := range s.auditChan {
-				_ = s.repo.CreateAuditLog(context.Background(), logItem)
+			// Drain remaining queued logs without closing auditChan concurrently
+			for {
+				select {
+				case logItem := <-s.auditChan:
+					if logItem != nil {
+						_ = s.repo.CreateAuditLog(context.Background(), logItem)
+					}
+				default:
+					log.Printf("[PaymentService] Audit worker goroutine #%d exited", workerID)
+					return
+				}
 			}
-			log.Printf("[PaymentService] Audit worker goroutine #%d exited", workerID)
-			return
 		case logItem, ok := <-s.auditChan:
 			if !ok {
 				return
@@ -95,18 +141,28 @@ func (s *paymentService) dispatchAudit(paymentID uuid.UUID, action, details stri
 	}
 
 	select {
+	case <-s.stopChan:
+		_ = s.repo.CreateAuditLog(context.Background(), auditItem)
+		return
+	default:
+	}
+
+	select {
 	case s.auditChan <- auditItem:
 		// Dispatched to worker pool
 	default:
 		// Channel full, handle without blocking payment path
+		s.workerWg.Add(1)
 		go func(item *models.PaymentAuditLog) {
+			defer s.workerWg.Done()
 			_ = s.repo.CreateAuditLog(context.Background(), item)
 		}(auditItem)
 	}
 }
 
 func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessPaymentRequest) (*models.ProcessPaymentResponse, error) {
-	timer := metrics.PaymentProcessingDuration.WithLabelValues(req.PaymentMethod)
+	methodLabel := normalizePaymentMethodLabel(req.PaymentMethod)
+	timer := metrics.PaymentProcessingDuration.WithLabelValues(methodLabel)
 	startTime := time.Now()
 	defer func() {
 		timer.Observe(time.Since(startTime).Seconds())
@@ -124,20 +180,30 @@ func (s *paymentService) ProcessPayment(ctx context.Context, req models.ProcessP
 		}
 	}
 
-	// 2. Gateway Simulation
+	// 2. Gateway Simulation & Outbox Event Construction
 	payment := s.initPaymentRecord(req)
 	simulatePaymentGateway(payment, req.PaymentMethod, req.Amount)
+	outboxEvent, err := s.buildSagaOutboxEvent(req, payment)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize payment outbox event: %w", err)
+	}
 
-	// 3. Persist in PostgreSQL 18
-	if err := s.repo.CreatePayment(ctx, payment); err != nil {
-		return nil, fmt.Errorf("failed to persist payment in database: %w", err)
+	// 3. Persist Payment and OutboxEvent atomically in PostgreSQL 18
+	if err := s.repo.CreatePaymentWithOutbox(ctx, payment, outboxEvent); err != nil {
+		return nil, fmt.Errorf("failed to persist payment transaction in database: %w", err)
 	}
 
 	// 4. Async Audit Log via Goroutines
-	s.dispatchAudit(payment.ID, string(payment.Status), fmt.Sprintf("Processed charge for order %s, amount %f %s", payment.OrderNumber, payment.Amount, payment.Currency))
+	s.dispatchAudit(payment.ID, string(payment.Status), fmt.Sprintf("Processed charge for order %s, amount %.2f %s", payment.OrderNumber, payment.Amount, payment.Currency))
 
-	// 5. Emit Kafka Saga Events
-	s.dispatchSagaEvents(ctx, req, payment)
+	// 5. Trigger Outbox Relay (single publication path; no duplicate direct Kafka send)
+	if s.producer != nil && outboxEvent != nil {
+		s.workerWg.Add(1)
+		go func(ev *models.OutboxEvent) {
+			defer s.workerWg.Done()
+			s.publishSingleOutboxEvent(context.Background(), ev)
+		}(outboxEvent)
+	}
 
 	return s.toProcessPaymentResponse(payment), nil
 }
@@ -167,18 +233,19 @@ func resolveDeclineReason(paymentMethod string) string {
 }
 
 func simulatePaymentGateway(payment *models.Payment, paymentMethod string, amount float64) {
+	methodLabel := normalizePaymentMethodLabel(paymentMethod)
 	if isPaymentDeclined(paymentMethod, amount) {
 		payment.Status = models.PaymentStatusFailed
 		payment.FailureReason = resolveDeclineReason(paymentMethod)
 		payment.TransactionRef = ""
-		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", paymentMethod).Inc()
+		metrics.PaymentsProcessedTotal.WithLabelValues("FAILED", methodLabel).Inc()
 		return
 	}
 
 	payment.Status = models.PaymentStatusCompleted
 	payment.TransactionRef = fmt.Sprintf("TXN-%s", uuid.New().String()[:8])
 	payment.FailureReason = ""
-	metrics.PaymentsProcessedTotal.WithLabelValues("COMPLETED", paymentMethod).Inc()
+	metrics.PaymentsProcessedTotal.WithLabelValues("COMPLETED", methodLabel).Inc()
 }
 
 func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *models.Payment {
@@ -186,8 +253,9 @@ func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *mo
 	payment := &models.Payment{
 		ID:             uuid.New(),
 		OrderNumber:    req.OrderNumber,
-		Amount:         req.Amount,
-		Currency:       req.Currency,
+		Amount:         math.Round(req.Amount*100) / 100,
+		RefundedAmount: 0,
+		Currency:       strings.ToUpper(strings.TrimSpace(req.Currency)),
 		PaymentMethod:  req.PaymentMethod,
 		IdempotencyKey: req.IdempotencyKey,
 		CustomerEmail:  req.CustomerEmail,
@@ -203,10 +271,11 @@ func (s *paymentService) initPaymentRecord(req models.ProcessPaymentRequest) *mo
 	return payment
 }
 
-func (s *paymentService) dispatchSagaEvents(ctx context.Context, req models.ProcessPaymentRequest, payment *models.Payment) {
+func (s *paymentService) buildSagaOutboxEvent(req models.ProcessPaymentRequest, payment *models.Payment) (*models.OutboxEvent, error) {
 	var eventType string
 	var payloadBytes []byte
 	var aggregateID string
+	var err error
 
 	if payment.Status == models.PaymentStatusCompleted {
 		eventType = "PAYMENT_COMPLETED"
@@ -231,12 +300,7 @@ func (s *paymentService) dispatchSagaEvents(ctx context.Context, req models.Proc
 			ItemsCount:      req.ItemsCount,
 			Timestamp:       payment.UpdatedAt,
 		}
-		payloadBytes, _ = json.Marshal(completedEvent)
-		if s.producer != nil {
-			go func() {
-				_ = s.producer.PublishPaymentCompleted(context.Background(), completedEvent)
-			}()
-		}
+		payloadBytes, err = json.Marshal(completedEvent)
 	} else {
 		eventType = "PAYMENT_FAILED"
 		aggregateID = payment.OrderNumber
@@ -249,34 +313,34 @@ func (s *paymentService) dispatchSagaEvents(ctx context.Context, req models.Proc
 			ErrorCode:   "PAYMENT_DECLINED",
 			Timestamp:   payment.UpdatedAt,
 		}
-		payloadBytes, _ = json.Marshal(failedEvent)
-		if s.producer != nil {
-			go func() {
-				_ = s.producer.PublishPaymentFailed(context.Background(), failedEvent)
-			}()
-		}
+		payloadBytes, err = json.Marshal(failedEvent)
+	}
+	if err != nil {
+		return nil, err
 	}
 
-	if len(payloadBytes) > 0 {
-		outboxEvent := &models.OutboxEvent{
-			ID:            uuid.New(),
-			AggregateType: "PAYMENT",
-			AggregateID:   aggregateID,
-			EventType:     eventType,
-			Payload:       string(payloadBytes),
-			Status:        "PENDING",
-			CreatedAt:     time.Now().UTC(),
-		}
-		_ = s.repo.SaveOutboxEvent(ctx, outboxEvent)
-
-		if s.producer != nil {
-			go s.publishSingleOutboxEvent(context.Background(), outboxEvent)
-		}
+	now := time.Now().UTC()
+	initialStatus := "PENDING"
+	var lockedAt *time.Time
+	if s.producer != nil {
+		initialStatus = "PROCESSING"
+		lockedAt = &now
 	}
+
+	return &models.OutboxEvent{
+		ID:            uuid.New(),
+		AggregateType: "PAYMENT",
+		AggregateID:   aggregateID,
+		EventType:     eventType,
+		Payload:       string(payloadBytes),
+		Status:        initialStatus,
+		CreatedAt:     now,
+		LockedAt:      lockedAt,
+	}, nil
 }
 
 func (s *paymentService) publishSingleOutboxEvent(ctx context.Context, ev *models.OutboxEvent) {
-	if s.producer == nil {
+	if s.producer == nil || ev == nil {
 		return
 	}
 	var pubErr error
@@ -285,16 +349,22 @@ func (s *paymentService) publishSingleOutboxEvent(ctx context.Context, ev *model
 		var completedEvent models.PaymentCompletedEvent
 		if err := json.Unmarshal([]byte(ev.Payload), &completedEvent); err == nil {
 			pubErr = s.producer.PublishPaymentCompleted(ctx, completedEvent)
+		} else {
+			pubErr = err
 		}
 	case "PAYMENT_FAILED":
 		var failedEvent models.PaymentFailedEvent
 		if err := json.Unmarshal([]byte(ev.Payload), &failedEvent); err == nil {
 			pubErr = s.producer.PublishPaymentFailed(ctx, failedEvent)
+		} else {
+			pubErr = err
 		}
 	case "PAYMENT_REFUNDED":
 		var refundedEvent models.PaymentRefundedEvent
 		if err := json.Unmarshal([]byte(ev.Payload), &refundedEvent); err == nil {
 			pubErr = s.producer.PublishPaymentRefunded(ctx, refundedEvent)
+		} else {
+			pubErr = err
 		}
 	default:
 		return
@@ -304,8 +374,11 @@ func (s *paymentService) publishSingleOutboxEvent(ctx context.Context, ev *model
 		now := time.Now().UTC()
 		ev.Status = "PUBLISHED"
 		ev.ProcessedAt = &now
+		ev.LockedAt = nil
 		_ = s.repo.UpdateOutboxEvent(ctx, ev)
 	} else {
+		ev.Status = "PENDING"
+		ev.LockedAt = nil
 		ev.RetryCount++
 		_ = s.repo.UpdateOutboxEvent(ctx, ev)
 	}
@@ -352,49 +425,92 @@ func (s *paymentService) RefundPayment(ctx context.Context, req models.RefundPay
 		return nil, errors.New("no payment found for specified order")
 	}
 
-	if payment.Status != models.PaymentStatusCompleted {
+	if payment.Status != models.PaymentStatusCompleted && payment.Status != models.PaymentStatusPartiallyRefunded {
 		return nil, fmt.Errorf("cannot refund payment with status %s", payment.Status)
 	}
 
-	payment.Status = models.PaymentStatusRefunded
+	if req.Currency != "" && !strings.EqualFold(strings.TrimSpace(req.Currency), payment.Currency) {
+		return nil, fmt.Errorf("refund currency %s does not match payment currency %s", req.Currency, payment.Currency)
+	}
+
+	if req.Amount < 0 {
+		return nil, errors.New("refund amount must be greater than zero")
+	}
+
+	remainingRefundable := math.Round((payment.Amount-payment.RefundedAmount)*100) / 100
+	if remainingRefundable <= 0 {
+		return nil, errors.New("payment has no remaining refundable balance")
+	}
+
+	refundAmount := remainingRefundable
+	if req.Amount > 0 {
+		refundAmount = math.Round(req.Amount*100) / 100
+		if refundAmount > remainingRefundable+1e-6 {
+			return nil, fmt.Errorf("refund amount %.2f exceeds remaining refundable balance %.2f", refundAmount, remainingRefundable)
+		}
+	}
+
+	payment.RefundedAmount = math.Round((payment.RefundedAmount+refundAmount)*100) / 100
+	if payment.RefundedAmount >= payment.Amount-1e-6 {
+		payment.Status = models.PaymentStatusRefunded
+	} else {
+		payment.Status = models.PaymentStatusPartiallyRefunded
+	}
 	payment.UpdatedAt = time.Now().UTC()
-	payment.FailureReason = fmt.Sprintf("Refunded: %s", req.Reason)
-
-	if err := s.repo.UpdatePayment(ctx, payment); err != nil {
-		return nil, fmt.Errorf("failed to update payment record: %w", err)
+	reasonText := strings.TrimSpace(req.Reason)
+	if reasonText == "" {
+		reasonText = "General"
 	}
-
-	reasonTag := req.Reason
-	if reasonTag == "" {
-		reasonTag = "General"
-	}
-	metrics.PaymentRefundsTotal.WithLabelValues(reasonTag).Inc()
-
-	s.dispatchAudit(payment.ID, "REFUND", fmt.Sprintf("Refunded order %s reason: %s", payment.OrderNumber, req.Reason))
+	payment.FailureReason = fmt.Sprintf("Refunded (%.2f %s): %s", refundAmount, payment.Currency, reasonText)
 
 	refundedEvent := models.PaymentRefundedEvent{
 		EventType:   "PAYMENT_REFUNDED",
-		Status:      string(models.PaymentStatusRefunded),
+		Status:      string(payment.Status),
 		OrderNumber: payment.OrderNumber,
-		Amount:      payment.Amount,
-		Reason:      reasonTag,
+		Amount:      refundAmount,
+		Reason:      reasonText,
 		Timestamp:   payment.UpdatedAt,
 	}
 
-	payloadBytes, _ := json.Marshal(refundedEvent)
+	payloadBytes, err := json.Marshal(refundedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize refund outbox event: %w", err)
+	}
+
+	now := time.Now().UTC()
+	initialStatus := "PENDING"
+	var lockedAt *time.Time
+	if s.producer != nil {
+		initialStatus = "PROCESSING"
+		lockedAt = &now
+	}
+
 	outboxEvent := &models.OutboxEvent{
 		ID:            uuid.New(),
 		AggregateType: "PAYMENT",
 		AggregateID:   payment.OrderNumber,
 		EventType:     "PAYMENT_REFUNDED",
 		Payload:       string(payloadBytes),
-		Status:        "PENDING",
-		CreatedAt:     time.Now().UTC(),
+		Status:        initialStatus,
+		CreatedAt:     now,
+		LockedAt:      lockedAt,
 	}
-	_ = s.repo.SaveOutboxEvent(ctx, outboxEvent)
+
+	if err := s.repo.UpdatePaymentWithOutbox(ctx, payment, outboxEvent); err != nil {
+		return nil, fmt.Errorf("failed to persist payment refund and outbox event: %w", err)
+	}
+
+	reasonLabel := normalizeRefundReasonLabel(reasonText)
+	metrics.PaymentRefundsTotal.WithLabelValues(reasonLabel).Inc()
+
+	s.dispatchAudit(payment.ID, "REFUND", fmt.Sprintf("Refunded %.2f %s for order %s reason: %s", refundAmount, payment.Currency, payment.OrderNumber, reasonText))
 
 	if s.producer != nil {
-		go s.publishSingleOutboxEvent(context.Background(), outboxEvent)
+		s.workerWg.Add(1)
+		go func(ev *models.OutboxEvent) {
+			defer s.workerWg.Done()
+			s.publishSingleOutboxEvent(context.Background(), ev)
+		}(outboxEvent)
 	}
 
 	return payment, nil
@@ -409,8 +525,9 @@ func (s *paymentService) GetPaymentByID(ctx context.Context, id uuid.UUID) (*mod
 }
 
 func (s *paymentService) Stop() {
-	close(s.stopChan)
-	close(s.auditChan)
+	s.stopOnce.Do(func() {
+		close(s.stopChan)
+	})
 	s.workerWg.Wait()
 }
 
