@@ -2735,8 +2735,8 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 🐙 ArgoCD 3.6.1 GitOps       │ http://localhost:8088                      │ admin / admin  │" -ForegroundColor White
     Write-Host "│ 🏛️ Backstage IDP Portal      │ http://localhost:7007                      │ Keycloak SSO   │" -ForegroundColor White
     Write-Host "│ 📊 Grafana Observability     │ http://localhost:3000                      │ admin / admin  │" -ForegroundColor White
-    Write-Host "│ 👁️ Arize Phoenix (LLM)     │ http://localhost:6006                      │ Open           │" -ForegroundColor White
-    Write-Host "│ 🧠 Ollama Local LLM        │ http://localhost:11434                     │ Open           │" -ForegroundColor White
+    Write-Host "│ 👁️ Arize Phoenix (LLM)       │ http://localhost:6006                      │ Open           │" -ForegroundColor White
+    Write-Host "│ 🧠 Ollama Local LLM          │ http://localhost:11434                     │ Open           │" -ForegroundColor White
     Write-Host "│ 📊 Alloy Collector UI        │ http://localhost:3300                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
