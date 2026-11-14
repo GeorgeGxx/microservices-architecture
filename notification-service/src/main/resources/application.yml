@@ -43,6 +43,18 @@ server:
 springdoc:
   api-docs:
     version: openapi_3_0
+  swagger-ui:
+    persist-authorization: true
+    display-request-duration: true
+    filter: true
+    try-it-out-enabled: true
+    deep-linking: true
+    doc-expansion: list
+    default-models-expand-depth: 1
+    show-extensions: true
+    show-common-extensions: true
+    syntax-highlight:
+      theme: monokai
 
 logging:
   pattern:
