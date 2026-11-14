@@ -16,25 +16,22 @@ def _get_jwk_client(jwks_uri: str) -> PyJWKClient:
     return PyJWKClient(jwks_uri, cache_keys=True, lifespan=300)
 
 
+def _extract_roles_from_dict(container: Any) -> List[str]:
+    if not isinstance(container, dict):
+        return []
+    roles = container.get("roles")
+    return [str(r) for r in roles] if isinstance(roles, list) else []
+
+
 def _normalize_roles(payload: Dict[str, Any]) -> List[str]:
     raw_roles: List[str] = []
-    realm_access = payload.get("realm_access")
-    if isinstance(realm_access, dict):
-        roles = realm_access.get("roles")
-        if isinstance(roles, list):
-            raw_roles.extend(str(r) for r in roles)
+    raw_roles.extend(_extract_roles_from_dict(payload.get("realm_access")))
+    raw_roles.extend(_extract_roles_from_dict(payload))
 
     resource_access = payload.get("resource_access")
     if isinstance(resource_access, dict):
         for client_data in resource_access.values():
-            if isinstance(client_data, dict):
-                c_roles = client_data.get("roles")
-                if isinstance(c_roles, list):
-                    raw_roles.extend(str(r) for r in c_roles)
-
-    direct_roles = payload.get("roles")
-    if isinstance(direct_roles, list):
-        raw_roles.extend(str(r) for r in direct_roles)
+            raw_roles.extend(_extract_roles_from_dict(client_data))
 
     normalized = set()
     for role in raw_roles:
@@ -45,9 +42,7 @@ def _normalize_roles(payload: Dict[str, Any]) -> List[str]:
         if not upper.startswith("ROLE_"):
             normalized.add(f"ROLE_{upper}")
 
-    if not normalized:
-        normalized.add("ROLE_USER")
-    return sorted(normalized)
+    return sorted(normalized) if normalized else ["ROLE_USER"]
 
 
 def _validate_issuer(issuer: str) -> bool:

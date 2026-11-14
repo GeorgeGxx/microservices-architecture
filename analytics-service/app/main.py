@@ -166,13 +166,14 @@ async def lifespan(app: FastAPI):
     # 2. Start Kafka consumer
     await kafka_consumer.start()
 
-    yield
-
-    # 3. Shutdown: Disconnect Kafka and database engine
-    logger.info("Shutting down analytics-service...")
-    await kafka_consumer.stop()
-    await engine.dispose()
-    logger.info("Cleanup completed")
+    try:
+        yield
+    finally:
+        # 3. Shutdown: Disconnect Kafka and database engine
+        logger.info("Shutting down analytics-service...")
+        await kafka_consumer.stop()
+        await engine.dispose()
+        logger.info("Cleanup completed")
 
 app = FastAPI(
     title="Analytics Service API",

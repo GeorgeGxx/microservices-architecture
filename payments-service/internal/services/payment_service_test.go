@@ -326,6 +326,32 @@ func TestRefundPayment_SuccessAndErrors(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, models.PaymentStatusRefunded, finalRefunded.Status)
 	assert.Equal(t, 100.00, finalRefunded.RefundedAmount)
+
+	// Currency mismatch and negative refund validation
+	_, err = svc.ProcessPayment(context.Background(), models.ProcessPaymentRequest{
+		OrderNumber:   "ORD-CURR-1",
+		Amount:        50.00,
+		Currency:      "USD",
+		PaymentMethod: "PAYPAL",
+	})
+	assert.NoError(t, err)
+
+	_, err = svc.RefundPayment(context.Background(), models.RefundPaymentRequest{
+		OrderNumber: "ORD-CURR-1",
+		Amount:      10.00,
+		Currency:    "EUR",
+		Reason:      "Fraud suspected",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "does not match payment currency")
+
+	_, err = svc.RefundPayment(context.Background(), models.RefundPaymentRequest{
+		OrderNumber: "ORD-CURR-1",
+		Amount:      -5.00,
+		Reason:      "Customer cancellation",
+	})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "greater than zero")
 }
 
 func TestGetPaymentQueries(t *testing.T) {

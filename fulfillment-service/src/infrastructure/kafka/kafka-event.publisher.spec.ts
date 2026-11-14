@@ -81,4 +81,54 @@ describe('KafkaEventPublisher', () => {
       'DLQ broker unavailable',
     );
   });
+
+  it('should flush pending outbox events via transactional lock and fallback find', async () => {
+    const outboxEvent = {
+      id: 'outbox-1',
+      aggregateId: 'ORD-OUTBOX-1',
+      eventType: 'SHIPMENT_DISPATCHED',
+      payload: '{"orderNumber":"ORD-OUTBOX-1"}',
+      status: 'PENDING',
+      retryCount: 0,
+    };
+
+    // 1. Transactional manager path
+    const mockQb: any = {
+      setLock: jest.fn().mockReturnThis(),
+      setOnLocked: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([{ ...outboxEvent }]),
+    };
+    const mockEm: any = {
+      createQueryBuilder: jest.fn().mockReturnValue(mockQb),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    const txOutboxRepo: any = {
+      manager: {
+        transaction: jest.fn(async (cb: any) => cb(mockEm)),
+      },
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const txPublisher = new KafkaEventPublisher(txOutboxRepo);
+    (txPublisher as any).producer = mockProducer;
+    await txPublisher.flushPendingOutbox();
+
+    expect(mockProducer.send).toHaveBeenCalled();
+    expect(txOutboxRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'PUBLISHED' }));
+
+    // 2. Fallback find path + retry failure
+    const fallbackRepo: any = {
+      find: jest.fn().mockResolvedValue([{ ...outboxEvent, retryCount: 4 }]),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
+    mockProducer.send.mockRejectedValueOnce(new Error('Kafka broker down'));
+    const fallbackPublisher = new KafkaEventPublisher(fallbackRepo);
+    (fallbackPublisher as any).producer = mockProducer;
+    await fallbackPublisher.flushPendingOutbox();
+
+    expect(fallbackRepo.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'FAILED', retryCount: 5 }));
+  });
 });

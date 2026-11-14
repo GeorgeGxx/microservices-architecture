@@ -3,12 +3,19 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/georgegxx/payments-service/internal/models"
 	"github.com/georgegxx/payments-service/internal/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
+
+var logSanitizer = strings.NewReplacer("\r", "", "\n", "", "\t", " ")
+
+func sanitizeLogValue(v string) string {
+	return logSanitizer.Replace(v)
+}
 
 type PaymentHandler struct {
 	service services.PaymentService
@@ -47,7 +54,7 @@ func (h *PaymentHandler) ProcessPayment(c *gin.Context) {
 
 	resp, err := h.service.ProcessPayment(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[PaymentHandler] ProcessPayment failed for order %s: %v", req.OrderNumber, err)
+		log.Printf("[PaymentHandler] ProcessPayment failed for order %s: %v", sanitizeLogValue(req.OrderNumber), err)
 		c.JSON(http.StatusInternalServerError, models.StandardResponse{
 			Success: false,
 			Message: "Payment processing error",
@@ -85,7 +92,7 @@ func (h *PaymentHandler) RefundPayment(c *gin.Context) {
 
 	payment, err := h.service.RefundPayment(c.Request.Context(), req)
 	if err != nil {
-		log.Printf("[PaymentHandler] RefundPayment rejected for order %s: %v", req.OrderNumber, err)
+		log.Printf("[PaymentHandler] RefundPayment rejected for order %s: %v", sanitizeLogValue(req.OrderNumber), err)
 		c.JSON(http.StatusBadRequest, models.StandardResponse{
 			Success: false,
 			Message: "Refund request could not be processed",
@@ -122,7 +129,7 @@ func (h *PaymentHandler) GetPaymentByOrder(c *gin.Context) {
 
 	payment, err := h.service.GetPaymentByOrder(c.Request.Context(), orderNumber)
 	if err != nil {
-		log.Printf("[PaymentHandler] GetPaymentByOrder failed for order %s: %v", orderNumber, err)
+		log.Printf("[PaymentHandler] GetPaymentByOrder failed for order %s: %v", sanitizeLogValue(orderNumber), err)
 		c.JSON(http.StatusInternalServerError, models.StandardResponse{
 			Success: false,
 			Message: "Failed to retrieve payment record",
