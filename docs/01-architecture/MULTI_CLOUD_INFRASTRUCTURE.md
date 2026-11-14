@@ -1,48 +1,34 @@
-# ☁️ Multi-Cloud Terraform Infrastructure & Recovery Guide
+# ☁️ AWS Cloud Terraform Infrastructure & Recovery Guide
 
 > [!TIP]
 > 🧭 **[Enterprise Platform Hub](../../README.md)** > **01. Architecture** > `MULTI_CLOUD_INFRASTRUCTURE.md`
 
-> Architecture specification for AWS (EKS / RDS / VPC), Azure (AKS / PostgreSQL / KeyVault), and GCP (GKE / CloudSQL / Memorystore), including environment-isolated Terraform state and application recovery procedures.
+> Architecture specification for **AWS (EKS / RDS / MSK / ElastiCache / S3 / CloudFront / VPC)**, including environment-isolated Terraform state (`dev`, `staging`, `prod` dual-dataplane) and GitOps/Helm recovery procedures. *(Note: Azure AKS and GCP GKE infrastructure were extracted to `healthtech-platform` and `hotel_premium` respectively; this repository is strictly AWS + GitHub Actions + ArgoCD + Minikube.)*
 
 ---
 
-## 🔄 Multi-Cloud Recovery & Rollback Procedures
+## 🔄 AWS Recovery & Rollback Procedures
 
-Universal Helm atomic rollbacks, GitOps automated reconciliation (ArgoCD), and provider-specific rollback runbooks across GitHub Actions, Azure DevOps, and Bitbucket Pipelines are consolidated in the canonical [Business Continuity & Disaster Recovery Strategy (Runbook 6: Application Release Rollback)](./DISASTER_RECOVERY_STRATEGY.md#runbook-6-application-release-rollback-helm-gitops--multi-cicd).
+Universal Helm atomic rollbacks (local Minikube), GitOps automated reconciliation (ArgoCD on AWS EKS), and Terraform state recovery runbooks are consolidated in the canonical [Business Continuity & Disaster Recovery Strategy](./DISASTER_RECOVERY_STRATEGY.md).
 
 ---
 
-## ☁️ Terraform Multi-Cloud Infrastructure (AWS, Azure, GCP)
+## ☁️ Terraform AWS Infrastructure (`terraform/environments/aws`)
 
 ### Cluster and workspace topology
 
-The target topology is **12 Kubernetes clusters**: four for each provider. Each
-provider root keeps the same three Terraform workspaces (`dev`, `staging`,
-`prod`); the `prod` workspace provisions two independent clusters/data planes.
-This avoids treating the two production clusters as separate environments or
-duplicating shared databases, networking, and edge resources.
+The target AWS topology is **4 EKS Kubernetes clusters** across three Terraform workspaces (`dev`, `staging`, `prod`); the `prod` workspace provisions two independent clusters/data planes (`DP1` and `DP2`) sharing the environment VPC and managed data services.
 
 | Provider | `dev` workspace | `staging` workspace | `prod` workspace | Total |
 | --- | --- | --- | --- | ---: |
 | AWS | `msa-aws-dev` | `msa-aws-staging` | `msa-aws-prod`, `msa-aws-dp2-prod` | 4 |
-| Azure | `msa-azure-dev-aks` | `msa-azure-staging-aks` | `msa-azure-prod-aks`, `msa-azure-dp2-prod-aks` | 4 |
-| GCP | `msa-gcp-dev-cluster` | `msa-gcp-staging-cluster` | `msa-gcp-prod-cluster`, `msa-gcp-dp2-prod-cluster` | 4 |
 
-The second production cluster has independent Kubernetes control plane and
-worker capacity. AWS shares the environment VPC/subnets; Azure receives a
-dedicated AKS subnet; GKE receives dedicated secondary Pod/Service ranges and a
-separate control-plane CIDR. Supporting databases and shared edge services
-remain provisioned once per environment workspace.
-
-Create/select the three workspaces independently in each provider root before
-planning. For example:
+Create/select the three workspaces in `terraform/environments/aws` before planning:
 
 ```powershell
-foreach ($provider in @('aws', 'azure', 'gcp')) {
-  Push-Location "terraform/environments/$provider"
-  terraform workspace new dev 2>$null; terraform workspace select dev
-  terraform workspace new staging 2>$null; terraform workspace select staging
+Push-Location "terraform/environments/aws"
+foreach ($ws in @('dev', 'staging', 'prod')) {
+  terraform workspace new $ws 2>$null; terraform workspace select $ws
   terraform workspace new prod 2>$null; terraform workspace select prod
   Pop-Location
 }
