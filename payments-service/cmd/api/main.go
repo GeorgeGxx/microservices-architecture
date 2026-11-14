@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"strconv"
 	"log"
 	"net/http"
 	"os"
@@ -124,8 +126,15 @@ func main() {
 	router.GET("/actuator/health", handler.Health)
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Swagger documentation
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	// Swagger documentation (dark theme + enhanced Swagger UI capabilities)
+	swaggerHandler := ginSwagger.WrapHandler(
+		swaggerFiles.Handler,
+		ginSwagger.PersistAuthorization(true),
+		ginSwagger.DocExpansion("list"),
+		ginSwagger.DeepLinking(true),
+		ginSwagger.DefaultModelsExpandDepth(1),
+	)
+	router.GET("/swagger/*any", swaggerDarkThemeHandler(swaggerHandler))
 
 	// Business APIs
 	apiV1 := router.Group("/api/v1/payments")
@@ -192,5 +201,53 @@ func corsMiddleware() gin.HandlerFunc {
 			return
 		}
 		c.Next()
+	}
+}
+
+type swaggerResponseWriter struct {
+	gin.ResponseWriter
+	body *bytes.Buffer
+}
+
+func (w *swaggerResponseWriter) Write(b []byte) (int, error) {
+	return w.body.Write(b)
+}
+
+func (w *swaggerResponseWriter) WriteString(s string) (int, error) {
+	return w.body.WriteString(s)
+}
+
+func swaggerDarkThemeHandler(next gin.HandlerFunc) gin.HandlerFunc {
+	const darkStyle = `<style>
+		body, .swagger-ui { background: #0f172a !important; color: #e2e8f0 !important; }
+		.swagger-ui .topbar { background: #020617 !important; border-bottom: 1px solid #334155; }
+		.swagger-ui .info .title, .swagger-ui .info h1, .swagger-ui .info h2, .swagger-ui .info h3,
+		.swagger-ui .opblock-tag, .swagger-ui .opblock .opblock-summary-operation-id,
+		.swagger-ui .opblock .opblock-summary-path, .swagger-ui .opblock .opblock-summary-description,
+		.swagger-ui .tab li, .swagger-ui label, .swagger-ui .parameter__name, .swagger-ui .parameter__type,
+		.swagger-ui table thead tr th, .swagger-ui table thead tr td, .swagger-ui .response-col_status,
+		.swagger-ui .response-col_description, .swagger-ui .model-title, .swagger-ui .model { color: #e2e8f0 !important; }
+		.swagger-ui .scheme-container, .swagger-ui .opblock .opblock-section-header,
+		.swagger-ui section.models, .swagger-ui .model-box, .swagger-ui .dialog-ux .modal-ux { background: #1e293b !important; border-color: #334155 !important; }
+		.swagger-ui input, .swagger-ui textarea, .swagger-ui select { background: #0f172a !important; color: #f8fafc !important; border: 1px solid #475569 !important; }
+		.swagger-ui .btn { color: #f8fafc !important; border-color: #475569 !important; }
+		.swagger-ui .filter .operation-filter-input { background: #1e293b !important; color: #f8fafc !important; border-color: #475569 !important; }
+	</style>`
+	return func(c *gin.Context) {
+		if !strings.HasSuffix(c.Request.URL.Path, "index.html") {
+			next(c)
+			return
+		}
+		origWriter := c.Writer
+		bufWriter := &swaggerResponseWriter{ResponseWriter: origWriter, body: &bytes.Buffer{}}
+		c.Writer = bufWriter
+		next(c)
+		c.Writer = origWriter
+
+		html := bufWriter.body.String()
+		html = strings.Replace(html, "</head>", darkStyle+"</head>", 1)
+		html = strings.Replace(html, "SwaggerUIBundle({", "SwaggerUIBundle({\n      filter: true,\n      displayRequestDuration: true,\n      tryItOutEnabled: true,\n      syntaxHighlight: { theme: 'monokai' },", 1)
+		origWriter.Header().Set("Content-Length", strconv.Itoa(len(html)))
+		_, _ = origWriter.WriteString(html)
 	}
 }
