@@ -3382,6 +3382,20 @@ function Invoke-MinikubePlatform {
             }
             $isMinikubeActive = (Get-Command minikube -ErrorAction SilentlyContinue) -and ((minikube status --format='{{.Host}}' 2>$null) -eq 'Running')
             if ($isMinikubeActive) {
+                $minikubeImagesRaw = @(minikube image ls 2>$null)
+                $buildAllScript = Join-Path $scriptsDir "build-all.py"
+                if (-not $BuildImages -and (Test-Path $buildAllScript)) {
+                    foreach ($svc in $servicesToLoad) {
+                        $expectedImg = "georgegxx/${svc}:${TargetTag}"
+                        $hasLocal = docker images -q $expectedImg 2>$null
+                        $inMinikube = @($minikubeImagesRaw | Where-Object { $_ -match [regex]::Escape($expectedImg) }).Count -gt 0
+                        if (-not $hasLocal -and -not $inMinikube) {
+                            Write-Host "  ▶ Image '$expectedImg' missing in Minikube & local Docker; building automatically..." -ForegroundColor Yellow
+                            & python $buildAllScript $TargetTag --service $svc
+                            if ($LASTEXITCODE -ne 0) { throw "Automatic build of missing image '$expectedImg' failed." }
+                        }
+                    }
+                }
                 Write-Host "  ▶ Synchronizing latest local Docker images into Minikube containerd store..." -ForegroundColor White
                 foreach ($svc in $servicesToLoad) {
                     $hasLocal = docker images -q "georgegxx/${svc}:${TargetTag}" 2>$null
