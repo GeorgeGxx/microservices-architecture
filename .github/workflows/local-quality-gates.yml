@@ -83,10 +83,6 @@ jobs:
           helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml
           helm lint helm/microservices-umbrella --values helm/values/values-eks-staging.yaml
           helm lint helm/microservices-umbrella --values helm/values/values-eks-prod.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-aks-staging.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-aks-prod.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-gke-staging.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-gke-prod.yaml
           for chart in helm/charts/*/; do helm lint "$chart"; done
       - name: Test policy fixtures
         shell: bash

@@ -5,6 +5,8 @@
 global:
   environment: dev
   otelEndpoint: "https://otel-collector:4317"
+  azureKeyVault:
+    enabled: false
 
 configMap:
   create: true
