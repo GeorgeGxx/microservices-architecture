@@ -6,15 +6,11 @@ on:
     paths:
       - 'products-service/**'
       - 'pom.xml'
-      - '.github/workflows/_service-ci-cd-template.yml'
-      - '.github/workflows/service-products.yml'
   pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'products-service/**'
       - 'pom.xml'
-      - '.github/workflows/_service-ci-cd-template.yml'
-      - '.github/workflows/service-products.yml'
   workflow_dispatch:
     inputs:
       image-tag:

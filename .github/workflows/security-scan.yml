@@ -3,8 +3,46 @@ name: Microservices Architecture Security & Vulnerability Scan
 on:
   push:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
+    paths:
+      - '**/pom.xml'
+      - '**/go.mod'
+      - '**/go.sum'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/pnpm-lock.yaml'
+      - '**/yarn.lock'
+      - '**/requirements*.txt'
+      - '**/poetry.lock'
+      - '**/uv.lock'
+      - '**/Dockerfile*'
+      - '.snyk'
+      - '.trivyignore'
+      - '.gitleaksignore'
+      - 'devsecops/**'
+      - 'helm/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/security-scan.yml'
   pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
+    paths:
+      - '**/pom.xml'
+      - '**/go.mod'
+      - '**/go.sum'
+      - '**/package.json'
+      - '**/package-lock.json'
+      - '**/pnpm-lock.yaml'
+      - '**/yarn.lock'
+      - '**/requirements*.txt'
+      - '**/poetry.lock'
+      - '**/uv.lock'
+      - '**/Dockerfile*'
+      - '.snyk'
+      - '.trivyignore'
+      - '.gitleaksignore'
+      - 'devsecops/**'
+      - 'helm/**'
+      - '.github/workflows/_service-ci-cd-template.yml'
+      - '.github/workflows/security-scan.yml'
   schedule:
     - cron: '0 0 * * 0' # Weekly scan every Sunday
   workflow_dispatch:
@@ -28,12 +66,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDK 21 and cache Maven dependencies
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           distribution: temurin
           java-version: '21'
@@ -56,8 +92,7 @@ jobs:
           ignore-unfixed: true
 
       - name: Upload Trivy Scan Results to GitHub Security Tab
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         if: always()
         continue-on-error: true
         with:
@@ -88,14 +123,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Run Gitleaks Secret Detector
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
@@ -109,8 +142,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Scan Terraform, Kubernetes, Helm and Dockerfile configuration
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -124,8 +156,7 @@ jobs:
           exit-code: '0'
 
       - name: Upload Trivy IaC Results to GitHub Security Tab
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         if: always()
         continue-on-error: true
         with:
@@ -141,8 +172,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Cosign
         shell: bash
@@ -171,8 +201,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Run Semgrep SAST with Centralized Policy Ruleset
         env:
@@ -188,8 +217,7 @@ jobs:
             --output semgrep-results.sarif
 
       - name: Upload Semgrep Results to GitHub Security Tab
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4
         if: always()
         continue-on-error: true
         with:

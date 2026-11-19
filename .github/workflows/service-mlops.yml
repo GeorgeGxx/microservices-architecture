@@ -5,14 +5,10 @@ on:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'mlops/**'
-      - '.github/workflows/service-mlops.yml'
-      - '.github/workflows/_service-ci-cd-template.yml'
   pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'mlops/**'
-      - '.github/workflows/service-mlops.yml'
-      - '.github/workflows/_service-ci-cd-template.yml'
   workflow_dispatch:
     inputs:
       image-tag:
@@ -25,17 +21,54 @@ on:
         required: false
         type: boolean
         default: false
+      workload:
+        description: 'Run one MLOps workload or all three; code pushes select by changed files'
+        required: true
+        type: choice
+        options:
+          - all
+          - demand-forecast
+          - mlops-training
+          - mlflow
+        default: all
 
 concurrency:
   group: mlops-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  detect-changes:
+    name: Detect changed MLOps workloads
+    runs-on: ubuntu-latest
+    outputs:
+      demand-forecast: ${{ contains(fromJSON(steps.workloads.outputs.services), 'demand-forecast') }}
+      mlops-training: ${{ contains(fromJSON(steps.workloads.outputs.services), 'mlops-training') }}
+      mlflow: ${{ contains(fromJSON(steps.workloads.outputs.services), 'mlflow') }}
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Select only affected workloads
+        id: workloads
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          REQUESTED_WORKLOAD: ${{ inputs.workload || 'all' }}
+        run: |
+          services="$(bash scripts/detect-mlops-workloads.sh "$EVENT_NAME" "$BASE_SHA" "$HEAD_SHA" "$REQUESTED_WORKLOAD")"
+          echo "services=$services" >> "$GITHUB_OUTPUT"
+          echo "Selected MLOps workloads: $services"
+
   # ==========================================================
   # 📈 Service Pipeline 1: Demand Forecast API
   # ==========================================================
   demand-forecast:
     name: "📈 Demand Forecast API Pipeline"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.demand-forecast == 'true'
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: demand-forecast
@@ -55,6 +88,8 @@ jobs:
   # ==========================================================
   mlops-training:
     name: "🧪 MLOps Training Engine Pipeline"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mlops-training == 'true'
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: mlops-training
@@ -74,6 +109,8 @@ jobs:
   # ==========================================================
   mlflow:
     name: "🧪 MLflow Tracking Server Pipeline"
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mlflow == 'true'
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: mlflow
