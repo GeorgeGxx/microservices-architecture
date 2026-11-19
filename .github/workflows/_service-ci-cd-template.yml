@@ -352,6 +352,23 @@ jobs:
           format: table
           exit-code: '0'
 
+      - name: Report dependency vulnerabilities (all severities)
+        run: |
+          trivy fs --config devsecops/compliance/trivy/trivy.yaml \
+            --ignorefile devsecops/compliance/trivy/.trivyignore \
+            --scanners vuln --include-dev-deps \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
+            --ignore-unfixed=false --exit-code 0 \
+            '${{ inputs.service-dir }}'
+
+      - name: Block fixable high and critical dependency vulnerabilities
+        run: |
+          trivy fs --config devsecops/compliance/trivy/trivy.yaml \
+            --ignorefile devsecops/compliance/trivy/.trivyignore \
+            --scanners vuln --include-dev-deps \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
+            '${{ inputs.service-dir }}'
+
   # ==========================================================
   # STEP 2b: 📊 SonarQube Cloud Code Quality & Security Analysis
   #   Decoupled: runs in parallel with Container Build without blocking deployment
