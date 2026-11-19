@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: glitchtip
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: microservices-architecture
+  source:
+    repoURL: https://gitlab.com/api/v4/projects/16325141/packages/helm/stable
+    chart: glitchtip
+    targetRevision: 9.2.0
+    helm:
+      releaseName: glitchtip
+      valuesObject:
+        image:
+          tag: 7.0.0
+          pullPolicy: IfNotPresent
+        replicaCount: 2
+        budget:
+          minAvailable: 1
+        ingress:
+          enabled: false
+        glitchtip:
+          existingSecret: glitchtip-django-secret
+          domain: https://errors.example.invalid
+          database:
+            existingSecret: glitchtip-database-url
+        extraEnvVars:
+          - name: GLITCHTIP_RETENTION_DAYS
+            value: "30"
+          - name: ENABLE_ORGANIZATION_CREATION
+            value: "false"
+        valkey:
+          enabled: true
+          auth:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: glitchtip
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

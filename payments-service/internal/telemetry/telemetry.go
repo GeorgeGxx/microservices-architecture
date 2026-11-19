@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/getsentry/sentry-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
@@ -15,6 +17,43 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
 )
+
+func InitGlitchTip(serviceName, environment string) {
+	dsn := os.Getenv("SENTRY_DSN")
+	if dsn == "" {
+		return
+	}
+	release := os.Getenv("APP_RELEASE")
+	if release == "" {
+		release = "unknown"
+	}
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn: dsn, Environment: environment, Release: release,
+		SendDefaultPII: false, TracesSampleRate: 0,
+		BeforeSend: func(event *sentry.Event, _ *sentry.EventHint) *sentry.Event {
+			event.Request = nil
+			event.User = sentry.User{}
+			event.Contexts = nil
+			event.Breadcrumbs = nil
+			event.Message = ""
+			event.Transaction = ""
+			event.Tags = map[string]string{"service": serviceName, "environment": environment}
+			for i := range event.Exception {
+				event.Exception[i].Value = "[redacted]"
+			}
+			return event
+		},
+	})
+	if err != nil {
+		slog.Warn("GlitchTip SDK initialization failed; error reporting is disabled", "service", serviceName, "error", err)
+		return
+	}
+	slog.Info("GlitchTip error reporting initialized", "service", serviceName, "environment", environment, "release", release)
+}
+
+func FlushGlitchTip() {
+	sentry.Flush(2 * time.Second)
+}
 
 // InitTracer initializes OpenTelemetry tracing and exports spans to Tempo/OTel collector.
 func InitTracer(ctx context.Context, serviceName, environment string) (*sdktrace.TracerProvider, error) {

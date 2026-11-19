@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_FILTER } from '@nestjs/core';
+import { SentryGlobalFilter, SentryModule } from '@sentry/nestjs/setup';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FulfillmentModule } from './fulfillment.module';
 import { ShipmentOrmEntity } from './infrastructure/persistence/entities/shipment.orm-entity';
@@ -6,6 +8,7 @@ import { TrackingEventOrmEntity } from './infrastructure/persistence/entities/tr
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST || 'localhost',
@@ -21,5 +24,6 @@ import { TrackingEventOrmEntity } from './infrastructure/persistence/entities/tr
     }),
     FulfillmentModule,
   ],
+  providers: [{ provide: APP_FILTER, useClass: SentryGlobalFilter }],
 })
 export class AppModule {}

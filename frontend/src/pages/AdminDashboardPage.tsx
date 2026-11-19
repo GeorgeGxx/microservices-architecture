@@ -789,12 +789,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                   onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-indigo-500 focus:outline-none"
                 >
-                  <option value="Computers">Computers & Laptops</option>
-                  <option value="Displays">Monitors & Displays</option>
-                  <option value="Peripherals">Keyboards & Mice</option>
-                  <option value="Audio">Headphones & Audio</option>
-                  <option value="Components">GPU & PC Components</option>
-                  <option value="Networking">Networking & Routers</option>
+                  <option value="Computers">Computers &amp; Laptops</option>
+                  <option value="Displays">Monitors &amp; Displays</option>
+                  <option value="Peripherals">Keyboards &amp; Mice</option>
+                  <option value="Audio">Headphones &amp; Audio</option>
+                  <option value="Components">GPU &amp; PC Components</option>
+                  <option value="Networking">Networking &amp; Routers</option>
                 </select>
               </div>
 
@@ -1132,7 +1132,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
               <div>
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <Package className="w-5 h-5 text-indigo-400" />
-                  Real-Time Stock Watchdog & 1-Click Restock
+                  Real-Time Stock Watchdog &amp; 1-Click Restock
                 </h3>
                 <p className="text-xs text-slate-400">
                   Instant inventory adjustments powered by REST endpoints on inventory-service:8001
@@ -1275,7 +1275,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
         <div className="glass-card p-6 rounded-2xl border border-slate-800 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h3 className="text-lg font-bold text-white">All Orders & Distributed Sagas</h3>
+              <h3 className="text-lg font-bold text-white">All Orders &amp; Distributed Sagas</h3>
               <p className="text-xs text-slate-400">
                 Cancel orders to trigger automatic stock compensation rollback across Kafka
               </p>
@@ -1300,7 +1300,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onCatalo
                   <th className="pb-3">Order #</th>
                   <th className="pb-3">Customer</th>
                   <th className="pb-3">Status</th>
-                  <th className="pb-3">Items & Quantity</th>
+                  <th className="pb-3">Items &amp; Quantity</th>
                   <th className="pb-3 text-right">Total Amount</th>
                   <th className="pb-3 text-right">Admin Action</th>
                 </tr>
