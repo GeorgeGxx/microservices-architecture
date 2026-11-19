@@ -38,13 +38,25 @@ if [ -z "$HUB_TOKEN" ]; then
   exit 0
 fi
 
-TAGS_JSON="$(curl -fsSL -H "Authorization: JWT ${HUB_TOKEN}" \
-  "https://hub.docker.com/v2/repositories/${OWNER}/${REPO}/tags/?page_size=100" 2>/dev/null || true)"
-
-if [ -z "$TAGS_JSON" ] || [ "$(echo "$TAGS_JSON" | jq -r '.results | type // empty')" != "array" ]; then
-  echo "  [INFO] Repository ${OWNER}/${REPO} has no existing tags or is not yet created."
-  exit 0
-fi
+TAGS_JSON='{"results":[]}'
+NEXT_URL="https://hub.docker.com/v2/repositories/${OWNER}/${REPO}/tags/?page_size=100"
+while [ -n "$NEXT_URL" ]; do
+  case "$NEXT_URL" in
+    "https://hub.docker.com/v2/repositories/${OWNER}/${REPO}/tags/"*) ;;
+    *) echo "::error::Unexpected Docker Hub pagination URL; aborting before pruning."; exit 1 ;;
+  esac
+  PAGE_JSON="$(curl -fsSL -H "Authorization: JWT ${HUB_TOKEN}" "$NEXT_URL")" || {
+    echo "::error::Failed to fetch all Docker Hub tags; aborting before pruning."
+    exit 1
+  }
+  if [ "$(echo "$PAGE_JSON" | jq -r '.results | type // empty')" != "array" ]; then
+    echo "::error::Docker Hub returned an invalid tag page; aborting before pruning."
+    exit 1
+  fi
+  TAGS_JSON="$(jq -cn --argjson accumulated "$TAGS_JSON" --argjson page "$PAGE_JSON" \
+    '{results: ($accumulated.results + $page.results)}')"
+  NEXT_URL="$(echo "$PAGE_JSON" | jq -r '.next // empty')"
+done
 
 ALL_TAGS="$(echo "$TAGS_JSON" | jq -r '.results[].name')"
 if [ -z "$ALL_TAGS" ]; then

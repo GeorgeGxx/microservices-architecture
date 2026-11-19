@@ -5,14 +5,10 @@ on:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'ai-service/**'
-      - '.github/workflows/_service-ci-cd-template.yml'
-      - '.github/workflows/service-ai.yml'
   pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'ai-service/**'
-      - '.github/workflows/_service-ci-cd-template.yml'
-      - '.github/workflows/service-ai.yml'
   workflow_dispatch:
     inputs:
       image-tag:

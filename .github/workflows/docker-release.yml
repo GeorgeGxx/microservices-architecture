@@ -8,6 +8,16 @@ on:
         required: true
         type: string
         default: '1.0.0'
+      release-scope:
+        description: 'Release services changed since the previous SemVer tag, or all services'
+        required: true
+        type: choice
+        options: [changed, all]
+        default: changed
+      base-ref:
+        description: 'Optional Git ref to compare against (manual dispatch only)'
+        required: false
+        type: string
   push:
     tags:
       - 'v*.*.*'
@@ -47,12 +57,77 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "Target release tag: $TAG"
 
+  detect-release-services:
+    name: Detect changed services
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.detect.outputs.services }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - id: detect
+        env:
+          GH_EVENT: ${{ github.event_name }}
+          GH_REF: ${{ github.ref }}
+          GH_SHA: ${{ github.sha }}
+          RELEASE_SCOPE: ${{ inputs.release-scope || 'changed' }}
+          BASE_REF_INPUT: ${{ inputs.base-ref }}
+        run: |
+          set -euo pipefail
+          services=(products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service frontend demand-forecast mlops-training mlflow)
+          if [ "$RELEASE_SCOPE" = all ]; then
+            printf 'services=%s\n' "$(jq -cn --args '$ARGS.positional' "${services[@]}")" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git fetch --force --tags
+          base="$BASE_REF_INPUT"
+          if [ -z "$base" ]; then
+            if [[ "$GH_EVENT" = push && "$GH_REF" == refs/tags/* ]]; then
+              current="${GH_REF#refs/tags/}"
+              base="$(git tag --merged "$GH_SHA" --sort=-version:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' | grep -vx "$current" | head -n1 || true)"
+            else
+              base="$(git tag --merged "$GH_SHA" --sort=-version:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' | head -n1 || true)"
+            fi
+          fi
+          if [ -z "$base" ]; then
+            changed=$(printf '%s\n' "${services[@]}")
+          else
+            git rev-parse --verify "$base^{commit}" >/dev/null
+            mapfile -t paths < <(git diff --name-only "$base" "$GH_SHA")
+            changed=()
+            add() { [[ " ${changed[*]} " == *" $1 "* ]] || changed+=("$1"); }
+            for path in "${paths[@]}"; do
+              case "$path" in
+                products-service/*) add products-service ;;
+                orders-service/*) add orders-service ;;
+                inventory-service/*) add inventory-service ;;
+                notification-service/*) add notification-service ;;
+                payments-service/*) add payments-service ;;
+                fulfillment-service/*) add fulfillment-service ;;
+                analytics-service/*) add analytics-service ;;
+                frontend/*) add frontend ;;
+                mlops/*)
+                  case "$path" in
+                    mlops/*forecast*|mlops/Dockerfile.forecast) add demand-forecast ;;
+                    mlops/*train*|mlops/Dockerfile.training) add mlops-training ;;
+                    mlops/*mlflow*|mlops/Dockerfile) add mlflow ;;
+                    *) add demand-forecast; add mlops-training; add mlflow ;;
+                  esac ;;
+                .github/workflows/*|scripts/*|helm/*|docker-compose*|.dockerignore)
+                  for service in "${services[@]}"; do add "$service"; done ;;
+              esac
+            done
+          fi
+          printf 'services=%s\n' "$(jq -cn --args '$ARGS.positional' "${changed[@]}")" >> "$GITHUB_OUTPUT"
+
   # ==========================================================
   # 🛒 Core Spring Boot Microservices
   # ==========================================================
   release-products:
     name: "📦 Release products-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'products-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: products-service
@@ -65,7 +140,8 @@ jobs:
 
   release-orders:
     name: "📦 Release orders-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'orders-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: orders-service
@@ -78,7 +154,8 @@ jobs:
 
   release-inventory:
     name: "📦 Release inventory-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'inventory-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: inventory-service
@@ -91,7 +168,8 @@ jobs:
 
   release-notifications:
     name: "📦 Release notification-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'notification-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: notification-service
@@ -107,7 +185,8 @@ jobs:
   # ==========================================================
   release-payments:
     name: "💳 Release payments-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'payments-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: payments-service
@@ -122,7 +201,8 @@ jobs:
 
   release-fulfillment:
     name: "🚚 Release fulfillment-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'fulfillment-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: fulfillment-service
@@ -137,7 +217,8 @@ jobs:
 
   release-analytics:
     name: "📊 Release analytics-service"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'analytics-service')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: analytics-service
@@ -155,7 +236,8 @@ jobs:
   # ==========================================================
   release-frontend:
     name: "🌐 Release frontend"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'frontend')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: frontend
@@ -171,7 +253,8 @@ jobs:
   # ==========================================================
   release-demand-forecast:
     name: "📈 Release demand-forecast"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'demand-forecast')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: demand-forecast
@@ -187,7 +270,8 @@ jobs:
 
   release-mlops-training:
     name: "🧪 Release mlops-training"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'mlops-training')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: mlops-training
@@ -203,7 +287,8 @@ jobs:
 
   release-mlflow:
     name: "🧪 Release mlflow"
-    needs: resolve-tag
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'mlflow')
     uses: ./.github/workflows/_service-ci-cd-template.yml
     with:
       service-name: mlflow
@@ -224,6 +309,7 @@ jobs:
     name: "🐙 GitOps Writeback (yq Synchronizer)"
     needs:
       - resolve-tag
+      - detect-release-services
       - release-products
       - release-orders
       - release-inventory
@@ -236,12 +322,12 @@ jobs:
       - release-mlops-training
       - release-mlflow
     runs-on: ubuntu-latest
+    if: always() && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && !contains(toJSON(needs), 'failure')
     steps:
       - name: Checkout Repository
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.ref_name || 'develop' }}
+          ref: ${{ github.event_name == 'push' && 'develop' || github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install yq
@@ -250,19 +336,28 @@ jobs:
       - name: Synchronize Helm Values via yq
         env:
           RELEASE_TAG: ${{ needs.resolve-tag.outputs.release-tag }}
+          RELEASE_SERVICES: ${{ needs.detect-release-services.outputs.services }}
         run: |
-          TAG="$RELEASE_TAG"
-          echo "Synchronizing GitOps manifests to release tag: $TAG"
-          for f in helm/values/values-*.yaml; do
-            yq -i "(.. | select(has(\"image\")) | select((.image.repository == \"georgegxx/*\" or .image.repository == \"*/*-service\" or .image.repository == \"*/frontend\" or .image.repository == \"*/mlflow\" or .image.repository == \"*/mlops-training\" or .image.repository == \"*/demand-forecast\") and .image.repository != \"*cosmo/router*\") | .image.tag) = \"$TAG\"" "$f"
-          done
+          while IFS= read -r service; do
+            case "$service" in
+              products-service|orders-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|frontend) expression=".\"${service}\".image.tag = strenv(RELEASE_TAG)" ;;
+              demand-forecast) expression='.mlops.forecast.image.tag = strenv(RELEASE_TAG)' ;;
+              mlops-training) expression='.mlops.training.image.tag = strenv(RELEASE_TAG)' ;;
+              mlflow) expression='.mlops.mlflow.image.tag = strenv(RELEASE_TAG)' ;;
+              *) echo "::error::Unexpected service in release selection: $service"; exit 1 ;;
+            esac
+            echo "Updating Helm image tag for $service to $RELEASE_TAG"
+            for f in helm/values/values-*.yaml; do
+              yq -i "$expression" "$f"
+            done
+          done < <(jq -r '.[]' <<< "$RELEASE_SERVICES")
 
       - name: Enforce 2-Version Docker Hub Retention Across Fleet (Active + Rollback)
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
-          for repo in products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service frontend demand-forecast mlops-training mlflow; do
+          for repo in $(jq -r '.[]' <<< '${{ needs.detect-release-services.outputs.services }}'); do
             bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo" 2
           done
 
@@ -270,6 +365,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ needs.resolve-tag.outputs.release-tag }}
           GH_REF_NAME: ${{ github.ref_name || 'develop' }}
+          GH_EVENT: ${{ github.event_name }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -277,5 +373,7 @@ jobs:
             echo "No values changes to commit; values are already synchronized."
           else
             git commit -am "chore(release): synchronize GitOps values to version ${RELEASE_TAG} [skip ci]"
-            git push origin "HEAD:${GH_REF_NAME}"
+            TARGET_BRANCH="$GH_REF_NAME"
+            if [ "$GH_EVENT" = push ]; then TARGET_BRANCH=develop; fi
+            git push origin "HEAD:${TARGET_BRANCH}"
           fi

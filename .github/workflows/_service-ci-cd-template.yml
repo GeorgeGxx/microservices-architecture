@@ -134,16 +134,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       # Spring Boot / Maven (Multi-threaded)
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -164,8 +162,7 @@ jobs:
 
       - name: Upload Test & Coverage Results
         if: inputs.service-type == 'spring-boot' && always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: surefire-${{ inputs.service-name }}
           path: |
@@ -178,12 +175,11 @@ jobs:
       # Novashop Storefront (Frontend)
       - name: Set up Node.js 22
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           cache: 'npm'
-          cache-dependency-path: ${{ inputs.service-dir }}/package.json
+          cache-dependency-path: ${{ inputs.service-dir }}/package-lock.json
 
       - name: Install & Build Novashop Frontend
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
@@ -195,8 +191,7 @@ jobs:
 
       - name: Upload Frontend Coverage Artifact
         if: (inputs.service-type == 'react' || inputs.service-type == 'frontend') && always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage/
@@ -205,8 +200,7 @@ jobs:
       # Go (Payments Service)
       - name: Set up Go
         if: inputs.service-type == 'go'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7
         with:
           go-version-file: ${{ inputs.service-dir }}/go.mod
           cache-dependency-path: ${{ inputs.service-dir }}/go.sum
@@ -219,8 +213,7 @@ jobs:
 
       - name: Upload Go Coverage Artifact
         if: inputs.service-type == 'go' && always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage.out
@@ -229,8 +222,7 @@ jobs:
       # NestJS / TypeScript (Fulfillment Service)
       - name: Set up Node.js 24 for NestJS
         if: inputs.service-type == 'nestjs'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24.15'
           cache: 'npm'
@@ -247,8 +239,7 @@ jobs:
 
       - name: Upload NestJS Coverage Artifact
         if: inputs.service-type == 'nestjs' && always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage/
@@ -257,10 +248,11 @@ jobs:
       # Python / MLOps & Analytics
       - name: Set up Python 3.12
         if: inputs.service-type == 'python'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: ${{ inputs.service-dir }}/requirements*.txt
 
       - name: Install Python Dependencies & Run Unit Tests with Coverage
         if: inputs.service-type == 'python'
@@ -292,8 +284,7 @@ jobs:
 
       - name: Upload Python Coverage Artifact
         if: inputs.service-type == 'python' && always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage.xml
@@ -309,15 +300,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       # Gitleaks Secrets Detection (Centralized Config - Hard Gate)
       - name: Run Gitleaks Secret Detector
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         continue-on-error: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -340,8 +329,7 @@ jobs:
 
       - name: Upload Semgrep SARIF Report
         if: always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: semgrep-sarif-${{ inputs.service-name }}
           path: semgrep-${{ inputs.service-name }}.sarif
@@ -370,14 +358,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
       - name: Cache SonarCloud Global Packages
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.sonar/cache
           key: ${{ runner.os }}-sonar-cache
@@ -387,8 +373,7 @@ jobs:
       # Spring Boot Sonar Analysis
       - name: Set up JDK 21
         if: inputs.service-type == 'spring-boot'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -396,8 +381,7 @@ jobs:
 
       - name: Download Spring Boot Test & Coverage Artifacts
         if: inputs.service-type == 'spring-boot'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: surefire-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/target
@@ -429,16 +413,14 @@ jobs:
       # Frontend Sonar Analysis
       - name: Set up Java for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Set up Node.js for Frontend Sonar Scanner
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
           cache: 'npm'
@@ -446,16 +428,14 @@ jobs:
 
       - name: Download Frontend Coverage Artifacts
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage
 
       - name: Cache SonarCloud Scanner Work
         if: inputs.service-type == 'react' || inputs.service-type == 'frontend'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ inputs.service-dir }}/.scannerwork
           key: ${{ runner.os }}-sonar-work-${{ inputs.service-name }}-${{ github.sha }}
@@ -489,16 +469,14 @@ jobs:
       # Go Sonar Analysis
       - name: Download Go Coverage Artifacts
         if: inputs.service-type == 'go'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}
 
       - name: Set up Node.js for Go Sonar Scanner
         if: inputs.service-type == 'go'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
 
@@ -530,16 +508,14 @@ jobs:
       # NestJS Sonar Analysis
       - name: Set up Java for NestJS Sonar Scanner
         if: inputs.service-type == 'nestjs'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Set up Node.js for NestJS Sonar Scanner
         if: inputs.service-type == 'nestjs'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24.15'
           cache: 'npm'
@@ -547,8 +523,7 @@ jobs:
 
       - name: Download NestJS Coverage Artifacts
         if: inputs.service-type == 'nestjs'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}/coverage
@@ -582,24 +557,21 @@ jobs:
       # Python / MLOps Sonar Analysis
       - name: Download Python Coverage Artifacts
         if: inputs.service-type == 'python'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-${{ inputs.service-name }}
           path: ${{ inputs.service-dir }}
 
       - name: Set up Java for Python Sonar Scanner
         if: inputs.service-type == 'python'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-java@v6
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6
         with:
           java-version: '21'
           distribution: 'temurin'
 
       - name: Set up Node.js for Python Sonar Scanner
         if: inputs.service-type == 'python'
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
 
@@ -654,16 +626,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Docker Buildx
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Build Docker Image & Export to OCI Tarball
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: ${{ inputs.context-dir != '' && inputs.context-dir || ((inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend' || '.') }}
           file: ${{ inputs.dockerfile-path != '' && inputs.dockerfile-path || ((inputs.service-type == 'react' || inputs.service-type == 'frontend') && './frontend/Dockerfile' || format('./{0}/Dockerfile', inputs.service-dir)) }}
@@ -673,8 +642,7 @@ jobs:
           cache-to: type=gha,mode=min
 
       - name: Upload Image Artifact
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp/${{ inputs.service-name }}-image.tar
@@ -691,8 +659,7 @@ jobs:
           output: 'sbom-${{ inputs.service-name }}.cdx.json'
 
       - name: Upload SBOM Artifact
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: sbom-${{ inputs.service-name }}
           path: sbom-${{ inputs.service-name }}.cdx.json
@@ -709,12 +676,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download Image Artifact
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp
@@ -753,8 +718,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Helm 4
         run: bash scripts/install-helm4.sh v4.3.1
@@ -768,8 +732,7 @@ jobs:
 
       - name: Cache Conftest Binary
         id: cache-conftest
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: /usr/local/bin/conftest
           key: ${{ runner.os }}-conftest-0.58.0
@@ -810,8 +773,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Checkout Cosign Public Key & Governance Config
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           sparse-checkout: |
             devsecops/compliance/cosign
@@ -826,8 +788,7 @@ jobs:
           cosign version
 
       - name: Download Image Artifact
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: image-${{ inputs.service-name }}
           path: /tmp
@@ -947,10 +908,11 @@ jobs:
     environment: ${{ (github.ref == 'refs/heads/master') && 'production' || ((github.ref == 'refs/heads/staging') && 'staging' || 'dev') }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15
+    outputs:
+      previous-overrides: ${{ steps.sync.outputs.previous_overrides }}
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup ArgoCD CLI (Pinned v3.6.1) and Cosign (Pinned v3.1.3)
         run: |
@@ -1005,6 +967,7 @@ jobs:
           fi
 
       - name: Trigger ArgoCD GitOps Synchronization & Health Verification
+        id: sync
         env:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || inputs.argocd-server || 'localhost:8088' }}
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
@@ -1012,6 +975,7 @@ jobs:
           NEEDS_IMAGE_DIGEST: ${{ needs.push-dockerhub.outputs.image-digest }}
           NEEDS_IMAGE_TAG: ${{ needs.push-dockerhub.outputs.image-tag }}
         run: |
+          set -euo pipefail
           echo "Connecting to ArgoCD for [$APP_NAMES] in namespace $TARGET_NS..."
           IMAGE_DIGEST="$NEEDS_IMAGE_DIGEST"
           PUBLISHED_TAG="${NEEDS_IMAGE_TAG:-$GH_SHA}"
@@ -1021,6 +985,15 @@ jobs:
             TLS_FLAGS=(--insecure)
           fi
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
+            PREVIOUS_OVERRIDES='{}'
+            for APP in $APP_NAMES; do
+              APP_JSON="$(argocd app get "$APP" -o json --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}")"
+              APP_OVERRIDES="$(jq -c --arg digest "${HELM_KEY}.image.digest" --arg tag "${HELM_KEY}.image.tag" '
+                [.spec.source.helm.parameters[]? | select(.name == $digest or .name == $tag) | {key: .name, value: .value}] | from_entries
+              ' <<< "$APP_JSON")"
+              PREVIOUS_OVERRIDES="$(jq -cn --argjson current "$PREVIOUS_OVERRIDES" --arg app "$APP" --argjson previous "$APP_OVERRIDES" '$current + {($app): $previous}')"
+            done
+            echo "previous_overrides=$PREVIOUS_OVERRIDES" >> "$GITHUB_OUTPUT"
             for APP in $APP_NAMES; do
               echo "Synchronizing ArgoCD application: $APP..."
               if [ -n "$IMAGE_DIGEST" ]; then
@@ -1066,18 +1039,15 @@ jobs:
       KEYCLOAK_URL: ${{ inputs.keycloak-url != '' && inputs.keycloak-url || vars.DEVSECOPS_KEYCLOAK_URL }}
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Node.js for Newman
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: '24'
 
       - name: Set up Python for storefront smoke checks
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
 
@@ -1110,8 +1080,7 @@ jobs:
 
       - name: Upload OWASP ZAP report
         if: always()
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: zap-report-${{ inputs.service-name }}
           path: artifacts/zap/zap-report.html
@@ -1119,18 +1088,18 @@ jobs:
           retention-days: 7
 
   # ==========================================================
-  # ROLLBACK: 🔄 Automated Rollback for ArgoCD & GitHub Actions on Failure
-  #   Triggers if ArgoCD sync, pod deployment, or health verification fails
+  # ROLLBACK: 🔄 Restore only this service's prior ArgoCD image overrides on failure
+  #   Other services in the umbrella Application remain on their current revisions.
   # ==========================================================
   rollback-argocd:
     name: "🔄 Rollback ArgoCD GitOps - ${{ inputs.service-name }}"
     needs: [push-dockerhub, gitops-argocd-sync, post-deployment-validation]
     if: failure() && needs.push-dockerhub.result == 'success' && (needs.gitops-argocd-sync.result == 'failure' || needs.post-deployment-validation.result == 'failure')
+    environment: ${{ (github.ref == 'refs/heads/master') && 'production' || ((github.ref == 'refs/heads/staging') && 'staging' || 'dev') }}
     runs-on: ${{ inputs.runner-type }}
     steps:
       - name: Checkout Code
-        # nosemgrep: yaml.github-actions.security.github-actions-mutable-action-tag.github-actions-mutable-action-tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Determine Target Application(s) for Rollback
         run: |
@@ -1144,13 +1113,16 @@ jobs:
             echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> "$GITHUB_ENV"
             echo "TARGET_NS=production" >> "$GITHUB_ENV"
           fi
+          echo "HELM_KEY=${INPUT_HELM_VALUES_KEY:-$INPUT_SERVICE_NAME}" >> "$GITHUB_ENV"
 
-      - name: Execute Automated Emergency Rollback in ArgoCD & Cluster
+      - name: Restore Service Image Override in ArgoCD
         env:
           ARGOCD_SERVER: ${{ secrets.ARGOCD_SERVER || inputs.argocd-server || 'localhost:8088' }}
           ARGOCD_TOKEN: ${{ secrets.ARGOCD_AUTH_TOKEN }}
           ARGOCD_INSECURE: ${{ vars.ARGOCD_INSECURE || 'false' }}
+          PREVIOUS_OVERRIDES: ${{ needs.gitops-argocd-sync.outputs.previous-overrides || '{}' }}
         run: |
+          set -euo pipefail
           echo "::error::Deployment/sync failed for [$APP_NAMES]. Executing automated emergency rollback..."
           TLS_FLAGS=()
           if [[ "$ARGOCD_SERVER" == localhost* ]] || [[ "$ARGOCD_SERVER" == 127.0.0.1* ]] || [ "$ARGOCD_INSECURE" = "true" ]; then
@@ -1158,12 +1130,23 @@ jobs:
           fi
           if command -v argocd &> /dev/null && [ -n "$ARGOCD_TOKEN" ]; then
             for APP in $APP_NAMES; do
-              argocd app rollback "$APP" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}" || true
-              echo "ArgoCD app $APP rolled back to last healthy state."
+              PREVIOUS="$(jq -c --arg app "$APP" '.[$app] // {}' <<< "$PREVIOUS_OVERRIDES")"
+              RESTORE_ARGS=()
+              if jq -e --arg key "${HELM_KEY}.image.digest" 'has($key)' <<< "$PREVIOUS" >/dev/null; then
+                RESTORE_ARGS+=(--helm-set "${HELM_KEY}.image.digest=$(jq -r --arg key "${HELM_KEY}.image.digest" '.[$key]' <<< "$PREVIOUS")")
+              else
+                RESTORE_ARGS+=(--helm-set "${HELM_KEY}.image.digest=")
+              fi
+              if jq -e --arg key "${HELM_KEY}.image.tag" 'has($key)' <<< "$PREVIOUS" >/dev/null; then
+                RESTORE_ARGS+=(--helm-set "${HELM_KEY}.image.tag=$(jq -r --arg key "${HELM_KEY}.image.tag" '.[$key]' <<< "$PREVIOUS")")
+              else
+                RESTORE_ARGS+=(--helm-set "${HELM_KEY}.image.tag=")
+              fi
+              argocd app set "$APP" "${RESTORE_ARGS[@]}" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              argocd app sync "$APP" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              argocd app wait "$APP" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+              echo "Restored only ${INPUT_SERVICE_NAME}'s image override for ArgoCD app $APP."
             done
-          elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
-            helm rollback microservices --namespace "$TARGET_NS" --wait --timeout 5m || true
-            echo "Cluster release rolled back in namespace $TARGET_NS."
           else
-            echo "::warning::Automated rollback event recorded for [$APP_NAMES]."
+            echo "::warning::ArgoCD credentials or CLI unavailable; skipped rollback to avoid reverting unrelated services."
           fi
