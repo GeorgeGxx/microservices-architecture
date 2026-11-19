@@ -7,12 +7,6 @@ on:
       - 'cosmo-router/**'
       - 'helm/charts/cosmo-router/**'
       - 'helm/microservices-umbrella/**'
-  pull_request:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - 'cosmo-router/**'
-      - 'helm/charts/cosmo-router/**'
-      - 'helm/microservices-umbrella/**'
   workflow_dispatch:
 
 concurrency:

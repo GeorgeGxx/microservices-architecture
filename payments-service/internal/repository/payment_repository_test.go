@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"regexp"
 	"testing"
 	"time"
@@ -71,11 +72,11 @@ func TestPaymentRepository_UpdatePayment(t *testing.T) {
 
 	paymentID := uuid.New()
 	payment := &models.Payment{
-		ID:             paymentID,
-		OrderNumber:    "ORD-1",
-		Amount:         100.0,
-		Status:         models.PaymentStatusRefunded,
-		UpdatedAt:      time.Now(),
+		ID:          paymentID,
+		OrderNumber: "ORD-1",
+		Amount:      100.0,
+		Status:      models.PaymentStatusRefunded,
+		UpdatedAt:   time.Now(),
 	}
 
 	mock.ExpectBegin()
@@ -229,6 +230,84 @@ func TestPaymentRepository_CreateAndUpdateWithOutbox(t *testing.T) {
 	mock.ExpectCommit()
 
 	assert.NoError(t, repo.UpdatePaymentWithOutbox(context.Background(), payment, outbox))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPaymentRepository_IsMessageProcessed(t *testing.T) {
+	t.Run("empty id short-circuits", func(t *testing.T) {
+		gormDB, mock := setupMockDB(t)
+		repo := NewPaymentRepository(gormDB)
+		processed, err := repo.IsMessageProcessed(context.Background(), "")
+		assert.NoError(t, err)
+		assert.False(t, processed)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	for _, test := range []struct {
+		name     string
+		count    int64
+		want     bool
+		queryErr error
+	}{
+		{name: "already processed", count: 1, want: true},
+		{name: "not processed", count: 0, want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			gormDB, mock := setupMockDB(t)
+			repo := NewPaymentRepository(gormDB)
+			mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "processed_messages" WHERE message_id = $1`)).
+				WithArgs("event-1").WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(test.count))
+			processed, err := repo.IsMessageProcessed(context.Background(), "event-1")
+			assert.NoError(t, err)
+			assert.Equal(t, test.want, processed)
+			assert.NoError(t, mock.ExpectationsWereMet())
+		})
+	}
+
+	t.Run("database error", func(t *testing.T) {
+		gormDB, mock := setupMockDB(t)
+		repo := NewPaymentRepository(gormDB)
+		mock.ExpectQuery(regexp.QuoteMeta(`SELECT count(*) FROM "processed_messages" WHERE message_id = $1`)).
+			WithArgs("event-error").WillReturnError(errors.New("database unavailable"))
+		processed, err := repo.IsMessageProcessed(context.Background(), "event-error")
+		assert.Error(t, err)
+		assert.False(t, processed)
+		assert.NoError(t, mock.ExpectationsWereMet())
+	})
+}
+
+func TestPaymentRepository_RecordProcessedMessage(t *testing.T) {
+	gormDB, mock := setupMockDB(t)
+	repo := NewPaymentRepository(gormDB)
+	assert.NoError(t, repo.RecordProcessedMessage(context.Background(), nil))
+	assert.NoError(t, repo.RecordProcessedMessage(context.Background(), &models.ProcessedMessage{}))
+
+	message := &models.ProcessedMessage{MessageID: "event-1", ConsumerID: "payments-service", EventType: "PAYMENT_COMPLETED"}
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "processed_messages"`)).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	assert.NoError(t, repo.RecordProcessedMessage(context.Background(), message))
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPaymentRepository_OutboxPersistenceMethods(t *testing.T) {
+	gormDB, mock := setupMockDB(t)
+	repo := NewPaymentRepository(gormDB)
+	event := &models.OutboxEvent{
+		ID: uuid.New(), AggregateType: "PAYMENT", AggregateID: "ORD-OUTBOX",
+		EventType: "PAYMENT_COMPLETED", Payload: "{}", Status: "PENDING",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`INSERT INTO "outbox_events"`)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	assert.NoError(t, repo.SaveOutboxEvent(context.Background(), event))
+
+	mock.ExpectBegin()
+	mock.ExpectExec(regexp.QuoteMeta(`UPDATE "outbox_events"`)).WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+	assert.NoError(t, repo.UpdateOutboxEvent(context.Background(), event))
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 

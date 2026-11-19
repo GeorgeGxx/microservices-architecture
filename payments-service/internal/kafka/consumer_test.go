@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/georgegxx/payments-service/internal/models"
+	"github.com/georgegxx/payments-service/internal/repository"
 	"github.com/segmentio/kafka-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -39,6 +40,22 @@ type mockPaymentProcessor struct {
 	mock.Mock
 }
 
+type consumerRepositoryStub struct {
+	repository.PaymentRepository
+	messageProcessed bool
+	checkErr         error
+	recorded         *models.ProcessedMessage
+}
+
+func (r *consumerRepositoryStub) IsMessageProcessed(context.Context, string) (bool, error) {
+	return r.messageProcessed, r.checkErr
+}
+
+func (r *consumerRepositoryStub) RecordProcessedMessage(_ context.Context, message *models.ProcessedMessage) error {
+	r.recorded = message
+	return nil
+}
+
 func (m *mockPaymentProcessor) ProcessPayment(ctx context.Context, req models.ProcessPaymentRequest) (*models.ProcessPaymentResponse, error) {
 	args := m.Called(ctx, req)
 	if args.Get(0) == nil {
@@ -60,6 +77,58 @@ func TestNewOrderEventConsumer(t *testing.T) {
 	consumer := NewOrderEventConsumer([]string{"localhost:9092"}, "orders-topic", "test-group", processor)
 	assert.NotNil(t, consumer)
 	_ = consumer.Close()
+}
+
+func TestOrderEventConsumerStartStopsWhenContextIsCancelled(t *testing.T) {
+	reader := new(mockMessageReader)
+	ctx, cancel := context.WithCancel(context.Background())
+	reader.On("FetchMessage", mock.Anything).Run(func(mock.Arguments) { cancel() }).Return(kafka.Message{}, context.Canceled).Once()
+	consumer := &OrderEventConsumer{reader: reader, processor: new(mockPaymentProcessor), stopChan: make(chan struct{})}
+
+	consumer.Start(ctx)
+
+	reader.AssertExpectations(t)
+}
+
+func TestOrderEventConsumerStartStopsOnStopSignal(t *testing.T) {
+	reader := new(mockMessageReader)
+	stopChan := make(chan struct{})
+	close(stopChan)
+	consumer := &OrderEventConsumer{reader: reader, processor: new(mockPaymentProcessor), stopChan: stopChan}
+
+	consumer.Start(context.Background())
+
+	reader.AssertNotCalled(t, "FetchMessage", mock.Anything)
+}
+
+func TestHandleMessageDeduplicatesProcessedEvent(t *testing.T) {
+	reader := new(mockMessageReader)
+	processor := new(mockPaymentProcessor)
+	repo := &consumerRepositoryStub{messageProcessed: true}
+	reader.On("CommitMessages", mock.Anything, mock.Anything).Return(nil).Once()
+	consumer := &OrderEventConsumer{reader: reader, processor: processor, repo: repo, stopChan: make(chan struct{})}
+	message := kafka.Message{Key: []byte("ORD-DUP"), Value: []byte(`{"orderNumber":"ORD-DUP","status":"PLACED"}`)}
+
+	assert.NoError(t, consumer.handleMessage(context.Background(), message))
+	reader.AssertExpectations(t)
+	processor.AssertNotCalled(t, "ProcessPayment", mock.Anything, mock.Anything)
+}
+
+func TestHandleMessageRecordsSuccessfulEvent(t *testing.T) {
+	reader := new(mockMessageReader)
+	processor := new(mockPaymentProcessor)
+	repo := &consumerRepositoryStub{}
+	reader.On("CommitMessages", mock.Anything, mock.Anything).Return(nil).Once()
+	processor.On("ProcessPayment", mock.Anything, mock.Anything).Return(&models.ProcessPaymentResponse{OrderNumber: "ORD-IDEMP"}, nil).Once()
+	consumer := &OrderEventConsumer{reader: reader, processor: processor, repo: repo, stopChan: make(chan struct{})}
+	message := kafka.Message{Key: []byte("ORD-IDEMP"), Value: []byte(`{"orderNumber":"ORD-IDEMP","status":"PLACED"}`)}
+
+	assert.NoError(t, consumer.handleMessage(context.Background(), message))
+	assert.NotNil(t, repo.recorded)
+	assert.Equal(t, "ORD-IDEMP:PLACED:", repo.recorded.MessageID)
+	assert.Equal(t, "payments-service", repo.recorded.ConsumerID)
+	reader.AssertExpectations(t)
+	processor.AssertExpectations(t)
 }
 
 func TestHandleMessage_PlacedOrderSuccess(t *testing.T) {

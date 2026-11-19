@@ -6,11 +6,6 @@ on:
     paths:
       - 'notification-service/**'
       - 'pom.xml'
-  pull_request:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - 'notification-service/**'
-      - 'pom.xml'
   workflow_dispatch:
     inputs:
       image-tag:

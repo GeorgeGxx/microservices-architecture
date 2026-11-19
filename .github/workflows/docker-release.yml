@@ -68,58 +68,45 @@ jobs:
           fetch-depth: 0
       - id: detect
         env:
-          GH_EVENT: ${{ github.event_name }}
-          GH_REF: ${{ github.ref }}
           GH_SHA: ${{ github.sha }}
           RELEASE_SCOPE: ${{ inputs.release-scope || 'changed' }}
           BASE_REF_INPUT: ${{ inputs.base-ref }}
         run: |
           set -euo pipefail
-          services=(products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service frontend demand-forecast mlops-training mlflow)
-          if [ "$RELEASE_SCOPE" = all ]; then
-            printf 'services=%s\n' "$(jq -cn --args '$ARGS.positional' "${services[@]}")" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
           git fetch --force --tags
           base="$BASE_REF_INPUT"
           if [ -z "$base" ]; then
-            if [[ "$GH_EVENT" = push && "$GH_REF" == refs/tags/* ]]; then
-              current="${GH_REF#refs/tags/}"
+            if [[ "$GITHUB_EVENT_NAME" = push && "$GITHUB_REF" == refs/tags/* ]]; then
+              current="${GITHUB_REF#refs/tags/}"
               base="$(git tag --merged "$GH_SHA" --sort=-version:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' | grep -vx "$current" | head -n1 || true)"
             else
               base="$(git tag --merged "$GH_SHA" --sort=-version:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' | head -n1 || true)"
             fi
           fi
           if [ -z "$base" ]; then
-            changed=$(printf '%s\n' "${services[@]}")
+            python_args=(--mode release --base-ref "$GH_SHA" --head-ref "$GH_SHA" --all)
           else
-            git rev-parse --verify "$base^{commit}" >/dev/null
-            mapfile -t paths < <(git diff --name-only "$base" "$GH_SHA")
-            changed=()
-            add() { [[ " ${changed[*]} " == *" $1 "* ]] || changed+=("$1"); }
-            for path in "${paths[@]}"; do
-              case "$path" in
-                products-service/*) add products-service ;;
-                orders-service/*) add orders-service ;;
-                inventory-service/*) add inventory-service ;;
-                notification-service/*) add notification-service ;;
-                payments-service/*) add payments-service ;;
-                fulfillment-service/*) add fulfillment-service ;;
-                analytics-service/*) add analytics-service ;;
-                frontend/*) add frontend ;;
-                mlops/*)
-                  case "$path" in
-                    mlops/*forecast*) add demand-forecast ;;
-                    mlops/*train*) add mlops-training ;;
-                    mlops/*mlflow*|mlops/Dockerfile) add mlflow ;;
-                    *) add demand-forecast; add mlops-training; add mlflow ;;
-                  esac ;;
-                .github/workflows/*|scripts/*|helm/*|docker-compose*|.dockerignore)
-                  for service in "${services[@]}"; do add "$service"; done ;;
-              esac
-            done
+            python_args=(--mode release --base-ref "$base" --head-ref "$GH_SHA")
           fi
-          printf 'services=%s\n' "$(jq -cn --args '$ARGS.positional' "${changed[@]}")" >> "$GITHUB_OUTPUT"
+          if [ "$RELEASE_SCOPE" = all ]; then python_args+=(--all); fi
+          selected="$(python3 scripts/release_service_detector.py "${python_args[@]}")"
+          printf 'services=%s\n' "$selected" >> "$GITHUB_OUTPUT"
+
+  release-ai-service:
+    name: "🤖 Release ai-service"
+    needs: [resolve-tag, detect-release-services]
+    if: contains(fromJSON(needs.detect-release-services.outputs.services), 'ai-service')
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: ai-service
+      service-type: python
+      service-dir: ai-service
+      context-dir: ai-service
+      dockerfile-path: ai-service/Dockerfile
+      image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
+      publish-to-registry: true
+    # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
+    secrets: inherit
 
   # ==========================================================
   # 🛒 Core Spring Boot Microservices
@@ -321,6 +308,7 @@ jobs:
       - release-demand-forecast
       - release-mlops-training
       - release-mlflow
+      - release-ai-service
     runs-on: ubuntu-latest
     if: always() && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && !contains(toJSON(needs), 'failure')
     steps:
@@ -340,7 +328,7 @@ jobs:
         run: |
           while IFS= read -r service; do
             case "$service" in
-              products-service|orders-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|frontend) expression=".\"${service}\".image.tag = strenv(RELEASE_TAG)" ;;
+              products-service|orders-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|frontend|ai-service) expression=".\"${service}\".image.tag = strenv(RELEASE_TAG)" ;;
               demand-forecast) expression='.mlops.forecast.image.tag = strenv(RELEASE_TAG)' ;;
               mlops-training) expression='.mlops.training.image.tag = strenv(RELEASE_TAG)' ;;
               mlflow) expression='.mlops.mlflow.image.tag = strenv(RELEASE_TAG)' ;;

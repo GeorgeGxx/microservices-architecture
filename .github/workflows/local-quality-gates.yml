@@ -1,17 +1,8 @@
 name: Local Stack and Infrastructure Quality Gates
 
 on:
+  workflow_call:
   push:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - 'terraform/**'
-      - 'helm/**'
-      - 'k8s/**'
-      - 'argocd/**'
-      - 'devsecops/policies/conftest/**'
-      - 'scripts/install-helm4.sh'
-      - '.github/workflows/_service-ci-cd-template.yml'
-  pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'terraform/**'

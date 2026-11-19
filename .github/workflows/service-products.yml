@@ -6,11 +6,6 @@ on:
     paths:
       - 'products-service/**'
       - 'pom.xml'
-  pull_request:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - 'products-service/**'
-      - 'pom.xml'
   workflow_dispatch:
     inputs:
       image-tag:
