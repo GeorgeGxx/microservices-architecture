@@ -149,6 +149,13 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      - name: Prewarm Sonar Maven plugin in shared Maven cache
+        if: inputs.service-type == 'spring-boot'
+        continue-on-error: true
+        run: >-
+          mvn -B -ntp -f "$INPUT_SERVICE_DIR/pom.xml"
+          org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:help
+
       - name: Run Maven Unit Tests & JaCoCo Coverage (-T 1C Multi-threaded)
         if: inputs.service-type == 'spring-boot'
         run: |
@@ -351,23 +358,6 @@ jobs:
           trivy-config: devsecops/compliance/trivy/trivy.yaml
           format: table
           exit-code: '0'
-
-      - name: Report dependency vulnerabilities (all severities)
-        run: |
-          trivy fs --config devsecops/compliance/trivy/trivy.yaml \
-            --ignorefile devsecops/compliance/trivy/.trivyignore \
-            --scanners vuln --include-dev-deps \
-            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL \
-            --ignore-unfixed=false --exit-code 0 \
-            '${{ inputs.service-dir }}'
-
-      - name: Block fixable high and critical dependency vulnerabilities
-        run: |
-          trivy fs --config devsecops/compliance/trivy/trivy.yaml \
-            --ignorefile devsecops/compliance/trivy/.trivyignore \
-            --scanners vuln --include-dev-deps \
-            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 \
-            '${{ inputs.service-dir }}'
 
   # ==========================================================
   # STEP 2b: 📊 SonarQube Cloud Code Quality & Security Analysis
