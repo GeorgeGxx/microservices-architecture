@@ -32,6 +32,7 @@ flowchart LR
 | **6** | [**RELEASE_CRITERIA_AND_GOVERNANCE.md**](./RELEASE_CRITERIA_AND_GOVERNANCE.md) | Release Managers, QA | Per-service SLOs (99.95% availability, p95 latencies), resource bounds, actionable Prometheus alerts, and rollback triggers. |
 | **7** | [**GITOPS_OPERATIONS.md**](./GITOPS_OPERATIONS.md) | GitOps & Platform Engineers | Argo CD `AppProject` least-privilege boundaries, multi-cluster registration (`DP1` + `DP2`), digest synchronization, and automated rollbacks. |
 | **8** | [**PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md**](./PRODUCTION_DUAL_DATAPLANE_OPERATIONS.md) | SREs, Cloud Operations | Production Dual-Dataplane (`DP1` + `DP2`) operations across AWS EKS, Azure AKS, and GCP GKE, ingress load balancing, and failover drills. |
+| **9** | [**INCIDENT_RECOVERY_AND_SERVICE_ROLLBACK.md**](./INCIDENT_RECOVERY_AND_SERVICE_ROLLBACK.md) | SREs, Release Engineers | Service-scoped image rollback, local BCDR drill limits, and safe Argo CD application ownership boundaries. |
 
 ---
 

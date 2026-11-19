@@ -5,10 +5,6 @@ on:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'mlops/**'
-  pull_request:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - 'mlops/**'
   workflow_dispatch:
     inputs:
       image-tag:

@@ -1,28 +1,8 @@
 name: Microservices Architecture Security & Vulnerability Scan
 
 on:
+  workflow_call:
   push:
-    branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
-    paths:
-      - '**/pom.xml'
-      - '**/go.mod'
-      - '**/go.sum'
-      - '**/package.json'
-      - '**/package-lock.json'
-      - '**/pnpm-lock.yaml'
-      - '**/yarn.lock'
-      - '**/requirements*.txt'
-      - '**/poetry.lock'
-      - '**/uv.lock'
-      - '**/Dockerfile*'
-      - '.snyk'
-      - '.trivyignore'
-      - '.gitleaksignore'
-      - 'devsecops/**'
-      - 'helm/**'
-      - '.github/workflows/_service-ci-cd-template.yml'
-      - '.github/workflows/security-scan.yml'
-  pull_request:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - '**/pom.xml'

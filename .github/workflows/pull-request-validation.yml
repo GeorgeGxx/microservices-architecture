@@ -1,0 +1,155 @@
+name: Pull Request Validation
+
+on:
+  pull_request:
+    branches: [develop, staging, master]
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: pull-request-validation-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  detect-changes:
+    name: Detect affected workloads
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.detect.outputs.matrix }}
+      services: ${{ steps.detect.outputs.services }}
+      infrastructure: ${{ steps.detect.outputs.infrastructure }}
+      security: ${{ steps.detect.outputs.security }}
+    steps:
+      - name: Checkout full PR history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - name: Select tests from changed paths
+        id: detect
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          matrix="$(python3 scripts/release_service_detector.py --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" --matrix)"
+          services="$(jq -c '[.[]."service-name"]' <<< "$matrix")"
+          infrastructure="$(python3 scripts/release_service_detector.py --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" --infrastructure-checks)"
+          security="$(python3 scripts/release_service_detector.py --base-ref "$BASE_SHA" --head-ref "$HEAD_SHA" --security-checks)"
+          printf 'matrix=%s\nservices=%s\ninfrastructure=%s\nsecurity=%s\n' "$matrix" "$services" "$infrastructure" "$security" >> "$GITHUB_OUTPUT"
+          echo "Selected CI workloads: $services; infrastructure checks: $infrastructure; security scan: $security"
+
+  configuration-tests:
+    name: Test change selection and workflow syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - name: Test change selector
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Install pinned actionlint and verify checksum
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          set -euo pipefail
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          curl -fsSLo "$archive" "$base_url/$archive"
+          curl -fsSLo checksums.txt "$base_url/actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          grep "  ${archive}$" checksums.txt > actionlint.sha256
+          sha256sum --check actionlint.sha256
+          tar -xzf "$archive" actionlint
+          ./actionlint .github/workflows/*.yml
+
+  service-checks:
+    name: Run changed service pipelines
+    needs: detect-changes
+    if: needs.detect-changes.outputs.matrix != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include: ${{ fromJSON(needs.detect-changes.outputs.matrix) }}
+    uses: ./.github/workflows/_service-ci-cd-template.yml
+    with:
+      service-name: ${{ matrix.service-name }}
+      service-type: ${{ matrix.service-type }}
+      service-dir: ${{ matrix.service-dir }}
+      context-dir: ${{ matrix.context-dir || '' }}
+      dockerfile-path: ${{ matrix.dockerfile-path || '' }}
+      helm-values-key: ${{ matrix.helm-values-key || '' }}
+      post-deploy-enabled: false
+      publish-to-registry: false
+    secrets: inherit
+
+  cosmo-router-checks:
+    name: Compose and lint Cosmo Router
+    needs: detect-changes
+    if: contains(fromJSON(needs.detect-changes.outputs.services), 'cosmo-router')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '24'
+      - name: Compose federation configuration
+        run: npx --yes wgc@0.133.3 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json
+      - name: Install Helm 4
+        run: bash scripts/install-helm4.sh v4.3.1
+      - name: Resolve chart dependencies and lint
+        run: |
+          set -euo pipefail
+          helm dependency update helm/microservices-umbrella
+          helm lint helm/charts/cosmo-router
+          helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml
+
+  infrastructure-checks:
+    name: Run changed infrastructure gates
+    needs: detect-changes
+    if: needs.detect-changes.outputs.infrastructure == 'true'
+    uses: ./.github/workflows/local-quality-gates.yml
+
+  security-checks:
+    name: Run repository security scan
+    needs: detect-changes
+    if: needs.detect-changes.outputs.security == 'true'
+    uses: ./.github/workflows/security-scan.yml
+    secrets: inherit
+
+  pr-validation:
+    name: PR Validation
+    if: always()
+    needs:
+      - detect-changes
+      - configuration-tests
+      - service-checks
+      - cosmo-router-checks
+      - infrastructure-checks
+      - security-checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all selected checks to pass
+        env:
+          DETECT_RESULT: ${{ needs.detect-changes.result }}
+          CONFIG_RESULT: ${{ needs.configuration-tests.result }}
+          SERVICE_RESULT: ${{ needs.service-checks.result }}
+          COSMO_RESULT: ${{ needs.cosmo-router-checks.result }}
+          INFRA_RESULT: ${{ needs.infrastructure-checks.result }}
+          SECURITY_RESULT: ${{ needs.security-checks.result }}
+        run: |
+          set -euo pipefail
+          [ "$DETECT_RESULT" = success ] || { echo "Change detection failed: $DETECT_RESULT"; exit 1; }
+          [ "$CONFIG_RESULT" = success ] || { echo "Configuration tests failed: $CONFIG_RESULT"; exit 1; }
+          for result in "$SERVICE_RESULT" "$COSMO_RESULT" "$INFRA_RESULT" "$SECURITY_RESULT"; do
+            case "$result" in
+              success|skipped) ;;
+              *) echo "A required PR workload did not pass: $result"; exit 1 ;;
+            esac
+          done
