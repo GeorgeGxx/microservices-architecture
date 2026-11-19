@@ -186,13 +186,15 @@ jobs:
             exit 1
           fi
 
-          echo "target_env=$TARGET_ENV" >> "$GITHUB_OUTPUT"
-          echo "data_plane=$DATA_PLANE" >> "$GITHUB_OUTPUT"
-          echo "var_file=$TARGET_ENV/terraform.tfvars" >> "$GITHUB_OUTPUT"
           # Match terraform/environments/aws/versions.tf and platform-multicloud.ps1 (-Provider aws):
           # one durable backend per provider, isolated by the Terraform workspace.
-          echo "s3_bucket=georgegxx-msa-tfstate-prod" >> "$GITHUB_OUTPUT"
-          echo "dynamo_table=georgegxx-msa-tflock-prod" >> "$GITHUB_OUTPUT"
+          {
+            echo "target_env=$TARGET_ENV"
+            echo "data_plane=$DATA_PLANE"
+            echo "var_file=$TARGET_ENV/terraform.tfvars"
+            echo "s3_bucket=georgegxx-msa-tfstate-prod"
+            echo "dynamo_table=georgegxx-msa-tflock-prod"
+          } >> "$GITHUB_OUTPUT"
           echo "Resolved target environment: $TARGET_ENV; data plane: $DATA_PLANE"
 
       - name: Configure AWS Credentials (IAM Key / OIDC fallback)

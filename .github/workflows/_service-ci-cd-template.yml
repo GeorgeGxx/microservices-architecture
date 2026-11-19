@@ -814,9 +814,11 @@ jobs:
             TARGET_TAG="${BASH_REMATCH[1]}"
           else
             echo "::notice::No explicit SemVer release tag specified; skipping Docker Hub push to avoid commit-SHA tag sprawl."
-            echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "digest=" >> "$GITHUB_OUTPUT"
-            echo "image-tag=" >> "$GITHUB_OUTPUT"
+            {
+              echo "published=false"
+              echo "digest="
+              echo "image-tag="
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -835,9 +837,11 @@ jobs:
             if [ "$GH_REF" = "refs/heads/staging" ] || [ "$GH_REF" = "refs/heads/master" ]; then
               EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
               if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-                echo "digest=$EXISTING_DIGEST" >> "$GITHUB_OUTPUT"
-                echo "published=true" >> "$GITHUB_OUTPUT"
-                echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+                {
+                  echo "digest=$EXISTING_DIGEST"
+                  echo "published=true"
+                  echo "image-tag=$TARGET_TAG"
+                } >> "$GITHUB_OUTPUT"
                 echo "Promoted existing immutable artifact $FINAL_IMAGE@$EXISTING_DIGEST without rebuilding."
                 exit 0
               fi
@@ -855,14 +859,18 @@ jobs:
               echo "::error::Registry did not return a valid immutable image digest."
               exit 1
             fi
-            echo "digest=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
-            echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+            {
+              echo "digest=$IMAGE_DIGEST"
+              echo "published=true"
+              echo "image-tag=$TARGET_TAG"
+            } >> "$GITHUB_OUTPUT"
             echo "Published $FINAL_IMAGE with immutable digest $IMAGE_DIGEST."
           else
-            echo "published=false" >> "$GITHUB_OUTPUT"
-            echo "digest=" >> "$GITHUB_OUTPUT"
-            echo "image-tag=$TARGET_TAG" >> "$GITHUB_OUTPUT"
+            {
+              echo "published=false"
+              echo "digest="
+              echo "image-tag=$TARGET_TAG"
+            } >> "$GITHUB_OUTPUT"
             echo "::notice::Registry credentials are not configured; deployment is skipped because no image was published."
           fi
 
@@ -950,20 +958,26 @@ jobs:
         id: app-target
         run: |
           if [ "$GH_REF" = "refs/heads/develop" ] || [ "$GH_REF" = "refs/heads/dev" ]; then
-            echo "APP_NAME=microservices-dev" >> "$GITHUB_ENV"
-            echo "APP_NAMES=microservices-dev" >> "$GITHUB_ENV"
-            echo "TARGET_ENV=dev" >> "$GITHUB_ENV"
-            echo "TARGET_NS=dev" >> "$GITHUB_ENV"
+            {
+              echo "APP_NAME=microservices-dev"
+              echo "APP_NAMES=microservices-dev"
+              echo "TARGET_ENV=dev"
+              echo "TARGET_NS=dev"
+            } >> "$GITHUB_ENV"
           elif [ "$GH_REF" = "refs/heads/staging" ]; then
-            echo "APP_NAME=microservices-staging" >> "$GITHUB_ENV"
-            echo "APP_NAMES=microservices-staging" >> "$GITHUB_ENV"
-            echo "TARGET_ENV=staging" >> "$GITHUB_ENV"
-            echo "TARGET_NS=staging" >> "$GITHUB_ENV"
+            {
+              echo "APP_NAME=microservices-staging"
+              echo "APP_NAMES=microservices-staging"
+              echo "TARGET_ENV=staging"
+              echo "TARGET_NS=staging"
+            } >> "$GITHUB_ENV"
           else
-            echo "APP_NAME=microservices-prod" >> "$GITHUB_ENV"
-            echo "APP_NAMES=microservices-prod microservices-prod-dp2" >> "$GITHUB_ENV"
-            echo "TARGET_ENV=prod" >> "$GITHUB_ENV"
-            echo "TARGET_NS=production" >> "$GITHUB_ENV"
+            {
+              echo "APP_NAME=microservices-prod"
+              echo "APP_NAMES=microservices-prod microservices-prod-dp2"
+              echo "TARGET_ENV=prod"
+              echo "TARGET_NS=production"
+            } >> "$GITHUB_ENV"
           fi
 
       - name: Trigger ArgoCD GitOps Synchronization & Health Verification
@@ -997,9 +1011,9 @@ jobs:
             for APP in $APP_NAMES; do
               echo "Synchronizing ArgoCD application: $APP..."
               if [ -n "$IMAGE_DIGEST" ]; then
-                argocd app set "$APP" --helm-set ${HELM_KEY}.image.digest="$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+                argocd app set "$APP" --helm-set "${HELM_KEY}.image.digest=$IMAGE_DIGEST" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
               else
-                argocd app set "$APP" --helm-set ${HELM_KEY}.image.digest= --helm-set ${HELM_KEY}.image.tag="$PUBLISHED_TAG" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
+                argocd app set "$APP" --helm-set "${HELM_KEY}.image.digest=" --helm-set "${HELM_KEY}.image.tag=$PUBLISHED_TAG" --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
               fi
               argocd app sync "$APP" --prune --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
               argocd app wait "$APP" --health --timeout 300 --server "$ARGOCD_SERVER" --auth-token "$ARGOCD_TOKEN" "${TLS_FLAGS[@]}"
@@ -1007,9 +1021,9 @@ jobs:
             done
           elif command -v kubectl &> /dev/null && kubectl get nodes &> /dev/null; then
             echo "Using direct cluster fallback for $TARGET_ENV..."
-            IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest= --set ${HELM_KEY}.image.tag="$PUBLISHED_TAG")
+            IMAGE_REF_ARGS=(--set "${HELM_KEY}.image.digest=" --set "${HELM_KEY}.image.tag=$PUBLISHED_TAG")
             if [ -n "$IMAGE_DIGEST" ]; then
-              IMAGE_REF_ARGS=(--set ${HELM_KEY}.image.digest="$IMAGE_DIGEST")
+              IMAGE_REF_ARGS=(--set "${HELM_KEY}.image.digest=$IMAGE_DIGEST")
             fi
             helm upgrade --install microservices ./helm/microservices-umbrella \
               --namespace "$TARGET_NS" \

@@ -109,8 +109,8 @@ jobs:
                 frontend/*) add frontend ;;
                 mlops/*)
                   case "$path" in
-                    mlops/*forecast*|mlops/Dockerfile.forecast) add demand-forecast ;;
-                    mlops/*train*|mlops/Dockerfile.training) add mlops-training ;;
+                    mlops/*forecast*) add demand-forecast ;;
+                    mlops/*train*) add mlops-training ;;
                     mlops/*mlflow*|mlops/Dockerfile) add mlflow ;;
                     *) add demand-forecast; add mlops-training; add mlflow ;;
                   esac ;;
