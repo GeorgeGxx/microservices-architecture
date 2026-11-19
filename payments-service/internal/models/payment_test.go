@@ -44,21 +44,18 @@ func TestOrderEventPayloadResolvers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			payload := &tt.payload
-			if got := payload.ResolveOrderNumber(); got != tt.orderNumber {
-				t.Errorf("ResolveOrderNumber() = %q, want %q", got, tt.orderNumber)
-			}
-			if got := payload.ResolveStatus(); got != tt.status {
-				t.Errorf("ResolveStatus() = %q, want %q", got, tt.status)
-			}
-			if got := payload.ResolveEventType(); got != tt.eventType {
-				t.Errorf("ResolveEventType() = %q, want %q", got, tt.eventType)
-			}
-			if got := payload.ResolveAmount(); got != tt.amount {
-				t.Errorf("ResolveAmount() = %v, want %v", got, tt.amount)
-			}
-			if got := payload.ResolvePaymentMethod(); got != tt.paymentMethod {
-				t.Errorf("ResolvePaymentMethod() = %q, want %q", got, tt.paymentMethod)
-			}
+			assertResolverEqual(t, "ResolveOrderNumber", payload.ResolveOrderNumber(), tt.orderNumber)
+			assertResolverEqual(t, "ResolveStatus", payload.ResolveStatus(), tt.status)
+			assertResolverEqual(t, "ResolveEventType", payload.ResolveEventType(), tt.eventType)
+			assertResolverEqual(t, "ResolveAmount", payload.ResolveAmount(), tt.amount)
+			assertResolverEqual(t, "ResolvePaymentMethod", payload.ResolvePaymentMethod(), tt.paymentMethod)
 		})
+	}
+}
+
+func assertResolverEqual[T comparable](t *testing.T, name string, got, want T) {
+	t.Helper()
+	if got != want {
+		t.Errorf("%s() = %v, want %v", name, got, want)
 	}
 }
