@@ -76,7 +76,7 @@ jobs:
           cache: maven
 
       - name: Resolve Maven dependencies before Trivy analysis
-        run: mvn -B -ntp -DskipTests dependency:resolve
+        run: mvn -B -ntp -DskipTests org.apache.maven.plugins:maven-dependency-plugin:3.11.0:resolve
 
       - name: Run Trivy Vulnerability Scanner (SARIF output)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
