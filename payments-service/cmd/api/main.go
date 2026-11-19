@@ -3,11 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"strconv"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -44,7 +44,12 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "-healthcheck" {
 		client := http.Client{Timeout: 3 * time.Second}
 		resp, err := client.Get("http://127.0.0.1:8085/health")
-		if err != nil || resp.StatusCode != http.StatusOK {
+		if err != nil {
+			os.Exit(1)
+		}
+		statusCode := resp.StatusCode
+		_ = resp.Body.Close()
+		if statusCode != http.StatusOK {
 			os.Exit(1)
 		}
 		os.Exit(0)
@@ -57,7 +62,8 @@ func main() {
 	}
 
 	// 0. Initialize OpenTelemetry Distributed Tracing & Correlated Logging
-	ctx := context.Background()
+	ctx, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
 	telemetry.InitGlitchTip(serviceName, cfg.Environment)
 	defer telemetry.FlushGlitchTip()
 	tp, err := telemetry.InitTracer(ctx, serviceName, cfg.Environment)
@@ -109,7 +115,7 @@ func main() {
 	handler := handlers.NewPaymentHandler(paymentSvc)
 
 	// Start Kafka Consumers in dedicated background goroutines (orders-topic & fulfillment-topic for Saga compensation)
-	consumerCtx, stopConsumer := context.WithCancel(context.Background())
+	consumerCtx, stopConsumer := context.WithCancel(ctx)
 	consumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaOrdersTopic, cfg.KafkaGroupID, paymentSvc, repo)
 	fulfillmentConsumer := kafka.NewOrderEventConsumer(brokers, cfg.KafkaFulfillmentTopic, cfg.KafkaGroupID+"-fulfillment", paymentSvc, repo)
 	go consumer.Start(consumerCtx)
@@ -167,13 +173,11 @@ func main() {
 	}()
 
 	// Wait for OS interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	<-ctx.Done()
 	log.Println("[Main] Shutting down payments-service gracefully...")
 
 	// 1. Drain in-flight HTTP requests before stopping background workers and Kafka producers
-	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancelShutdown()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Printf("[Main] HTTP server shutdown error: %v", err)
