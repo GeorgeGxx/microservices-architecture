@@ -13,6 +13,7 @@ backups/
 *.dump
 .pnpm-store/
 .pytest_cache/
+.tmp-payments-coverage/
 notes.md
 test.ps1
 .terraform/
