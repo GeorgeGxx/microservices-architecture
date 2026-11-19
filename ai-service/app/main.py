@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from langchain_core.messages import HumanMessage
 
 from app.config import settings
+from app.observability import glitchtip as _glitchtip  # initialize before the FastAPI app
 from app.rag.ingest import ingest_all
 from app.observability.telemetry import setup_observability, emit_startup_trace, flush_telemetry
 from app.observability.evals import run_evaluations

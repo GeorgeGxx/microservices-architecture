@@ -1,5 +1,6 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import * as Sentry from '@sentry/react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -26,8 +27,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   public componentDidCatch(error: Error): void {
+    Sentry.captureException(error);
     if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.setItem('last_client_error', error.message);
+      window.sessionStorage.setItem('last_client_error', 'render-error');
     }
   }
 

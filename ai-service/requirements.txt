@@ -19,3 +19,4 @@ arize-phoenix-client>=1.0.0
 pytest>=8.3.4
 pytest-asyncio>=0.25.3
 pytest-cov>=6.0.0
+sentry-sdk[fastapi]==2.75.0

@@ -287,7 +287,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
       return (
         <>
           <CheckCircle2 className="w-5 h-5" />
-          Confirm & Place Order ({formatPrice(total)})
+          Confirm &amp; Place Order ({formatPrice(total)})
         </>
       );
     }
@@ -322,7 +322,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
               Secure Transactional Checkout
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Cosmo Router v2 Federated Orchestration & Idempotent Saga
+              Cosmo Router v2 Federated Orchestration &amp; Idempotent Saga
             </p>
           </div>
         </div>
@@ -386,7 +386,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
                   <span>{declineDetails.suggestion}</span>
                 </div>
                 <div className="pt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
-                  <span>Audit recorded in Prometheus & Grafana</span>
+                  <span>Audit recorded in Prometheus &amp; Grafana</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -605,7 +605,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({ isOpen, onClose, o
             <div className="space-y-4 animate-in fade-in">
               <div>
                 <label htmlFor="checkout-payment-method" className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-                  <span>Payment Method & Issuer Simulation</span>
+                  <span>Payment Method &amp; Issuer Simulation</span>
                   <span className="text-[10px] font-normal text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-2 py-0.5 rounded-full border border-indigo-200/50 dark:border-indigo-800/50">
                     POS Sandbox Terminal
                   </span>

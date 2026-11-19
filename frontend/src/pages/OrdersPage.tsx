@@ -260,7 +260,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
               <Package className="w-6 h-6" />
             </span>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-              Order History & Tracking
+              Order History &amp; Tracking
             </h1>
           </div>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -464,7 +464,7 @@ export const OrdersPage: React.FC<OrdersPageProps> = ({ onOpenReceipt, onNavigat
                           </>
                         ) : (
                           <>
-                            <span>Tracking & Items</span>
+                            <span>Tracking &amp; Items</span>
                             <ChevronDown className="w-3.5 h-3.5" />
                           </>
                         )}

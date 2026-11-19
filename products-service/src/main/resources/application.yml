@@ -143,6 +143,14 @@ management:
       export:
         otlp:
           endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318}/v1/traces
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${APP_ENV:${SPRING_PROFILES_ACTIVE:development}}
+  release: ${APP_RELEASE:unknown}
+  send-default-pii: false
+  max-request-body-size: none
+  traces-sample-rate: 0.0
   metrics:
     distribution:
       percentiles-histogram:

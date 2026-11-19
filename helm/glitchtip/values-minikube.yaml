@@ -1,0 +1,23 @@
+# Validated against official GlitchTip chart 9.2.0 (appVersion 7.0.0).
+image:
+  tag: 7.0.0
+  pullPolicy: IfNotPresent
+replicaCount: 1
+budget:
+  minAvailable: 1
+ingress:
+  enabled: false
+glitchtip:
+  existingSecret: glitchtip-django-secret
+  domain: http://glitchtip.glitchtip.svc.cluster.local
+  database:
+    existingSecret: glitchtip-database-url
+extraEnvVars:
+  - name: GLITCHTIP_RETENTION_DAYS
+    value: "30"
+  - name: ENABLE_ORGANIZATION_CREATION
+    value: "false"
+valkey:
+  enabled: true
+  auth:
+    enabled: true

@@ -590,13 +590,13 @@ export const QrScannerModal: React.FC<QrScannerModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-1.5 sm:gap-2">
-                Agnostic QR & Barcode POS{' '}
+                Agnostic QR &amp; Barcode POS{' '}
                 <span className="text-[9px] sm:text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hidden xs:inline">
                   Microservices POS
                 </span>
               </h3>
               <p className="text-[11px] sm:text-xs text-slate-400">
-                WebCam video scan, image upload & USB/Bluetooth HID listener
+                WebCam video scan, image upload &amp; USB/Bluetooth HID listener
               </p>
             </div>
           </div>

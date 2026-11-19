@@ -1,3 +1,5 @@
+Clean and alignment
+
 # 📄 ADR-009: Modular Multi-Cloud Infrastructure as Code with HashiCorp Terraform
 
 * **Status:** 🟢 ACCEPTED

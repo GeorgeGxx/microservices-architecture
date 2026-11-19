@@ -21,6 +21,7 @@ import (
 	"github.com/georgegxx/payments-service/internal/repository"
 	"github.com/georgegxx/payments-service/internal/services"
 	"github.com/georgegxx/payments-service/internal/telemetry"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	swaggerFiles "github.com/swaggo/files"
@@ -57,6 +58,8 @@ func main() {
 
 	// 0. Initialize OpenTelemetry Distributed Tracing & Correlated Logging
 	ctx := context.Background()
+	telemetry.InitGlitchTip(serviceName, cfg.Environment)
+	defer telemetry.FlushGlitchTip()
 	tp, err := telemetry.InitTracer(ctx, serviceName, cfg.Environment)
 	if err != nil {
 		log.Printf("[Main] Warning: Failed to initialize OpenTelemetry tracer: %v", err)
@@ -113,12 +116,13 @@ func main() {
 	go fulfillmentConsumer.Start(consumerCtx)
 
 	// 4. Setup Gin HTTP Server & Routes with Observability Middlewares
-	router := gin.Default()
+	router := gin.New()
 
 	// Global Middlewares (Observability, OpenTelemetry, Metrics, Recovery, CORS)
+	router.Use(sentrygin.New(sentrygin.Options{}))
+	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(otelgin.Middleware(serviceName))
 	router.Use(metrics.GinMetricsMiddleware(serviceName))
-	router.Use(gin.Recovery())
 	router.Use(corsMiddleware())
 
 	// System & Observability endpoints

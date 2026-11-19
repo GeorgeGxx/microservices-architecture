@@ -9,6 +9,9 @@ RUN npm ci --prefer-offline --no-audit
 
 # Copy source and build
 COPY . .
+ARG VITE_GLITCHTIP_DSN
+ARG VITE_APP_RELEASE=unknown
+ENV VITE_GLITCHTIP_DSN=${VITE_GLITCHTIP_DSN} VITE_APP_RELEASE=${VITE_APP_RELEASE}
 RUN npm run build
 
 # ---- Stage 2: Distroless Nginx minimal non-root runtime ----
