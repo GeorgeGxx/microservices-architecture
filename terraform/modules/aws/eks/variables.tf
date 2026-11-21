@@ -11,10 +11,6 @@ variable "kubernetes_version" {
   default = "1.30"
 }
 
-variable "vpc_id" {
-  type = string
-}
-
 variable "private_subnet_ids" {
   type = list(string)
 }

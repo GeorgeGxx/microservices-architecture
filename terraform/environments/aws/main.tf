@@ -17,7 +17,6 @@ module "eks" {
 
   name                = local.name
   environment         = local.env
-  vpc_id              = module.vpc.vpc_id
   private_subnet_ids  = module.vpc.private_subnet_ids
   public_subnet_ids   = module.vpc.public_subnet_ids
   node_instance_types = local.cfg.node_instance_types
@@ -37,7 +36,6 @@ module "eks_dp2" {
 
   name                = "${local.name}-dp2"
   environment         = local.env
-  vpc_id              = module.vpc.vpc_id
   private_subnet_ids  = module.vpc.private_subnet_ids
   public_subnet_ids   = module.vpc.public_subnet_ids
   node_instance_types = local.cfg.node_instance_types
