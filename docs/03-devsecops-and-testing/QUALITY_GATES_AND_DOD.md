@@ -195,6 +195,10 @@ Creates a custom-format backup of the `db-orders` database, restores it into a u
 ### 4. Fast Pre-PR Local Quality Verification
 Run these baseline checks before pushing your branch:
 ```powershell
+# 0. Scan Git history and the current working tree without printing secret values
+gitleaks git --config devsecops/sast/gitleaks/.gitleaks.toml --redact
+gitleaks dir --config devsecops/sast/gitleaks/.gitleaks.toml --redact .
+
 # 1. Terraform formatting verification
 terraform fmt -check -recursive terraform
 
@@ -204,6 +208,8 @@ docker compose config --quiet
 # 3. Python test scripts syntax validation
 python -m compileall -q scripts/testing
 ```
+
+The root `.env` is excluded from directory scans because it is a gitignored local secret store; `.env.example` and tracked configuration remain scanned. The realm snapshot does not contain the confidential client's secret. If an environment imported the old snapshot, rotate its client secret with `scripts/bootstrap-keycloak.ps1 -RotateClientSecret` and verify dependent workloads have reloaded it. Historic findings for a rotated credential may be suppressed only by their exact Gitleaks fingerprints; do not add broad path or `admin` allowlists. Removing a credential from the current tree does not remove it from prior Git commits.
 
 ---
 

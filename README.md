@@ -256,14 +256,23 @@ The fastest way to spin up the complete ecosystem including all microservices, d
 # 1. Clone the repository
 git clone https://github.com/georgegxx/microservices-architecture.git && cd microservices-architecture
 
-# 2. Copy environment file if not already present and define the passwords
+# 2. Copy the environment file and generate local-only credentials
 cp .env.example .env
+$secretKeys = @('KEYCLOAK_ADMIN_PASSWORD','POSTGRES_PASSWORD','REDIS_PASSWORD','GF_SECURITY_ADMIN_PASSWORD','JWT_SECRET','GLITCHTIP_DB_PASSWORD','GLITCHTIP_SECRET_KEY','GLITCHTIP_ADMIN_PASSWORD')
+$envLines = [System.Collections.Generic.List[string]]::new()
+$envLines.AddRange([string[]](Get-Content .env))
+foreach ($key in $secretKeys) {
+  $value = [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(32)).TrimEnd('=').Replace('+','-').Replace('/','_')
+  $line = $envLines.FindIndex([Predicate[string]]{ param($item) $item.StartsWith("$key=") })
+  if ($line -ge 0) { $envLines[$line] = "$key=$value" }
+}
+Set-Content -Path .env -Value $envLines -Encoding utf8NoBOM
 
 # 3. Start Keycloak and its database in detached mode
 docker compose --profile "*" up -d --build keycloak
 
-# 4. Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\bootstrap-keycloak.ps1
+# 4. Bootstrap Keycloak and rotate the previously exposed local client secret
+pwsh -File .\scripts\bootstrap-keycloak.ps1 -RotateClientSecret
 
 # 5. Launch all Compose services, including MLflow and the forecast API:
 docker compose --profile "*" up -d --build

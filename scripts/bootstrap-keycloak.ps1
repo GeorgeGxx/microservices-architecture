@@ -17,7 +17,8 @@ param (
     [string]$AdminUser = "admin",
     [string]$AdminPassword = "admin",
     [string]$Realm = "microservices-realm",
-    [string]$RealmExportPath = ""
+    [string]$RealmExportPath = "",
+    [switch]$RotateClientSecret
 )
 
 $ErrorActionPreference = "Stop"
@@ -326,20 +327,26 @@ if (-not $clients -or $clients.Count -eq 0) {
 # Generate/Fetch Client Secret and Sync to .env and K8s Secret
 try {
     $secret = $null
-    try {
-        $existingSec = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -ErrorAction SilentlyContinue
-        if ($existingSec.value -and ($existingSec.value -notmatch "^\*+$")) {
-            $secret = $existingSec.value
-        }
-    } catch {}
-
-    if (-not $secret) {
+    if ($RotateClientSecret) {
         $secretObj = Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret"
         $secret = $secretObj.value
+    } else {
+        try {
+            $existingSec = Invoke-KeycloakAdmin -Method Get -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret" -ErrorAction SilentlyContinue
+            if ($existingSec.value -and ($existingSec.value -notmatch "^\*+$")) {
+                $secret = $existingSec.value
+            }
+        } catch {}
+
+        if (-not $secret) {
+            $secretObj = Invoke-KeycloakAdmin -Method Post -Uri "$KeycloakUrl/admin/realms/$Realm/clients/$confClientId/client-secret"
+            $secret = $secretObj.value
+        }
     }
 
     if ($secret) {
-        Write-Host "  [OK] Active Client Secret: $secret" -ForegroundColor Green
+        $rotationMessage = if ($RotateClientSecret) { "Rotated" } else { "Retrieved" }
+        Write-Host "  [OK] Client secret $rotationMessage and synchronized to configured secret stores." -ForegroundColor Green
         
         # Update .env in project root
         if (Test-Path $envPath) {

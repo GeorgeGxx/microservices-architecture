@@ -1,35 +1,27 @@
-# Gitleaks Configuration - Enterprise DevSecOps Rule Set
+# Gitleaks profile. Keep exceptions narrow and scoped to known non-secret data.
 title = "Microservices DevSecOps Gitleaks Profile"
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Global allowlist for dummy/test values, local configs, and bootstrap scripts"
+description = "The root .env is a gitignored local secret store; scan .env.example and other dotenv files."
 paths = [
-  '''(?i)(^|.*/)\.git/.*''',
-  '''(?i)(^|.*/)\.venv(-ml)?/.*''',
-  '''(?i)(^|.*/)node_modules/.*''',
-  '''(?i)(^|.*/)target/.*''',
-  '''(?i)(^|.*/)devsecops/.*\.rego$''',
-  '''(?i).*\.example\.env$''',
-  '''(?i).*\.env.*''',
-  '''(?i).*values.*\.yaml$''',
-  '''(?i)(^|.*/)scripts/devsecops/.*''',
-  '''(?i)(^|.*/)k8s/minikube/.*''',
-  '''(?i)(^|.*/)terraform/.*\.tfvars.*''',
-  '''(?i).*execution-config\.json$''',
-  '''(?i)(^|.*/)cosmo-router/.*''',
-  '''(?i).*\.test\.(ts|tsx|js|jsx)$''',
-  '''(?i).*Test\.java$'''
+  '''^\.env$'''
 ]
-regexes = [
-  '''(?i)dummy.*''',
-  '''(?i)test-token.*''',
-  '''(?i)mock-.*''',
-  '''(?i)idempotency-key.*''',
-  '''(?i)CHANGE_ME''',
-  '''(?i)admin''',
-  '''(?i)ROTATED_KEYCLOAK_CLIENT_SECRET''',
-  '''(?i)\$2a\$10\$.*'''
-]
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Cosmo upstreamSchema.key values are schema content hashes, not credentials."
+  condition = "AND"
+  paths = [
+    '''(^|/)cosmo-router/execution-config\.json$''',
+    '''(^|/)helm/charts/cosmo-router/files/execution-config\.json$'''
+  ]
+  regexes = [
+    '''^75c719fe0547c9a3a76a3340d619a60a52cfa35a$''',
+    '''^1fc91a47c7bd76a2582ac2531aaad718899a9115$''',
+    '''^689c4b476427a1ff714993a8144bf8f68de9d0c1$'''
+  ]
