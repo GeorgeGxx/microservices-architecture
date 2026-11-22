@@ -7,23 +7,23 @@ export class OutboxEventOrmEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'aggregate_type', length: 64 })
+  @Column({ name: 'aggregate_type', type: 'varchar', length: 64 })
   aggregateType: string;
 
-  @Column({ name: 'aggregate_id', length: 128 })
+  @Column({ name: 'aggregate_id', type: 'varchar', length: 128 })
   aggregateId: string;
 
-  @Column({ name: 'event_type', length: 64 })
+  @Column({ name: 'event_type', type: 'varchar', length: 64 })
   eventType: string;
 
   @Column('text')
   payload: string;
 
   @Index()
-  @Column({ length: 20, default: 'PENDING' })
+  @Column({ type: 'varchar', length: 20, default: 'PENDING' })
   status: OutboxStatus;
 
-  @Column({ name: 'retry_count', default: 0 })
+  @Column({ name: 'retry_count', type: 'int', default: 0 })
   retryCount: number;
 
   @CreateDateColumn({ name: 'created_at' })
