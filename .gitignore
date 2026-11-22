@@ -9,6 +9,7 @@ target/
 *.log
 __pycache__/
 *.pyc
+*.tsbuildinfo
 backups/
 *.dump
 .pnpm-store/
@@ -23,6 +24,8 @@ scripts/.cloudflare-tunnels.json
 scripts/.tunnel-logs/
 devsecops/dast/zap/zap-report.html
 devsecops/dast/zap/zap.yaml
+/trivy-report.json
+/trivy-report.sarif
 .venv-ml/
 .venv/
 mlops/data/
