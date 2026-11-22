@@ -2,7 +2,25 @@
 8422e9f03df2340129f3c90fc74599afcb07671a:helm/charts/cosmo-router/files/execution-config.json:generic-api-key:1
 8422e9f03df2340129f3c90fc74599afcb07671a:cosmo-router/execution-config.json:generic-api-key:1
 
-# Exact fingerprints for confirmed non-secret fixtures; commit IDs changed during history cleanup.
+# Exact fingerprints for historical findings that were removed from the current tree.
+# The old Keycloak client secret is absent from the current realm snapshot. Deployments
+# that imported the old snapshot must rotate it; keep this historical hit exact-scoped.
+6fb49bee7492d8fa1759779810793f4c5af214b5:docs/reference/iam/realm-export.json:generic-api-key:783
+
+# Test fixtures contain deterministic fake API keys, not credentials.
 6992fcaf6e70e790a1662a6705755fe01572c507:frontend/src/infrastructure/adapters/GraphQLOrderRepository.test.ts:generic-api-key:43
 6992fcaf6e70e790a1662a6705755fe01572c507:frontend/src/infrastructure/adapters/GraphQLOrderRepository.test.ts:generic-api-key:46
+
+# The remaining findings are legacy generated examples and bootstrap defaults.
+# Keep these exact to the introducing commit, file, rule, and line.
+54252acabc75edcb70d71e4b234f15e2c1d7ea01:.env.example:generic-api-key:43
+0bd34421f97ee709ccf03eb888d333f4ed7e0df8:platform.ps1:generic-api-key:692
+84b6777e3f9e0dc411bdf27b04a8e534d67fb904:platform-minikube.ps1:generic-api-key:277
+a7be1beb805dfa69e8611f276fc2751d03f3273b:scripts/devsecops/bootstrap-multistage-devsecops.ps1:generic-api-key:173
+b4b1caac6698b46f772480673c25300b834e0aad:scripts/devsecops/bootstrap-local-devsecops.ps1:generic-api-key:144
 24866de2a8f32f85880901aba0236d1902b071ac:scripts/devsecops/bootstrap-local-devsecops.ps1:generic-api-key:144
+13a5b0f4acdf27e11cff71db181af3b14a0fa214:helm/microservices-umbrella/values.yaml:generic-api-key:48
+
+# Superseded fixture commit; retain only the exact finding locations.
+ade2f878b96c4b152cb53d1c7f67681f11d86d3b:frontend/src/infrastructure/adapters/GraphQLOrderRepository.test.ts:generic-api-key:43
+ade2f878b96c4b152cb53d1c7f67681f11d86d3b:frontend/src/infrastructure/adapters/GraphQLOrderRepository.test.ts:generic-api-key:46
