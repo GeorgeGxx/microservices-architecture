@@ -49,15 +49,7 @@ def _synthesize_product_recommendation(
     query: str,
     user_role: str = "customer"
 ) -> str:
-    unique_items = []
-    seen_products = set()
-    for item in retrieved_items:
-        metadata = item.get("metadata", {})
-        product_key = str(metadata.get("sku") or metadata.get("title") or item.get("id") or "").strip().casefold()
-        if product_key and product_key not in seen_products:
-            seen_products.add(product_key)
-            unique_items.append(item)
-
+    unique_items = _unique_products(retrieved_items)
     if not unique_items:
         return (
             "I searched our catalog knowledge base for your inquiry, but could not find a specific match. "
@@ -65,81 +57,80 @@ def _synthesize_product_recommendation(
         )
 
     if user_role == "admin":
-        lines = [
-            "🛡️ **Enterprise Operations & Catalog Breakdown**:\n",
-            f"Analysis for admin inquiry: *\"{query}\"*\n"
-        ]
-        for it in unique_items:
-            meta = it.get("metadata", {})
-            title = meta.get("title", "Product")
-            price = float(meta.get("price", 0.0))
-            sku = meta.get("sku", "SKU-N/A")
-            cat = meta.get("category", "General")
-            margin = price * 0.30
-            cost = price - margin
-            lines.append(
-                f"### 📦 {title} (`{sku}`)\n"
-                f"- **Category:** {cat}\n"
-                f"- **Retail Price:** ${price:.2f} USD | **Est. Unit Cost:** ${cost:.2f} USD\n"
-                f"- **Projected Margin (~30%):** ${margin:.2f} USD\n"
-                f"- **Operational Stocking:** Recommended safety buffer of 25 units per fulfillment center.\n"
-                f"- **Specs & Tags:** {it.get('content', '').splitlines()[-1] if it.get('content') else 'N/A'}\n"
-            )
+        return _format_admin_product_recommendation(unique_items, query)
+
+    return _format_customer_product_recommendation(unique_items)
+
+
+def _unique_products(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    unique_items = []
+    seen_products = set()
+    for item in items:
+        metadata = item.get("metadata", {})
+        product_key = str(metadata.get("sku") or metadata.get("title") or item.get("id") or "").strip().casefold()
+        if product_key and product_key not in seen_products:
+            seen_products.add(product_key)
+            unique_items.append(item)
+    return unique_items
+
+
+def _format_admin_product_recommendation(items: List[Dict[str, Any]], query: str) -> str:
+    lines = ["🛡️ **Enterprise Operations & Catalog Breakdown**:\n", f'Analysis for admin inquiry: *"{query}"*\n']
+    for item in items:
+        metadata = item.get("metadata", {})
+        price = float(metadata.get("price", 0.0))
+        margin = price * 0.30
         lines.append(
-            "💡 *Operational Tip:* Integrated with demand forecasting (`/api/forecast/preview`) and inventory safety stock rules."
+            f"### 📦 {metadata.get('title', 'Product')} (`{metadata.get('sku', 'SKU-N/A')}`)\n"
+            f"- **Category:** {metadata.get('category', 'General')}\n"
+            f"- **Retail Price:** ${price:.2f} USD | **Est. Unit Cost:** ${price - margin:.2f} USD\n"
+            f"- **Projected Margin (~30%):** ${margin:.2f} USD\n"
+            "- **Operational Stocking:** Recommended safety buffer of 25 units per fulfillment center.\n"
+            f"- **Specs & Tags:** {item.get('content', '').splitlines()[-1] if item.get('content') else 'N/A'}\n"
         )
-        return "\n".join(lines)
-
-    lines = [
-        "Here are our top recommendations based on your request from the store catalog:\n"
-    ]
-    if any(item.get("metadata", {}).get("catalog_source") == "sample-cache" for item in unique_items):
-        lines.append("*Live catalog is unavailable; these results use the local development sample catalog.*\n")
-    for it in unique_items:
-        meta = it.get("metadata", {})
-        title = meta.get("title", "Product")
-        price = meta.get("price")
-        cat = meta.get("category", "Electronics")
-        content = it.get("content", "")
-
-        desc = ""
-        for line in content.splitlines():
-            if line.startswith("Description:"):
-                desc = line.replace("Description:", "").strip()
-                break
-
-        rating = meta.get("rating")
-        if rating is None:
-            rating_match = re.search(r"^Rating:\s*([0-5](?:\.\d+)?)\s*/\s*5", content, re.MULTILINE | re.IGNORECASE)
-            rating = float(rating_match.group(1)) if rating_match else None
-        try:
-            price_line = f"- **Price:** ${float(price):.2f} USD\n" if price is not None else ""
-        except (TypeError, ValueError):
-            price_line = ""
-        try:
-            rating_line = f"- **Rating:** ⭐ {float(rating):g} / 5.0\n" if rating is not None else ""
-        except (TypeError, ValueError):
-            rating_line = ""
-
-        inventory_status = meta.get("inventory_status")
-        if inventory_status is True:
-            availability_line = "- **Availability:** In stock (verified with the inventory service).\n"
-        elif inventory_status is False:
-            availability_line = "- **Availability:** Currently out of stock (verified with the inventory service).\n"
-        else:
-            availability_line = "- **Availability:** Stock status could not be verified right now.\n"
-        lines.append(
-            f"### 💻 **{title}**\n"
-            f"{price_line}"
-            f"{rating_line}"
-            f"- **Category:** {cat}\n"
-            + (f"- **Overview:** {desc}\n" if desc else "")
-            + availability_line
-        )
-    lines.append(
-        "Would you like more technical details on any of these options or assistance adding one to your cart?"
-    )
+    lines.append("💡 *Operational Tip:* Integrated with demand forecasting (`/api/forecast/preview`) and inventory safety stock rules.")
     return "\n".join(lines)
+
+
+def _format_customer_product_recommendation(items: List[Dict[str, Any]]) -> str:
+    lines = ["Here are our top recommendations based on your request from the store catalog:\n"]
+    if any(item.get("metadata", {}).get("catalog_source") == "sample-cache" for item in items):
+        lines.append("*Live catalog is unavailable; these results use the local development sample catalog.*\n")
+    for item in items:
+        lines.append(_format_customer_product(item))
+    lines.append("Would you like more technical details on any of these options or assistance adding one to your cart?")
+    return "\n".join(lines)
+
+
+def _format_customer_product(item: Dict[str, Any]) -> str:
+    metadata = item.get("metadata", {})
+    content = item.get("content", "")
+    description = next((line.partition(":")[2].strip() for line in content.splitlines() if line.startswith("Description:")), "")
+    rating = metadata.get("rating")
+    if rating is None:
+        rating_match = re.search(r"^Rating:\s*([0-5](?:\.\d+)?)\s*/\s*5", content, re.MULTILINE | re.IGNORECASE)
+        rating = float(rating_match.group(1)) if rating_match else None
+    price_line = _format_numeric_line("Price", metadata.get("price"), "${:.2f} USD")
+    rating_line = _format_numeric_line("Rating", rating, "⭐ {:g} / 5.0")
+    inventory_status = metadata.get("inventory_status")
+    availability = {
+        True: "- **Availability:** In stock (verified with the inventory service).\n",
+        False: "- **Availability:** Currently out of stock (verified with the inventory service).\n",
+    }.get(inventory_status, "- **Availability:** Stock status could not be verified right now.\n")
+    overview = f"- **Overview:** {description}\n" if description else ""
+    return (
+        f"### 💻 **{metadata.get('title', 'Product')}**\n{price_line}{rating_line}"
+        f"- **Category:** {metadata.get('category', 'Electronics')}\n{overview}{availability}"
+    )
+
+
+def _format_numeric_line(label: str, value: Any, value_format: str) -> str:
+    if value is None:
+        return ""
+    try:
+        return f"- **{label}:** {value_format.format(float(value))}\n"
+    except (TypeError, ValueError):
+        return ""
 
 
 async def _attach_live_inventory_status(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -153,7 +144,7 @@ async def _attach_live_inventory_status(items: List[Dict[str, Any]]) -> List[Dic
                 EcommerceMCPServer.call_tool("check_inventory", {"sku": sku}),
                 timeout=1.5,
             )
-        except (asyncio.TimeoutError, OSError, ValueError):
+        except (OSError, ValueError):
             return item
         if result.get("success") and result.get("source") == "inventory-service-live":
             updated = dict(item)
@@ -182,42 +173,38 @@ async def _fetch_live_catalog_documents() -> Optional[List[Dict[str, Any]]]:
         logger.warning("Products service returned an unexpected catalog response shape")
         return None
 
-    documents = []
-    for product in products:
-        if not isinstance(product, dict) or product.get("status") is False:
-            continue
-        sku = str(product.get("sku", "")).strip()
-        name = str(product.get("name", "")).strip()
-        if not sku or not name:
-            continue
-        category = str(product.get("category") or "General")
-        description = str(product.get("description") or "")
-        price = product.get("price")
-        prices = product.get("prices")
-        if price is None and isinstance(prices, dict):
-            price = prices.get("USD")
-        rating = product.get("rating")
-        content = (
-            f"Product: {name}\nCategory: {category}\n"
-            + (f"Price: ${price}\n" if price is not None else "")
-            + (f"Rating: {rating} / 5.0\n" if rating is not None else "")
-            + (f"Description: {description}\n" if description else "")
-        )
-        documents.append({
-            "id": f"product-{sku}",
-            "content": content,
-            "metadata": {
-                "type": "product",
-                "title": name,
-                "sku": sku,
-                "price": price,
-                "rating": rating,
-                "category": category,
-                "tags": [],
-                "catalog_source": "products-service",
-            },
-        })
-    return documents
+    return [document for product in products if (document := _product_to_document(product)) is not None]
+
+
+def _product_to_document(product: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(product, dict) or product.get("status") is False:
+        return None
+    sku = str(product.get("sku", "")).strip()
+    name = str(product.get("name", "")).strip()
+    if not sku or not name:
+        return None
+    category = str(product.get("category") or "General")
+    description = str(product.get("description") or "")
+    price = product.get("price")
+    prices = product.get("prices")
+    if price is None and isinstance(prices, dict):
+        price = prices.get("USD")
+    rating = product.get("rating")
+    content = f"Product: {name}\nCategory: {category}\n"
+    if price is not None:
+        content += f"Price: ${price}\n"
+    if rating is not None:
+        content += f"Rating: {rating} / 5.0\n"
+    if description:
+        content += f"Description: {description}\n"
+    return {
+        "id": f"product-{sku}",
+        "content": content,
+        "metadata": {
+            "type": "product", "title": name, "sku": sku, "price": price,
+            "rating": rating, "category": category, "tags": [], "catalog_source": "products-service",
+        },
+    }
 
 
 def _synthesize_policy_response(retrieved_policies: List[Dict[str, Any]], _query: Optional[str] = None) -> str:
@@ -243,49 +230,37 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
     # Customer-facing catalog facts must come from the catalog result, not free-form
     # model generation. This prevents invented products, duplicate cards, and stock claims.
     if user_role != "admin":
-        live_catalog = await _fetch_live_catalog_documents()
-        if live_catalog is None:
-            environment = (settings.APP_ENV or "development").strip().lower()
-            if environment in {"production", "prod", "staging"}:
-                reply_content = "I can't access the live store catalog right now. Please try again shortly."
-                return {
-                    "messages": [AIMessage(content=reply_content)],
-                    "current_agent": "product_advisor",
-                    "final_output": reply_content,
-                }
-            retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
-            for item in retrieved_items:
-                item.setdefault("metadata", {})["catalog_source"] = "sample-cache"
-        else:
-            retrieved_items = rag_store.search_documents(live_catalog, query=query, doc_type="product", top_k=2)
-        verified_items = await _attach_live_inventory_status(retrieved_items)
-        reply_content = _synthesize_product_recommendation(verified_items, query, user_role=user_role)
-        return {
-            "messages": [AIMessage(content=reply_content)],
-            "current_agent": "product_advisor",
-            "final_output": reply_content,
-        }
+        return await _customer_product_advisor(query)
+    return await _admin_product_advisor(state, query)
 
+
+async def _customer_product_advisor(query: str) -> Dict[str, Any]:
+    live_catalog = await _fetch_live_catalog_documents()
+    if live_catalog is None:
+        environment = (settings.APP_ENV or "development").strip().lower()
+        if environment in {"production", "prod", "staging"}:
+            return _product_advisor_result("I can't access the live store catalog right now. Please try again shortly.")
+        retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
+        for item in retrieved_items:
+            item.setdefault("metadata", {})["catalog_source"] = "sample-cache"
+    else:
+        retrieved_items = rag_store.search_documents(live_catalog, query=query, doc_type="product", top_k=2)
+    verified_items = await _attach_live_inventory_status(retrieved_items)
+    return _product_advisor_result(_synthesize_product_recommendation(verified_items, query))
+
+
+async def _admin_product_advisor(state: EcommerceAgentState, query: str) -> Dict[str, Any]:
     retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
     context_str = "\n\n".join([doc["content"] for doc in retrieved_items]) if retrieved_items else "No specific catalog item matched."
 
-    if user_role == "admin":
-        prompt = (
-            "You are the AuraCommerce Enterprise Operations Advisor assisting a store Administrator. "
-            "Use the following catalog items:\n"
-            f"{context_str}\n\n"
-            f"Admin inquiry: {query}\n\n"
-            "Provide an operational breakdown in English highlighting key specifications, retail price, "
-            "estimated margin (~30%), safety stock requirements, and fulfillment guidance."
-        )
-    else:
-        prompt = (
-            "You are the AuraCommerce Product Specialist Advisor integrated with the products microservice. "
-            "Use the following products retrieved from our knowledge base:\n"
-            f"{context_str}\n\n"
-            f"Customer inquiry: {query}\n\n"
-            "Provide a clear, engaging recommendation highlighting key specifications, price, and customer benefits in English."
-        )
+    prompt = (
+        "You are the AuraCommerce Enterprise Operations Advisor assisting a store Administrator. "
+        "Use the following catalog items:\n"
+        f"{context_str}\n\n"
+        f"Admin inquiry: {query}\n\n"
+        "Provide an operational breakdown in English highlighting key specifications, retail price, "
+        "estimated margin (~30%), safety stock requirements, and fulfillment guidance."
+    )
 
     try:
         llm = get_chat_model(temperature=0.3)
@@ -295,12 +270,15 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
         )
         reply_content = response.content
     except Exception:
-        reply_content = _synthesize_product_recommendation(retrieved_items, query, user_role=user_role)
+        reply_content = _synthesize_product_recommendation(retrieved_items, query, user_role="admin")
+    return _product_advisor_result(reply_content)
 
+
+def _product_advisor_result(reply_content: str) -> Dict[str, Any]:
     return {
         "messages": [AIMessage(content=reply_content)],
         "current_agent": "product_advisor",
-        "final_output": reply_content
+        "final_output": reply_content,
     }
 
 

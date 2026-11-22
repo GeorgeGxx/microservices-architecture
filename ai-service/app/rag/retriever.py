@@ -134,19 +134,11 @@ class LocalRAGStore:
             metadata = doc.get("metadata", {})
             if doc_type and metadata.get("type") != doc_type:
                 continue
+            matching_intents = cls._matching_product_intents(metadata, product_intents) if product_intents else 0
+            if product_intents and matching_intents == 0:
+                continue
             score = cls._calculate_score(doc, query_tokens)
-            if product_intents:
-                product_terms = _tokens(
-                    " ".join([
-                        str(metadata.get("title", "")),
-                        str(metadata.get("category", "")),
-                        " ".join(str(tag) for tag in metadata.get("tags", [])),
-                    ])
-                )
-                matching_intents = sum(bool(product_terms.intersection(intent)) for intent in product_intents)
-                if matching_intents == 0:
-                    continue
-                score += matching_intents * 5.0
+            score += matching_intents * 5.0
             if score <= 0:
                 continue
             key = cls._document_key(doc)
@@ -160,5 +152,19 @@ class LocalRAGStore:
         )
         return [doc for _, doc in scored_docs[:top_k]]
 
+    @staticmethod
+    def _product_terms(metadata: Dict[str, Any]) -> set[str]:
+        tags = metadata.get("tags", [])
+        tag_text = " ".join(str(tag) for tag in tags) if isinstance(tags, list) else str(tags)
+        return _tokens(" ".join((
+            str(metadata.get("title", "")),
+            str(metadata.get("category", "")),
+            tag_text,
+        )))
+
+    @classmethod
+    def _matching_product_intents(cls, metadata: Dict[str, Any], product_intents: List[frozenset[str]]) -> int:
+        terms = cls._product_terms(metadata)
+        return sum(bool(terms.intersection(intent)) for intent in product_intents)
 
 rag_store = LocalRAGStore()
