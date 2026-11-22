@@ -274,8 +274,10 @@ spec:
           port: 8000
     - from:
         - podSelector:
-            matchLabels:
-              app: glitchtip
+            matchExpressions:
+              - key: app
+                operator: In
+                values: ["glitchtip", "glitchtip-provision-projects"]
       ports:
         - protocol: TCP
           port: 5432

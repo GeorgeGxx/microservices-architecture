@@ -46,10 +46,17 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
 
     It "Waits for the hashed GlitchTip provisioning Job by its generated name" {
         $ScriptText = Get-Content -LiteralPath $ResolvedScriptPath -Raw
+        $ProvisionTemplate = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\microservices-umbrella\templates\glitchtip-provision.yaml") -Raw
+        ($ScriptText -match 'kubectl rollout status statefulset/glitchtip-db') | Should Be $true
+        ($ScriptText -match 'kubectl rollout status deployment/glitchtip-valkey') | Should Be $true
+        ($ScriptText -match 'kubectl wait --for=condition=available deployment/glitchtip-db') | Should Be $false
         ($ScriptText -match 'kubectl get jobs -n dev -l app=glitchtip-provision-projects') | Should Be $true
         ($ScriptText -match 'kubectl wait --for=condition=complete "job/\$provisionJob"') | Should Be $true
         ($ScriptText -match 'kubectl logs "job/\$provisionJob"') | Should Be $true
         ($ScriptText -match 'kubectl wait --for=condition=complete job/glitchtip-provision-projects\s') | Should Be $false
+        ($ProvisionTemplate -match 'runAsUser: 5000') | Should Be $true
+        ($ProvisionTemplate -match 'name: wait-for-glitchtip[\s\S]*?allowPrivilegeEscalation: false') | Should Be $true
+        ($ProvisionTemplate -match 'name: wait-for-glitchtip[\s\S]*?drop: \["ALL"\]') | Should Be $true
     }
 
     It "Keeps Trivy output concise while retaining structured findings" {
@@ -58,6 +65,11 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
         ($ScriptText -match 'Severity = \$finding\.Severity') | Should Be $true
         ($ScriptText -match 'Title = \$finding\.Title') | Should Be $true
         ($ScriptText -match '0 HIGH/CRITICAL misconfigurations') | Should Be $true
+    }
+
+    It "Allows only GlitchTip and its provisioner to reach the internal data ports" {
+        $NetworkPolicy = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\microservices-umbrella\templates\network-policies.yaml") -Raw
+        ($NetworkPolicy -match 'values: \["glitchtip", "glitchtip-provision-projects"\][\s\S]*?port: 5432[\s\S]*?port: 6379') | Should Be $true
     }
 
     It "Executes the 'help' command cleanly with exit code 0" {

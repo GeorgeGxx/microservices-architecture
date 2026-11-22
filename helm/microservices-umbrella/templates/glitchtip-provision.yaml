@@ -16,6 +16,9 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
+        runAsUser: 5000
+        runAsGroup: 5000
+        fsGroup: 5000
         seccompProfile:
           type: RuntimeDefault
       initContainers:
@@ -34,6 +37,11 @@ spec:
                       if attempt == 89:
                           raise SystemExit("GlitchTip TCP endpoint did not become ready")
                       time.sleep(5)
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 25m

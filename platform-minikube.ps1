@@ -3796,9 +3796,9 @@ stringData:
                 Write-Host "  ▶ Waiting for GlitchTip and provisioning per-service DSNs..." -ForegroundColor White
                 kubectl rollout status deployment/glitchtip -n dev --timeout=300s
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip did not become Ready." }
-                kubectl wait --for=condition=available deployment/glitchtip-db -n dev --timeout=300s
+                kubectl rollout status statefulset/glitchtip-db -n dev --timeout=300s
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip PostgreSQL did not become Ready." }
-                kubectl wait --for=condition=available deployment/glitchtip-valkey -n dev --timeout=180s
+                kubectl rollout status deployment/glitchtip-valkey -n dev --timeout=180s
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip Valkey did not become Ready." }
                 kubectl delete job -n dev -l app=glitchtip-provision-projects --ignore-not-found=true 2>$null | Out-Null
                 $provisionYaml = & helm template glitchtip-project-provisioner $resolvedUmbrellaDir --namespace dev --values $minikubeValues --set glitchtip.enabled=true --set glitchtip.provisionProjects.enabled=true --show-only templates/glitchtip-provision.yaml
