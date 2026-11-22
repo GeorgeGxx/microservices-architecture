@@ -1,7 +1,6 @@
 variable "kubeconfig_path" {
   type        = string
-  description = "Path to the local kubeconfig file"
-  default     = "~/.kube/config"
+  description = "Absolute path to the Minikube kubeconfig used by Terraform providers"
 }
 
 variable "kube_context" {

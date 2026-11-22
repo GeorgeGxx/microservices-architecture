@@ -268,6 +268,41 @@ function Invoke-CosmoRouterCompose {
     Write-Host "Federation execution config is ready: $outputFile" -ForegroundColor Cyan
 }
 
+function Wait-MinikubeApiReady {
+    [CmdletBinding()]
+    param(
+        [ValidateRange(10, 900)][int]$TimeoutSeconds = 240,
+        [ValidateRange(1, 30)][int]$IntervalSeconds = 3
+    )
+
+    $context = & kubectl config current-context 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]$context -ne "minikube") {
+        & minikube update-context 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Minikube is running but its kubeconfig context could not be refreshed." }
+        $context = & kubectl config current-context 2>$null
+    }
+    if ([string]$context -ne "minikube") {
+        throw "Expected Kubernetes context 'minikube' after updating context; found '$context'."
+    }
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    $lastProbe = "No API readiness probe has completed yet."
+    while ([DateTime]::UtcNow -lt $deadline) {
+        $probe = @(& kubectl --context minikube get --raw=/readyz 2>&1)
+        $probeExit = $LASTEXITCODE
+        $probeText = ($probe | ForEach-Object { [string]$_ }) -join "`n"
+        if ($probeExit -eq 0 -and $probeText -match '(?i)^ok\s*$') {
+            return
+        }
+        $lastProbe = if ($probeText) { $probeText.Trim() } else { "kubectl exited with code $probeExit." }
+        Start-Sleep -Seconds $IntervalSeconds
+    }
+
+    $health = @(& minikube status --format='{{.Host}}' 2>&1) -join "`n"
+    $endpoint = & kubectl --context minikube config view --minify -o jsonpath='{.clusters[0].cluster.server}' 2>$null
+    throw "Minikube Kubernetes API was not ready within $TimeoutSeconds seconds. Minikube host status='$health'; API endpoint='$endpoint'; last /readyz result='$lastProbe'. Terraform was not started. Run 'minikube status' and 'kubectl --context minikube get --raw=/readyz' to diagnose."
+}
+
 function Ensure-MinikubeMetricsServer {
     <#
     .SYNOPSIS
@@ -523,7 +558,7 @@ function Invoke-LocalVaultCli {
         [Parameter(Mandatory = $true)][string[]]$VaultArguments,
         [switch]$AllowFailure
     )
-    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
+    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN }
     $vaultAddr = if ($env:VAULT_ADDR) { $env:VAULT_ADDR } else { 'http://127.0.0.1:8200' }
     $hostVault = Get-Command vault -ErrorAction SilentlyContinue | Select-Object -First 1
 
@@ -556,7 +591,7 @@ function Invoke-LocalVaultCliWithInput {
         [Parameter(Mandatory = $true)][string[]]$VaultArguments,
         [Parameter(Mandatory = $true)][string]$InputText
     )
-    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN } else { 'root' }
+    $token = if ($VaultToken) { $VaultToken } elseif ($env:VAULT_TOKEN) { $env:VAULT_TOKEN }
     $vaultAddr = if ($env:VAULT_ADDR) { $env:VAULT_ADDR } else { 'http://127.0.0.1:8200' }
     $hostVault = Get-Command vault -ErrorAction SilentlyContinue | Select-Object -First 1
 
@@ -2741,7 +2776,8 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
-    Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
+    Write-Host '  [INFO] GlitchTip error dashboard: http://localhost:8091' -ForegroundColor DarkGray
+    Write-Host '  [INFO] Background tunnels include Tempo (3200), Loki (3100), and GlitchTip (8091).' -ForegroundColor DarkGray
     Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
 
     Write-Host "☁️  Cloudflare Quick Tunnels (Post-Deployment External Verification):" -ForegroundColor Cyan
@@ -3362,6 +3398,12 @@ function Invoke-MinikubePlatform {
                 Write-Host "  [OK] Minikube is already active and healthy." -ForegroundColor Green
             }
             minikube update-context 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Minikube started but could not write/update its kubeconfig context." }
+            Write-Host "  ▶ Waiting for Kubernetes API /readyz before Terraform provider initialization..." -ForegroundColor White
+            Wait-MinikubeApiReady -TimeoutSeconds 300 -IntervalSeconds 3
+            $env:TF_VAR_kubeconfig_path = [System.IO.Path]::GetFullPath((Join-Path $env:USERPROFILE '.kube\config'))
+            $env:TF_VAR_kube_context = 'minikube'
+            Write-Host "  [OK] Kubernetes API is Ready at the selected Minikube context." -ForegroundColor Green
             kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             # Ensure Minikube metrics-server is healthy via 11-step diagnostic & recovery workflow
@@ -3524,12 +3566,28 @@ function Invoke-MinikubePlatform {
             }
 
             $envMap = Get-EnvMap
-            $keycloakAdmin = if ($envMap["KEYCLOAK_ADMIN"]) { $envMap["KEYCLOAK_ADMIN"] } elseif ($env:KEYCLOAK_ADMIN) { $env:KEYCLOAK_ADMIN } else { "admin" }
-            $keycloakPass  = if ($envMap["KEYCLOAK_ADMIN_PASSWORD"]) { $envMap["KEYCLOAK_ADMIN_PASSWORD"] } elseif ($env:KEYCLOAK_ADMIN_PASSWORD) { $env:KEYCLOAK_ADMIN_PASSWORD } else { "admin" }
+            $keycloakAdmin = if ($envMap["KEYCLOAK_ADMIN"]) { $envMap["KEYCLOAK_ADMIN"] } elseif ($env:KEYCLOAK_ADMIN) { $env:KEYCLOAK_ADMIN }
+            $keycloakPass  = if ($envMap["KEYCLOAK_ADMIN_PASSWORD"]) { $envMap["KEYCLOAK_ADMIN_PASSWORD"] } elseif ($env:KEYCLOAK_ADMIN_PASSWORD) { $env:KEYCLOAK_ADMIN_PASSWORD }
             $postgresUser  = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
-            $postgresPass  = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "admin" }
-            $redisPass     = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD } else { "admin" }
-            $kcSecret      = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET } else { "ROTATED_KEYCLOAK_CLIENT_SECRET" }
+            $postgresPass  = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD }
+            $redisPass     = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD }
+            $existingGtipJson = kubectl get secret glitchtip-secrets -n dev -o json 2>$null
+            $existingGtip = @{}
+            if ($LASTEXITCODE -eq 0 -and $existingGtipJson) {
+                $existingGtipObject = ($existingGtipJson -join "`n") | ConvertFrom-Json
+                foreach ($key in @('POSTGRES_PASSWORD','GLITCHTIP_ADMIN_EMAIL','GLITCHTIP_ADMIN_PASSWORD','SECRET_KEY','VALKEY_PASSWORD')) {
+                    $encoded = $existingGtipObject.data.PSObject.Properties[$key].Value
+                    if ($encoded) { $existingGtip[$key] = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded)) }
+                }
+            }
+            $kcSecret = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET }
+            $glitchtipPgPass = if ($envMap["GLITCHTIP_DB_PASSWORD"]) { $envMap["GLITCHTIP_DB_PASSWORD"] } elseif ($env:GLITCHTIP_DB_PASSWORD) { $env:GLITCHTIP_DB_PASSWORD } elseif ($existingGtip['POSTGRES_PASSWORD']) { $existingGtip['POSTGRES_PASSWORD'] } else { [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)).ToLowerInvariant() }
+            $glitchtipAdminEmail = if ($envMap["GLITCHTIP_ADMIN_EMAIL"]) { $envMap["GLITCHTIP_ADMIN_EMAIL"] } elseif ($env:GLITCHTIP_ADMIN_EMAIL) { $env:GLITCHTIP_ADMIN_EMAIL } elseif ($existingGtip['GLITCHTIP_ADMIN_EMAIL']) { $existingGtip['GLITCHTIP_ADMIN_EMAIL'] } else { "glitchtip@local.test" }
+            $glitchtipAdminPass = if ($envMap["GLITCHTIP_ADMIN_PASSWORD"]) { $envMap["GLITCHTIP_ADMIN_PASSWORD"] } elseif ($env:GLITCHTIP_ADMIN_PASSWORD) { $env:GLITCHTIP_ADMIN_PASSWORD } elseif ($existingGtip['GLITCHTIP_ADMIN_PASSWORD']) { $existingGtip['GLITCHTIP_ADMIN_PASSWORD'] } else { [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)) }
+            $glitchtipSecretKey = if ($envMap["GLITCHTIP_SECRET_KEY"]) { $envMap["GLITCHTIP_SECRET_KEY"] } elseif ($env:GLITCHTIP_SECRET_KEY) { $env:GLITCHTIP_SECRET_KEY } elseif ($existingGtip['SECRET_KEY']) { $existingGtip['SECRET_KEY'] } else { [Convert]::ToBase64String([Security.Cryptography.RandomNumberGenerator]::GetBytes(48)) }
+            $glitchtipValkeyPass = if ($envMap["GLITCHTIP_VALKEY_PASSWORD"]) { $envMap["GLITCHTIP_VALKEY_PASSWORD"] } elseif ($env:GLITCHTIP_VALKEY_PASSWORD) { $env:GLITCHTIP_VALKEY_PASSWORD } elseif ($existingGtip['VALKEY_PASSWORD']) { $existingGtip['VALKEY_PASSWORD'] } else { [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(24)).ToLowerInvariant() }
+            $glitchtipPgPassForUrl = [Uri]::EscapeDataString([string]$glitchtipPgPass)
+            $glitchtipValkeyPassForUrl = [Uri]::EscapeDataString([string]$glitchtipValkeyPass)
 
             $escAdmin  = ([string]$keycloakAdmin).Replace('"', '\"')
             $escPass   = ([string]$keycloakPass).Replace('"', '\"')
@@ -3537,6 +3595,11 @@ function Invoke-MinikubePlatform {
             $escPgPass = ([string]$postgresPass).Replace('"', '\"')
             $escRedis  = ([string]$redisPass).Replace('"', '\"')
             $escKc     = ([string]$kcSecret).Replace('"', '\"')
+            $escGtipPg = ([string]$glitchtipPgPass).Replace('"', '\"')
+            $escGtipEmail = ([string]$glitchtipAdminEmail).Replace('"', '\"')
+            $escGtipAdmin = ([string]$glitchtipAdminPass).Replace('"', '\"')
+            $escGtipSecret = ([string]$glitchtipSecretKey).Replace('"', '\"')
+            $escGtipValkey = ([string]$glitchtipValkeyPass).Replace('"', '\"')
 
             $seedSecrets = @"
 apiVersion: v1
@@ -3552,6 +3615,22 @@ stringData:
   REDIS_PASSWORD: "$escRedis"
   KEYCLOAK_CLIENT_SECRET: "$escKc"
 "@
+
+            $seedGlitchtip = @"
+apiVersion: v1
+kind: Secret
+metadata:
+  name: glitchtip-secrets
+type: Opaque
+stringData:
+  POSTGRES_PASSWORD: "$escGtipPg"
+  GLITCHTIP_ADMIN_EMAIL: "$escGtipEmail"
+  GLITCHTIP_ADMIN_PASSWORD: "$escGtipAdmin"
+  SECRET_KEY: "$escGtipSecret"
+  VALKEY_PASSWORD: "$escGtipValkey"
+  DATABASE_URL: "postgresql://glitchtip:$glitchtipPgPassForUrl@glitchtip-db:5432/glitchtip"
+  VALKEY_URL: "redis://:$glitchtipValkeyPassForUrl@glitchtip-valkey:6379/0"
+"@
             $secretTmp = [System.IO.Path]::GetTempFileName()
             try {
                 [System.IO.File]::WriteAllText($secretTmp, $seedSecrets)
@@ -3563,6 +3642,15 @@ stringData:
                 }
             } finally {
                 if (Test-Path $secretTmp) { Remove-Item -Force $secretTmp 2>$null }
+            }
+
+            $glitchtipSecretTmp = [System.IO.Path]::GetTempFileName()
+            try {
+                [System.IO.File]::WriteAllText($glitchtipSecretTmp, $seedGlitchtip)
+                kubectl apply -f $glitchtipSecretTmp -n dev 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not create GlitchTip credentials Secret in namespace 'dev'." }
+            } finally {
+                if (Test-Path $glitchtipSecretTmp) { Remove-Item -Force $glitchtipSecretTmp 2>$null }
             }
 
             kubectl apply -f "$infraDir\postgres-products.yaml" -n data 2>$null
@@ -3655,11 +3743,58 @@ stringData:
                 "--values", $minikubeValues,
                 "--force-conflicts", "--wait", "--timeout", "10m"
             )
+            if ($glitchtipPgPass -and $glitchtipAdminEmail -and $glitchtipAdminPass -and $glitchtipSecretKey -and $glitchtipValkeyPass) {
+                kubectl get secret glitchtip-secrets -n dev --ignore-not-found 2>$null | Out-Null
+                $existingGlitchtipSecret = $LASTEXITCODE -eq 0 -and [bool](kubectl get secret glitchtip-secrets -n dev --ignore-not-found 2>$null)
+                if (-not $existingGlitchtipSecret) {
+                    $glitchtipCredArgs = @("--from-literal=POSTGRES_PASSWORD=$glitchtipPgPass", "--from-literal=GLITCHTIP_ADMIN_EMAIL=$glitchtipAdminEmail", "--from-literal=GLITCHTIP_ADMIN_PASSWORD=$glitchtipAdminPass", "--from-literal=SECRET_KEY=$glitchtipSecretKey", "--from-literal=VALKEY_PASSWORD=$glitchtipValkeyPass", "--from-literal=DATABASE_URL=postgresql://glitchtip:$glitchtipPgPassForUrl@glitchtip-db:5432/glitchtip", "--from-literal=VALKEY_URL=redis://:$glitchtipValkeyPassForUrl@glitchtip-valkey:6379/0")
+                    $glitchtipCredYaml = & kubectl create secret generic glitchtip-secrets -n dev @glitchtipCredArgs --dry-run=client -o yaml
+                    if ($LASTEXITCODE -ne 0 -or -not $glitchtipCredYaml) { throw "Could not create the GlitchTip credentials Secret." }
+                    $glitchtipCredYaml | kubectl apply -f - | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw "Could not apply GlitchTip credentials Secret." }
+                }
+                $helmArgs += @("--set", "glitchtip.enabled=true")
+            }
             & helm @helmArgs
             if ($LASTEXITCODE -ne 0) {
                 throw "Helm upgrade failed with exit code $LASTEXITCODE. Inspect Helm status and pod events before retrying."
             }
             Write-Host "  [OK] Microservices release deployed to namespace 'dev' and workloads refreshed." -ForegroundColor Green
+            if ($LASTEXITCODE -eq 0 -and (kubectl get deployment glitchtip -n dev --ignore-not-found 2>$null)) {
+                Write-Host "  ▶ Waiting for GlitchTip and provisioning per-service DSNs..." -ForegroundColor White
+                kubectl rollout status deployment/glitchtip -n dev --timeout=300s
+                if ($LASTEXITCODE -ne 0) { throw "GlitchTip did not become Ready." }
+                kubectl wait --for=condition=available deployment/glitchtip-db -n dev --timeout=300s
+                if ($LASTEXITCODE -ne 0) { throw "GlitchTip PostgreSQL did not become Ready." }
+                kubectl wait --for=condition=available deployment/glitchtip-valkey -n dev --timeout=180s
+                if ($LASTEXITCODE -ne 0) { throw "GlitchTip Valkey did not become Ready." }
+                kubectl delete job glitchtip-provision-projects -n dev --ignore-not-found=true 2>$null | Out-Null
+                $provisionYaml = & helm template glitchtip-project-provisioner $resolvedUmbrellaDir --namespace dev --values $minikubeValues --set glitchtip.enabled=true --set glitchtip.provisionProjects.enabled=true --show-only templates/glitchtip-provision.yaml
+                if ($LASTEXITCODE -ne 0 -or -not $provisionYaml) { throw "Could not render the GlitchTip provisioning Job." }
+                $provisionYaml | kubectl apply -n dev -f - | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not apply the GlitchTip provisioning Job." }
+                kubectl wait --for=condition=complete job/glitchtip-provision-projects -n dev --timeout=300s
+                if ($LASTEXITCODE -ne 0) { kubectl logs job/glitchtip-provision-projects -n dev; throw "GlitchTip project provisioning did not complete." }
+                $provisionLog = kubectl logs job/glitchtip-provision-projects -n dev 2>$null
+                $jsonLine = @($provisionLog | Where-Object { $_ -match '^GLITCHTIP_DSNS_JSON=' } | Select-Object -Last 1)
+                if ($jsonLine.Count -eq 0) { throw "GlitchTip provisioner did not return DSNs; inspect job logs." }
+                $dsnMap = $jsonLine[0].Substring('GLITCHTIP_DSNS_JSON='.Length) | ConvertFrom-Json
+                $dsnArgs = @()
+                foreach ($dsnName in @('GLITCHTIP_DEMAND_FORECAST_DSN','GLITCHTIP_INVENTORY_DSN','GLITCHTIP_NOTIFICATION_DSN','GLITCHTIP_ORDERS_DSN','GLITCHTIP_PAYMENTS_DSN','GLITCHTIP_FULFILLMENT_DSN','GLITCHTIP_ANALYTICS_DSN','GLITCHTIP_PRODUCTS_DSN','GLITCHTIP_AI_DSN','GLITCHTIP_FRONTEND_DSN')) {
+                    $dsnValue = [string]$dsnMap.$dsnName
+                    if (-not $dsnValue) { throw "GlitchTip DSN '$dsnName' is empty." }
+                    $dsnArgs += "--from-literal=$dsnName=$dsnValue"
+                }
+                $dsnYaml = & kubectl create secret generic glitchtip-project-dsns -n dev @dsnArgs --dry-run=client -o yaml
+                if ($LASTEXITCODE -ne 0 -or -not $dsnYaml) { throw "Could not render the GlitchTip DSN Secret." }
+                $dsnYaml | kubectl apply -f - | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not apply the GlitchTip DSN Secret." }
+                foreach ($workload in @('deployment/inventory-service','deployment/notification-service','deployment/orders-service','deployment/products-service','deployment/payments-service','deployment/fulfillment-service','deployment/analytics-service','deployment/ai-service','deployment/frontend','deployment/demand-forecast-service')) {
+                    kubectl rollout restart $workload -n dev 2>$null | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw "Could not restart $workload to load the GlitchTip DSN." }
+                }
+                Write-Host "  [OK] Ten GlitchTip projects provisioned; DSNs applied to all reporting workloads." -ForegroundColor Green
+            }
 
             # Deploy Backstage IDP v1.56.3 (Operationally independent developer portal)
             if (Test-Path "$infraDir\backstage.yaml") {
@@ -3850,6 +3985,9 @@ stringData:
                 Write-Host "  [OK] Minikube is active and healthy." -ForegroundColor Green
             }
             minikube update-context 2>$null | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Minikube resumed but could not write/update its kubeconfig context." }
+            Write-Host "  ▶ Waiting for Kubernetes API /readyz before cluster operations..." -ForegroundColor White
+            Wait-MinikubeApiReady -TimeoutSeconds 300 -IntervalSeconds 3
             kubectl label node minikube topology.kubernetes.io/region=local-datacenter topology.kubernetes.io/zone=local-datacenter-a --overwrite 2>$null | Out-Null
 
             $hasDevNs = kubectl get namespace dev --no-headers 2>$null
@@ -4097,15 +4235,15 @@ function Get-EnvMap {
 function Initialize-LocalVault {
     param(
         [string]$VaultAddr = "http://localhost:8200",
-        [string]$VaultToken = "root"
+        [string]$VaultToken = ""
     )
     Write-Host "  >> Initializing Vault KV-v2, Transit & Dynamic PostgreSQL 18 Engines via scripts/vault-init.sh..." -ForegroundColor Cyan
     $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
     if ($vaultPod) {
         $envMap = Get-EnvMap
         $pgUser = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
-        $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD } else { "admin" }
-        $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET } else { "super-secure-jwt-secret-key-for-microservices-dev-environment-12345" }
+        $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD }
+        $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET }
         $vaultInitScript = Join-Path $scriptsDir "vault-init.sh"
         if (-not (Test-Path -LiteralPath $vaultInitScript -PathType Leaf)) {
             throw "Vault initialization script is missing: $vaultInitScript"
