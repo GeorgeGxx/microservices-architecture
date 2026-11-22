@@ -223,11 +223,66 @@ spec:
           port: 8200
         - protocol: TCP
           port: 8201
-    # Allow intra-namespace egress between pods
+    # Allow GlitchTip SDK events to the in-namespace GlitchTip service.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: glitchtip
+      ports:
+        - protocol: TCP
+          port: 8000
+    # Allow app pods to connect to GlitchTip PostgreSQL and Valkey only.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: glitchtip-db
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: glitchtip-valkey
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow infra communication inside namespace for dependencies.
     - to:
         - podSelector: {}
 ---
-# 05. Allow Telemetry & Health Scraping from Observability namespace
+# 05. Allow in-namespace traffic to GlitchTip and its provisioner API calls.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-glitchtip-internal
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values: ["glitchtip", "glitchtip-db", "glitchtip-valkey"]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8000
+    - from:
+        - podSelector:
+            matchLabels:
+              app: glitchtip
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+---
+# 06. Allow Telemetry & Health Scraping from Observability namespace
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

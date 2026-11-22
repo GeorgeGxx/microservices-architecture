@@ -1,12 +1,33 @@
-# Default values shared by every environment. Environment-specific
-# overrides live in helm/values/values-<env>.yaml and are passed with
-# `helm upgrade -f`.
+# Default values shared by every environment. Environment-specific overrides
+# live in helm/values/values-<env>.yaml and are passed with `helm upgrade -f`.
 
 global:
   environment: dev
   otelEndpoint: "https://otel-collector:4317"
   azureKeyVault:
     enabled: false
+
+glitchtip:
+  enabled: false
+  provisionProjects:
+    enabled: false
+  image:
+    repository: docker.io/glitchtip/glitchtip
+    tag: "7.0.0"
+  database:
+    image: docker.io/postgres:18-alpine
+    storage: 5Gi
+  valkey:
+    image: docker.io/valkey/valkey:8-alpine
+  domain: http://localhost:8090
+  retentionDays: "30"
+  defaultFromEmail: glitchtip@local.test
+
+frontend:
+  enabled: false
+
+mlops:
+  enabled: false
 
 configMap:
   create: true
@@ -51,373 +72,27 @@ configMap:
     TEMPO_VERSION: "3.0.5"
     JAVA_TOOL_OPTIONS: "-XX:+UseZGC -XX:+ZGenerational -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1 -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
 
-
 secret:
-  # Secret values must be provisioned out-of-band by the selected secret
-  # manager (Vault/External Secrets, AWS Systems Manager Parameter Store or a protected operator step).
-  # Keep chart releases and ArgoCD values free of plaintext credentials.
   create: false
   name: microservices-secrets
   data: {}
 
 prometheusRule:
   enabled: true
-
 networkPolicies:
   enabled: true
-
 alertmanagerConfig:
   enabled: true
   slack:
-    # Set to true and create secret 'alertmanager-slack-webhook' with key 'url'
     enabled: false
     channel: "#alerts-microservices"
     apiURLSecret:
       name: "alertmanager-slack-webhook"
       key: "url"
   jira:
-    # Set to true to route critical alerts to Jira webhook / automation endpoint
     enabled: false
     webhookUrl: "https://your-domain.atlassian.net/rest/api/3/issue"
     urlSecret:
       enabled: false
       name: "alertmanager-jira-webhook"
       key: "url"
-
-# Per-subchart overrides (mirrors each chart's own values.yaml keys)
-cosmo-router:
-  serviceAccount:
-    create: false
-    name: "cosmo-router-sa"
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
-  probes:
-    initialDelaySeconds: 10
-    readinessPath: /health/ready
-    livenessPath: /health/live
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 1
-    prometheus:
-      enabled: true
-      serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-      metricName: "cosmo_router_requests_per_second"
-      query: 'sum(rate(router_http_requests_total{wg_subgraph_name=""}[1m]) or vector(0))'
-      threshold: "100"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-inventory-service:
-  serviceAccount:
-    create: false
-    name: "inventory-service-sa"
-  resources:
-    requests:
-      cpu: 400m
-      memory: 640Mi
-    limits:
-      cpu: 2000m
-      memory: 1536Mi
-  probes:
-    initialDelaySeconds: 45
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 1
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-notification-service:
-  serviceAccount:
-    create: false
-    name: "notification-service-sa"
-  resources:
-    requests:
-      cpu: 400m
-      memory: 640Mi
-    limits:
-      cpu: 2000m
-      memory: 1536Mi
-  probes:
-    initialDelaySeconds: 45
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 1
-    kafka:
-      enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "notification-group"
-      topic: "orders-topic"
-      lagThreshold: "10"
-      offsetResetPolicy: "latest"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-orders-service:
-  serviceAccount:
-    create: false
-    name: "orders-service-sa"
-  resources:
-    requests:
-      cpu: 400m
-      memory: 640Mi
-    limits:
-      cpu: 2000m
-      memory: 1536Mi
-  probes:
-    initialDelaySeconds: 45
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 1
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-products-service:
-  serviceAccount:
-    create: false
-    name: "products-service-sa"
-  resources:
-    requests:
-      cpu: 400m
-      memory: 640Mi
-    limits:
-      cpu: 2000m
-      memory: 1536Mi
-  probes:
-    initialDelaySeconds: 45
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 1
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 1
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-payments-service:
-  serviceAccount:
-    create: false
-    name: "payments-service-sa"
-  resources:
-    requests:
-      cpu: 150m
-      memory: 192Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
-  probes:
-    initialDelaySeconds: 15
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 3
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 3
-    kafka:
-      enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "payments-service-group"
-      topic: "orders-topic"
-      lagThreshold: "10"
-      offsetResetPolicy: "latest"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-fulfillment-service:
-  serviceAccount:
-    create: false
-    name: "fulfillment-service-sa"
-  resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
-  probes:
-    initialDelaySeconds: 20
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 3
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 3
-    kafka:
-      enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "fulfillment-service-group"
-      topic: "payments-topic"
-      lagThreshold: "10"
-      offsetResetPolicy: "latest"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-analytics-service:
-  serviceAccount:
-    create: false
-    name: "analytics-service-sa"
-  resources:
-    requests:
-      cpu: 150m
-      memory: 192Mi
-    limits:
-      cpu: 1000m
-      memory: 512Mi
-  probes:
-    initialDelaySeconds: 15
-  autoscaling:
-    enabled: true
-    minReplicas: 1
-    maxReplicas: 3
-    targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
-  keda:
-    enabled: true
-    minReplicaCount: 1
-    maxReplicaCount: 3
-    kafka:
-      enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "analytics-service-group"
-      topic: "orders-topic"
-      lagThreshold: "10"
-      offsetResetPolicy: "latest"
-    prometheus:
-      enabled: true
-      serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
-      query: "sum(rate(ecommerce_funnel_events_total[1m])) or sum(rate(http_requests_total{service='analytics-service'}[1m]))"
-      threshold: "80"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
-  podDisruptionBudget:
-    enabled: true
-    minAvailable: 1
-
-frontend:
-  enabled: true
-  image:
-    repository: georgegxx/frontend
-    tag: "1.0.0"
-    digest: ""
-    pullPolicy: IfNotPresent
-
-mlops:
-  enabled: true
-  mlflow:
-    image:
-      repository: georgegxx/mlflow
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-    storage:
-      data: 1Gi
-      artifacts: 5Gi
-    resources:
-      requests:
-        cpu: 200m
-        memory: 1Gi
-      limits:
-        cpu: "1"
-        memory: 3Gi
-  training:
-    image:
-      repository: georgegxx/mlops-training
-      tag: "1.0.0"
-      pullPolicy: IfNotPresent
-    storage:
-      salesData: 5Gi
-    resources:
-      requests:
-        cpu: 250m
-        memory: 1Gi
-      limits:
-        cpu: "4"
-        memory: 4Gi
-    minPartitions: 9
-    autoTrainIntervalSec: 60
-    autoTrainStabilitySeconds: 60
-  forecast:
-    image:
-      repository: georgegxx/demand-forecast
-      tag: "1.0.0"
-      digest: ""
-      pullPolicy: IfNotPresent
-    resources:
-      requests:
-        cpu: 100m
-        memory: 256Mi
-      limits:
-        cpu: "1"
-        memory: 768Mi

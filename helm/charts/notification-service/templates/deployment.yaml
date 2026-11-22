@@ -44,6 +44,12 @@ spec:
             - secretRef:
                 name: {{ .Values.envFrom.secretRef }}
           env:
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-project-dsns
+                  key: {{ .Values.sentryDsnSecretKey | default "GLITCHTIP_NOTIFICATION_DSN" }}
+                  optional: true
             - name: PORT
               value: "{{ .Values.containerPort }}"
             {{- range $key, $value := .Values.env }}

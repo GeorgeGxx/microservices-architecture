@@ -2,7 +2,7 @@ apiVersion: v2
 name: microservices-umbrella
 description: Umbrella chart deploying Cosmo Router, the frontend, and 7 business microservices
 type: application
-version: 1.0.2
+version: 1.0.3
 appVersion: "1.0.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/GeorgeGxx/microservices-architecture"
@@ -12,26 +12,26 @@ dependencies:
     version: "2.0.1"
     repository: "file://../charts/cosmo-router"
   - name: inventory-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/inventory-service"
   - name: notification-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/notification-service"
   - name: orders-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/orders-service"
   - name: products-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/products-service"
   - name: payments-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/payments-service"
   - name: fulfillment-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/fulfillment-service"
   - name: analytics-service
-    version: "1.0.1"
+    version: "1.0.2"
     repository: "file://../charts/analytics-service"
   - name: ai-service
-    version: "1.0.0"
+    version: "1.0.1"
     repository: "file://../charts/ai-service"

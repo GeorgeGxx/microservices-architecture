@@ -339,6 +339,12 @@ spec:
           env:
             - name: HOME
               value: /tmp
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-project-dsns
+                  key: {{ .Values.mlops.forecast.sentryDsnSecretKey | default "GLITCHTIP_DEMAND_FORECAST_DSN" }}
+                  optional: true
           ports:
             - name: http
               containerPort: 8005

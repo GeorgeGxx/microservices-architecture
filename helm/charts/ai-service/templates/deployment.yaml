@@ -44,6 +44,12 @@ spec:
             {{- toYaml .Values.envFrom | nindent 12 }}
           {{- end }}
           env:
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-project-dsns
+                  key: {{ .Values.sentryDsnSecretKey | default "GLITCHTIP_AI_DSN" }}
+                  optional: true
             {{- range $key, $value := .Values.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

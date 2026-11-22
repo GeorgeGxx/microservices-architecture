@@ -4,8 +4,8 @@
 
 - GlitchTip image: `glitchtip/glitchtip:7.0.0` (exact stable tag; latest stable observed on 2026-11-18).
 - Official Helm chart: `9.2.0`, appVersion `7.0.0` (chart digest `sha256:a14b1face40ee3631ae017d5ed213ee19536f94e5d568cf06675eb9e8b8bf8f5`).
-- Local database: PostgreSQL `18.7` (`postgres:18.7-alpine`); GlitchTip 7.0 requires PostgreSQL 15 or newer. The official installation page still says 14+, so the 7.0 release note takes precedence.
-- The official chart's Valkey integration is enabled with authentication for Kubernetes. The local Compose instance uses PostgreSQL-only mode to keep the optional service count down.
+- Local database: PostgreSQL `18-alpine` by default (`POSTGRES_VERSION`); GlitchTip 7.0 requires PostgreSQL 15 or newer. The official installation page still says 14+, so the 7.0 release note takes precedence.
+- The Kubernetes deployment uses authenticated Valkey. Local Compose reuses its authenticated Redis service.
 
 ## Local Compose
 
@@ -15,11 +15,13 @@ The PostgreSQL 18 image mounts its data volume at `/var/lib/postgresql`. This co
 
 ```powershell
 $env:GLITCHTIP_DB_PASSWORD = '<URL-safe local password>'
-$env:GLITCHTIP_SECRET_KEY = '<generated random secret>'
-docker compose -f compose.yaml -f compose.glitchtip.yaml --profile glitchtip up -d glitchtip
+$env:GLITCHTIP_SECRET_KEY = '<generated random secret>' # Optional pwsh command: [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
+$env:GLITCHTIP_ADMIN_EMAIL = 'glitchtip@localhost'
+$env:GLITCHTIP_ADMIN_PASSWORD = '<strong local password>'
+docker compose -f compose.yaml -f compose.glitchtip.yaml --profile glitchtip up -d glitchtip glitchtip-db
 ```
 
-Open `http://localhost:8090`, create the organization and project, and put its DSN in the untracked local environment as `GLITCHTIP_DSN`. Keep `GLITCHTIP_SECRET_KEY` and the database password out of Git. When testing ingestion, use a synthetic exception; stop with the same Compose files and `down` (do not add `-v` unless intentionally deleting the tracker database).
+Open `http://localhost:8090` and sign in with the configured admin email and password. Create an organization and projects in the local UI, then add their per-project DSNs to `.env`. Compose waits for PostgreSQL and Redis before starting GlitchTip. Keep all passwords and `GLITCHTIP_SECRET_KEY` out of Git. When testing ingestion, use a synthetic exception; stop with the same Compose files and `down` (do not add `-v` unless intentionally deleting the tracker database).
 
 ## Kubernetes and AWS
 
@@ -29,7 +31,7 @@ Cloud ingress is disabled in the chart values. Set a private DNS name and TLS at
 
 ## Data handling and status
 
-The Compose overlay passes `GLITCHTIP_DSN` to backend containers when configured; blank DSNs leave SDKs disabled. The language-specific SDK initialization, event sanitization, app release metadata, and synthetic ingestion test are not yet implemented. Do not treat this deployment scaffold as a completed SDK integration.
+The Compose overlay accepts per-project DSNs from `.env`; blank DSNs leave SDK reporting disabled. The Minikube workflow provisions projects and DSNs automatically after GlitchTip is healthy. Use synthetic events to verify ingestion.
 
 The OTel/Grafana stack remains responsible for metrics, logs, and traces. GlitchTip is reserved for grouped application errors and releases. Do not send secrets, request bodies, authorization data, or raw payment/customer data.
 # Audit status

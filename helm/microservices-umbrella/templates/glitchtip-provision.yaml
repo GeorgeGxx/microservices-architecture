@@ -1,0 +1,96 @@
+{{- if and .Values.glitchtip.enabled .Values.glitchtip.provisionProjects.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: glitchtip-provision-projects
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  backoffLimit: 8
+  template:
+    metadata:
+      labels:
+        app: glitchtip-provision-projects
+    spec:
+      restartPolicy: OnFailure
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-glitchtip
+          image: "{{ .Values.glitchtip.image.repository }}:{{ .Values.glitchtip.image.tag }}"
+          command: ["python", "-c"]
+          args:
+            - |
+              import time, urllib.request
+              for attempt in range(90):
+                  try:
+                      urllib.request.urlopen("http://glitchtip:8000/health", timeout=3)
+                      break
+                  except Exception:
+                      time.sleep(5)
+              else:
+                  raise SystemExit(1)
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      containers:
+        - name: provision-projects
+          image: "{{ .Values.glitchtip.image.repository }}:{{ .Values.glitchtip.image.tag }}"
+          command: ["python", "/code/glitchtip-provision-projects.py"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: DATABASE_URL
+            - name: VALKEY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: VALKEY_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: SECRET_KEY
+            - name: GLITCHTIP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: GLITCHTIP_ADMIN_EMAIL
+            - name: GLITCHTIP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: GLITCHTIP_ADMIN_PASSWORD
+            - name: GLITCHTIP_DOMAIN
+              value: {{ .Values.glitchtip.domain | quote }}
+          volumeMounts:
+            - name: projects-script
+              mountPath: /code/glitchtip-provision-projects.py
+              subPath: glitchtip-provision-projects.py
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: projects-script
+          configMap:
+            name: glitchtip-provision-projects
+{{- end }}

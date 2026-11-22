@@ -1,37 +1,33 @@
-# Local minikube: images built directly into minikube's docker daemon
-# (see scripts/deploy-minikube.sh), no external registry needed.
+# Local Minikube values. Credentials are created by platform-minikube.ps1
+# from ignored .env settings or cryptographically-generated development values.
 global:
   environment: dev
-  # Vault Integration Options (Choose Option A or Option B, or leave disabled for native K8s secrets)
   vault:
-    enabled: false # Set to true to enable Vault integration
-    integrationMethod: "external-secrets" # Options: "external-secrets" (Recommended) | "sidecar"
+    enabled: false
+    integrationMethod: external-secrets
 
-# ==============================================================================
-# Option A: Vault Agent Sidecar Injector (Per-pod sidecar template)
-# ==============================================================================
-# products-service:
-#   podAnnotations:
-#     vault.hashicorp.com/agent-inject: "true"
-#     vault.hashicorp.com/role: "products-service-role"
-#     vault.hashicorp.com/agent-inject-secret-database.env: "secret/data/products-service"
-#     vault.hashicorp.com/agent-inject-template-database.env: |
-#       {{- with secret "secret/data/products-service" -}}
-#       export SPRING_DATASOURCE_URL="{{ .Data.data.spring_datasource_url }}"
-#       export SPRING_DATASOURCE_USERNAME="{{ .Data.data.spring_datasource_username }}"
-#       export SPRING_DATASOURCE_PASSWORD="{{ .Data.data.spring_datasource_password }}"
-#       {{- end -}}
+glitchtip:
+  enabled: true
+  provisionProjects:
+    enabled: false
+  image:
+    repository: docker.io/glitchtip/glitchtip
+    tag: "7.0.0"
+  database:
+    image: docker.io/postgres:18-alpine
+    storage: 5Gi
+  valkey:
+    image: docker.io/valkey/valkey:8-alpine
+  domain: http://localhost:8091
+  retentionDays: "30"
+  defaultFromEmail: glitchtip@local.test
 
 cosmo-router:
-  serviceAccount:
-    create: false
-    name: "cosmo-router-sa"
+  serviceAccount: { create: false, name: cosmo-router-sa }
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 250m, memory: 256Mi }
-  graphql:
-    introspection: true
-    playgroundEnabled: true
+  graphql: { introspection: true, playgroundEnabled: true }
   cors:
     allowedOrigins:
       - http://localhost:5173
@@ -39,96 +35,80 @@ cosmo-router:
   image: { repository: ghcr.io/wundergraph/cosmo/router, tag: "0.362.0" }
   keda:
     prometheus:
-      serverAddress: "http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090"
+      serverAddress: http://kube-prometheus-kube-prome-prometheus.observability.svc.cluster.local:9090
+
 inventory-service:
+  sentryDsnSecretKey: GLITCHTIP_INVENTORY_DSN
   image: { repository: georgegxx/inventory-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "inventory-service-sa"
+  serviceAccount: { create: false, name: inventory-service-sa }
   resources:
     requests: { cpu: 100m, memory: 768Mi }
     limits: { cpu: 500m, memory: 1280Mi }
-  probes:
-    startupFailureThreshold: 30
-    startupPeriodSeconds: 10
+  probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
     minReplicaCount: 1
     maxReplicaCount: 1
     kafka:
       enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "inventory-service"
-      topic: "orders-topic"
+      bootstrapServers: kafka.data.svc.cluster.local:9092
+      consumerGroup: inventory-service
+      topic: orders-topic
       lagThreshold: "10"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 notification-service:
+  sentryDsnSecretKey: GLITCHTIP_NOTIFICATION_DSN
   image: { repository: georgegxx/notification-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "notification-service-sa"
+  serviceAccount: { create: false, name: notification-service-sa }
   resources:
     requests: { cpu: 100m, memory: 640Mi }
     limits: { cpu: 500m, memory: 1024Mi }
-  probes:
-    startupFailureThreshold: 30
-    startupPeriodSeconds: 10
+  probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
     minReplicaCount: 1
     maxReplicaCount: 1
     kafka:
       enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "notification-service"
-      topic: "orders-topic"
+      bootstrapServers: kafka.data.svc.cluster.local:9092
+      consumerGroup: notification-service
+      topic: orders-topic
       lagThreshold: "10"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 orders-service:
+  sentryDsnSecretKey: GLITCHTIP_ORDERS_DSN
   image: { repository: georgegxx/orders-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "orders-service-sa"
+  serviceAccount: { create: false, name: orders-service-sa }
   resources:
     requests: { cpu: 100m, memory: 768Mi }
     limits: { cpu: 500m, memory: 1280Mi }
-  probes:
-    startupFailureThreshold: 30
-    startupPeriodSeconds: 10
+  probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
     minReplicaCount: 1
     maxReplicaCount: 1
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 products-service:
+  sentryDsnSecretKey: GLITCHTIP_PRODUCTS_DSN
   image: { repository: georgegxx/products-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "products-service-sa"
+  serviceAccount: { create: false, name: products-service-sa }
   resources:
     requests: { cpu: 100m, memory: 640Mi }
     limits: { cpu: 500m, memory: 1024Mi }
-  probes:
-    startupFailureThreshold: 30
-    startupPeriodSeconds: 10
+  probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
     minReplicaCount: 1
     maxReplicaCount: 1
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 payments-service:
+  sentryDsnSecretKey: GLITCHTIP_PAYMENTS_DSN
   image: { repository: georgegxx/payments-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "payments-service-sa"
+  serviceAccount: { create: false, name: payments-service-sa }
   resources:
     requests: { cpu: 50m, memory: 96Mi }
     limits: { cpu: 250m, memory: 256Mi }
@@ -138,18 +118,16 @@ payments-service:
     maxReplicaCount: 1
     kafka:
       enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "payments-service-group"
-      topic: "orders-topic"
+      bootstrapServers: kafka.data.svc.cluster.local:9092
+      consumerGroup: payments-service-group
+      topic: orders-topic
       lagThreshold: "10"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 fulfillment-service:
+  sentryDsnSecretKey: GLITCHTIP_FULFILLMENT_DSN
   image: { repository: georgegxx/fulfillment-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "fulfillment-service-sa"
+  serviceAccount: { create: false, name: fulfillment-service-sa }
   resources:
     requests: { cpu: 50m, memory: 144Mi }
     limits: { cpu: 250m, memory: 256Mi }
@@ -159,18 +137,16 @@ fulfillment-service:
     maxReplicaCount: 1
     kafka:
       enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "fulfillment-service-group"
-      topic: "payments-topic"
+      bootstrapServers: kafka.data.svc.cluster.local:9092
+      consumerGroup: fulfillment-service-group
+      topic: payments-topic
       lagThreshold: "10"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
+
 analytics-service:
+  sentryDsnSecretKey: GLITCHTIP_ANALYTICS_DSN
   image: { repository: georgegxx/analytics-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "analytics-service-sa"
+  serviceAccount: { create: false, name: analytics-service-sa }
   resources:
     requests: { cpu: 50m, memory: 128Mi }
     limits: { cpu: 250m, memory: 256Mi }
@@ -180,19 +156,16 @@ analytics-service:
     maxReplicaCount: 1
     kafka:
       enabled: true
-      bootstrapServers: "kafka.data.svc.cluster.local:9092"
-      consumerGroup: "analytics-service-group"
-      topic: "orders-topic"
+      bootstrapServers: kafka.data.svc.cluster.local:9092
+      consumerGroup: analytics-service-group
+      topic: orders-topic
       lagThreshold: "10"
-    cpu:
-      enabled: true
-      targetUtilizationPercentage: 70
+    cpu: { enabled: true, targetUtilizationPercentage: 70 }
 
 ai-service:
+  sentryDsnSecretKey: GLITCHTIP_AI_DSN
   image: { repository: georgegxx/ai-service, tag: "1.0.0" }
-  serviceAccount:
-    create: false
-    name: "ai-service-sa"
+  serviceAccount: { create: false, name: ai-service-sa }
   resources:
     requests: { cpu: 75m, memory: 256Mi }
     limits: { cpu: 500m, memory: 768Mi }
@@ -210,14 +183,33 @@ ai-service:
     ENABLE_OBSERVABILITY: "true"
     PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix:6006/v1/traces"
 
+frontend:
+  glitchtip:
+    enabled: true
+
 mlops:
   enabled: true
   mlflow:
     image: { repository: georgegxx/mlflow, tag: "1.0.0" }
+    storage: { data: 1Gi, artifacts: 5Gi }
+    resources:
+      requests: { cpu: 200m, memory: 1Gi }
+      limits: { cpu: "1", memory: 3Gi }
   training:
     image: { repository: georgegxx/mlops-training, tag: "1.0.0" }
+    storage: { salesData: 5Gi }
+    resources:
+      requests: { cpu: 250m, memory: 1Gi }
+      limits: { cpu: "4", memory: 4Gi }
+    minPartitions: 9
+    autoTrainIntervalSec: 60
+    autoTrainStabilitySeconds: 60
   forecast:
+    sentryDsnSecretKey: GLITCHTIP_DEMAND_FORECAST_DSN
     image: { repository: georgegxx/demand-forecast, tag: "1.0.0" }
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { cpu: "1", memory: 768Mi }
 
 configMap:
   data:

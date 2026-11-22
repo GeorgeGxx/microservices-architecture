@@ -15,6 +15,10 @@ spec:
     registries:
       - "georgegxx/"
       - "docker.io/georgegxx/"
+      - "docker.io/glitchtip/glitchtip:"
+      - "docker.io/valkey/valkey:"
+      - "docker.io/postgres:"
+      - "docker.io/library/busybox:"
       - "quay.io/"
       - "localhost"
       - "10.0."

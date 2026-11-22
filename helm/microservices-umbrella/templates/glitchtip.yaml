@@ -1,0 +1,418 @@
+{{- if .Values.glitchtip.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glitchtip-init-admin
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  glitchtip-init-admin.py: |
+{{ .Files.Get "files/glitchtip-init-admin.py" | indent 4 }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: glitchtip-provision-projects
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    reloader.stakater.com/auto: "true"
+data:
+  glitchtip-provision-projects.py: |
+{{ .Files.Get "files/glitchtip-provision-projects.py" | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glitchtip
+  labels:
+    app: glitchtip
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  type: ClusterIP
+  selector:
+    app: glitchtip
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glitchtip
+  labels:
+    app: glitchtip
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: glitchtip
+  template:
+    metadata:
+      labels:
+        app: glitchtip
+        tier: observability
+    spec:
+      serviceAccountName: glitchtip-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5000
+        runAsGroup: 5000
+        fsGroup: 5000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: glitchtip
+          image: "{{ .Values.glitchtip.image.repository }}:{{ .Values.glitchtip.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+
+              echo "Waiting for PostgreSQL..."
+
+              python - <<'PY'
+              import os
+              import time
+
+              os.environ.setdefault("DJANGO_SETTINGS_MODULE", "glitchtip.settings")
+
+              import django
+              django.setup()
+
+              from django.db import connections
+
+              for attempt in range(60):
+                  try:
+                      with connections["default"].cursor() as cursor:
+                          cursor.execute("SELECT 1")
+                      print("PostgreSQL connection verified.")
+                      break
+                  except Exception as exc:
+                      if attempt == 59:
+                          raise
+                      print(
+                          f"PostgreSQL not ready "
+                          f"({attempt + 1}/60): {type(exc).__name__}"
+                      )
+                      time.sleep(5)
+              PY
+
+              echo "Running GlitchTip database migrations..."
+              ./bin/run-migrate.sh
+
+              echo "Provisioning GlitchTip administrator..."
+              python /code/glitchtip-init-admin.py
+
+              export SKIP_INIT=true
+
+              echo "Starting GlitchTip..."
+              exec ./bin/start.sh
+          volumeMounts:
+            - name: init-admin
+              mountPath: /code/glitchtip-init-admin.py
+              subPath: glitchtip-init-admin.py
+              readOnly: true
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: DATABASE_URL
+            - name: VALKEY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: VALKEY_URL
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: SECRET_KEY
+            - name: GLITCHTIP_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: GLITCHTIP_ADMIN_EMAIL
+            - name: GLITCHTIP_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: GLITCHTIP_ADMIN_PASSWORD
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: VALKEY_PASSWORD
+            - name: GLITCHTIP_DOMAIN
+              value: {{ .Values.glitchtip.domain | quote }}
+            - name: GLITCHTIP_RETENTION_DAYS
+              value: {{ .Values.glitchtip.retentionDays | quote }}
+            - name: ENABLE_ORGANIZATION_CREATION
+              value: "false"
+            - name: DEFAULT_FROM_EMAIL
+              value: {{ .Values.glitchtip.defaultFromEmail | quote }}
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 12
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 3
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 5000
+            runAsGroup: 5000
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: init-admin
+          configMap:
+            name: glitchtip-init-admin
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: glitchtip-sa
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glitchtip-db
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  type: ClusterIP
+  selector:
+    app: glitchtip-db
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: glitchtip-db
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  serviceName: glitchtip-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: glitchtip-db
+  template:
+    metadata:
+      labels:
+        app: glitchtip-db
+    
+    spec:
+      serviceAccountName: glitchtip-db-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        runAsGroup: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: {{ .Values.glitchtip.database.image | quote }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            privileged: false
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
+            capabilities:
+              drop:
+                - ALL
+          args: ["postgres", "-c", "max_locks_per_transaction=512"]
+          env:
+            - name: POSTGRES_DB
+              value: glitchtip
+            - name: POSTGRES_USER
+              value: glitchtip
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/18/docker
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U glitchtip -d glitchtip"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U glitchtip -d glitchtip"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: glitchtip-postgres
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: glitchtip-db-sa
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: glitchtip-postgres
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: {{ .Values.glitchtip.database.storage | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: glitchtip-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  type: ClusterIP
+  selector:
+    app: glitchtip-valkey
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: glitchtip-valkey
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: glitchtip-valkey
+  template:
+    metadata:
+      labels:
+        app: glitchtip-valkey
+    spec:
+      serviceAccountName: glitchtip-valkey-sa
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: valkey
+          image: {{ .Values.glitchtip.valkey.image | quote }}
+          imagePullPolicy: IfNotPresent
+          args: ["valkey-server", "--requirepass", "$(VALKEY_PASSWORD)"]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: glitchtip-secrets
+                  key: VALKEY_PASSWORD
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+            capabilities:
+              drop: ["ALL"]
+          ports:
+            - name: redis
+              containerPort: 6379
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "valkey-cli -a \"$VALKEY_PASSWORD\" ping | grep -q PONG"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "valkey-cli -a \"$VALKEY_PASSWORD\" ping | grep -q PONG"]
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: glitchtip-valkey-sa
+  annotations:
+    argocd.argoproj.io/sync-wave: "-3"
+automountServiceAccountToken: false
+{{- end }}

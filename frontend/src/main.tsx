@@ -13,7 +13,7 @@ import { WishlistProvider } from './context/WishlistContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 Sentry.init({
-  dsn: import.meta.env.VITE_GLITCHTIP_DSN || undefined,
+  dsn: window.__APP_CONFIG__?.VITE_GLITCHTIP_DSN || import.meta.env.VITE_GLITCHTIP_DSN || undefined,
   environment: import.meta.env.MODE,
   release: import.meta.env.VITE_APP_RELEASE || 'unknown',
   maxBreadcrumbs: 0,

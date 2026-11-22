@@ -1,11 +1,12 @@
 services:
   glitchtip-db:
-    image: postgres:18.7-alpine
+    container_name: glitchtip-db
+    image: "postgres:${POSTGRES_VERSION}"
     profiles: [glitchtip]
     environment:
       POSTGRES_DB: glitchtip
       POSTGRES_USER: glitchtip
-      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:?Set GLITCHTIP_DB_PASSWORD in your shell or local env file}
+      POSTGRES_PASSWORD: ${GLITCHTIP_DB_PASSWORD:?Set GLITCHTIP_DB_PASSWORD in .env}
     command: ["postgres", "-c", "max_locks_per_transaction=512"]
     volumes:
       - glitchtip_pgdata:/var/lib/postgresql
@@ -15,20 +16,34 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    networks:
+      - spring
 
   glitchtip:
+    container_name: glitchtip
     image: glitchtip/glitchtip:7.0.0
     profiles: [glitchtip]
     depends_on:
       glitchtip-db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD:?Set GLITCHTIP_DB_PASSWORD in your shell or local env file}@glitchtip-db:5432/glitchtip
-      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?Set GLITCHTIP_SECRET_KEY in your shell or local env file}
-      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8090}
+      DATABASE_URL: postgresql://glitchtip:${GLITCHTIP_DB_PASSWORD:?Set GLITCHTIP_DB_PASSWORD in .env}@glitchtip-db:5432/glitchtip
+      VALKEY_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:?Set GLITCHTIP_SECRET_KEY in .env}
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:${GLITCHTIP_PORT:-8090}}
       GLITCHTIP_RETENTION_DAYS: ${GLITCHTIP_RETENTION_DAYS:-30}
-      ENABLE_ORGANIZATION_CREATION: "false"
+      ENABLE_ORGANIZATION_CREATION: "true"
       DEFAULT_FROM_EMAIL: ${GLITCHTIP_DEFAULT_FROM_EMAIL:-glitchtip@localhost}
+      GLITCHTIP_ADMIN_EMAIL: ${GLITCHTIP_ADMIN_EMAIL:-glitchtip@localhost}
+      GLITCHTIP_ADMIN_PASSWORD: ${GLITCHTIP_ADMIN_PASSWORD:?Set GLITCHTIP_ADMIN_PASSWORD in .env}
+    volumes:
+      - ./scripts/glitchtip-init-admin.py:/code/glitchtip-init-admin.py:ro
+    command:
+      - /bin/sh
+      - -c
+      - ./bin/run-migrate.sh && python /code/glitchtip-init-admin.py && export SKIP_INIT=true && exec ./bin/start.sh
     ports:
       - "127.0.0.1:${GLITCHTIP_PORT:-8090}:8000"
     healthcheck:
@@ -38,38 +53,42 @@ services:
       retries: 5
       start_period: 45s
     restart: unless-stopped
+    networks:
+      - spring
 
   demand-forecast-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_DEMAND_FORECAST_DSN:-}
+      ENVIRONMENT: ${APP_ENV:-development}
+      APP_RELEASE: ${APP_RELEASE:-local}
   inventory-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_INVENTORY_DSN:-}
   notification-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_NOTIFICATION_DSN:-}
   orders-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_ORDERS_DSN:-}
   payments-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_PAYMENTS_DSN:-}
   fulfillment-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_FULFILLMENT_DSN:-}
   analytics-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_ANALYTICS_DSN:-}
   products-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_PRODUCTS_DSN:-}
   ai-service:
     environment:
-      SENTRY_DSN: ${GLITCHTIP_BACKEND_DSN:-}
+      SENTRY_DSN: ${GLITCHTIP_AI_DSN:-}
   frontend:
     build:
       args:
-        VITE_GLITCHTIP_DSN: ${VITE_GLITCHTIP_DSN:-}
+        VITE_GLITCHTIP_DSN: ${GLITCHTIP_FRONTEND_DSN:-${VITE_GLITCHTIP_DSN:-}}
         VITE_APP_RELEASE: ${APP_RELEASE:-local}
 
 volumes:

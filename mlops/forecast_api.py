@@ -15,6 +15,8 @@ import jwt
 import mlflow
 import mlflow.sklearn
 import pandas as pd
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse
@@ -44,6 +46,38 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
 
 logger = logging.getLogger("DemandForecastApi")
+
+
+def _sanitize_sentry_event(event: dict, _hint: dict) -> dict:
+    event.pop("request", None)
+    event.pop("user", None)
+    event.pop("contexts", None)
+    event.pop("extra", None)
+    event.pop("breadcrumbs", None)
+    event.pop("message", None)
+    event.pop("transaction", None)
+    event["tags"] = {
+        "service": "demand-forecast-service",
+        "environment": os.getenv("ENVIRONMENT", "development"),
+    }
+    for exception in event.get("exception", {}).get("values", []):
+        exception["value"] = "[redacted]"
+        exception.pop("mechanism", None)
+    return event
+
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN") or None,
+    environment=os.getenv("ENVIRONMENT", "development"),
+    release=os.getenv("APP_RELEASE", "unknown"),
+    send_default_pii=False,
+    max_breadcrumbs=0,
+    traces_sample_rate=0.0,
+    integrations=[FastApiIntegration()],
+    before_send=_sanitize_sentry_event,
+    before_breadcrumb=lambda _breadcrumb, _hint: None,
+)
+
 
 class CorrelatedLogFormatter(logging.Formatter):
     """Formats log records with ISO-8601 timestamp and [service,traceId,spanId] for Alloy/Loki correlation."""

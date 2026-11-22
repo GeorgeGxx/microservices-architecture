@@ -78,7 +78,12 @@ env:
   ENABLE_OBSERVABILITY: "true"
   PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix:6006/v1/traces"
 
-envFrom: []
+envFrom:
+  - configMapRef:
+      name: microservices-config
+  - secretRef:
+      name: microservices-secrets
+sentryDsnSecretKey: ""
 
 serviceMonitor:
   enabled: true

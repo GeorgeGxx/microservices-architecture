@@ -70,6 +70,7 @@ env:
 envFrom:
   configMapRef: microservices-config
   secretRef: microservices-secrets
+sentryDsnSecretKey: ""
 
 podSecurityContext:
   runAsNonRoot: true
