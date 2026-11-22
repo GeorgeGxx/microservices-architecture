@@ -2853,7 +2853,24 @@ function Start-LocalTunnelSupervisor {
         throw "The frontend is deployed but its local tunnel did not serve http://localhost:5173/healthz. Inspect 'kubectl get pods,svc -n dev' and the tunnel supervisor."
     }
 
+    $routerReady = $false
+    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -Uri "http://127.0.0.1:8080/health/ready" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            if ($response.StatusCode -eq 200) {
+                $routerReady = $true
+                break
+            }
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+    if (-not $routerReady) {
+        throw "Cosmo Router is deployed but its local tunnel did not serve http://127.0.0.1:8080/health/ready. Inspect 'kubectl get pods,svc -n dev' and run 'kubectl port-forward -n dev svc/cosmo-router 8080:8080' to inspect tunnel errors."
+    }
+
     Write-Host "  [OK] Frontend tunnel: http://localhost:5173" -ForegroundColor Green
+    Write-Host "  [OK] Cosmo Router tunnel: http://127.0.0.1:8080" -ForegroundColor Green
 }
 
 function Stop-LocalTunnelSupervisor {

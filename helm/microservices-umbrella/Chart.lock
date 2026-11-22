@@ -1,7 +1,7 @@
 dependencies:
 - name: cosmo-router
   repository: file://../charts/cosmo-router
-  version: 2.0.1
+  version: 2.0.2
 - name: inventory-service
   repository: file://../charts/inventory-service
   version: 1.0.2
@@ -26,5 +26,5 @@ dependencies:
 - name: ai-service
   repository: file://../charts/ai-service
   version: 1.0.1
-digest: sha256:d95cbef797c50ec4cc941b894e57730c5e3b805221990dc5de20e383783fb01e
-generated: "2026-11-21T17:07:24.4776171-06:00"
+digest: sha256:31255ddd51ce5bc4c0a20cbf59caaa3f5b7107039de9dc02616b035b3f593a55
+generated: "2026-11-22T15:50:06.3939507-06:00"

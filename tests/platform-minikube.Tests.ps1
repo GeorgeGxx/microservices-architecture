@@ -72,6 +72,20 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
         ($NetworkPolicy -match 'values: \["glitchtip", "glitchtip-provision-projects"\][\s\S]*?port: 5432[\s\S]*?port: 6379') | Should Be $true
     }
 
+    It "Waits for the local Cosmo Router health endpoint before running deployment smoke checks" {
+        $ScriptText = Get-Content -LiteralPath $ResolvedScriptPath -Raw
+        ($ScriptText -match 'http://127\.0\.0\.1:8080/health/ready') | Should Be $true
+        ($ScriptText -match 'Cosmo Router tunnel: http://127\.0\.0\.1:8080') | Should Be $true
+    }
+
+    It "Protects Cosmo Router startup and uses Minikube-safe CPU and memory limits" {
+        $RouterDeployment = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\charts\cosmo-router\templates\deployment.yaml") -Raw
+        $MinikubeValues = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\values\values-minikube.yaml") -Raw
+        ($RouterDeployment -match 'startupProbe:[\s\S]*?startupFailureThreshold') | Should Be $true
+        ($RouterDeployment -match 'timeoutSeconds: \{\{ \.Values\.probes\.livenessTimeoutSeconds \}\}') | Should Be $true
+        ($MinikubeValues -match 'requests: \{ cpu: 100m, memory: 256Mi \}[\s\S]*?limits: \{ cpu: 750m, memory: 512Mi \}') | Should Be $true
+    }
+
     It "Executes the 'help' command cleanly with exit code 0" {
         $HelpOutput = & pwsh -NoProfile -File $ResolvedScriptPath help 2>&1
         $LASTEXITCODE | Should Be 0

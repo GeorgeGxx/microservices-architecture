@@ -51,13 +51,20 @@ spec:
               containerPort: {{ .Values.metricsPort }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.livenessPath }}
+              port: http-router
+            periodSeconds: {{ .Values.probes.startupPeriodSeconds }}
+            timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds }}
+            failureThreshold: {{ .Values.probes.startupFailureThreshold }}
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readinessPath }}
               port: http-router
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: {{ .Values.probes.readinessTimeoutSeconds }}
             failureThreshold: {{ .Values.probes.readinessFailureThreshold | default 3 }}
           livenessProbe:
             httpGet:
@@ -65,7 +72,7 @@ spec:
               port: http-router
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 5 }}
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: {{ .Values.probes.livenessTimeoutSeconds }}
             failureThreshold: {{ .Values.probes.livenessFailureThreshold | default 5 }}
           volumeMounts:
             - name: config

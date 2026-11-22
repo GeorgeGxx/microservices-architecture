@@ -115,6 +115,11 @@ probes:
   readinessPath: /health/ready
   livenessPath: /health/live
   initialDelaySeconds: 10
+  startupPeriodSeconds: 5
+  startupTimeoutSeconds: 10
+  startupFailureThreshold: 30
+  readinessTimeoutSeconds: 10
+  livenessTimeoutSeconds: 10
 
 env: {}
 
