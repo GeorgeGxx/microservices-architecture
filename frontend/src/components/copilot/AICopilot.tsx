@@ -64,7 +64,8 @@ export const AICopilot: React.FC = () => {
       const productLines = forecast.products.map((product) => {
         const total = product.totalUnits === null ? 'more sales history is needed' : `${product.totalUnits} units total`;
         const dailyForecast = product.forecasts.map((day) => `${day.date}: ${day.units}`).join(', ');
-        return `- **${product.sku}**: ${total}${dailyForecast ? ` (${dailyForecast})` : ''}`;
+        const dailyDetails = dailyForecast ? ` (${dailyForecast})` : '';
+        return `- **${product.sku}**: ${total}${dailyDetails}`;
       });
       const content = [
         '**Latest seven-day demand forecast**',
