@@ -228,7 +228,7 @@ async def test_chat_endpoint_security_admin_override(monkeypatch):
             assert res.status_code == 200
             data = res.json()
             assert data["active_agent"] == "admin_operations"
-            assert "operator_admin" in data["reply"]
+            assert "does not query live platform health" in data["reply"]
     finally:
         app.dependency_overrides.clear()
 

@@ -419,8 +419,8 @@ async def test_admin_ops_node():
     }
     res = await admin_ops_node(state)
     assert res["current_agent"] == "admin_operations"
-    assert "admin_jorge" in res["final_output"]
-    assert "Federated Supergraph" in res["final_output"]
+    assert "Demand Forecast · 7 Days" in res["final_output"]
+    assert "does not query live platform health" in res["final_output"]
 
 
 @pytest.mark.asyncio
@@ -475,10 +475,11 @@ def test_synthesize_product_recommendation_admin():
         }
     ]
     res = _synthesize_product_recommendation(items, "MacBook", "admin")
-    assert "Enterprise Operations & Catalog Breakdown" in res
-    assert "Projected Margin" in res
+    assert "Catalog results for your inquiry" in res
     assert "PROD-MBP16" in res
-    assert "25 units per fulfillment center" in res
+    assert "$2499.00 USD" in res
+    assert "Stock status could not be verified" in res
+    assert "Projected Margin" not in res
 
 
 def test_synthesize_product_recommendation_customer():
