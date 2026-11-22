@@ -8,10 +8,11 @@ on:
   workflow_dispatch:
     inputs:
       image-tag:
-        description: 'Explicit SemVer release tag to publish (e.g. 1.1.0; required when publish-to-registry is true)'
+        description: 'Select the only supported Docker Hub release tag: 1.0.0 or 1.1.0'
         required: false
-        type: string
-        default: ''
+        type: choice
+        default: '1.1.0'
+        options: ['1.0.0', '1.1.0']
       publish-to-registry:
         description: 'Publish release image to Docker Registry (requires explicit SemVer image-tag)'
         required: false

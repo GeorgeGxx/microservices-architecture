@@ -223,7 +223,7 @@ Invoke-RestMethod -Uri "http://localhost:8005/health" | ConvertTo-Json
 
 ### 1. Essential Elements of a Production Release
 Every release candidate promoted to production must contain:
-1. **Immutable SemVer 2.0.0 Tag:** Semantic version string (`v1.0.0`, `v1.0.1`, `v1.1.0`) enforcing Docker Hub's **"All tags are immutable"** protection. Tags are never reused or overwritten.
+1. **Two retained image versions per service:** Docker Hub keeps only `1.0.0` (rollback) and `1.1.0` (current). The release workflow rejects every other image tag and prunes other tags after publication; Cosign artifacts for these two image digests are retained.
 2. **Container Registry Image & Digest:** Published under `georgegxx/<service>:<semver>` with its immutable cryptographic content addressable identifier (`sha256:...`).
 3. **Supply Chain Provenance (Sigstore Cosign):** Cryptographically signed container image verifiable against [`cosign.pub`](../../devsecops/compliance/cosign/cosign.pub) before admission into the cluster.
 4. **SBOM & Clean Security Gate:** CycloneDX SBOM generated and zero unaddressed CRITICAL vulnerabilities confirmed by Trivy.
@@ -231,25 +231,32 @@ Every release candidate promoted to production must contain:
 6. **Backward-Compatible Database Schema Evolution:** Database schema updates strictly following the *Expand/Contract* pattern so that rolling back to version $N-1$ never corrupts active persistent data.
 
 ### 2. Zero-Downtime Switch Procedure to a New Version
-When promoting a new version (e.g. `1.0.1`):
+When promoting the current version (`1.1.0`):
 1. **Trigger the Release Pipeline:**
-   - **Via GitHub Actions UI:** Navigate to **Actions** -> **Container Release Pipeline**, specify `version: 1.0.1`, and click **Run workflow**.
+   - **Via GitHub Actions UI:** Navigate to **Actions** -> **Container Release Pipeline**, select `version: 1.1.0` and `release-scope: all`, then click **Run workflow**.
    - **Via Git Release Tag:**
      ```bash
-     git tag v1.0.1
-     git push origin v1.0.1
+     git tag v1.1.0
+     git push origin v1.1.0
      ```
 2. **Synchronize GitOps (ArgoCD):**
    Update the image tag in Helm values and synchronize ArgoCD:
    ```bash
-   argocd app set microservices-dev --helm-set orders-service.image.tag="1.0.1"
+   argocd app set microservices-dev --helm-set orders-service.image.tag="1.1.0"
    argocd app sync microservices-dev
    ```
 3. **Rolling Update Execution:**
-   - Kubernetes pulls the new `1.0.1` image (single pull per node).
+   - Kubernetes pulls the new `1.1.0` image (single pull per node).
    - The new pod starts up and executes its `readinessProbe` (`/actuator/<service>/health` or `/healthz`).
-   - Active user traffic continues routing to `1.0.0` until `1.0.1` reports `200 OK`.
+   - Active user traffic continues routing to `1.0.0` until `1.1.0` reports `200 OK`.
    - Kubernetes completes traffic switch and gracefully terminates `1.0.0` pods with zero downtime.
+
+To roll a service back, restore its Helm image tag to `1.0.0` and let ArgoCD reconcile it:
+
+```bash
+argocd app set microservices-dev --helm-set orders-service.image.tag="1.0.0"
+argocd app sync microservices-dev
+```
 
 ### 3. Emergency & Operational Rollback Procedures
 If a regression or critical incident occurs, execute one of the following three rollback mechanisms:

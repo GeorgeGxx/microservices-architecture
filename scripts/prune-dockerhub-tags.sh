@@ -2,40 +2,44 @@
 # ==============================================================================
 # Docker Hub 2-Version Release Retention Enforcer (Active + Rollback)
 # ==============================================================================
-# Retains at most MAX_VERSIONS (default: 2) immutable SemVer release tags per
-# repository (e.g., 1.1.0 active + 1.0.0 rollback) along with their associated
-# Cosign signature/attestation tags, and prunes all stale SemVer versions and
-# mutable/commit-SHA tags via the Docker Hub v2 REST API.
+# Retains exactly the approved release tags 1.0.0 and 1.1.0 per repository,
+# plus their Cosign signature/attestation tags. All other tags are pruned.
 # ==============================================================================
 set -euo pipefail
 
 OWNER="${1:-${DOCKERHUB_OWNER:-georgegxx}}"
 REPO="${2:-${INPUT_SERVICE_NAME:-}}"
-MAX_VERSIONS="${3:-2}"
+DRY_RUN="${DRY_RUN:-false}"
+ALLOWED_RELEASE_TAGS=("1.0.0" "1.1.0")
 
 DOCKER_USER="${DOCKERHUB_USERNAME:-${DOCKER_USERNAME:-$OWNER}}"
 DOCKER_PASS="${DOCKERHUB_TOKEN:-${DOCKER_PASSWORD:-}}"
 
 if [ -z "$REPO" ]; then
-  echo "::error::Usage: $0 <owner> <repository> [max_semver_versions]"
+  echo "::error::Usage: $0 <owner> <repository>"
   exit 1
 fi
 
 if [ -z "$DOCKER_PASS" ]; then
-  echo "::notice::Docker Hub credentials not configured; skipping retention cleanup for ${OWNER}/${REPO}."
-  exit 0
+  if [ "$DRY_RUN" != "true" ]; then
+    echo "::error::Docker Hub credentials are required to enforce the release-tag retention policy for ${OWNER}/${REPO}."
+    exit 1
+  fi
 fi
 
-echo "── Docker Hub Retention Policy: ${OWNER}/${REPO} (Keep top ${MAX_VERSIONS} SemVer releases) ──"
+echo "── Docker Hub Retention Policy: ${OWNER}/${REPO} (Keep 1.0.0 and 1.1.0 only) ──"
 
-LOGIN_PAYLOAD="$(jq -n --arg u "$DOCKER_USER" --arg p "$DOCKER_PASS" '{username: $u, password: $p}')"
-HUB_TOKEN="$(curl -fsSL -X POST "https://hub.docker.com/v2/users/login/" \
-  -H "Content-Type: application/json" \
-  -d "$LOGIN_PAYLOAD" 2>/dev/null | jq -r '.token // empty' || true)"
+HUB_TOKEN=""
+if [ -n "$DOCKER_PASS" ]; then
+  LOGIN_PAYLOAD="$(jq -n --arg u "$DOCKER_USER" --arg p "$DOCKER_PASS" '{username: $u, password: $p}')"
+  HUB_TOKEN="$(curl -fsSL -X POST "https://hub.docker.com/v2/users/login/" \
+    -H "Content-Type: application/json" \
+    -d "$LOGIN_PAYLOAD" 2>/dev/null | jq -r '.token // empty' || true)"
 
-if [ -z "$HUB_TOKEN" ]; then
-  echo "::warning::Could not obtain Docker Hub API JWT token for ${OWNER}/${REPO}; skipping tag pruning."
-  exit 0
+  if [ -z "$HUB_TOKEN" ]; then
+    echo "::error::Could not obtain Docker Hub API JWT token for ${OWNER}/${REPO}; refusing to skip retention cleanup."
+    exit 1
+  fi
 fi
 
 TAGS_JSON='{"results":[]}'
@@ -45,7 +49,9 @@ while [ -n "$NEXT_URL" ]; do
     "https://hub.docker.com/v2/repositories/${OWNER}/${REPO}/tags/"*) ;;
     *) echo "::error::Unexpected Docker Hub pagination URL; aborting before pruning."; exit 1 ;;
   esac
-  PAGE_JSON="$(curl -fsSL -H "Authorization: JWT ${HUB_TOKEN}" "$NEXT_URL")" || {
+  CURL_AUTH=()
+  if [ -n "$HUB_TOKEN" ]; then CURL_AUTH=(-H "Authorization: JWT ${HUB_TOKEN}"); fi
+  PAGE_JSON="$(curl -fsSL "${CURL_AUTH[@]}" "$NEXT_URL")" || {
     echo "::error::Failed to fetch all Docker Hub tags; aborting before pruning."
     exit 1
   }
@@ -64,15 +70,12 @@ if [ -z "$ALL_TAGS" ]; then
   exit 0
 fi
 
-# Collect SemVer release tags (e.g., 1.0.0, 1.1.0) sorted highest version first
-SEMVER_TAGS="$(echo "$ALL_TAGS" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$' | sort -V -r || true)"
-
-if [ -z "$SEMVER_TAGS" ]; then
-  echo "  [INFO] No SemVer release tags found yet in ${OWNER}/${REPO}; skipping cleanup until a SemVer release is published."
-  exit 0
-fi
-
-KEEP_SEMVER="$(echo "$SEMVER_TAGS" | head -n "$MAX_VERSIONS")"
+KEEP_RELEASE_TAGS=""
+for allowed_tag in "${ALLOWED_RELEASE_TAGS[@]}"; do
+  if echo "$ALL_TAGS" | grep -Fxq "$allowed_tag"; then
+    KEEP_RELEASE_TAGS="${KEEP_RELEASE_TAGS}${allowed_tag}"$'\n'
+  fi
+done
 
 # Collect digests for kept SemVer tags so their Cosign .sig/.att/.sbom artifacts are preserved
 KEEP_COSIGN_PREFIXES=""
@@ -82,14 +85,14 @@ while IFS= read -r kept_tag; do
   if [[ "$digest" =~ ^sha256:([0-9a-f]{64})$ ]]; then
     KEEP_COSIGN_PREFIXES="${KEEP_COSIGN_PREFIXES} sha256-${BASH_REMATCH[1]}"
   fi
-done <<< "$KEEP_SEMVER"
+done <<< "$KEEP_RELEASE_TAGS"
 
 while IFS= read -r tag; do
   [ -z "$tag" ] && continue
 
-  # 1. Check if tag is in the top MAX_VERSIONS SemVer releases
-  if echo "$KEEP_SEMVER" | grep -Fxq "$tag"; then
-    echo "  [KEEP]   ${OWNER}/${REPO}:${tag} (Protected SemVer release)"
+  # 1. Preserve only the two explicitly approved release versions.
+  if echo "$KEEP_RELEASE_TAGS" | grep -Fxq "$tag"; then
+    echo "  [KEEP]   ${OWNER}/${REPO}:${tag} (Approved rollback release)"
     continue
   fi
 
@@ -106,7 +109,12 @@ while IFS= read -r tag; do
     continue
   fi
 
-  # 3. Prune stale SemVer release or non-SemVer tag (e.g., commit SHA, buildcache)
+  # 3. Prune every non-approved version or mutable/commit-SHA tag.
+  if [ "$DRY_RUN" = "true" ]; then
+    echo "  [WOULD PRUNE] ${OWNER}/${REPO}:${tag}"
+    continue
+  fi
+
   HTTP_STATUS="$(curl -sS -o /dev/null -w "%{http_code}" -X DELETE \
     -H "Authorization: JWT ${HUB_TOKEN}" \
     "https://hub.docker.com/v2/repositories/${OWNER}/${REPO}/tags/${tag}/" || echo "000")"
@@ -114,6 +122,7 @@ while IFS= read -r tag; do
   if [ "$HTTP_STATUS" = "204" ] || [ "$HTTP_STATUS" = "200" ]; then
     echo "  [PRUNED] ${OWNER}/${REPO}:${tag} (Removed stale/non-release tag)"
   else
-    echo "  [WARN]   Could not delete ${OWNER}/${REPO}:${tag} (HTTP ${HTTP_STATUS} — ensure DOCKERHUB_TOKEN has Delete permissions)"
+    echo "::error::Could not delete ${OWNER}/${REPO}:${tag} (HTTP ${HTTP_STATUS}); verify DOCKERHUB_TOKEN has Delete permissions."
+    exit 1
   fi
 done <<< "$ALL_TAGS"

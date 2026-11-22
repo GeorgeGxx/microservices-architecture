@@ -84,7 +84,7 @@ on:
         required: false
         type: string
         default: ''
-        description: 'Explicit SemVer release tag to publish (e.g. 1.0.0, 1.1.0)'
+        description: 'Allowed immutable Docker Hub image version: 1.0.0 or 1.1.0'
     secrets:
       DOCKERHUB_USERNAME:
         required: false
@@ -762,7 +762,7 @@ jobs:
   push-dockerhub:
     name: "📦 6. Push to Registry - ${{ inputs.service-name }}"
     needs: [build-container, image-scan, compliance-check]
-    # Release-only registry policy: only publish when publish-to-registry is explicitly enabled AND a SemVer release tag (inputs.image-tag or refs/tags/v*) is provided.
+    # Release-only registry policy: only publish explicitly requested 1.0.0 or 1.1.0 image versions.
     if: github.event_name != 'pull_request' && inputs.publish-to-registry == true && (inputs.image-tag != '' || startsWith(github.ref, 'refs/tags/v'))
     outputs:
       image-digest: ${{ steps.registry-push.outputs.digest }}
@@ -822,29 +822,32 @@ jobs:
             exit 0
           fi
 
-          if [[ ! "$TARGET_TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid release tag '$TARGET_TAG'. Only SemVer release versions (e.g., 1.0.0, 1.1.0) are permitted in Docker Hub."
+            if [[ ! "$TARGET_TAG" =~ ^(1\.0\.0|1\.1\.0)$ ]]; then
+              echo "::error::Unsupported release tag '$TARGET_TAG'. Only 1.0.0 and 1.1.0 are permitted in Docker Hub."
             exit 1
           fi
 
           FINAL_IMAGE="${IMAGE_NAME}:${TARGET_TAG}"
 
+          if [ -z "$DOCKER_PASS" ]; then
+            echo "::error::Docker Hub credentials are required to publish ${FINAL_IMAGE}."
+            exit 1
+          fi
+
           if [ -n "$DOCKER_PASS" ]; then
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
-            # On staging/prod promotion, check if the exact immutable artifact for this release tag
-            # was already built and pushed in an earlier stage; if so, promote its digest without overwriting.
-            if [ "$GH_REF" = "refs/heads/staging" ] || [ "$GH_REF" = "refs/heads/master" ]; then
-              EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
-              if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
-                {
-                  echo "digest=$EXISTING_DIGEST"
-                  echo "published=true"
-                  echo "image-tag=$TARGET_TAG"
-                } >> "$GITHUB_OUTPUT"
-                echo "Promoted existing immutable artifact $FINAL_IMAGE@$EXISTING_DIGEST without rebuilding."
-                exit 0
-              fi
+            # Reuse an existing release digest so reruns and environment promotions never overwrite
+            # the rollback image or mutate either approved SemVer tag.
+            EXISTING_DIGEST="$(docker buildx imagetools inspect "$FINAL_IMAGE" 2>/dev/null | awk '/^Digest:/ { print $2; exit }' || true)"
+            if [[ "$EXISTING_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              {
+                echo "digest=$EXISTING_DIGEST"
+                echo "published=true"
+                echo "image-tag=$TARGET_TAG"
+              } >> "$GITHUB_OUTPUT"
+              echo "Reusing immutable release $FINAL_IMAGE@$EXISTING_DIGEST; the image tag was not overwritten."
+              exit 0
             fi
 
             # Tag the loaded image with the immutable SemVer release tag
@@ -899,7 +902,7 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
-          bash scripts/prune-dockerhub-tags.sh "$DOCKERHUB_OWNER" "$INPUT_SERVICE_NAME" 2
+          bash scripts/prune-dockerhub-tags.sh "$DOCKERHUB_OWNER" "$INPUT_SERVICE_NAME"
 
   # ==========================================================
   # STEP 7: 🐙 ArgoCD GitOps Continuous Delivery Synchronization

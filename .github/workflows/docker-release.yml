@@ -4,23 +4,27 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version tag (e.g. 1.0.0)'
+        description: 'Allowed Docker Hub release tag; exactly two versions are retained per service'
         required: true
-        type: string
-        default: '1.0.0'
+        type: choice
+        default: '1.1.0'
+        options: ['1.0.0', '1.1.0']
       release-scope:
-        description: 'Release services changed since the previous SemVer tag, or all services'
+        description: 'Publish this version for all services, or only changed services'
         required: true
         type: choice
         options: [changed, all]
-        default: changed
+        default: all
       base-ref:
         description: 'Optional Git ref to compare against (manual dispatch only)'
         required: false
         type: string
   push:
     tags:
-      - 'v*.*.*'
+      - '1.0.0'
+      - 'v1.0.0'
+      - '1.1.0'
+      - 'v1.1.0'
 
 permissions:
   contents: write
@@ -50,8 +54,8 @@ jobs:
             echo "::error::No valid SemVer release tag specified."
             exit 1
           fi
-          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Invalid SemVer release tag '$TAG'. Expected format X.Y.Z (e.g., 1.0.0, 1.1.0)."
+          if [[ ! "$TAG" =~ ^(1\.0\.0|1\.1\.0)$ ]]; then
+            echo "::error::Unsupported Docker Hub release '$TAG'. Only 1.0.0 and 1.1.0 are allowed."
             exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
@@ -69,7 +73,7 @@ jobs:
       - id: detect
         env:
           GH_SHA: ${{ github.sha }}
-          RELEASE_SCOPE: ${{ inputs.release-scope || 'changed' }}
+          RELEASE_SCOPE: ${{ inputs.release-scope || 'all' }}
           BASE_REF_INPUT: ${{ inputs.base-ref }}
         run: |
           set -euo pipefail
@@ -346,7 +350,7 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
         run: |
           for repo in $(jq -r '.[]' <<< '${{ needs.detect-release-services.outputs.services }}'); do
-            bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo" 2
+            bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo"
           done
 
       - name: Commit & Push GitOps Release State
