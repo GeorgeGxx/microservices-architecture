@@ -9,4 +9,5 @@ data:
   dns-resolver.inc: |
     resolver {{ .Values.frontend.nginxResolverAddress | default "10.96.0.10" }} valid=5s ipv6=off;
     resolver_timeout 2s;
+    set $service_dns_suffix ".{{ .Release.Namespace }}.svc.cluster.local";
 {{- end }}

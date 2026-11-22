@@ -17,6 +17,8 @@ import {
 interface CatalogPageProps {
   products: Product[];
   isLoading: boolean;
+  loadError: string | null;
+  onRetry: () => void;
   searchQuery: string;
   onClearSearch: () => void;
   favoritesOnly: boolean;
@@ -28,6 +30,8 @@ interface CatalogPageProps {
 export const CatalogPage: React.FC<CatalogPageProps> = ({
   products,
   isLoading,
+  loadError,
+  onRetry,
   searchQuery,
   onClearSearch,
   favoritesOnly,
@@ -37,6 +41,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
 }) => {
   const { wishlist, isInWishlist } = useWishlist();
   const { user, login } = useAuth();
+  const showCatalogError = products.length === 0 && Boolean(loadError);
 
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -311,12 +316,14 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
       {!isLoading && filteredProducts.length === 0 && (
         <div className="text-center py-24 glass-card rounded-3xl border border-slate-800">
           <AlertCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-          <h3 className="text-lg font-bold text-slate-300">No matching products found</h3>
+          <h3 className="text-lg font-bold text-slate-300">
+            {showCatalogError ? 'Catalog temporarily unavailable' : 'No matching products found'}
+          </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Try adjusting your search criteria, category filter, or reset your search query.
+            {showCatalogError ? loadError : 'Try adjusting your search criteria, category filter, or reset your search query.'}
           </p>
           <button
-            onClick={() => {
+            onClick={showCatalogError ? onRetry : () => {
               onClearSearch();
               setSelectedCategory('All');
               setInStockOnly(false);
@@ -324,7 +331,7 @@ export const CatalogPage: React.FC<CatalogPageProps> = ({
             }}
             className="mt-4 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl transition"
           >
-            Reset All Filters
+            {showCatalogError ? 'Retry Catalog' : 'Reset All Filters'}
           </button>
         </div>
       )}

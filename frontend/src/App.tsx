@@ -32,6 +32,7 @@ export const App: React.FC = () => {
   // Products state for Catalog & Command Palette
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const productRefreshInProgress = useRef(false);
 
   // Modals state
@@ -54,8 +55,10 @@ export const App: React.FC = () => {
     try {
       const data = await fetchProducts(user?.token);
       setProducts(data);
+      setCatalogError(null);
     } catch {
       // Keep the last known catalog when a background refresh fails.
+      setCatalogError('The catalog service is temporarily unavailable. Please try again.');
     } finally {
       if (showLoading) setIsLoadingProducts(false);
       productRefreshInProgress.current = false;
@@ -131,6 +134,8 @@ export const App: React.FC = () => {
           <CatalogPage
             products={products}
             isLoading={isLoadingProducts}
+            loadError={catalogError}
+            onRetry={() => void loadProducts(true)}
             searchQuery={searchQuery}
             onClearSearch={() => setSearchQuery('')}
             favoritesOnly={favoritesOnly}
