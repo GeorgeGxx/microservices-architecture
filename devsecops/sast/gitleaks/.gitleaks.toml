@@ -30,6 +30,6 @@ regexes = [
   '''(?i)idempotency-key.*''',
   '''(?i)CHANGE_ME''',
   '''(?i)admin''',
-  '''(?i)mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu''',
+  '''(?i)ROTATED_KEYCLOAK_CLIENT_SECRET''',
   '''(?i)\$2a\$10\$.*'''
 ]
