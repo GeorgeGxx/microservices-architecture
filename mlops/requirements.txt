@@ -79,6 +79,7 @@ pywin32==312; sys_platform == 'win32'
 PyYAML==6.0.3
 requests==2.34.2
 scikit-learn==1.9.1
+sentry-sdk[fastapi]==2.75.0
 scipy==1.18.1
 setuptools==84.1.0
 six==1.17.0

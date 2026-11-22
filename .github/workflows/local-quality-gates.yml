@@ -139,6 +139,29 @@ jobs:
       - name: Validate Compose configuration
         run: |
           cp .env.example .env
+          python - <<'PY'
+          from pathlib import Path
+          from secrets import token_urlsafe
+
+          env_file = Path(".env")
+          lines = env_file.read_text(encoding="utf-8").splitlines()
+          required = {
+              "KEYCLOAK_ADMIN_PASSWORD",
+              "POSTGRES_PASSWORD",
+              "REDIS_PASSWORD",
+              "GF_SECURITY_ADMIN_PASSWORD",
+              "JWT_SECRET",
+              "VAULT_TOKEN",
+              "GLITCHTIP_DB_PASSWORD",
+              "GLITCHTIP_SECRET_KEY",
+              "GLITCHTIP_ADMIN_PASSWORD",
+          }
+          for index, line in enumerate(lines):
+              key, separator, _ = line.partition("=")
+              if separator and key in required:
+                  lines[index] = f"{key}={token_urlsafe(32)}"
+          env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
           docker compose config --quiet
       - name: Compile Python testing tools
         run: python -m compileall -q scripts/testing
