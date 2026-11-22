@@ -269,22 +269,26 @@ foreach ($key in $secretKeys) {
 Set-Content -Path .env -Value $envLines -Encoding utf8NoBOM
 
 # 3. Start Keycloak and its database in detached mode
-docker compose --profile "*" up -d --build keycloak
+docker compose up -d keycloak
 
 # 4. Bootstrap Keycloak and rotate the previously exposed local client secret
 pwsh -File .\scripts\bootstrap-keycloak.ps1 -RotateClientSecret
 
-# 5. Launch all Compose services, including MLflow and the forecast API:
-docker compose --profile "*" up -d --build
+# 5. Start GlitchTip, provision its projects and synchronize DSNs before the full stack.
+#    Required on first launch and after an intentional GlitchTip database reset:
+.\scripts\start-glitchtip-compose.ps1
 
-# 6. Verify healthy startup across all containers:
+# 6. First launch or after source changes: build and start all services, including MLOps training:
+docker compose --profile "*" -f compose.yaml -f compose.glitchtip.yaml up -d --build
+
+# 7. Verify healthy startup across all containers:
 docker compose ps -a
 docker compose ps --format "table {{.Name}}\t{{.State}}\t{{.Ports}}"
 
-# 7. Graceful shutdown (preserves named volumes and MLflow runs)
-docker compose --profile "*" down -v
+# 8. Graceful shutdown (preserves named volumes and MLflow runs)
+docker compose -f compose.yaml -f compose.glitchtip.yaml down
 ```
-Use `docker compose down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs and model artifacts.
+The wildcard profile is intentional here: it starts the one-off `demand-model-training` job and the background `demand-sales-capture` Spark service alongside GlitchTip and the rest of the platform. After the first build, omit `--build` on routine starts to reuse existing images. To rebuild a changed service, target it explicitly, for example `docker compose --profile "*" -f compose.yaml -f compose.glitchtip.yaml up -d --build frontend`. Use `down -v` only when you intentionally want to delete persisted Compose data, including MLflow runs, model artifacts, and the GlitchTip database.
 > 🧪 **MLOps & Demand Forecasting Quick Commands:**
 > - Run containerized PySpark baseline training: `docker compose run --build --rm demand-model-training`
 > - Simulate 14-day Kafka order ingestion: `docker compose --profile capture up -d demand-sales-capture` followed by `docker compose run --rm --entrypoint python demand-sales-capture /app/generate_sample_sales.py --days 14 --kafka-bootstrap-servers kafka:9092 --kafka-topic orders-topic`

@@ -2,9 +2,9 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: glitchtip-provision-projects
+  name: glitchtip-provision-projects-{{ .Files.Get "files/glitchtip-provision-projects.py" | sha256sum | trunc 8 }}
   annotations:
-    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   backoffLimit: 8
   template:
@@ -24,15 +24,16 @@ spec:
           command: ["python", "-c"]
           args:
             - |
-              import time, urllib.request
+              import socket, time
               for attempt in range(90):
                   try:
-                      urllib.request.urlopen("http://glitchtip:8000/health", timeout=3)
+                      with socket.create_connection(("glitchtip", 8000), timeout=3):
+                          pass
                       break
-                  except Exception:
+                  except OSError:
+                      if attempt == 89:
+                          raise SystemExit("GlitchTip TCP endpoint did not become ready")
                       time.sleep(5)
-              else:
-                  raise SystemExit(1)
           resources:
             requests:
               cpu: 25m

@@ -9,19 +9,19 @@
 
 ## Local Compose
 
-This is a separate, opt-in service set and has its own persistent PostgreSQL volume. It binds only to loopback on port 8090. Use synthetic data.
+This is a separate, opt-in service set and stores PostgreSQL data in the Compose-managed `glitchtip_pgdata` volume (named `<compose-project>_glitchtip_pgdata`, or `microservices-architecture_glitchtip_pgdata` with this repository's default project name). Keeping Compose's default volume naming preserves existing local data and lets `down -v` remove it intentionally. It binds only to loopback on port 8090. Use synthetic data.
 
 The PostgreSQL 18 image mounts its data volume at `/var/lib/postgresql`. This configuration is for a new PostgreSQL 18 data directory; it does not migrate an existing PostgreSQL 16 volume. Back up and migrate existing data with `pg_dump`/restore before switching.
 
 ```powershell
 $env:GLITCHTIP_DB_PASSWORD = '<URL-safe local password>'
 $env:GLITCHTIP_SECRET_KEY = '<generated random secret>' # Optional pwsh command: [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48))
-$env:GLITCHTIP_ADMIN_EMAIL = 'glitchtip@localhost'
+$env:GLITCHTIP_ADMIN_EMAIL = 'glitchtip@microservices-architecture.dev'
 $env:GLITCHTIP_ADMIN_PASSWORD = '<strong local password>'
-docker compose -f compose.yaml -f compose.glitchtip.yaml --profile glitchtip up -d glitchtip glitchtip-db
+./scripts/start-glitchtip-compose.ps1
 ```
 
-Open `http://localhost:8090` and sign in with the configured admin email and password. Create an organization and projects in the local UI, then add their per-project DSNs to `.env`. Compose waits for PostgreSQL and Redis before starting GlitchTip. Keep all passwords and `GLITCHTIP_SECRET_KEY` out of Git. When testing ingestion, use a synthetic exception; stop with the same Compose files and `down` (do not add `-v` unless intentionally deleting the tracker database).
+Open `http://localhost:8090` and sign in with the configured admin email and password. GlitchTip runs migrations and idempotently recreates the `microservices-development` organization and service projects every time its container starts. Use the start script for a complete startup: it waits for GlitchTip, obtains the current project DSNs, stores them in the ignored local `.env`, rebuilds the frontend with its browser DSN, and starts/recreates backend services with their DSNs. Run it after changing the GlitchTip URL or after an intentional database reset. Compose waits for PostgreSQL and Redis before starting GlitchTip. Keep all passwords, DSNs, and `GLITCHTIP_SECRET_KEY` out of Git. When testing ingestion, use a synthetic exception. `docker compose down -v` now removes the managed database volume and its event history; the next run of the start script recreates the organization/projects and reconnects all services. This is configuration recovery, not data backup: back up the database if event history or user-created settings must survive a volume deletion.
 
 ## Kubernetes and AWS
 

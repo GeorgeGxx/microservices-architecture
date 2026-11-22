@@ -206,8 +206,11 @@ Once Keycloak is bootstrapped and `.env` has the synced client secret, start the
 **HashiCorp Vault v2.2.0** will auto-initialize via the [`vault-init`](../../compose.yaml) container on startup:
  
 ```powershell
-# Build and launch the complete platform stack in detached mode
+# First launch or after source changes: build and start the full stack, including training and capture.
 docker compose --profile "*" up -d --build
+
+# Routine startup after the first build; reruns the one-off training profile and reuses local images.
+# docker compose --profile "*" up -d
  
 # Check real-time container health
 # Note: It's OK if the vault-init service has exited in Docker Compose.
@@ -232,16 +235,25 @@ Use `docker compose down -v` only when you intentionally want to delete persiste
  
 ### 5. 🧪 Local MLOps Workflow with Docker Compose
  
-The `training` and `capture` Compose profiles keep MLOps jobs out of the regular `docker compose up` startup. Start Kafka capture in the background with Docker Compose; no second terminal must remain attached to Kafka.
+The `training` and `capture` Compose profiles are opt-in for a regular `docker compose up`. This full-stack workflow deliberately enables both with `--profile "*"`, so the model trains and the Spark capture service starts automatically. Start Kafka capture in the background with Docker Compose; no second terminal must remain attached to Kafka.
  
 #### 1. Start the platform
-Complete the Keycloak bootstrap steps above, then launch the normal stack:
+Complete the Keycloak bootstrap steps above. Start GlitchTip and synchronize its project DSNs before launching the full stack. This step is required on first launch and after an intentional GlitchTip database reset; it also recreates the organization and projects and updates the ignored local `.env` file:
 ```powershell
-docker compose --profile "*" up -d --build
+.\scripts\start-glitchtip-compose.ps1
 ```
-This starts MLflow, the demand-forecast API, Kafka, and the other default services. The MLflow UI is available at <http://localhost:5000>. MLflow metadata and model artifacts persist in the `mlops_mlflow_data` and `mlops_mlflow_artifacts` Docker volumes without requiring MinIO.
+
+Then, on first launch or after source changes, build the images and start the MLOps profiles:
+```powershell
+docker compose --profile "*" -f compose.yaml -f compose.glitchtip.yaml up -d --build
+```
+For routine starts without code changes, keep the wildcard so training starts, but omit `--build` to reuse the existing images:
+```powershell
+docker compose --profile "*" -f compose.yaml -f compose.glitchtip.yaml up -d
+```
+This starts MLflow, the demand-forecast API, Kafka, GlitchTip, the one-off model training job, and the background Spark capture service. For routine starts, run the GlitchTip synchronization script first, then use the no-build command above. The MLflow UI is available at <http://localhost:5000>. MLflow metadata and model artifacts persist in the `mlops_mlflow_data` and `mlops_mlflow_artifacts` Docker volumes without requiring MinIO. The capture service reserves up to 4 CPUs and 4 GB of memory, so allow for that workload when starting the full profile.
  
-#### 2. Train the demo model
+#### 2. Manually rerun the demo model training (optional)
 ```powershell
 docker compose run --build --rm demand-model-training
 ```

@@ -35,15 +35,16 @@ services:
       GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:${GLITCHTIP_PORT:-8090}}
       GLITCHTIP_RETENTION_DAYS: ${GLITCHTIP_RETENTION_DAYS:-30}
       ENABLE_ORGANIZATION_CREATION: "true"
-      DEFAULT_FROM_EMAIL: ${GLITCHTIP_DEFAULT_FROM_EMAIL:-glitchtip@localhost}
-      GLITCHTIP_ADMIN_EMAIL: ${GLITCHTIP_ADMIN_EMAIL:-glitchtip@localhost}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_DEFAULT_FROM_EMAIL:-glitchtip@microservices-architecture.dev}
+      GLITCHTIP_ADMIN_EMAIL: ${GLITCHTIP_ADMIN_EMAIL:-glitchtip@microservices-architecture.dev}
       GLITCHTIP_ADMIN_PASSWORD: ${GLITCHTIP_ADMIN_PASSWORD:?Set GLITCHTIP_ADMIN_PASSWORD in .env}
     volumes:
       - ./scripts/glitchtip-init-admin.py:/code/glitchtip-init-admin.py:ro
+      - ./helm/microservices-umbrella/files/glitchtip-provision-projects.py:/code/glitchtip-provision-projects.py:ro
     command:
       - /bin/sh
       - -c
-      - ./bin/run-migrate.sh && python /code/glitchtip-init-admin.py && export SKIP_INIT=true && exec ./bin/start.sh
+      - ./bin/run-migrate.sh && python /code/glitchtip-init-admin.py && GLITCHTIP_PRINT_DSNS=false python /code/glitchtip-provision-projects.py && export SKIP_INIT=true && exec ./bin/start.sh
     ports:
       - "127.0.0.1:${GLITCHTIP_PORT:-8090}:8000"
     healthcheck:
