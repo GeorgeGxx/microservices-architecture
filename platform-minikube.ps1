@@ -1175,10 +1175,42 @@ function Invoke-LocalDevSecOpsScan {
         foreach ($trivyTarget in $trivyTargets) {
             $targetPath = if (Test-Path -LiteralPath $trivyTarget) { (Resolve-Path $trivyTarget).Path } else { $trivyTarget }
             $targetLeaf = Split-Path $targetPath -Leaf
-            Write-Host "  Scanning target: $targetPath (with central config & exception list)..." -ForegroundColor Gray
-            & trivy --config $trivyConfig config $trivyTarget
-            if ($LASTEXITCODE -ne 0) { throw "Trivy configuration scan failed for '$trivyTarget' (exit $LASTEXITCODE)." }
-            Write-Host "  [OK] Trivy: IaC scan clean for '$targetLeaf' (audit mode active)." -ForegroundColor Green
+            $trivyReportPath = Join-Path ([System.IO.Path]::GetTempPath()) ("microservices-trivy-{0}.json" -f [guid]::NewGuid().ToString('N'))
+            try {
+                Write-Host "  Scanning '$targetLeaf' for HIGH/CRITICAL IaC misconfigurations..." -ForegroundColor Gray
+                & trivy --quiet --config $trivyConfig config --format json --output $trivyReportPath $trivyTarget
+                if ($LASTEXITCODE -ne 0) { throw "Trivy configuration scan failed for '$trivyTarget' (exit $LASTEXITCODE)." }
+                if (-not (Test-Path -LiteralPath $trivyReportPath -PathType Leaf)) { throw "Trivy did not create a JSON report for '$trivyTarget'." }
+
+                $trivyReport = Get-Content -LiteralPath $trivyReportPath -Raw | ConvertFrom-Json
+                if ($null -eq $trivyReport.Results) { throw "Trivy returned an incomplete JSON report for '$trivyTarget'." }
+                $findings = @(
+                    foreach ($result in $trivyReport.Results) {
+                        foreach ($finding in @($result.Misconfigurations)) {
+                            if ($null -ne $finding) {
+                                [pscustomobject]@{
+                                    Target = $result.Target
+                                    Severity = $finding.Severity
+                                    ID = $finding.ID
+                                    Title = $finding.Title
+                                    Resolution = $finding.Resolution
+                                }
+                            }
+                        }
+                    }
+                )
+
+                if ($findings.Count -eq 0) {
+                    $scannedResources = @($trivyReport.Results).Count
+                    Write-Host "  [OK] Trivy: 0 HIGH/CRITICAL misconfigurations across $scannedResources scanned resources (audit mode)." -ForegroundColor Green
+                } else {
+                    Write-Host "  [WARN] Trivy: $($findings.Count) HIGH/CRITICAL misconfiguration(s) found (audit mode; details follow)." -ForegroundColor Yellow
+                    $findingTable = $findings | Format-Table -Wrap -AutoSize | Out-String
+                    Write-Host $findingTable.TrimEnd() -ForegroundColor Yellow
+                }
+            } finally {
+                Remove-Item -LiteralPath $trivyReportPath -Force -ErrorAction SilentlyContinue
+            }
         }
 
         # --- [5/N] Conftest ---
@@ -3768,14 +3800,16 @@ stringData:
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip PostgreSQL did not become Ready." }
                 kubectl wait --for=condition=available deployment/glitchtip-valkey -n dev --timeout=180s
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip Valkey did not become Ready." }
-                kubectl delete job glitchtip-provision-projects -n dev --ignore-not-found=true 2>$null | Out-Null
+                kubectl delete job -n dev -l app=glitchtip-provision-projects --ignore-not-found=true 2>$null | Out-Null
                 $provisionYaml = & helm template glitchtip-project-provisioner $resolvedUmbrellaDir --namespace dev --values $minikubeValues --set glitchtip.enabled=true --set glitchtip.provisionProjects.enabled=true --show-only templates/glitchtip-provision.yaml
                 if ($LASTEXITCODE -ne 0 -or -not $provisionYaml) { throw "Could not render the GlitchTip provisioning Job." }
                 $provisionYaml | kubectl apply -n dev -f - | Out-Null
                 if ($LASTEXITCODE -ne 0) { throw "Could not apply the GlitchTip provisioning Job." }
-                kubectl wait --for=condition=complete job/glitchtip-provision-projects -n dev --timeout=300s
-                if ($LASTEXITCODE -ne 0) { kubectl logs job/glitchtip-provision-projects -n dev; throw "GlitchTip project provisioning did not complete." }
-                $provisionLog = kubectl logs job/glitchtip-provision-projects -n dev 2>$null
+                $provisionJob = [string](kubectl get jobs -n dev -l app=glitchtip-provision-projects -o 'jsonpath={.items[0].metadata.name}' 2>$null)
+                if ($LASTEXITCODE -ne 0 -or -not $provisionJob) { throw "Could not find the GlitchTip project provisioning Job after applying it." }
+                kubectl wait --for=condition=complete "job/$provisionJob" -n dev --timeout=300s
+                if ($LASTEXITCODE -ne 0) { kubectl logs "job/$provisionJob" -n dev; throw "GlitchTip project provisioning did not complete." }
+                $provisionLog = kubectl logs "job/$provisionJob" -n dev 2>$null
                 $jsonLine = @($provisionLog | Where-Object { $_ -match '^GLITCHTIP_DSNS_JSON=' } | Select-Object -Last 1)
                 if ($jsonLine.Count -eq 0) { throw "GlitchTip provisioner did not return DSNs; inspect job logs." }
                 $dsnMap = $jsonLine[0].Substring('GLITCHTIP_DSNS_JSON='.Length) | ConvertFrom-Json

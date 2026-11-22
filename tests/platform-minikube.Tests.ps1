@@ -44,6 +44,22 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
         ($FuncNames -contains "Invoke-TerraformCommand") | Should Be $true
     }
 
+    It "Waits for the hashed GlitchTip provisioning Job by its generated name" {
+        $ScriptText = Get-Content -LiteralPath $ResolvedScriptPath -Raw
+        ($ScriptText -match 'kubectl get jobs -n dev -l app=glitchtip-provision-projects') | Should Be $true
+        ($ScriptText -match 'kubectl wait --for=condition=complete "job/\$provisionJob"') | Should Be $true
+        ($ScriptText -match 'kubectl logs "job/\$provisionJob"') | Should Be $true
+        ($ScriptText -match 'kubectl wait --for=condition=complete job/glitchtip-provision-projects\s') | Should Be $false
+    }
+
+    It "Keeps Trivy output concise while retaining structured findings" {
+        $ScriptText = Get-Content -LiteralPath $ResolvedScriptPath -Raw
+        ($ScriptText -match '& trivy --quiet --config \$trivyConfig config --format json --output \$trivyReportPath') | Should Be $true
+        ($ScriptText -match 'Severity = \$finding\.Severity') | Should Be $true
+        ($ScriptText -match 'Title = \$finding\.Title') | Should Be $true
+        ($ScriptText -match '0 HIGH/CRITICAL misconfigurations') | Should Be $true
+    }
+
     It "Executes the 'help' command cleanly with exit code 0" {
         $HelpOutput = & pwsh -NoProfile -File $ResolvedScriptPath help 2>&1
         $LASTEXITCODE | Should Be 0

@@ -21,6 +21,15 @@ workload_containers contains container if {
   container := pod_spec.initContainers[_]
 }
 
+# Init containers perform setup before the application starts and do not serve
+# traffic, so readiness/liveness probes are not meaningful for them. Keep them
+# in security/resource/image checks above, but only require health probes on
+# long-running application containers.
+workload_application_containers contains container if {
+  pod_spec := workload_pod_spec
+  container := pod_spec.containers[_]
+}
+
 # Deny privileged workloads, including init containers.
 deny contains msg if {
   container := workload_containers[_]
@@ -72,14 +81,14 @@ deny contains msg if {
 # and activeDeadlineSeconds are the appropriate health signals.
 warn contains msg if {
   input.kind in {"Deployment", "StatefulSet", "DaemonSet"}
-  container := workload_containers[_]
+  container := workload_application_containers[_]
   not container.livenessProbe
   msg := sprintf("Container '%v' in %v '%v' has no livenessProbe.", [container.name, input.kind, input.metadata.name])
 }
 
 warn contains msg if {
   input.kind in {"Deployment", "StatefulSet", "DaemonSet"}
-  container := workload_containers[_]
+  container := workload_application_containers[_]
   not container.readinessProbe
   msg := sprintf("Container '%v' in %v '%v' has no readinessProbe.", [container.name, input.kind, input.metadata.name])
 }
