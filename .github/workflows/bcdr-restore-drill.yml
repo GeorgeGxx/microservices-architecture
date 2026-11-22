@@ -27,10 +27,12 @@ jobs:
             --env POSTGRES_USER=postgres \
             --env POSTGRES_PASSWORD=drill-only-password \
             postgres:18
-          for attempt in $(seq 1 60); do
+          attempts_remaining=60
+          while [ "$attempts_remaining" -gt 0 ]; do
             if docker exec bcdr-restore-drill pg_isready -U postgres >/dev/null 2>&1; then
               exit 0
             fi
+            attempts_remaining=$((attempts_remaining - 1))
             sleep 2
           done
           docker logs bcdr-restore-drill

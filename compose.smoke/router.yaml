@@ -1,0 +1,25 @@
+# Isolated health/GraphQL config for CI: authentication and telemetry
+# dependencies are intentionally omitted so this smoke is self-contained.
+version: "1"
+log_level: info
+listen_addr: 0.0.0.0:8080
+graphql_path: /graphql
+playground_enabled: false
+introspection:
+  enabled: true
+health_check_path: /health
+readiness_check_path: /health/ready
+liveness_check_path: /health/live
+execution_config:
+  file:
+    path: /runtime/execution-config.json
+    watch: false
+authorization:
+  require_authentication: false
+  reject_operation_if_unauthorized: true
+telemetry:
+  tracing:
+    enabled: false
+  metrics:
+    prometheus:
+      enabled: false

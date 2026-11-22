@@ -38,8 +38,8 @@ def _query_result(*, rows=None, scalar=None):
 @pytest.mark.asyncio
 async def test_lifespan_retries_database_startup_and_hydrates_metrics(monkeypatch):
     begin = MagicMock(side_effect=[RuntimeError("database starting"), DatabaseContext()])
-    monkeypatch.setattr(main.engine, "begin", begin)
-    monkeypatch.setattr(main.engine, "dispose", AsyncMock())
+    engine = SimpleNamespace(begin=begin, dispose=AsyncMock())
+    monkeypatch.setattr(main, "engine", engine)
     sleep = AsyncMock()
     monkeypatch.setattr(main.asyncio, "sleep", sleep)
 
@@ -68,13 +68,13 @@ async def test_lifespan_retries_database_startup_and_hydrates_metrics(monkeypatc
     sleep.assert_awaited_once_with(2)
     state_repo.get_sku_sales.assert_awaited_once()
     main.kafka_consumer.stop.assert_awaited_once()
-    main.engine.dispose.assert_awaited_once()
+    engine.dispose.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_lifespan_seeds_baseline_funnel_when_persistent_data_is_sparse(monkeypatch):
-    monkeypatch.setattr(main.engine, "begin", MagicMock(return_value=DatabaseContext()))
-    monkeypatch.setattr(main.engine, "dispose", AsyncMock())
+    engine = SimpleNamespace(begin=MagicMock(return_value=DatabaseContext()), dispose=AsyncMock())
+    monkeypatch.setattr(main, "engine", engine)
     session = MagicMock()
     session.execute = AsyncMock(side_effect=[_query_result(rows=[]), _query_result(scalar=0)])
     monkeypatch.setattr(main, "AsyncSessionLocal", lambda: SessionContext(session))
@@ -100,3 +100,4 @@ async def test_lifespan_seeds_baseline_funnel_when_persistent_data_is_sparse(mon
     assert funnel_repo.save_event.await_count == 14
     assert funnel_repo.count_events_by_type.await_count == 2
     main.kafka_consumer.stop.assert_awaited_once()
+    engine.dispose.assert_awaited_once()

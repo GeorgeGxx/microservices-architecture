@@ -3,6 +3,9 @@
 services:
   cosmo-router:
     depends_on: !reset []
+    volumes: !override
+      - ./compose.smoke/router.yaml:/dist/config/router.yaml:ro
+      - ./cosmo-router/execution-config.json:/runtime/execution-config.json:ro
 
   frontend:
     depends_on: !reset []
