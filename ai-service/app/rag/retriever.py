@@ -131,26 +131,47 @@ class LocalRAGStore:
         scored_by_key: Dict[str, tuple[float, Dict[str, Any]]] = {}
 
         for doc in documents:
-            metadata = doc.get("metadata", {})
-            if doc_type and metadata.get("type") != doc_type:
+            score = cls._score_document(doc, query_tokens, doc_type, product_intents)
+            if score is None:
                 continue
-            matching_intents = cls._matching_product_intents(metadata, product_intents) if product_intents else 0
-            if product_intents and matching_intents == 0:
-                continue
-            score = cls._calculate_score(doc, query_tokens)
-            score += matching_intents * 5.0
-            if score <= 0:
-                continue
-            key = cls._document_key(doc)
-            previous = scored_by_key.get(key)
-            if previous is None or score > previous[0]:
-                scored_by_key[key] = (score, doc)
+            cls._remember_best_document(scored_by_key, doc, score)
 
         scored_docs = sorted(
             scored_by_key.values(),
             key=lambda pair: (-pair[0], str(pair[1].get("metadata", {}).get("title", "")).casefold()),
         )
         return [doc for _, doc in scored_docs[:top_k]]
+
+    @classmethod
+    def _score_document(
+        cls,
+        doc: Dict[str, Any],
+        query_tokens: set[str],
+        doc_type: Optional[str],
+        product_intents: List[frozenset[str]],
+    ) -> Optional[float]:
+        metadata = doc.get("metadata", {})
+        if doc_type and metadata.get("type") != doc_type:
+            return None
+
+        matching_intents = cls._matching_product_intents(metadata, product_intents) if product_intents else 0
+        if product_intents and matching_intents == 0:
+            return None
+
+        score = cls._calculate_score(doc, query_tokens) + matching_intents * 5.0
+        return score if score > 0 else None
+
+    @classmethod
+    def _remember_best_document(
+        cls,
+        scored_by_key: Dict[str, tuple[float, Dict[str, Any]]],
+        doc: Dict[str, Any],
+        score: float,
+    ) -> None:
+        key = cls._document_key(doc)
+        previous = scored_by_key.get(key)
+        if previous is None or score > previous[0]:
+            scored_by_key[key] = (score, doc)
 
     @staticmethod
     def _product_terms(metadata: Dict[str, Any]) -> set[str]:
