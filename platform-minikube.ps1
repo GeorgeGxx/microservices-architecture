@@ -1237,7 +1237,11 @@ function Invoke-LocalDevSecOpsScan {
 function Get-DevSecOpsTargetUrl {
     param([Parameter(Mandatory = $true)][string]$EnvironmentVariable, [Parameter(Mandatory = $true)][string]$LocalDefault)
     $configuredUrl = [Environment]::GetEnvironmentVariable($EnvironmentVariable)
-    if (-not $configuredUrl) {
+    # Local DevSecOps checks must not silently target a persisted Cloudflare
+    # tunnel. Tunnel URLs are ephemeral and may point to a different cluster.
+    # An explicitly exported variable still takes precedence for intentional
+    # remote testing.
+    if (-not $configuredUrl -and $Platform -ne 'minikube') {
         $cfStateFile = Join-Path $root 'scripts\.cloudflare-tunnels.json'
         if (Test-Path $cfStateFile) {
             try {
@@ -1278,7 +1282,7 @@ function Invoke-LocalContractChecks {
     if (-not (Get-Command npx -ErrorAction SilentlyContinue)) { throw "Node.js/npm are required. Run '.\platform-minikube.ps1 tools -Install' and reopen pwsh." }
     $collection = Join-Path $root 'devsecops\testing\newman\microservices.postman_collection.json'
     if (-not (Test-Path -LiteralPath $collection -PathType Leaf)) { throw "Newman collection is missing: $collection" }
-    $baseUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'BASE_URL' -LocalDefault 'http://127.0.0.1:5173'
+    $baseUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'BASE_URL' -LocalDefault 'http://127.0.0.1:8080'
     $keycloakUrl = Get-DevSecOpsTargetUrl -EnvironmentVariable 'KEYCLOAK_URL' -LocalDefault 'http://127.0.0.1:8181'
     Push-Location $root
     $origNodeOptions = $env:NODE_OPTIONS
@@ -1295,7 +1299,7 @@ function Invoke-LocalContractChecks {
         }
 
         $env:NODE_OPTIONS = if ($origNodeOptions) { "$origNodeOptions --no-deprecation" } else { "--no-deprecation" }
-        & npx --yes --loglevel=error newman@6 run $collection --env-var "BASE_URL=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
+        & npx --yes --loglevel=error newman@6 run $collection --env-var "base_url=$baseUrl" --env-var "keycloak_url=$keycloakUrl" --bail
         if ($LASTEXITCODE -ne 0) { throw "Newman contract suite failed (exit $LASTEXITCODE)." }
 
         Write-Host "  >> Validating Polyglot Kafka Event Schema Contracts (Java, Go, TS, Python)..." -ForegroundColor Cyan

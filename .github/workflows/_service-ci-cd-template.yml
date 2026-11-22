@@ -1080,7 +1080,7 @@ jobs:
           : "${KEYCLOAK_URL:?Set DEVSECOPS_KEYCLOAK_URL to the deployed Keycloak base URL}"
 
       - name: Run Newman API and authorization collection
-        run: npx --yes newman@6 run devsecops/testing/newman/microservices.postman_collection.json --env-var "BASE_URL=$BASE_URL" --env-var "keycloak_url=$KEYCLOAK_URL" --bail
+        run: npx --yes newman@6 run devsecops/testing/newman/microservices.postman_collection.json --env-var "base_url=$BASE_URL" --env-var "keycloak_url=$KEYCLOAK_URL" --bail
 
       - name: Run storefront smoke checks
         run: python3 scripts/testing/smoke.py --deployment --base-url "$BASE_URL" --frontend-url "$FRONTEND_URL"
