@@ -4,6 +4,7 @@ import { HITLWidget } from './HITLWidget';
 import { useCart } from '../../context/CartContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
+import { fetchDemandForecast } from '../../services/demandForecast';
 
 interface Message {
   id: string;
@@ -44,6 +45,57 @@ export const AICopilot: React.FC = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleDemandForecast = async () => {
+    if (isLoading) return;
+
+    const prompt = 'Show the latest seven-day demand forecast and active MLflow run.';
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setMessages((prev) => [...prev, {
+      id: `user-${Date.now()}`,
+      sender: 'user',
+      content: prompt,
+      timestamp,
+    }]);
+    setIsLoading(true);
+
+    try {
+      const forecast = await fetchDemandForecast(user?.token);
+      const productLines = forecast.products.map((product) => {
+        const total = product.totalUnits === null ? 'more sales history is needed' : `${product.totalUnits} units total`;
+        const dailyForecast = product.forecasts.map((day) => `${day.date}: ${day.units}`).join(', ');
+        return `- **${product.sku}**: ${total}${dailyForecast ? ` (${dailyForecast})` : ''}`;
+      });
+      const content = [
+        '**Latest seven-day demand forecast**',
+        `- Data source: ${forecast.dataSource}`,
+        `- Active MLflow run: \`${forecast.modelRunId}\``,
+        `- Model trained: ${new Date(forecast.modelCreatedAt).toLocaleString()}`,
+        `- Sales history: ${forecast.historyStartDate} through ${forecast.historyEndDate}`,
+        '',
+        ...productLines,
+        ...(forecast.dataSource === 'synthetic' ? ['', 'Synthetic demo data; do not use these estimates for purchasing decisions.'] : []),
+      ].join('\n');
+      setMessages((prev) => [...prev, {
+        id: `agent-forecast-${Date.now()}`,
+        sender: 'agent',
+        content,
+        agentName: 'Demand Forecast Service',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : 'the forecast service could not be reached';
+      setMessages((prev) => [...prev, {
+        id: `agent-forecast-error-${Date.now()}`,
+        sender: 'agent',
+        content: `Demand forecast is unavailable: ${detail}. Open Admin Console → Demand Forecast · 7 Days and retry after the forecast service is healthy.`,
+        agentName: 'Demand Forecast Service',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Close Copilot if Cart or Notification drawer opens and they conflict (same side or narrow viewport)
   useEffect(() => {
@@ -145,8 +197,8 @@ export const AICopilot: React.FC = () => {
       const fallbackMsg: Message = {
         id: `agent-fallback-${Date.now()}`,
         sender: 'agent',
-        content: `Received your inquiry: "${text}". The background AI service is currently initializing. You can browse products directly in the store catalog or verify that 'ai-service' is active on port 8010.`,
-        agentName: 'Local Fallback Agent',
+        content: 'AI Copilot is temporarily unavailable. Please try again shortly.',
+        agentName: 'AI Copilot',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -166,15 +218,15 @@ export const AICopilot: React.FC = () => {
     setMessages((prev) => [...prev, confirmationMsg]);
   };
 
-  const samplePrompts = user?.isAdmin
+  const samplePrompts: { label: string; prompt: string; action?: 'forecast' }[] = user?.isAdmin
     ? [
-        { label: '📊 Supergraph Audit', prompt: 'Audit federated microservices health and telemetry status.' },
-        { label: '⚡ Review Refunds', prompt: 'I want to review and process pending refund tickets (HITL).' },
-        { label: '📦 Order UUID Audit', prompt: 'Audit status of order 4c5a7ac3-5298-45c1-ba16-6d575e021563' },
-        { label: '📈 Demand Forecast', prompt: 'Recommend high-performance laptops and check inventory safety stock requirements.' }
+        { label: '📈 Demand Forecast', prompt: 'Show the latest seven-day demand forecast and active MLflow run.', action: 'forecast' },
+        { label: '💻 Recommend Laptop', prompt: 'Recommend a laptop for software development and confirm its current availability.' },
+        { label: '📦 Track an Order', prompt: 'Track an order using its order ID or carrier tracking number.' },
+        { label: '🛡️ Store Policies', prompt: 'Summarize the store’s return, warranty, and refund policies.' }
       ]
     : [
-        { label: '📦 Track Shipment', prompt: 'What is the shipping status of my order?' },
+        { label: '📦 Track an Order', prompt: 'Track my order using its order ID or carrier tracking number.' },
         { label: '💻 Recommend Laptop', prompt: 'Recommend a high-performance laptop for software development and design.' },
         { label: '🛡️ Return Policies', prompt: 'What are the return, warranty, and refund policies of the store?' },
         { label: '💳 Request Refund', prompt: 'I would like to request a refund for an order.' }
@@ -283,7 +335,7 @@ export const AICopilot: React.FC = () => {
               {samplePrompts.map((sp) => (
                 <button
                   key={sp.label}
-                  onClick={() => void handleSendMessage(sp.prompt)}
+                  onClick={() => void (sp.action === 'forecast' ? handleDemandForecast() : handleSendMessage(sp.prompt))}
                   disabled={isLoading}
                   className="w-full text-left truncate px-2 py-1.5 rounded-lg bg-slate-800/70 hover:bg-slate-700/90 border border-slate-700/60 text-slate-300 hover:text-white transition-colors text-[10px] font-medium disabled:opacity-40"
                   title={sp.prompt}

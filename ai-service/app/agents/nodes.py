@@ -57,7 +57,7 @@ def _synthesize_product_recommendation(
         )
 
     if user_role == "admin":
-        return _format_admin_product_recommendation(unique_items, query)
+        return _format_admin_product_recommendation(unique_items)
 
     return _format_customer_product_recommendation(unique_items)
 
@@ -74,21 +74,18 @@ def _unique_products(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return unique_items
 
 
-def _format_admin_product_recommendation(items: List[Dict[str, Any]], query: str) -> str:
-    lines = ["🛡️ **Enterprise Operations & Catalog Breakdown**:\n", f'Analysis for admin inquiry: *"{query}"*\n']
+def _format_admin_product_recommendation(items: List[Dict[str, Any]]) -> str:
+    lines = ["🛡️ **Catalog results for your inquiry:**\n"]
+    if any(item.get("metadata", {}).get("catalog_source") == "sample-cache" for item in items):
+        lines.append("*The live catalog is unavailable; these results use the local development sample catalog.*\n")
     for item in items:
         metadata = item.get("metadata", {})
-        price = float(metadata.get("price", 0.0))
-        margin = price * 0.30
-        lines.append(
-            f"### 📦 {metadata.get('title', 'Product')} (`{metadata.get('sku', 'SKU-N/A')}`)\n"
-            f"- **Category:** {metadata.get('category', 'General')}\n"
-            f"- **Retail Price:** ${price:.2f} USD | **Est. Unit Cost:** ${price - margin:.2f} USD\n"
-            f"- **Projected Margin (~30%):** ${margin:.2f} USD\n"
-            "- **Operational Stocking:** Recommended safety buffer of 25 units per fulfillment center.\n"
-            f"- **Specs & Tags:** {item.get('content', '').splitlines()[-1] if item.get('content') else 'N/A'}\n"
-        )
-    lines.append("💡 *Operational Tip:* Integrated with demand forecasting (`/api/forecast/preview`) and inventory safety stock rules.")
+        lines.append(f"- **SKU:** `{metadata.get('sku', 'Not provided by catalog')}`\n")
+        lines.append(_format_customer_product(item))
+    lines.append(
+        "Prices and availability are shown only when returned by the catalog and inventory services. "
+        "For demand predictions, open Admin Console → Demand Forecast · 7 Days."
+    )
     return "\n".join(lines)
 
 
@@ -250,28 +247,22 @@ async def _customer_product_advisor(query: str) -> Dict[str, Any]:
 
 
 async def _admin_product_advisor(query: str) -> Dict[str, Any]:
-    retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
-    context_str = "\n\n".join([doc["content"] for doc in retrieved_items]) if retrieved_items else "No specific catalog item matched."
+    live_catalog = await _fetch_live_catalog_documents()
+    if live_catalog is None:
+        environment = (settings.APP_ENV or "development").strip().lower()
+        if environment in {"production", "prod", "staging"}:
+            return _product_advisor_result(
+                "I can't access the live store catalog right now. Please try again shortly."
+            )
+        retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
+        for item in retrieved_items:
+            item.setdefault("metadata", {})["catalog_source"] = "sample-cache"
+    else:
+        retrieved_items = rag_store.search_documents(live_catalog, query=query, doc_type="product", top_k=2)
 
-    prompt = (
-        "You are the AuraCommerce Enterprise Operations Advisor assisting a store Administrator. "
-        "Use the following catalog items:\n"
-        f"{context_str}\n\n"
-        f"Admin inquiry: {query}\n\n"
-        "Provide an operational breakdown in English highlighting key specifications, retail price, "
-        "estimated margin (~30%), safety stock requirements, and fulfillment guidance."
-    )
-
-    try:
-        llm = get_chat_model(temperature=0.3)
-        response = await asyncio.wait_for(
-            llm.ainvoke([SystemMessage(content=prompt), HumanMessage(content=query)]),
-            timeout=3.5
-        )
-        reply_content = response.content
-    except Exception:
-        reply_content = _synthesize_product_recommendation(retrieved_items, query, user_role="admin")
-    return _product_advisor_result(reply_content)
+    verified_items = await _attach_live_inventory_status(retrieved_items)
+    reply = _synthesize_product_recommendation(verified_items, query, user_role="admin")
+    return _product_advisor_result(reply)
 
 
 def _product_advisor_result(reply_content: str) -> Dict[str, Any]:
@@ -450,14 +441,10 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 async def admin_ops_node(state: EcommerceAgentState) -> Dict[str, Any]:
     await asyncio.sleep(0)
-    username = state.get("username", "admin")
     reply = (
-        f"🛡️ **Admin Operations Portal (User: `{username}`)**:\n\n"
-        f"• **Federated Supergraph**: Cosmo Router v2, Products, Orders, Inventory, Payments & Fulfillment active.\n"
-        f"• **Demand Forecasting**: Integrated with MLflow & Prophet (`/api/forecast/preview`).\n"
-        f"• **Observability**: OpenTelemetry distributed tracing active on Alloy & Tempo (`:3200`).\n"
-        f"• **Supervisor HITL Gate**: StateGraph approval gates active for refunds > ${settings.REFUND_AUTO_APPROVE_LIMIT:.2f} USD.\n\n"
-        f"Supervisor commands: Query inventory alerts, inspect order UUIDs, or review pending refund tickets."
+        "I can look up catalog products and inventory, track a specific order or shipment, answer store policy questions, "
+        "and show demand forecasts in Admin Console → Demand Forecast · 7 Days. "
+        "This chat response does not query live platform health, telemetry, or a pending refund queue."
     )
     return {
         "messages": [AIMessage(content=reply)],
@@ -514,11 +501,9 @@ async def general_fallback_node(state: EcommerceAgentState) -> Dict[str, Any]:
         if user_role == "admin":
             reply_content = (
                 f"🛡️ **AuraCommerce Admin Copilot (Operator: `{username}`)**\n\n"
-                f"I am ready to assist with:\n"
-                f"- **Microservices Telemetry**: Check OpenTelemetry and Cosmo Router status\n"
-                f"- **HITL Review**: Process pending refund tickets and approvals\n"
-                f"- **Catalog & Stock**: Audit product specs, pricing, and safety stock\n"
-                f"- **Order Audit**: Inspect order UUIDs and carrier dispatch states"
+                "I can look up catalog products and inventory, track a specific order or shipment, and answer store policy questions. "
+                "Demand forecasts are available in Admin Console → Demand Forecast · 7 Days. "
+                "This chat does not query live platform health, telemetry, or a pending refund queue."
             )
         else:
             reply_content = (
