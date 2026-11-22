@@ -45,9 +45,8 @@ class LocalFallbackChatModel(BaseChatModel):
             )
         elif any(term in last_msg for term in ["laptop", "headphone", "recommend", "price", "buy", "product"]):
             reply = (
-                "Based on our microservices product catalog, I recommend the MacBook Air 15 M3 ($1,299 USD) for high performance, "
-                "Sony WH-1000XM5 ($349.99 USD) with noise cancelling, or Logitech MX Master 3S ($99.99 USD). "
-                "Would you like me to check real-time warehouse inventory?"
+                "I can help you find a matching item in the store catalog. Tell me the product category you want and any "
+                "budget or feature preferences, and I will check the matching catalog items."
             )
         else:
             reply = (
