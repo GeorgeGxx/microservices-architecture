@@ -310,6 +310,48 @@ jobs:
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
+  # Retention is independent of GitOps/deploy so publish-only still keeps the
+  # active and rollback versions bounded to the approved SemVer pair.
+  dockerhub-retention:
+    name: "♻️ Enforce two-version Docker Hub retention"
+    needs:
+      - resolve-tag
+      - detect-release-services
+      - release-products
+      - release-orders
+      - release-inventory
+      - release-notifications
+      - release-payments
+      - release-fulfillment
+      - release-analytics
+      - release-frontend
+      - release-demand-forecast
+      - release-mlops-training
+      - release-mlflow
+      - release-ai-service
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      needs.resolve-tag.result == 'success' &&
+      needs.detect-release-services.result == 'success' &&
+      needs.detect-release-services.outputs.services != '[]' &&
+      !contains(toJSON(needs), 'failure') &&
+      !contains(toJSON(needs), 'cancelled')
+    steps:
+      - name: Checkout retention policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Enforce two-version Docker Hub retention
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
+          RELEASE_SERVICES: ${{ needs.detect-release-services.outputs.services }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r repo; do
+            [ -n "$repo" ] || continue
+            bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo"
+          done < <(jq -r '.[]' <<< "$RELEASE_SERVICES")
+
   # ==========================================================
   # 🐙 GitOps Writeback: Align Helm Values via yq
   # ==========================================================
@@ -330,8 +372,9 @@ jobs:
       - release-mlops-training
       - release-mlflow
       - release-ai-service
+      - dockerhub-retention
     runs-on: ubuntu-latest
-    if: always() && inputs.publish-only != true && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && !contains(toJSON(needs), 'failure')
+    if: always() && inputs.publish-only != true && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && needs.dockerhub-retention.result == 'success' && !contains(toJSON(needs), 'failure')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -360,15 +403,6 @@ jobs:
               yq -i "$expression" "$f"
             done
           done < <(jq -r '.[]' <<< "$RELEASE_SERVICES")
-
-      - name: Enforce 2-Version Docker Hub Retention Across Fleet (Active + Rollback)
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME || secrets.DOCKER_USERNAME || 'georgegxx' }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN || secrets.DOCKER_PASSWORD }}
-        run: |
-          for repo in $(jq -r '.[]' <<< '${{ needs.detect-release-services.outputs.services }}'); do
-            bash scripts/prune-dockerhub-tags.sh "georgegxx" "$repo"
-          done
 
       - name: Commit & Push GitOps Release State
         env:
