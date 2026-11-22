@@ -103,6 +103,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: devsecops/sast/gitleaks/.gitleaks.toml
+          GITLEAKS_VERSION: 8.30.1
 
   # ==========================================================
   # JOB 3: Trivy Repository-wide IaC Misconfiguration Scan (Parallel)
