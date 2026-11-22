@@ -1,0 +1,8 @@
+# Keep the CI integration probe focused on the router and static storefront.
+# Compose v2's !reset removes the default stack's heavy service dependencies.
+services:
+  cosmo-router:
+    depends_on: !reset []
+
+  frontend:
+    depends_on: !reset []

@@ -76,15 +76,17 @@ backup_db() {
   log "Starting database backup for '${db}' from ${host}:${port}..."
 
   # Dump in custom binary format with configurable compression level
-  pg_dump --no-owner --no-privileges \
+  if ! pg_dump --no-owner --no-privileges \
     --format=custom \
     --compress="${COMPRESSION_LEVEL}" \
-    --jobs="${PARALLEL_JOBS}" \
     --host="${host}" \
     --port="${port}" \
     --username="${PGUSER}" \
     --dbname="${db}" \
-    --file="${temp_file}"
+    --file="${temp_file}"; then
+    rm -f -- "${temp_file}"
+    return 1
+  fi
 
   log "Verifying structural integrity of dump archive..."
   pg_restore --list "${temp_file}" >/dev/null
@@ -165,6 +167,11 @@ restore_db() {
   local host="${3:-$PGHOST}"
   local port="${4:-$PGPORT}"
 
+  if [[ ! "$target_db" =~ ^[a-zA-Z_][a-zA-Z0-9_]{0,62}$ ]] || [[ "$target_db" =~ ^(postgres|template0|template1)$ ]]; then
+    log_error "Unsafe or protected target database name: ${target_db}"
+    exit 1
+  fi
+
   if [[ ! -f "$dump_file" ]]; then
     log_error "Backup file not found: ${dump_file}"
     exit 1
@@ -181,12 +188,13 @@ restore_db() {
 
   log "Restoring data from ${dump_file} (jobs: ${PARALLEL_JOBS})..."
   pg_restore --no-owner --no-privileges \
+    --exit-on-error \
     --jobs="${PARALLEL_JOBS}" \
     --host="${host}" \
     --port="${port}" \
     --username="${PGUSER}" \
     --dbname="${target_db}" \
-    "${dump_file}" || true
+    "${dump_file}"
 
   log_success "Restore completed for database '${target_db}'."
 }

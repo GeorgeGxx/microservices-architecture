@@ -1,0 +1,84 @@
+name: Compose Router and Storefront Integration Smoke
+
+on:
+  workflow_call:
+  push:
+    branches: [develop]
+    paths:
+      - 'compose.yaml'
+      - 'compose.smoke.yaml'
+      - '.env.example'
+      - 'cosmo-router/**'
+      - 'frontend/**'
+      - 'scripts/testing/smoke.py'
+      - '.github/workflows/compose-integration-smoke.yml'
+  pull_request:
+    paths:
+      - 'compose.yaml'
+      - 'compose.smoke.yaml'
+      - '.env.example'
+      - 'cosmo-router/**'
+      - 'frontend/**'
+      - 'scripts/testing/smoke.py'
+      - '.github/workflows/compose-integration-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compose-integration-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  router-storefront:
+    name: Build and probe router plus storefront
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - name: Create ephemeral local Compose environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          python - <<'PY'
+          from pathlib import Path
+          from secrets import token_urlsafe
+
+          path = Path('.env')
+          required = {
+              'KEYCLOAK_ADMIN_PASSWORD', 'POSTGRES_PASSWORD', 'REDIS_PASSWORD',
+              'GF_SECURITY_ADMIN_PASSWORD', 'JWT_SECRET', 'VAULT_TOKEN',
+              'GLITCHTIP_DB_PASSWORD', 'GLITCHTIP_SECRET_KEY', 'GLITCHTIP_ADMIN_PASSWORD',
+          }
+          rows = path.read_text(encoding='utf-8').splitlines()
+          for index, row in enumerate(rows):
+              key, separator, _ = row.partition('=')
+              if separator and key in required:
+                  rows[index] = f'{key}={token_urlsafe(32)}'
+          path.write_text('\n'.join(rows) + '\n', encoding='utf-8')
+          PY
+          docker compose -f compose.yaml -f compose.smoke.yaml config --quiet
+      - name: Build and start only Cosmo Router and the storefront
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -f compose.yaml -f compose.smoke.yaml up -d --build cosmo-router frontend
+      - name: Run bounded read-only deployment smoke checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/testing/smoke.py --deployment \
+            --base-url http://127.0.0.1:8080 \
+            --frontend-url http://127.0.0.1:5173 \
+            --timeout 10 --retries 12 --retry-delay-seconds 2
+      - name: Show failed service logs
+        if: failure()
+        run: docker compose -f compose.yaml -f compose.smoke.yaml logs --no-color cosmo-router cosmo-router-config frontend
+      - name: Remove isolated Compose resources
+        if: always()
+        run: docker compose -f compose.yaml -f compose.smoke.yaml down --volumes --remove-orphans

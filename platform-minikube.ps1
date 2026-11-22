@@ -49,7 +49,7 @@ param(
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
     [int]$Cpus = 8,
-    [int]$MemoryMb = 16384,
+    [int]$MemoryMb = 20480,
     [string]$DiskSize = "40g",
     [string]$CosignImage = "",
     [string]$CosignKey = "",
@@ -2124,7 +2124,7 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 16384 -or $DiskSize -ne "40g")) {
+if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 20480 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
 if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $Command -notin @("up", "bootstrap", "apply", "start", "resume", "security-scan")) {
@@ -2717,7 +2717,7 @@ Options:
   -VaultAction <status|k8s-auth|istio-pki|seed>: Action for HashiCorp Vault operations
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
   -Environment <dev|staging|prod>      : Environment scope for FinOps and secrets
-  -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 16384, 40g)
+  -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 20480, 40g)
   -SkipScans                           : Bypass security scan gates during up/start (including Cosign)
   -CosignIgnoreTlog                    : Explicitly skip Cosign transparency-log verification (insecure; offline only)
   -CosignImage <ref>                   : Verify this image signature instead of the signed supply-chain manifest
@@ -2754,6 +2754,26 @@ Options:
 }
 
 
+
+function Write-MinikubeMemoryPressureWarning {
+    param([int]$RequestedMemoryMb)
+
+    $stats = docker stats --no-stream --format "{{.MemPerc}}" minikube 2>$null
+    $profile = minikube profile list -o json 2>$null | ConvertFrom-Json |
+        Select-Object -ExpandProperty valid -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq 'minikube' } |
+        Select-Object -First 1
+    $profileMemoryMb = if ($profile) { [int]$profile.Config.Memory } else { 0 }
+    $profileMemory = if ($profileMemoryMb -gt 0) { "$([math]::Round($profileMemoryMb / 1024, 1)) GiB" } else { "unknown" }
+
+    if ($stats -match '^\s*([\d.]+)%\s*$' -and [double]$Matches[1] -ge 85) {
+        $usagePercent = [math]::Round([double]$Matches[1], 1)
+        Write-Host "  [WARN] Minikube is using $usagePercent% of its Docker memory limit (profile: $profileMemory). The full stack has 69 pods and can spike during rollouts." -ForegroundColor Yellow
+        if ($profileMemoryMb -gt 0 -and $profileMemoryMb -lt $RequestedMemoryMb) {
+            Write-Host "  [WARN] This run requests $([math]::Round($RequestedMemoryMb / 1024, 1)) GiB, but an active cluster is never resized automatically. After workloads settle, stop and resume Minikube to apply the higher allocation; persistent cluster data remains in place." -ForegroundColor Yellow
+        }
+    }
+}
 
 function Get-PlatformToolInventory {
     @(
@@ -2854,7 +2874,8 @@ function Start-LocalTunnelSupervisor {
     }
 
     $routerReady = $false
-    for ($attempt = 0; $attempt -lt 15; $attempt++) {
+    $routerLastError = "No successful HTTP response was received."
+    for ($attempt = 0; $attempt -lt 45; $attempt++) {
         try {
             $response = Invoke-WebRequest -Uri "http://127.0.0.1:8080/health/ready" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             if ($response.StatusCode -eq 200) {
@@ -2862,11 +2883,23 @@ function Start-LocalTunnelSupervisor {
                 break
             }
         } catch {
+            $routerLastError = $_.Exception.Message
             Start-Sleep -Seconds 1
         }
     }
     if (-not $routerReady) {
-        throw "Cosmo Router is deployed but its local tunnel did not serve http://127.0.0.1:8080/health/ready. Inspect 'kubectl get pods,svc -n dev' and run 'kubectl port-forward -n dev svc/cosmo-router 8080:8080' to inspect tunnel errors."
+        $logRoot = if ($env:LOCALAPPDATA) {
+            Join-Path $env:LOCALAPPDATA "microservices-architecture\logs"
+        } else {
+            Join-Path $HOME ".local\state\microservices-architecture\logs"
+        }
+        $logPath = Join-Path $logRoot "port-forward-cosmo-router.log"
+        $tunnelLog = if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+            (Get-Content -LiteralPath $logPath -Tail 20) -join [Environment]::NewLine
+        } else {
+            "No tunnel log found at '$logPath'."
+        }
+        throw "Cosmo Router did not become ready at http://127.0.0.1:8080/health/ready after 45 attempts. Last request error: $routerLastError. Tunnel log ($logPath):$([Environment]::NewLine)$tunnelLog"
     }
 
     Write-Host "  [OK] Frontend tunnel: http://localhost:5173" -ForegroundColor Green
@@ -3274,7 +3307,7 @@ function Invoke-MinikubePlatform {
         [string]$PublicKeyPath = "",
         [switch]$FastResume = $false,
         [int]$CpuCount = 8,
-        [int]$RamMb = 16384,
+        [int]$RamMb = 20480,
         [string]$DiskBudget = "40g",
         [int]$CanaryV1Weight = 90,
         [int]$CanaryV2Weight = 10,
@@ -3445,6 +3478,7 @@ function Invoke-MinikubePlatform {
                 }
             } else {
                 Write-Host "  [OK] Minikube is already active and healthy." -ForegroundColor Green
+                Write-MinikubeMemoryPressureWarning -RequestedMemoryMb $RamMb
             }
             minikube update-context 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "Minikube started but could not write/update its kubeconfig context." }
@@ -4034,6 +4068,7 @@ stringData:
                 }
             } else {
                 Write-Host "  [OK] Minikube is active and healthy." -ForegroundColor Green
+                Write-MinikubeMemoryPressureWarning -RequestedMemoryMb $RamMb
             }
             minikube update-context 2>$null | Out-Null
             if ($LASTEXITCODE -ne 0) { throw "Minikube resumed but could not write/update its kubeconfig context." }

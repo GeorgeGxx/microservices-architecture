@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 import subprocess
 import time
 import sys
@@ -42,6 +44,14 @@ def check_service_exists(ns, svc):
     except Exception:
         return False
 
+def get_log_path(t):
+    if os.getenv("LOCALAPPDATA"):
+        root = Path(os.environ["LOCALAPPDATA"]) / "microservices-architecture" / "logs"
+    else:
+        root = Path.home() / ".local" / "state" / "microservices-architecture" / "logs"
+    root.mkdir(parents=True, exist_ok=True)
+    return root / f"port-forward-{t['name'].lower()}.log"
+
 def start_tunnel(t):
     if not check_service_exists(t["ns"], t["svc"]):
         return None
@@ -52,7 +62,18 @@ def start_tunnel(t):
         f"svc/{t['svc']}",
         f"{t['local']}:{t['remote']}"
     ]
-    return subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    log_path = get_log_path(t)
+    if log_path.exists() and log_path.stat().st_size > 1_048_576:
+        log_path.write_text("Previous port-forward log truncated after reaching 1 MiB.\n", encoding="utf-8")
+    log_handle = log_path.open("a", encoding="utf-8", errors="replace")
+    log_handle.write(f"\n[{time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}] Starting: {' '.join(cmd)}\n")
+    log_handle.flush()
+    try:
+        proc = subprocess.Popen(cmd, stdout=log_handle, stderr=subprocess.STDOUT)
+    except Exception:
+        log_handle.close()
+        raise
+    return proc, log_handle
 
 # Start all tunnels
 processes = {}
@@ -67,7 +88,9 @@ for t in tunnels:
 while True:
     time.sleep(5)
     for name, (t, proc) in list(processes.items()):
-        if proc is None or proc.poll() is not None:
+        if proc is None or proc[0].poll() is not None:
+            if proc is not None:
+                proc[1].close()
             new_proc = start_tunnel(t)
             if new_proc:
                 print(f"[+] Tunnel connected: {t['name']} ({t['ns']}) on localhost:{t['local']}")
