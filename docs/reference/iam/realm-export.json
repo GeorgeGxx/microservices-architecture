@@ -780,7 +780,7 @@
       "enabled": true,
       "alwaysDisplayInConsole": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "mdIV7hoeQlOzQGSiYGzPfWXgt505pSbu",
+      "secret": "ROTATED_KEYCLOAK_CLIENT_SECRET",
       "redirectUris": [
         "https://oauth.pstmn.io/v1/browser-callback",
         "http://localhost:8080/*",
