@@ -46,7 +46,6 @@ def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 def _synthesize_product_recommendation(
     retrieved_items: List[Dict[str, Any]],
-    query: str,
     user_role: str = "customer"
 ) -> str:
     unique_items = _unique_products(retrieved_items)
@@ -243,7 +242,7 @@ async def _customer_product_advisor(query: str) -> Dict[str, Any]:
     else:
         retrieved_items = rag_store.search_documents(live_catalog, query=query, doc_type="product", top_k=2)
     verified_items = await _attach_live_inventory_status(retrieved_items)
-    return _product_advisor_result(_synthesize_product_recommendation(verified_items, query))
+    return _product_advisor_result(_synthesize_product_recommendation(verified_items))
 
 
 async def _admin_product_advisor(query: str) -> Dict[str, Any]:
@@ -261,7 +260,7 @@ async def _admin_product_advisor(query: str) -> Dict[str, Any]:
         retrieved_items = rag_store.search_documents(live_catalog, query=query, doc_type="product", top_k=2)
 
     verified_items = await _attach_live_inventory_status(retrieved_items)
-    reply = _synthesize_product_recommendation(verified_items, query, user_role="admin")
+    reply = _synthesize_product_recommendation(verified_items, user_role="admin")
     return _product_advisor_result(reply)
 
 
@@ -441,11 +440,14 @@ async def order_support_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
 async def admin_ops_node(state: EcommerceAgentState) -> Dict[str, Any]:
     await asyncio.sleep(0)
-    reply = (
-        "I can look up catalog products and inventory, track a specific order or shipment, answer store policy questions, "
-        "and show demand forecasts in Admin Console → Demand Forecast · 7 Days. "
-        "This chat response does not query live platform health, telemetry, or a pending refund queue."
-    )
+    if state.get("user_role") != "admin":
+        reply = "Administrative assistance is available only to authenticated administrators."
+    else:
+        reply = (
+            "I can look up catalog products and inventory, track a specific order or shipment, answer store policy questions, "
+            "and show demand forecasts in Admin Console → Demand Forecast · 7 Days. "
+            "This chat response does not query live platform health, telemetry, or a pending refund queue."
+        )
     return {
         "messages": [AIMessage(content=reply)],
         "current_agent": "admin_operations",

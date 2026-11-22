@@ -424,6 +424,12 @@ async def test_admin_ops_node():
 
 
 @pytest.mark.asyncio
+async def test_admin_ops_node_rejects_non_admin():
+    res = await admin_ops_node({"messages": [], "user_role": "customer"})
+    assert "only to authenticated administrators" in res["final_output"]
+
+
+@pytest.mark.asyncio
 async def test_order_support_admin_refund_and_status():
     state_refund = {
         "messages": [HumanMessage(content="I want to process a refund for order ORD-1002 in amount of $120.00 USD")],
@@ -463,7 +469,7 @@ def test_supervisor_router_node_empty_messages():
 
 
 def test_synthesize_product_recommendation_empty():
-    res = _synthesize_product_recommendation([], "laptop", "customer")
+    res = _synthesize_product_recommendation([], user_role="customer")
     assert "could not find a specific match" in res
 
 
@@ -474,7 +480,7 @@ def test_synthesize_product_recommendation_admin():
             "metadata": {"title": "MacBook Pro 16", "price": 2499.00, "sku": "PROD-MBP16", "category": "Laptops"}
         }
     ]
-    res = _synthesize_product_recommendation(items, "MacBook", "admin")
+    res = _synthesize_product_recommendation(items, user_role="admin")
     assert "Catalog results for your inquiry" in res
     assert "PROD-MBP16" in res
     assert "$2499.00 USD" in res
@@ -489,7 +495,7 @@ def test_synthesize_product_recommendation_customer():
             "metadata": {"title": "MacBook Air 15", "price": 1299.00, "rating": 4.9, "category": "Laptops"}
         }
     ]
-    res = _synthesize_product_recommendation(items, "MacBook", "customer")
+    res = _synthesize_product_recommendation(items)
     assert "top recommendations" in res
     assert "MacBook Air 15" in res
     assert "$1299.00 USD" in res
@@ -504,7 +510,7 @@ def test_synthesize_product_recommendation_deduplicates_by_sku():
         "content": "Product: Wireless Mouse\nDescription: Ergonomic wireless mouse",
         "metadata": {"sku": "MOUSE-1", "title": "Wireless Mouse", "price": 49.99, "category": "Accessories"},
     }
-    res = _synthesize_product_recommendation([item, dict(item)], "recommend a mouse")
+    res = _synthesize_product_recommendation([item, dict(item)])
     assert res.count("### 💻 **Wireless Mouse**") == 1
     assert "Stock status could not be verified" in res
 
@@ -521,14 +527,14 @@ async def test_recommendation_only_claims_inventory_from_live_service(monkeypatc
 
     monkeypatch.setattr("app.agents.nodes.EcommerceMCPServer.call_tool", cached_inventory)
     cached_items = await _attach_live_inventory_status([item])
-    assert "Stock status could not be verified" in _synthesize_product_recommendation(cached_items, "laptop")
+    assert "Stock status could not be verified" in _synthesize_product_recommendation(cached_items)
 
     async def live_inventory(*args, **kwargs):
         return {"success": True, "source": "inventory-service-live", "data": {"in_stock": True}}
 
     monkeypatch.setattr("app.agents.nodes.EcommerceMCPServer.call_tool", live_inventory)
     live_items = await _attach_live_inventory_status([item])
-    assert "In stock (verified with the inventory service)" in _synthesize_product_recommendation(live_items, "laptop")
+    assert "In stock (verified with the inventory service)" in _synthesize_product_recommendation(live_items)
 
 
 @pytest.mark.asyncio
