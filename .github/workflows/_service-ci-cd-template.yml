@@ -80,6 +80,11 @@ on:
         type: boolean
         default: false
         description: 'Whether to push the certified release image to registry (requires explicit SemVer release tag)'
+      deploy-after-publish:
+        required: false
+        type: boolean
+        default: true
+        description: 'Whether to synchronize or deploy after publishing the image'
       image-tag:
         required: false
         type: string
@@ -915,7 +920,7 @@ jobs:
     name: "🐙 7. ArgoCD GitOps Sync - ${{ inputs.service-name }}"
     needs: push-dockerhub
     # Note: ArgoCD sync on staging and master is paused until AWS cloud deployment is enabled (set repository variable ENABLE_CLOUD_DEPLOY=true to activate).
-    if: needs.push-dockerhub.outputs.image-published == 'true' && (github.ref == 'refs/heads/develop' || vars.ENABLE_CLOUD_DEPLOY == 'true')
+    if: needs.push-dockerhub.outputs.image-published == 'true' && inputs.deploy-after-publish == true && (github.ref == 'refs/heads/develop' || vars.ENABLE_CLOUD_DEPLOY == 'true')
     environment: ${{ (github.ref == 'refs/heads/master') && 'production' || ((github.ref == 'refs/heads/staging') && 'staging' || 'dev') }}
     runs-on: ${{ inputs.runner-type }}
     timeout-minutes: 15

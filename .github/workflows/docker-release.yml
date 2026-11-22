@@ -15,6 +15,11 @@ on:
         type: choice
         options: [changed, all]
         default: all
+      publish-only:
+        description: 'Push and retain image versions without updating GitOps or deploying'
+        required: true
+        type: boolean
+        default: false
       base-ref:
         description: 'Optional Git ref to compare against (manual dispatch only)'
         required: false
@@ -109,6 +114,7 @@ jobs:
       dockerfile-path: ai-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -126,6 +132,7 @@ jobs:
       service-dir: products-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -140,6 +147,7 @@ jobs:
       service-dir: orders-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -154,6 +162,7 @@ jobs:
       service-dir: inventory-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -168,6 +177,7 @@ jobs:
       service-dir: notification-service
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -187,6 +197,7 @@ jobs:
       dockerfile-path: payments-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -203,6 +214,7 @@ jobs:
       dockerfile-path: fulfillment-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -219,6 +231,7 @@ jobs:
       dockerfile-path: analytics-service/Dockerfile
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -236,6 +249,7 @@ jobs:
       service-dir: frontend
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -256,6 +270,7 @@ jobs:
       helm-values-key: mlops.forecast
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -273,6 +288,7 @@ jobs:
       helm-values-key: mlops.training
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -290,6 +306,7 @@ jobs:
       helm-values-key: mlops.mlflow
       image-tag: ${{ needs.resolve-tag.outputs.release-tag }}
       publish-to-registry: true
+      deploy-after-publish: ${{ inputs.publish-only != true }}
     # nosemgrep: yaml.github-actions.security.secrets-inherit.secrets-inherit
     secrets: inherit
 
@@ -314,7 +331,7 @@ jobs:
       - release-mlflow
       - release-ai-service
     runs-on: ubuntu-latest
-    if: always() && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && !contains(toJSON(needs), 'failure')
+    if: always() && inputs.publish-only != true && needs.resolve-tag.result == 'success' && needs.detect-release-services.result == 'success' && needs.detect-release-services.outputs.services != '[]' && !contains(toJSON(needs), 'failure')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
