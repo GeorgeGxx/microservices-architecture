@@ -3,6 +3,8 @@ from langchain_core.messages import HumanMessage
 from app.agents.nodes import (
     supervisor_router_node,
     product_advisor_node,
+    _attach_live_inventory_status,
+    _fetch_live_catalog_documents,
     order_support_node,
     policy_faq_node,
     admin_ops_node,
@@ -18,7 +20,15 @@ from app.observability.evals import run_evaluations
 
 
 @pytest.mark.asyncio
-async def test_product_advisor_node():
+async def test_product_advisor_node(monkeypatch):
+    async def no_live_catalog():
+        return None
+
+    async def keep_catalog_items(items):
+        return items
+
+    monkeypatch.setattr("app.agents.nodes._fetch_live_catalog_documents", no_live_catalog)
+    monkeypatch.setattr("app.agents.nodes._attach_live_inventory_status", keep_catalog_items)
     state = {
         "messages": [HumanMessage(content="Recommend a powerful laptop for coding")],
         "current_agent": "supervisor",
@@ -31,6 +41,7 @@ async def test_product_advisor_node():
     assert res["current_agent"] == "product_advisor"
     assert "messages" in res
     assert len(res["messages"]) > 0
+    assert "development sample catalog" in res["final_output"]
 
 
 @pytest.mark.asyncio
@@ -199,7 +210,8 @@ def test_local_fallback_chat_model_variations():
     assert "30 days" in res_refund.content
 
     res_prod = model.invoke([HumanMessage(content="Recommend a laptop or headphones")])
-    assert "MacBook" in res_prod.content
+    assert "store catalog" in res_prod.content
+    assert "$1,299" not in res_prod.content
 
     res_gen = model.invoke([HumanMessage(content="Good morning!")])
     assert "AuraCommerce AI Copilot" in res_gen.content
@@ -481,6 +493,79 @@ def test_synthesize_product_recommendation_customer():
     assert "MacBook Air 15" in res
     assert "$1299.00 USD" in res
     assert "Ultra-fast M3 chip" in res
+    assert "Stock status could not be verified" in res
+    assert "ready for immediate dispatch" not in res
+
+
+def test_synthesize_product_recommendation_deduplicates_by_sku():
+    item = {
+        "id": "product-MOUSE-1",
+        "content": "Product: Wireless Mouse\nDescription: Ergonomic wireless mouse",
+        "metadata": {"sku": "MOUSE-1", "title": "Wireless Mouse", "price": 49.99, "category": "Accessories"},
+    }
+    res = _synthesize_product_recommendation([item, dict(item)], "recommend a mouse")
+    assert res.count("### 💻 **Wireless Mouse**") == 1
+    assert "Stock status could not be verified" in res
+
+
+@pytest.mark.asyncio
+async def test_recommendation_only_claims_inventory_from_live_service(monkeypatch):
+    item = {
+        "content": "Product: Laptop Pro 16\nPrice: $1499.99",
+        "metadata": {"sku": "LAPTOP-PRO", "title": "Laptop Pro 16", "price": 1499.99, "category": "Computers"},
+    }
+
+    async def cached_inventory(*args, **kwargs):
+        return {"success": True, "source": "local-cache", "data": {"in_stock": True}}
+
+    monkeypatch.setattr("app.agents.nodes.EcommerceMCPServer.call_tool", cached_inventory)
+    cached_items = await _attach_live_inventory_status([item])
+    assert "Stock status could not be verified" in _synthesize_product_recommendation(cached_items, "laptop")
+
+    async def live_inventory(*args, **kwargs):
+        return {"success": True, "source": "inventory-service-live", "data": {"in_stock": True}}
+
+    monkeypatch.setattr("app.agents.nodes.EcommerceMCPServer.call_tool", live_inventory)
+    live_items = await _attach_live_inventory_status([item])
+    assert "In stock (verified with the inventory service)" in _synthesize_product_recommendation(live_items, "laptop")
+
+
+@pytest.mark.asyncio
+async def test_product_catalog_fetch_uses_active_products_service_records(monkeypatch):
+    class MockResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return [
+                {
+                    "sku": "LAPTOP-PRO", "name": "Laptop Pro 16", "category": "Computers", "price": 1499.99,
+                    "rating": 4.9, "description": "16-inch developer laptop", "status": True,
+                },
+                {"sku": "RETIRED-1", "name": "Retired Laptop", "category": "Computers", "status": False},
+            ]
+
+    class MockAsyncClient:
+        def __init__(self, timeout):
+            self.timeout = timeout
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def get(self, url):
+            assert url.endswith("/api/product")
+            return MockResponse()
+
+    monkeypatch.setattr("app.agents.nodes.httpx.AsyncClient", MockAsyncClient)
+    products = await _fetch_live_catalog_documents()
+
+    assert products is not None
+    assert [product["metadata"]["sku"] for product in products] == ["LAPTOP-PRO"]
+    assert products[0]["metadata"]["rating"] == 4.9
+    assert "16-inch developer laptop" in products[0]["content"]
 
 
 def test_synthesize_policy_response():
@@ -494,12 +579,38 @@ def test_synthesize_policy_response():
 
 
 @pytest.mark.asyncio
-async def test_product_advisor_node_fallback(monkeypatch):
+async def test_product_advisor_node_returns_only_matching_catalog_products(monkeypatch):
     class MockFailingLLM:
         async def ainvoke(self, *args, **kwargs):
             raise TimeoutError("Simulated LLM latency timeout")
 
     monkeypatch.setattr("app.agents.nodes.get_chat_model", lambda *args, **kwargs: MockFailingLLM())
+
+    async def live_catalog():
+        return [
+            {
+                "id": "product-LAPTOP-1",
+                "content": "Product: Example Laptop\nCategory: Computers\nPrice: $999.00\nRating: 4.9 / 5.0\nDescription: Lightweight laptop for design.",
+                "metadata": {
+                    "type": "product", "sku": "LAPTOP-1", "title": "Example Laptop", "price": 999.0,
+                    "rating": 4.9, "category": "Computers", "tags": [], "catalog_source": "products-service",
+                },
+            },
+            {
+                "id": "product-MOUSE-1",
+                "content": "Product: Logitech Mouse\nCategory: Accessories\nPrice: $99.99\nDescription: Wireless mouse.",
+                "metadata": {
+                    "type": "product", "sku": "MOUSE-1", "title": "Logitech Mouse", "price": 99.99,
+                    "category": "Accessories", "tags": [], "catalog_source": "products-service",
+                },
+            },
+        ]
+
+    async def keep_catalog_items(items):
+        return items
+
+    monkeypatch.setattr("app.agents.nodes._fetch_live_catalog_documents", live_catalog)
+    monkeypatch.setattr("app.agents.nodes._attach_live_inventory_status", keep_catalog_items)
 
     state = {
         "messages": [HumanMessage(content="Recommend a laptop for design")],
@@ -508,6 +619,24 @@ async def test_product_advisor_node_fallback(monkeypatch):
     res = await product_advisor_node(state)
     assert res["current_agent"] == "product_advisor"
     assert "top recommendations" in res["final_output"]
+    assert "Example Laptop" in res["final_output"]
+    assert "Logitech Mouse" not in res["final_output"]
+    assert res["final_output"].count("### 💻") == 1
+
+
+@pytest.mark.asyncio
+async def test_product_advisor_never_uses_sample_catalog_in_production(monkeypatch):
+    async def unavailable_catalog():
+        return None
+
+    monkeypatch.setattr("app.agents.nodes._fetch_live_catalog_documents", unavailable_catalog)
+    monkeypatch.setattr("app.agents.nodes.settings.APP_ENV", "production")
+    state = {"messages": [HumanMessage(content="Recommend a laptop")], "user_role": "customer"}
+
+    res = await product_advisor_node(state)
+
+    assert "can't access the live store catalog" in res["final_output"]
+    assert "Logitech" not in res["final_output"]
 
 
 @pytest.mark.asyncio

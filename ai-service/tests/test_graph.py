@@ -31,6 +31,17 @@ def test_supervisor_catalog_intent_routing():
     assert res["detected_intent"] == "catalog"
 
 
+@pytest.mark.parametrize("message", [
+    "Suggest a laptop for school",
+    "Find me a notebook under $1000",
+    "Recomiéndame una computadora portátil",
+    "Busco unos auriculares inalámbricos",
+])
+def test_supervisor_routes_product_synonyms_to_catalog(message):
+    res = supervisor_router_node({"messages": [HumanMessage(content=message)]})
+    assert res["detected_intent"] == "catalog"
+
+
 @pytest.mark.asyncio
 async def test_mcp_get_order_tool():
     res = await EcommerceMCPServer.call_tool("get_order_details", {"order_id": "ORD-1001"})

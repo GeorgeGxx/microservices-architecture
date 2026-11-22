@@ -9,7 +9,8 @@ logger = logging.getLogger("rag_ingest")
 def ingest_all():
     logger.info("[RAG] Ingesting policies and product catalog...")
     base_dir = Path(__file__).parent / "data"
-    docs = []
+    policy_docs = []
+    product_docs = []
 
     # 1. Ingest Policies
     policies_path = base_dir / "policies.md"
@@ -24,7 +25,7 @@ def ingest_all():
             lines = sec.split("\n", 1)
             title = lines[0].strip()
             body = lines[1].strip() if len(lines) > 1 else ""
-            docs.append({
+            policy_docs.append({
                 "id": f"policy-{title.lower().replace(' ', '-')[:30]}",
                 "content": f"## {title}\n{body}",
                 "metadata": {
@@ -40,7 +41,7 @@ def ingest_all():
             products = json.load(f)
         for p in products:
             doc_text = f"Product: {p['name']}\nCategory: {p['category']}\nPrice: ${p['price']}\nRating: {p['rating']} / 5.0\nDescription: {p['description']}\nTags: {', '.join(p['tags'])}"
-            docs.append({
+            product_docs.append({
                 "id": f"product-{p['sku']}",
                 "content": doc_text,
                 "metadata": {
@@ -48,13 +49,19 @@ def ingest_all():
                     "title": p["name"],
                     "sku": p["sku"],
                     "price": p["price"],
+                    "rating": p.get("rating"),
                     "category": p["category"],
                     "tags": p["tags"]
                 }
             })
 
-    rag_store.add_documents(docs)
-    logger.info("[RAG] Successfully ingested %d documents into Knowledge Base.", len(docs))
+    rag_store.replace_documents("policy", policy_docs)
+    rag_store.replace_documents("product", product_docs)
+    logger.info(
+        "[RAG] Synchronized %d policy and %d product documents into Knowledge Base.",
+        len(policy_docs),
+        len(product_docs),
+    )
 
 
 if __name__ == "__main__":

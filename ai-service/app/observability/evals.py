@@ -16,7 +16,7 @@ GOLDEN_EVAL_DATASET = [
     {
         "query": "I need a powerful, lightweight laptop for video editing and programming.",
         "expected_agent": "product_advisor",
-        "expected_substrings": ["MacBook", "M3"]
+        "expected_substrings": ["Laptop Pro 16", "32GB RAM"]
     },
     {
         "query": "How many days do I have to return an item, and what is the warranty policy?",

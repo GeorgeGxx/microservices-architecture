@@ -32,115 +32,92 @@
     }
   },
   {
-    "id": "product-PROD-SONY-WH1000",
-    "content": "Product: Sony WH-1000XM5 Wireless Noise Cancelling Headphones\nCategory: Audio & Electronics\nPrice: $349.99\nRating: 4.8 / 5.0\nDescription: Premium over-ear headphones with Active Noise Cancellation (ANC), 30-hour battery life, speak-to-chat, and crystal-clear calling.\nTags: audio, headphones, bluetooth, noise-cancelling, sony, travel",
+    "id": "product-LAPTOP-PRO",
+    "content": "Product: Laptop Pro 16\nCategory: Computers\nPrice: $1499.99\nRating: 4.9 / 5.0\nDescription: High-end developer laptop with a 16-inch display and 32GB RAM.\nTags: laptop, computer, developer, programming",
     "metadata": {
       "type": "product",
-      "title": "Sony WH-1000XM5 Wireless Noise Cancelling Headphones",
-      "sku": "PROD-SONY-WH1000",
-      "price": 349.99,
-      "category": "Audio & Electronics",
-      "tags": [
-        "audio",
-        "headphones",
-        "bluetooth",
-        "noise-cancelling",
-        "sony",
-        "travel"
-      ]
-    }
-  },
-  {
-    "id": "product-PROD-APPLE-MBA15",
-    "content": "Product: Apple MacBook Air 15-inch M3\nCategory: Computers & Laptops\nPrice: $1299.0\nRating: 4.9 / 5.0\nDescription: Ultralight laptop powered by the Apple M3 chip. 15.3-inch Liquid Retina Display, 18 hours battery life, MagSafe charging.\nTags: laptop, apple, macbook, m3, ultrabook, student, creator",
-    "metadata": {
-      "type": "product",
-      "title": "Apple MacBook Air 15-inch M3",
-      "sku": "PROD-APPLE-MBA15",
-      "price": 1299.0,
-      "category": "Computers & Laptops",
+      "title": "Laptop Pro 16",
+      "sku": "LAPTOP-PRO",
+      "price": 1499.99,
+      "rating": 4.9,
+      "category": "Computers",
       "tags": [
         "laptop",
-        "apple",
-        "macbook",
-        "m3",
-        "ultrabook",
-        "student",
-        "creator"
+        "computer",
+        "developer",
+        "programming"
       ]
     }
   },
   {
-    "id": "product-PROD-LOGI-MXM3S",
-    "content": "Product: Logitech MX Master 3S Wireless Performance Mouse\nCategory: Accessories\nPrice: $99.99\nRating: 4.7 / 5.0\nDescription: Ergonomic precision mouse with 8,000 DPI sensor, quiet electromagnetic MagSpeed scroll wheel, multi-computer flow support.\nTags: mouse, logitech, ergonomic, productivity, office",
+    "id": "product-000001",
+    "content": "Product: Pro Mechanical Keyboard\nCategory: Peripherals\nPrice: $69.99\nRating: 4.7 / 5.0\nDescription: Custom RGB mechanical keyboard with blue switches.\nTags: keyboard, mechanical, rgb, peripherals",
     "metadata": {
       "type": "product",
-      "title": "Logitech MX Master 3S Wireless Performance Mouse",
-      "sku": "PROD-LOGI-MXM3S",
-      "price": 99.99,
-      "category": "Accessories",
+      "title": "Pro Mechanical Keyboard",
+      "sku": "000001",
+      "price": 69.99,
+      "rating": 4.7,
+      "category": "Peripherals",
+      "tags": [
+        "keyboard",
+        "mechanical",
+        "rgb",
+        "peripherals"
+      ]
+    }
+  },
+  {
+    "id": "product-000002",
+    "content": "Product: Pro Gaming Mouse\nCategory: Peripherals\nPrice: $49.99\nRating: 4.8 / 5.0\nDescription: Ergonomic wireless gaming mouse with a 16000 DPI sensor.\nTags: mouse, gaming, wireless, peripherals",
+    "metadata": {
+      "type": "product",
+      "title": "Pro Gaming Mouse",
+      "sku": "000002",
+      "price": 49.99,
+      "rating": 4.8,
+      "category": "Peripherals",
       "tags": [
         "mouse",
-        "logitech",
-        "ergonomic",
-        "productivity",
-        "office"
+        "gaming",
+        "wireless",
+        "peripherals"
       ]
     }
   },
   {
-    "id": "product-PROD-NIKE-PEG40",
-    "content": "Product: Nike Air Zoom Pegasus 40 Running Shoes\nCategory: Footwear & Sports\nPrice: $130.0\nRating: 4.6 / 5.0\nDescription: Classic road running shoe with dual Zoom Air units and Nike React foam for energized cushioning on road training sessions.\nTags: shoes, nike, running, sports, footwear, fitness",
+    "id": "product-000003",
+    "content": "Product: 27-inch UltraWide Monitor\nCategory: Displays\nPrice: $299.99\nRating: 4.6 / 5.0\nDescription: 27-inch curved gaming monitor with 144Hz IPS HDR display.\nTags: monitor, display, gaming, 144hz",
     "metadata": {
       "type": "product",
-      "title": "Nike Air Zoom Pegasus 40 Running Shoes",
-      "sku": "PROD-NIKE-PEG40",
-      "price": 130.0,
-      "category": "Footwear & Sports",
+      "title": "27-inch UltraWide Monitor",
+      "sku": "000003",
+      "price": 299.99,
+      "rating": 4.6,
+      "category": "Displays",
       "tags": [
-        "shoes",
-        "nike",
-        "running",
-        "sports",
-        "footwear",
-        "fitness"
+        "monitor",
+        "display",
+        "gaming",
+        "144hz"
       ]
     }
   },
   {
-    "id": "product-PROD-KINDLE-PW11",
-    "content": "Product: Kindle Paperwhite 16GB Signature Edition\nCategory: Electronics & Books\nPrice: $189.99\nRating: 4.8 / 5.0\nDescription: Dedicated e-reader with 6.8 inch 300 ppi glare-free screen, adjustable warm light, wireless Qi charging, IPX8 waterproof rating.\nTags: ereader, kindle, books, reading, waterproof",
+    "id": "product-000004",
+    "content": "Product: Studio Wireless Headphones HD\nCategory: Audio\nPrice: $119.99\nRating: 4.8 / 5.0\nDescription: Active noise cancelling wireless headphones with Bluetooth 5.3.\nTags: headphones, audio, wireless, noise-cancelling",
     "metadata": {
       "type": "product",
-      "title": "Kindle Paperwhite 16GB Signature Edition",
-      "sku": "PROD-KINDLE-PW11",
-      "price": 189.99,
-      "category": "Electronics & Books",
+      "title": "Studio Wireless Headphones HD",
+      "sku": "000004",
+      "price": 119.99,
+      "rating": 4.8,
+      "category": "Audio",
       "tags": [
-        "ereader",
-        "kindle",
-        "books",
-        "reading",
-        "waterproof"
-      ]
-    }
-  },
-  {
-    "id": "product-PROD-YETI-RAMB20",
-    "content": "Product: Yeti Rambler 20 oz Tumbler Stainless Steel\nCategory: Home & Kitchen\nPrice: $35.0\nRating: 4.9 / 5.0\nDescription: Double-wall vacuum insulated stainless steel travel tumbler with MagSlider lid. Keeps coffee steaming hot or ice water cold for hours.\nTags: tumbler, yeti, drinkware, coffee, outdoor, travel",
-    "metadata": {
-      "type": "product",
-      "title": "Yeti Rambler 20 oz Tumbler Stainless Steel",
-      "sku": "PROD-YETI-RAMB20",
-      "price": 35.0,
-      "category": "Home & Kitchen",
-      "tags": [
-        "tumbler",
-        "yeti",
-        "drinkware",
-        "coffee",
-        "outdoor",
-        "travel"
+        "headphones",
+        "audio",
+        "wireless",
+        "noise-cancelling"
       ]
     }
   }
