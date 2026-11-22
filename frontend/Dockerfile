@@ -21,6 +21,7 @@ FROM cgr.dev/chainguard/nginx:latest
 COPY --from=build --chown=root:root --chmod=755 /app/dist /usr/share/nginx/html
 COPY rate-limit.conf /etc/nginx/conf.d/00-rate-limit.conf
 COPY nginx.conf /etc/nginx/conf.d/nginx.default.conf
+COPY dns-resolver.inc /etc/nginx/conf.d/dns-resolver.inc
 
 USER 65532
 

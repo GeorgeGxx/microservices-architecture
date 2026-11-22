@@ -81,6 +81,10 @@ spec:
               mountPath: /tmp
             - name: run
               mountPath: /run
+            - name: nginx-resolver
+              mountPath: /etc/nginx/conf.d/dns-resolver.inc
+              subPath: dns-resolver.inc
+              readOnly: true
             - name: runtime-config
               mountPath: /usr/share/nginx/html/config.js
               subPath: config.js
@@ -102,6 +106,9 @@ spec:
           emptyDir: {}
         - name: run
           emptyDir: {}
+        - name: nginx-resolver
+          configMap:
+            name: frontend-nginx-resolver
         - name: runtime-config
           emptyDir: {}
 ---

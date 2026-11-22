@@ -20,7 +20,7 @@ glitchtip:
     image: docker.io/valkey/valkey:8-alpine
   domain: http://localhost:8091
   retentionDays: "30"
-  defaultFromEmail: glitchtip@local.test
+  defaultFromEmail: glitchtip@microservices-architecture.dev
 
 cosmo-router:
   serviceAccount: { create: false, name: cosmo-router-sa }
@@ -184,6 +184,12 @@ ai-service:
     PHOENIX_COLLECTOR_ENDPOINT: "http://phoenix:6006/v1/traces"
 
 frontend:
+  enabled: true
+  image:
+    repository: georgegxx/frontend
+    tag: "1.0.0"
+    digest: ""
+  nginxResolverAddress: "10.96.0.10"
   glitchtip:
     enabled: true
 

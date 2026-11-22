@@ -21,10 +21,11 @@ glitchtip:
     image: docker.io/valkey/valkey:8-alpine
   domain: http://localhost:8090
   retentionDays: "30"
-  defaultFromEmail: glitchtip@local.test
+  defaultFromEmail: glitchtip@microservices-architecture.dev
 
 frontend:
   enabled: false
+  nginxResolverAddress: "10.96.0.10"
 
 mlops:
   enabled: false

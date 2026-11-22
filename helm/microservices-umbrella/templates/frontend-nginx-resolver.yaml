@@ -1,0 +1,12 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-nginx-resolver
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  dns-resolver.inc: |
+    resolver {{ .Values.frontend.nginxResolverAddress | default "10.96.0.10" }} valid=5s ipv6=off;
+    resolver_timeout 2s;
+{{- end }}
