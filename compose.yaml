@@ -285,8 +285,10 @@ services:
         condition: service_healthy
       analytics-service:
         condition: service_healthy
+      ai-service:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${FRONTEND_INTERNAL_PORT:-8080}/healthz || exit 1"]
+      test: ["CMD", "nginx", "-t"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -940,7 +942,7 @@ services:
     ports:
       - "127.0.0.1:${VAULT_PORT:-8200}:8200"
     environment:
-      VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_TOKEN:-root}"
+      VAULT_DEV_ROOT_TOKEN_ID: "${VAULT_TOKEN:?Set VAULT_TOKEN in .env}"
       VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
       VAULT_ADDR: "http://127.0.0.1:8200"
       VAULT_LOCAL_CONFIG: '{"disable_mlock": true, "telemetry": {"prometheus_retention_time": "30s", "disable_hostname": true, "unauthenticated_metrics_access": true}}'
@@ -964,9 +966,9 @@ services:
         condition: service_healthy
     environment:
       VAULT_ADDR: "http://vault:8200"
-      VAULT_TOKEN: "${VAULT_TOKEN:-root}"
+      VAULT_TOKEN: "${VAULT_TOKEN:?Set VAULT_TOKEN in .env}"
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
-      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-postgres}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
     volumes:
       - ./scripts/vault-init.sh:/vault/init.sh:ro
     entrypoint: ["/bin/sh", "/vault/init.sh"]

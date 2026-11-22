@@ -47,3 +47,6 @@ cosign.key
 devsecops/compliance/cosign/*.key
 trivy-report.*
 scratch/
+gitleaks-report.json
+# Generated Kubernetes manifests
+glitchtip-rendered.yaml

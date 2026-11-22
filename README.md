@@ -258,7 +258,7 @@ git clone https://github.com/georgegxx/microservices-architecture.git && cd micr
 
 # 2. Copy the environment file and generate local-only credentials
 cp .env.example .env
-$secretKeys = @('KEYCLOAK_ADMIN_PASSWORD','POSTGRES_PASSWORD','REDIS_PASSWORD','GF_SECURITY_ADMIN_PASSWORD','JWT_SECRET','GLITCHTIP_DB_PASSWORD','GLITCHTIP_SECRET_KEY','GLITCHTIP_ADMIN_PASSWORD')
+$secretKeys = @('KEYCLOAK_ADMIN_PASSWORD','POSTGRES_PASSWORD','REDIS_PASSWORD','GF_SECURITY_ADMIN_PASSWORD','JWT_SECRET','VAULT_TOKEN','GLITCHTIP_DB_PASSWORD','GLITCHTIP_SECRET_KEY','GLITCHTIP_ADMIN_PASSWORD')
 $envLines = [System.Collections.Generic.List[string]]::new()
 $envLines.AddRange([string[]](Get-Content .env))
 foreach ($key in $secretKeys) {

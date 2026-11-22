@@ -102,7 +102,7 @@ The Minikube entrypoint audits the local developer and deployment tool inventory
   * **Connecting your host CLI to the cluster:**
     ```powershell
     $env:VAULT_ADDR = "http://localhost:8200"
-    $env:VAULT_TOKEN = "root"
+    $env:VAULT_TOKEN = (Get-Content .env | Where-Object { $_.StartsWith('VAULT_TOKEN=') } | Select-Object -First 1).Substring('VAULT_TOKEN='.Length)
     vault status
     vault kv list secret/
     vault kv get secret/products-service
@@ -176,11 +176,13 @@ cd microservices-architecture
  
 # 2. Copy environment file if not already present
 cp .env.example .env
+
+# 3. Generate local-only secrets in .env using the PowerShell snippet in README.md (Option A)
  
-# 3. Start Keycloak and its database in detached mode
+# 4. Start Keycloak and its database in detached mode
 docker compose up -d --build keycloak
  
-# 4. Verify Keycloak is healthy
+# 5. Verify Keycloak is healthy
 docker compose ps keycloak
 ```
  
@@ -188,8 +190,8 @@ docker compose ps keycloak
 Run the bootstrap script to create realm `microservices-realm`, configure public and confidential clients, generate passwords, and **automatically synchronize `KEYCLOAK_CLIENT_SECRET` into your `.env`**:
  
 ```powershell
-# Native PowerShell script (auto-syncs client secret into .env):
-pwsh -File .\scripts\bootstrap-keycloak.ps1
+# Bootstrap Keycloak, rotate the previously exposed local client secret, and sync it to .env
+pwsh -File .\scripts\bootstrap-keycloak.ps1 -RotateClientSecret
 ```
  
 #### Pre-Configured Test Users:
@@ -479,7 +481,7 @@ kubectl describe pod -l app=keycloak -n dev | Select-String -Pattern "Startup" -
 # NOTE: Set $env:VAULT_ADDR in the active PowerShell session ([Environment]::SetEnvironmentVariable(..., 'User')
 # only applies to future processes; an unset session variable defaults to HTTPS and triggers a TLS error).
 $env:VAULT_ADDR = "http://127.0.0.1:8200"
-$env:VAULT_TOKEN = "root"
+$env:VAULT_TOKEN = (Get-Content .env | Where-Object { $_.StartsWith('VAULT_TOKEN=') } | Select-Object -First 1).Substring('VAULT_TOKEN='.Length)
 vault status
 
 # Read static KV-v2 service secrets:

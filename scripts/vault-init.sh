@@ -2,9 +2,8 @@
 set -e
 
 DB_USER="${POSTGRES_USER:-postgres}"
-DB_PASS="${POSTGRES_PASSWORD:-admin}"
+DB_PASS="${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD before initializing Vault}"
 DB_SUFFIX="${DB_HOST_SUFFIX:-}"
-JWT_SEC="${JWT_SECRET:-super-secure-jwt-secret-key-for-microservices-dev-environment-12345}"
 
 echo "🔐 [Vault Auto-Init] Waiting for Vault server..."
 until vault status > /dev/null 2>&1; do
@@ -18,7 +17,7 @@ echo "📦 [Vault Auto-Init] Enabling KV-v2 secret engine..."
 vault secrets enable -path=secret kv-v2 2>/dev/null || true
 
 echo "📦 [Vault Auto-Init] Seeding microservice secrets..."
-vault kv put secret/application spring.datasource.username="${DB_USER}" spring.datasource.password="${DB_PASS}" jwt.secret="${JWT_SEC}" 2>/dev/null || true
+vault kv put secret/application spring.datasource.username="${DB_USER}" spring.datasource.password="${DB_PASS}" 2>/dev/null || true
 for db_svc in products orders inventory payments fulfillment analytics; do
   vault kv put "secret/${db_svc}-service" spring.datasource.username="${DB_USER}" spring.datasource.password="${DB_PASS}" db.username="${DB_USER}" db.password="${DB_PASS}" 2>/dev/null || true
 done
