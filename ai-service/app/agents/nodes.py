@@ -231,7 +231,7 @@ async def product_advisor_node(state: EcommerceAgentState) -> Dict[str, Any]:
     # model generation. This prevents invented products, duplicate cards, and stock claims.
     if user_role != "admin":
         return await _customer_product_advisor(query)
-    return await _admin_product_advisor(state, query)
+    return await _admin_product_advisor(query)
 
 
 async def _customer_product_advisor(query: str) -> Dict[str, Any]:
@@ -249,7 +249,7 @@ async def _customer_product_advisor(query: str) -> Dict[str, Any]:
     return _product_advisor_result(_synthesize_product_recommendation(verified_items, query))
 
 
-async def _admin_product_advisor(state: EcommerceAgentState, query: str) -> Dict[str, Any]:
+async def _admin_product_advisor(query: str) -> Dict[str, Any]:
     retrieved_items = rag_store.search(query=query, doc_type="product", top_k=2)
     context_str = "\n\n".join([doc["content"] for doc in retrieved_items]) if retrieved_items else "No specific catalog item matched."
 
