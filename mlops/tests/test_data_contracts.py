@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -361,7 +361,7 @@ class DataContractsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             csv_path = Path(td) / "sales.csv"
             rows = [
-                {"date": date(2026, 10, 11) + pd.Timedelta(days=i), "product_id": "SKU-A", "units_sold": 5 + i}
+                {"date": date.today() - timedelta(days=9 - i), "product_id": "SKU-A", "units_sold": 5 + i}
                 for i in range(10)
             ]
             pd.DataFrame(rows).to_csv(csv_path, index=False)
@@ -374,7 +374,7 @@ class DataContractsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             parquet_path = Path(td) / "sales.parquet"
             rows = [
-                {"date": date(2026, 10, 11) + pd.Timedelta(days=i), "product_id": "SKU-A", "units_sold": 5 + i}
+                {"date": date.today() - timedelta(days=9 - i), "product_id": "SKU-A", "units_sold": 5 + i}
                 for i in range(10)
             ]
             pd.DataFrame(rows).to_parquet(parquet_path, index=False)
