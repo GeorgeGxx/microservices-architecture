@@ -24,7 +24,9 @@ def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
 
     if user_role == "admin" and any(k in last_user_msg for k in ["admin", "telemetry", "metric", "forecast", "pronostico", "stock global", "inventario global", "hitl", "supervis", "microservice", "health", "system", "audit"]):
         intent = "admin_ops"
-    elif any(k in last_user_msg for k in ["order", "ord-", "tracking", "track", "shipment", "carrier", "refund", "devoluc", "reembolso", "paquete", "dhl"]):
+    elif any(k in last_user_msg for k in ["policy", "policies", "return policy", "refund policy", "refund policies", "return window", "warranty", "guarantee", "garantia", "garantía", "store rules", "politica", "política", "políticas", "plazo"]):
+        intent = "policy_faq"
+    elif any(k in last_user_msg for k in ["order", "ord-", "tracking", "track", "shipment", "carrier", "refund", "return", "devoluc", "reembolso", "paquete", "dhl"]):
         intent = "order_support"
     elif any(k in last_user_msg for k in [
         "recommend", "suggest", "laptop", "notebook", "computer", "computadora", "portatil", "portátil",
@@ -33,8 +35,6 @@ def supervisor_router_node(state: EcommerceAgentState) -> Dict[str, Any]:
         "catalog", "product", "buy", "comprar", "suger", "recomend",
     ]):
         intent = "catalog"
-    elif any(k in last_user_msg for k in ["policy", "politica", "garantia", "warranty", "shipping days", "dias de envio", "plazo"]):
-        intent = "policy_faq"
     else:
         intent = "general"
 
