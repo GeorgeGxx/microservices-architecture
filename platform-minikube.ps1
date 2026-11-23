@@ -3676,6 +3676,18 @@ function Invoke-MinikubePlatform {
             if (Test-Path "$infraDir\tempo.yaml") { kubectl apply -f "$infraDir\tempo.yaml" 2>$null }
             if (Test-Path "$infraDir\loki.yaml") { kubectl apply -f "$infraDir\loki.yaml" 2>$null }
             if (Test-Path "$infraDir\alloy.yaml") { kubectl apply -f "$infraDir\alloy.yaml" 2>$null }
+            if (Test-Path "$infraDir\reloader.yaml") {
+                Write-Host "  ▶ Applying Reloader with namespace-scoped permissions for 'dev'..." -ForegroundColor White
+                kubectl apply -f "$infraDir\reloader.yaml" 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not apply the namespace-scoped Reloader resources." }
+                kubectl delete clusterrolebinding reloader-reloader-role-binding --ignore-not-found=true 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not remove the legacy cluster-wide Reloader binding." }
+                kubectl delete clusterrole reloader-reloader-role --ignore-not-found=true 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not remove the legacy cluster-wide Reloader role." }
+                kubectl rollout status deployment/reloader-reloader -n vault --timeout=120s | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Namespace-scoped Reloader did not become Ready." }
+                Write-Host "  [OK] Reloader is Ready; cluster-wide Secret permissions are removed." -ForegroundColor Green
+            }
             if (Test-Path "$infraDir\otel.yaml") { kubectl apply -f "$infraDir\otel.yaml" 2>$null }
             if (Test-Path "$infraDir\phoenix.yaml") { kubectl apply -f "$infraDir\phoenix.yaml" 2>$null }
             if (Test-Path "$infraDir\ollama.yaml") { kubectl apply -f "$infraDir\ollama.yaml" 2>$null }

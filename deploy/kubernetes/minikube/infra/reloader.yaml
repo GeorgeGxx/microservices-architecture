@@ -22,9 +22,12 @@ rules:
       - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: reloader-reloader-role
+  namespace: dev
+# Reloader needs read-only Secret watches for rotation detection; keep this
+# unavoidable permission confined to dev instead of granting it cluster-wide.
 rules:
   - apiGroups:
       - ""
@@ -85,12 +88,13 @@ subjects:
     namespace: vault
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: reloader-reloader-role-binding
+  namespace: dev
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: reloader-reloader-role
 subjects:
   - kind: ServiceAccount
@@ -129,6 +133,8 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: KUBERNETES_NAMESPACE
+              value: dev
             - name: RELOADER_DEPLOYMENT_NAME
               value: reloader-reloader
           image: ghcr.io/stakater/reloader:v1.4.14

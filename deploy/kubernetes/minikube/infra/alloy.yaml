@@ -1,4 +1,11 @@
 apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: alloy
+  namespace: observability
+automountServiceAccountToken: false
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: alloy-config
@@ -137,9 +144,14 @@ spec:
         sidecar.istio.io/inject: "false"
       annotations:
         sidecar.istio.io/inject: "false"
-    # nosemgrep: yaml.kubernetes.security.run-as-non-root.run-as-non-root
+    # Alloy reads root-owned /var/log/pods (0750) and writes offsets to a
+    # root-owned hostPath; UID 0 is retained for those two mounts only.
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: alloy
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       tolerations:
         - operator: Exists
       containers:
@@ -172,12 +184,15 @@ spec:
             failureThreshold: 5
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
+              # Minikube's root-owned hostPath requires this to initialize Alloy's offsets.
               add:
                 - DAC_OVERRIDE
             runAsUser: 0
+            runAsGroup: 0
           resources:
             requests:
               cpu: "50m"
@@ -192,6 +207,8 @@ spec:
               mountPath: /etc/alloy
             - name: data
               mountPath: /var/lib/alloy/data
+            - name: tmp
+              mountPath: /tmp
             - name: pods
               mountPath: /var/log/pods
               readOnly: true
@@ -203,6 +220,8 @@ spec:
           hostPath:
             path: /var/lib/alloy/data
             type: DirectoryOrCreate
+        - name: tmp
+          emptyDir: {}
         - name: pods
           hostPath:
             path: /var/log/pods
