@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Polyglot Kafka Event Schema Contracts Validator (Layer C)
-Validates cross-language event payloads (Java 21, Go 1.26, TypeScript 7, Python 3.12)
+Validates cross-language event payloads (Java 21, Go 1.27, TypeScript 7, Python 3.12)
 against formal JSON Schema contracts to prevent silent deserialization failures.
 """
 
@@ -50,7 +50,7 @@ def validate_payload(schema: dict, payload: dict, label: str):
 def run_tests() -> int:
     print("=" * 70)
     print("Polyglot Kafka Event Schema Contracts Validation (Layer C)")
-    print("Languages: Java 21 | Go 1.26 | TypeScript 7 | Python 3.12")
+    print("Languages: Java 21 | Go 1.27 | TypeScript 7 | Python 3.12")
     print("=" * 70)
 
     order_schema = load_schema("order-event.schema.json")
@@ -94,8 +94,8 @@ def run_tests() -> int:
     if not validate_payload(order_schema, sample_order_shipped, "Java 21 OrderShippedEvent"):
         success = False
 
-    # 2. Go 1.26 PaymentEvent payloads
-    print("\n[Topic: payments-topic] Go 1.26 PaymentEvent Payloads:")
+    # 2. Go 1.27 PaymentEvent payloads
+    print("\n[Topic: payments-topic] Go 1.27 PaymentEvent Payloads:")
     sample_payment_completed = {
         "event_type": "PAYMENT_COMPLETED",
         "status": "COMPLETED",
@@ -109,7 +109,7 @@ def run_tests() -> int:
         "customer_email": "alice@example.com",
         "timestamp": "2026-10-31T19:01:00Z"
     }
-    if not validate_payload(payment_schema, sample_payment_completed, "Go 1.26 PaymentCompletedEvent"):
+    if not validate_payload(payment_schema, sample_payment_completed, "Go 1.27 PaymentCompletedEvent"):
         success = False
 
     sample_payment_failed = {
@@ -123,7 +123,7 @@ def run_tests() -> int:
         "reason": "INSUFFICIENT_FUNDS",
         "timestamp": "2026-10-31T19:02:00Z"
     }
-    if not validate_payload(payment_schema, sample_payment_failed, "Go 1.26 PaymentFailedEvent"):
+    if not validate_payload(payment_schema, sample_payment_failed, "Go 1.27 PaymentFailedEvent"):
         success = False
 
     # 3. TypeScript 7 / NestJS FulfillmentEvent payloads

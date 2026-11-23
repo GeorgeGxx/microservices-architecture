@@ -257,8 +257,8 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: payments-service
-  title: Payments Processing Microservice (Go 1.26 / Gin v1.12.0)
-  description: Ultra-low-latency Go 1.26 / Gin v1.12.0 / GORM v1.31.2 microservice handling idempotent payment authorization, ledger persistence, Kafka payment events, and KEDA autoscaling.
+  title: Payments Processing Microservice (Go 1.27.4 / Gin v1.12.0)
+  description: Ultra-low-latency Go 1.27.4 / Gin v1.12.0 / GORM v1.31.2 microservice handling idempotent payment authorization, ledger persistence, Kafka payment events, and KEDA autoscaling.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -269,7 +269,7 @@ metadata:
     devsecops.georgegxx.dev/container-scanner: trivy-0.76.1
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
-    - golang-1-26
+    - golang-1-27
     - gin-v1-12-0
     - gorm-v1-31-2
     - postgresql

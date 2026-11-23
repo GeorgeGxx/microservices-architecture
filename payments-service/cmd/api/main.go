@@ -36,7 +36,7 @@ const serviceName = "payments-service"
 
 // @title Payments Service API
 // @version 1.0
-// @description High-performance payments microservice with Go 1.26, Gin v1.12.0, GORM v1.31.2, goroutines and PostgreSQL 18
+// @description High-performance payments microservice with Go 1.27, Gin v1.12.0, GORM v1.31.2, goroutines and PostgreSQL 18
 // @contact.name GeorgeGxx Architecture
 // @host localhost:8085
 // @BasePath /

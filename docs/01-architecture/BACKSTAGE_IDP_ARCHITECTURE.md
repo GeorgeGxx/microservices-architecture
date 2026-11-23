@@ -26,7 +26,7 @@ flowchart TD
     Root --> Components["12 Components (Frontend, Cosmo Router, 7 Domain Services, Demand Forecast, MLflow & MLOps Training CronJob)"]
     Root --> APIs["11 APIs & Subgraphs (Federated GraphQL Supergraph, 3 Subgraphs, 9 OpenAPI/SSE Contracts, Kafka AsyncAPI)"]
     Root --> Resources["8 Cloud & Stateful Resources (PostgreSQL 18 Fleet, Kafka KRaft, Redis 8, Keycloak 26, Vault/KMS, Argo CD 3.6.1, LGTM, Multi-Cloud IaC)"]
-    Root --> Templates["5 Golden Path Templates (Spring Boot 4.1.2, Go 1.26.7 Gin, NestJS 12.2, FastAPI 0.160, React 19)"]
+    Root --> Templates["5 Golden Path Templates (Spring Boot 4.1.3, Go 1.27.4 Gin, NestJS 12.2, FastAPI 0.160, React 19)"]
 ```
 
 ---

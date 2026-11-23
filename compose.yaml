@@ -464,7 +464,7 @@ services:
       interval: 5s
       retries: 10
 
-  ### Payments Service (Go 1.26, Gin v1.12.0, GORM v1.31.2, Goroutines, Swagger)
+  ### Payments Service (Go 1.27, Gin v1.12.0, GORM v1.31.2, Goroutines, Swagger)
   payments-service:
     container_name: payments-service
     image: georgegxx/payments-service:1.0.0

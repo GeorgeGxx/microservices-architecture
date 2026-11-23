@@ -4,7 +4,7 @@
 
 This document captures the comprehensive multi-cloud architecture and DevSecOps audit performed on `GeorgeGxx/microservices-architecture` across **Microsoft Azure**, **Google Cloud Platform (GCP)**, and **Amazon Web Services (AWS)**.
 
-The platform implements an event-driven polyglot microservices architecture (Java 21 / Spring Boot 3.4, Go 1.26 / Gin / GORM, TypeScript / NestJS 12 / TypeORM, Python 3.12 / FastAPI / SQLAlchemy 2.0 + PySpark MLOps, React 19 storefront, and WunderGraph Cosmo Federation v2 Router) backed by isolated PostgreSQL 18 databases, Apache Kafka (KRaft / MSK / Event Hubs / Managed Kafka), Redis, HashiCorp Vault, Keycloak OIDC, Istio mTLS Service Mesh, and LGTM+ (Loki, Grafana, Tempo, Prometheus, Alloy, OpenCost) observability.
+The platform implements an event-driven polyglot microservices architecture (Java 21 / Spring Boot 4.1.3, Go 1.27 / Gin / GORM, TypeScript / NestJS 12 / TypeORM, Python 3.12 / FastAPI / SQLAlchemy 2.0 + PySpark MLOps, React 19 storefront, and WunderGraph Cosmo Federation v2 Router) backed by isolated PostgreSQL 18 databases, Apache Kafka (KRaft / MSK / Event Hubs / Managed Kafka), Redis, HashiCorp Vault, Keycloak OIDC, Istio mTLS Service Mesh, and LGTM+ (Loki, Grafana, Tempo, Prometheus, Alloy, OpenCost) observability.
 
 ---
 

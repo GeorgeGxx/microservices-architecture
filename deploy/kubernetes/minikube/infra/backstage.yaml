@@ -145,7 +145,7 @@ data:
         {
           name: 'payments-service', title: 'Payments Processing Microservice (Go / Gin)', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
-          tech: 'Go 1.26 • Gin v1.12.0 • GORM v1.31.2 • PostgreSQL 18 • Kafka', port: 8085,
+          tech: 'Go 1.27.4 • Gin v1.12.0 • GORM v1.31.2 • PostgreSQL 18 • Kafka', port: 8085,
           docsUrl: 'http://localhost:8085/swagger/index.html', healthUrl: 'http://localhost:8085/health',
           argoApp: 'microservices-dev', sonarKey: 'msa-payments-service',
           providesApis: ['payments-rest-api', 'kafka-commerce-events-asyncapi'],
@@ -346,7 +346,7 @@ data:
         },
         {
           name: 'payments-rest-api',
-          title: 'Payments Authorization & Ledger OpenAPI (Go 1.26 / Gin v1.12.0)',
+          title: 'Payments Authorization & Ledger OpenAPI (Go 1.27.4 / Gin v1.12.0)',
           type: 'openapi',
           specVersion: 'OpenAPI 3.0.3 (Swaggo)',
           component: 'payments-service',
@@ -355,7 +355,7 @@ data:
           owner: 'group:developers',
           endpoint: 'http://localhost:8085/swagger/index.html',
           healthEndpoint: 'http://localhost:8085/health',
-          description: 'High-throughput Go 1.26 / Gin v1.12.0 payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
+          description: 'High-throughput Go 1.27.4 / Gin v1.12.0 payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
           presets: [
             { label: 'GET /api/v1/payments (Payment Ledger)', method: 'GET', path: '/api/v1/payments', body: '' },
             { label: 'GET /health (Service Health)', method: 'GET', path: '/health', body: '' }
@@ -486,7 +486,7 @@ data:
         }
       ],
       resources: [
-        { name: 'postgresql-databases', title: 'Database-per-Service PostgreSQL 18 Fleet', type: 'database', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'PostgreSQL 18-alpine / AWS RDS / Azure Flexible Server / GCP Cloud SQL', description: '6 isolated relational databases: ms_products (db-products:5432), ms_orders (db-orders:5432), ms_inventory (db-inventory:5432), ms_payments (db-payments:5432), ms_fulfillment (db-fulfillment:5432), and ms_analytics (db-analytics:5432).' },
+        { name: 'postgresql-databases', title: 'Database-per-Service PostgreSQL 18 Fleet', type: 'database', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'PostgreSQL 18.6-alpine / AWS RDS / Azure Flexible Server / GCP Cloud SQL', description: '6 isolated relational databases: ms_products (db-products:5432), ms_orders (db-orders:5432), ms_inventory (db-inventory:5432), ms_payments (db-payments:5432), ms_fulfillment (db-fulfillment:5432), and ms_analytics (db-analytics:5432).' },
         { name: 'kafka-event-streaming', title: 'Apache Kafka 4.2 KRaft / Managed Event Streaming', type: 'messaging-cluster', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Apache Kafka 4.2 KRaft / AWS MSK / Azure Event Hubs / GCP Managed Kafka', description: 'Distributed event streaming backbone (orders-topic, orders-topic.DLT, payments-topic, fulfillment-topic) powering saga choreography and KEDA consumer-lag autoscaling.' },
         { name: 'redis-distributed-cache', title: 'Redis 8 Distributed Cache & Rate-Limiter Store', type: 'cache', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Redis 8.8.1-alpine / AWS ElastiCache / Azure Managed Redis / GCP Memorystore', description: 'Low-latency in-memory store backing product catalog caching (products-service) and distributed rate limiting.' },
         { name: 'keycloak-identity-provider', title: 'Keycloak 26.6.1 Enterprise OIDC Identity Provider', type: 'identity-provider', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'Keycloak 26.6.1 (Realm: microservices-realm • RS256 JWKS)', description: 'Centralized OAuth2 / OIDC PKCE identity provider issuing JWTs for Novashop storefront, Cosmo Router @authenticated guards, Argo CD SSO, Grafana SSO, and Backstage IDP RBAC.' },
@@ -497,7 +497,7 @@ data:
       ],
       templates: [
         { name: 'spring-boot-microservice-golden-path', stackKey: 'spring-boot', title: 'Golden Path — Spring Boot 4 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4', targetSystem: 'novashop-commerce-system', defaultPort: 8089, path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
-        { name: 'go-gin-microservice-golden-path', stackKey: 'go', title: 'Golden Path — Go 1.26 / Gin v1.12.0 High-Throughput Microservice', language: 'Go 1.26 • Gin v1.12.0 • GORM v1.31.2', targetSystem: 'novashop-commerce-system', defaultPort: 8091, path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
+        { name: 'go-gin-microservice-golden-path', stackKey: 'go', title: 'Golden Path — Go 1.27.4 / Gin v1.12.0 High-Throughput Microservice', language: 'Go 1.27.4 • Gin v1.12.0 • GORM v1.31.2', targetSystem: 'novashop-commerce-system', defaultPort: 8091, path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
         { name: 'nestjs-microservice-golden-path', stackKey: 'nestjs', title: 'Golden Path — NestJS 12.2.0 / Node.js 24 Microservice', language: 'Node.js 24 • TypeScript 7.0.2 • NestJS 12.2.0 • TypeORM 1.1.2', targetSystem: 'supply-chain-fulfillment-system', defaultPort: 8092, path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1.1.2', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
         { name: 'python-fastapi-microservice-golden-path', stackKey: 'python', title: 'Golden Path — Python 3.12 / FastAPI 0.160.0 Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.160.0 • SQLAlchemy 2.0 • Pydantic v2', targetSystem: 'intelligence-mlops-system', defaultPort: 8093, path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2.0 + Pydantic v2 + OpenAPI 3.1 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
         { name: 'react-frontend-app-golden-path', stackKey: 'react', title: 'Golden Path — React 19 / TypeScript / Vite Web Application', language: 'React 19 • TypeScript • Nginx', targetSystem: 'novashop-commerce-system', defaultPort: 5174, path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak 26 OIDC PKCE authentication flow', 'Apollo GraphQL Client connected to Cosmo Router (:8080/graphql)', 'Unprivileged Nginx container on port 8080/5173', 'Strict CSP, HSTS, X-Frame-Options & OWASP security headers'] }

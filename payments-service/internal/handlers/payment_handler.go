@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/georgegxx/payments-service/internal/models"
@@ -208,7 +209,7 @@ func (h *PaymentHandler) Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "UP",
 		"service": "payments-service",
-		"engine":  "go1.26",
+		"engine":  runtime.Version(),
 		"version": "1.0.0",
 	})
 }

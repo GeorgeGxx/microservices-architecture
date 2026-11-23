@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://georgegxx.io/contracts/events/payment-event.schema.json",
   "title": "PaymentEvent",
-  "description": "Formal schema contract for payments-topic events emitted by payments-service (Go 1.26) and consumed by Java, TypeScript, and Python.",
+  "description": "Formal schema contract for payments-topic events emitted by payments-service (Go 1.27) and consumed by Java, TypeScript, and Python.",
   "type": "object",
   "required": [
     "event_type",

@@ -34,11 +34,11 @@ This matrix serves as the single source of truth for pinned versions across all 
 |---|---|---|---|---|
 | `frontend` | TypeScript / Node.js `24-alpine` | React `19` / Vite | `nginxinc/nginx-unprivileged:1.27-alpine` | `8080` |
 | `cosmo-router` | Go | WunderGraph Cosmo Router `v0.362.0` | `ghcr.io/wundergraph/cosmo/router:0.362.0` | `8080` |
-| `products-service` | Java `21` (Temurin) | Spring Boot `4.1.0` | `eclipse-temurin:21-jre-alpine` | `8004` |
-| `orders-service` | Java `21` (Temurin) | Spring Boot `4.1.0` | `eclipse-temurin:21-jre-alpine` | `8003` |
-| `inventory-service` | Java `21` (Temurin) | Spring Boot `4.1.0` | `eclipse-temurin:21-jre-alpine` | `8001` |
-| `notification-service` | Java `21` (Temurin) | Spring Boot `4.1.0` | `eclipse-temurin:21-jre-alpine` | `8002` |
-| `payments-service` | Go `1.26` | Gin `v1.12.0` / GORM | `gcr.io/distroless/static-debian12:nonroot` | `8085` |
+| `products-service` | Java `21` (Temurin) | Spring Boot `4.1.3` | `eclipse-temurin:21-jre-alpine` | `8004` |
+| `orders-service` | Java `21` (Temurin) | Spring Boot `4.1.3` | `eclipse-temurin:21-jre-alpine` | `8003` |
+| `inventory-service` | Java `21` (Temurin) | Spring Boot `4.1.3` | `eclipse-temurin:21-jre-alpine` | `8001` |
+| `notification-service` | Java `21` (Temurin) | Spring Boot `4.1.3` | `eclipse-temurin:21-jre-alpine` | `8002` |
+| `payments-service` | Go `1.27.4` | Gin `v1.12.0` / GORM | `gcr.io/distroless/static-debian12:nonroot` | `8085` |
 | `fulfillment-service` | TypeScript / Node.js `24-alpine` | NestJS `12.2.0` / TypeORM | `node:24-alpine` | `8086` |
 | `ai-service` | Python `3.12` | FastAPI `0.160.0` / LangGraph `0.3+` / MCP `1.3+` | `python:3.12-slim` | `8010` |
 | `analytics-service` | Python `3.12` | FastAPI `0.160.0` / SQLAlchemy `2.0` | `python:3.12-slim` | `8087` |

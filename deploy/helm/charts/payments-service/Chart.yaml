@@ -1,6 +1,6 @@
 apiVersion: v2
 name: payments-service
-description: Helm chart for the payments-service microservice (Go 1.26, Gin v1.12.0, GORM v1.31.2, PostgreSQL 18)
+description: Helm chart for the payments-service microservice (Go 1.27, Gin v1.12.0, GORM v1.31.2, PostgreSQL 18)
 type: application
 version: 1.0.2
 appVersion: "1.0.0"
