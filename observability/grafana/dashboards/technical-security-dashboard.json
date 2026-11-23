@@ -1,5 +1,5 @@
 {
-  "title": "🛡️ Microservices Architecture · Technical & Security Operations (SRE)",
+  "title": "\ud83d\udee1\ufe0f Microservices Architecture \u00b7 Technical & Security Operations (SRE)",
   "uid": "technical-security",
   "editable": true,
   "timezone": "browser",
@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 52,
+  "version": 53,
   "tags": [
     "spring-boot",
     "java21",
@@ -28,7 +28,7 @@
       "keepTime": false,
       "tags": [],
       "targetBlank": true,
-      "title": "⚡ Alloy Live Web UI (Port 3300)",
+      "title": "\u26a1 Alloy Live Web UI (Port 3300)",
       "tooltip": "Open native Grafana Alloy component graph and pipeline state",
       "type": "link",
       "url": "http://localhost:3300/"
@@ -64,7 +64,7 @@
     {
       "id": 100,
       "type": "row",
-      "title": "🟢 [GLOBAL SYSTEM HEALTH & GOLDEN SIGNALS] Application & Forecast Service Health",
+      "title": "\ud83d\udfe2 [GLOBAL SYSTEM HEALTH & GOLDEN SIGNALS] Application & Forecast Service Health",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -76,8 +76,8 @@
     {
       "id": 101,
       "type": "stat",
-      "title": "🌐 Core Microservices Online",
-      "description": "Count of unique operational core business microservices active (Cosmo Router, Products, Orders, Inventory, Notifications, Payments, Fulfillment, Analytics, Demand Forecast) independent of pod replica scaling.",
+      "title": "\ud83c\udf10 Core Microservices Online",
+      "description": "Unique reachable core targets (Cosmo Router and eight business services). Missing or down targets reduce the count; no targets reports zero.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -130,7 +130,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"} == 1)) or vector(9)",
+          "expr": "count(count by (service) (up{service=~\"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"} == 1)) or vector(0)",
           "legendFormat": "Active Business Roles"
         }
       ]
@@ -138,7 +138,7 @@
     {
       "id": 102,
       "type": "stat",
-      "title": "⏱️ Global P95 Response Latency",
+      "title": "\u23f1\ufe0f Global P95 Response Latency",
       "description": "Overall 95th percentile response time across all microservice endpoints.",
       "gridPos": {
         "h": 4,
@@ -200,8 +200,8 @@
     {
       "id": 103,
       "type": "stat",
-      "title": "🚨 Edge Security Attack Status & Threat Level",
-      "description": "Count of actual HTTP 429 responses logged by frontend Nginx. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec. The value is a rolling one-minute rate and returns to green after traffic stops.",
+      "title": "\ud83d\udea8 Frontend HTTP 429 Rate",
+      "description": "Rolling one-minute rate of HTTP 429 responses logged by frontend Nginx. Green: <1/sec, amber: 1\u20135/sec, red: \u22655/sec.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -233,7 +233,8 @@
                 "value": 5
               }
             ]
-          }
+          },
+          "unit": "reqps"
         }
       },
       "options": {
@@ -262,8 +263,8 @@
     {
       "id": 104,
       "type": "stat",
-      "title": "⚡ Resilience4j Circuit Breakers Health",
-      "description": "State of circuit breakers protecting inter-service communication (2 = CLOSED / HEALTHY, 1 = HALF_OPEN, 0 = OPEN).",
+      "title": "\u26a1 Worst Circuit Breaker State",
+      "description": "Worst observed state across exported Resilience4j breakers: 2 = all closed, 1 = at least one half-open, 0 = at least one open. No data means no breaker state telemetry.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -326,7 +327,8 @@
         },
         "textMode": "value",
         "colorMode": "background",
-        "graphMode": "none"
+        "graphMode": "none",
+        "noValue": "No breaker telemetry"
       },
       "targets": [
         {
@@ -334,7 +336,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min(2 - 2 * (max(resilience4j_circuitbreaker_state{state=\"open\"}) or vector(0)) - (max(resilience4j_circuitbreaker_state{state=\"half_open\"}) or vector(0)), 0)",
+          "expr": "(clamp_min(2 - 2 * (max(resilience4j_circuitbreaker_state{state=\"open\"}) or vector(0)) - (max(resilience4j_circuitbreaker_state{state=\"half_open\"}) or vector(0)), 0)) and (count(resilience4j_circuitbreaker_state{state=~\"closed|open|half_open\"}) > 0)",
           "legendFormat": "Circuit Breakers"
         }
       ]
@@ -342,8 +344,8 @@
     {
       "id": 105,
       "type": "stat",
-      "title": "🎯 Availability SLO Burn (Worst Service)",
-      "description": "Single value showing the highest 5-minute 5xx ratio divided by the 0.5% error budget across the core services and demand forecast API. Health checks are excluded from the forecast API ratio. Red starts at the 14.4x multi-window alert threshold.",
+      "title": "\ud83c\udfaf Availability SLO Burn (Worst Service)",
+      "description": "Worst 5-minute error-budget burn across seven HTTP services and the forecast API. Fully unavailable discovered targets count as 200x burn; health checks are excluded from forecast API traffic. Red starts at the 14.4x multi-window alert threshold.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -398,7 +400,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "max((microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service\"} == 1) * 0) or ((sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\",status=~\"5..\"}[5m])) or on (service) (max by (service) (up{service=\"demand-forecast-service\"} == 1) * 0)) / clamp_min(sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\"}[5m])), 1e-9) / 0.005))",
+          "expr": "max((microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service\"} == 1) * 0) or on(service) (max by (service) (up{service=~\"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service\"} == bool 0) * 200) or on(service) ((sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\",status=~\"5..\"}[5m])) / clamp_min(sum by (service) (rate(demand_forecast_http_requests_total{service=\"demand-forecast-service\",path!=\"/health\"}[5m])), 1e-9) / 0.005) or on (service) (max by (service) (up{service=\"demand-forecast-service\"} == 1) * 0) or on (service) (max by (service) (up{service=\"demand-forecast-service\"} == bool 0) * 200)))",
           "legendFormat": "Worst service (x budget burn)"
         }
       ]
@@ -406,7 +408,7 @@
     {
       "id": 106,
       "type": "stat",
-      "title": "🔮 Forecast API Availability",
+      "title": "\ud83d\udd2e Forecast API Availability",
       "description": "Prometheus scrape health for the demand forecast API: UP means its metrics endpoint is reachable; DOWN or No data means forecasting telemetry is unavailable.",
       "gridPos": {
         "h": 4,
@@ -481,7 +483,7 @@
     {
       "id": 200,
       "type": "row",
-      "title": "⚡ [HTTP TRAFFIC THROUGHPUT, LATENCY & ERRORS] Real-Time Golden Signals",
+      "title": "\u26a1 [HTTP TRAFFIC THROUGHPUT, LATENCY & ERRORS] Real-Time Golden Signals",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -493,7 +495,7 @@
     {
       "id": 201,
       "type": "timeseries",
-      "title": "📈 HTTP Request Rate by Microservice & Status (RPS)",
+      "title": "\ud83d\udcc8 HTTP Request Rate by Microservice & Status (RPS)",
       "description": "Real-time throughput and HTTP status code distribution (2xx success vs 4xx/5xx errors), including demand forecast API traffic when selected.",
       "gridPos": {
         "h": 7,
@@ -534,7 +536,7 @@
     {
       "id": 202,
       "type": "timeseries",
-      "title": "⏱️ P95 Latency by Microservice (ms)",
+      "title": "\u23f1\ufe0f P95 Latency by Microservice (ms)",
       "description": "95th percentile response times per microservice to detect latency degradation. Forecast API health-check requests are excluded.",
       "gridPos": {
         "h": 7,
@@ -575,7 +577,7 @@
     {
       "id": 300,
       "type": "row",
-      "title": "🔄 [DISTRIBUTED CONSISTENCY, IDEMPOTENCY & MESSAGING] Saga & Kafka Event Streams",
+      "title": "\ud83d\udd04 [DISTRIBUTED CONSISTENCY, IDEMPOTENCY & MESSAGING] Saga & Kafka Event Streams",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -587,7 +589,7 @@
     {
       "id": 301,
       "type": "bargauge",
-      "title": "🛡️ Idempotency Deduplication & Saga Compensations",
+      "title": "\ud83d\udee1\ufe0f Idempotency Deduplication & Saga Compensations",
       "description": "Duplicate orders intercepted by Redis locks vs compensating transactions executed upon failure.",
       "gridPos": {
         "h": 7,
@@ -649,8 +651,8 @@
     {
       "id": 302,
       "type": "timeseries",
-      "title": "📨 Kafka Event Streaming Rate (Orders Published vs Notifications Consumed)",
-      "description": "Real-time event processing throughput across Kafka asynchronous pipelines.",
+      "title": "\ud83d\udce8 Kafka Producer & Notification Event Rates",
+      "description": "Kafka template send rate alongside events processed by Notifications. Producer sends are not guaranteed to be limited to orders-topic, so compare as pipeline activity rather than a one-to-one order count.",
       "gridPos": {
         "h": 7,
         "w": 12,
@@ -683,7 +685,7 @@
             "type": "prometheus"
           },
           "expr": "sum by (status) (rate(notification_events_processed_total[1m])) or vector(0)",
-          "legendFormat": "Consumed by Notification ({{status}})"
+          "legendFormat": "Processed by Notifications ({{status}})"
         },
         {
           "datasource": {
@@ -691,14 +693,14 @@
             "type": "prometheus"
           },
           "expr": "sum(rate(spring_kafka_template_seconds_count[1m])) or vector(0)",
-          "legendFormat": "Published by Orders Service"
+          "legendFormat": "Kafka producer sends"
         }
       ]
     },
     {
       "id": 350,
       "type": "row",
-      "title": "🛡️ [HYPER-SCALE RESILIENCE, CELLS & ADAPTIVE LIMITS] Level 5 Architecture Pillars",
+      "title": "\ud83d\udee1\ufe0f [HYPER-SCALE RESILIENCE, CELLS & ADAPTIVE LIMITS] Level 5 Architecture Pillars",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -710,7 +712,7 @@
     {
       "id": 351,
       "type": "timeseries",
-      "title": "⚡ Vegas Adaptive Concurrency Limits vs In-Flight Requests",
+      "title": "\u26a1 Vegas Adaptive Concurrency Limits vs In-Flight Requests",
       "description": "TCP Vegas-inspired AIMD dynamic concurrency headroom tracking in-flight concurrent requests against the calculated capacity threshold to prevent service brownouts.",
       "gridPos": {
         "h": 7,
@@ -801,7 +803,7 @@
     {
       "id": 352,
       "type": "timeseries",
-      "title": "☠️ Kafka DLQ Quarantined & Traffic Shedding",
+      "title": "\u2620\ufe0f Kafka DLQ Quarantined & Traffic Shedding",
       "description": "Rate of poison pill messages diverted to Dead Letter Queues (DLQ) and requests actively rejected by traffic shedding to maintain system survival.",
       "gridPos": {
         "h": 7,
@@ -867,7 +869,7 @@
     {
       "id": 353,
       "type": "timeseries",
-      "title": "🌐 Cell-Based Traffic Routing & Outbox Dispatches",
+      "title": "\ud83c\udf10 Cell-Based Traffic Routing & Outbox Dispatches",
       "description": "Live traffic distribution across cell partitions (Cell-Alpha vs Cell-Beta) alongside transactional outbox dispatches and publish failures.",
       "gridPos": {
         "h": 7,
@@ -941,7 +943,7 @@
     {
       "id": 400,
       "type": "row",
-      "title": "☕ [PLATFORM SATURATION & RESOURCES] JVM Memory, CPU & Database Pools",
+      "title": "\u2615 [PLATFORM SATURATION & RESOURCES] JVM Memory, CPU & Database Pools",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -953,7 +955,7 @@
     {
       "id": 401,
       "type": "timeseries",
-      "title": "🧠 JVM Heap Memory Usage (MB)",
+      "title": "\ud83e\udde0 JVM Heap Memory Usage (MB)",
       "description": "Real-time heap memory consumption across Spring Boot Java 21 containers.",
       "gridPos": {
         "h": 7,
@@ -994,7 +996,7 @@
     {
       "id": 402,
       "type": "timeseries",
-      "title": "🐘 HikariCP Active Database Connection Pools (PostgreSQL)",
+      "title": "\ud83d\udc18 HikariCP Active Database Connection Pools (PostgreSQL)",
       "description": "Active, idle, and queued connections per HikariCP pool. Active can correctly remain at zero while the application is idle; compare it with idle and pending connections before diagnosing a scrape issue.",
       "gridPos": {
         "h": 7,
@@ -1051,7 +1053,7 @@
     {
       "id": 500,
       "type": "row",
-      "title": "🛡️ [SECURITY, ANTI-DDOS & INCIDENT DIAGNOSTICS] Threat Interceptions & Error Logs",
+      "title": "\ud83d\udee1\ufe0f [SECURITY, ANTI-DDOS & INCIDENT DIAGNOSTICS] Threat Interceptions & Error Logs",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1063,8 +1065,8 @@
     {
       "id": 501,
       "type": "bargauge",
-      "title": "🛑 Blocked Attacks (HTTP 429) & Observed Peer IPs",
-      "description": "Counts actual frontend Nginx HTTP 429 responses and ranks the socket peer IPs Nginx observed. No rows means no blocked request in the selected time range. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
+      "title": "\ud83d\uded1 Blocked Attacks (HTTP 429) & Observed Peer IPs",
+      "description": "Counts frontend Nginx HTTP 429 responses and ranks observed peer IPs over a rolling 15-minute window. No rows means no blocked request during that window. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.",
       "gridPos": {
         "h": 8,
         "w": 10,
@@ -1114,7 +1116,7 @@
             "type": "loki"
           },
           "expr": "sum(count_over_time({service=\"frontend\"} | json | __error__=\"\" | status=\"429\" [15m])) or vector(0)",
-          "legendFormat": "Blocked HTTP 429 (15m)",
+          "legendFormat": "Blocked HTTP 429 (rolling 15m)",
           "queryType": "range"
         },
         {
@@ -1131,7 +1133,7 @@
     {
       "id": 502,
       "type": "logs",
-      "title": "📜 Real-Time Incident Diagnostic Logs (Errors & Security Audits - Loki)",
+      "title": "\ud83d\udcdc Real-Time Incident Diagnostic Logs (Errors & Security Audits - Loki)",
       "description": "Filtered log stream strictly displaying ERROR logs and security intercept events, eliminating container noise.",
       "gridPos": {
         "h": 8,
@@ -1171,7 +1173,7 @@
     {
       "id": 600,
       "type": "row",
-      "title": "⚡ [TELEMETRY PIPELINE & LOG FORWARDING] Grafana Alloy Engine",
+      "title": "\u26a1 [TELEMETRY PIPELINE & LOG FORWARDING] Grafana Alloy Engine",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -1183,7 +1185,7 @@
     {
       "id": 601,
       "type": "stat",
-      "title": "⚡ Alloy Scrape Target Health",
+      "title": "\u26a1 Alloy Scrape Target Health",
       "description": "Prometheus scrape health for Alloy. A value of 1 means the metrics endpoint is reachable; 0 means scrapes are failing. No data means the target is missing.",
       "gridPos": {
         "h": 4,
@@ -1255,7 +1257,7 @@
     {
       "id": 602,
       "type": "stat",
-      "title": "🔄 Alloy Restarts (24h)",
+      "title": "\ud83d\udd04 Alloy Restarts (24h)",
       "description": "Uses Kubernetes container restart counters in Minikube and changes in Alloy's process start time in Docker Compose. Compose requires a stable Alloy scrape target; a new Prometheus installation needs two samples before it can detect a restart.",
       "gridPos": {
         "h": 4,
@@ -1317,7 +1319,7 @@
     {
       "id": 603,
       "type": "stat",
-      "title": "💾 Alloy Memory (RSS)",
+      "title": "\ud83d\udcbe Alloy Memory (RSS)",
       "description": "Maximum resident set size across Alloy instances; the configured container limit is 256 MiB.",
       "gridPos": {
         "h": 4,
@@ -1379,7 +1381,7 @@
     {
       "id": 604,
       "type": "stat",
-      "title": "⚡ Alloy CPU Consumption",
+      "title": "\u26a1 Alloy CPU Consumption",
       "description": "Maximum CPU cores currently consumed by an Alloy instance. This is process CPU time, not percentage of the container limit.",
       "gridPos": {
         "h": 4,
@@ -1424,7 +1426,7 @@
     {
       "id": 606,
       "type": "timeseries",
-      "title": "⏱️ Loki Push Request Duration (ms)",
+      "title": "\u23f1\ufe0f Loki Push Request Duration (ms)",
       "description": "P95 and median duration of Alloy HTTP push requests to Loki. This measures request duration, not end-to-end ingestion latency.",
       "gridPos": {
         "h": 7,
@@ -1490,7 +1492,7 @@
     {
       "id": 607,
       "type": "timeseries",
-      "title": "📨 Alloy Log Flow to Loki",
+      "title": "\ud83d\udce8 Alloy Log Flow to Loki",
       "description": "Log pipeline activity: entries successfully delivered to Loki and source lines read by Alloy, both as events per second. A live flow line confirms the pipeline is active while the adjacent panel tracks delivery failures.",
       "gridPos": {
         "h": 7,
@@ -1539,7 +1541,7 @@
     {
       "id": 608,
       "type": "timeseries",
-      "title": "⚠️ Alloy Delivery Failures (Rolling 15m)",
+      "title": "\u26a0\ufe0f Alloy Delivery Failures (Rolling 15m)",
       "description": "Rolling 15-minute counts of retried batches and dropped log entries grouped by drop reason. The bar view makes intermittent failures visible; zero means no failures were recorded in that window, while No data means the metric is unavailable.",
       "gridPos": {
         "h": 7,

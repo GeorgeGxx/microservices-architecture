@@ -9,7 +9,7 @@
   },
   "refresh": "5s",
   "schemaVersion": 39,
-  "version": 41,
+  "version": 42,
   "tags": [
     "business",
     "ecommerce",
@@ -27,8 +27,8 @@
           "uid": "prometheus-ds",
           "type": "prometheus"
         },
-        "definition": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|demand-forecast-service\"}, service)",
-        "query": "label_values(up{service=~\"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service|demand-forecast-service\"}, service)",
+        "definition": "label_values(up{service=~\"cosmo-router|orders-service|inventory-service|products-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"}, service)",
+        "query": "label_values(up{service=~\"cosmo-router|orders-service|inventory-service|products-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service\"}, service)",
         "label": "Filter Microservice",
         "includeAll": true,
         "allValue": ".+",
@@ -104,7 +104,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
+          "expr": "max(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
           "legendFormat": "Net Revenue USD"
         }
       ]
@@ -112,8 +112,8 @@
     {
       "id": 3,
       "type": "stat",
-      "title": "\ud83d\udce6 Gross Orders Placed",
-      "description": "Total gross purchase orders placed and completed before cancellations.",
+      "title": "\ud83d\udce6 Resolved Orders (Completed + Cancelled)",
+      "description": "Total terminal orders recorded by Analytics: completed plus cancelled. Pending orders are not included.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -159,16 +159,16 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
-          "legendFormat": "Gross Orders"
+          "expr": "sum(max by (status) (ecommerce_orders{status=~\"COMPLETED|CANCELLED\"})) or sum(ecommerce_orders_total{status=~\"COMPLETED|CANCELLED\"}) or vector(0)",
+          "legendFormat": "Resolved Orders"
         }
       ]
     },
     {
       "id": 4,
       "type": "stat",
-      "title": "\ud83d\udcb8 Revenue Lost to Cancellations ($)",
-      "description": "Estimated gross revenue leakage due to cancelled orders (Cancelled Orders * AOV).",
+      "title": "\ud83d\udcb8 Estimated Revenue at Risk from Cancellations ($)",
+      "description": "Estimate: cancelled orders multiplied by the average completed-order revenue. It is a proxy, not the recorded value of cancelled orders.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -222,7 +222,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "round((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) * ((sum(ecommerce_revenue_usd) or vector(0)) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(1), 1)), 0.01)",
+          "expr": "round((max(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)) * ((max(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)) / clamp_min(max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(1), 1)), 0.01)",
           "legendFormat": "Estimated Lost Revenue"
         }
       ]
@@ -230,8 +230,8 @@
     {
       "id": 5,
       "type": "stat",
-      "title": "\ud83d\udecd\ufe0f Net Completed Orders",
-      "description": "True net purchase orders actively retained and fulfilled (Gross - Cancelled).",
+      "title": "\ud83d\udecd\ufe0f Completed Orders",
+      "description": "Completed order count from Analytics. Completed and cancelled are separate terminal statuses, so cancellations are not subtracted from this count.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -277,8 +277,8 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0)",
-          "legendFormat": "Net Orders"
+          "expr": "max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+          "legendFormat": "Completed Orders"
         }
       ]
     },
@@ -286,7 +286,7 @@
       "id": 6,
       "type": "stat",
       "title": "\ud83c\udff7\ufe0f Average Order Value (AOV)",
-      "description": "Average spend per net completed order ticket (Revenue / Net Orders).",
+      "description": "Average completed-order revenue: net sales revenue divided by completed orders.",
       "gridPos": {
         "h": 4,
         "w": 4,
@@ -332,7 +332,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)) - (sum(ecommerce_orders{status=\"CANCELLED\"}) or sum(ecommerce_orders_total{status=\"CANCELLED\"}) or vector(0)), 0), 1) or vector(0)",
+          "expr": "(max(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0), 1) or vector(0)",
           "legendFormat": "AOV"
         }
       ]
@@ -395,7 +395,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "max(ecommerce_cart_abandonment_rate) or clamp_max(clamp_min((1 - (clamp_max(sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0), scalar(sum(ecommerce_funnel_events_total{event_type=~\"(?i)cart_add.*\"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0))) / clamp_min(sum(ecommerce_funnel_events_total{event_type=~\"(?i)cart_add.*\"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total), 1))) * 100, 0), 100) or vector(0)",
+          "expr": "max(ecommerce_cart_abandonment_rate) or clamp_max(clamp_min((1 - (clamp_max(max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0), scalar(sum(ecommerce_funnel_events_total{event_type=~\"(?i)cart_add.*\"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0))) / clamp_min(sum(ecommerce_funnel_events_total{event_type=~\"(?i)cart_add.*\"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total), 1))) * 100, 0), 100) or vector(0)",
           "legendFormat": "Abandonment"
         }
       ]
@@ -462,7 +462,7 @@
             "type": "prometheus"
           },
           "expr": "sum(ecommerce_funnel_events_total{event_type=~\"(?i)cart_add.*\"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0)",
-          "legendFormat": "1. Cart Additions"
+          "legendFormat": "Cart Additions"
         },
         {
           "datasource": {
@@ -470,7 +470,7 @@
             "type": "prometheus"
           },
           "expr": "sum(ecommerce_funnel_events_total{event_type=~\"(?i)checkout_start.*\"}) or sum(ecommerce_checkout_started) or sum(ecommerce_checkout_started_total) or vector(0)",
-          "legendFormat": "2. Checkout Started"
+          "legendFormat": "Checkout Started"
         },
         {
           "datasource": {
@@ -478,15 +478,15 @@
             "type": "prometheus"
           },
           "expr": "sum(ecommerce_funnel_events_total{event_type=~\"(?i)checkout_step.*\",step=~\"(?i)payment.*|cart|\"}) or sum(ecommerce_funnel_events_total{event_type=~\"(?i)checkout_step.*\"}) or sum(ecommerce_checkout_step_reached{step=\"PAYMENT\"}) or sum(ecommerce_checkout_step_reached_total{step=\"PAYMENT\"}) or vector(0)",
-          "legendFormat": "3. Reached Payment"
+          "legendFormat": "Payment Step"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
-          "legendFormat": "4. Order Completed"
+          "expr": "max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+          "legendFormat": "Completed Orders"
         }
       ]
     },
@@ -539,7 +539,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (status) (ecommerce_orders_active_in_pipeline{status=~\"PLACED|SHIPPED|DELIVERED\"}) or vector(0)",
+          "expr": "max by (status) (ecommerce_orders_active_in_pipeline{status=~\"PLACED|SHIPPED|DELIVERED\"}) or vector(0)",
           "legendFormat": "Stage: {{status}}"
         }
       ]
@@ -604,7 +604,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "round((1 - ((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1))) * 100, 0.1)",
+          "expr": "round((1 - ((max(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((max(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (max(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1))) * 100, 0.1)",
           "legendFormat": "Net Order Retention Rate %"
         },
         {
@@ -612,7 +612,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "round(((sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((sum(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (sum(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1)) * 100, 0.1)",
+          "expr": "round(((max(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)) / clamp_min((max(ecommerce_orders{status=\"COMPLETED\"}) or vector(0)) + (max(ecommerce_orders{status=\"CANCELLED\"}) or vector(0)), 1)) * 100, 0.1)",
           "legendFormat": "Order Cancellation Rate % (OCR)"
         }
       ]
@@ -633,7 +633,7 @@
       "id": 16,
       "type": "stat",
       "title": "\ud83d\udcb3 Payment Gateway Health & Authorization SLA",
-      "description": "Real-time payment authorization success rate alongside bank declined/failed transactions.",
+      "description": "Failed payment count and successful transaction share. Success rate is No data until at least one payment is observed.",
       "gridPos": {
         "h": 6,
         "w": 6,
@@ -708,7 +708,8 @@
         },
         "textMode": "value_and_name",
         "colorMode": "value",
-        "graphMode": "area"
+        "graphMode": "area",
+        "noValue": "No payment activity"
       },
       "targets": [
         {
@@ -724,7 +725,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "round((sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1)) * 100, 0.1) or vector(100)",
+          "expr": "(sum(ecommerce_payments_total{status=\"COMPLETED\"}) / clamp_min(sum(ecommerce_payments_total), 1) * 100) and (sum(ecommerce_payments_total) > 0)",
           "legendFormat": "Authorization Success %"
         }
       ]
@@ -787,8 +788,8 @@
     {
       "id": 18,
       "type": "stat",
-      "title": "\ud83d\udcb3 Average Transaction Amount (USD)",
-      "description": "Average transaction value authorized across completed customer payments.",
+      "title": "\ud83d\udcb3 Net Sales per Successful Payment (USD)",
+      "description": "Net sales revenue divided by successful payment count. This is an average proxy and assumes payment totals align with completed order revenue.",
       "gridPos": {
         "h": 6,
         "w": 6,
@@ -833,7 +834,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "(sum(ecommerce_revenue_usd) / clamp_min(sum(ecommerce_orders{status=\"COMPLETED\"}), 1)) or vector(0)",
+          "expr": "(max(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total)) / clamp_min(sum(ecommerce_payments_total{status=\"COMPLETED\"}), 1) or vector(0)",
           "legendFormat": "Average Ticket"
         }
       ]
@@ -1029,7 +1030,7 @@
       "id": 21,
       "type": "stat",
       "title": "\u26a0\ufe0f Low Stock & Out-of-Stock SKUs",
-      "description": "Each SKU is shown once using the lowest stock value observed across inventory replicas. Red = out of stock; amber = 1–10 units.",
+      "description": "Each SKU is shown once using the lowest stock value observed across inventory replicas. Red = out of stock; amber = 1\u201310 units.",
       "gridPos": {
         "h": 7,
         "w": 8,
@@ -1133,7 +1134,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (sku) (ecommerce_sku_sales > 0) or sum by (sku) (ecommerce_sku_sales_total > 0)",
+          "expr": "max by (sku) (ecommerce_sku_sales > 0) or sum by (sku) (ecommerce_sku_sales_total > 0)",
           "legendFormat": "{{sku}}"
         }
       ]
@@ -1199,7 +1200,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum by (cohort) (ecommerce_orders_by_cohort) or vector(0)",
+          "expr": "max by (cohort) (ecommerce_orders_by_cohort) or vector(0)",
           "legendFormat": "Tier: {{cohort}}"
         }
       ]
@@ -1272,16 +1273,16 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
-          "legendFormat": "Cumulative Completed Orders"
+          "expr": "max(ecommerce_orders{status=\"COMPLETED\"}) or sum(ecommerce_orders_total{status=\"COMPLETED\"}) or vector(0)",
+          "legendFormat": "Completed Orders"
         },
         {
           "datasource": {
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "sum(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
-          "legendFormat": "Net Revenue ($ USD)"
+          "expr": "max(ecommerce_revenue_usd) or sum(ecommerce_revenue_usd_total) or vector(0)",
+          "legendFormat": "Net Revenue USD"
         }
       ]
     },

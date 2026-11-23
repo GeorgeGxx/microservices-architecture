@@ -28,6 +28,125 @@ sys.stdout.reconfigure(encoding='utf-8')
 biz_path = r'observability/grafana/dashboards/business-operations-dashboard.json'
 tech_path = r'observability/grafana/dashboards/technical-security-dashboard.json'
 
+
+def apply_dashboard_semantic_fixes(business_panels, technical_panels):
+    """Keep dashboard labels and PromQL aligned with the exported metric semantics."""
+    def patch(panels, panel_id, *, title=None, description=None, expressions=None,
+              legends=None, unit=None, decimals=None, thresholds=None, no_value=None):
+        panel = next((item for item in panels if item.get("id") == panel_id), None)
+        if panel is None:
+            return
+        if title is not None:
+            panel["title"] = title
+        if description is not None:
+            panel["description"] = description
+        if expressions is not None:
+            for target, expression in zip(panel.get("targets", []), expressions):
+                target["expr"] = expression
+        if legends is not None:
+            for target, legend in zip(panel.get("targets", []), legends):
+                target["legendFormat"] = legend
+        if unit is not None:
+            panel.setdefault("fieldConfig", {}).setdefault("defaults", {})["unit"] = unit
+        if decimals is not None:
+            panel.setdefault("fieldConfig", {}).setdefault("defaults", {})["decimals"] = decimals
+        if thresholds is not None:
+            panel.setdefault("fieldConfig", {}).setdefault("defaults", {})["thresholds"] = thresholds
+        if no_value is not None:
+            panel.setdefault("options", {})["noValue"] = no_value
+
+    # Analytics exports database-backed gauges. Multiple replicas expose the same
+    # totals, so max deduplicates replicas; legacy *_total counters are summed.
+    legacy_order_selector = 'ecommerce_orders_total{status="COMPLETED"}'
+    completed_gauge = 'max(ecommerce_orders{status="COMPLETED"})'
+    cancelled_gauge = 'max(ecommerce_orders{status="CANCELLED"})'
+    revenue_gauge = 'max(ecommerce_revenue_usd)'
+    legacy_revenue = 'sum(ecommerce_revenue_usd_total)'
+    patch(business_panels, 2,
+          expressions=[f'{revenue_gauge} or {legacy_revenue} or vector(0)'])
+    patch(business_panels, 3,
+          title='📦 Resolved Orders (Completed + Cancelled)',
+          description='Total terminal orders recorded by Analytics: completed plus cancelled. Pending orders are not included.',
+          expressions=['sum(max by (status) (ecommerce_orders{status=~"COMPLETED|CANCELLED"})) or sum(ecommerce_orders_total{status=~"COMPLETED|CANCELLED"}) or vector(0)'],
+          legends=['Resolved Orders'])
+    patch(business_panels, 4,
+          title='💸 Estimated Revenue at Risk from Cancellations ($)',
+          description='Estimate: cancelled orders multiplied by the average completed-order revenue. It is a proxy, not the recorded value of cancelled orders.',
+          expressions=[f'round(({cancelled_gauge} or sum(ecommerce_orders_total{{status="CANCELLED"}}) or vector(0)) * (({revenue_gauge} or {legacy_revenue} or vector(0)) / clamp_min({completed_gauge} or sum({legacy_order_selector}) or vector(1), 1)), 0.01)'],
+          decimals=2,
+          thresholds={"mode": "absolute", "steps": [{"color": "#10b981", "value": None}, {"color": "#f59e0b", "value": 500}, {"color": "#ef4444", "value": 1500}]})
+    patch(business_panels, 5,
+          title='🛍️ Completed Orders',
+          description='Completed order count from Analytics. Completed and cancelled are separate terminal statuses, so cancellations are not subtracted from this count.',
+          expressions=[f'{completed_gauge} or sum({legacy_order_selector}) or vector(0)'],
+          legends=['Completed Orders'])
+    patch(business_panels, 6,
+          description='Average completed-order revenue: net sales revenue divided by completed orders.',
+          expressions=[f'({revenue_gauge} or {legacy_revenue}) / clamp_min({completed_gauge} or sum({legacy_order_selector}) or vector(0), 1) or vector(0)'])
+    patch(business_panels, 7,
+          expressions=['max(ecommerce_cart_abandonment_rate) or clamp_max(clamp_min((1 - (clamp_max(max(ecommerce_orders{status="COMPLETED"}) or sum(ecommerce_orders_total{status="COMPLETED"}) or vector(0), scalar(sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0))) / clamp_min(sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total), 1))) * 100, 0), 100) or vector(0)'])
+    patch(business_panels, 11,
+          expressions=['sum(ecommerce_funnel_events_total{event_type=~"(?i)cart_add.*"}) or sum(ecommerce_cart_additions) or sum(ecommerce_cart_additions_total) or vector(0)',
+                       'sum(ecommerce_funnel_events_total{event_type=~"(?i)checkout_start.*"}) or sum(ecommerce_checkout_started) or sum(ecommerce_checkout_started_total) or vector(0)',
+                       'sum(ecommerce_funnel_events_total{event_type=~"(?i)checkout_step.*",step=~"(?i)payment.*|cart|"}) or sum(ecommerce_funnel_events_total{event_type=~"(?i)checkout_step.*"}) or sum(ecommerce_checkout_step_reached{step="PAYMENT"}) or sum(ecommerce_checkout_step_reached_total{step="PAYMENT"}) or vector(0)',
+                       f'{completed_gauge} or sum({legacy_order_selector}) or vector(0)'],
+          legends=['Cart Additions', 'Checkout Started', 'Payment Step', 'Completed Orders'])
+    patch(business_panels, 12,
+          expressions=['max by (status) (ecommerce_orders_active_in_pipeline{status=~"PLACED|SHIPPED|DELIVERED"}) or vector(0)'])
+    patch(business_panels, 13,
+          expressions=['round((sum(ecommerce_shipments_delivered_total) / clamp_min(sum(ecommerce_shipments_dispatched_total), 1)) * 100, 0.1)',
+                       'round((1 - ((max(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min((max(ecommerce_orders{status="COMPLETED"}) or vector(0)) + (max(ecommerce_orders{status="CANCELLED"}) or vector(0)), 1))) * 100, 0.1)',
+                       'round(((max(ecommerce_orders{status="CANCELLED"}) or vector(0)) / clamp_min((max(ecommerce_orders{status="COMPLETED"}) or vector(0)) + (max(ecommerce_orders{status="CANCELLED"}) or vector(0)), 1)) * 100, 0.1)'])
+    patch(business_panels, 16,
+          description='Failed payment count and successful transaction share. Success rate is No data until at least one payment is observed.',
+          expressions=['sum(ecommerce_payments_total{status="FAILED"}) or vector(0)',
+                       '(sum(ecommerce_payments_total{status="COMPLETED"}) / clamp_min(sum(ecommerce_payments_total), 1) * 100) and (sum(ecommerce_payments_total) > 0)'],
+          no_value='No payment activity')
+    patch(business_panels, 18,
+          title='💳 Net Sales per Successful Payment (USD)',
+          description='Net sales revenue divided by successful payment count. This is an average proxy and assumes payment totals align with completed order revenue.',
+          expressions=[f'({revenue_gauge} or {legacy_revenue}) / clamp_min(sum(ecommerce_payments_total{{status="COMPLETED"}}), 1) or vector(0)'])
+    patch(business_panels, 21,
+          title='⚠️ Low Stock & Out-of-Stock SKUs',
+          description='Each SKU is shown once using the lowest stock value observed across inventory replicas. Red = out of stock; amber = 1–10 units.',
+          expressions=['min by (sku) (ecommerce_inventory_sku_stock) <= 10'])
+    patch(business_panels, 22,
+          expressions=['max by (sku) (ecommerce_sku_sales > 0) or sum by (sku) (ecommerce_sku_sales_total > 0)'])
+    patch(business_panels, 31,
+          expressions=['max by (cohort) (ecommerce_orders_by_cohort) or vector(0)'])
+    patch(business_panels, 32,
+          expressions=[f'{completed_gauge} or sum({legacy_order_selector}) or vector(0)',
+                       f'{revenue_gauge} or {legacy_revenue} or vector(0)'],
+          legends=['Completed Orders', 'Net Revenue USD'])
+
+    patch(technical_panels, 101,
+          description='Unique reachable core targets (Cosmo Router and eight business services). Missing or down targets reduce the count; no targets reports zero.',
+          expressions=['count(count by (service) (up{service=~"cosmo-router|orders-service|products-service|inventory-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service"} == 1)) or vector(0)'],
+          thresholds={"mode": "absolute", "steps": [{"color": "#ef4444", "value": None}, {"color": "#f59e0b", "value": 7}, {"color": "#10b981", "value": 9}]})
+    patch(technical_panels, 103,
+          title='🚨 Frontend HTTP 429 Rate',
+          description='Rolling one-minute rate of HTTP 429 responses logged by frontend Nginx. Green: <1/sec, amber: 1–5/sec, red: ≥5/sec.',
+          unit='reqps')
+    patch(technical_panels, 102,
+          expressions=['(histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{uri!~".*stream.*"}[5m]))) * 1000) or histogram_quantile(0.95, sum by (le) (rate(router_http_request_duration_milliseconds_bucket{wg_subgraph_name=""}[5m]))) or vector(0)'])
+    patch(technical_panels, 104,
+          title='⚡ Worst Circuit Breaker State',
+          description='Worst observed state across exported Resilience4j breakers: 2 = all closed, 1 = at least one half-open, 0 = at least one open. No data means no breaker state telemetry.',
+          expressions=['(clamp_min(2 - 2 * (max(resilience4j_circuitbreaker_state{state="open"}) or vector(0)) - (max(resilience4j_circuitbreaker_state{state="half_open"}) or vector(0)), 0)) and (count(resilience4j_circuitbreaker_state{state=~"closed|open|half_open"}) > 0)'],
+          no_value='No breaker telemetry')
+    patch(technical_panels, 105,
+          description='Worst 5-minute error-budget burn across seven HTTP services and the forecast API. Fully unavailable discovered targets count as 200x burn; health checks are excluded from forecast API traffic. Red starts at the 14.4x multi-window alert threshold.',
+          expressions=['max((microservices:http_error_ratio:rate5m / 0.005) or on(service) (max by (service) (up{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service"} == 1) * 0) or on(service) (max by (service) (up{service=~"products-service|inventory-service|orders-service|notification-service|payments-service|fulfillment-service|analytics-service"} == bool 0) * 200) or on(service) ((sum by (service) (rate(demand_forecast_http_requests_total{service="demand-forecast-service",path!="/health",status=~"5.."}[5m])) / clamp_min(sum by (service) (rate(demand_forecast_http_requests_total{service="demand-forecast-service",path!="/health"}[5m])), 1e-9) / 0.005) or on (service) (max by (service) (up{service="demand-forecast-service"} == 1) * 0) or on (service) (max by (service) (up{service="demand-forecast-service"} == bool 0) * 200)))'])
+    patch(technical_panels, 302,
+          title='📨 Kafka Producer & Notification Event Rates',
+          description='Kafka template send rate alongside events processed by Notifications. Producer sends are not guaranteed to be limited to orders-topic, so compare as pipeline activity rather than a one-to-one order count.',
+          expressions=['sum by (status) (rate(notification_events_processed_total[1m])) or vector(0)',
+                       'sum(rate(spring_kafka_template_seconds_count[1m])) or vector(0)'],
+          legends=['Processed by Notifications ({{status}})', 'Kafka producer sends'])
+    patch(technical_panels, 501,
+          description='Counts frontend Nginx HTTP 429 responses and ranks observed peer IPs over a rolling 15-minute window. No rows means no blocked request during that window. The limiter ignores caller-supplied X-Forwarded-For values; behind another proxy, the peer may be that proxy.',
+          legends=['Blocked HTTP 429 (rolling 15m)', 'IP {{peer_ip}}'])
+
 # =========================================================================
 def build_business_dashboard():
     with open(biz_path, 'r', encoding='utf-8') as f:
@@ -35,7 +154,7 @@ def build_business_dashboard():
 
     for variable in biz.get("templating", {}).get("list", []):
         if variable.get("name") == "service":
-            biz_service_query = 'label_values(up{service=~"orders-service|inventory-service|products-service|analytics-service|payments-service|fulfillment-service"}, service)'
+            biz_service_query = 'label_values(up{service=~"cosmo-router|orders-service|inventory-service|products-service|notification-service|payments-service|fulfillment-service|analytics-service|demand-forecast-service"}, service)'
             variable["definition"] = biz_service_query
             if isinstance(variable.get("query"), dict):
                 variable["query"]["query"] = biz_service_query
@@ -725,6 +844,7 @@ def build_business_dashboard():
     }
 ]
 
+    apply_dashboard_semantic_fixes(biz_panels, [])
     if biz.get('panels') != biz_panels:
         biz['version'] = biz.get('version', 1) + 1
     biz['panels'] = biz_panels
@@ -1590,6 +1710,7 @@ def build_technical_dashboard():
     }
 ]
 
+    apply_dashboard_semantic_fixes([], tech_panels)
     if tech.get('panels') != tech_panels:
         tech['version'] = tech.get('version', 1) + 1
     tech['panels'] = tech_panels
