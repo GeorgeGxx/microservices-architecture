@@ -1121,7 +1121,7 @@
         },
         "legend": {
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "values": [
             "value",
             "percent"

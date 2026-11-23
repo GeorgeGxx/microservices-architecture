@@ -692,7 +692,7 @@ def build_business_dashboard():
             "pieType": "donut",
             "tooltip": {"mode": "single"},
             "reduceOptions": {"values": False, "calcs": ["lastNotNull"]},
-            "legend": {"displayMode": "table", "placement": "bottom", "values": ["value", "percent"]}
+            "legend": {"displayMode": "table", "placement": "right", "values": ["value", "percent"]}
         },
         "targets": [{
             "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
