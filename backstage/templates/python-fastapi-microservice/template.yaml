@@ -2,12 +2,12 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: python-fastapi-microservice-golden-path
-  title: Golden Path — Python 3.12 / FastAPI Analytics & MLOps Service
-  description: Scaffold a Python 3.12 / FastAPI microservice with pytest coverage, Prometheus instrumentation, non-root containerization, and MLflow/Kafka integration.
+  title: Golden Path — Python 3.12 / FastAPI 0.160.0 Analytics & MLOps Service
+  description: Scaffold a Python 3.12 / FastAPI 0.160.0 / SQLAlchemy 2.0 / Pydantic v2 microservice with pytest coverage, Prometheus instrumentation, non-root containerization, and MLflow/Kafka integration.
   tags:
     - golden-path
     - python-3-12
-    - fastapi
+    - fastapi-0-160-0
     - mlops
 spec:
   owner: group:platform-admins
