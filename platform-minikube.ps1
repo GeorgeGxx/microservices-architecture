@@ -48,7 +48,7 @@ param(
     [ValidateRange(1, 100)]
     [int[]]$Steps = @(10, 25, 50, 75, 100),
     [string]$LockId = "",
-    [int]$Cpus = 8,
+    [int]$Cpus = 12,
     [int]$MemoryMb = 20480,
     [string]$DiskSize = "40g",
     [string]$CosignImage = "",
@@ -2128,7 +2128,7 @@ if ($Command -eq "build" -and $Platform -eq "minikube" -and ($Build -or $DeployC
 if ($Command -in @("up", "bootstrap", "apply", "start", "resume") -and $Platform -eq "minikube" -and ($AutoApprove -or $Destroy -or $LockId -or $Install)) {
     throw "Remove -AutoApprove/-Destroy/-LockId/-Install: they do not apply to local platform bootstrap."
 }
-if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 8 -or $MemoryMb -ne 20480 -or $DiskSize -ne "40g")) {
+if ($Platform -eq "minikube" -and $Command -notin @("up", "bootstrap", "apply", "start", "resume") -and ($Build -or $DeployCanary -or $CanaryImageTag -ne "canary" -or $SkipScans -or $WithoutIstio -or $Fast -or $Cpus -ne 12 -or $MemoryMb -ne 20480 -or $DiskSize -ne "40g")) {
     throw "Build, canary, scan, Istio, Fast resume, and Minikube capacity options are valid only with 'up'/'bootstrap'/'apply'/'start'/'resume'."
 }
 if (($CosignImage -or $CosignKey -or $CosignIgnoreTlog) -and $Command -notin @("up", "bootstrap", "apply", "start", "resume", "security-scan")) {
@@ -2724,7 +2724,7 @@ Options:
   -VaultAction <status|k8s-auth|istio-pki|seed>: Action for HashiCorp Vault operations
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
   -Environment <dev|staging|prod>      : Environment scope for FinOps and secrets
-  -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 8, 20480, 40g)
+  -Cpus / -MemoryMb / -DiskSize        : VM resource sizing for Minikube (defaults: 12, 20480, 40g; CPU is capped to Docker Desktop capacity)
   -SkipScans                           : Bypass security scan gates during up/start (including Cosign)
   -CosignIgnoreTlog                    : Explicitly skip Cosign transparency-log verification (insecure; offline only)
   -CosignImage <ref>                   : Verify this image signature instead of the signed supply-chain manifest
@@ -2779,6 +2779,21 @@ function Write-MinikubeMemoryPressureWarning {
         if ($profileMemoryMb -gt 0 -and $profileMemoryMb -lt $RequestedMemoryMb) {
             Write-Host "  [WARN] This run requests $([math]::Round($RequestedMemoryMb / 1024, 1)) GiB, but an active cluster is never resized automatically. After workloads settle, stop and resume Minikube to apply the higher allocation; persistent cluster data remains in place." -ForegroundColor Yellow
         }
+    }
+}
+
+function Write-MinikubeCpuAllocationWarning {
+    param([int]$RequestedCpuCount)
+
+    $profile = minikube profile list -o json 2>$null | ConvertFrom-Json |
+        Select-Object -ExpandProperty valid -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -eq 'minikube' } |
+        Select-Object -First 1
+    $profileCpuCount = if ($profile) { [int]$profile.Config.CPUs } else { 0 }
+
+    if ($profileCpuCount -gt 0 -and $profileCpuCount -lt $RequestedCpuCount) {
+        Write-Host "  [WARN] The active Minikube profile still has $profileCpuCount CPUs; this run requests $RequestedCpuCount. A running profile is not resized automatically." -ForegroundColor Yellow
+        Write-Host "  [WARN] After current work is complete, run 'minikube stop' and then '.\platform-minikube.ps1 start -Cpus $RequestedCpuCount'. Persistent cluster data will remain in place." -ForegroundColor Yellow
     }
 }
 
@@ -3354,7 +3369,7 @@ function Invoke-MinikubePlatform {
         [string]$ImageToVerify = "",
         [string]$PublicKeyPath = "",
         [switch]$FastResume = $false,
-        [int]$CpuCount = 8,
+        [int]$CpuCount = 12,
         [int]$RamMb = 20480,
         [string]$DiskBudget = "40g",
         [int]$CanaryV1Weight = 90,
@@ -3526,6 +3541,7 @@ function Invoke-MinikubePlatform {
                 }
             } else {
                 Write-Host "  [OK] Minikube is already active and healthy." -ForegroundColor Green
+                Write-MinikubeCpuAllocationWarning -RequestedCpuCount $CpuCount
                 Write-MinikubeMemoryPressureWarning -RequestedMemoryMb $RamMb
             }
             minikube update-context 2>$null | Out-Null
@@ -4107,6 +4123,7 @@ stringData:
                 }
             } else {
                 Write-Host "  [OK] Minikube is active and healthy." -ForegroundColor Green
+                Write-MinikubeCpuAllocationWarning -RequestedCpuCount $CpuCount
                 Write-MinikubeMemoryPressureWarning -RequestedMemoryMb $RamMb
             }
             minikube update-context 2>$null | Out-Null

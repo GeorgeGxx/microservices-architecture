@@ -25,8 +25,8 @@ glitchtip:
 cosmo-router:
   serviceAccount: { create: false, name: cosmo-router-sa }
   resources:
-    requests: { cpu: 100m, memory: 256Mi }
-    limits: { cpu: 750m, memory: 512Mi }
+    requests: { cpu: 150m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
   probes:
     startupPeriodSeconds: 5
     startupTimeoutSeconds: 10
@@ -48,8 +48,8 @@ inventory-service:
   image: { repository: georgegxx/inventory-service, tag: "1.0.0" }
   serviceAccount: { create: false, name: inventory-service-sa }
   resources:
-    requests: { cpu: 100m, memory: 768Mi }
-    limits: { cpu: 500m, memory: 1280Mi }
+    requests: { cpu: 200m, memory: 768Mi }
+    limits: { cpu: 750m, memory: 1280Mi }
   probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
@@ -68,8 +68,8 @@ notification-service:
   image: { repository: georgegxx/notification-service, tag: "1.0.0" }
   serviceAccount: { create: false, name: notification-service-sa }
   resources:
-    requests: { cpu: 100m, memory: 640Mi }
-    limits: { cpu: 500m, memory: 1024Mi }
+    requests: { cpu: 200m, memory: 640Mi }
+    limits: { cpu: 750m, memory: 1024Mi }
   probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
@@ -88,8 +88,8 @@ orders-service:
   image: { repository: georgegxx/orders-service, tag: "1.0.0" }
   serviceAccount: { create: false, name: orders-service-sa }
   resources:
-    requests: { cpu: 100m, memory: 768Mi }
-    limits: { cpu: 500m, memory: 1280Mi }
+    requests: { cpu: 200m, memory: 768Mi }
+    limits: { cpu: 750m, memory: 1280Mi }
   probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
@@ -102,8 +102,8 @@ products-service:
   image: { repository: georgegxx/products-service, tag: "1.0.0" }
   serviceAccount: { create: false, name: products-service-sa }
   resources:
-    requests: { cpu: 100m, memory: 640Mi }
-    limits: { cpu: 500m, memory: 1024Mi }
+    requests: { cpu: 200m, memory: 640Mi }
+    limits: { cpu: 750m, memory: 1024Mi }
   probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
   keda:
     enabled: true
@@ -173,8 +173,8 @@ ai-service:
   image: { repository: georgegxx/ai-service, tag: "1.0.0" }
   serviceAccount: { create: false, name: ai-service-sa }
   resources:
-    requests: { cpu: 75m, memory: 256Mi }
-    limits: { cpu: 500m, memory: 768Mi }
+    requests: { cpu: 150m, memory: 256Mi }
+    limits: { cpu: 750m, memory: 768Mi }
   env:
     APP_ENV: "production"
     PORT: "8010"
@@ -213,6 +213,9 @@ mlops:
     resources:
       requests: { cpu: 250m, memory: 1Gi }
       limits: { cpu: "4", memory: 4Gi }
+    jobResources:
+      requests: { cpu: "2", memory: 2Gi }
+      limits: { cpu: "8", memory: 4Gi }
     minPartitions: 9
     autoTrainIntervalSec: 60
     autoTrainStabilitySeconds: 60

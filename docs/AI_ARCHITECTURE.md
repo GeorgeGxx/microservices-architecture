@@ -121,9 +121,9 @@ The AI Copilot ecosystem is deployed across two primary namespaces in Kubernetes
 
 | Component | Namespace | Controller & Service | Storage & Hardware | SRE Resource Right-Sizing |
 | :--- | :--- | :--- | :--- | :--- |
-| **i-service** | dev | Deployment / ClusterIP (:8010) | Stateless (Redis state checkpointer) | CPU: 75m req / 300m lim<br>Mem: 384Mi req / 768Mi lim |
+| **i-service** | dev | Deployment / ClusterIP (:8010) | Stateless (Redis state checkpointer) | CPU: 150m req / 750m lim<br>Mem: 256Mi req / 768Mi lim |
 | **phoenix** | observability | Deployment / ClusterIP (:6006) | phoenix-pvc (5Gi ReadWriteOnce on /data) | CPU: 50m req / 100m lim<br>Mem: 256Mi req / 512Mi lim |
-| **ollama** | observability | Deployment / ClusterIP (:11434) | ollama-pvc (15Gi ReadWriteOnce on /root/.ollama)<br>NVIDIA RTX 3070 8GB GPU Pass-through | CPU: 100m req / 2000m lim<br>Mem: 512Mi req / 4096Mi lim |
+| **ollama** | observability | Deployment / ClusterIP (:11434) | ollama-pvc (15Gi ReadWriteOnce on /root/.ollama)<br>GPU acceleration via Docker Compose only; Minikube is CPU-only | CPU: 500m req / 4000m lim<br>Mem: 512Mi req / 6144Mi lim |
 
 ### Cross-Namespace Routing via Kubernetes ExternalName Bridges
 Workloads in dev (such as i-service) reach the observability telemetry services seamlessly via standard Kubernetes ExternalName service definitions:
@@ -140,7 +140,7 @@ To prevent data loss and avoid heavy re-downloading across pod lifecycle events,
 
 ---
 
-## 5. Dedicated Hardware Acceleration (NVIDIA GeForce RTX 3070 8GB GDDR6)
+## 5. Docker Compose Hardware Acceleration (NVIDIA GeForce RTX 3070 8GB GDDR6)
 
 The platform leverages the host machine's dedicated NVIDIA GPU to accelerate inference:
 * **Host Architecture:** AMD Ryzen 7 6800H (8 Cores / 16 Threads), 32 GB DDR5 RAM, NVIDIA GeForce RTX 3070 Laptop GPU (8GB VRAM GDDR6, CUDA 13.5).
@@ -154,8 +154,8 @@ The platform leverages the host machine's dedicated NVIDIA GPU to accelerate inf
             count: 1
             capabilities: [gpu]
   `
-* **Minikube Architecture:** platform-minikube.ps1 prioritizes cluster stability using the native containerd runtime, while dedicated GPU acceleration is natively offloaded to Docker Compose / Windows host Ollama (http://localhost:11434).
-* **Inference Speed:** Enables 45+ tokens/second throughput for 8B parameter models, cutting response latency from ~8-12 seconds on CPU down to < 1.2 seconds on GPU.
+* **Minikube Architecture:** `platform-minikube.ps1` uses containerd and does not pass through the host GPU. Ollama inference and MLOps model training run on CPU in Minikube.
+* **Docker Compose Inference Speed:** With a supported NVIDIA runtime, GPU acceleration can improve local 8B model inference; throughput depends on the GPU, model quantization, and workload.
 
 ---
 

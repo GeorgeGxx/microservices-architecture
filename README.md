@@ -24,7 +24,7 @@
 
 > **Enterprise AWS Cloud-Native Microservices Platform** built with **Java 21**, **Spring Boot 4**, **React 19 + TailwindCSS v4**, and **Autonomous AI Copilot (FastAPI 0.160 + LangGraph 0.3 + MCP + Ollama)**. Features automated **DHL tracking number generation**, observed **checkout-funnel event telemetry**, **Saga distributed transactions**, **Istio Service Mesh**, **HashiCorp Vault**, **Keycloak OAuth2/OIDC**, **KEDA v2.21.0 Event-Driven Autoscaling**, **Automated MLOps Demand Forecasting**, **Local Multi-Agent RAG & Tool Execution**, and full **DevSecOps & GitOps automation** on **AWS EKS (Terraform + GitHub Actions + ArgoCD)** and **local Minikube**.
 
-**Recommended local resources:** 8 CPU cores and 16 GB RAM free — the full local stack runs 30+ containers when optional MLOps workloads are enabled.
+**Recommended local resources:** a 32 GB host, with Minikube allocated up to 12 vCPUs (capped by Docker Desktop) and 20 GiB RAM. Minikube runs MLOps training and Ollama inference on CPU; NVIDIA GPU acceleration is available through Docker Compose only. Existing Minikube profiles need a stop/start cycle to apply a changed CPU allocation.
 
 Docker Compose publishes host ports on `127.0.0.1` only; containers continue to communicate over the private Compose network.
 

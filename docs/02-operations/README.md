@@ -12,7 +12,7 @@ The **Platform Operations & Local Deployment** pillar establishes standard opera
 ```mermaid
 flowchart LR
     DEV["Developer Workstation"] --> CLI["platform-minikube.ps1"]
-    CLI --> MINIKUBE["Minikube Cluster<br/>(8 CPU • 16GB RAM)"]
+    CLI --> MINIKUBE["Minikube Cluster<br/>(up to 12 CPU • 20GiB RAM • CPU-only AI/MLOps)"]
     CLI --> COMPOSE["Docker Compose<br/>(15 Services)"]
     MINIKUBE --> ISTIO["Istio Service Mesh<br/>(Canary Traffic Shifts)"]
     MINIKUBE --> CF["Cloudflare Zero Trust<br/>(Anycast Quick Tunnels)"]

@@ -60,12 +60,12 @@ PRICING_CATALOG = {
 DEFAULT_PROFILES = {
     "minikube": {
         "title": "Local Minikube Environment (Intel/AMD Hardware)",
-        "hardware": "8 vCPUs allocated | 16 GiB RAM | 40 GB NVMe Disk",
+        "hardware": "12 vCPUs allocated (Docker Desktop CPU limit applies) | 20 GiB RAM | 40 GB NVMe Disk",
         "cloud_equivalent_cost": 309.80,
         "actual_cost": 0.00,
         "items": [
             {"component": "Kubernetes Control Plane", "detail": "Local Minikube (v1.39.0)", "monthly": 0.00, "cloud_equiv": 73.00},
-            {"component": "Workload Compute Nodes", "detail": "Intel/AMD (8 vCPUs / 16 GiB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
+            {"component": "Workload Compute Nodes", "detail": "Intel/AMD (12 vCPUs / 20 GiB RAM)", "monthly": 0.00, "cloud_equiv": 182.40},
             {"component": "Container Ingress & Mesh", "detail": "Local Istio Demo + Ingress", "monthly": 0.00, "cloud_equiv": 16.20},
             {"component": "Backing Storage & Logs", "detail": "40 GB Local NVMe Storage", "monthly": 0.00, "cloud_equiv": 3.20},
             {"component": "Network Data Transfer", "detail": "Loopback (localhost / 127.0.0.1)", "monthly": 0.00, "cloud_equiv": 35.00},
@@ -281,7 +281,7 @@ def generate_reports(env_name: str, items: List[Dict[str, Any]], markdown_path: 
 
     if is_minikube:
         total_cloud_equiv = sum(item.get("cloud_equiv", 0.0) for item in items)
-        print(f"Local Host: 8+ cores | 32+ GB RAM (Docker Desktop ~20 GiB / Minikube 16 GiB) | 40 GB NVMe")
+        print(f"Local Host: 8+ cores | 32 GB RAM (Minikube up to 12 vCPU / 20 GiB; CPU capped by Docker Desktop) | 40 GB NVMe")
         print(f"Actual Cloud Billing: $0.00 USD / month (100% Free Local Execution)")
         print(f"Equivalent AWS Cloud Cost: ~${total_cloud_equiv:.2f} USD / month")
         print(f"🏆 Local Monthly Savings: ~${total_cloud_equiv:.2f} USD / month\n")

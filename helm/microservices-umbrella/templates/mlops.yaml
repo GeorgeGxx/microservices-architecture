@@ -470,11 +470,11 @@ spec:
                   value: 127.0.0.1
               resources:
                 requests:
-                  cpu: {{ .Values.mlops.training.resources.requests.cpu | default "1" }}
-                  memory: {{ .Values.mlops.training.resources.requests.memory | default "2Gi" }}
+                  cpu: {{ .Values.mlops.training.jobResources.requests.cpu | default "1" }}
+                  memory: {{ .Values.mlops.training.jobResources.requests.memory | default "2Gi" }}
                 limits:
-                  cpu: {{ .Values.mlops.training.resources.limits.cpu | default "4" }}
-                  memory: {{ .Values.mlops.training.resources.limits.memory | default "4Gi" }}
+                  cpu: {{ .Values.mlops.training.jobResources.limits.cpu | default "4" }}
+                  memory: {{ .Values.mlops.training.jobResources.limits.memory | default "4Gi" }}
               securityContext:
                 allowPrivilegeEscalation: false
                 readOnlyRootFilesystem: true
