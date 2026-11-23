@@ -36,7 +36,7 @@ export const AICopilot: React.FC = () => {
       id: 'welcome',
       sender: 'agent',
       content: user?.isAdmin
-        ? `Welcome, Administrator **${user.username}**! 🛡️\n\nAI Copilot is operating in **Admin Mode** with elevated privileges.\n- 📊 **Federated Metrics & Subgraphs Health**\n- ⚡ **Real-Time Supervisor HITL Decision Gates**\n- 📦 **Global Order Audit by UUID & Carrier**\n- 📈 **Demand Forecasting & Inventory Safety Stock**`
+        ? `Welcome, Administrator **${user.username}**! 🛡️\n\nAI Copilot is operating in **Admin Mode**. You can use it to:\n- 🔍 **Get catalog recommendations** with verified availability when inventory is reachable\n- 📦 **Look up orders and shipments** by order ID or carrier tracking number\n- 🛡️ **Review store return, warranty, and refund policies**\n- 💰 **Submit refund requests** for supervisor review when required\n- 📈 **Open the seven-day demand forecast** from the dedicated shortcut`
         : 'Hello! I am your AI Shopping Copilot powered by **LangGraph** and **MCP** tools.\n\nI can help you with:\n- 📦 **Order & Shipment Tracking** (by Order UUID, ID, or Carrier code)\n- 🔍 **Product Catalog Recommendations via RAG**\n- 🛡️ **Store Return & Warranty Policies**\n- 💰 **Automated & Supervisor-Approved Refunds**',
       agentName: user?.isAdmin ? 'Enterprise Supervisor Router' : 'Supervisor Router',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -329,7 +329,7 @@ export const AICopilot: React.FC = () => {
                 <Sparkles className="h-2.5 w-2.5 text-indigo-400" /> Quick Prompts
               </span>
               <span className="text-[9px] text-slate-500 font-mono">
-                {user?.isAdmin ? 'Operator Actions' : 'Suggestions'}
+                {user?.isAdmin ? 'Admin Shortcuts' : 'Suggestions'}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-1.5">

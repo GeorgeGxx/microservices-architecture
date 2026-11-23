@@ -29,7 +29,7 @@ flowchart TD
 
     subgraph Visualization ["Unified Visualization"]
         GRAFANA["Grafana Dashboards (Port 3000)<br/>• Business Operations Dashboard<br/>• Technical & Security Dashboard"]
-        GLITCHTIP["GlitchTip Error Tracking<br/>• Minikube: Port 8091<br/>• Compose: Port 8090"]
+        GLITCHTIP["GlitchTip Error Tracking<br/>• Minikube and Compose: Port 8090"]
     end
 
     APPS -->|OTLP gRPC| ALLOY
@@ -46,7 +46,7 @@ flowchart TD
     APPS -->|Sentry-compatible SDK| GLITCHTIP
 ```
 
-For Minikube, open `http://localhost:8091` after the local tunnel supervisor is running. `.\platform-minikube.ps1 urls` lists GlitchTip with the other dashboards, and `.\platform-minikube.ps1 diagnose -Action components -Target glitchtip` checks its dashboard tunnel. Compose uses `http://localhost:8090` by default. Each deployment has its own database and admin credentials; set the same email and password in both environments if you want the same login.
+For Minikube and Compose, open `http://localhost:8090`. In Minikube, start the local tunnel supervisor first. `.\platform-minikube.ps1 urls` lists GlitchTip with the other dashboards, and `.\platform-minikube.ps1 diagnose -Action components -Target glitchtip` checks its dashboard tunnel. Both environments use port 8090, so stop one before exposing the other. Each deployment has its own database and admin credentials; set the same email and password in both environments if you want the same login.
 
 ---
 

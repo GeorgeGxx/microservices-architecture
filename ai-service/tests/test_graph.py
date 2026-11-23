@@ -31,6 +31,28 @@ def test_supervisor_catalog_intent_routing():
     assert res["detected_intent"] == "catalog"
 
 
+@pytest.mark.parametrize("message,user_role", [
+    ("Summarize the store’s return, warranty, and refund policies.", "admin"),
+    ("What are the return, warranty, and refund policies of the store?", "customer"),
+    ("What is your refund policy?", "customer"),
+])
+def test_supervisor_routes_policy_questions_before_refund_intent(message, user_role):
+    res = supervisor_router_node({
+        "messages": [HumanMessage(content=message)],
+        "user_role": user_role,
+    })
+    assert res["detected_intent"] == "policy_faq"
+
+
+@pytest.mark.parametrize("message", [
+    "I would like to request a refund for an order.",
+    "I need a refund for ORD-1002.",
+])
+def test_supervisor_keeps_refund_requests_in_order_support(message):
+    res = supervisor_router_node({"messages": [HumanMessage(content=message)]})
+    assert res["detected_intent"] == "order_support"
+
+
 @pytest.mark.parametrize("message", [
     "Suggest a laptop for school",
     "Find me a notebook under $1000",

@@ -18,7 +18,7 @@ glitchtip:
     storage: 5Gi
   valkey:
     image: docker.io/valkey/valkey:8-alpine
-  domain: http://localhost:8091
+  domain: http://localhost:8090
   retentionDays: "30"
   defaultFromEmail: glitchtip@microservices-architecture.dev
 
