@@ -2821,7 +2821,7 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📖 Fulfillment Swagger UI    │ http://localhost:8086/swagger              │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Analytics Swagger UI      │ http://localhost:8087/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
-    Write-Host "│ 🛡️ GlitchTip Error Tracking  │ http://localhost:8091                      │ Configured      │" -ForegroundColor White
+    Write-Host "│ 🛡️ GlitchTip Error Tracking  │ http://localhost:8090                      │ Configured      │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🤖 AI Copilot Swagger UI     │ http://localhost:8010/docs                 │ Open           │" -ForegroundColor White
@@ -2853,13 +2853,22 @@ function Start-LocalTunnelSupervisor {
         throw "Local tunnel supervisor was not found at '$supervisorScript'."
     }
 
+    $supervisorConfigHash = (Get-FileHash -LiteralPath $supervisorScript -Algorithm SHA256).Hash
+    $supervisorProcesses = @(Get-CimInstance Win32_Process -ErrorAction Stop |
+        Where-Object { $_.Name -in @("python.exe", "pythonw.exe") -and $_.CommandLine -like "*supervise-tunnels.py*" })
+    foreach ($process in $supervisorProcesses) {
+        if (-not $process.CommandLine.Contains("--config-hash $supervisorConfigHash")) {
+            Stop-Process -Id ([int]$process.ProcessId) -Force -ErrorAction Stop
+        }
+    }
+
     $supervisorProcess = Get-CimInstance Win32_Process -ErrorAction Stop |
-        Where-Object { $_.Name -in @("python.exe", "pythonw.exe") -and $_.CommandLine -like "*supervise-tunnels.py*" } |
+        Where-Object { $_.Name -in @("python.exe", "pythonw.exe") -and $_.CommandLine -like "*supervise-tunnels.py*--config-hash $supervisorConfigHash*" } |
         Select-Object -First 1
     $startedProcess = $null
     if (-not $supervisorProcess) {
         $python = Get-Command python -ErrorAction Stop
-        $startedProcess = Start-Process -FilePath $python.Source -ArgumentList @("`"$supervisorScript`"") -WorkingDirectory $root -WindowStyle Hidden -PassThru
+        $startedProcess = Start-Process -FilePath $python.Source -ArgumentList @("`"$supervisorScript`"", "--config-hash", $supervisorConfigHash) -WorkingDirectory $root -WindowStyle Hidden -PassThru
     }
 
     $frontendReady = $false
@@ -2914,7 +2923,7 @@ function Start-LocalTunnelSupervisor {
     $glitchTipLastError = 'No successful HTTP response was received.'
     for ($attempt = 0; $attempt -lt 45; $attempt++) {
         try {
-            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8091/' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8090/' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
             if ($response.StatusCode -eq 200) {
                 $glitchTipReady = $true
                 break
@@ -2937,12 +2946,12 @@ function Start-LocalTunnelSupervisor {
         } else {
             "No tunnel log found at '$logPath'."
         }
-        throw "GlitchTip dashboard tunnel did not return HTTP 200 at http://localhost:8091. Last request error: $glitchTipLastError. Tunnel log ($logPath):$([Environment]::NewLine)$tunnelLog"
+        throw "GlitchTip dashboard tunnel did not return HTTP 200 at http://localhost:8090. Last request error: $glitchTipLastError. Tunnel log ($logPath):$([Environment]::NewLine)$tunnelLog"
     }
 
     Write-Host "  [OK] Frontend tunnel: http://localhost:5173" -ForegroundColor Green
     Write-Host "  [OK] Cosmo Router tunnel: http://127.0.0.1:8080" -ForegroundColor Green
-    Write-Host "  [OK] GlitchTip error dashboard: http://localhost:8091" -ForegroundColor Green
+    Write-Host "  [OK] GlitchTip error dashboard: http://localhost:8090" -ForegroundColor Green
 }
 
 function Stop-LocalTunnelSupervisor {
