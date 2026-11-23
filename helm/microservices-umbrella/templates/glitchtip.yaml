@@ -121,6 +121,8 @@ spec:
               mountPath: /code/glitchtip-init-admin.py
               subPath: glitchtip-init-admin.py
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
           env:
             - name: DATABASE_URL
               valueFrom:
@@ -164,6 +166,10 @@ spec:
               value: "false"
             - name: DEFAULT_FROM_EMAIL
               value: {{ .Values.glitchtip.defaultFromEmail | quote }}
+            - name: ALLOWED_HOSTS
+              value: {{ printf "localhost,127.0.0.1,glitchtip,glitchtip.%s.svc.cluster.local" .Release.Namespace | quote }}
+            - name: TMPDIR
+              value: /tmp
           ports:
             - name: http
               containerPort: 8000
@@ -199,6 +205,9 @@ spec:
         - name: init-admin
           configMap:
             name: glitchtip-init-admin
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
 ---
 apiVersion: v1
 kind: ServiceAccount

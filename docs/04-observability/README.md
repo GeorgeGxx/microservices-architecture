@@ -7,7 +7,7 @@
 
 ## 🎯 Domain Overview
 
-The **Observability & Telemetry** pillar provides full-stack visibility across the microservices ecosystem using the **LGTM Stack** (Loki, Grafana, Tempo, Mimir/Prometheus) unified through **Grafana Alloy** and the **OpenTelemetry (OTel)** standard. It enables three-dimensional correlation: linking metrics anomalies to distributed trace spans and granular application logs.
+The **Observability & Telemetry** pillar provides full-stack visibility across the microservices ecosystem using the **LGTM Stack** (Loki, Grafana, Tempo, Mimir/Prometheus) unified through **Grafana Alloy** and the **OpenTelemetry (OTel)** standard. It enables three-dimensional correlation: linking metrics anomalies to distributed trace spans and granular application logs. **GlitchTip** complements this stack with grouped application errors and release tracking; it is a separate dashboard, not a Grafana datasource.
 
 ```mermaid
 flowchart TD
@@ -29,6 +29,7 @@ flowchart TD
 
     subgraph Visualization ["Unified Visualization"]
         GRAFANA["Grafana Dashboards (Port 3000)<br/>• Business Operations Dashboard<br/>• Technical & Security Dashboard"]
+        GLITCHTIP["GlitchTip Error Tracking<br/>• Minikube: Port 8091<br/>• Compose: Port 8090"]
     end
 
     APPS -->|OTLP gRPC| ALLOY
@@ -42,7 +43,10 @@ flowchart TD
     PROM --> GRAFANA
     TEMPO --> GRAFANA
     LOKI --> GRAFANA
+    APPS -->|Sentry-compatible SDK| GLITCHTIP
 ```
+
+For Minikube, open `http://localhost:8091` after the local tunnel supervisor is running. `.\platform-minikube.ps1 urls` lists GlitchTip with the other dashboards, and `.\platform-minikube.ps1 diagnose -Action components -Target glitchtip` checks its dashboard tunnel. Compose uses `http://localhost:8090` by default. Each deployment has its own database and admin credentials; set the same email and password in both environments if you want the same login.
 
 ---
 
