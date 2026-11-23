@@ -685,7 +685,7 @@ def build_business_dashboard():
         "type": "piechart",
         "title": "🥧 Top Selling SKUs & Catalog Market Share",
         "description": "Sales volume market share per product SKU, indicating customer demand.",
-        "gridPos": {"h": 7, "w": 12, "x": 12, "y": 28},
+        "gridPos": {"h": 7, "w": 16, "x": 8, "y": 28},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "noValue": "No sales recorded yet"}},
         "options": {
