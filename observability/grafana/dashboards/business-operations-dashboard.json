@@ -1033,7 +1033,7 @@
       "description": "Each SKU is shown once using the lowest stock value observed across inventory replicas. Red = out of stock; amber = 1\u201310 units.",
       "gridPos": {
         "h": 7,
-        "w": 8,
+        "w": 10,
         "x": 0,
         "y": 28
       },
@@ -1094,8 +1094,8 @@
       "description": "Sales volume market share per product SKU, indicating customer demand.",
       "gridPos": {
         "h": 7,
-        "w": 12,
-        "x": 8,
+        "w": 14,
+        "x": 10,
         "y": 28
       },
       "datasource": {

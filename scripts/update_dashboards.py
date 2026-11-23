@@ -651,7 +651,7 @@ def build_business_dashboard():
         "type": "bargauge",
         "title": "📊 Live Available Stock by SKU & Low Stock Alerts",
         "description": "Units available in warehouse per SKU with stock health thresholds: Green (>20), Yellow (<10 Low), Red (<5 Critical).",
-        "gridPos": {"h": 7, "w": 12, "x": 0, "y": 28},
+        "gridPos": {"h": 7, "w": 10, "x": 0, "y": 28},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {
             "defaults": {
@@ -685,7 +685,7 @@ def build_business_dashboard():
         "type": "piechart",
         "title": "🥧 Top Selling SKUs & Catalog Market Share",
         "description": "Sales volume market share per product SKU, indicating customer demand.",
-        "gridPos": {"h": 7, "w": 12, "x": 8, "y": 28},
+        "gridPos": {"h": 7, "w": 14, "x": 10, "y": 28},
         "datasource": {"uid": "prometheus-ds", "type": "prometheus"},
         "fieldConfig": {"defaults": {"unit": "short", "noValue": "No sales recorded yet"}},
         "options": {
