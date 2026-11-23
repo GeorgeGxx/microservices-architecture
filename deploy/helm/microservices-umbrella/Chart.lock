@@ -4,7 +4,7 @@ dependencies:
   version: 2.0.2
 - name: inventory-service
   repository: file://../charts/inventory-service
-  version: 1.0.2
+  version: 1.0.3
 - name: notification-service
   repository: file://../charts/notification-service
   version: 1.0.2
@@ -13,7 +13,7 @@ dependencies:
   version: 1.0.2
 - name: products-service
   repository: file://../charts/products-service
-  version: 1.0.2
+  version: 1.0.3
 - name: payments-service
   repository: file://../charts/payments-service
   version: 1.0.2
@@ -26,5 +26,5 @@ dependencies:
 - name: ai-service
   repository: file://../charts/ai-service
   version: 1.0.1
-digest: sha256:31255ddd51ce5bc4c0a20cbf59caaa3f5b7107039de9dc02616b035b3f593a55
-generated: "2026-11-22T15:50:06.3939507-06:00"
+digest: sha256:65daef0df05e49659894adb806b30630ab9620215a3ba67201c2a4b4105d9e90
+generated: "2026-11-22T21:53:05.2844024-06:00"

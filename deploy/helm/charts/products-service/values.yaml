@@ -48,6 +48,7 @@ keda:
 probes:
   readinessPath: /actuator/products/health/readiness
   livenessPath: /actuator/products/health/liveness
+  startupPath: /actuator/products/health/liveness
   initialDelaySeconds: 45
 
 env: {}

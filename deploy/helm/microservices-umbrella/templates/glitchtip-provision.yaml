@@ -62,7 +62,8 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  backoffLimit: 8
+  activeDeadlineSeconds: 900
+  backoffLimit: 1
   template:
     metadata:
       labels:
@@ -73,7 +74,7 @@ spec:
         # for HTTPS; the NetworkPolicy still restricts this pod's egress to 443.
         traffic.sidecar.istio.io/excludeOutboundPorts: "443"
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       serviceAccountName: glitchtip-provision-projects
       automountServiceAccountToken: {{ .Values.glitchtip.provisionProjects.writeKubernetesSecret }}
       securityContext:

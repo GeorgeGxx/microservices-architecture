@@ -62,7 +62,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           startupProbe:
             httpGet:
-              path: {{ .Values.probes.readinessPath }}
+              path: {{ .Values.probes.startupPath | default .Values.probes.livenessPath }}
               port: {{ .Values.containerPort }}
             periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
             timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 10 }}
