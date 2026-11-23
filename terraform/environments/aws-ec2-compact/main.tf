@@ -177,7 +177,7 @@ resource "aws_eip" "compact_ip" {
 # ==============================================================================
 resource "local_file" "ansible_inventory" {
   filename        = "${path.module}/../../../ansible/inventory/hosts.ini"
-  file_permission = "0644"
+  file_permission = "0600"
   content         = <<-EOT
 [microservices_hosts]
 compact-node ansible_host=${aws_eip.compact_ip.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.ssh_private_key_path}
@@ -185,5 +185,6 @@ compact-node ansible_host=${aws_eip.compact_ip.public_ip} ansible_user=ubuntu an
 [microservices_hosts:vars]
 ansible_python_interpreter=/usr/bin/python3
 environment_tier=${var.environment}
+admin_cidr=${var.admin_cidr}
 EOT
 }

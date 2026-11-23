@@ -9,15 +9,19 @@
   vars:
     app_dir: /opt/microservices
     microservices_env_file: "{{ lookup('env', 'MICROSERVICES_ENV_FILE') }}"
+    admin_cidr: "{{ hostvars[inventory_hostname].admin_cidr }}"
 
   tasks:
     - name: Require an operator-provided deployment environment file
       ansible.builtin.assert:
         that:
           - microservices_env_file | length > 0
+          - microservices_env_file is match('^(?:/|[A-Za-z]:[\\\\/])')
+          - microservices_env_file | basename != '.env.example'
+          - admin_cidr | length > 0
         fail_msg: >-
-          Set MICROSERVICES_ENV_FILE to the absolute path of a deployment-specific
-          .env file. The development .env.example is never deployed automatically.
+          Set MICROSERVICES_ENV_FILE to an absolute, deployment-specific .env file
+          (never .env.example) and define admin_cidr in the inventory.
       delegate_to: localhost
       become: false
       run_once: true
@@ -35,6 +39,7 @@
         that:
           - deployment_env_file.stat.exists
           - deployment_env_file.stat.isreg
+          - deployment_env_file.stat.size > 0
         fail_msg: "MICROSERVICES_ENV_FILE must point to an existing regular file."
       delegate_to: localhost
       become: false
@@ -43,6 +48,13 @@
     # --------------------------------------------------------------------------
     # 1. SYSTEM PACKAGES & HARDENING
     # --------------------------------------------------------------------------
+    - name: Require a supported Ubuntu host architecture
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_architecture in ['x86_64', 'aarch64']
+        fail_msg: "The compact playbook supports Ubuntu on amd64 or arm64 hosts."
+
     - name: Update apt cache and install prerequisites
       ansible.builtin.apt:
         name:
@@ -56,17 +68,48 @@
         state: present
         update_cache: true
 
-    - name: Configure UFW firewall rules
+    - name: Set default-deny inbound firewall policy
+      community.general.ufw:
+        policy: deny
+        direction: incoming
+
+    - name: Keep outbound traffic available for updates and registries
+      community.general.ufw:
+        policy: allow
+        direction: outgoing
+
+    - name: Add restricted SSH rule before removing any legacy broad rule
+      community.general.ufw:
+        rule: limit
+        from_ip: "{{ admin_cidr }}"
+        port: "22"
+        proto: tcp
+
+    - name: Remove legacy unrestricted SSH and Router firewall rules
+      community.general.ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+        delete: true
+      loop:
+        - "22"
+        - "8080"
+
+    - name: Allow public storefront HTTP and HTTPS
       community.general.ufw:
         rule: allow
         port: "{{ item }}"
         proto: tcp
       loop:
-        - "22"    # SSH
-        - "80"    # HTTP Frontend
-        - "443"   # HTTPS
-        - "8080"  # Cosmo Router
-      notify: Reload UFW
+        - "80"
+        - "443"
+
+    - name: Restrict direct GraphQL Router access to the administrator network
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ admin_cidr }}"
+        port: "8080"
+        proto: tcp
 
     - name: Ensure UFW is enabled
       community.general.ufw:
@@ -144,6 +187,19 @@
         mode: '0600'
       no_log: true
 
+    - name: Validate the rendered Compose configuration without printing secrets
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - config
+          - --quiet
+      args:
+        chdir: "{{ app_dir }}"
+      become_user: ubuntu
+      changed_when: false
+      no_log: true
+
     # --------------------------------------------------------------------------
     # 4. SYSTEMD AUTO-HEALING SERVICE
     # --------------------------------------------------------------------------
@@ -163,7 +219,6 @@
           ExecStart=/usr/bin/docker compose up -d --remove-orphans
           ExecStop=/usr/bin/docker compose down
           ExecReload=/bin/sh -c '/usr/bin/docker compose pull && /usr/bin/docker compose up -d'
-          Restart=on-failure
           TimeoutStartSec=300
 
           [Install]
@@ -202,8 +257,3 @@
     - name: Print deployment success summary
       ansible.builtin.debug:
         msg: "✅ Compact Microservices Stack deployed successfully on {{ inventory_hostname }}!"
-
-  handlers:
-    - name: Reload UFW
-      community.general.ufw:
-        state: reloaded

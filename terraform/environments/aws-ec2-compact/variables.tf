@@ -37,5 +37,9 @@ variable "ssh_private_key_path" {
 variable "admin_cidr" {
   description = "CIDR block permitted for SSH management"
   type        = string
-  default     = "10.0.0.0/8"
+
+  validation {
+    condition     = can(cidrhost(var.admin_cidr, 0)) && var.admin_cidr != "0.0.0.0/0"
+    error_message = "admin_cidr must be a valid, restricted CIDR and must not allow all IPv4 sources."
+  }
 }

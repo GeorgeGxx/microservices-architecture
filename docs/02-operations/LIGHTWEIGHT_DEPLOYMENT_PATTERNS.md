@@ -89,7 +89,7 @@ This pattern provisions a single high-performance EC2 instance (e.g. `t3.xlarge`
 ### Key Features:
 * **Ultra-Low Cost:** Runs the complete stack (Keycloak, Postgres, Kafka KRaft, Redis, Cosmo Router, Frontend, and 4 Spring Boot microservices) on a single reserved or spot instance for as low as $35/month.
 * **Automated Hardening:** Ansible configures UFW firewall rules, non-root users, and updates system packages.
-* **Auto-Healing via Systemd:** Stack is registered as a systemd service (`/etc/systemd/system/microservices.service`). If the host reboots or Docker restarts, the entire stack automatically recovers.
+* **Automatic startup and container recovery:** systemd starts the Compose stack after host boot; Docker's `unless-stopped` restart policy recovers individual containers.
 * **Continuous Multi-DB Initialization:** Automated PostgreSQL script (`init-dbs.sql`) creates all 4 isolated databases (`db_keycloak`, `ms_products`, `ms_orders`, `ms_inventory`) on first launch.
 
 ### Step-by-Step Deployment:
@@ -98,7 +98,13 @@ This pattern provisions a single high-performance EC2 instance (e.g. `t3.xlarge`
 ```bash
 cd terraform/environments/aws-ec2-compact
 terraform init
-terraform apply -auto-approve
+
+# Restrict SSH and direct Router access to your administrator IP/CIDR.
+export TF_VAR_admin_cidr="<your-public-ip>/32"
+
+# Review the proposed infrastructure changes before applying them.
+terraform plan -out=tfplan
+terraform apply tfplan
 ```
 > [!NOTE]
 > Terraform automatically generates the Ansible inventory file at `ansible/inventory/hosts.ini` with the assigned Elastic IP and SSH key parameters.
@@ -110,9 +116,13 @@ cd ../../../ansible
 # Prepare a deployment-specific environment file outside version control.
 # Start from the example, replace every development credential, and set
 # IMAGE_TAG to the immutable commit tag published for this release.
-cp ../../.env.example .env
+cp ../.env.example .env
 chmod 600 .env
 ${EDITOR:-vi} .env
+
+Install the pinned Ansible collection before running the playbook:
+```bash
+ansible-galaxy collection install -r requirements.yml
 
 # Verify host connectivity
 ansible -i inventory/hosts.ini microservices_hosts -m ping
@@ -137,4 +147,4 @@ docker compose -f /opt/microservices/docker-compose.yml ps
 When traffic or organizational complexity grows beyond a single host:
 1. **Database Decoupling:** Migrate local containerized PostgreSQL to Amazon RDS Multi-AZ using AWS Database Migration Service (DMS).
 2. **Event Stream Decoupling:** Point microservices to Amazon Managed Streaming for Apache Kafka (MSK).
-3. **Switch to Minikube/EKS:** The application code, Dockerfiles, and Helm charts in `helm/charts/` remain reusable. Use `.\platform-multicloud.ps1 plan -Provider aws -Environment prod` and `apply` to provision EKS; CI publishes application images and the existing Argo CD Application reconciles the chart from its remote Git source.
+3. **Switch to Minikube/EKS:** The application code, Dockerfiles, and Helm charts in `deploy/helm/charts/` remain reusable. Use `.\platform-multicloud.ps1 plan -Provider aws -Environment prod` and `apply` to provision EKS; CI publishes application images and the existing Argo CD Application reconciles the chart from its remote Git source.
