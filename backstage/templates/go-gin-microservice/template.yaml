@@ -2,11 +2,11 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: go-gin-microservice-golden-path
-  title: Golden Path — Go 1 / Gin 1 High-Throughput Microservice
-  description: Scaffold a low-latency Go 1 / Gin 1 microservice with distroless/Alpine non-root containerization, Prometheus metrics, OpenTelemetry tracing, and KEDA autoscaling support.
+  title: Golden Path — Go 1.26 / Gin 1 High-Throughput Microservice
+  description: Scaffold a low-latency Go 1.26 / Gin 1 microservice with distroless/Alpine non-root containerization, Prometheus metrics, OpenTelemetry tracing, and KEDA autoscaling support.
   tags:
     - golden-path
-    - golang-1
+    - golang-1-26
     - gin
     - keda
 spec:
@@ -68,7 +68,7 @@ spec:
       input:
         repoUrl: ${{ parameters.repoUrl }}
         branchName: feat/scaffold-${{ parameters.component_id }}
-        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Go 1 Gin microservice"
+        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Go 1.26 Gin microservice"
         description: "Automated Golden Path scaffolding for `${{ parameters.component_id }}`."
         targetPath: ${{ parameters.component_id }}
     - id: register
