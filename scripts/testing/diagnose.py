@@ -34,6 +34,7 @@ DEFAULT_GRAFANA = "http://127.0.0.1:3000"
 DEFAULT_KEYCLOAK = "http://127.0.0.1:8181"
 DEFAULT_FRONTEND = "http://127.0.0.1:5173"
 DEFAULT_ALLOY = "http://127.0.0.1:3300"
+DEFAULT_GLITCHTIP = "http://127.0.0.1:8091"
 
 SERVICE_ENDPOINTS = {
     "products-service": "http://127.0.0.1:8004",
@@ -240,12 +241,30 @@ def verify_alloy(alloy_url: str):
         print(f"  [\033[93mWARN\033[0m] Grafana Alloy metrics check: {e}")
 
 
-def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, prometheus_url: str = DEFAULT_PROMETHEUS, grafana_url: str = DEFAULT_GRAFANA, alloy_url: str = DEFAULT_ALLOY) -> int:
+def verify_glitchtip(glitchtip_url: str):
+    """Verify that the GlitchTip dashboard is reachable through its local tunnel."""
+    print("\n\033[96m[5/5] 🛡️ VERIFYING GLITCHTIP ERROR TRACKING DASHBOARD\033[0m")
+    try:
+        req = urllib.request.Request(
+            glitchtip_url.rstrip("/") + "/",
+            headers={"User-Agent": "Platform-Diagnostics/1.0"},
+        )
+        # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            print(f"  [\033[92mOK\033[0m] GlitchTip dashboard reachable at {glitchtip_url} (HTTP {resp.status}).")
+            return 200 <= resp.status < 400
+    except Exception as error:
+        print(f"  [\033[93mWARN\033[0m] GlitchTip dashboard unavailable at {glitchtip_url}: {error}")
+        return False
+
+
+def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, prometheus_url: str = DEFAULT_PROMETHEUS, grafana_url: str = DEFAULT_GRAFANA, alloy_url: str = DEFAULT_ALLOY, glitchtip_url: str = DEFAULT_GLITCHTIP) -> int:
     """Execute component verifications based on target selection."""
     gw = normalize_loopback(router_url)
     prom = normalize_loopback(prometheus_url)
     graf = normalize_loopback(grafana_url)
     alloy = normalize_loopback(alloy_url)
+    glitchtip = normalize_loopback(glitchtip_url)
 
     print("\n\033[96m================================================================================\033[0m")
     print(" \033[96m🔍 PLATFORM ECOSYSTEM VERIFICATION\033[0m")
@@ -260,9 +279,14 @@ def run_components(target: str = "all", router_url: str = DEFAULT_ROUTER_URL, pr
         verify_grafana(graf)
     if target in ("all", "alloy"):
         verify_alloy(alloy)
+    glitchtip_ready = True
+    if target in ("all", "glitchtip"):
+        glitchtip_ready = verify_glitchtip(glitchtip)
 
-    print("\n\033[92m✨ Verification routine finished.\033[0m\n")
-    return 0
+    summary_color = "92" if glitchtip_ready else "91"
+    summary_text = "Verification routine finished." if glitchtip_ready else "Verification routine found an unavailable GlitchTip endpoint."
+    print(f"\n\033[{summary_color}m✨ {summary_text}\033[0m\n")
+    return 0 if glitchtip_ready else 1
 
 
 # ==============================================================================
@@ -448,13 +472,14 @@ def main():
     subparsers = parser.add_subparsers(dest="suite", required=True)
 
     components = subparsers.add_parser(
-        "components", help="Check Router/Swagger, Prometheus series, Grafana dashboards, or Alloy"
+        "components", help="Check Router/Swagger, Prometheus, Grafana, Alloy, or GlitchTip"
     )
-    components.add_argument("--target", choices=["all", "swagger", "metrics", "grafana", "alloy"], default="all")
+    components.add_argument("--target", choices=["all", "swagger", "metrics", "grafana", "alloy", "glitchtip"], default="all")
     components.add_argument("--router-url", default=os.getenv("COSMO_ROUTER_URL", DEFAULT_ROUTER_URL))
     components.add_argument("--prometheus-url", default=os.getenv("PROMETHEUS_URL", DEFAULT_PROMETHEUS))
     components.add_argument("--grafana-url", default=os.getenv("GRAFANA_URL", DEFAULT_GRAFANA))
     components.add_argument("--alloy-url", default=os.getenv("ALLOY_URL", DEFAULT_ALLOY))
+    components.add_argument("--glitchtip-url", default=os.getenv("GLITCHTIP_URL", DEFAULT_GLITCHTIP))
 
     telemetry = subparsers.add_parser(
         "telemetry", help="Run JVM, observed-funnel, Vault, or custom PromQL diagnostics"
@@ -482,6 +507,7 @@ def main():
             prometheus_url=args.prometheus_url,
             grafana_url=args.grafana_url,
             alloy_url=args.alloy_url,
+            glitchtip_url=args.glitchtip_url,
         )
 
     if args.suite == "telemetry":
