@@ -14,7 +14,7 @@ Orchestrator Commands (platform-minikube.ps1):
   .\platform-minikube.ps1 simulate [-Orders 20] [-Concurrency 4] [-Continuous]
   .\platform-minikube.ps1 ddos [-Level amber|red] [-Duration 30] [-Workers 32] [-SingleSource] [-NoAuth]
   .\platform-minikube.ps1 chaos [-ChaosRuns 30] [-Concurrency 4]
-  .\platform-minikube.ps1 chaos-drills [-TargetService orders-service]
+  .\platform-minikube.ps1 chaos-drills [-ChaosRuns 30] [-Concurrency 4]
 ==============================================================================
 """
 
@@ -512,7 +512,22 @@ def main():
     parser.add_argument("--delay-ms", type=int, default=0, help="Optional inter-request sleep delay in milliseconds")
     parser.add_argument("--chaos-runs", type=int, default=30, help="Number of iterations for chaos testing")
 
-    args, _ = parser.parse_known_args()
+    args = parser.parse_args()
+
+    if not 1 <= args.concurrency <= 128:
+        parser.error("--concurrency must be between 1 and 128")
+    if not 1 <= args.chaos_runs <= 1000:
+        parser.error("--chaos-runs must be between 1 and 1000")
+    if not 1 <= args.orders <= 1000:
+        parser.error("--orders must be between 1 and 1000")
+    if not 1 <= args.duration <= 3600:
+        parser.error("--duration must be between 1 and 3600 seconds")
+    if not 1 <= args.workers <= 256:
+        parser.error("--workers must be between 1 and 256")
+    if not 0 <= args.rps <= 10000:
+        parser.error("--rps must be between 0 and 10000")
+    if not 0 <= args.delay_ms <= 60000:
+        parser.error("--delay-ms must be between 0 and 60000")
 
     gw = args.router_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")
     frontend = args.frontend_url.replace("://localhost:", "://127.0.0.1:").replace("://localhost", "://127.0.0.1")

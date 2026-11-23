@@ -19,9 +19,6 @@ CONTAINER_NAME="${KAFKA_CONTAINER:-kafka}"
 log() {
   echo -e "\033[1;34m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [KAFKA-OPS]\033[0m $*"
 }
-log_success() {
-  echo -e "\033[1;32m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [SUCCESS]\033[0m $*"
-}
 log_error() {
   echo -e "\033[1;31m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [ERROR]\033[0m $*" >&2
 }
@@ -32,11 +29,11 @@ exec_kafka() {
   shift
   if command -v "$cmd" >/dev/null 2>&1; then
     "$cmd" --bootstrap-server "${BOOTSTRAP_SERVER}" "$@"
-  elif command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+  elif command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' | grep -Fxq -- "$CONTAINER_NAME"; then
     docker exec "${CONTAINER_NAME}" "$cmd" --bootstrap-server "localhost:9092" "$@"
   elif command -v kubectl >/dev/null 2>&1; then
     local pod
-    pod="$(kubectl get pods -n data -l app.kubernetes.io/name=kafka -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
+    pod="$(kubectl get pods -n data -l app.kubernetes.io/name=kafka --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)"
     if [[ -n "$pod" ]]; then
       kubectl exec -n data "${pod}" -c kafka -- "$cmd" --bootstrap-server "localhost:9092" "$@"
     else
@@ -61,6 +58,10 @@ case "$COMMAND" in
   lag)
     TARGET_GROUP="${1:-all}"
     if [[ "$TARGET_GROUP" == "--group" ]]; then
+      if [[ $# -lt 2 || -z "$2" ]]; then
+        log_error "Usage: $0 lag [--group <name>]"
+        exit 1
+      fi
       TARGET_GROUP="$2"
     fi
 
@@ -70,7 +71,7 @@ case "$COMMAND" in
       echo "$GROUPS" | while read -r group; do
         if [[ -n "$group" ]]; then
           echo -e "\n\033[1;36m📊 Consumer Group: ${group}\033[0m"
-          exec_kafka kafka-consumer-groups --describe --group "$group" || true
+          exec_kafka kafka-consumer-groups --describe --group "$group"
         fi
       done
     else
@@ -81,34 +82,34 @@ case "$COMMAND" in
 
   inspect-dlq)
     LIMIT="10"
-    TOPIC="orders-topic-dlt"
+    TOPIC="orders-topic.DLT"
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --limit) LIMIT="$2"; shift 2 ;;
-        --topic) TOPIC="$2"; shift 2 ;;
-        *) shift ;;
+        --limit) [[ $# -ge 2 ]] || { log_error "--limit requires a value"; exit 1; }; LIMIT="$2"; shift 2 ;;
+        --topic) [[ $# -ge 2 ]] || { log_error "--topic requires a value"; exit 1; }; TOPIC="$2"; shift 2 ;;
+        *) log_error "Unknown inspect-dlq option: $1"; exit 1 ;;
       esac
     done
+    [[ "$LIMIT" =~ ^[1-9][0-9]*$ ]] || { log_error "--limit must be a positive integer"; exit 1; }
     log "Inspecting the last ${LIMIT} messages in the Dead Letter Queue (${TOPIC})..."
-    exec_kafka kafka-console-consumer --topic "${TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000 || true
+    exec_kafka kafka-console-consumer --topic "${TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000
     ;;
 
   replay-dlq)
-    DLT_TOPIC="orders-topic-dlt"
+    DLT_TOPIC="orders-topic.DLT"
     TARGET_TOPIC="orders-topic"
     LIMIT="10"
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --from) DLT_TOPIC="$2"; shift 2 ;;
-        --to) TARGET_TOPIC="$2"; shift 2 ;;
-        --limit) LIMIT="$2"; shift 2 ;;
-        *) shift ;;
+        --from) [[ $# -ge 2 ]] || { log_error "--from requires a topic"; exit 1; }; DLT_TOPIC="$2"; shift 2 ;;
+        --to) [[ $# -ge 2 ]] || { log_error "--to requires a topic"; exit 1; }; TARGET_TOPIC="$2"; shift 2 ;;
+        --limit) [[ $# -ge 2 ]] || { log_error "--limit requires a value"; exit 1; }; LIMIT="$2"; shift 2 ;;
+        *) log_error "Unknown replay-dlq option: $1"; exit 1 ;;
       esac
     done
-    log "Replaying up to ${LIMIT} dead-lettered messages from '${DLT_TOPIC}' back to main topic '${TARGET_TOPIC}'..."
-    exec_kafka kafka-console-consumer --topic "${DLT_TOPIC}" --from-beginning --max-messages "${LIMIT}" --timeout-ms 5000 2>/dev/null \
-      | exec_kafka kafka-console-producer --topic "${TARGET_TOPIC}" || true
-    log "Dead Letter Queue replay completed successfully."
+    [[ "$LIMIT" =~ ^[1-9][0-9]*$ ]] || { log_error "--limit must be a positive integer"; exit 1; }
+    log_error "Console-based replay is disabled: it drops Kafka keys and headers. Use a header-preserving replay tool before retrying these records."
+    exit 2
     ;;
 
   reset-offset)
@@ -117,11 +118,11 @@ case "$COMMAND" in
     MODE="--dry-run"
     while [[ $# -gt 0 ]]; do
       case "$1" in
-        --group) GROUP="$2"; shift 2 ;;
-        --topic) TOPIC="$2"; shift 2 ;;
+        --group) [[ $# -ge 2 ]] || { log_error "--group requires a value"; exit 1; }; GROUP="$2"; shift 2 ;;
+        --topic) [[ $# -ge 2 ]] || { log_error "--topic requires a value"; exit 1; }; TOPIC="$2"; shift 2 ;;
         --execute) MODE="--execute"; shift ;;
         --dry-run) MODE="--dry-run"; shift ;;
-        *) shift ;;
+        *) log_error "Unknown reset-offset option: $1"; exit 1 ;;
       esac
     done
 
@@ -131,7 +132,7 @@ case "$COMMAND" in
     fi
 
     log "Executing offset reset for Group: '${GROUP}' on Topic: '${TOPIC}' (Mode: ${MODE})..."
-    exec_kafka kafka-consumer-groups --group "${GROUP}" --topic "${TOPIC}" --reset-offsets --to-earliest ${MODE}
+    exec_kafka kafka-consumer-groups --group "${GROUP}" --topic "${TOPIC}" --reset-offsets --to-earliest "${MODE}"
     ;;
 
   help|--help|-h)
@@ -141,7 +142,7 @@ case "$COMMAND" in
     echo "  list-topics                   List all configured topics"
     echo "  lag [--group <name>]          Inspect consumer group lag and partitions"
     echo "  inspect-dlq [--limit N]       Inspect messages in the Dead Letter Topic (DLT)"
-    echo "  replay-dlq [--from DLT] [--to TOPIC] [--limit N]  Replay dead-lettered messages to main topic"
+    echo "  replay-dlq [--from DLT] [--to TOPIC] [--limit N]  Refuse unsafe replay that would drop Kafka keys/headers"
     echo "  reset-offset --group G --topic T [--dry-run|--execute]  Controlled consumer offset reset"
     exit 0
     ;;
