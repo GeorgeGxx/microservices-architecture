@@ -1029,7 +1029,7 @@
       "id": 21,
       "type": "stat",
       "title": "\u26a0\ufe0f Low Stock & Out-of-Stock SKUs",
-      "description": "SKUs with 10 or fewer units remaining (Red = Out of Stock, Amber <= 10).",
+      "description": "Each SKU is shown once using the lowest stock value observed across inventory replicas. Red = out of stock; amber = 1–10 units.",
       "gridPos": {
         "h": 7,
         "w": 8,
@@ -1081,7 +1081,7 @@
             "uid": "prometheus-ds",
             "type": "prometheus"
           },
-          "expr": "ecommerce_inventory_sku_stock <= 10",
+          "expr": "min by (sku) (ecommerce_inventory_sku_stock) <= 10",
           "legendFormat": "{{sku}}"
         }
       ]
