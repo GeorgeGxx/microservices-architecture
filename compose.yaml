@@ -969,6 +969,8 @@ services:
       VAULT_TOKEN: "${VAULT_TOKEN:?Set VAULT_TOKEN in .env}"
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      JWT_SECRET: "${JWT_SECRET:-}"
+      KEYCLOAK_CLIENT_SECRET: "${KEYCLOAK_CLIENT_SECRET:-}"
     volumes:
       - ./scripts/vault-init.sh:/vault/init.sh:ro
     entrypoint: ["/bin/sh", "/vault/init.sh"]

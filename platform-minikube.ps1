@@ -2471,10 +2471,10 @@ switch ($Command) {
     }
 
     "chaos-drills" {
-        Show-Banner "Level 5 Hyper-Scale Automated Chaos Engineering Drills"
-        $drillScript = Join-Path $scriptsDir "chaos\run-chaos-drills.ps1"
-        if (-not (Test-Path -LiteralPath $drillScript)) { throw "Chaos drill script is missing: $drillScript" }
-        & $drillScript -TargetService $TargetService
+        Show-Banner "Authenticated Checkout Resilience Simulation"
+        $simScript = Join-Path $scriptsDir "testing\simulate.py"
+        if (-not (Test-Path -LiteralPath $simScript)) { throw "Simulation script is missing: $simScript" }
+        python $simScript --scenario chaos --chaos-runs "$ChaosRuns" --concurrency "$Concurrency"
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     }
 
@@ -2680,7 +2680,7 @@ Commands:
   simulate      : Runs shopper traffic and circuit-breaker resilience simulation (-Scenario, -Orders).
   ddos          : Runs edge rate-limiting and DDoS flood simulation (-Duration, -Workers).
   chaos         : Runs runtime circuit-breaker and idempotency chaos simulation (-ChaosRuns).
-  chaos-drills  : Executes automated Level 5 Hyper-Scale Chaos Drills (-TargetService).
+  chaos-drills  : Backward-compatible alias for the authenticated checkout resilience scenario.
   dashboards    : Curates Grafana business and technical dashboards (-Push to publish live).
   funnel-demo   : Emits demo CART_ADD telemetry events for conversion funnels (-Count, -Category).
   journey / e2e : Executes end-to-end user journey and MLOps integration test suite.
@@ -2828,18 +2828,9 @@ function Show-LocalPlatformUrls {
     Write-Host "│ DASHBOARD / WEB CONSOLE      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
     Write-Host "│ 🌐 Novashop Storefront       │ http://localhost:5173                      │ Open           │" -ForegroundColor White
     Write-Host "│ 🚀 Cosmo Router (Sandbox)    │ http://localhost:8080                      │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Payments Swagger UI       │ http://localhost:8085/swagger/index.html   │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Fulfillment Swagger UI    │ http://localhost:8086/swagger              │ Open           │" -ForegroundColor White
-    Write-Host "│ 📖 Analytics Swagger UI      │ http://localhost:8087/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
-    Write-Host "│ 🛡️ GlitchTip Error Tracking  │ http://localhost:8090                      │ Configured      │" -ForegroundColor White
+    Write-Host "│ 🛡️ GlitchTip Error Tracking  │ http://localhost:8090                      │ Configured     │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
-    Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
-    Write-Host "│ 🤖 AI Copilot Swagger UI     │ http://localhost:8010/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔒 HashiCorp Vault UI        │ http://localhost:8200                      │ root           │" -ForegroundColor White
     Write-Host "│ 🧭 Kiali Mesh Console        │ http://localhost:20001/kiali/              │ Anonymous      │" -ForegroundColor White
     Write-Host "│ 🐙 ArgoCD 3.6.1 GitOps       │ http://localhost:8088                      │ admin / admin  │" -ForegroundColor White
@@ -2850,6 +2841,16 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📊 Alloy Collector UI        │ http://localhost:3300                      │ Open           │" -ForegroundColor White
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
+    Write-Host "│ SWAGGER                      │ LOCAL URL                                  │ CREDENTIALS    │" -ForegroundColor Cyan
+    Write-Host "│ 📖 Products Swagger UI       │ http://localhost:8004/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Orders Swagger UI         │ http://localhost:8003/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Inventory Swagger UI      │ http://localhost:8001/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Notification Swagger UI   │ http://localhost:8002/swagger-ui.html      │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Payments Swagger UI       │ http://localhost:8085/swagger/index.html   │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Fulfillment Swagger UI    │ http://localhost:8086/swagger              │ Open           │" -ForegroundColor White
+    Write-Host "│ 📖 Analytics Swagger UI      │ http://localhost:8087/docs                 │ Open           │" -ForegroundColor White
+    Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
+    Write-Host "│ 🤖 AI Copilot Swagger UI     │ http://localhost:8010/docs                 │ Open           │" -ForegroundColor White
     Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
     Write-Host '  [INFO] GlitchTip tracks application errors; Grafana covers metrics, logs, and traces.' -ForegroundColor DarkGray
     Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
@@ -3726,7 +3727,7 @@ function Invoke-MinikubePlatform {
             $vaultManifest = Join-Path $root "deploy\kubernetes\minikube\vault\vault-dev.yaml"
             if (Test-Path $vaultManifest) {
                 kubectl apply -f $vaultManifest 2>$null
-                kubectl wait -n vault --for=condition=ready pod -l app=vault --timeout=60s 2>$null
+                kubectl rollout status deployment/vault -n vault --timeout=120s 2>$null | Out-Null
                 Initialize-LocalVault
             }
 
@@ -4005,6 +4006,7 @@ stringData:
                     if ($LASTEXITCODE -ne 0) { throw "Could not restart $workload to load the GlitchTip DSN." }
                     kubectl rollout status $workload -n dev --timeout=300s | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw "$workload did not become Ready after loading the GlitchTip DSN." }
+                    Start-Sleep -Seconds 3
                 }
                 Write-Host "  [OK] Ten GlitchTip projects provisioned; DSNs applied to all reporting workloads." -ForegroundColor Green
             }
@@ -4453,19 +4455,50 @@ function Initialize-LocalVault {
         [string]$VaultToken = ""
     )
     Write-Host "  >> Initializing Vault KV-v2, Transit & Dynamic PostgreSQL 18 Engines via scripts/vault-init.sh..." -ForegroundColor Cyan
-    $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
+
+    $vaultDeployment = kubectl get deployment vault -n vault --ignore-not-found 2>$null
+    if ($vaultDeployment) {
+        Write-Host "  ▶ Waiting for Vault deployment rollout..." -ForegroundColor White
+        kubectl rollout status deployment/vault -n vault --timeout=120s 2>$null | Out-Null
+    }
+
+    kubectl wait -n vault --for=condition=ready pod -l app=vault --timeout=60s 2>$null | Out-Null
+    $vaultPod = (kubectl get pods -n vault -l app=vault --field-selector=status.phase=Running -o jsonpath="{.items[0].metadata.name}" 2>$null)
+    if (-not $vaultPod) {
+        $vaultPod = (kubectl get pods -n vault -l app=vault -o jsonpath="{.items[0].metadata.name}" 2>$null)
+    }
     if ($vaultPod) {
         $envMap = Get-EnvMap
         $pgUser = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
         $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD }
         $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET }
+        $keycloakClientSecret = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET }
+        if (-not $pgPass) { throw "POSTGRES_PASSWORD is required to initialize Vault. Set it in .env or the process environment." }
         $vaultInitScript = Join-Path $scriptsDir "vault-init.sh"
         if (-not (Test-Path -LiteralPath $vaultInitScript -PathType Leaf)) {
             throw "Vault initialization script is missing: $vaultInitScript"
         }
-        $scriptContent = (Get-Content -LiteralPath $vaultInitScript -Raw).Replace("`r`n", "`n")
-        $scriptContent | kubectl exec -i -n vault $vaultPod -- env "POSTGRES_USER=$pgUser" "POSTGRES_PASSWORD=$pgPass" "JWT_SECRET=$jwtSecret" "DB_HOST_SUFFIX=.data.svc.cluster.local" sh 2>$null | Out-Null
+        $scriptContent = (Get-Content -LiteralPath $vaultInitScript -Raw).Replace("`r", "")
+
+        $maxAttempts = 5
+        $initSuccess = $false
+        for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            $scriptContent | kubectl exec -i -n vault $vaultPod -c vault -- env "POSTGRES_USER=$pgUser" "POSTGRES_PASSWORD=$pgPass" "JWT_SECRET=$jwtSecret" "KEYCLOAK_CLIENT_SECRET=$keycloakClientSecret" "DB_HOST_SUFFIX=.data.svc.cluster.local" sh -c "tr -d '\r' | sh"
+            if ($LASTEXITCODE -eq 0) {
+                $initSuccess = $true
+                break
+            }
+            if ($attempt -lt $maxAttempts) {
+                Write-Host "  [WARN] Vault exec failed (attempt $attempt/$maxAttempts); retrying in 3 seconds..." -ForegroundColor Yellow
+                Start-Sleep -Seconds 3
+            }
+        }
+        if (-not $initSuccess) {
+            throw "Vault initialization failed in pod '$vaultPod'. Review the command output above."
+        }
         Write-Host "  [OK] Vault KV-v2, Transit & Dynamic Database engines initialized and seeded for all 6 PostgreSQL 18 databases." -ForegroundColor Green
+    } else {
+        Write-Host "  [WARN] Vault pod was not found in 'vault' namespace. Skipping initialization." -ForegroundColor Yellow
     }
 }
 
