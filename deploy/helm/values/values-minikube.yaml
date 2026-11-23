@@ -70,7 +70,11 @@ notification-service:
   resources:
     requests: { cpu: 200m, memory: 640Mi }
     limits: { cpu: 750m, memory: 1024Mi }
-  probes: { startupFailureThreshold: 30, startupPeriodSeconds: 10 }
+  probes:
+    startupPath: /actuator/notification/health/liveness
+    startupFailureThreshold: 30
+    startupPeriodSeconds: 10
+    livenessTimeoutSeconds: 15
   keda:
     enabled: true
     minReplicaCount: 1

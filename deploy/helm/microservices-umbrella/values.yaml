@@ -11,6 +11,7 @@ glitchtip:
   enabled: false
   provisionProjects:
     enabled: false
+    writeKubernetesSecret: true
   image:
     repository: docker.io/glitchtip/glitchtip
     tag: "7.0.0"

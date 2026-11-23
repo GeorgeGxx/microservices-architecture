@@ -250,10 +250,9 @@ spec:
     - to:
         - podSelector: {}
 ---
-# The short-lived GlitchTip provisioner uses its scoped ServiceAccount to write
-# generated DSNs back to the pre-created Secret through the Kubernetes API.
-# Keep this API access isolated to the one-shot Job and HTTPS only; app pods do
-# not receive general internet egress.
+{{- if and .Values.glitchtip.enabled .Values.glitchtip.provisionProjects.enabled .Values.glitchtip.provisionProjects.writeKubernetesSecret }}
+# Only needed in environments where the provisioner writes DSNs through the
+# Kubernetes API. Minikube uses host-side kubectl and leaves this disabled.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -274,6 +273,7 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+{{- end }}
 ---
 # 05. Allow in-namespace traffic to GlitchTip and its provisioner API calls.
 apiVersion: networking.k8s.io/v1

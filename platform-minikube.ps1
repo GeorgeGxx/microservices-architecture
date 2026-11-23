@@ -3915,23 +3915,62 @@ stringData:
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip PostgreSQL did not become Ready." }
                 kubectl rollout status deployment/glitchtip-valkey -n dev --timeout=180s
                 if ($LASTEXITCODE -ne 0) { throw "GlitchTip Valkey did not become Ready." }
+                kubectl delete role glitchtip-provision-project-dsns -n dev --ignore-not-found=true 2>$null | Out-Null
+                kubectl delete rolebinding glitchtip-provision-project-dsns -n dev --ignore-not-found=true 2>$null | Out-Null
                 kubectl delete job -n dev -l app=glitchtip-provision-projects --ignore-not-found=true 2>$null | Out-Null
-                $provisionYaml = & helm template glitchtip-project-provisioner $resolvedUmbrellaDir --namespace dev --values $minikubeValues --set glitchtip.enabled=true --set glitchtip.provisionProjects.enabled=true --show-only templates/glitchtip-provision.yaml
+                $provisionYaml = & helm template glitchtip-project-provisioner $resolvedUmbrellaDir --namespace dev --values $minikubeValues --set glitchtip.enabled=true --set glitchtip.provisionProjects.enabled=true --set glitchtip.provisionProjects.writeKubernetesSecret=false --show-only templates/glitchtip-provision.yaml
                 if ($LASTEXITCODE -ne 0 -or -not $provisionYaml) { throw "Could not render the GlitchTip provisioning Job." }
                 $provisionYaml | kubectl apply -n dev -f - | Out-Null
                 if ($LASTEXITCODE -ne 0) { throw "Could not apply the GlitchTip provisioning Job." }
                 $provisionJob = [string](kubectl get jobs -n dev -l app=glitchtip-provision-projects -o 'jsonpath={.items[0].metadata.name}' 2>$null)
                 if ($LASTEXITCODE -ne 0 -or -not $provisionJob) { throw "Could not find the GlitchTip project provisioning Job after applying it." }
-                kubectl wait --for=condition=complete "job/$provisionJob" -n dev --timeout=300s
-                if ($LASTEXITCODE -ne 0) { kubectl logs "job/$provisionJob" -n dev; throw "GlitchTip project provisioning did not complete." }
+                $provisionPod = ""
+                $dsnPayload = ""
+                for ($attempt = 0; $attempt -lt 120 -and -not $dsnPayload; $attempt++) {
+                    $provisionPod = [string](kubectl get pods -n dev -l "job-name=$provisionJob" -o 'jsonpath={.items[0].metadata.name}' 2>$null)
+                    if ($LASTEXITCODE -eq 0 -and $provisionPod) {
+                        $dsnPayload = [string](kubectl exec -n dev $provisionPod -c provision-projects -- cat /output/dsns.json 2>$null)
+                        if ($LASTEXITCODE -ne 0) { $dsnPayload = "" }
+                    }
+                    if (-not $dsnPayload) { Start-Sleep -Seconds 2 }
+                }
+                if (-not $provisionPod -or -not $dsnPayload) { kubectl logs "job/$provisionJob" -n dev -c provision-projects; throw "GlitchTip provisioner did not produce its restricted DSN payload." }
+                $dsnEnvFile = [System.IO.Path]::GetTempFileName()
+                try {
+                    $generatedDsns = $dsnPayload | ConvertFrom-Json
+                    $expectedDsnNames = @('GLITCHTIP_DEMAND_FORECAST_DSN','GLITCHTIP_INVENTORY_DSN','GLITCHTIP_NOTIFICATION_DSN','GLITCHTIP_ORDERS_DSN','GLITCHTIP_PAYMENTS_DSN','GLITCHTIP_FULFILLMENT_DSN','GLITCHTIP_ANALYTICS_DSN','GLITCHTIP_PRODUCTS_DSN','GLITCHTIP_AI_DSN','GLITCHTIP_FRONTEND_DSN')
+                    $dsnEnvLines = foreach ($dsnName in $expectedDsnNames) {
+                        $dsnProperty = $generatedDsns.PSObject.Properties[$dsnName]
+                        if (-not $dsnProperty -or -not $dsnProperty.Value -or $dsnProperty.Value -notmatch '^https?://') { throw "GlitchTip provisioner returned a missing or invalid DSN for '$dsnName'." }
+                        "$dsnName=$($dsnProperty.Value)"
+                    }
+                    [System.IO.File]::WriteAllLines($dsnEnvFile, $dsnEnvLines, [System.Text.UTF8Encoding]::new($false))
+                    $dsnSecretYaml = & kubectl create secret generic glitchtip-project-dsns -n dev --from-env-file=$dsnEnvFile --dry-run=client -o yaml
+                    if ($LASTEXITCODE -ne 0 -or -not $dsnSecretYaml) { throw "Could not prepare the GlitchTip DSN Secret." }
+                    $dsnSecretYaml | kubectl apply -f - | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw "Could not apply generated GlitchTip DSNs to the namespace Secret." }
+                } finally {
+                    Remove-Item -Force $dsnEnvFile -ErrorAction SilentlyContinue
+                }
+                kubectl exec -n dev $provisionPod -c provision-projects -- python -c "open('/output/ack', 'w').close()" 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not acknowledge secure storage of the GlitchTip DSNs." }
+                kubectl wait --for=condition=complete "job/$provisionJob" -n dev --timeout=60s
+                if ($LASTEXITCODE -ne 0) { kubectl logs "job/$provisionJob" -n dev -c provision-projects; throw "GlitchTip project provisioning did not complete." }
+                kubectl delete job $provisionJob -n dev --wait=true 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not remove the completed GlitchTip provisioner and its temporary DSN file." }
                 $dsnSecret = kubectl get secret glitchtip-project-dsns -n dev -o json 2>$null | ConvertFrom-Json
                 if ($LASTEXITCODE -ne 0 -or -not $dsnSecret) { throw "GlitchTip provisioner did not create its DSN Secret; inspect the Job status and events." }
                 $expectedDsnNames = @('GLITCHTIP_DEMAND_FORECAST_DSN','GLITCHTIP_INVENTORY_DSN','GLITCHTIP_NOTIFICATION_DSN','GLITCHTIP_ORDERS_DSN','GLITCHTIP_PAYMENTS_DSN','GLITCHTIP_FULFILLMENT_DSN','GLITCHTIP_ANALYTICS_DSN','GLITCHTIP_PRODUCTS_DSN','GLITCHTIP_AI_DSN','GLITCHTIP_FRONTEND_DSN')
                 $missingDsnNames = @($expectedDsnNames | Where-Object { -not ($dsnSecret.data.PSObject.Properties.Name -contains $_) -or -not $dsnSecret.data.$_ })
                 if ($missingDsnNames.Count -gt 0) { throw "GlitchTip DSN Secret is missing required service keys: $($missingDsnNames -join ', ')." }
+                # Roll Java-heavy workloads one at a time. Simultaneous cold
+                # starts on local Minikube can starve health endpoints and
+                # trigger avoidable liveness restarts.
                 foreach ($workload in @('deployment/inventory-service','deployment/notification-service','deployment/orders-service','deployment/products-service','deployment/payments-service','deployment/fulfillment-service','deployment/analytics-service','deployment/ai-service','deployment/frontend','deployment/demand-forecast-service')) {
                     kubectl rollout restart $workload -n dev 2>$null | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw "Could not restart $workload to load the GlitchTip DSN." }
+                    kubectl rollout status $workload -n dev --timeout=300s | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw "$workload did not become Ready after loading the GlitchTip DSN." }
                 }
                 Write-Host "  [OK] Ten GlitchTip projects provisioned; DSNs applied to all reporting workloads." -ForegroundColor Green
             }

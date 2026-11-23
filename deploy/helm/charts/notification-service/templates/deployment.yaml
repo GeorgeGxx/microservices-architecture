@@ -62,7 +62,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           startupProbe:
             httpGet:
-              path: {{ .Values.probes.readinessPath }}
+              path: {{ .Values.probes.startupPath | default .Values.probes.readinessPath }}
               port: {{ .Values.containerPort }}
             periodSeconds: {{ .Values.probes.startupPeriodSeconds | default 10 }}
             timeoutSeconds: {{ .Values.probes.startupTimeoutSeconds | default 10 }}
@@ -81,7 +81,7 @@ spec:
               port: {{ .Values.containerPort }}
             initialDelaySeconds: {{ add .Values.probes.initialDelaySeconds 10 }}
             periodSeconds: 30
-            timeoutSeconds: 10
+            timeoutSeconds: {{ .Values.probes.livenessTimeoutSeconds | default 10 }}
             failureThreshold: {{ .Values.probes.livenessFailureThreshold | default 5 }}
           volumeMounts:
             - name: tmp

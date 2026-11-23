@@ -24,7 +24,8 @@ metadata:
   name: glitchtip-provision-projects
   annotations:
     argocd.argoproj.io/sync-wave: "0"
-automountServiceAccountToken: true
+automountServiceAccountToken: {{ .Values.glitchtip.provisionProjects.writeKubernetesSecret }}
+{{- if .Values.glitchtip.provisionProjects.writeKubernetesSecret }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -52,6 +53,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: glitchtip-provision-project-dsns
+{{- end }}
 ---
 apiVersion: batch/v1
 kind: Job
@@ -66,11 +68,14 @@ spec:
       labels:
         app: glitchtip-provision-projects
       annotations:
-        sidecar.istio.io/inject: "false"
+        # Keep the sidecar for STRICT-mTLS access to GlitchTip PostgreSQL.
+        # The Kubernetes API call is plain TLS passthrough, so bypass Envoy only
+        # for HTTPS; the NetworkPolicy still restricts this pod's egress to 443.
+        traffic.sidecar.istio.io/excludeOutboundPorts: "443"
     spec:
       restartPolicy: OnFailure
       serviceAccountName: glitchtip-provision-projects
-      automountServiceAccountToken: true
+      automountServiceAccountToken: {{ .Values.glitchtip.provisionProjects.writeKubernetesSecret }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 5000
@@ -139,14 +144,20 @@ spec:
             - name: GLITCHTIP_DOMAIN
               value: {{ .Values.glitchtip.domain | quote }}
             - name: GLITCHTIP_WRITE_K8S_SECRET
-              value: "true"
+              value: {{ .Values.glitchtip.provisionProjects.writeKubernetesSecret | quote }}
             - name: GLITCHTIP_PRINT_DSNS
               value: "false"
+            - name: GLITCHTIP_DSN_OUTPUT_FILE
+              value: /output/dsns.json
+            - name: GLITCHTIP_WAIT_FOR_DSN_ACK
+              value: {{ ternary "false" "true" .Values.glitchtip.provisionProjects.writeKubernetesSecret | quote }}
           volumeMounts:
             - name: projects-script
               mountPath: /code/glitchtip-provision-projects.py
               subPath: glitchtip-provision-projects.py
               readOnly: true
+            - name: dsn-output
+              mountPath: /output
           resources:
             requests:
               cpu: 100m
@@ -163,4 +174,6 @@ spec:
         - name: projects-script
           configMap:
             name: glitchtip-provision-projects
+        - name: dsn-output
+          emptyDir: {}
 {{- end }}

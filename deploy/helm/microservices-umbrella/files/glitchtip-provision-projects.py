@@ -13,6 +13,7 @@ import django
 
 django.setup()
 
+from django.db import OperationalError, connections
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from apps.organizations_ext.models import Organization
@@ -34,6 +35,20 @@ SERVICES = {
     "GLITCHTIP_AI_DSN": ("ai-service-fastapi", "ai-service (FastAPI)", "python"),
     "GLITCHTIP_FRONTEND_DSN": ("frontend-react", "frontend (React)", "javascript-react"),
 }
+
+# A mesh sidecar may need a short interval to establish its upstream mTLS
+# connection after the container starts. Confirm PostgreSQL before touching
+# Django models and retry transient resets with a bounded exponential backoff.
+for attempt in range(8):
+    try:
+        connections["default"].ensure_connection()
+        break
+    except OperationalError as error:
+        if attempt == 7:
+            raise RuntimeError(
+                "GlitchTip PostgreSQL did not become reachable after bounded retries"
+            ) from error
+        time.sleep(min(2**attempt, 8))
 
 user_model = get_user_model()
 user, created = user_model.objects.get_or_create(email=EMAIL)
@@ -140,8 +155,22 @@ def write_dsns_to_kubernetes_secret(values):
         raise RuntimeError("Could not update the GlitchTip DSN Secret in Kubernetes") from error
 
 
+output_file = os.environ.get("GLITCHTIP_DSN_OUTPUT_FILE")
+if output_file:
+    descriptor = os.open(output_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        json.dump(dsns, output, sort_keys=True)
+    if os.environ.get("GLITCHTIP_WAIT_FOR_DSN_ACK", "false").lower() in {"1", "true", "yes"}:
+        deadline = time.monotonic() + 300
+        while not os.path.exists(os.path.join(os.path.dirname(output_file), "ack")):
+            if time.monotonic() >= deadline:
+                raise RuntimeError("Timed out waiting for the orchestrator to store generated GlitchTip DSNs")
+            time.sleep(1)
+
 if os.environ.get("GLITCHTIP_WRITE_K8S_SECRET", "false").lower() in {"1", "true", "yes"}:
     write_dsns_to_kubernetes_secret(dsns)
     print(f"Provisioned {len(dsns)} GlitchTip projects and stored DSNs in Kubernetes Secret glitchtip-project-dsns.")
 elif os.environ.get("GLITCHTIP_PRINT_DSNS", "true").lower() not in {"0", "false", "no"}:
     print("GLITCHTIP_DSNS_JSON=" + json.dumps(dsns, sort_keys=True))
+else:
+    print(f"Provisioned {len(dsns)} GlitchTip projects and wrote DSNs to the restricted output volume.")
