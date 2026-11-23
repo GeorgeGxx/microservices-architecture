@@ -1,0 +1,189 @@
+---
+# ==============================================================================
+# 🚀 Playbook: Setup Jenkins Controller (LTS JDK 21)
+# Target: Ubuntu Host (EC2 / Bare Metal)
+# ==============================================================================
+- name: Setup and Configure Jenkins Controller
+  hosts: jenkins_controller
+  become: true
+  vars:
+    jenkins_dir: /opt/jenkins-controller
+    jenkins_data_dir: /opt/jenkins-controller/data
+    admin_cidr: "{{ hostvars[inventory_hostname].admin_cidr | default('0.0.0.0/0') }}"
+
+  tasks:
+    - name: Validate operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_architecture in ['x86_64', 'aarch64']
+        fail_msg: "This playbook supports Ubuntu on amd64 or arm64 hosts."
+
+    # --------------------------------------------------------------------------
+    # 1. PREREQUISITES & FIREWALL CONFIGURATION
+    # --------------------------------------------------------------------------
+    - name: Update apt cache and install prerequisites
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - ufw
+          - htop
+        state: present
+        update_cache: true
+
+    - name: Configure UFW default policies
+      community.general.ufw:
+        policy: deny
+        direction: incoming
+
+    - name: Allow outbound traffic for package and image downloads
+      community.general.ufw:
+        policy: allow
+        direction: outgoing
+
+    - name: Allow SSH from admin CIDR
+      community.general.ufw:
+        rule: limit
+        from_ip: "{{ admin_cidr }}"
+        port: "22"
+        proto: tcp
+
+    - name: Allow Jenkins Web UI (8080) from admin CIDR
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ admin_cidr }}"
+        port: "8080"
+        proto: tcp
+
+    - name: Allow Jenkins JNLP Agent port (50000) from admin / internal network
+      community.general.ufw:
+        rule: allow
+        from_ip: "{{ admin_cidr }}"
+        port: "50000"
+        proto: tcp
+
+    - name: Ensure UFW is enabled
+      community.general.ufw:
+        state: enabled
+
+    # --------------------------------------------------------------------------
+    # 2. DOCKER ENGINE INSTALLATION
+    # --------------------------------------------------------------------------
+    - name: Ensure APT keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker official signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker CE and Docker Compose plugin
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Ensure Docker service is running and enabled on boot
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    # --------------------------------------------------------------------------
+    # 3. JENKINS CONTROLLER DEPLOYMENT
+    # --------------------------------------------------------------------------
+    - name: Create Jenkins base directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: '0755'
+      loop:
+        - "{{ jenkins_dir }}"
+        - "{{ jenkins_data_dir }}"
+
+    - name: Deploy docker-compose.jenkins-controller.yml
+      ansible.builtin.copy:
+        src: ../templates/docker-compose.jenkins-controller.yml
+        dest: "{{ jenkins_dir }}/docker-compose.yml"
+        owner: ubuntu
+        group: docker
+        mode: '0644'
+
+    - name: Create systemd service for Jenkins Controller
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/jenkins-controller.service
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Jenkins Controller Service
+          Requires=docker.service
+          After=docker.service network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          WorkingDirectory={{ jenkins_dir }}
+          ExecStart=/usr/bin/docker compose up -d --remove-orphans
+          ExecStop=/usr/bin/docker compose down
+          TimeoutStartSec=300
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Reload systemd daemon
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Enable and start Jenkins Controller
+      ansible.builtin.systemd:
+        name: jenkins-controller
+        enabled: true
+        state: restarted
+
+    - name: Wait for Jenkins Controller Web UI to become healthy
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/login
+        status_code: 200
+      register: jenkins_web_check
+      until: jenkins_web_check.status == 200
+      retries: 24
+      delay: 5
+
+    - name: Check for initial admin password
+      ansible.builtin.stat:
+        path: "{{ jenkins_data_dir }}/secrets/initialAdminPassword"
+      register: admin_pwd_stat
+
+    - name: Retrieve initial admin password if present
+      ansible.builtin.slurp:
+        src: "{{ jenkins_data_dir }}/secrets/initialAdminPassword"
+      register: admin_pwd_slurp
+      when: admin_pwd_stat.stat.exists
+
+    - name: Display Jenkins Setup Info
+      ansible.builtin.debug:
+        msg:
+          - "🎉 Jenkins Controller is online at http://{{ ansible_host }}:8080"
+          - "🔑 Initial Admin Password: {{ (admin_pwd_slurp.content | b64decode | trim) if admin_pwd_stat.stat.exists else 'Already initialized or custom configured' }}"

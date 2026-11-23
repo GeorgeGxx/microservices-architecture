@@ -1,0 +1,33 @@
+# ==============================================================================
+# 🏗️ Jenkins Controller Compose Definition
+# Image: Official Jenkins LTS on OpenJDK 21
+# Architecture: Single-Host Controller with Persistent Volume & JNLP Port
+# ==============================================================================
+services:
+  jenkins-controller:
+    image: jenkins/jenkins:lts-jdk21
+    container_name: jenkins-controller
+    restart: unless-stopped
+    user: "1000:1000"
+    ports:
+      - "8080:8080"   # Jenkins Web UI & REST API
+      - "50000:50000" # Inbound JNLP Agent Remoting Port
+    environment:
+      JAVA_OPTS: "-Djava.awt.headless=true -Duser.timezone=UTC -Xms1024m -Xmx2048m"
+      JENKINS_OPTS: "--prefix="
+    volumes:
+      - /opt/jenkins-controller/data:/var/jenkins_home
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 3072M
+        reservations:
+          cpus: "0.5"
+          memory: 1024M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f -s http://localhost:8080/login > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 6
+      start_period: 45s

@@ -1,0 +1,316 @@
+---
+# ==============================================================================
+# 🛠️ Playbook: Setup Jenkins DevSecOps Worker Node (Agent)
+# Label: 'linux-docker-devsecops' (Required by Jenkinsfile)
+# Target: Ubuntu Host (EC2 / Bare Metal)
+# ==============================================================================
+- name: Setup Jenkins DevSecOps Worker Node
+  hosts: jenkins_worker
+  become: true
+  vars:
+    jenkins_user: jenkins
+    jenkins_home: /home/jenkins
+    jenkins_workspace: /home/jenkins/agent
+    go_version: "1.23.3"
+    cosign_version: "v2.4.1"
+    gitleaks_version: "v8.21.2"
+    conftest_version: "0.56.0"
+    arch_alias: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+    arch_alias_x86: "{{ 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else 'x86_64' }}"
+
+  tasks:
+    - name: Validate operating system
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == 'Ubuntu'
+          - ansible_architecture in ['x86_64', 'aarch64']
+        fail_msg: "This playbook supports Ubuntu on amd64 or arm64 hosts."
+
+    # --------------------------------------------------------------------------
+    # 1. CORE SYSTEM UTILITIES & JENKINS USER
+    # --------------------------------------------------------------------------
+    - name: Update apt cache and install core packages
+      ansible.builtin.apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - wget
+          - gnupg
+          - lsb-release
+          - git
+          - jq
+          - unzip
+          - tar
+          - build-essential
+          - software-properties-common
+          - ufw
+          - htop
+        state: present
+        update_cache: true
+
+    - name: Create jenkins system user
+      ansible.builtin.user:
+        name: "{{ jenkins_user }}"
+        shell: /bin/bash
+        home: "{{ jenkins_home }}"
+        create_home: true
+        state: present
+
+    - name: Create Jenkins agent workspace directory
+      ansible.builtin.file:
+        path: "{{ jenkins_workspace }}"
+        state: directory
+        owner: "{{ jenkins_user }}"
+        group: "{{ jenkins_user }}"
+        mode: '0755'
+
+    # --------------------------------------------------------------------------
+    # 2. DOCKER ENGINE & BUILDX (DIND / HOST DOCKER CAPABILITY)
+    # --------------------------------------------------------------------------
+    - name: Ensure APT keyring directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Download Docker official signing key
+      ansible.builtin.get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: '0644'
+
+    - name: Add Docker repository
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ arch_alias }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker CE, CLI, Buildx and Compose plugins
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    - name: Add jenkins and ubuntu users to docker group
+      ansible.builtin.user:
+        name: "{{ item }}"
+        groups: docker
+        append: true
+      loop:
+        - "{{ jenkins_user }}"
+        - ubuntu
+
+    - name: Ensure Docker service is enabled and active
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    # --------------------------------------------------------------------------
+    # 3. POLYGLOT RUNTIMES (JDK 21, NODE.JS 22, PYTHON 3, GO 1.23)
+    # --------------------------------------------------------------------------
+    - name: Install OpenJDK 21 and Maven
+      ansible.builtin.apt:
+        name:
+          - openjdk-21-jdk-headless
+          - maven
+        state: present
+
+    - name: Download NodeSource repository setup script (Node 22 LTS)
+      ansible.builtin.get_url:
+        url: https://deb.nodesource.com/setup_22.x
+        dest: /tmp/nodesource_setup.sh
+        mode: '0755'
+
+    - name: Execute NodeSource setup script
+      ansible.builtin.command: /tmp/nodesource_setup.sh
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Install Node.js 22 LTS
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+
+    - name: Install Python 3.12 and development tools
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - python3-venv
+          - pipx
+        state: present
+
+    - name: Download Go tarball
+      ansible.builtin.get_url:
+        url: "https://go.dev/dl/go{{ go_version }}.linux-{{ arch_alias }}.tar.gz"
+        dest: "/tmp/go{{ go_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Extract Go to /usr/local
+      ansible.builtin.unarchive:
+        src: "/tmp/go{{ go_version }}.tar.gz"
+        dest: /usr/local
+        remote_src: true
+        creates: /usr/local/go/bin/go
+
+    - name: Create symlink for Go binaries
+      ansible.builtin.file:
+        src: "/usr/local/go/bin/{{ item }}"
+        dest: "/usr/local/bin/{{ item }}"
+        state: link
+      loop:
+        - go
+        - gofmt
+
+    # --------------------------------------------------------------------------
+    # 4. KUBERNETES & CLOUD CLIS (AWS CLI v2, KUBECTL, HELM)
+    # --------------------------------------------------------------------------
+    - name: Download and install AWS CLI v2
+      block:
+        - name: Download AWS CLI v2 zip
+          ansible.builtin.get_url:
+            url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ arch_alias_x86 }}.zip"
+            dest: /tmp/awscliv2.zip
+            mode: '0644'
+
+        - name: Unarchive AWS CLI v2
+          ansible.builtin.unarchive:
+            src: /tmp/awscliv2.zip
+            dest: /tmp
+            remote_src: true
+
+        - name: Run AWS CLI installer
+          ansible.builtin.command: /tmp/aws/install --update
+          args:
+            creates: /usr/local/bin/aws
+
+    - name: Download and install kubectl
+      block:
+        - name: Download latest stable kubectl binary
+          ansible.builtin.get_url:
+            url: "https://dl.k8s.io/release/v1.31.2/bin/linux/{{ arch_alias }}/kubectl"
+            dest: /usr/local/bin/kubectl
+            mode: '0755'
+
+    - name: Download and install Helm 3 / 4
+      ansible.builtin.shell: |
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+
+    # --------------------------------------------------------------------------
+    # 5. DEVSECOPS SECURITY TOOLS (TRIVY, COSIGN, GITLEAKS, CONFTEST)
+    # --------------------------------------------------------------------------
+    - name: Setup Trivy repository and install Trivy
+      block:
+        - name: Download Trivy public key
+          ansible.builtin.get_url:
+            url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+            dest: /etc/apt/keyrings/trivy.asc
+            mode: '0644'
+
+        - name: Add Trivy APT repository
+          ansible.builtin.apt_repository:
+            repo: "deb [arch={{ arch_alias }} signed-by=/etc/apt/keyrings/trivy.asc] https://aquasecurity.github.io/trivy-repo/deb {{ ansible_distribution_release }} main"
+            state: present
+
+        - name: Install Trivy
+          ansible.builtin.apt:
+            name: trivy
+            state: present
+            update_cache: true
+
+    - name: Download and install Cosign binary
+      ansible.builtin.get_url:
+        url: "https://github.com/sigstore/cosign/releases/download/{{ cosign_version }}/cosign-linux-{{ arch_alias }}"
+        dest: /usr/local/bin/cosign
+        mode: '0755'
+
+    - name: Download and install Gitleaks binary
+      block:
+        - name: Download Gitleaks archive
+          ansible.builtin.get_url:
+            url: "https://github.com/gitleaks/gitleaks/releases/download/{{ gitleaks_version }}/gitleaks_{{ gitleaks_version | regex_replace('^v', '') }}_linux_{{ arch_alias_x86 }}.tar.gz"
+            dest: /tmp/gitleaks.tar.gz
+            mode: '0644'
+
+        - name: Extract Gitleaks binary to /usr/local/bin
+          ansible.builtin.unarchive:
+            src: /tmp/gitleaks.tar.gz
+            dest: /usr/local/bin
+            remote_src: true
+            include:
+              - gitleaks
+
+        - name: Ensure correct permissions on gitleaks
+          ansible.builtin.file:
+            path: /usr/local/bin/gitleaks
+            mode: '0755'
+
+    - name: Download and install Conftest binary
+      block:
+        - name: Download Conftest archive
+          ansible.builtin.get_url:
+            url: "https://github.com/open-policy-agent/conftest/releases/download/v{{ conftest_version }}/conftest_{{ conftest_version }}_Linux_{{ arch_alias_x86 }}.tar.gz"
+            dest: /tmp/conftest.tar.gz
+            mode: '0644'
+
+        - name: Extract Conftest binary to /usr/local/bin
+          ansible.builtin.unarchive:
+            src: /tmp/conftest.tar.gz
+            dest: /usr/local/bin
+            remote_src: true
+            include:
+              - conftest
+
+        - name: Ensure correct permissions on conftest
+          ansible.builtin.file:
+            path: /usr/local/bin/conftest
+            mode: '0755'
+
+    # --------------------------------------------------------------------------
+    # 6. VERIFICATION & SUMMARY
+    # --------------------------------------------------------------------------
+    - name: Verify installed tool versions
+      ansible.builtin.command: "{{ item }}"
+      register: tool_ver_output
+      changed_when: false
+      loop:
+        - "docker --version"
+        - "java --version"
+        - "node --version"
+        - "go version"
+        - "python3 --version"
+        - "aws --version"
+        - "kubectl version --client"
+        - "helm version --short"
+        - "trivy --version"
+        - "cosign version"
+        - "gitleaks version"
+        - "conftest --version"
+
+    - name: Display DevSecOps Worker Verification
+      ansible.builtin.debug:
+        msg:
+          - "✅ DevSecOps Worker Node is ready!"
+          - "🏷️ Supported Agent Label: linux-docker-devsecops"
+          - "📂 Agent Workspace: {{ jenkins_workspace }}"
+          - "Docker: {{ tool_ver_output.results[0].stdout }}"
+          - "Java: {{ tool_ver_output.results[1].stdout_lines[0] }}"
+          - "Node: {{ tool_ver_output.results[2].stdout }}"
+          - "Go: {{ tool_ver_output.results[3].stdout }}"
+          - "Python: {{ tool_ver_output.results[4].stdout }}"
+          - "AWS CLI: {{ tool_ver_output.results[5].stdout }}"
+          - "Kubectl: {{ tool_ver_output.results[6].stdout }}"
+          - "Helm: {{ tool_ver_output.results[7].stdout }}"
+          - "Trivy: {{ tool_ver_output.results[8].stdout_lines[0] }}"
+          - "Cosign: {{ tool_ver_output.results[9].stdout_lines[0] }}"
+          - "Gitleaks: {{ tool_ver_output.results[10].stdout }}"
+          - "Conftest: {{ tool_ver_output.results[11].stdout }}"
