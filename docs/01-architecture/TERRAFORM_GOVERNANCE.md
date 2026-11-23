@@ -30,3 +30,20 @@ All three cloud roots resolve the active environment from `terraform.workspace` 
    - **GCP:** `deletion_protection = var.environment == "prod"` on `google_container_cluster.this` (`terraform/modules/gcp/gke/main.tf`) and `prevent_destroy = true` + `REGIONAL` HA preconditions on `google_sql_database_instance.this` (`terraform/modules/gcp/cloudsql/main.tf`).
 2. **Pipeline Plan Inspection Gate:**
    - Both `.github/workflows/terraform-aws.yml` and `azure-devops/templates/infra-stages.yml` inspect `terraform show -json tfplan` and block the pipeline if any `delete` action targets primary or secondary production Kubernetes dataplanes (`module.eks`, `module.eks_dp2`, `module.aks`, `module.aks_dp2`) or stateful databases unless `ALLOW_DESTRUCTIVE_TERRAFORM=true` is explicitly set by an authorized platform administrator.
+
+---
+
+## 4. Dedicated CI/CD & DevSecOps Host Tier (`terraform/environments/aws-ec2-compact/`)
+
+To support Jenkins Controller and DevSecOps Worker agents without incurring the overhead of a full multi-node EKS cluster for CI operations, the platform maintains a dedicated compact AWS EC2 environment:
+
+| Environment | Config File | Instance Type | vCPU / RAM | Storage | Primary Purpose |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`dev`** | `dev.example.tfvars` | `t3.xlarge` | 4 vCPU / 16 GB | 50 GiB GP3 | Jenkins Controller / single-node dev tests |
+| **`staging`** | `staging.example.tfvars` | `t3.2xlarge` | 8 vCPU / 32 GB | 80 GiB GP3 | Pre-production DevSecOps verification |
+| **`prod`** | `prod.example.tfvars` | `c6i.4xlarge` | 16 vCPU / 32 GB | 120 GiB GP3 | High-throughput concurrent CI/CD builds |
+
+### Key Governance Features:
+1. **Dynamic Ansible Inventory Integration**: Generates `ansible/inventory/hosts.ini` dynamically with target groups `[microservices_hosts]`, `[jenkins_controller]`, and `[jenkins_worker]`.
+2. **Strict Security Group Ingress**: Restricts SSH (`22`), Jenkins UI (`8080`), and JNLP remoting (`50000`) strictly to the administrator's authorized `admin_cidr`, preventing exposure to the public internet.
+3. **Ansible Playbook Automation**: Consumed immediately by `ansible/playbooks/setup-jenkins-controller.yml` and `ansible/playbooks/setup-jenkins-worker.yml` for zero-touch configuration.

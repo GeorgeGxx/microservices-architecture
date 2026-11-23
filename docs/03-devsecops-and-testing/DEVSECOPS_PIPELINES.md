@@ -372,7 +372,20 @@ The project uses provider-specific CI/CD workflows and recovery controls; rollba
 ### 3. Bitbucket Pipelines - Google Cloud Platform
 - **Unified pipeline ([`bitbucket-pipelines.yml`](../../bitbucket-pipelines.yml))**: Uses 14 numbered stages on `develop` and `staging`; both `master` and the repository's current `master` production branch share the same manually approved production flow. Stages cover test, security, build/SBOM, image scan, policy checks, Terraform validation, environment-specific GAR publish, GKE deploy, API contract, storefront smoke, performance, DAST, rollout verification, and release evidence/promotion. Production is a rolling Helm release; GCP credentials and endpoints are required and failures stop the pipeline. Cloud Terraform apply remains disabled in Bitbucket until its GCP state workflow is intentionally enabled.
 
-### 4. Automated Rollback & Incident Recovery Summary
+### 4. Jenkins, Ansible & Terraform DevSecOps Engine (AWS EC2 / ECS / Fargate)
+- **Strategic Role**: Dedicated enterprise DevSecOps and AWS infrastructure validation engine, running complementary to the GitHub Actions + ArgoCD microservices delivery pipeline.
+- **Infrastructure-as-Code & Automation**:
+  - **Terraform (`terraform/environments/aws-ec2-compact/`)**: Sized for `dev` (`t3.xlarge`, 50GB EBS), `staging` (`t3.2xlarge`, 80GB EBS), and `prod` (`c6i.4xlarge`, 120GB EBS) using `dev.example.tfvars`, `staging.example.tfvars`, and `prod.example.tfvars`. Generates dynamic `ansible/inventory/hosts.ini` on apply.
+  - **Ansible Automation (`ansible/playbooks/`)**:
+    - [`setup-jenkins-controller.yml`](../../ansible/playbooks/setup-jenkins-controller.yml): Automated setup of `jenkins/jenkins:lts-jdk21` with persistent volume, UFW network filtering, and systemd management.
+    - [`setup-jenkins-worker.yml`](../../ansible/playbooks/setup-jenkins-worker.yml): Automated setup of the `linux-docker-devsecops` node with Docker Buildx, OpenJDK 21, Node 22, Python 3.12, Go 1.23, AWS CLI, kubectl, Helm 3/4, Trivy, Cosign, Gitleaks, and Conftest.
+- **Compute Execution Model**:
+  - **EC2 Dedicated Workers**: Used for pipelines requiring native Docker daemon access (`/var/run/docker.sock`) for multi-stage Buildx builds, OWASP ZAP containerized DAST, and Grafana k6 load tests.
+  - **AWS ECS / Fargate Agents**: Serverless tasks launched dynamically for lightweight linters, unit tests, and policy evaluations without persistent EC2 overhead.
+- **Modern Connection Architecture**: Standardizes on **WebSockets (`-webSocket`) over HTTP/HTTPS** (port 8080/443), fully deprecating legacy JNLP TCP port 50000 and deprecated `-jnlpUrl` syntax.
+- **Operational Guide**: For full pipeline parameters, branch mappings, and IAM roles, see [JENKINS_AWS_EKS_PIPELINE.md](./JENKINS_AWS_EKS_PIPELINE.md).
+
+### 5. Automated Rollback & Incident Recovery Summary
 | Disaster Scenario | Recovery Mechanism | Recovery Time Objective (RTO) |
 | :--- | :--- | :--- |
 | **Terraform State Lock** | Inspect the failed run, confirm no active operation, then manually unlock using the actual backend lock ID | Operator-led |
