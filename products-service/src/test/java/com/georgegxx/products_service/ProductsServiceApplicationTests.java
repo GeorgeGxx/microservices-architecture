@@ -14,7 +14,11 @@ import org.springframework.test.context.TestPropertySource;
 		"management.health.vault.enabled=false",
 		"management.health.redis.enabled=false",
 		"management.endpoint.health.validate-group-membership=false",
-		"management.endpoint.health.group.readiness.include=readinessState,db,diskSpace"
+		"management.endpoint.health.group.readiness.include=readinessState,db,diskSpace",
+		"spring.kafka.listener.auto-startup=false",
+		"spring.kafka.admin.auto-create=false",
+		"management.health.kafka.enabled=false",
+		"management.tracing.export.enabled=false"
 })
 class ProductsServiceApplicationTests {
 

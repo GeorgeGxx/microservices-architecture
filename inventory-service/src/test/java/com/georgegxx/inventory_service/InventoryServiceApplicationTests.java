@@ -12,7 +12,11 @@ import org.springframework.test.context.TestPropertySource;
 		"spring.flyway.enabled=false",
 		"management.health.redis.enabled=false",
 		"management.health.vault.enabled=false",
-		"spring.cloud.vault.enabled=false"
+		"spring.cloud.vault.enabled=false",
+		"spring.kafka.listener.auto-startup=false",
+		"spring.kafka.admin.auto-create=false",
+		"management.health.kafka.enabled=false",
+		"management.tracing.export.enabled=false"
 })
 class InventoryServiceApplicationTests {
 

@@ -13,7 +13,10 @@ import org.springframework.test.context.TestPropertySource;
 		"spring.cloud.vault.enabled=false",
 		"management.health.vault.enabled=false",
 		"management.health.redis.enabled=false",
-		"spring.kafka.listener.auto-startup=false"
+		"spring.kafka.listener.auto-startup=false",
+		"spring.kafka.admin.auto-create=false",
+		"management.health.kafka.enabled=false",
+		"management.tracing.export.enabled=false"
 })
 class OrdersServiceApplicationTests {
 
