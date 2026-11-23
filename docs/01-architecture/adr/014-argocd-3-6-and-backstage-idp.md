@@ -7,7 +7,7 @@
 ## 1. Context and Problem Statement
 
 A comprehensive repository-wide audit identified four strategic platform engineering gaps:
-1. **Argo CD Version Drift & Configuration Gaps:** Argo CD versions drifted across `.env` (`3.5.5` / chart `10.10.3`), `helm/microservices-umbrella/values.yaml` (`3.5.6` / chart `10.11.1`), `terraform/environments/local-minikube/main.tf` (chart `10.11.6`), and `.github/workflows/_service-ci-cd-template.yml` (unpinned `latest` CLI). Furthermore, `local-minikube/main.tf` used an invalid Helm value key (`applicationController.resources.requests.memory` instead of `controller.resources.requests.memory`), and no production Helm values profile codified Argo CD 3.6 controller tuning, Keycloak OIDC SSO, granular `rollback` RBAC, or Prometheus `ServiceMonitor`s.
+1. **Argo CD Version Drift & Configuration Gaps:** Argo CD versions drifted across `.env` (`3.5.5` / chart `10.10.3`), `deploy/helm/microservices-umbrella/values.yaml` (`3.5.6` / chart `10.11.1`), `terraform/environments/local-minikube/main.tf` (chart `10.11.6`), and `.github/workflows/_service-ci-cd-template.yml` (unpinned `latest` CLI). Furthermore, `local-minikube/main.tf` used an invalid Helm value key (`applicationController.resources.requests.memory` instead of `controller.resources.requests.memory`), and no production Helm values profile codified Argo CD 3.6 controller tuning, Keycloak OIDC SSO, granular `rollback` RBAC, or Prometheus `ServiceMonitor`s.
 2. **Multi-Cloud DevSecOps Asymmetry:** Bitbucket Pipelines (`bitbucket-pipelines.yml`) lacked Semgrep SAST in its `&sast` step; GitHub Actions and Azure DevOps installed unpinned Semgrep without a centralized ruleset; Azure DevOps still referenced Node.js `22.x`; and Cosign only verified a static blob (`supply-chain-manifest.json`) without signing or verifying pushed OCI container images by immutable `@sha256` digest.
 3. **Internal Developer Portal (IDP) Absence:** The platform lacked a Backstage catalog, Golden Path Scaffolder templates, and TechDocs configuration to standardize developer onboarding and service ownership.
 
@@ -15,7 +15,7 @@ A comprehensive repository-wide audit identified four strategic platform enginee
 
 1. **Standardize on Argo CD `v3.6.1` (`argo/argo-cd` Helm Chart `10.14.0`):**
    - Pin `ARGOCD_VERSION=3.6.1` and `ARGOCD_HELM_CHART_VERSION=10.14.0` across all configurations and CI workflows.
-   - Maintain dedicated, schema-validated Helm values profiles in `helm/values/argocd-minikube.yaml` and `helm/values/argocd-prod.yaml`.
+   - Maintain dedicated, schema-validated Helm values profiles in `deploy/helm/values/argocd-minikube.yaml` and `deploy/helm/values/argocd-prod.yaml`.
    - Enforce least-privilege RBAC (`policy.default: role:readonly`) including Argo CD 3.6's separate `applications, rollback` permission and Keycloak OIDC (`microservices-realm`) group bindings.
 2. **Harmonize Multi-Cloud DevSecOps & OCI Image Signing:**
    - Pin Semgrep to `1.110.0` across GitHub Actions, Azure DevOps, and Bitbucket Pipelines with a centralized policy ruleset at `devsecops/sast/semgrep/semgrep-rules.yaml`.

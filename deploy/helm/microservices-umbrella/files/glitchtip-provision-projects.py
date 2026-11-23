@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import ssl
+import time
 import urllib.error
 import urllib.request
 from urllib.parse import urlsplit
@@ -115,19 +116,27 @@ def write_dsns_to_kubernetes_secret(values):
 
     def request(url, method, body=None):
         data = json.dumps(body).encode("utf-8") if body is not None else None
-        req = urllib.request.Request(url, data=data, headers=headers, method=method)
-        return urllib.request.urlopen(req, context=context, timeout=10)
+        for attempt in range(5):
+            req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            try:
+                return urllib.request.urlopen(req, context=context, timeout=10)
+            except urllib.error.HTTPError:
+                raise
+            except (urllib.error.URLError, OSError, TimeoutError):
+                if attempt == 4:
+                    raise
+                time.sleep(2**attempt)
 
     try:
         with request(secret_url, "GET") as response:
             secret["metadata"]["resourceVersion"] = json.load(response)["metadata"]["resourceVersion"]
-    except (urllib.error.URLError, urllib.error.HTTPError) as error:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, TimeoutError) as error:
         raise RuntimeError("Could not read the pre-created GlitchTip DSN Secret in Kubernetes") from error
 
     try:
         with request(secret_url, "PUT", secret):
             pass
-    except (urllib.error.URLError, urllib.error.HTTPError) as error:
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, TimeoutError) as error:
         raise RuntimeError("Could not update the GlitchTip DSN Secret in Kubernetes") from error
 
 

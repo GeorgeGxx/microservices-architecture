@@ -64,7 +64,7 @@ frontend:
     tag: "1.0.0"
   replicaCount: 0
 
-# Edge ingress is standardized on the Istio gateway declared in k8s/istio/02-gateway.yaml.
+# Edge ingress is standardized on the Istio gateway declared in deploy/kubernetes/istio/02-gateway.yaml.
 # Keep Helm values disabled here to avoid creating a second, conflicting ingress path.
 ingress:
   enabled: false

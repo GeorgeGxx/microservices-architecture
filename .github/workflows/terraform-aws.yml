@@ -10,16 +10,16 @@ on:
   #   paths:
   #     - 'terraform/**'
   #     - 'argocd/**'
-  #     - 'helm/values/opencost-*.yaml'
-  #     - 'helm/values/prometheus-cloud.yaml'
+  #     - 'deploy/helm/values/opencost-*.yaml'
+  #     - 'deploy/helm/values/prometheus-cloud.yaml'
   #     - 'scripts/validate-opencost.sh'
   # pull_request:
   #   branches: [develop, staging, master]
   #   paths:
   #     - 'terraform/**'
   #     - 'argocd/**'
-  #     - 'helm/values/opencost-*.yaml'
-  #     - 'helm/values/prometheus-cloud.yaml'
+  #     - 'deploy/helm/values/opencost-*.yaml'
+  #     - 'deploy/helm/values/prometheus-cloud.yaml'
   #     - 'scripts/validate-opencost.sh'
   # schedule:
   #   - cron: '0 6 * * 1' # Monday 6:00 AM UTC - Automated Drift Detection

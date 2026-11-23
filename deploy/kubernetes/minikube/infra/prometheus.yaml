@@ -447,7 +447,7 @@ spec:
       targetPort: 9090
       nodePort: 30090
 ---
-# Compatibility Service aliases for helm/keda/kiali/supervise-tunnels lookups
+# Compatibility Service aliases for deploy/helm/keda/kiali/supervise-tunnels lookups
 apiVersion: v1
 kind: Service
 metadata:

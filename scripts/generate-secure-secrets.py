@@ -11,7 +11,7 @@ Version : v2.0.0
 
 Usage:
   python generate-secure-secrets.py --format env
-  python generate-secure-secrets.py --format k8s-yaml --output-file k8s/secrets.yaml
+  python generate-secure-secrets.py --format k8s-yaml --output-file deploy/kubernetes/secrets.yaml
   python generate-secure-secrets.py --format json
 """
 

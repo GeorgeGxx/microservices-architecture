@@ -403,19 +403,20 @@ microservices-architecture/
 │   ├── 02-operations/              # Minikube, Governance, Cloudflare Tunnels & Helm Canary
 │   ├── 03-devsecops-and-testing/   # Governance Model, CI/CD Pipelines, Quality Gates, Chaos & Git Workflow
 │   ├── 04-observability/           # Telemetry Handbook, PromQL, LogQL & TraceQL queries
-│   ├── reference/                  # OpenAPI specifications, Keycloak realm exports & SQL schemas
+│   ├── reference/                  # API references, event contracts, Keycloak exports & schema guidance
 │   └── Diagrams.drawio             # 🎨 18-Page Comprehensive Architectural Blueprint (Draw.io)
 ├── frontend/                       # 💻 React 19 + TailwindCSS v4 SPA (Port 3000 • Nginx Distroless)
-├── helm/                           # ⎈ Kubernetes Helm Packaging
-│   ├── charts/                     # Individual service subcharts (products, orders, inventory, etc.)
-│   ├── microservices-umbrella/     # Master umbrella chart orchestrating the complete platform
-│   └── values/                     # Environment-specific configuration overrides (dev, staging, prod)
+├── deploy/                         # 🚀 Kubernetes deployment assets
+│   ├── helm/                       # ⎈ Helm charts and environment values
+│   │   ├── charts/                 # Individual service subcharts
+│   │   ├── microservices-umbrella/ # Umbrella chart for the platform
+│   │   └── values/                 # Environment-specific overrides
+│   └── kubernetes/                 # ☸️ Raw manifests organized by platform and purpose
+│       ├── common/                 # Shared namespaces, RBAC and storage
+│       ├── istio/                  # Gateways, traffic and mesh security
+│       ├── minikube/               # Local cluster infrastructure
+│       └── eks/                    # AWS EKS resources
 ├── inventory-service/              # 📦 Inventory & Stock Allocation Service (Port 8001 • Spring Boot)
-├── k8s/                            # ☸️ Kubernetes & Service Mesh Manifests
-│   ├── common/                     # Core namespaces, RBAC roles & StorageClasses
-│   ├── istio/                      # VirtualServices, DestinationRules, Gateway & mTLS policies
-│   ├── minikube/                   # Local cluster deployment manifests & local secrets
-│   └── eks/                        # Managed AWS EKS Kubernetes configurations
 ├── mlops/                          # 🧪 MLOps Pipeline & Forecasting Subsystem
 │   ├── Dockerfile.forecast         # Online inference server (`georgegxx/demand-forecast`)
 │   ├── Dockerfile.training         # Headless PySpark batch auto-trainer (`georgegxx/mlops-training`)

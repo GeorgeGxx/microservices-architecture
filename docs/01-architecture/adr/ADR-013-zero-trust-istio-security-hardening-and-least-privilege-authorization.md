@@ -9,11 +9,11 @@
 
 ## 🎯 Context & Problem Statement
 
-Prior to this audit, an inspection of Istio resources in `k8s/istio/peer-authentication-dev.yaml` and `peer-authentication-staging.yaml` revealed a critical security weakness:
+Prior to this audit, an inspection of Istio resources in `deploy/kubernetes/istio/peer-authentication-dev.yaml` and `peer-authentication-staging.yaml` revealed a critical security weakness:
 Port-level `PERMISSIVE` mTLS exceptions were configured for ports 8001, 8002, 8003, 8004, 8005, 8085, 8086, and 8087 under the pretext of Prometheus metrics scraping.
 
 Because these ports are the **primary business application ports** of each service, this configuration effectively downgraded mutual TLS from `STRICT` to `PERMISSIVE` across all east-west microservice communications, allowing unauthenticated, unencrypted requests to penetrate the mesh. Furthermore:
-1. Production lacked dedicated `PeerAuthentication` and `DestinationRule` manifests in `k8s/istio/`.
+1. Production lacked dedicated `PeerAuthentication` and `DestinationRule` manifests in `deploy/kubernetes/istio/`.
 2. No `AuthorizationPolicy` resources existed, permitting any compromised workload to invoke any internal microservice.
 3. The edge `02-gateway.yaml` exposed Keycloak administrative endpoints (`/admin/`) to the public internet on port 80 HTTP without TLS redirection.
 
@@ -32,9 +32,9 @@ Because these ports are the **primary business application ports** of each servi
 
 ### 2. Multi-Environment STRICT mTLS
 - Dedicated `PeerAuthentication` resources enforce `mode: STRICT` across:
-  - `dev` (`k8s/istio/peer-authentication-dev.yaml`)
-  - `staging` (`k8s/istio/peer-authentication-staging.yaml`)
-  - `production` and `prod` (`k8s/istio/peer-authentication-prod.yaml`)
+  - `dev` (`deploy/kubernetes/istio/peer-authentication-dev.yaml`)
+  - `staging` (`deploy/kubernetes/istio/peer-authentication-staging.yaml`)
+  - `production` and `prod` (`deploy/kubernetes/istio/peer-authentication-prod.yaml`)
 
 ### 3. Least-Privilege AuthorizationPolicies (Default-Deny)
 - Deploy declarative `AuthorizationPolicy` resources implementing:
@@ -45,7 +45,7 @@ Because these ports are the **primary business application ports** of each servi
   5. **Observability Allow:** Scrapers in `observability` and `istio-system` namespaces are explicitly authorized to access telemetry paths (`/actuator*`, `/metrics*`, `/stats/prometheus*`).
 
 ### 4. Edge Gateway Defense & Administrative Isolation
-- **Removal of Public `/admin/` Route:** Keycloak administration console is removed from the edge Gateway (`k8s/istio/02-gateway.yaml` and `02-gateway-prod.yaml`). Keycloak console access must be conducted via internal port-forwarding, VPN, or private administrative ingress.
+- **Removal of Public `/admin/` Route:** Keycloak administration console is removed from the edge Gateway (`deploy/kubernetes/istio/02-gateway.yaml` and `02-gateway-prod.yaml`). Keycloak console access must be conducted via internal port-forwarding, VPN, or private administrative ingress.
 - **HTTPS Enforcement:** Production edge gateway (`02-gateway-prod.yaml`) enforces automatic HTTP-to-HTTPS redirection (`httpsRedirect: true`) on port 80 and terminates TLS 1.3/1.2 on port 443 with explicit domain matching (`msa.example.com`).
 
 ### 5. DestinationRule Resilience

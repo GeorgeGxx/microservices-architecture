@@ -24,7 +24,7 @@ spec:
           helm:
             releaseName: prometheus
             valueFiles:
-              - $values/helm/values/prometheus-cloud.yaml
+              - $values/deploy/helm/values/prometheus-cloud.yaml
         - repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
           targetRevision: '{{ index .metadata.labels "git-branch" }}'
           ref: values

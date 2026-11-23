@@ -335,9 +335,9 @@ While all application configurations and deployments are stored declaratively in
 
 ### Automated Velero Deployment & Schedule:
 - **CLI Installer:** [`scripts/install-velero.sh`](../../scripts/install-velero.sh) (pins `v1.18.3` across Linux/macOS architectures).
-- **Cluster Helm Values:** [`k8s/common/bcdr/velero-values.yaml`](../../k8s/common/bcdr/velero-values.yaml).
+- **Cluster Helm Values:** [`deploy/kubernetes/common/bcdr/velero-values.yaml`](../../deploy/kubernetes/common/bcdr/velero-values.yaml).
 - **Automated Deployment Script:** [`scripts/deploy-velero.sh`](../../scripts/deploy-velero.sh).
-- **Production Schedule Manifest:** [`k8s/common/bcdr/velero-schedule.yaml`](../../k8s/common/bcdr/velero-schedule.yaml).
+- **Production Schedule Manifest:** [`deploy/kubernetes/common/bcdr/velero-schedule.yaml`](../../deploy/kubernetes/common/bcdr/velero-schedule.yaml).
 - **Postgres BCDR Engine:** [`scripts/prod/pg-bcdr-engine.sh`](../../scripts/prod/pg-bcdr-engine.sh).
 
 ```yaml

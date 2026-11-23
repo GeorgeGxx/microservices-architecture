@@ -118,7 +118,7 @@ pipeline {
                                     case 'cosmo-router':
                                         sh 'npx --yes wgc@0.133.3 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json'
                                         sh "bash scripts/install-helm4.sh v${env.HELM_VERSION}"
-                                        sh 'helm lint helm/charts/cosmo-router && helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml'
+                                        sh 'helm lint deploy/helm/charts/cosmo-router && helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-minikube.yaml'
                                         break
                                     default:
                                         error("Unsupported service type: ${service['service-type']}")
@@ -157,11 +157,11 @@ pipeline {
                         sh "bash scripts/install-helm4.sh v${env.HELM_VERSION}"
                         sh '''
                             set -eu
-                            helm dependency build helm/microservices-umbrella
-                            helm template microservices helm/microservices-umbrella \\
-                              --values helm/values/values-eks-staging.yaml > rendered-staging.yaml
-                            helm template microservices helm/microservices-umbrella \\
-                              --values helm/values/values-eks-prod.yaml > rendered-production.yaml
+                            helm dependency build deploy/helm/microservices-umbrella
+                            helm template microservices deploy/helm/microservices-umbrella \\
+                              --values deploy/helm/values/values-eks-staging.yaml > rendered-staging.yaml
+                            helm template microservices deploy/helm/microservices-umbrella \\
+                              --values deploy/helm/values/values-eks-prod.yaml > rendered-production.yaml
                             conftest test rendered-staging.yaml --policy devsecops/policies/conftest/
                             conftest test rendered-production.yaml --policy devsecops/policies/conftest/
                         '''
@@ -418,7 +418,7 @@ pipeline {
                         withEnv([
                             "TARGET_ENVIRONMENT=${targetEnvironment}",
                             "TARGET_NAMESPACE=${targetNamespace}",
-                            "TARGET_VALUES=helm/values/values-eks-${targetEnvironment}.yaml",
+                            "TARGET_VALUES=deploy/helm/values/values-eks-${targetEnvironment}.yaml",
                             "EKS_TARGET_CLUSTERS=${clusters.join(' ')}",
                             "HELM_IMAGE_OVERRIDES=${helmOverrides.join(' ')}",
                             "DOCKERHUB_SERVICES=${services.collect { it['service-name'] }.join(' ')}"
@@ -454,12 +454,12 @@ pipeline {
                                     }
                                     cosign verify --key "$COSIGN_PUBLIC_KEY_FILE" "$DOCKERHUB_OWNER/$service@$digest"
                                   done
-                                  helm template microservices helm/microservices-umbrella \\
+                                  helm template microservices deploy/helm/microservices-umbrella \\
                                     --namespace "$TARGET_NAMESPACE" --values "$TARGET_VALUES" \\
                                     --set-string global.environment="$TARGET_ENVIRONMENT" $HELM_IMAGE_OVERRIDES \\
                                     > "rendered-${cluster}.yaml"
                                   conftest test "rendered-${cluster}.yaml" --policy devsecops/policies/conftest/
-                                  helm upgrade --install microservices helm/microservices-umbrella \\
+                                  helm upgrade --install microservices deploy/helm/microservices-umbrella \\
                                     --namespace "$TARGET_NAMESPACE" --create-namespace \\
                                     --values "$TARGET_VALUES" \\
                                     --set-string global.environment="$TARGET_ENVIRONMENT" \\

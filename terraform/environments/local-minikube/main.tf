@@ -86,7 +86,7 @@ resource "helm_release" "argocd" {
   timeout    = 600
 
   values = [
-    file("${path.module}/../../../helm/values/argocd-minikube.yaml")
+    file("${path.module}/../../../deploy/helm/values/argocd-minikube.yaml")
   ]
 
   set_sensitive = [

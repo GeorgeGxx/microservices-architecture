@@ -26,7 +26,7 @@
 ## 3. Dynamic Secrets & Encryption Management
 
 1. **HashiCorp Vault Dynamic Database Credentials:**
-   - Vault (`k8s/vault/`) issues short-lived (`1h` default TTL, `24h` max TTL) PostgreSQL roles for each microservice database (`products-db-role`, `orders-db-role`, `inventory-db-role`, `payments-db-role`, `fulfillment-db-role`, `analytics-db-role`) via Vault Agent Injector sidecars.
+   - Vault (`deploy/kubernetes/vault/`) issues short-lived (`1h` default TTL, `24h` max TTL) PostgreSQL roles for each microservice database (`products-db-role`, `orders-db-role`, `inventory-db-role`, `payments-db-role`, `fulfillment-db-role`, `analytics-db-role`) via Vault Agent Injector sidecars.
 2. **Cloud KMS & CSI Secret Stores:**
    - Cloud KMS keys (`module.kms` in AWS and GCP; Azure Key Vault with RBAC authorization and soft-delete retention in Azure) encrypt storage buckets, managed databases, Redis caches, and Kafka brokers at rest.
-   - `helm/microservices-umbrella/templates/secretproviderclass.yaml` provides opt-in Azure Key Vault CSI SecretProviderClass integration.
+   - `deploy/helm/microservices-umbrella/templates/secretproviderclass.yaml` provides opt-in Azure Key Vault CSI SecretProviderClass integration.

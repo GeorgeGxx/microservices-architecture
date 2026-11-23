@@ -1,5 +1,5 @@
 # Default values shared by every environment. Environment-specific overrides
-# live in helm/values/values-<env>.yaml and are passed with `helm upgrade -f`.
+# live in deploy/helm/values/values-<env>.yaml and are passed with `helm upgrade -f`.
 
 global:
   environment: dev

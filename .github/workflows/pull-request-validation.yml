@@ -106,9 +106,9 @@ jobs:
       - name: Resolve chart dependencies and lint
         run: |
           set -euo pipefail
-          helm dependency update helm/microservices-umbrella
-          helm lint helm/charts/cosmo-router
-          helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml
+          helm dependency update deploy/helm/microservices-umbrella
+          helm lint deploy/helm/charts/cosmo-router
+          helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-minikube.yaml
 
   infrastructure-checks:
     name: Run changed infrastructure gates

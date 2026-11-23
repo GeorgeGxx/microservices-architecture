@@ -1,6 +1,6 @@
 """
 CloudEvents 1.0 and strongly-typed domain event contracts for analytics-service.
-Aligned with CNCF CloudEvents v1.0 and centralized schemas in contracts/events/.
+Aligned with CNCF CloudEvents v1.0 and centralized schemas in docs/reference/contracts/events/.
 """
 
 from typing import Any, List, Optional

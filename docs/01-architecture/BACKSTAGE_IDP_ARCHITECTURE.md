@@ -55,7 +55,7 @@ All 5 Golden Path templates under `backstage/templates/` adhere to strict supply
 
 ## 5. Interactive Self-Service Capabilities & Network Isolation
 
-In local/Minikube clusters (`k8s/minikube/infra/backstage.yaml`), Backstage IDP (`v1.56.3`, port `7007`) exposes four interactive self-service capabilities governed by two dedicated Zero-Trust `NetworkPolicy` resources (`backstage-idp-netpol` and `allow-backstage-idp-probes`):
+In local/Minikube clusters (`deploy/kubernetes/minikube/infra/backstage.yaml`), Backstage IDP (`v1.56.3`, port `7007`) exposes four interactive self-service capabilities governed by two dedicated Zero-Trust `NetworkPolicy` resources (`backstage-idp-netpol` and `allow-backstage-idp-probes`):
 
 | Endpoint / Capability | Method | Architectural Behavior |
 |---|---|---|

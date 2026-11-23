@@ -34,7 +34,7 @@ The drill verifies PostgreSQL dump integrity and isolated restore, Kafka retaine
 
 ## Argo CD application boundary
 
-`argocd/application-*.yaml` currently points to `helm/microservices-umbrella`. The umbrella chart owns shared configuration, secrets, network policy, and observability resources as well as service charts. Creating one Argo CD Application per service today would cause overlapping ownership of shared objects and could trigger pruning conflicts.
+`argocd/application-*.yaml` currently points to `deploy/helm/microservices-umbrella`. The umbrella chart owns shared configuration, secrets, network policy, and observability resources as well as service charts. Creating one Argo CD Application per service today would cause overlapping ownership of shared objects and could trigger pruning conflicts.
 
 The release workflow already limits image builds, GitOps image updates, and emergency image override restoration to changed services. Argo CD uses `ApplyOutOfSyncOnly=true`, reducing unnecessary resource writes during sync. A future per-service ApplicationSet should follow a separate migration that extracts shared objects into a foundation chart/Application, defines explicit ownership, validates rendered manifests for duplicates, and tests prune behavior in a disposable cluster before enabling automated sync.
 

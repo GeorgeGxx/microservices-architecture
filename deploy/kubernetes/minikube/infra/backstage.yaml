@@ -1547,7 +1547,7 @@ data:
           document.getElementById('scfFileTabs').innerHTML = [
             ['catalogYaml', '📄 catalog-info.yaml'],
             ['workflowYaml', '⚙️ .github/workflows/service-' + payload.name + '.yml'],
-            ['helmValuesYaml', '☸️ helm/values-snippet.yaml']
+            ['helmValuesYaml', '☸️ deploy/helm/values-snippet.yaml']
           ].map(([k, label]) => '<button class="btn-action" data-key="' + k + '" onclick="showScfFile(this.dataset.key)">' + label + '</button>').join('');
           showScfFile('catalogYaml');
 

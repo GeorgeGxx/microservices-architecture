@@ -1,6 +1,6 @@
 /**
  * Formal CloudEvents 1.0 Specification Contract & Strongly-Typed Domain Event Payloads.
- * Complies with CNCF CloudEvents v1.0 and centralized schema contracts in contracts/events/.
+ * Complies with CNCF CloudEvents v1.0 and centralized schema contracts in docs/reference/contracts/events/.
  */
 
 export interface CloudEvent<T = Record<string, unknown>> {

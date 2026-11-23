@@ -37,7 +37,7 @@ The platform orchestrator (`platform-minikube.ps1`) integrates an automated tool
 | **Runtime & Engines** | `git` | 2.40+ | `Git.Git` | Distributed version control, secret diff scanning, GitOps ArgoCD tracking. |
 | **Kubernetes & Mesh** | `minikube` | 1.39.0+ | `Kubernetes.minikube` | Local single-node Kubernetes cluster hypervisor and driver. |
 | **Kubernetes & Mesh** | `kubectl` | 1.32.0+ | `Kubernetes.kubectl` | Kubernetes cluster control plane administration and manifest application. |
-| **Kubernetes & Mesh** | `helm` | 3.17.0+ | `Helm.Helm` | Package manager deploying the umbrella chart (`helm/microservices-umbrella`). |
+| **Kubernetes & Mesh** | `helm` | 3.17.0+ | `Helm.Helm` | Package manager deploying the umbrella chart (`deploy/helm/microservices-umbrella`). |
 | **Kubernetes & Mesh** | `istioctl` | 1.32.0+ | `Istio.Istio` | Service mesh control plane setup, STRICT mTLS enforcement, and Kiali dashboards. |
 | **Kubernetes & Mesh** | `cloudflared` | 2026.9.1+ | `Cloudflare.cloudflared` | Secure Zero-Trust edge tunneling for remote DAST, Newman, and webhook drills. |
 | **DevSecOps & Security** | `gitleaks` | 8.24.0+ | `Gitleaks.Gitleaks` | Shift-left secret detection in commits and working trees (`platform-minikube.ps1 security-scan`). |
@@ -124,7 +124,7 @@ Docker Compose does not install OpenCost: it can run the application containers 
 
 ### PostgreSQL backup and restore drills
 
-The Minikube bootstrap installs `k8s/common/bcdr/database-backup-cronjob.yaml` in the `data` namespace. It stores custom-format dumps for Keycloak, inventory, orders, and products on the `postgres-bcdr-backups` PVC every six hours, keeps a rolling seven-day window, and runs an isolated checksum plus restore verification weekly. The restore job does not connect to or modify the source databases.
+The Minikube bootstrap installs `deploy/kubernetes/common/bcdr/database-backup-cronjob.yaml` in the `data` namespace. It stores custom-format dumps for Keycloak, inventory, orders, and products on the `postgres-bcdr-backups` PVC every six hours, keeps a rolling seven-day window, and runs an isolated checksum plus restore verification weekly. The restore job does not connect to or modify the source databases.
 
 ```powershell
 # Check the durable backup claim and scheduled jobs
@@ -399,7 +399,7 @@ For cloud targets, set `BASE_URL`, `TARGET_URL`, `FRONTEND_URL`, and `KEYCLOAK_U
 
 > 🔒 **Zero-Trust Security & In-Mesh Telemetry Architecture:**
 > - **STRICT mTLS Mesh:** Enforces `PeerAuthentication: STRICT` across the `dev` namespace with short-lived X.509 SPIFFE identities issued by `istiod`.
-> - **Selective Metrics Scraping:** Cosmo Router exposes HTTP metrics at Service port `http-metrics:9090`; the Service port name follows Istio's `<protocol>[-suffix]` convention so Envoy classifies it as HTTP. Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `k8s/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
+> - **Selective Metrics Scraping:** Cosmo Router exposes HTTP metrics at Service port `http-metrics:9090`; the Service port name follows Istio's `<protocol>[-suffix]` convention so Envoy classifies it as HTTP. Spring Actuator ports `8001-8004` are configured for Prometheus scraping in `deploy/kubernetes/istio/peer-authentication-dev.yaml`; application traffic remains protected by STRICT mTLS.
 > - **Kafka (PLAINTEXT, Port 9092):** Microservices produce and consume events through `kafka:9092`. Istio can report TCP connection metrics for this traffic; Kafka message contents remain application-level data.
 > - **JVM & Resource Tuning:** Configured with `JAVA_TOOL_OPTIONS: -XX:+ExitOnOutOfMemoryError -XX:InitialRAMPercentage=40.0 -XX:MaxRAMPercentage=75.0 -XX:+TieredCompilation -XX:TieredStopAtLevel=1` and optimized HikariCP pools (`maximum-pool-size: 5`), accelerating cold container startup from 45s down to 10-13s.
 
@@ -414,6 +414,8 @@ Expose all internal services and web consoles to `localhost`:
 .\platform-minikube.ps1 urls
 ```
 Running `.\platform-minikube.ps1 urls` automatically renders the formatted table of active `localhost` tunnels, Minikube NodePorts, and default credentials directly in the terminal.
+
+PostgreSQL Services in Minikube listen on port `5432` inside the cluster and are not included in the background browser tunnel set. For temporary access from the host, forward only the database you need; for example, `kubectl port-forward -n data svc/db-orders 5435:5432`. The Keycloak database Service is in namespace `auth`; the other six are in `data`. Compose host ports are separate local bindings and are not exposed by Minikube automatically.
 
 > 🌐 **Canonical Endpoint & Documentation Matrix:** For the complete, interactive reference table listing all 16 direct `localhost` URLs, Minikube NodePorts, protocols, and OpenAPI Swagger UIs (Products, Orders, Inventory, Notification, Demand Forecast, MLflow, Keycloak, Vault, Grafana, Prometheus, Alloy, Kiali, ArgoCD, OpenCost), refer to the complementary [Unified Endpoints, API Routing & Swagger Access Matrix](../01-architecture/ARCHITECTURE.md#-unified-endpoints-api-routing--swagger-access-matrix) in `ARCHITECTURE.md`.
 
@@ -433,13 +435,13 @@ Deploy a distinct immutable candidate image, then shift Istio traffic in guarded
 .\platform-minikube.ps1 canary -Action weight -Namespace dev -V1Weight 100 -V2Weight 0
 ```
 
-At 100% canary, v1 remains Ready but receives no normal traffic so it is available for a fast rollback. For final retirement, promote the exact tested image tag in `helm/values/values-minikube.yaml` and let ArgoCD sync the stable Deployment first; remove the canary only after that rollout is Ready. The `x-canary: true` header remains a 100%-to-v2 QA override at every traffic weight.
+At 100% canary, v1 remains Ready but receives no normal traffic so it is available for a fast rollback. For final retirement, promote the exact tested image tag in `deploy/helm/values/values-minikube.yaml` and let ArgoCD sync the stable Deployment first; remove the canary only after that rollout is Ready. The `x-canary: true` header remains a 100%-to-v2 QA override at every traffic weight.
 
 After the interactive rollout accepts 100%, stage the tested canary image into the stable Minikube Helm values:
 ```powershell
 .\platform-minikube.ps1 canary -Action promote -Namespace dev
 ```
-Review and commit/push the resulting `helm/values/values-minikube.yaml` change to the GitOps branch. Wait until ArgoCD reports Synced/Healthy and the stable `products-service` Deployment is Ready on the same image. Only then remove the canary route and workload:
+Review and commit/push the resulting `deploy/helm/values/values-minikube.yaml` change to the GitOps branch. Wait until ArgoCD reports Synced/Healthy and the stable `products-service` Deployment is Ready on the same image. Only then remove the canary route and workload:
 ```powershell
 .\platform-minikube.ps1 canary -Action retire -Namespace dev
 ```
@@ -599,7 +601,7 @@ flowchart TD
   ```
 
 ### 4. 🚨 Alertmanager Alert Routing (Local Default, Slack & Jira Ready)
-* **Prometheus Rule Discovery:** `helm/microservices-umbrella/templates/prometheus-rule.yaml` labeled with `release: kube-prometheus`, allowing the Prometheus Operator to automatically discover and monitor alerts (`ServiceDown`, `HighErrorRate`, `HighLatency`, `HighHeapUsage`, `RedisExporterDown`, `AlloyCollectorDown`). The Alloy alert covers both failed scrapes and a missing Alloy target.
+* **Prometheus Rule Discovery:** `deploy/helm/microservices-umbrella/templates/prometheus-rule.yaml` labeled with `release: kube-prometheus`, allowing the Prometheus Operator to automatically discover and monitor alerts (`ServiceDown`, `HighErrorRate`, `HighLatency`, `HighHeapUsage`, `RedisExporterDown`, `AlloyCollectorDown`). The Alloy alert covers both failed scrapes and a missing Alloy target.
 * **AlertmanagerConfig CRD (`monitoring.coreos.com/v1alpha1`):** Deployed directly in the `staging` namespace with label `release: kube-prometheus`.
 * **Active Default Local Receiver:** Routes alerts cleanly to `default-local-receiver` inside Alertmanager without failing or requiring external credentials.
 * **Activating Slack Notifications:**
@@ -607,7 +609,7 @@ flowchart TD
      ```powershell
      kubectl create secret generic alertmanager-slack-webhook -n staging --from-literal=url='https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
      ```
-  2. In `helm/microservices-umbrella/values.yaml`, enable Slack:
+  2. In `deploy/helm/microservices-umbrella/values.yaml`, enable Slack:
      ```yaml
      alertmanagerConfig:
        slack:
@@ -616,7 +618,7 @@ flowchart TD
      ```
 * **Activating Jira Issue Creation:**
   1. Set up a Jira Automation incoming webhook rule or alert forwarder URL.
-  2. In `helm/microservices-umbrella/values.yaml`, enable Jira:
+  2. In `deploy/helm/microservices-umbrella/values.yaml`, enable Jira:
      ```yaml
      alertmanagerConfig:
        jira:

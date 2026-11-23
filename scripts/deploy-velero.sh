@@ -53,8 +53,8 @@ log "Ensuring namespace '${VELERO_NAMESPACE}'..."
 kubectl create namespace "${VELERO_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
 # 4. Deploy / Upgrade Velero v1.18.3
-VALUES_FILE="k8s/common/bcdr/velero-values.yaml"
-SCHEDULE_FILE="k8s/common/bcdr/velero-schedule.yaml"
+VALUES_FILE="deploy/kubernetes/common/bcdr/velero-values.yaml"
+SCHEDULE_FILE="deploy/kubernetes/common/bcdr/velero-schedule.yaml"
 
 if [[ ! -f "$VALUES_FILE" ]]; then
   if [[ -f "${SCRIPT_DIR}/../${VALUES_FILE}" ]]; then

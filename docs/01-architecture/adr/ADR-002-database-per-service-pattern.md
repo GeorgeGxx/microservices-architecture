@@ -53,11 +53,16 @@ We require a data architecture that guarantees:
 
 Chosen option: **Option 2 (Database-per-Service)**.
 
-The ecosystem provisions four distinct PostgreSQL databases:
-* `db-products` (Port 5431 in Compose / Service in K8s `data`)
-* `db-orders` (Port 5432 in Compose / Service in K8s `data`)
-* `db-inventory` (Port 5433 in Compose / Service in K8s `data`)
-* `db-keycloak` (Port 5434 in Compose / Service in K8s `auth`)
+The ecosystem provisions seven distinct PostgreSQL databases:
+* `db-products` (Host port 5433 in Compose / Service port 5432 in K8s `data`)
+* `db-orders` (Host port 5435 in Compose / Service port 5432 in K8s `data`)
+* `db-inventory` (Host port 5431 in Compose / Service port 5432 in K8s `data`)
+* `db-keycloak` (Compose host port 5434 / Kubernetes Service port 5432 in `auth`)
+* `db-payments` (Compose host port 5436 / Kubernetes Service port 5432 in `data`)
+* `db-fulfillment` (Compose host port 5437 / Kubernetes Service port 5432 in `data`)
+* `db-analytics` (Compose host port 5438 / Kubernetes Service port 5432 in `data`)
+
+All PostgreSQL containers and Kubernetes Services listen on port 5432. Compose publishes distinct host ports for local access; Minikube does not publish those host ports automatically. Use `kubectl port-forward` when temporary host access to a Minikube database is needed.
 
 ### Positive Consequences
 * **No Direct Foreign Keys Across Boundaries:** Services reference external entities exclusively via domain identifiers (`productId`, `sku`, `userId`).

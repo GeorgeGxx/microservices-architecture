@@ -51,7 +51,7 @@ class ReleaseServiceDetectorTests(unittest.TestCase):
 
     def test_event_contract_changes_select_consumers(self):
         self.assertEqual(
-            set(release_services(["contracts/events/order-event.schema.json"])),
+            set(release_services(["docs/reference/contracts/events/order-event.schema.json"])),
             {"orders-service", "payments-service", "inventory-service"},
         )
 
@@ -67,16 +67,16 @@ class ReleaseServiceDetectorTests(unittest.TestCase):
         self.assertTrue(requires_security_checks([path]))
 
     def test_helm_chart_change_runs_its_checks_without_rebuilding_image(self):
-        path = "helm/charts/payments-service/templates/deployment.yaml"
+        path = "deploy/helm/charts/payments-service/templates/deployment.yaml"
         self.assertEqual(affected_services([path]), ["payments-service"])
         self.assertEqual(release_services([path]), [])
 
     def test_umbrella_values_validate_all_services_but_do_not_rebuild_images(self):
         self.assertEqual(
-            affected_services(["helm/microservices-umbrella/values.yaml"]),
+            affected_services(["deploy/helm/microservices-umbrella/values.yaml"]),
             list(CI_SERVICES),
         )
-        self.assertEqual(release_services(["helm/values/values-eks-dev.yaml"]), [])
+        self.assertEqual(release_services(["deploy/helm/values/values-eks-dev.yaml"]), [])
 
     def test_unknown_docs_change_does_not_schedule_service_ci_or_release(self):
         self.assertEqual(affected_services(["docs/02-operations/README.md"]), [])
@@ -92,7 +92,7 @@ class ReleaseServiceDetectorTests(unittest.TestCase):
         self.assertNotIn(
             "cosmo-router", [item["service-name"] for item in matrix_for_services(["cosmo-router"])]
         )
-        self.assertTrue(requires_infrastructure_checks(["helm/charts/cosmo-router/Chart.yaml"]))
+        self.assertTrue(requires_infrastructure_checks(["deploy/helm/charts/cosmo-router/Chart.yaml"]))
 
     def test_infrastructure_changes_request_the_infrastructure_gate(self):
         self.assertTrue(requires_infrastructure_checks(["terraform/environments/aws/main.tf"]))

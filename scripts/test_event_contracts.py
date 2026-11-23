@@ -19,7 +19,7 @@ except ImportError:
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-CONTRACTS_DIR = REPO_ROOT / "contracts" / "events"
+CONTRACTS_DIR = REPO_ROOT / "docs" / "reference" / "contracts" / "events"
 
 def load_schema(schema_name: str) -> dict:
     schema_path = CONTRACTS_DIR / schema_name

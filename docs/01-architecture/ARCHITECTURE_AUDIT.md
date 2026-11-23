@@ -14,8 +14,8 @@ In accordance with the non-negotiable multi-cloud architecture mandate, the thre
 
 | Cloud Provider | CI/CD Orchestrator | Kubernetes Control Plane | Container Registry | IaC Root | Packaging & GitOps |
 |---|---|---|---|---|---|
-| **Microsoft Azure** | Azure DevOps (`azure-devops/`) | Azure Kubernetes Service (`aks`, `aks_dp2`) | Azure Container Registry (`acr`) | `terraform/environments/azure` | Helm v4 OCI (`helm/microservices-umbrella`) + ADO Deployment Jobs |
-| **Google Cloud Platform** | Bitbucket Pipelines (`bitbucket-pipelines.yml`) | Google Kubernetes Engine Autopilot (`gke`, `gke_dp2`) | Google Artifact Registry (`gar`) | `terraform/environments/gcp` | Helm v4 OCI (`helm/microservices-umbrella`) + Bitbucket Deployments |
+| **Microsoft Azure** | Azure DevOps (`azure-devops/`) | Azure Kubernetes Service (`aks`, `aks_dp2`) | Azure Container Registry (`acr`) | `terraform/environments/azure` | Helm v4 OCI (`deploy/helm/microservices-umbrella`) + ADO Deployment Jobs |
+| **Google Cloud Platform** | Bitbucket Pipelines (`bitbucket-pipelines.yml`) | Google Kubernetes Engine Autopilot (`gke`, `gke_dp2`) | Google Artifact Registry (`gar`) | `terraform/environments/gcp` | Helm v4 OCI (`deploy/helm/microservices-umbrella`) + Bitbucket Deployments |
 | **Amazon Web Services** | GitHub Actions (`.github/workflows/`) | Amazon EKS (`eks`, `eks_dp2`) | Amazon ECR (`ecr`) / GHCR | `terraform/environments/aws` | Helm v4 OCI + Argo CD (`argocd/`) |
 
 ---

@@ -6,8 +6,8 @@ on:
     branches: [develop] # Paused until AWS cloud deployment is enabled: staging, master
     paths:
       - 'terraform/**'
-      - 'helm/**'
-      - 'k8s/**'
+      - 'deploy/helm/**'
+      - 'deploy/kubernetes/**'
       - 'argocd/**'
       - 'devsecops/policies/conftest/**'
       - 'scripts/install-helm4.sh'
@@ -83,10 +83,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          helm lint helm/microservices-umbrella --values helm/values/values-minikube.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-eks-staging.yaml
-          helm lint helm/microservices-umbrella --values helm/values/values-eks-prod.yaml
-          for chart in helm/charts/*/; do helm lint "$chart"; done
+          helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-minikube.yaml
+          helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-eks-staging.yaml
+          helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-eks-prod.yaml
+          for chart in deploy/helm/charts/*/; do helm lint "$chart"; done
       - name: Test policy fixtures
         shell: bash
         run: |
@@ -107,23 +107,23 @@ jobs:
           for environment in minikube staging prod; do
             args=(--namespace dev)
             case "$environment" in
-              minikube) args+=(--values helm/values/values-minikube.yaml) ;;
-              staging) args+=(--namespace staging --values helm/values/values-eks-staging.yaml) ;;
-              prod) args+=(--namespace production --values helm/values/values-eks-prod.yaml) ;;
+              minikube) args+=(--values deploy/helm/values/values-minikube.yaml) ;;
+              staging) args+=(--namespace staging --values deploy/helm/values/values-eks-staging.yaml) ;;
+              prod) args+=(--namespace production --values deploy/helm/values/values-eks-prod.yaml) ;;
             esac
-            helm template microservices helm/microservices-umbrella "${args[@]}" > "$RUNNER_TEMP/${environment}-manifests.yaml"
+            helm template microservices deploy/helm/microservices-umbrella "${args[@]}" > "$RUNNER_TEMP/${environment}-manifests.yaml"
             conftest test "$RUNNER_TEMP/${environment}-manifests.yaml" --policy devsecops/policies/conftest
           done
-          conftest test k8s/common/bcdr/database-backup-cronjob.yaml --policy devsecops/policies/conftest
-          conftest test k8s/minikube/infra/backstage.yaml --policy devsecops/policies/conftest
+          conftest test deploy/kubernetes/common/bcdr/database-backup-cronjob.yaml --policy devsecops/policies/conftest
+          conftest test deploy/kubernetes/minikube/infra/backstage.yaml --policy devsecops/policies/conftest
       - name: Validate Argo CD 3.6.1 Helm values rendering (Chart 10.14.0)
         shell: bash
         run: |
           set -euo pipefail
           helm repo add argo https://argoproj.github.io/argo-helm
           helm repo update argo
-          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f helm/values/argocd-minikube.yaml > /dev/null
-          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f helm/values/argocd-prod.yaml > /dev/null
+          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f deploy/helm/values/argocd-minikube.yaml > /dev/null
+          helm template argocd argo/argo-cd --version 10.14.0 -n argocd -f deploy/helm/values/argocd-prod.yaml > /dev/null
 
   local-config-and-tests:
     name: Compose config, Python checks and observability assets

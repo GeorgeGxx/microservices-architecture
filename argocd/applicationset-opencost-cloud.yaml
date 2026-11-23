@@ -24,7 +24,7 @@ spec:
           helm:
             releaseName: opencost
             valueFiles:
-              - $values/helm/values/opencost-cloud.yaml
+              - $values/deploy/helm/values/opencost-cloud.yaml
             parameters:
               - name: clusterName
                 value: cluster.local

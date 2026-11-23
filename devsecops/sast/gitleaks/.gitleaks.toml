@@ -18,7 +18,7 @@ id = "generic-api-key"
   condition = "AND"
   paths = [
     '''(^|/)cosmo-router/execution-config\.json$''',
-    '''(^|/)helm/charts/cosmo-router/files/execution-config\.json$'''
+    '''(^|/)deploy/helm/charts/cosmo-router/files/execution-config\.json$'''
   ]
   regexes = [
     '''^75c719fe0547c9a3a76a3340d619a60a52cfa35a$''',

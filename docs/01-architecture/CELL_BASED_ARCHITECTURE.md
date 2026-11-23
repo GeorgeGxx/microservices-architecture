@@ -47,13 +47,13 @@ In traditional monolithic or shared microservice deployments, an infrastructure 
 
 ## 3. Kubernetes Multi-Cell Manifests
 
-The cluster topology is maintained under `k8s/cells/`:
+The cluster topology is maintained under `deploy/kubernetes/cells/`:
 
 | Manifest | Purpose |
 | :--- | :--- |
-| [`k8s/cells/cell-alpha.yaml`](../../k8s/cells/cell-alpha.yaml) | Deployment & ClusterIP Service for Cell Alpha (`CELL_ID=cell-alpha`, Shard Alpha) |
-| [`k8s/cells/cell-beta.yaml`](../../k8s/cells/cell-beta.yaml) | Deployment & ClusterIP Service for Cell Beta (`CELL_ID=cell-beta`, Shard Beta) |
-| [`k8s/cells/cell-router.yaml`](../../k8s/cells/cell-router.yaml) | Istio `VirtualService` & `DestinationRule` performing content-based routing & circuit breaker ejection |
+| [`deploy/kubernetes/cells/cell-alpha.yaml`](../../deploy/kubernetes/cells/cell-alpha.yaml) | Deployment & ClusterIP Service for Cell Alpha (`CELL_ID=cell-alpha`, Shard Alpha) |
+| [`deploy/kubernetes/cells/cell-beta.yaml`](../../deploy/kubernetes/cells/cell-beta.yaml) | Deployment & ClusterIP Service for Cell Beta (`CELL_ID=cell-beta`, Shard Beta) |
+| [`deploy/kubernetes/cells/cell-router.yaml`](../../deploy/kubernetes/cells/cell-router.yaml) | Istio `VirtualService` & `DestinationRule` performing content-based routing & circuit breaker ejection |
 
 ---
 
@@ -62,9 +62,9 @@ The cluster topology is maintained under `k8s/cells/`:
 If a hardware fault or unrecoverable state affects `cell-alpha`:
 
 1. **Evacuate Traffic**:
-   Update `k8s/cells/cell-router.yaml` to shift default weight from `50/50` to `100% cell-beta`:
+   Update `deploy/kubernetes/cells/cell-router.yaml` to shift default weight from `50/50` to `100% cell-beta`:
    ```bash
-   kubectl apply -f k8s/cells/cell-router-evacuate-alpha.yaml
+   kubectl apply -f deploy/kubernetes/cells/cell-router-evacuate-alpha.yaml
    ```
 2. **Quarantine Cell Alpha**:
    Scale Cell Alpha pods to 0 or isolate network namespace:

@@ -1,135 +1,194 @@
 global:
-  environment: staging
+  environment: production
   cloudProvider: aws
   storageClass: ebs-gp3-sc
 
 configMap:
   data:
-    TRACING_SAMPLING_PROBABILITY: "0.25"
+    TRACING_SAMPLING_PROBABILITY: "0.1"
     HIBERNATE_DDL_AUTO: "validate"
 
-# AWS ECR Medium Performance Tier (Staging)
+# AWS ECR High Performance Tier (Production)
 cosmo-router:
+  graphql:
+    introspection: false
+    playgroundEnabled: false
+  cors:
+    # Set to the public storefront origin(s) if browser traffic is cross-origin.
+    allowedOrigins: []
   image:
     repository: "ghcr.io/wundergraph/cosmo/router"
     tag: "0.362.0"
   trafficShaping:
     circuitBreaker:
       enabled: true
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "250m"
-      memory: "384Mi"
-    limits:
       cpu: "500m"
-      memory: "768Mi"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"
 
 inventory-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/inventory-service"
     tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
-    limits:
       cpu: "500m"
       memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
 
 notification-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/notification-service"
     tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "150m"
-      memory: "256Mi"
-    limits:
       cpu: "300m"
       memory: "512Mi"
+    limits:
+      cpu: "600m"
+      memory: "1024Mi"
 
 orders-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/orders-service"
     tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+    targetMemoryUtilizationPercentage: 70
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
-    limits:
       cpu: "500m"
       memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
 
 products-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/products-service"
     tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 12
+    targetCPUUtilizationPercentage: 65
+    targetMemoryUtilizationPercentage: 70
   resources:
     requests:
-      cpu: "250m"
-      memory: "512Mi"
-    limits:
       cpu: "500m"
       memory: "1024Mi"
+    limits:
+      cpu: "1000m"
+      memory: "2048Mi"
 
 payments-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/payments-service"
     tag: "1.0.0"
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "150m"
-      memory: "192Mi"
+      cpu: "250m"
+      memory: "256Mi"
     limits:
-      cpu: "500m"
+      cpu: "1000m"
       memory: "512Mi"
 
 fulfillment-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/fulfillment-service"
     tag: "1.0.0"
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "200m"
-      memory: "256Mi"
+      cpu: "300m"
+      memory: "384Mi"
     limits:
-      cpu: "500m"
-      memory: "512Mi"
+      cpu: "1000m"
+      memory: "768Mi"
 
 analytics-service:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/analytics-service"
     tag: "1.0.0"
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 75
   resources:
     requests:
-      cpu: "150m"
-      memory: "192Mi"
+      cpu: "250m"
+      memory: "256Mi"
     limits:
-      cpu: "500m"
+      cpu: "1000m"
       memory: "512Mi"
 
 frontend:
   image:
     repository: "<ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/frontend"
     tag: "1.0.0" # Bootstrap fallback only; CI should override the deployed image with its registry digest.
-  replicaCount: 2
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
   resources:
     requests:
-      cpu: "100m"
-      memory: "128Mi"
-    limits:
       cpu: "250m"
       memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
 
-# Edge ingress is standardized on the Istio gateway declared in k8s/istio/02-gateway.yaml.
+# Edge ingress is standardized on the Istio gateway declared in deploy/kubernetes/istio/02-gateway.yaml.
 # Keep Helm values disabled here to avoid creating a second, conflicting ingress path.
 ingress:
   enabled: false

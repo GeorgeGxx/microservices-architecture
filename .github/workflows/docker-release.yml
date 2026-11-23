@@ -399,7 +399,7 @@ jobs:
               *) echo "::error::Unexpected service in release selection: $service"; exit 1 ;;
             esac
             echo "Updating Helm image tag for $service to $RELEASE_TAG"
-            for f in helm/values/values-*.yaml; do
+            for f in deploy/helm/values/values-*.yaml; do
               yq -i "$expression" "$f"
             done
           done < <(jq -r '.[]' <<< "$RELEASE_SERVICES")
@@ -412,7 +412,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet helm/values/; then
+          if git diff --quiet deploy/helm/values/; then
             echo "No values changes to commit; values are already synchronized."
           else
             git commit -am "chore(release): synchronize GitOps values to version ${RELEASE_TAG} [skip ci]"

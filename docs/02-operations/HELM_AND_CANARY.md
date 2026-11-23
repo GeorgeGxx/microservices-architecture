@@ -13,7 +13,7 @@ oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella:<Chart.yaml version>
 
 ## Release procedure
 
-1. Use the current `version` in `helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version. The checked-in umbrella chart is currently `1.0.1`.
+1. Use the current `version` in `deploy/helm/microservices-umbrella/Chart.yaml` for the first publication if it has never been released. For every later chart-content change, increment it using stable SemVer (`MAJOR.MINOR.PATCH`); never reuse a released version. The checked-in umbrella chart is currently `1.0.1`.
 2. If Federation composition inputs changed, run `platform-minikube.ps1 compose-router` and commit the generated router config with the source change.
 3. Merge the chart change to `master`.
 4. Create and push the matching release tag. For the current `1.0.1` version:
@@ -35,7 +35,7 @@ The AWS, Azure, and GCP Terraform roots read the same `Chart.yaml` and expose `m
 
 ## Chart usage and workload identity
 
-The umbrella chart is the supported full-stack deployment and creates its shared configuration resources and dedicated workload ServiceAccounts. The individual charts in `helm/charts/` can also be installed independently, but their services still expect the configured `microservices-config` ConfigMap and `microservices-secrets` Secret to exist in the release namespace. Each standalone service chart creates a dedicated ServiceAccount by default and disables automatic service-account token mounting at both the ServiceAccount and Pod levels. The umbrella chart keeps its centrally managed ServiceAccounts and also disables token mounting for its workloads. If a workload needs Kubernetes API access or cloud workload identity, configure that intentionally through its ServiceAccount and the target platform's identity integration.
+The umbrella chart is the supported full-stack deployment and creates its shared configuration resources and dedicated workload ServiceAccounts. The individual charts in `deploy/helm/charts/` can also be installed independently, but their services still expect the configured `microservices-config` ConfigMap and `microservices-secrets` Secret to exist in the release namespace. Each standalone service chart creates a dedicated ServiceAccount by default and disables automatic service-account token mounting at both the ServiceAccount and Pod levels. The umbrella chart keeps its centrally managed ServiceAccounts and also disables token mounting for its workloads. If a workload needs Kubernetes API access or cloud workload identity, configure that intentionally through its ServiceAccount and the target platform's identity integration.
 
 ## Immutability checks
 

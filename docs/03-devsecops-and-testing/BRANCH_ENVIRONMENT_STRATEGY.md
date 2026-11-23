@@ -24,7 +24,7 @@ develop  ──(PR + CI/Security Gates)──►  staging  ──(PR + QA/DAST/k
    - Every container image is built with BuildKit/Buildx, scanned by Trivy (`CRITICAL`/`HIGH`), and accompanied by a CycloneDX SBOM (`*.cdx.json`).
    - During `staging` and `master` promotions across Azure ACR (`azure-devops/templates/app-stages.yml`), Google Artifact Registry (`bitbucket-pipelines.yml`), and Docker Hub / AWS ECR (`.github/workflows/_service-ci-cd-template.yml`), the pipeline checks whether the immutable commit SHA artifact already exists in the registry and promotes the exact `@sha256:...` digest without overwriting or rebuilding.
 2. **Helm Umbrella Chart Immutability:**
-   - The umbrella chart (`helm/microservices-umbrella/Chart.yaml`) is version-pinned (`1.0.0`) and verified against `oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella` via `.github/workflows/helm-chart-release.yml` from `master`.
+   - The umbrella chart (`deploy/helm/microservices-umbrella/Chart.yaml`) is version-pinned (`1.0.0`) and verified against `oci://ghcr.io/georgegxx/helm-charts/microservices-umbrella` via `.github/workflows/helm-chart-release.yml` from `master`.
 
 ---
 

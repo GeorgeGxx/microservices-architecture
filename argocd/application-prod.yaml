@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/GeorgeGxx/microservices-architecture.git
     targetRevision: master
-    path: helm/microservices-umbrella
+    path: deploy/helm/microservices-umbrella
     helm:
       valueFiles:
         - values.yaml

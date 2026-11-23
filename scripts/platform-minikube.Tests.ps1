@@ -46,7 +46,7 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
 
     It "Waits for the hashed GlitchTip provisioning Job by its generated name" {
         $ScriptText = Get-Content -LiteralPath $ResolvedScriptPath -Raw
-        $ProvisionTemplate = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\microservices-umbrella\templates\glitchtip-provision.yaml") -Raw
+        $ProvisionTemplate = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\deploy\helm\microservices-umbrella\templates\glitchtip-provision.yaml") -Raw
         ($ScriptText -match 'kubectl rollout status statefulset/glitchtip-db') | Should Be $true
         ($ScriptText -match 'kubectl rollout status deployment/glitchtip-valkey') | Should Be $true
         ($ScriptText -match 'kubectl wait --for=condition=available deployment/glitchtip-db') | Should Be $false
@@ -68,7 +68,7 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
     }
 
     It "Allows only GlitchTip and its provisioner to reach the internal data ports" {
-        $NetworkPolicy = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\microservices-umbrella\templates\network-policies.yaml") -Raw
+        $NetworkPolicy = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\deploy\helm\microservices-umbrella\templates\network-policies.yaml") -Raw
         ($NetworkPolicy -match 'values: \["glitchtip", "glitchtip-provision-projects"\][\s\S]*?port: 5432[\s\S]*?port: 6379') | Should Be $true
     }
 
@@ -79,8 +79,8 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
     }
 
     It "Protects Cosmo Router startup and uses Minikube-safe CPU and memory limits" {
-        $RouterDeployment = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\charts\cosmo-router\templates\deployment.yaml") -Raw
-        $MinikubeValues = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\helm\values\values-minikube.yaml") -Raw
+        $RouterDeployment = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\deploy\helm\charts\cosmo-router\templates\deployment.yaml") -Raw
+        $MinikubeValues = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\deploy\helm\values\values-minikube.yaml") -Raw
         ($RouterDeployment -match 'startupProbe:[\s\S]*?startupFailureThreshold') | Should Be $true
         ($RouterDeployment -match 'timeoutSeconds: \{\{ \.Values\.probes\.livenessTimeoutSeconds \}\}') | Should Be $true
         ($MinikubeValues -match 'requests: \{ cpu: 100m, memory: 256Mi \}[\s\S]*?limits: \{ cpu: 750m, memory: 512Mi \}') | Should Be $true

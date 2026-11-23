@@ -8,7 +8,7 @@ output "microservices_chart_repository" {
 }
 
 output "microservices_chart_version" {
-  description = "Pinned umbrella chart version from helm/microservices-umbrella/Chart.yaml."
+  description = "Pinned umbrella chart version from deploy/helm/microservices-umbrella/Chart.yaml."
   value       = local.microservices_chart.version
 }
 

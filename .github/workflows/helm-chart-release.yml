@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       chart-version:
-        description: 'Exact immutable chart version from helm/microservices-umbrella/Chart.yaml'
+        description: 'Exact immutable chart version from deploy/helm/microservices-umbrella/Chart.yaml'
         required: true
         type: string
 
@@ -68,13 +68,13 @@ jobs:
             exit 1
           }
 
-          ACTUAL_VERSION="$(helm show chart helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
+          ACTUAL_VERSION="$(helm show chart deploy/helm/microservices-umbrella | awk '$1 == "version:" { print $2; exit }')"
           [[ "$CHART_VERSION" == "$ACTUAL_VERSION" ]] || {
             echo "::error::Requested release $CHART_VERSION does not match umbrella Chart.yaml version $ACTUAL_VERSION. Bump Chart.yaml and commit it before releasing."
             exit 1
           }
 
-          CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' helm/microservices-umbrella/Chart.yaml)"
+          CHART_REPOSITORY="$(sed -n 's/^[[:space:]]*microservices-architecture.io\/helm-oci-repository:[[:space:]]*"\(.*\)"$/\1/p' deploy/helm/microservices-umbrella/Chart.yaml)"
           OWNER="$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')"
           EXPECTED_REPOSITORY="oci://ghcr.io/${OWNER}/helm-charts/microservices-umbrella"
           [[ "$CHART_REPOSITORY" == "$EXPECTED_REPOSITORY" ]] || {
@@ -97,7 +97,7 @@ jobs:
             --input cosmo-router/supergraph.yaml \
             --out "$RUNNER_TEMP/execution-config.json"
           cmp --silent "$RUNNER_TEMP/execution-config.json" \
-            helm/charts/cosmo-router/files/execution-config.json || {
+            deploy/helm/charts/cosmo-router/files/execution-config.json || {
             echo "::error::Generated Cosmo execution config differs from the committed chart input. Regenerate and commit it before releasing."
             exit 1
           }
@@ -109,16 +109,16 @@ jobs:
           CHART_VERSION: ${{ steps.release.outputs.version }}
         run: |
           set -euo pipefail
-          helm dependency build helm/microservices-umbrella
-          helm lint helm/microservices-umbrella --values helm/values/values-eks-prod.yaml
-          helm template microservices helm/microservices-umbrella \
+          helm dependency build deploy/helm/microservices-umbrella
+          helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-eks-prod.yaml
+          helm template microservices deploy/helm/microservices-umbrella \
             --namespace production \
             --set global.environment=prod \
-            --values helm/values/values-eks-prod.yaml \
+            --values deploy/helm/values/values-eks-prod.yaml \
             > "$RUNNER_TEMP/production-manifests.yaml"
 
           mkdir -p "$RUNNER_TEMP/chart-package"
-          helm package helm/microservices-umbrella \
+          helm package deploy/helm/microservices-umbrella \
             --destination "$RUNNER_TEMP/chart-package"
           PACKAGE="$RUNNER_TEMP/chart-package/microservices-umbrella-${CHART_VERSION}.tgz"
           test -s "$PACKAGE"

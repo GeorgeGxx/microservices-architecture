@@ -111,17 +111,17 @@ def affected_services(paths: list[str]) -> list[str]:
             _add(selected, first)
         elif first == "mlops":
             selected.update(_mlops_services(path))
-        elif first == "cosmo-router" or path.startswith("helm/charts/cosmo-router/"):
+        elif first == "cosmo-router" or path.startswith("deploy/helm/charts/cosmo-router/"):
             _add(selected, "cosmo-router")
         elif path == "pom.xml":
             selected.update(SPRING_SERVICES)
-        elif path.startswith("helm/charts/"):
+        elif path.startswith("deploy/helm/charts/"):
             chart = path.split("/", 2)[2].split("/", 1)[0]
             if chart in RELEASE_SERVICES:
                 _add(selected, chart)
-        elif path.startswith("helm/microservices-umbrella/") or path.startswith("helm/values/"):
+        elif path.startswith("deploy/helm/microservices-umbrella/") or path.startswith("deploy/helm/values/"):
             selected.update(CI_SERVICES)
-        elif path.startswith("contracts/events/"):
+        elif path.startswith("docs/reference/contracts/events/"):
             if path.endswith("order-event.schema.json"):
                 selected.update({"orders-service", "payments-service", "inventory-service"})
             elif path.endswith("payment-event.schema.json"):
@@ -165,7 +165,7 @@ def release_services(paths: list[str]) -> list[str]:
             selected.update(_mlops_services(path))
         elif path == "pom.xml":
             selected.update(SPRING_SERVICES)
-        elif path.startswith("contracts/events/"):
+        elif path.startswith("docs/reference/contracts/events/"):
             selected.update(
                 set(affected_services([path])) & set(RELEASE_SERVICES)
             )
@@ -198,7 +198,7 @@ def matrix_for_services(services: list[str]) -> list[dict[str, str]]:
 
 def requires_infrastructure_checks(paths: list[str]) -> bool:
     return any(
-        path.startswith(("terraform/", "helm/", "k8s/", "argocd/", "devsecops/policies/conftest/"))
+        path.startswith(("terraform/", "deploy/helm/", "deploy/kubernetes/", "argocd/", "devsecops/policies/conftest/"))
         for path in paths
     )
 
@@ -213,7 +213,7 @@ def requires_security_checks(paths: list[str]) -> bool:
         PurePosixPath(path).name in dependency_names
         or PurePosixPath(path).name.startswith("requirements") and path.endswith(".txt")
         or PurePosixPath(path).name.startswith("Dockerfile")
-        or path.startswith(("devsecops/", "helm/"))
+        or path.startswith(("devsecops/", "deploy/helm/"))
         or path.startswith(".github/workflows/")
         for path in paths
     )

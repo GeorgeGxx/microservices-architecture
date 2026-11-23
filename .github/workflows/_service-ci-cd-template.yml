@@ -731,7 +731,7 @@ jobs:
       - name: Render Helm Manifests
         run: |
           HELM_KEY="${INPUT_HELM_VALUES_KEY:-$INPUT_SERVICE_NAME}"
-          helm template microservices ./helm/microservices-umbrella \
+          helm template microservices ./deploy/helm/microservices-umbrella \
             --set "${HELM_KEY}.image.tag=${GH_SHA}" \
             > rendered-manifests.yaml
 
@@ -1033,7 +1033,7 @@ jobs:
             if [ -n "$IMAGE_DIGEST" ]; then
               IMAGE_REF_ARGS=(--set "${HELM_KEY}.image.digest=$IMAGE_DIGEST")
             fi
-            helm upgrade --install microservices ./helm/microservices-umbrella \
+            helm upgrade --install microservices ./deploy/helm/microservices-umbrella \
               --namespace "$TARGET_NS" \
               --create-namespace \
               "${IMAGE_REF_ARGS[@]}" \

@@ -20,7 +20,8 @@ on:
       - '.trivyignore'
       - '.gitleaksignore'
       - 'devsecops/**'
-      - 'helm/**'
+      - 'deploy/helm/**'
+      - 'deploy/kubernetes/**'
       - '.github/workflows/_service-ci-cd-template.yml'
       - '.github/workflows/security-scan.yml'
   schedule:

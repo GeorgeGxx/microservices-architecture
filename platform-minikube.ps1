@@ -107,10 +107,10 @@ foreach ($bp in $knownBinPaths) {
 }
 $root          = $PSScriptRoot
 $scriptsDir    = Join-Path $root "scripts"
-$infraDir      = Join-Path $root "k8s\minikube\infra"
-$umbrellaDir   = Join-Path $root "helm\microservices-umbrella"
+$infraDir      = Join-Path $root "deploy\kubernetes\minikube\infra"
+$umbrellaDir   = Join-Path $root "deploy\helm\microservices-umbrella"
 $tfMinikubeDir = Join-Path $root "terraform\environments\local-minikube"
-$istioDir      = Join-Path $root "k8s\istio"
+$istioDir      = Join-Path $root "deploy\kubernetes\istio"
 $gatekeeperDir = Join-Path $root "devsecops\policies\gatekeeper"
 $argoDir       = Join-Path $root "argocd"
 $dashboardsDir = Join-Path $root "observability\grafana\dashboards"
@@ -186,7 +186,7 @@ function Invoke-CosmoRouterCompose {
     $inputFile = Join-Path $configDir "supergraph.yaml"
     $outputFile = Join-Path $configDir "execution-config.json"
     $fingerprintFile = Join-Path $configDir ".composition-fingerprint.sha256"
-    $chartConfigFile = Join-Path $root "helm\charts\cosmo-router\files\execution-config.json"
+    $chartConfigFile = Join-Path $root "deploy\helm\charts\cosmo-router\files\execution-config.json"
     if (-not (Test-Path -LiteralPath $inputFile -PathType Leaf)) {
         throw "Cosmo Router supergraph source is missing: $inputFile"
     }
@@ -929,7 +929,7 @@ function Invoke-LocalPolicyGate {
     if (-not $conftest) { throw "Conftest is required. Install Scoop, then run '.\platform-$Platform.ps1 tools -Install'; or install Conftest using Scoop and rerun this command." }
 
     $policyDir = Join-Path $root 'devsecops\policies\conftest'
-    $valuesFile = Join-Path $root 'helm\values\values-minikube.yaml'
+    $valuesFile = Join-Path $root 'deploy\helm\values\values-minikube.yaml'
     if (-not (Test-Path -LiteralPath $policyDir -PathType Container)) { throw "Conftest policy directory is missing: $policyDir" }
     if (-not (Get-ChildItem -LiteralPath $policyDir -Filter '*.rego' -File)) { throw "No Rego policies were found in '$policyDir'." }
     if (-not (Test-Path -LiteralPath $valuesFile -PathType Leaf)) { throw "Minikube Helm values are missing: $valuesFile" }
@@ -1458,7 +1458,7 @@ function Invoke-CanaryPromotion {
         throw "Promotion requires stable=0%, v2=100%; current split is stable=$stableWeight%, v2=$candidateWeight%."
     }
 
-    $valuesPath = Join-Path $root "helm\values\values-minikube.yaml"
+    $valuesPath = Join-Path $root "deploy\helm\values\values-minikube.yaml"
     if (-not (Test-Path -LiteralPath $valuesPath -PathType Leaf)) { throw "Minikube Helm values file not found: $valuesPath" }
     $content = [System.IO.File]::ReadAllText($valuesPath)
     $pattern = '(?m)^(\s*image:\s*\{\s*repository:\s*georgegxx/products-service,\s*tag:\s*)"[^"]+"(\s*\})'
@@ -1484,7 +1484,7 @@ function Invoke-CanaryRetirement {
     if ($stableImage -ne $canaryImage) { throw "Refusing to retire canary: stable image '$stableImage' does not match candidate '$canaryImage'. Promote through GitOps and wait for rollout first." }
     if ([int]$stable.status.readyReplicas -lt 1) { throw "Refusing to retire canary: stable deployment has no Ready replicas." }
 
-    $destinationRulesPath = Join-Path $root "k8s\istio\destination-rules-dev.yaml"
+    $destinationRulesPath = Join-Path $root "deploy\kubernetes\istio\destination-rules-dev.yaml"
     if (-not (Test-Path -LiteralPath $destinationRulesPath -PathType Leaf)) { throw "DestinationRule baseline not found: $destinationRulesPath" }
     Write-Host "Stable Deployment is Ready on $stableImage. Removing canary routing and v2 workload." -ForegroundColor Cyan
     & kubectl delete virtualservice products-service-canary-vs -n $CanaryNamespace --ignore-not-found
@@ -1931,7 +1931,7 @@ function Invoke-SetImageTag {
     Write-Host "   Service Target: $TargetService" -ForegroundColor DarkGray
     Write-Host "   Scope:          $Scope" -ForegroundColor DarkGray
 
-    $valuesDir = Join-Path $root "helm\values"
+    $valuesDir = Join-Path $root "deploy\helm\values"
     $targetFiles = if ($Scope -eq "all") {
         Get-ChildItem -Path (Join-Path $valuesDir "values-*.yaml")
     } else {
@@ -2982,7 +2982,7 @@ function Invoke-MinikubeMlopsDeployment {
     param([switch]$StartMlflowPortForward = $false)
 
     $mlopsDir = Join-Path $root "mlops"
-    $minikubeValuesFile = Join-Path $root "helm\values\values-minikube.yaml"
+    $minikubeValuesFile = Join-Path $root "deploy\helm\values\values-minikube.yaml"
     $imageBuilds = @(
         @{ Name = "MLflow"; Image = "georgegxx/mlflow:1.0.0"; Context = $mlopsDir; Dockerfile = "Dockerfile"; ExcludedDirectories = @(".venv*", "data", "__pycache__", ".pytest_cache", ".git"); ExcludedFiles = @("*.py[cod]") },
         @{ Name = "PySpark"; Image = "georgegxx/mlops-training:1.0.0"; Context = $mlopsDir; Dockerfile = "Dockerfile.training"; ExcludedDirectories = @(".venv*", "data", "__pycache__", ".pytest_cache", ".git"); ExcludedFiles = @("*.py[cod]") },
@@ -3396,7 +3396,7 @@ function Invoke-MinikubePlatform {
             if (-not (Test-Path -LiteralPath (Join-Path $umbrellaDir "Chart.yaml") -PathType Leaf)) {
                 throw "Helm umbrella chart not found at '$umbrellaDir'. No platform changes were applied."
             }
-            if (-not (Test-Path -LiteralPath (Join-Path $root "helm\values\values-minikube.yaml") -PathType Leaf)) {
+            if (-not (Test-Path -LiteralPath (Join-Path $root "deploy\helm\values\values-minikube.yaml") -PathType Leaf)) {
                 throw "Minikube Helm values file is missing. No platform changes were applied."
             }
             Invoke-CosmoRouterCompose
@@ -3408,7 +3408,7 @@ function Invoke-MinikubePlatform {
             $dependencySourceFiles = @(
                 (Join-Path $resolvedUmbrellaDir "Chart.yaml"),
                 (Join-Path $resolvedUmbrellaDir "Chart.lock")
-            ) + @(Get-ChildItem -LiteralPath (Join-Path $root "helm\charts") -Recurse -File | Sort-Object FullName | ForEach-Object { $_.FullName })
+            ) + @(Get-ChildItem -LiteralPath (Join-Path $root "deploy\helm\charts") -Recurse -File | Sort-Object FullName | ForEach-Object { $_.FullName })
             $dependencyFingerprintInput = [System.Text.StringBuilder]::new()
             foreach ($dependencyFile in $dependencySourceFiles) {
                 if (-not (Test-Path -LiteralPath $dependencyFile -PathType Leaf)) { continue }
@@ -3421,7 +3421,7 @@ function Invoke-MinikubePlatform {
             $dependencyFingerprint = [BitConverter]::ToString($dependencyFingerprintBytes).Replace('-', '').ToLowerInvariant()
 
             $expectedDependencyArchives = @()
-            foreach ($dependencyChart in Get-ChildItem -LiteralPath (Join-Path $root "helm\charts") -Directory) {
+            foreach ($dependencyChart in Get-ChildItem -LiteralPath (Join-Path $root "deploy\helm\charts") -Directory) {
                 $dependencyMetadata = Get-Content -LiteralPath (Join-Path $dependencyChart.FullName "Chart.yaml") -Raw
                 $dependencyName = [regex]::Match($dependencyMetadata, '(?m)^name:\s*["'']?([^"''\s#]+)').Groups[1].Value
                 $dependencyVersion = [regex]::Match($dependencyMetadata, '(?m)^version:\s*["'']?([^"''\s#]+)').Groups[1].Value
@@ -3705,7 +3705,7 @@ function Invoke-MinikubePlatform {
             }
 
             Write-Host "`n[7/10] 🔒 Deploying Vault, Keycloak & Data Persistence..." -ForegroundColor Yellow
-            $vaultManifest = Join-Path $root "k8s\minikube\vault\vault-dev.yaml"
+            $vaultManifest = Join-Path $root "deploy\kubernetes\minikube\vault\vault-dev.yaml"
             if (Test-Path $vaultManifest) {
                 kubectl apply -f $vaultManifest 2>$null
                 kubectl wait -n vault --for=condition=ready pod -l app=vault --timeout=60s 2>$null
@@ -3815,7 +3815,7 @@ stringData:
                 kubectl exec -n data statefulset/kafka -- kafka-topics --create --if-not-exists --bootstrap-server localhost:9092 --partitions 3 --replication-factor 1 --topic $kafkaTopic 2>$null | Out-Null
             }
             kubectl apply -f "$infraDir\postgres-keycloak.yaml" -n auth 2>$null
-            $bcdrBackupManifest = Join-Path $root "k8s\common\bcdr\database-backup-cronjob.yaml"
+            $bcdrBackupManifest = Join-Path $root "deploy\kubernetes\common\bcdr\database-backup-cronjob.yaml"
             if (Test-Path $bcdrBackupManifest) {
                 Write-Host "  ▶ Configuring persistent PostgreSQL backups and weekly isolated restore verification..." -ForegroundColor White
                 kubectl apply -f $bcdrBackupManifest
@@ -3857,7 +3857,7 @@ stringData:
             }
 
             Write-Host "  ▶ Deploying Microservices & React Frontend via Helm..." -ForegroundColor White
-            $minikubeValues = Join-Path $root "helm\values\values-minikube.yaml"
+            $minikubeValues = Join-Path $root "deploy\helm\values\values-minikube.yaml"
             # Ensure any pre-applied resources in namespace 'dev' have Helm ownership metadata so Helm upgrade --install adopts them cleanly
             Write-Host "  ▶ Reconciling Helm ownership metadata for pre-existing resources..." -ForegroundColor White
             $renderedYaml = & helm template microservices $resolvedUmbrellaDir --namespace dev --set global.environment=dev --values $minikubeValues --include-crds 2>$null

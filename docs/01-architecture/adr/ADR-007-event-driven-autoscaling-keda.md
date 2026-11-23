@@ -54,7 +54,7 @@ Chosen option: **Option 2 (KEDA)**.
 
 ### Implemented Autoscaling Topology & Trigger Matrix
 
-All core business microservices define declarative `ScaledObject` resources (`helm/charts/*/templates/scaledobject.yaml`) with a scale boundary of 1 to 3 replicas:
+All core business microservices define declarative `ScaledObject` resources (`deploy/helm/charts/*/templates/scaledobject.yaml`) with a scale boundary of 1 to 3 replicas:
 
 | Microservice | ScaledObject Trigger 1 (Event-Driven) | ScaledObject Trigger 2 (Traffic / Resource) | Scale Boundaries |
 | :--- | :--- | :--- | :--- |

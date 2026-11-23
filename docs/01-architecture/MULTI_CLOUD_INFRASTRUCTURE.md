@@ -144,8 +144,8 @@ ElastiCache remains on Redis OSS 7.1, currently AWS's newest Redis OSS engine ve
     * **Frontend & CDN:** S3 bucket with Origin Access Control (OAC) and CloudFront TLS 1.3 distribution.
     * **FinOps:** Native AWS budget alert policies (`finops.tf`).
 
-* **Hardened Helm Values ([`helm/values/`](../../helm/values/)):**
-  * [`values-eks-dev.yaml`](../../helm/values/values-eks-dev.yaml), [`values-eks-staging.yaml`](../../helm/values/values-eks-staging.yaml), and [`values-eks-prod.yaml`](../../helm/values/values-eks-prod.yaml).
+* **Hardened Helm Values ([`deploy/helm/values/`](../../deploy/helm/values/)):**
+  * [`values-eks-dev.yaml`](../../deploy/helm/values/values-eks-dev.yaml), [`values-eks-staging.yaml`](../../deploy/helm/values/values-eks-staging.yaml), and [`values-eks-prod.yaml`](../../deploy/helm/values/values-eks-prod.yaml).
   * Injects ALB Ingress annotations, ACM certificate ARNs, and External Secrets Operator (ESO) integration with AWS Secrets Manager.
 
 * **GitOps Continuous Delivery ([`argocd/`](../../argocd/)):**

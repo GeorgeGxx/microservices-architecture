@@ -13,7 +13,7 @@ spec:
   selector:
     app: grafana
 ---
-# Compatibility Service alias for helm/kiali/supervise-tunnels lookups
+# Compatibility Service alias for deploy/helm/kiali/supervise-tunnels lookups
 apiVersion: v1
 kind: Service
 metadata:

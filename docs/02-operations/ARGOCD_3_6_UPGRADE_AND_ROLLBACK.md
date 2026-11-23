@@ -17,7 +17,7 @@
    - Adds `argocd-application-controller` headless Service (`templates/argocd-application-controller/service.yaml`).
    - Mounts `argocd-tls-certs-cm` at `/app/config/tls` inside `argocd-application-controller` for verified TLS communication with external clusters (`msa-aws-dp2-prod`).
 2. **RBAC Granular `rollback` Action (Argo CD `v3.6.0`+):**
-   - Separates `applications, rollback` from `applications, sync`. Both `helm/values/argocd-minikube.yaml`, `helm/values/argocd-prod.yaml`, and `argocd/appproject.yaml` explicitly grant `applications, rollback` to `role:devops-engineer` and `proj:microservices-architecture:devops-operator`.
+   - Separates `applications, rollback` from `applications, sync`. Both `deploy/helm/values/argocd-minikube.yaml`, `deploy/helm/values/argocd-prod.yaml`, and `argocd/appproject.yaml` explicitly grant `applications, rollback` to `role:devops-engineer` and `proj:microservices-architecture:devops-operator`.
 3. **Finalizer RBAC on `argocd-server`:**
    - Adds `*/finalizers` (`update`) to the `argocd-server` ClusterRole to prevent permission errors during cascading application deletion.
 4. **Refresh & Hydrate Timestamp Ignore Rules (`argocd-cm`):**
@@ -25,7 +25,7 @@
 5. **New `argocd-cmd-params-cm` Parameters (Argo CD `v3.6.0`+ / Chart `10.13.1`+):**
    - `applicationsetcontroller.wq.base.delay.ms`, `applicationsetcontroller.wq.max.delay.sec`, `applicationsetcontroller.wq.qps`, `applicationsetcontroller.wq.burst`
    - `otlp.sample.ratio`
-   - `server.disable.swagger.ui` (set to `"true"` in `helm/values/argocd-prod.yaml`)
+   - `server.disable.swagger.ui` (set to `"true"` in `deploy/helm/values/argocd-prod.yaml`)
    - `controller.metrics.application.labels` and `controller.metrics.application.conditions`
 6. **Remediation of Invalid Legacy Helm Key:**
    - Fixed `applicationController.resources.requests.memory` in `terraform/environments/local-minikube/main.tf` to the valid chart key `controller.resources.requests.memory` (alongside CPU/memory requests and limits).
@@ -62,7 +62,7 @@ helm show crds argo/argo-cd --version 10.14.0 | kubectl apply --server-side --fo
   helm upgrade --install argocd argo/argo-cd \
     --version 10.14.0 \
     --namespace argocd \
-    -f helm/values/argocd-minikube.yaml \
+    -f deploy/helm/values/argocd-minikube.yaml \
     --wait --timeout 10m
   ```
 - **AWS EKS Production Control Plane:**
@@ -70,7 +70,7 @@ helm show crds argo/argo-cd --version 10.14.0 | kubectl apply --server-side --fo
   helm upgrade --install argocd argo/argo-cd \
     --version 10.14.0 \
     --namespace argocd \
-    -f helm/values/argocd-prod.yaml \
+    -f deploy/helm/values/argocd-prod.yaml \
     --wait --timeout 10m
   ```
 
