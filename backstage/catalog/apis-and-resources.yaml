@@ -424,3 +424,18 @@ spec:
   type: observability-platform
   owner: group:devops-engineers
   system: multi-cloud-platform-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: glitchtip-storage
+  title: GlitchTip PostgreSQL & Valkey Storage
+  description: Dedicated persistence for GlitchTip issues, projects, and task/cache data, separate from the LGTM metrics, logs, and traces stores.
+  tags:
+    - postgresql-18
+    - valkey-8
+    - error-tracking
+spec:
+  type: database-cache
+  owner: group:platform-admins
+  system: multi-cloud-platform-system

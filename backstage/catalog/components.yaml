@@ -90,7 +90,7 @@ kind: Component
 metadata:
   name: products-service
   title: Products Catalog Microservice
-  description: Spring Boot 4.1 / Java 21 microservice managing the product catalog, categories, pricing, and Redis-backed caching.
+  description: Spring Boot 4 / Java 21 microservice managing the product catalog, categories, pricing, and Redis-backed caching.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -102,7 +102,7 @@ metadata:
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
     - java-21
-    - spring-boot-4-1
+    - spring-boot-4
     - postgresql
     - redis
     - zgc
@@ -123,7 +123,7 @@ kind: Component
 metadata:
   name: orders-service
   title: Orders Orchestration Microservice
-  description: Spring Boot 4.1 / Java 21 microservice orchestrating distributed order sagas, transactional outbox publishing, Resilience4j circuit breaking, and inventory reservation.
+  description: Spring Boot 4 / Java 21 microservice orchestrating distributed order sagas, transactional outbox publishing, Resilience4j circuit breaking, and inventory reservation.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -135,7 +135,7 @@ metadata:
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
     - java-21
-    - spring-boot-4-1
+    - spring-boot-4
     - saga-orchestrator
     - kafka
     - resilience4j
@@ -164,7 +164,7 @@ kind: Component
 metadata:
   name: inventory-service
   title: Inventory Reservation Microservice
-  description: Spring Boot 4.1 / Java 21 microservice managing stock levels, TTL-bounded inventory reservations, and optimistic concurrency control.
+  description: Spring Boot 4 / Java 21 microservice managing stock levels, TTL-bounded inventory reservations, and optimistic concurrency control.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -176,7 +176,7 @@ metadata:
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
     - java-21
-    - spring-boot-4-1
+    - spring-boot-4
     - postgresql
     - kafka
 spec:
@@ -198,7 +198,7 @@ kind: Component
 metadata:
   name: notification-service
   title: Customer Notification Microservice
-  description: Spring Boot 4.1 / Java 21 event-driven consumer dispatching order, payment, and shipment notifications with KEDA Kafka consumer lag autoscaling.
+  description: Spring Boot 4 / Java 21 event-driven consumer dispatching order, payment, and shipment notifications with KEDA Kafka consumer lag autoscaling.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -210,7 +210,7 @@ metadata:
     devsecops.georgegxx.dev/supply-chain-signing: cosign-3.1.3
   tags:
     - java-21
-    - spring-boot-4-1
+    - spring-boot-4
     - kafka-consumer
     - keda
 spec:
@@ -228,9 +228,37 @@ spec:
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
+  name: glitchtip-error-tracking
+  title: GlitchTip Application Error Tracking
+  description: Sentry-compatible application error grouping and release diagnostics for the microservices. Prometheus owns metrics, while Kiali visualizes Istio service-mesh traffic.
+  annotations:
+    github.com/project-slug: GeorgeGxx/microservices-architecture
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/kubernetes-id: glitchtip
+    argocd/app-name: microservices-prod
+  tags:
+    - glitchtip
+    - error-tracking
+    - sentry-compatible
+    - observability
+  links:
+    - url: http://localhost:8090
+      title: GlitchTip Dashboard
+      icon: dashboard
+spec:
+  type: service
+  lifecycle: production
+  owner: group:devops-engineers
+  system: multi-cloud-platform-system
+  dependsOn:
+    - resource:glitchtip-storage
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
   name: payments-service
   title: Payments Processing Microservice (Go / Gin)
-  description: Ultra-low-latency Go 1.26 / Gin microservice handling idempotent payment authorization, ledger persistence, Kafka payment events, and KEDA autoscaling.
+  description: Ultra-low-latency Go 1.26 / Gin 1 microservice handling idempotent payment authorization, ledger persistence, Kafka payment events, and KEDA autoscaling.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.
@@ -265,7 +293,7 @@ kind: Component
 metadata:
   name: fulfillment-service
   title: Warehouse Fulfillment Microservice (NestJS 12 / Node 24)
-  description: TypeScript 7 / NestJS 12.2.0 microservice on Node.js 24 managing shipment creation, carrier tracking, and fulfillment lifecycle transitions.
+  description: TypeScript 7 / NestJS 12 microservice on Node.js 24 managing shipment creation, carrier tracking, and fulfillment lifecycle transitions.
   annotations:
     github.com/project-slug: GeorgeGxx/microservices-architecture
     backstage.io/techdocs-ref: dir:.

@@ -2,8 +2,8 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: go-gin-microservice-golden-path
-  title: Golden Path — Go 1.26 / Gin High-Throughput Microservice
-  description: Scaffold a low-latency Go 1.26 / Gin microservice with distroless/Alpine non-root containerization, Prometheus metrics, OpenTelemetry tracing, and KEDA autoscaling support.
+  title: Golden Path — Go 1.26 / Gin 1 High-Throughput Microservice
+  description: Scaffold a low-latency Go 1.26 / Gin 1 microservice with distroless/Alpine non-root containerization, Prometheus metrics, OpenTelemetry tracing, and KEDA autoscaling support.
   tags:
     - golden-path
     - golang-1-26
