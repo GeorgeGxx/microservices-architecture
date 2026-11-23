@@ -28,6 +28,7 @@ spec:
         app: db-analytics
     spec:
       automountServiceAccountToken: false
+      serviceAccountName: postgres
       securityContext:
         fsGroup: 70
         runAsUser: 70
@@ -62,7 +63,7 @@ spec:
               mountPath: /var/lib/postgresql/data
       containers:
         - name: postgres
-          image: postgres:18-alpine
+          image: postgres:18.6-alpine
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

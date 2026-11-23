@@ -14,7 +14,7 @@ glitchtip:
     repository: docker.io/glitchtip/glitchtip
     tag: "7.0.0"
   database:
-    image: docker.io/postgres:18-alpine
+    image: docker.io/postgres:18.6-alpine
     storage: 5Gi
   valkey:
     image: docker.io/valkey/valkey:8-alpine

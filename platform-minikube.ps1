@@ -3657,6 +3657,12 @@ function Invoke-MinikubePlatform {
                 }
             }
 
+            $postgresServiceAccountsManifest = Join-Path $infraDir "postgres-serviceaccounts.yaml"
+            if (Test-Path $postgresServiceAccountsManifest) {
+                kubectl apply -f $postgresServiceAccountsManifest 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not create tokenless PostgreSQL ServiceAccounts." }
+            }
+
             if ($EnableIstioMesh) {
                 $istioLabels = @(
                     "label", "namespace", "dev",
@@ -3821,6 +3827,13 @@ stringData:
             kubectl apply -f "$infraDir\redis.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka.yaml" -n data 2>$null
             kubectl apply -f "$infraDir\kafka-exporter.yaml" -n data 2>$null
+            $postgresExporterManifest = Join-Path $infraDir "postgres-exporter.yaml"
+            if (Test-Path $postgresExporterManifest) {
+                kubectl apply -f $postgresExporterManifest -n data 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "Could not apply the PostgreSQL metrics exporter." }
+                kubectl rollout status deployment/postgres-exporter -n data --timeout=180s 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) { throw "PostgreSQL metrics exporter did not become Ready." }
+            }
             Write-Host "  ▶ Waiting for Kafka broker and initializing Saga topics ('orders-topic', 'payments-topic', 'fulfillment-topic', 'orders-topic.DLT')..." -ForegroundColor White
             kubectl wait --namespace data --for=condition=ready pod -l app=kafka --timeout=180s 2>$null | Out-Null
             foreach ($kafkaTopic in @("orders-topic", "orders-topic.DLT", "payments-topic", "fulfillment-topic")) {

@@ -4,7 +4,7 @@
 
 - GlitchTip image: `glitchtip/glitchtip:7.0.0` (exact stable tag; latest stable observed on 2026-11-18).
 - Official Helm chart: `9.2.0`, appVersion `7.0.0` (chart digest `sha256:a14b1face40ee3631ae017d5ed213ee19536f94e5d568cf06675eb9e8b8bf8f5`).
-- Local database: PostgreSQL `18-alpine` by default (`POSTGRES_VERSION`); GlitchTip 7.0 requires PostgreSQL 15 or newer. The official installation page still says 14+, so the 7.0 release note takes precedence.
+- Local database: PostgreSQL `18.6-alpine` by default (`POSTGRES_VERSION`); GlitchTip 7.0 requires PostgreSQL 15 or newer. The official installation page still says 14+, so the 7.0 release note takes precedence.
 - The Kubernetes deployment uses authenticated Valkey. Local Compose reuses its authenticated Redis service.
 
 ## Local Compose
