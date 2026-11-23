@@ -2,12 +2,12 @@ apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
   name: spring-boot-microservice-golden-path
-  title: Golden Path — Spring Boot 4.1 / Java 21 Microservice
-  description: Scaffold a production-ready Java 21 / Spring Boot 4.1 microservice with ZGC, OpenTelemetry, Micrometer Prometheus metrics, non-root Dockerfile, Helm values, Conftest/Gatekeeper compliance, and multi-cloud CI/CD.
+  title: Golden Path — Spring Boot 4 / Java 21 Microservice
+  description: Scaffold a production-ready Java 21 / Spring Boot 4 microservice with ZGC, OpenTelemetry, Micrometer Prometheus metrics, non-root Dockerfile, Helm values, Conftest/Gatekeeper compliance, and multi-cloud CI/CD.
   tags:
     - golden-path
     - java-21
-    - spring-boot-4-1
+    - spring-boot-4
     - devsecops
 spec:
   owner: group:platform-admins
@@ -84,7 +84,7 @@ spec:
       input:
         repoUrl: ${{ parameters.repoUrl }}
         branchName: feat/scaffold-${{ parameters.component_id }}
-        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Spring Boot 4.1 microservice"
+        title: "feat(${{ parameters.component_id }}): scaffold Golden Path Spring Boot 4 microservice"
         description: "Automated Golden Path scaffolding for `${{ parameters.component_id }}` with non-root container hardening, Helm chart integration, and DevSecOps gates."
         targetPath: ${{ parameters.component_id }}
     - id: register

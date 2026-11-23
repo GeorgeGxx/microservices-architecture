@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: nestjs-microservice-golden-path
   title: Golden Path — NestJS 12 / Node.js 24 Microservice
-  description: Scaffold a production-ready TypeScript 7 / NestJS 12.2.0 microservice on Node.js 24 Alpine with OpenTelemetry, Prometheus metrics, Jest coverage, non-root Dockerfile, and DevSecOps CI/CD integration.
+  description: Scaffold a production-ready TypeScript 7 / NestJS 12 microservice on Node.js 24 Alpine with OpenTelemetry, Prometheus metrics, Jest coverage, non-root Dockerfile, and DevSecOps CI/CD integration.
   tags:
     - golden-path
     - nodejs-24

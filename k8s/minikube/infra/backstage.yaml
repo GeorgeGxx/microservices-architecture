@@ -101,7 +101,7 @@ data:
         {
           name: 'products-service', title: 'Products Catalog Microservice', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
-          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Redis 8', port: 8004,
+          tech: 'Java 21 (ZGC) • Spring Boot 4 • PostgreSQL 18 • Redis 8', port: 8004,
           docsUrl: 'http://localhost:8004/swagger-ui.html', healthUrl: 'http://localhost:8004/actuator/products/health/readiness',
           argoApp: 'microservices-dev', sonarKey: 'msa-products-service',
           providesApis: ['products-rest-api'],
@@ -112,7 +112,7 @@ data:
         {
           name: 'orders-service', title: 'Orders Orchestration Microservice', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
-          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka • Resilience4j', port: 8003,
+          tech: 'Java 21 (ZGC) • Spring Boot 4 • PostgreSQL 18 • Kafka • Resilience4j', port: 8003,
           docsUrl: 'http://localhost:8003/swagger-ui.html', healthUrl: 'http://localhost:8003/actuator/orders/health/readiness',
           argoApp: 'microservices-dev', sonarKey: 'msa-orders-service',
           providesApis: ['orders-rest-api', 'kafka-commerce-events-asyncapi'],
@@ -123,7 +123,7 @@ data:
         {
           name: 'inventory-service', title: 'Inventory Reservation Microservice', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
-          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • PostgreSQL 18 • Kafka', port: 8001,
+          tech: 'Java 21 (ZGC) • Spring Boot 4 • PostgreSQL 18 • Kafka', port: 8001,
           docsUrl: 'http://localhost:8001/swagger-ui.html', healthUrl: 'http://localhost:8001/actuator/inventory/health/readiness',
           argoApp: 'microservices-dev', sonarKey: 'msa-inventory-service',
           providesApis: ['inventory-rest-api'],
@@ -134,7 +134,7 @@ data:
         {
           name: 'notification-service', title: 'Customer Notification Microservice', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
-          tech: 'Java 21 (ZGC) • Spring Boot 4.1.2 • SSE • Kafka • KEDA', port: 8002,
+          tech: 'Java 21 (ZGC) • Spring Boot 4 • SSE • Kafka • KEDA', port: 8002,
           docsUrl: 'http://localhost:8002/swagger-ui.html', healthUrl: 'http://localhost:8002/actuator/notification/health/readiness',
           argoApp: 'microservices-dev', sonarKey: 'msa-notification-service',
           providesApis: ['notification-rest-api'],
@@ -145,7 +145,7 @@ data:
         {
           name: 'payments-service', title: 'Payments Processing Microservice (Go / Gin)', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'novashop-commerce-system', domain: 'commerce',
-          tech: 'Go 1.26.7 • Gin 1.12.0 • GORM 1.31.2 • PostgreSQL 18 • Kafka', port: 8085,
+          tech: 'Go 1 • Gin 1 • GORM 1 • PostgreSQL 18 • Kafka', port: 8085,
           docsUrl: 'http://localhost:8085/swagger/index.html', healthUrl: 'http://localhost:8085/health',
           argoApp: 'microservices-dev', sonarKey: 'msa-payments-service',
           providesApis: ['payments-rest-api', 'kafka-commerce-events-asyncapi'],
@@ -156,7 +156,7 @@ data:
         {
           name: 'fulfillment-service', title: 'Warehouse Fulfillment Microservice (NestJS 12 / Node 24)', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'supply-chain-fulfillment-system', domain: 'fulfillment-logistics',
-          tech: 'Node.js 24 • NestJS 12.2.0 • TypeScript 7 • TypeORM 1.1.2 • PostgreSQL 18 • Kafka', port: 8086,
+          tech: 'Node.js 24 • NestJS 12 • TypeScript 7 • TypeORM 1 • PostgreSQL 18 • Kafka', port: 8086,
           docsUrl: 'http://localhost:8086/swagger', healthUrl: 'http://localhost:8086/health',
           argoApp: 'microservices-dev', sonarKey: 'msa-fulfillment-service',
           providesApis: ['fulfillment-rest-api', 'kafka-commerce-events-asyncapi'],
@@ -167,7 +167,7 @@ data:
         {
           name: 'analytics-service', title: 'Real-Time Commercial Analytics Microservice (FastAPI)', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
-          tech: 'Python 3.12 • FastAPI 0.160.0 • SQLAlchemy 2.0 Async • PostgreSQL 18 • Kafka', port: 8087,
+          tech: 'Python 3.12 • FastAPI 0.x • SQLAlchemy 2 • PostgreSQL 18 • Kafka', port: 8087,
           docsUrl: 'http://localhost:8087/docs', healthUrl: 'http://localhost:8087/health',
           argoApp: 'microservices-dev', sonarKey: 'msa-analytics-service',
           providesApis: ['analytics-rest-api'],
@@ -178,7 +178,7 @@ data:
         {
           name: 'demand-forecast-service', title: 'MLOps Demand Forecast Inference API', type: 'service', lifecycle: 'production',
           owner: 'group:developers', system: 'intelligence-mlops-system', domain: 'data-mlops',
-          tech: 'Python 3.12 • FastAPI 0.160.0 • Scikit-Learn • MLflow Client', port: 8005,
+          tech: 'Python 3.12 • FastAPI 0.x • Scikit-Learn • MLflow Client', port: 8005,
           docsUrl: 'http://localhost:8005/docs', healthUrl: 'http://localhost:8005/health',
           argoApp: 'microservices-dev', sonarKey: 'msa-demand-forecast',
           providesApis: ['demand-forecast-rest-api'],
@@ -355,7 +355,7 @@ data:
           owner: 'group:developers',
           endpoint: 'http://localhost:8085/swagger/index.html',
           healthEndpoint: 'http://localhost:8085/health',
-          description: 'High-throughput Go 1.26.7 / Gin payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
+          description: 'High-throughput Go 1 / Gin 1 payment processing REST API with X-Idempotency-Key enforcement, refunds, and Kafka event publishing.',
           presets: [
             { label: 'GET /api/v1/payments (Payment Ledger)', method: 'GET', path: '/api/v1/payments', body: '' },
             { label: 'GET /health (Service Health)', method: 'GET', path: '/health', body: '' }
@@ -378,7 +378,7 @@ data:
           owner: 'group:developers',
           endpoint: 'http://localhost:8086/swagger',
           healthEndpoint: 'http://localhost:8086/health',
-          description: 'NestJS 12.2 / TypeScript 7 REST API managing warehouse pick-pack-ship dispatches, DHL tracking numbers, and delivery lifecycle updates.',
+          description: 'NestJS 12 / TypeScript 7 REST API managing warehouse pick-pack-ship dispatches, DHL tracking numbers, and delivery lifecycle updates.',
           presets: [
             { label: 'GET /api/v1/fulfillment/shipments (List Shipments)', method: 'GET', path: '/api/v1/fulfillment/shipments', body: '' },
             { label: 'GET /health (Service Health)', method: 'GET', path: '/health', body: '' }
@@ -401,7 +401,7 @@ data:
           owner: 'group:developers',
           endpoint: 'http://localhost:8087/docs',
           healthEndpoint: 'http://localhost:8087/health',
-          description: 'FastAPI 0.160.0 service exposing real-time order conversion funnel, payment success ratios, and category revenue telemetry.',
+          description: 'FastAPI 0.x service exposing real-time order conversion funnel, payment success ratios, and category revenue telemetry.',
           presets: [
             { label: 'GET /api/v1/analytics/summary (KPI Summary)', method: 'GET', path: '/api/v1/analytics/summary', body: '' },
             { label: 'GET /api/v1/analytics/funnel (Conversion Funnel)', method: 'GET', path: '/api/v1/analytics/funnel', body: '' },
@@ -496,10 +496,10 @@ data:
         { name: 'glitchtip-storage', title: 'GlitchTip PostgreSQL & Valkey Storage', type: 'database-cache', system: 'multi-cloud-platform-system', owner: 'group:platform-admins', tech: 'PostgreSQL 18 • Valkey 8', description: 'Dedicated GlitchTip issue, project, and task/cache storage. Application event data remains separate from the LGTM metrics, logs, and traces stores.' }
       ],
       templates: [
-        { name: 'spring-boot-microservice-golden-path', stackKey: 'spring-boot', title: 'Golden Path — Spring Boot 4.1.2 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4.1.2', targetSystem: 'novashop-commerce-system', defaultPort: 8089, path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
-        { name: 'go-gin-microservice-golden-path', stackKey: 'go', title: 'Golden Path — Go 1.26.7 / Gin High-Throughput Microservice', language: 'Go 1.26.7 • Gin 1.12.0', targetSystem: 'novashop-commerce-system', defaultPort: 8091, path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
-        { name: 'nestjs-microservice-golden-path', stackKey: 'nestjs', title: 'Golden Path — NestJS 12.2 / Node.js 24 Microservice', language: 'Node.js 24 • NestJS 12.2 • TS 7', targetSystem: 'supply-chain-fulfillment-system', defaultPort: 8092, path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1.1.2', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
-        { name: 'python-fastapi-microservice-golden-path', stackKey: 'python', title: 'Golden Path — Python 3.12 / FastAPI 0.160 Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.160', targetSystem: 'intelligence-mlops-system', defaultPort: 8093, path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2.0.38 + Pydantic v2.14 + OpenAPI 3.1 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3.11.1 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
+        { name: 'spring-boot-microservice-golden-path', stackKey: 'spring-boot', title: 'Golden Path — Spring Boot 4 / Java 21 Microservice', language: 'Java 21 • Spring Boot 4', targetSystem: 'novashop-commerce-system', defaultPort: 8089, path: 'backstage/templates/spring-boot-microservice/template.yaml', features: ['Generational ZGC + non-root container (UID 1001)', 'OpenAPI Swagger UI + GraphQL Federation v2 subgraph', 'Helm subchart + KEDA CPU/Kafka autoscaler + PDB', 'Semgrep 1.110.0, Trivy 0.76.1, Cosign 3.1.3 & 2-version Docker Hub release retention'] },
+        { name: 'go-gin-microservice-golden-path', stackKey: 'go', title: 'Golden Path — Go 1 / Gin 1 High-Throughput Microservice', language: 'Go 1 • Gin 1', targetSystem: 'novashop-commerce-system', defaultPort: 8091, path: 'backstage/templates/go-gin-microservice/template.yaml', features: ['Distroless / Alpine non-root static binary build', 'Idempotent REST API + Swaggo OpenAPI + Kafka consumer/producer', 'OpenTelemetry tracing + Prometheus /metrics endpoint', 'Automated CI/CD + Cosign signing + 2-version Docker Hub retention'] },
+        { name: 'nestjs-microservice-golden-path', stackKey: 'nestjs', title: 'Golden Path — NestJS 12 / Node.js 24 Microservice', language: 'Node.js 24 • NestJS 12 • TS 7', targetSystem: 'supply-chain-fulfillment-system', defaultPort: 8092, path: 'backstage/templates/nestjs-microservice/template.yaml', features: ['Node 24-alpine hardened non-root runtime + TypeORM 1', '@nestjs/swagger OpenAPI + KafkaJS event choreography', 'Jest coverage + SonarCloud gate + Semgrep SAST', 'Helm subchart + NetworkPolicy + KEDA autoscaling'] },
+        { name: 'python-fastapi-microservice-golden-path', stackKey: 'python', title: 'Golden Path — Python 3.12 / FastAPI 0.x Analytics & MLOps Service', language: 'Python 3.12 • FastAPI 0.x', targetSystem: 'intelligence-mlops-system', defaultPort: 8093, path: 'backstage/templates/python-fastapi-microservice/template.yaml', features: ['Async SQLAlchemy 2 + Pydantic 2 + OpenAPI 3 /docs', 'OpenTelemetry + Prometheus FastAPI instrumentator', 'MLflow 3 registry & Kafka aiokafka integration', 'Pytest coverage + Semgrep/Trivy gates + KEDA scaling'] },
         { name: 'react-frontend-app-golden-path', stackKey: 'react', title: 'Golden Path — React 19 / TypeScript / Vite Web Application', language: 'React 19 • TypeScript • Nginx', targetSystem: 'novashop-commerce-system', defaultPort: 5174, path: 'backstage/templates/react-frontend-app/template.yaml', features: ['Keycloak 26 OIDC PKCE authentication flow', 'Apollo GraphQL Client connected to Cosmo Router (:8080/graphql)', 'Unprivileged Nginx container on port 8080/5173', 'Strict CSP, HSTS, X-Frame-Options & OWASP security headers'] }
       ],
       portals: [
