@@ -49,11 +49,14 @@ inventory-service:
   serviceAccount: { create: false, name: inventory-service-sa }
   resources:
     requests: { cpu: 200m, memory: 768Mi }
-    limits: { cpu: 750m, memory: 1280Mi }
+    limits: { cpu: 1500m, memory: 1536Mi }
   probes:
     startupPath: /actuator/inventory/health/liveness
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+    livenessTimeoutSeconds: 15
+    readinessTimeoutSeconds: 15
+    livenessFailureThreshold: 8
   keda:
     enabled: true
     minReplicaCount: 1
@@ -72,12 +75,14 @@ notification-service:
   serviceAccount: { create: false, name: notification-service-sa }
   resources:
     requests: { cpu: 200m, memory: 640Mi }
-    limits: { cpu: 750m, memory: 1024Mi }
+    limits: { cpu: 1500m, memory: 1280Mi }
   probes:
     startupPath: /actuator/notification/health/liveness
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
     livenessTimeoutSeconds: 15
+    readinessTimeoutSeconds: 15
+    livenessFailureThreshold: 8
   keda:
     enabled: true
     minReplicaCount: 1
@@ -96,10 +101,13 @@ orders-service:
   serviceAccount: { create: false, name: orders-service-sa }
   resources:
     requests: { cpu: 200m, memory: 768Mi }
-    limits: { cpu: 750m, memory: 1280Mi }
+    limits: { cpu: 1500m, memory: 1536Mi }
   probes:
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+    livenessTimeoutSeconds: 15
+    readinessTimeoutSeconds: 15
+    livenessFailureThreshold: 8
   keda:
     enabled: true
     minReplicaCount: 1
@@ -112,11 +120,14 @@ products-service:
   serviceAccount: { create: false, name: products-service-sa }
   resources:
     requests: { cpu: 200m, memory: 640Mi }
-    limits: { cpu: 750m, memory: 1024Mi }
+    limits: { cpu: 1500m, memory: 1280Mi }
   probes:
     startupPath: /actuator/products/health/liveness
     startupFailureThreshold: 30
     startupPeriodSeconds: 10
+    livenessTimeoutSeconds: 15
+    readinessTimeoutSeconds: 15
+    livenessFailureThreshold: 8
   keda:
     enabled: true
     minReplicaCount: 1

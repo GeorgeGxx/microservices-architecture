@@ -73,7 +73,7 @@ spec:
               port: {{ .Values.containerPort }}
             initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
             periodSeconds: 20
-            timeoutSeconds: 10
+            timeoutSeconds: {{ .Values.probes.readinessTimeoutSeconds | default 10 }}
             failureThreshold: {{ .Values.probes.readinessFailureThreshold | default 3 }}
           livenessProbe:
             httpGet:

@@ -83,7 +83,7 @@ Describe "platform-minikube.ps1 Single-File Orchestrator Validation" {
         $MinikubeValues = Get-Content -LiteralPath (Join-Path $PSScriptRoot "..\deploy\helm\values\values-minikube.yaml") -Raw
         ($RouterDeployment -match 'startupProbe:[\s\S]*?startupFailureThreshold') | Should Be $true
         ($RouterDeployment -match 'timeoutSeconds: \{\{ \.Values\.probes\.livenessTimeoutSeconds \}\}') | Should Be $true
-        ($MinikubeValues -match 'requests: \{ cpu: 100m, memory: 256Mi \}[\s\S]*?limits: \{ cpu: 750m, memory: 512Mi \}') | Should Be $true
+        ($MinikubeValues -match 'requests: \{ cpu: 150m, memory: 256Mi \}[\s\S]*?limits: \{ cpu: "1", memory: 512Mi \}') | Should Be $true
     }
 
     It "Executes the 'help' command cleanly with exit code 0" {
