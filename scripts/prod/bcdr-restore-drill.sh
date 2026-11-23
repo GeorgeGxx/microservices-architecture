@@ -36,7 +36,7 @@ DUMP_FILE="$(find "$DRILL_DIR" -maxdepth 1 -type f -name "${SOURCE_DB}_*.dump" -
 bash "$ENGINE" verify-drill --file "$DUMP_FILE"
 
 started_at="$(date +%s)"
-bash "$ENGINE" restore --file "$DUMP_FILE" --target-db "$TARGET_DB"
+bash "$ENGINE" restore --file "$DUMP_FILE" --target-db "$TARGET_DB" --execute
 elapsed_seconds=$(( $(date +%s) - started_at ))
 restored_rows="$(psql --no-align --tuples-only --set=ON_ERROR_STOP=1 --host="${PGHOST:-localhost}" --port="${PGPORT:-5432}" --username="${PGUSER:-postgres}" --dbname="${TARGET_DB}" --command="SELECT string_agg(id || ':' || payload, ',' ORDER BY id) FROM bcdr_probe")"
 [[ "$restored_rows" == "1:restore-drill-ok,2:checksum-verified" ]] || {

@@ -368,7 +368,7 @@ velero restore create --from-backup microservices-cluster-bcdr-schedule-20261002
 # Standalone database restoration & verification drills via production Bash engine:
 ./scripts/prod/pg-bcdr-engine.sh backup --all --dest backups/bcdr-drill
 ./scripts/prod/pg-bcdr-engine.sh verify-drill --file backups/bcdr-drill/ms_orders_20261002.dump
-./scripts/prod/pg-bcdr-engine.sh restore --file backups/bcdr-drill/ms_orders_20261002.dump --target-db ms_orders
+PGPASSWORD="$POSTGRES_PASSWORD" ./scripts/prod/pg-bcdr-engine.sh restore --file backups/bcdr-drill/ms_orders_20261002.dump --target-db ms_orders --execute
 ```
 
 ---

@@ -10,14 +10,14 @@
 #
 # Commands:
 #   ./scripts/prod/pg-bcdr-engine.sh backup [--db <name>|--all] [--dest <dir>] [--s3-sync <bucket>]
-#   ./scripts/prod/pg-bcdr-engine.sh restore --file <path.dump> --target-db <name> [--host <host>]
+#   ./scripts/prod/pg-bcdr-engine.sh restore --file <path.dump> --target-db <name> --execute [--host <host>]
 #   ./scripts/prod/pg-bcdr-engine.sh verify-drill --file <path.dump>
 # ==============================================================================
 set -Eeuo pipefail
 
 # --- Configuration & Defaults ---
 PGUSER="${PGUSER:-postgres}"
-PGPASSWORD="${PGPASSWORD:-postgres}"
+PGPASSWORD="${PGPASSWORD:-}"
 PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 BACKUP_DIR="${BACKUP_DIR:-backups/bcdr-drill}"
@@ -27,7 +27,12 @@ COMPRESSION_LEVEL="${COMPRESSION_LEVEL:-6}"
 
 DATABASES_DEFAULT=("ms_orders" "ms_products" "ms_inventory" "ms_keycloak")
 
-export PGUSER PGPASSWORD
+export PGUSER
+if [[ -n "$PGPASSWORD" ]]; then
+  export PGPASSWORD
+else
+  unset PGPASSWORD
+fi
 
 log() {
   echo -e "\033[1;34m[$(date -u +'%Y-%m-%dT%H:%M:%SZ')] [INFO]\033[0m $*"
@@ -237,19 +242,25 @@ case "$COMMAND" in
   restore)
     DUMP_FILE=""
     TARGET_DB=""
+    EXECUTE_RESTORE=false
     while [[ $# -gt 0 ]]; do
       case "$1" in
         --file) DUMP_FILE="$2"; shift 2 ;;
         --target-db) TARGET_DB="$2"; shift 2 ;;
         --host) PGHOST="$2"; shift 2 ;;
         --port) PGPORT="$2"; shift 2 ;;
+        --execute) EXECUTE_RESTORE=true; shift ;;
         *) log_error "Unknown parameter: $1"; exit 1 ;;
       esac
     done
 
     if [[ -z "$DUMP_FILE" || -z "$TARGET_DB" ]]; then
-      log_error "Usage: ./pg-bcdr-engine.sh restore --file <path.dump> --target-db <name>"
+      log_error "Usage: ./pg-bcdr-engine.sh restore --file <path.dump> --target-db <name> --execute"
       exit 1
+    fi
+    if [[ "$EXECUTE_RESTORE" != true ]]; then
+      log_error "Restore drops and recreates the target database; pass --execute to confirm the destructive operation."
+      exit 2
     fi
     restore_db "$DUMP_FILE" "$TARGET_DB"
     ;;

@@ -10,17 +10,19 @@ Author  : GeorgeGxx/DevOps
 Version : v2.0.0
 
 Usage:
-  python generate-secure-secrets.py --format env
-  python generate-secure-secrets.py --format k8s-yaml --output-file deploy/kubernetes/secrets.yaml
-  python generate-secure-secrets.py --format json
+  python scripts/generate-secure-secrets.py --format env --output-file .env.generated
+  python scripts/generate-secure-secrets.py --format k8s-yaml
+  python scripts/generate-secure-secrets.py --format json
 """
 
 import argparse
 import base64
 import json
+import os
 import secrets
 import string
 import sys
+from pathlib import Path
 from typing import Dict
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -56,23 +58,21 @@ def generate_jwt_key(bits: int = 256) -> str:
 
 
 def build_credentials_bundle(length: int = 32) -> Dict[str, str]:
-    """Builds a complete, unified credentials dictionary for all microservices."""
+    """Generate credentials matching the repository's shared local secret names."""
     return {
-        "POSTGRES_PASSWORD_ORDERS": generate_complex_password(length),
-        "POSTGRES_PASSWORD_PRODUCTS": generate_complex_password(length),
-        "POSTGRES_PASSWORD_INVENTORY": generate_complex_password(length),
-        "POSTGRES_PASSWORD_KEYCLOAK": generate_complex_password(length),
+        "POSTGRES_PASSWORD": generate_complex_password(length),
         "KEYCLOAK_ADMIN_PASSWORD": generate_complex_password(length),
         "KEYCLOAK_CLIENT_SECRET": generate_alphanumeric_secret(48),
         "REDIS_PASSWORD": generate_alphanumeric_secret(length),
-        "JWT_SECRET_KEY": generate_jwt_key(256),
+        "JWT_SECRET": generate_jwt_key(256),
     }
 
 
 def format_as_env(creds: Dict[str, str]) -> str:
     lines = ["# Automated Zero-Trust Generated Credentials", "# Generated via scripts/generate-secure-secrets.py", ""]
     for k, v in creds.items():
-        lines.append(f'{k}="{v}"')
+        # Single quotes prevent Compose .env interpolation of generated '$' characters.
+        lines.append(f"{k}='{v}'")
     return "\n".join(lines)
 
 
@@ -107,6 +107,8 @@ def main():
     parser.add_argument("--namespace", default="dev", help="Target Kubernetes namespace when using format 'k8s-yaml' (Default: dev)")
 
     args = parser.parse_args()
+    if not 16 <= args.length <= 128:
+        parser.error("--length must be between 16 and 128 characters")
     creds = build_credentials_bundle(length=args.length)
 
     if args.format == "env":
@@ -119,8 +121,12 @@ def main():
         output_content = ""
 
     if args.output_file:
-        with open(args.output_file, "w", encoding="utf-8") as f:
-            f.write(output_content + "\n")
+        output_path = Path(args.output_file)
+        file_descriptor = os.open(output_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(file_descriptor, "w", encoding="utf-8") as output_file:
+            output_file.write(output_content + "\n")
+        if os.name != "nt":
+            output_path.chmod(0o600)
         print(f"✅ Generated secure secrets written to: {args.output_file}")
     else:
         print(output_content)

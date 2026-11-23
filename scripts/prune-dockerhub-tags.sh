@@ -77,6 +77,11 @@ for allowed_tag in "${ALLOWED_RELEASE_TAGS[@]}"; do
   fi
 done
 
+if [ -z "$KEEP_RELEASE_TAGS" ]; then
+  echo "::error::None of the approved rollback tags (${ALLOWED_RELEASE_TAGS[*]}) exists for ${OWNER}/${REPO}; refusing to delete repository tags."
+  exit 1
+fi
+
 # Collect digests for kept SemVer tags so their Cosign .sig/.att/.sbom artifacts are preserved
 KEEP_COSIGN_PREFIXES=""
 while IFS= read -r kept_tag; do
