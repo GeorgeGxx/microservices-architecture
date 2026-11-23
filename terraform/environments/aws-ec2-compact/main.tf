@@ -95,11 +95,19 @@ resource "aws_security_group" "compact_host" {
   }
 
   ingress {
-    description = "Direct Cosmo Router probe (optional)"
+    description = "Direct Cosmo Router probe or Jenkins Web UI"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = [var.admin_cidr]
+  }
+
+  ingress {
+    description = "Jenkins Inbound Agent JNLP listener"
+    from_port   = 50000
+    to_port     = 50000
+    protocol    = "tcp"
+    cidr_blocks = [var.admin_cidr, aws_vpc.compact_vpc.cidr_block]
   }
 
   egress {
@@ -148,7 +156,7 @@ resource "aws_instance" "compact_host" {
   associate_public_ip_address = false
 
   root_block_device {
-    volume_size           = 50
+    volume_size           = var.root_volume_size
     volume_type           = "gp3"
     encrypted             = true
     delete_on_termination = true
@@ -182,7 +190,13 @@ resource "local_file" "ansible_inventory" {
 [microservices_hosts]
 compact-node ansible_host=${aws_eip.compact_ip.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.ssh_private_key_path}
 
-[microservices_hosts:vars]
+[jenkins_controller]
+compact-node ansible_host=${aws_eip.compact_ip.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.ssh_private_key_path}
+
+[jenkins_worker]
+compact-node ansible_host=${aws_eip.compact_ip.public_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${var.ssh_private_key_path}
+
+[all:vars]
 ansible_python_interpreter=/usr/bin/python3
 environment_tier=${var.environment}
 admin_cidr=${var.admin_cidr}

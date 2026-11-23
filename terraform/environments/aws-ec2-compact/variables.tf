@@ -28,6 +28,12 @@ variable "key_pair_name" {
   default     = "microservices-deploy-key"
 }
 
+variable "root_volume_size" {
+  description = "Root GP3 EBS volume size in GiB"
+  type        = number
+  default     = 60
+}
+
 variable "ssh_private_key_path" {
   description = "Local filesystem path to private SSH key for Ansible"
   type        = string
