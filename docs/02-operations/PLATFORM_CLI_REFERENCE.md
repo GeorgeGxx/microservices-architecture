@@ -65,7 +65,7 @@ Each entrypoint is standalone and contains only the runtime helpers required for
 | :--- | :--- | :--- |
 | `dashboards` | `-Push` | Curates and generates Grafana Business & Technical JSON dashboards; pushes live to Grafana when `-Push` is supplied. |
 | `funnel-demo` | `-Count <n>`, `-Category <name>` | Emits synchronized conversion funnel events (`CART_ADD`, `CHECKOUT_START`, `CHECKOUT_STEP`) across orders and analytics services to populate Grafana funnels and cart abandonment gauges. |
-| `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>`, `-Target <name>`, `-Query <promql>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, PromQL queries, and Keycloak auth. |
+| `diagnose` | `-Action <components\|telemetry\|orders-readonly\|all>`, `-Target <name>`, `-Query <promql>` | Deep verification of OpenAPI/Swagger specs, Prometheus series, Grafana dashboards, GlitchTip availability, PromQL queries, and Keycloak auth. Use `-Action components -Target glitchtip` for the error-tracking dashboard check. |
 | `doctor` | | Comprehensive cluster diagnostic: pods, endpoints, metrics pipeline, and health gates. |
 | `urls` | | Displays all active local port-forward URLs, ingress endpoints, and default credentials. |
 | `tunnels` | | Manages and supervises background port-forward tunnels for local services. |

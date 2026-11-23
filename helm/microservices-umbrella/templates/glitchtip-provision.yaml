@@ -1,4 +1,58 @@
 {{- if and .Values.glitchtip.enabled .Values.glitchtip.provisionProjects.enabled }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: glitchtip-project-dsns
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+type: Opaque
+data:
+  GLITCHTIP_DEMAND_FORECAST_DSN: ""
+  GLITCHTIP_INVENTORY_DSN: ""
+  GLITCHTIP_NOTIFICATION_DSN: ""
+  GLITCHTIP_ORDERS_DSN: ""
+  GLITCHTIP_PAYMENTS_DSN: ""
+  GLITCHTIP_FULFILLMENT_DSN: ""
+  GLITCHTIP_ANALYTICS_DSN: ""
+  GLITCHTIP_PRODUCTS_DSN: ""
+  GLITCHTIP_AI_DSN: ""
+  GLITCHTIP_FRONTEND_DSN: ""
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: glitchtip-provision-projects
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+automountServiceAccountToken: true
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: glitchtip-provision-project-dsns
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["glitchtip-project-dsns"]
+    verbs: ["get", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: glitchtip-provision-project-dsns
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+subjects:
+  - kind: ServiceAccount
+    name: glitchtip-provision-projects
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: glitchtip-provision-project-dsns
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -13,7 +67,8 @@ spec:
         app: glitchtip-provision-projects
     spec:
       restartPolicy: OnFailure
-      automountServiceAccountToken: false
+      serviceAccountName: glitchtip-provision-projects
+      automountServiceAccountToken: true
       securityContext:
         runAsNonRoot: true
         runAsUser: 5000
@@ -81,6 +136,10 @@ spec:
                   key: GLITCHTIP_ADMIN_PASSWORD
             - name: GLITCHTIP_DOMAIN
               value: {{ .Values.glitchtip.domain | quote }}
+            - name: GLITCHTIP_WRITE_K8S_SECRET
+              value: "true"
+            - name: GLITCHTIP_PRINT_DSNS
+              value: "false"
           volumeMounts:
             - name: projects-script
               mountPath: /code/glitchtip-provision-projects.py

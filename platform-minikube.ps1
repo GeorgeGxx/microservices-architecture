@@ -35,7 +35,7 @@ param(
     [string]$VaultToken = "",
     [switch]$RotateVaultPki = $false,
     [switch]$PruneLegacyVaultRole = $false,
-    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart")]
+    [ValidateSet("weight", "rollout", "promote", "retire", "start", "stop", "status", "restart", "components", "telemetry", "orders-readonly", "all")]
     [string]$Action = "",
     [ValidatePattern('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')]
     [string]$Namespace = "dev",
@@ -2165,8 +2165,11 @@ if ($Command -eq "vault") {
 if ($InstallOpenCostPlugin -and ($Command -ne "tools" -or $Platform -ne "minikube")) {
     throw "-InstallOpenCostPlugin is available only with 'tools' on Minikube."
 }
-if ($Action -and $Command -notin @("canary", "cloudflare")) {
-    throw "-Action is valid only with 'canary' or 'cloudflare'."
+if ($Action -and $Command -notin @("canary", "cloudflare", "diagnose")) {
+    throw "-Action is valid only with 'canary', 'cloudflare', or 'diagnose'."
+}
+if ($Command -eq "diagnose" -and $Action -and $Action -notin @("components", "telemetry", "orders-readonly", "all")) {
+    throw "Select a diagnostic action: -Action components|telemetry|orders-readonly|all."
 }
 $canaryOptionsChanged = ($Namespace -ne "dev") -or ($StepIntervalSeconds -ne 30) -or (($Steps -join ',') -ne '10,25,50,75,100')
 if ($canaryOptionsChanged -and $Command -ne "canary") {
@@ -2716,7 +2719,7 @@ Options:
   -TargetEnv <minikube|all>            : Target values file scope for set-tag (default: minikube)
   -DeployCanary                        : Bootstrap with canary workload enabled on products-service
   -CanaryImageTag <tag>                : Custom tag for canary deployment (default: canary)
-  -Action <weight|rollout|promote|retire> : Action for canary, cloudflare or diagnose
+  -Action <...>                         : canary: weight|rollout|promote|retire; cloudflare: start|stop|status|restart; diagnose: components|telemetry|orders-readonly|all
   -V1Weight / -V2Weight <0..100>       : Traffic percentage split between stable and canary
   -VaultAction <status|k8s-auth|istio-pki|seed>: Action for HashiCorp Vault operations
   -RotateVaultPki                      : Rotate Vault PKI intermediate CA certs for Istio
@@ -2747,7 +2750,7 @@ Options:
   -Strict                              : Require zero non-200/401 HTTP codes for smoke checks
   -Json                                : Emit JSON summary report for smoke testing
   -Vus <count>                         : Virtual users for smoke resilience probe (default: 2)
-  -Target <name>                       : Target component for diagnose (swagger, prometheus, grafana, alloy)
+  -Target <name>                       : Target component for diagnose (swagger, prometheus, grafana, alloy, glitchtip)
   -Query <promql>                      : Custom PromQL query for diagnose telemetry verification
   -Kafka                               : Direct DELIVERED sales events emission to Kafka topic
 ================================================================================
@@ -2818,6 +2821,7 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📖 Fulfillment Swagger UI    │ http://localhost:8086/swagger              │ Open           │" -ForegroundColor White
     Write-Host "│ 📖 Analytics Swagger UI      │ http://localhost:8087/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🔑 Keycloak IAM Console      │ http://localhost:8181                      │ admin / admin  │" -ForegroundColor White
+    Write-Host "│ 🛡️ GlitchTip Error Tracking  │ http://localhost:8091                      │ Configured      │" -ForegroundColor White
     Write-Host "│ 🧪 MLflow Tracking UI        │ http://localhost:5000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "│ 📈 Demand Forecast API       │ http://localhost:8005/docs                 │ Open           │" -ForegroundColor White
     Write-Host "│ 🤖 AI Copilot Swagger UI     │ http://localhost:8010/docs                 │ Open           │" -ForegroundColor White
@@ -2832,8 +2836,8 @@ function Show-LocalPlatformUrls {
     Write-Host "│ 📈 Prometheus Web Console    │ http://localhost:9090/targets              │ Public         │" -ForegroundColor White
     Write-Host "│ 💰 OpenCost UI               │ http://localhost:7000                      │ Local tunnel   │" -ForegroundColor White
     Write-Host "└──────────────────────────────┴────────────────────────────────────────────┴────────────────┘" -ForegroundColor Cyan
-    Write-Host '  [INFO] GlitchTip error dashboard: http://localhost:8091' -ForegroundColor DarkGray
-    Write-Host '  [INFO] Background tunnels include Tempo (3200), Loki (3100), and GlitchTip (8091).' -ForegroundColor DarkGray
+    Write-Host '  [INFO] GlitchTip tracks application errors; Grafana covers metrics, logs, and traces.' -ForegroundColor DarkGray
+    Write-Host '  [INFO] Background tunnels include Tempo (3200) and Loki (3100).' -ForegroundColor DarkGray
     Write-Host "  [INFO] Query distributed traces and logs directly within Grafana Explore: http://localhost:3000/explore`n" -ForegroundColor DarkGray
 
     Write-Host "☁️  Cloudflare Quick Tunnels (Post-Deployment External Verification):" -ForegroundColor Cyan
@@ -2906,8 +2910,39 @@ function Start-LocalTunnelSupervisor {
         throw "Cosmo Router did not become ready at http://127.0.0.1:8080/health/ready after 45 attempts. Last request error: $routerLastError. Tunnel log ($logPath):$([Environment]::NewLine)$tunnelLog"
     }
 
+    $glitchTipReady = $false
+    $glitchTipLastError = 'No successful HTTP response was received.'
+    for ($attempt = 0; $attempt -lt 45; $attempt++) {
+        try {
+            $response = Invoke-WebRequest -Uri 'http://127.0.0.1:8091/' -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+            if ($response.StatusCode -eq 200) {
+                $glitchTipReady = $true
+                break
+            }
+            $glitchTipLastError = "Unexpected HTTP status $($response.StatusCode)."
+        } catch {
+            $glitchTipLastError = $_.Exception.Message
+            Start-Sleep -Seconds 1
+        }
+    }
+    if (-not $glitchTipReady) {
+        $logRoot = if ($env:LOCALAPPDATA) {
+            Join-Path $env:LOCALAPPDATA 'microservices-architecture\logs'
+        } else {
+            Join-Path $HOME '.local\state\microservices-architecture\logs'
+        }
+        $logPath = Join-Path $logRoot 'port-forward-glitchtip.log'
+        $tunnelLog = if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+            (Get-Content -LiteralPath $logPath -Tail 20) -join [Environment]::NewLine
+        } else {
+            "No tunnel log found at '$logPath'."
+        }
+        throw "GlitchTip dashboard tunnel did not return HTTP 200 at http://localhost:8091. Last request error: $glitchTipLastError. Tunnel log ($logPath):$([Environment]::NewLine)$tunnelLog"
+    }
+
     Write-Host "  [OK] Frontend tunnel: http://localhost:5173" -ForegroundColor Green
     Write-Host "  [OK] Cosmo Router tunnel: http://127.0.0.1:8080" -ForegroundColor Green
+    Write-Host "  [OK] GlitchTip error dashboard: http://localhost:8091" -ForegroundColor Green
 }
 
 function Stop-LocalTunnelSupervisor {
@@ -3864,20 +3899,11 @@ stringData:
                 if ($LASTEXITCODE -ne 0 -or -not $provisionJob) { throw "Could not find the GlitchTip project provisioning Job after applying it." }
                 kubectl wait --for=condition=complete "job/$provisionJob" -n dev --timeout=300s
                 if ($LASTEXITCODE -ne 0) { kubectl logs "job/$provisionJob" -n dev; throw "GlitchTip project provisioning did not complete." }
-                $provisionLog = kubectl logs "job/$provisionJob" -n dev 2>$null
-                $jsonLine = @($provisionLog | Where-Object { $_ -match '^GLITCHTIP_DSNS_JSON=' } | Select-Object -Last 1)
-                if ($jsonLine.Count -eq 0) { throw "GlitchTip provisioner did not return DSNs; inspect job logs." }
-                $dsnMap = $jsonLine[0].Substring('GLITCHTIP_DSNS_JSON='.Length) | ConvertFrom-Json
-                $dsnArgs = @()
-                foreach ($dsnName in @('GLITCHTIP_DEMAND_FORECAST_DSN','GLITCHTIP_INVENTORY_DSN','GLITCHTIP_NOTIFICATION_DSN','GLITCHTIP_ORDERS_DSN','GLITCHTIP_PAYMENTS_DSN','GLITCHTIP_FULFILLMENT_DSN','GLITCHTIP_ANALYTICS_DSN','GLITCHTIP_PRODUCTS_DSN','GLITCHTIP_AI_DSN','GLITCHTIP_FRONTEND_DSN')) {
-                    $dsnValue = [string]$dsnMap.$dsnName
-                    if (-not $dsnValue) { throw "GlitchTip DSN '$dsnName' is empty." }
-                    $dsnArgs += "--from-literal=$dsnName=$dsnValue"
-                }
-                $dsnYaml = & kubectl create secret generic glitchtip-project-dsns -n dev @dsnArgs --dry-run=client -o yaml
-                if ($LASTEXITCODE -ne 0 -or -not $dsnYaml) { throw "Could not render the GlitchTip DSN Secret." }
-                $dsnYaml | kubectl apply -f - | Out-Null
-                if ($LASTEXITCODE -ne 0) { throw "Could not apply the GlitchTip DSN Secret." }
+                $dsnSecret = kubectl get secret glitchtip-project-dsns -n dev -o json 2>$null | ConvertFrom-Json
+                if ($LASTEXITCODE -ne 0 -or -not $dsnSecret) { throw "GlitchTip provisioner did not create its DSN Secret; inspect the Job status and events." }
+                $expectedDsnNames = @('GLITCHTIP_DEMAND_FORECAST_DSN','GLITCHTIP_INVENTORY_DSN','GLITCHTIP_NOTIFICATION_DSN','GLITCHTIP_ORDERS_DSN','GLITCHTIP_PAYMENTS_DSN','GLITCHTIP_FULFILLMENT_DSN','GLITCHTIP_ANALYTICS_DSN','GLITCHTIP_PRODUCTS_DSN','GLITCHTIP_AI_DSN','GLITCHTIP_FRONTEND_DSN')
+                $missingDsnNames = @($expectedDsnNames | Where-Object { -not ($dsnSecret.data.PSObject.Properties.Name -contains $_) -or -not $dsnSecret.data.$_ })
+                if ($missingDsnNames.Count -gt 0) { throw "GlitchTip DSN Secret is missing required service keys: $($missingDsnNames -join ', ')." }
                 foreach ($workload in @('deployment/inventory-service','deployment/notification-service','deployment/orders-service','deployment/products-service','deployment/payments-service','deployment/fulfillment-service','deployment/analytics-service','deployment/ai-service','deployment/frontend','deployment/demand-forecast-service')) {
                     kubectl rollout restart $workload -n dev 2>$null | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw "Could not restart $workload to load the GlitchTip DSN." }
