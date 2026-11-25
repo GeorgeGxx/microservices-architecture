@@ -117,7 +117,7 @@ pipeline {
                                         break
                                     case 'cosmo-router':
                                         sh 'npx --yes wgc@0.133.3 router compose --input cosmo-router/supergraph.yaml --out cosmo-router/execution-config.json'
-                                        sh "bash scripts/install-helm4.sh v${env.HELM_VERSION}"
+                                        sh 'helm version --short 2>/dev/null | grep -q "v${HELM_VERSION}" || bash scripts/install-helm4.sh "v${HELM_VERSION}"'
                                         sh 'helm lint deploy/helm/charts/cosmo-router && helm lint deploy/helm/microservices-umbrella --values deploy/helm/values/values-minikube.yaml'
                                         break
                                     default:
@@ -145,8 +145,10 @@ pipeline {
                             gitleaks version
                             if [ -d terraform ]; then
                               terraform fmt -check -recursive terraform
-                              tflint --chdir=terraform/environments/aws --init
-                              tflint --chdir=terraform/environments/aws
+                              for tf_dir in terraform/environments/aws terraform/environments/aws-ec2-compact terraform/environments/aws-ecs-fargate; do
+                                tflint --chdir="$tf_dir" --init
+                                tflint --chdir="$tf_dir"
+                              done
                             fi
                         '''
                     }
@@ -154,7 +156,7 @@ pipeline {
 
                 stage('Helm policy checks') {
                     steps {
-                        sh "bash scripts/install-helm4.sh v${env.HELM_VERSION}"
+                        sh 'helm version --short 2>/dev/null | grep -q "v${HELM_VERSION}" || bash scripts/install-helm4.sh "v${HELM_VERSION}"'
                         sh '''
                             set -eu
                             helm dependency build deploy/helm/microservices-umbrella
