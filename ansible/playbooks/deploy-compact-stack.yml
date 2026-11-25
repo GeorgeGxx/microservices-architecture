@@ -145,6 +145,21 @@
         state: present
         update_cache: true
 
+    - name: Configure Docker daemon log rotation to prevent disk exhaustion
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "20m",
+              "max-file": "3"
+            }
+          }
+
     - name: Ensure Docker service is running and enabled on boot
       ansible.builtin.systemd:
         name: docker
@@ -174,6 +189,22 @@
       ansible.builtin.copy:
         src: ../templates/init-dbs.sql
         dest: "{{ app_dir }}/init-dbs.sql"
+        owner: ubuntu
+        group: docker
+        mode: '0644'
+
+    - name: Deploy Vault initialization script
+      ansible.builtin.copy:
+        src: ../../scripts/vault-init.sh
+        dest: "{{ app_dir }}/vault-init.sh"
+        owner: ubuntu
+        group: docker
+        mode: '0755'
+
+    - name: Deploy Cosmo Router federation configuration
+      ansible.builtin.copy:
+        src: ../../cosmo-router/
+        dest: "{{ app_dir }}/cosmo-router/"
         owner: ubuntu
         group: docker
         mode: '0644'
@@ -240,7 +271,7 @@
     # --------------------------------------------------------------------------
     - name: Wait for Cosmo Router GraphQL endpoint to become healthy
       ansible.builtin.uri:
-        url: "http://127.0.0.1:8080/health"
+        url: "http://127.0.0.1:8080/health/ready"
         status_code: 200
         timeout: 5
       register: router_probe

@@ -1,6 +1,7 @@
 # ==============================================================================
 # Compact Microservices Docker Compose Stack
 # Optimized for Single-Node Host (EC2 t3.xlarge / t4g.xlarge / On-Premise)
+# Includes all 7 domain microservices + Cosmo Router + Keycloak + Frontend
 # ==============================================================================
 services:
 
@@ -22,7 +23,7 @@ services:
     networks:
       - internal-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -38,6 +39,11 @@ services:
       - redis_data:/data
     networks:
       - internal-net
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   kafka:
     image: confluentinc/cp-kafka:8.3.2
@@ -62,10 +68,67 @@ services:
       - kafka_data:/tmp/kraft-combined-logs
     networks:
       - internal-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "kafka-topics --bootstrap-server localhost:9092 --list | grep -q fulfillment-topic || (for t in orders-topic payments-topic fulfillment-topic; do kafka-topics --bootstrap-server localhost:9092 --create --if-not-exists --topic $$t --partitions 1 --replication-factor 1 >/dev/null 2>&1; done)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
 
   # ----------------------------------------------------------------------------
-  # 2. SECURITY & IDENTITY (KEYCLOAK 26)
+  # 2. SECURITY, IDENTITY (KEYCLOAK 26) & SECRETS (HASHICORP VAULT)
   # ----------------------------------------------------------------------------
+  vault:
+    image: hashicorp/vault:${VAULT_VERSION:-2.2.0}
+    container_name: compact-vault
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:?Set VAULT_TOKEN in the deployment environment file}
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      VAULT_ADDR: "http://127.0.0.1:8200"
+      VAULT_LOCAL_CONFIG: '{"disable_mlock": true}'
+    volumes:
+      - vault_data:/vault/file
+    networks:
+      - internal-net
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  vault-init:
+    image: hashicorp/vault:${VAULT_VERSION:-2.2.0}
+    container_name: compact-vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: "http://vault:8200"
+      VAULT_TOKEN: ${VAULT_TOKEN:?Set VAULT_TOKEN in the deployment environment file}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-microservices_client}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-}
+      KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://keycloak:8181/realms/microservices-realm}
+      KEYCLOAK_JWT_URI: ${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
+    volumes:
+      - ./vault-init.sh:/vault/init.sh:ro
+    entrypoint: ["/bin/sh", "/vault/init.sh"]
+    restart: "no"
+    networks:
+      - internal-net
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.1
     container_name: compact-keycloak
@@ -79,103 +142,359 @@ services:
       KC_DB_USERNAME: ${POSTGRES_USER:-postgres}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
       KC_HEALTH_ENABLED: "true"
+      KC_PROXY_HEADERS: "xforwarded"
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
     depends_on:
       postgres:
         condition: service_healthy
     ports:
-      - "8181:8181"
+      - "127.0.0.1:8181:8181"
     networks:
       - internal-net
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; IFS= read -r status <&3; [[ \"$$status\" == *\" 200 \"* ]]'",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 
   # ----------------------------------------------------------------------------
-# 3. DOMAIN MICROSERVICES (JAVA 21 / SPRING BOOT 4)
+  # 3. DOMAIN MICROSERVICES (JAVA 21 / SPRING BOOT 4)
   # ----------------------------------------------------------------------------
   products-service:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/products-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: "${REGISTRY:-docker.io/georgegxx}/products-service:${IMAGE_TAG:-1.0.0}"
     container_name: compact-products
     restart: unless-stopped
     environment:
+      SERVER_PORT: "8004"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_products
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the deployment environment file}
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_HOST: vault
+      VAULT_PORT: "8200"
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_JWT_URI: ${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
     networks:
       - internal-net
 
   orders-service:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/orders-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: "${REGISTRY:-docker.io/georgegxx}/orders-service:${IMAGE_TAG:-1.0.0}"
     container_name: compact-orders
     restart: unless-stopped
     environment:
+      SERVER_PORT: "8003"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_orders
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the deployment environment file}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
+      INVENTORY_SERVICE_URI: http://inventory-service:8001
+      PRODUCTS_SERVICE_URI: http://products-service:8004
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_HOST: vault
+      VAULT_PORT: "8200"
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_JWT_URI: ${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
-      - postgres
-      - kafka
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     networks:
       - internal-net
 
   inventory-service:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/inventory-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: "${REGISTRY:-docker.io/georgegxx}/inventory-service:${IMAGE_TAG:-1.0.0}"
     container_name: compact-inventory
     restart: unless-stopped
     environment:
+      SERVER_PORT: "8001"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/ms_inventory
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the deployment environment file}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      HIBERNATE_DDL_AUTO: ${HIBERNATE_DDL_AUTO:-update}
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_HOST: vault
+      VAULT_PORT: "8200"
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_JWT_URI: ${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     networks:
       - internal-net
 
   notification-service:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/notification-service:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: "${REGISTRY:-docker.io/georgegxx}/notification-service:${IMAGE_TAG:-1.0.0}"
     container_name: compact-notification
     restart: unless-stopped
     environment:
+      SERVER_PORT: "8002"
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in the deployment environment file}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx256m -Dcom.sun.net.ssl.checkRevocation=true -Dcom.sun.security.enableCRLDP=true"
+      VAULT_ENABLED: ${VAULT_ENABLED:-true}
+      VAULT_HOST: vault
+      VAULT_PORT: "8200"
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      KEYCLOAK_JWT_URI: ${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      JAVA_TOOL_OPTIONS: "-Xms128m -Xmx384m -XX:+UseG1GC"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     depends_on:
-      - kafka
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
     networks:
       - internal-net
 
   # ----------------------------------------------------------------------------
-  # 4. EDGE GATEWAY & FRONTEND
+  # 4. POLYGLOT DOMAIN MICROSERVICES (GO / NESTJS / FASTAPI)
   # ----------------------------------------------------------------------------
+  payments-service:
+    image: "${REGISTRY:-docker.io/georgegxx}/payments-service:${IMAGE_TAG:-1.0.0}"
+    container_name: compact-payments
+    restart: unless-stopped
+    environment:
+      SERVER_PORT: "8085"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
+      DB_NAME: ms_payments
+      DB_SSLMODE: disable
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ORDERS_TOPIC: orders-topic
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: payments-service-group
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      VAULT_ADDR: http://vault:8200
+      ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/app/payments-service", "-healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - internal-net
+
+  fulfillment-service:
+    image: "${REGISTRY:-docker.io/georgegxx}/fulfillment-service:${IMAGE_TAG:-1.0.0}"
+    container_name: compact-fulfillment
+    restart: unless-stopped
+    environment:
+      PORT: "8086"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
+      DB_NAME: ms_fulfillment
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_ORDERS_TOPIC: orders-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: fulfillment-service-group
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      VAULT_ADDR: http://vault:8200
+      NODE_ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8086/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - internal-net
+
+  analytics-service:
+    image: "${REGISTRY:-docker.io/georgegxx}/analytics-service:${IMAGE_TAG:-1.0.0}"
+    container_name: compact-analytics
+    restart: unless-stopped
+    environment:
+      PORT: "8087"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the deployment environment file}
+      DB_NAME: ms_analytics
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_ORDERS_TOPIC: orders-topic
+      KAFKA_PAYMENTS_TOPIC: payments-topic
+      KAFKA_FULFILLMENT_TOPIC: fulfillment-topic
+      KAFKA_GROUP_ID: analytics-service-group
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-}
+      VAULT_ADDR: http://vault:8200
+      ENV: production
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      vault-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8087/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    networks:
+      - internal-net
+
+  # ----------------------------------------------------------------------------
+  # 5. EDGE GATEWAY (COSMO ROUTER) & FRONTEND
+  # ----------------------------------------------------------------------------
+  cosmo-router-config:
+    image: node:24-alpine
+    container_name: compact-router-config
+    working_dir: /work
+    command: ["sh", "-ec", "npx --yes wgc@0.133.3 router compose --input /work/supergraph.yaml --out /work/execution-config.json"]
+    volumes:
+      - ./cosmo-router:/work
+    restart: "no"
+    networks:
+      - internal-net
+
   cosmo-router:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/cosmo-router:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: ghcr.io/wundergraph/cosmo/router:${COSMO_ROUTER_VERSION:-0.362.0}
     container_name: compact-router
     restart: unless-stopped
     ports:
       - "8080:8080"
+    volumes:
+      - ./cosmo-router:/dist/config:ro
+      - ./cosmo-router:/runtime:ro
+    environment:
+      CONFIG_PATH: /dist/config/router.yaml
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     networks:
       - internal-net
     depends_on:
-      - products-service
-      - orders-service
-      - inventory-service
+      cosmo-router-config:
+        condition: service_completed_successfully
+      products-service:
+        condition: service_healthy
+      orders-service:
+        condition: service_healthy
+      inventory-service:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
 
   frontend:
-    image: "${REGISTRY:-ghcr.io/georgegxx}/frontend:${IMAGE_TAG:?Set IMAGE_TAG to an immutable image tag}"
+    image: "${REGISTRY:-docker.io/georgegxx}/frontend:${IMAGE_TAG:-1.0.0}"
     container_name: compact-frontend
     restart: unless-stopped
     ports:
       - "80:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     networks:
       - internal-net
     depends_on:
-      - cosmo-router
+      cosmo-router:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
+      payments-service:
+        condition: service_healthy
+      fulfillment-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
 
 networks:
   internal-net:
@@ -185,3 +504,4 @@ volumes:
   postgres_data:
   redis_data:
   kafka_data:
+  vault_data:
