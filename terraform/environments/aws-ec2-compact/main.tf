@@ -95,11 +95,11 @@ resource "aws_security_group" "compact_host" {
   }
 
   ingress {
-    description = "Direct Cosmo Router probe or Jenkins Web UI"
+    description = "Direct Cosmo Router probe or Jenkins Web UI (admin & intra-VPC WebSocket)"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    cidr_blocks = [var.admin_cidr, aws_vpc.compact_vpc.cidr_block]
   }
 
   ingress {
