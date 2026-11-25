@@ -969,8 +969,18 @@ services:
       VAULT_TOKEN: "${VAULT_TOKEN:?Set VAULT_TOKEN in .env}"
       POSTGRES_USER: "${POSTGRES_USER:-postgres}"
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+      REDIS_PASSWORD: "${REDIS_PASSWORD:-}"
       JWT_SECRET: "${JWT_SECRET:-}"
+      KEYCLOAK_CLIENT_ID: "${KEYCLOAK_CLIENT_ID:-microservices_client}"
       KEYCLOAK_CLIENT_SECRET: "${KEYCLOAK_CLIENT_SECRET:-}"
+      KEYCLOAK_ADMIN: "${KEYCLOAK_ADMIN:-admin}"
+      KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD:-}"
+      KEYCLOAK_ISSUER_URI: "${KEYCLOAK_ISSUER_URI:-http://keycloak:8181/realms/microservices-realm}"
+      KEYCLOAK_JWT_URI: "${KEYCLOAK_JWT_URI:-http://keycloak:8181/realms/microservices-realm/protocol/openid-connect/certs}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GF_SECURITY_ADMIN_PASSWORD:-}"
+      GLITCHTIP_SECRET_KEY: "${GLITCHTIP_SECRET_KEY:-}"
+      GLITCHTIP_DB_PASSWORD: "${GLITCHTIP_DB_PASSWORD:-}"
+      GLITCHTIP_ADMIN_PASSWORD: "${GLITCHTIP_ADMIN_PASSWORD:-}"
     volumes:
       - ./scripts/vault-init.sh:/vault/init.sh:ro
     entrypoint: ["/bin/sh", "/vault/init.sh"]

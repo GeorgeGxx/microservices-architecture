@@ -4471,8 +4471,15 @@ function Initialize-LocalVault {
         $envMap = Get-EnvMap
         $pgUser = if ($envMap["POSTGRES_USER"]) { $envMap["POSTGRES_USER"] } elseif ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { "postgres" }
         $pgPass = if ($envMap["POSTGRES_PASSWORD"]) { $envMap["POSTGRES_PASSWORD"] } elseif ($env:POSTGRES_PASSWORD) { $env:POSTGRES_PASSWORD }
-        $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET }
-        $keycloakClientSecret = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET }
+        $redisPass = if ($envMap["REDIS_PASSWORD"]) { $envMap["REDIS_PASSWORD"] } elseif ($env:REDIS_PASSWORD) { $env:REDIS_PASSWORD } else { "" }
+        $jwtSecret = if ($envMap["JWT_SECRET"]) { $envMap["JWT_SECRET"] } elseif ($env:JWT_SECRET) { $env:JWT_SECRET } else { "" }
+        $keycloakClientSecret = if ($envMap["KEYCLOAK_CLIENT_SECRET"]) { $envMap["KEYCLOAK_CLIENT_SECRET"] } elseif ($env:KEYCLOAK_CLIENT_SECRET) { $env:KEYCLOAK_CLIENT_SECRET } else { "" }
+        $kcAdmin = if ($envMap["KEYCLOAK_ADMIN"]) { $envMap["KEYCLOAK_ADMIN"] } elseif ($env:KEYCLOAK_ADMIN) { $env:KEYCLOAK_ADMIN } else { "admin" }
+        $kcAdminPass = if ($envMap["KEYCLOAK_ADMIN_PASSWORD"]) { $envMap["KEYCLOAK_ADMIN_PASSWORD"] } elseif ($env:KEYCLOAK_ADMIN_PASSWORD) { $env:KEYCLOAK_ADMIN_PASSWORD } else { "" }
+        $gfPass = if ($envMap["GF_SECURITY_ADMIN_PASSWORD"]) { $envMap["GF_SECURITY_ADMIN_PASSWORD"] } elseif ($env:GF_SECURITY_ADMIN_PASSWORD) { $env:GF_SECURITY_ADMIN_PASSWORD } else { "" }
+        $gtSecret = if ($envMap["GLITCHTIP_SECRET_KEY"]) { $envMap["GLITCHTIP_SECRET_KEY"] } elseif ($env:GLITCHTIP_SECRET_KEY) { $env:GLITCHTIP_SECRET_KEY } else { "" }
+        $gtDbPass = if ($envMap["GLITCHTIP_DB_PASSWORD"]) { $envMap["GLITCHTIP_DB_PASSWORD"] } elseif ($env:GLITCHTIP_DB_PASSWORD) { $env:GLITCHTIP_DB_PASSWORD } else { "" }
+        $gtAdminPass = if ($envMap["GLITCHTIP_ADMIN_PASSWORD"]) { $envMap["GLITCHTIP_ADMIN_PASSWORD"] } elseif ($env:GLITCHTIP_ADMIN_PASSWORD) { $env:GLITCHTIP_ADMIN_PASSWORD } else { "" }
         if (-not $pgPass) { throw "POSTGRES_PASSWORD is required to initialize Vault. Set it in .env or the process environment." }
         $vaultInitScript = Join-Path $scriptsDir "vault-init.sh"
         if (-not (Test-Path -LiteralPath $vaultInitScript -PathType Leaf)) {
@@ -4483,7 +4490,7 @@ function Initialize-LocalVault {
         $maxAttempts = 5
         $initSuccess = $false
         for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            $scriptContent | kubectl exec -i -n vault $vaultPod -c vault -- env "POSTGRES_USER=$pgUser" "POSTGRES_PASSWORD=$pgPass" "JWT_SECRET=$jwtSecret" "KEYCLOAK_CLIENT_SECRET=$keycloakClientSecret" "DB_HOST_SUFFIX=.data.svc.cluster.local" sh -c "tr -d '\r' | sh"
+            $scriptContent | kubectl exec -i -n vault $vaultPod -c vault -- env "POSTGRES_USER=$pgUser" "POSTGRES_PASSWORD=$pgPass" "REDIS_PASSWORD=$redisPass" "JWT_SECRET=$jwtSecret" "KEYCLOAK_CLIENT_SECRET=$keycloakClientSecret" "KEYCLOAK_ADMIN=$kcAdmin" "KEYCLOAK_ADMIN_PASSWORD=$kcAdminPass" "GF_SECURITY_ADMIN_PASSWORD=$gfPass" "GLITCHTIP_SECRET_KEY=$gtSecret" "GLITCHTIP_DB_PASSWORD=$gtDbPass" "GLITCHTIP_ADMIN_PASSWORD=$gtAdminPass" "DB_HOST_SUFFIX=.data.svc.cluster.local" sh -c "tr -d '\r' | sh"
             if ($LASTEXITCODE -eq 0) {
                 $initSuccess = $true
                 break

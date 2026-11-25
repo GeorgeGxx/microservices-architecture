@@ -378,6 +378,32 @@ try {
                     }
                 } catch {}
             }
+
+            # Sync KEYCLOAK_CLIENT_SECRET into HashiCorp Vault (Kubernetes pod)
+            try {
+                $vaultPod = kubectl get pods -n vault -l app=vault --field-selector=status.phase=Running -o jsonpath="{.items[0].metadata.name}" 2>$null
+                if ($vaultPod) {
+                    $vaultSyncCmd = 'vault kv patch secret/application keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; vault kv patch secret/cosmo-router keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; vault kv patch secret/keycloak client.secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; for s in products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service ai-service demand-forecast; do vault kv patch "secret/$s" keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1 || true; done'
+                    kubectl exec -n vault $vaultPod -c vault -- env "KEYCLOAK_CLIENT_SECRET=$secret" sh -c $vaultSyncCmd 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "  [OK] Synchronized KEYCLOAK_CLIENT_SECRET into HashiCorp Vault (pod: $vaultPod)" -ForegroundColor Green
+                    }
+                }
+            } catch {}
+        }
+
+        # Sync KEYCLOAK_CLIENT_SECRET into HashiCorp Vault (Docker Compose / Compact container)
+        if (Get-Command docker -ErrorAction SilentlyContinue) {
+            try {
+                $vaultContainer = docker ps --format '{{.Names}}' 2>$null | Where-Object { $_ -in @("vault", "compact-vault") } | Select-Object -First 1
+                if ($vaultContainer) {
+                    $vaultSyncCmd = 'vault kv patch secret/application keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; vault kv patch secret/cosmo-router keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; vault kv patch secret/keycloak client.secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1; for s in products-service orders-service inventory-service notification-service payments-service fulfillment-service analytics-service ai-service demand-forecast; do vault kv patch "secret/$s" keycloak.client-secret="$KEYCLOAK_CLIENT_SECRET" >/dev/null 2>&1 || true; done'
+                    docker exec -e "KEYCLOAK_CLIENT_SECRET=$secret" $vaultContainer sh -c $vaultSyncCmd 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "  [OK] Synchronized KEYCLOAK_CLIENT_SECRET into HashiCorp Vault (container: $vaultContainer)" -ForegroundColor Green
+                    }
+                }
+            } catch {}
         }
     }
 } catch {
